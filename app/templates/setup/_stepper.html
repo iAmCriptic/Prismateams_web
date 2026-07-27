@@ -1,0 +1,57 @@
+{# Shared setup chrome: brand + icon stepper + live gradient bg #}
+{% set unlocked = setup_unlocked if setup_unlocked is defined else [1, 2, 3, 4] %}
+{% set current = setup_step or 1 %}
+{% set steps = [
+  {'n': 1, 'icon': 'bi-building', 'label': 'Organisation', 'endpoint': 'setup.setup_step1'},
+  {'n': 2, 'icon': 'bi-person-plus', 'label': 'Admin', 'endpoint': 'setup.setup_step2'},
+  {'n': 3, 'icon': 'bi-shield-check', 'label': 'Registrierung', 'endpoint': 'setup.setup_step3'},
+  {'n': 4, 'icon': 'bi-grid-3x3-gap', 'label': 'Module', 'endpoint': 'setup.setup_step4'},
+] %}
+{% set bg = setup_bg or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}
+<style>
+:root { --setup-page-bg: {{ bg }}; }
+</style>
+<script>
+(function () {
+    var bg = {{ bg|tojson }};
+    if (!bg) return;
+    document.documentElement.style.setProperty('--setup-page-bg', bg);
+})();
+</script>
+
+<div class="setup-brand">
+    {% if portal_logo_filename %}
+    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="setup-brand__logo">
+    {% elif app_logo %}
+    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="setup-brand__logo">
+    {% else %}
+    <i class="bi bi-hexagon-fill setup-brand__icon" aria-hidden="true"></i>
+    {% endif %}
+    <h1 class="setup-brand__title">{{ app_name or 'Prismateams' }}</h1>
+</div>
+
+<nav class="setup-stepper" aria-label="Setup-Schritte">
+    {% for step in steps %}
+    {% set is_unlocked = step.n in unlocked %}
+    {% set is_active = step.n == current %}
+    {% set is_done = step.n < current and is_unlocked %}
+    <div class="setup-stepper__item">
+        {% if is_unlocked %}
+        <a href="{{ url_for(step.endpoint) }}"
+           class="setup-stepper__btn{% if is_active %} is-active{% elif is_done %} is-done{% endif %}"
+           title="{{ step.label }}"
+           aria-label="{{ step.label }}"
+           aria-current="{{ 'step' if is_active else 'false' }}">
+            <i class="bi {{ step.icon }}" aria-hidden="true"></i>
+        </a>
+        {% else %}
+        <span class="setup-stepper__btn is-locked" title="{{ step.label }}" aria-disabled="true">
+            <i class="bi {{ step.icon }}" aria-hidden="true"></i>
+        </span>
+        {% endif %}
+        {% if not loop.last %}
+        <span class="setup-stepper__line{% if step.n < current %} is-done{% endif %}" aria-hidden="true"></span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</nav>

@@ -1,187 +1,276 @@
 {% extends "base.html" %}
 
-{% block title %}Setup Schritt 3 - Prismateams{% endblock %}
+{% block title %}Setup – Registrierung - Prismateams{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="setup-container">
-    <div class="setup-card">
-        <div class="card">
-            <div class="card-body p-4">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-gear-fill text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-4">Schritt 3 von 4</h5>
-                <div class="setup-step">
-                    <h5><i class="bi bi-grid-3x3-gap me-2"></i>Module aktivieren</h5>
-                    <p>Wählen Sie die Module aus, die in Ihrem Portal verfügbar sein sollen.</p>
-                </div>
-                
-                <form method="POST">
-                    <div class="mb-4">
-                        <p class="text-muted mb-3">
-                            Aktivieren Sie die Module, die Sie verwenden möchten. Sie können diese später in den Admin-Einstellungen ändern.
-                        </p>
-                        
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_chat" name="module_chat" checked>
-                                    <label class="form-check-label" for="module_chat">
-                                        <i class="bi bi-chat-dots me-2"></i>Chat
-                                    </label>
+    <div class="setup-shell setup-shell--wide">
+        <div class="setup-panel setup-panel--compact">
+            {% include 'setup/_stepper.html' %}
+
+            <div class="setup-intro setup-intro--tight">
+                <h2><i class="bi bi-shield-check"></i> Registrierung & Schutz</h2>
+                <p>Whitelist, Standardrollen und Bot-Schutz für neue Benutzer.</p>
+            </div>
+
+            <form method="POST">
+                <div class="setup-grid-2">
+                    <section class="setup-section setup-section--tight">
+                        <h3 class="setup-section__title">E-Mail-Whitelist</h3>
+                        <p class="setup-section__hint">E-Mails/Domains für Auto-Registrierung.</p>
+                        <div id="whitelist-container">
+                            {% set entries = whitelist_entries or [] %}
+                            {% if entries %}
+                                {% for item in entries %}
+                                <div class="mb-2 whitelist-entry">
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select" name="whitelist_type_{{ loop.index }}" style="max-width: 100px;">
+                                            <option value="email" {% if item.type == 'email' %}selected{% endif %}>E-Mail</option>
+                                            <option value="domain" {% if item.type == 'domain' %}selected{% endif %}>Domain</option>
+                                        </select>
+                                        <input type="text" class="form-control" name="whitelist_entry_{{ loop.index }}" value="{{ item.entry }}" placeholder="E-Mail oder Domain">
+                                        <button type="button" class="btn btn-outline-danger remove-entry" {% if entries|length <= 1 %}style="display:none"{% endif %}>
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="mb-2 whitelist-entry">
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select" name="whitelist_type_1" style="max-width: 100px;">
+                                            <option value="email">E-Mail</option>
+                                            <option value="domain">Domain</option>
+                                        </select>
+                                        <input type="text" class="form-control" name="whitelist_entry_1" placeholder="E-Mail oder Domain">
+                                        <button type="button" class="btn btn-outline-danger remove-entry" style="display:none">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn setup-btn setup-btn--ghost btn-sm" id="add-entry">
+                            <i class="bi bi-plus"></i> Eintrag
+                        </button>
+                    </section>
+
+                    <section class="setup-section setup-section--tight">
+                        <h3 class="setup-section__title"><i class="bi bi-shield-lock me-1"></i> Bot-Schutz</h3>
+                        <p class="setup-section__hint">reCAPTCHA oder Turnstile.</p>
+
+                        <label class="form-label">Schutzmethode</label>
+                        <div class="setup-select" data-setup-select>
+                            <button type="button" class="setup-select__trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="setup-select__value" data-setup-select-label>Keine</span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </button>
+                            <ul class="setup-select__menu" role="listbox" hidden>
+                                <li role="option" data-value="none" class="is-selected">Keine</li>
+                                <li role="option" data-value="honeypot">Honeypot</li>
+                                <li role="option" data-value="recaptcha">Google reCAPTCHA</li>
+                                <li role="option" data-value="turnstile">Cloudflare Turnstile</li>
+                            </ul>
+                            <select class="visually-hidden" id="portal_bot_protection" name="portal_bot_protection" data-setup-select-native tabindex="-1" aria-hidden="true">
+                                <option value="none" {% if setup_bot.get('provider', 'none') == 'none' %}selected{% endif %}>Keine</option>
+                                <option value="honeypot" {% if setup_bot.get('provider') == 'honeypot' %}selected{% endif %}>Honeypot</option>
+                                <option value="recaptcha" {% if setup_bot.get('provider') == 'recaptcha' %}selected{% endif %}>Google reCAPTCHA</option>
+                                <option value="turnstile" {% if setup_bot.get('provider') == 'turnstile' %}selected{% endif %}>Cloudflare Turnstile</option>
+                            </select>
+                        </div>
+
+                        <div class="mt-2" id="setup-bot-scope">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_register" name="portal_bot_protection_register" {% if setup_bot.get('register_enabled', True) %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_register">Registrierung</label>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_files" name="module_files" checked>
-                                    <label class="form-check-label" for="module_files">
-                                        <i class="bi bi-folder me-2"></i>Dateien
-                                    </label>
-                                </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_login" name="portal_bot_protection_login" {% if setup_bot.get('login_enabled') %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_login">Login</label>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_calendar" name="module_calendar" checked>
-                                    <label class="form-check-label" for="module_calendar">
-                                        <i class="bi bi-calendar-event me-2"></i>Kalender
-                                    </label>
-                                </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_mailbox" name="portal_bot_protection_mailbox" {% if setup_bot.get('mailbox_enabled') %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_mailbox">Briefkästen</label>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_email" name="module_email" checked>
-                                    <label class="form-check-label" for="module_email">
-                                        <i class="bi bi-envelope me-2"></i>E-Mail
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_credentials" name="module_credentials" checked>
-                                    <label class="form-check-label" for="module_credentials">
-                                        <i class="bi bi-key me-2"></i>Zugangsdaten
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_manuals" name="module_manuals" checked>
-                                    <label class="form-check-label" for="module_manuals">
-                                        <i class="bi bi-book me-2"></i>Anleitungen
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_inventory" name="module_inventory" checked>
-                                    <label class="form-check-label" for="module_inventory">
-                                        <i class="bi bi-box-seam me-2"></i>Lagerverwaltung
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_wiki" name="module_wiki" checked>
-                                    <label class="form-check-label" for="module_wiki">
-                                        <i class="bi bi-journal-text me-2"></i>Wiki
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_booking" name="module_booking" checked>
-                                    <label class="form-check-label" for="module_booking">
-                                        <i class="bi bi-calendar-check me-2"></i>Buchungen
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_music" name="module_music" checked>
-                                    <label class="form-check-label" for="module_music">
-                                        <i class="bi bi-music-note-beamed me-2"></i>Musik
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_contacts" name="module_contacts" checked>
-                                    <label class="form-check-label" for="module_contacts">
-                                        <i class="bi bi-person-lines-fill me-2"></i>Kontakte
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_assessment" name="module_assessment" checked>
-                                    <label class="form-check-label" for="module_assessment">
-                                        <i class="bi bi-clipboard-check me-2"></i>Bewertungen
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="module_shortlinks" name="module_shortlinks" checked>
-                                    <label class="form-check-label" for="module_shortlinks">
-                                        <i class="bi bi-link-45deg me-2"></i>Kurzlinks
-                                    </label>
-                                </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_share_edit" name="portal_bot_protection_share_edit" {% if setup_bot.get('share_edit_enabled') %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_share_edit">Freigaben</label>
                             </div>
                         </div>
+
+                        <div id="setup-recaptcha-keys" class="mt-2" style="display:none;">
+                            <select class="form-select form-select-sm mb-2" name="portal_recaptcha_version">
+                                <option value="v2" {% if setup_bot.get('recaptcha_version', 'v2') == 'v2' %}selected{% endif %}>reCAPTCHA v2</option>
+                                <option value="v3" {% if setup_bot.get('recaptcha_version') == 'v3' %}selected{% endif %}>reCAPTCHA v3</option>
+                            </select>
+                            <input type="text" class="form-control form-control-sm mb-2" name="portal_recaptcha_site_key" placeholder="Site Key" value="{{ setup_bot.get('recaptcha_site_key', '') }}">
+                            <input type="password" class="form-control form-control-sm" name="portal_recaptcha_secret_key" placeholder="Secret Key" value="{{ setup_bot.get('recaptcha_secret_key', '') }}" autocomplete="new-password">
+                        </div>
+                        <div id="setup-turnstile-keys" class="mt-2" style="display:none;">
+                            <input type="text" class="form-control form-control-sm mb-2" name="portal_turnstile_site_key" placeholder="Site Key" value="{{ setup_bot.get('turnstile_site_key', '') }}">
+                            <input type="password" class="form-control form-control-sm" name="portal_turnstile_secret_key" placeholder="Secret Key" value="{{ setup_bot.get('turnstile_secret_key', '') }}" autocomplete="new-password">
+                        </div>
+                    </section>
+                </div>
+
+                <section class="setup-section setup-section--tight mt-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <div>
+                            <h3 class="setup-section__title mb-0">Standardrollen</h3>
+                            <p class="setup-section__hint mb-0">Module für neue Benutzer.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access"
+                                   {% if default_roles.get('full_access', True) %}checked{% endif %}
+                                   onchange="toggleDefaultModuleRoles()">
+                            <label class="form-check-label" for="default_full_access"><strong>Vollzugriff</strong></label>
+                        </div>
                     </div>
-                    
-                    <div class="setup-info">
-                        <i class="bi bi-info-circle icon"></i>
-                        <strong>Hinweis:</strong> Sie können diese Einstellungen später jederzeit in den Admin-Einstellungen ändern.
+
+                    <div id="defaultModuleRolesSection">
+                        <div class="setup-role-grid setup-role-grid--dense">
+                            {% for mod in module_meta %}
+                            <div class="form-check form-switch">
+                                <input class="form-check-input default-module-checkbox" type="checkbox"
+                                       id="default_{{ mod.key }}" name="default_{{ mod.key }}"
+                                       {% if default_roles.get(mod.key, True) %}checked{% endif %}>
+                                <label class="form-check-label" for="default_{{ mod.key }}">{{ mod.label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('setup.setup_step2') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>
-                            Zurück
-                        </a>
-                        <button type="submit" class="btn btn-accent">
-                            <i class="bi bi-arrow-right me-2"></i>
-                            Weiter
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </section>
+
+                <div class="setup-actions">
+                    <a href="{{ url_for('setup.setup_step2') }}" class="btn setup-btn setup-btn--ghost">
+                        <i class="bi bi-arrow-left"></i> Zurück
+                    </a>
+                    <button type="submit" class="btn setup-btn setup-btn--accent">
+                        Weiter <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-// Farbverlauf-Vorschau
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% endif %}
+let entryCount = {{ (whitelist_entries|length) if whitelist_entries else 1 }};
+
+document.getElementById('add-entry').addEventListener('click', function () {
+    if (entryCount >= 5) {
+        alert('Maximal 5 Einträge.');
+        return;
+    }
+    entryCount++;
+    const container = document.getElementById('whitelist-container');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'mb-2 whitelist-entry';
+    newEntry.innerHTML = `
+        <div class="input-group input-group-sm">
+            <select class="form-select" name="whitelist_type_${entryCount}" style="max-width: 100px;">
+                <option value="email">E-Mail</option>
+                <option value="domain">Domain</option>
+            </select>
+            <input type="text" class="form-control" name="whitelist_entry_${entryCount}" placeholder="E-Mail oder Domain">
+            <button type="button" class="btn btn-outline-danger remove-entry"><i class="bi bi-trash"></i></button>
+        </div>`;
+    container.appendChild(newEntry);
+    document.querySelectorAll('.remove-entry').forEach(btn => btn.style.display = 'inline-block');
+});
+
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.remove-entry')) {
+        e.target.closest('.whitelist-entry').remove();
+        entryCount = Math.max(1, entryCount - 1);
+        if (entryCount <= 1) {
+            document.querySelectorAll('.remove-entry').forEach(btn => btn.style.display = 'none');
+        }
+    }
+});
+
+function toggleDefaultModuleRoles() {
+    const fullAccess = document.getElementById('default_full_access');
+    const moduleSection = document.getElementById('defaultModuleRolesSection');
+    const moduleCheckboxes = document.querySelectorAll('.default-module-checkbox');
+    if (!fullAccess || !moduleSection) return;
+    const disabled = fullAccess.checked;
+    moduleSection.style.opacity = disabled ? '0.5' : '1';
+    moduleCheckboxes.forEach(cb => {
+        cb.disabled = disabled;
+        if (disabled) cb.checked = true;
+    });
+}
+
+function initSetupSelect(root) {
+    const native = root.querySelector('[data-setup-select-native]');
+    const trigger = root.querySelector('.setup-select__trigger');
+    const label = root.querySelector('[data-setup-select-label]');
+    const menu = root.querySelector('.setup-select__menu');
+    const options = Array.from(menu.querySelectorAll('[role="option"]'));
+
+    function syncFromNative() {
+        const value = native.value;
+        options.forEach(opt => opt.classList.toggle('is-selected', opt.dataset.value === value));
+        const selected = options.find(opt => opt.dataset.value === value);
+        label.textContent = selected ? selected.textContent : value;
+        native.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function close() {
+        menu.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+        root.classList.remove('is-open');
+    }
+
+    function open() {
+        menu.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        root.classList.add('is-open');
+    }
+
+    trigger.addEventListener('click', function () {
+        if (menu.hidden) open(); else close();
+    });
+
+    options.forEach(opt => {
+        opt.addEventListener('click', function () {
+            native.value = opt.dataset.value;
+            syncFromNative();
+            close();
+        });
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!root.contains(e.target)) close();
+    });
+
+    syncFromNative();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    toggleDefaultModuleRoles();
+    document.querySelectorAll('[data-setup-select]').forEach(initSetupSelect);
+
+    const providerSelect = document.getElementById('portal_bot_protection');
+    const scopeSection = document.getElementById('setup-bot-scope');
+    const recaptchaKeys = document.getElementById('setup-recaptcha-keys');
+    const turnstileKeys = document.getElementById('setup-turnstile-keys');
+    function updateSetupBotSections() {
+        if (!providerSelect) return;
+        const provider = providerSelect.value;
+        if (scopeSection) scopeSection.style.display = provider === 'none' ? 'none' : 'block';
+        if (recaptchaKeys) recaptchaKeys.style.display = provider === 'recaptcha' ? 'block' : 'none';
+        if (turnstileKeys) turnstileKeys.style.display = provider === 'turnstile' ? 'block' : 'none';
+    }
+    if (providerSelect) {
+        providerSelect.addEventListener('change', updateSetupBotSections);
+        updateSetupBotSections();
+    }
 });
 </script>
 {% endblock %}
-
-
-
-

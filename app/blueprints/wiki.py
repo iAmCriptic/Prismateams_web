@@ -5,7 +5,7 @@ from app import db
 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from app.models.user import User
 from app.utils.markdown import process_markdown
-from app.utils.common import is_module_enabled
+from app.utils.common import is_module_enabled, format_datetime
 from app.utils.access_control import check_module_access
 from datetime import datetime
 import os
@@ -13,7 +13,7 @@ import re
 
 wiki_bp = Blueprint('wiki', __name__, url_prefix='/wiki')
 
-MAX_WIKI_VERSIONS = 10
+MAX_WIKI_VERSIONS = 3
 
 
 def check_wiki_module():
@@ -22,6 +22,42 @@ def check_wiki_module():
         flash(_('wiki.api.module_disabled'), 'warning')
         return False
     return True
+
+
+def _wiki_sidebar_context():
+    """Gemeinsame Sidebar-Daten für Index und View."""
+    favorites = WikiFavorite.query.filter_by(user_id=current_user.id).all()
+    my_wiki_favorites = [fav.wiki_page for fav in favorites if fav.wiki_page]
+    favorite_ids = [fav.wiki_page_id for fav in favorites]
+    return {
+        'categories': WikiCategory.query.order_by(WikiCategory.name).all(),
+        'tags': WikiTag.query.order_by(WikiTag.name).all(),
+        'my_wiki_favorites': my_wiki_favorites,
+        'favorite_ids': favorite_ids,
+        'show_favorites_nav': bool(favorite_ids),
+        'search_query': '',
+        'selected_category': None,
+        'selected_tag': None,
+        'sort_by': 'updated',
+        'sort_dir': 'desc',
+        'favorites_only': False,
+        'active_favorites': False,
+        'current_wiki_page_id': None,
+    }
+
+
+def _prune_wiki_versions(wiki_page_id):
+    """Behält nur die letzten MAX_WIKI_VERSIONS Snapshots."""
+    versions = WikiPageVersion.query.filter_by(wiki_page_id=wiki_page_id).order_by(
+        WikiPageVersion.version_number.desc()
+    ).all()
+    for old in versions[MAX_WIKI_VERSIONS:]:
+        if old.file_path and os.path.exists(old.file_path):
+            try:
+                os.remove(old.file_path)
+            except OSError:
+                pass
+        db.session.delete(old)
 
 
 @wiki_bp.route('/')
@@ -36,15 +72,23 @@ def index():
     search_query = request.args.get('q', '').strip()
     category_id = request.args.get('category', type=int)
     tag_id = request.args.get('tag', type=int)
-    favorites_only = request.args.get('favorites', type=int) == 1
+    view = (request.args.get('view') or '').strip().lower()
+    favorites_only = request.args.get('favorites', type=int) == 1 or view == 'favorites'
     sort_by = request.args.get('sort', 'updated')  # updated, created, title
+    sort_dir = request.args.get('dir', 'desc')
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'desc'
+    if sort_by not in ('updated', 'created', 'title'):
+        sort_by = 'updated'
     
     # Basis-Query
     query = WikiPage.query
+    favorite_rows = WikiFavorite.query.filter_by(user_id=current_user.id).all()
+    favorite_ids = [fav.wiki_page_id for fav in favorite_rows]
+    show_favorites_nav = bool(favorite_ids)
     
     # Filter nach Favoriten
     if favorites_only:
-        favorite_ids = [fav.wiki_page_id for fav in WikiFavorite.query.filter_by(user_id=current_user.id).all()]
         if favorite_ids:
             query = query.filter(WikiPage.id.in_(favorite_ids))
         else:
@@ -72,34 +116,35 @@ def index():
     
     # Sortierung
     if sort_by == 'created':
-        query = query.order_by(WikiPage.created_at.desc())
+        sort_col = WikiPage.created_at
     elif sort_by == 'title':
-        query = query.order_by(WikiPage.title.asc())
+        sort_col = WikiPage.title
     else:  # updated (default)
-        query = query.order_by(WikiPage.updated_at.desc())
+        sort_col = WikiPage.updated_at
+
+    if sort_dir == 'asc':
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
     
     pages = query.all()
-    
-    # Alle Kategorien und Tags für Filter
-    categories = WikiCategory.query.order_by(WikiCategory.name).all()
-    tags = WikiTag.query.order_by(WikiTag.name).all()
-    
-    # Favoriten-Anzahl für Button-Badge
-    favorites = WikiFavorite.query.filter_by(
-        user_id=current_user.id
-    ).all()
-    my_wiki_favorites = [fav.wiki_page for fav in favorites]
+    sidebar = _wiki_sidebar_context()
     
     return render_template('wiki/index.html',
                          pages=pages,
-                         categories=categories,
-                         tags=tags,
+                         categories=sidebar['categories'],
+                         tags=sidebar['tags'],
                          search_query=search_query,
                          selected_category=category_id,
                          selected_tag=tag_id,
                          sort_by=sort_by,
+                         sort_dir=sort_dir,
                          favorites_only=favorites_only,
-                         my_wiki_favorites=my_wiki_favorites)
+                         active_favorites=favorites_only,
+                         favorite_ids=favorite_ids,
+                         show_favorites_nav=show_favorites_nav,
+                         my_wiki_favorites=sidebar['my_wiki_favorites'],
+                         current_wiki_page_id=None)
 
 
 @wiki_bp.route('/view/<slug>')
@@ -111,11 +156,52 @@ def view(slug):
         return redirect(url_for('dashboard.index'))
     
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
-    
+
     # Markdown verarbeiten
     processed_content = process_markdown(page.content, wiki_mode=True)
-    
-    return render_template('wiki/view.html', page=page, processed_content=processed_content)
+    sidebar = _wiki_sidebar_context()
+    sidebar['current_wiki_page_id'] = page.id
+    versions = WikiPageVersion.query.filter_by(wiki_page_id=page.id).order_by(
+        WikiPageVersion.version_number.desc()
+    ).all()
+
+    return render_template('wiki/view.html',
+                         page=page,
+                         processed_content=processed_content,
+                         versions=versions,
+                         historical_version=None,
+                         **sidebar)
+
+
+@wiki_bp.route('/view/<slug>/version/<int:version_number>')
+@login_required
+@check_module_access('module_wiki')
+def view_version(slug, version_number):
+    """Alte Wiki-Version nur lesen (nicht bearbeiten)."""
+    if not check_wiki_module():
+        return redirect(url_for('dashboard.index'))
+
+    page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    version = WikiPageVersion.query.filter_by(
+        wiki_page_id=page.id,
+        version_number=version_number
+    ).first_or_404()
+
+    processed_content = process_markdown(version.content, wiki_mode=True)
+    sidebar = _wiki_sidebar_context()
+    sidebar['current_wiki_page_id'] = page.id
+    versions = WikiPageVersion.query.filter_by(wiki_page_id=page.id).order_by(
+        WikiPageVersion.version_number.desc()
+    ).all()
+
+    return render_template(
+        'wiki/view.html',
+        page=page,
+        processed_content=processed_content,
+        versions=versions,
+        historical_version=version,
+        **sidebar
+    )
 
 
 @wiki_bp.route('/create', methods=['GET', 'POST'])
@@ -245,7 +331,7 @@ def edit(slug):
                 category_id = new_category.id
                 flash(_('wiki.flash.category_created', name=new_category_name), 'success')
         
-        # Speichere aktuelle Version
+        # Speichere aktuelle Version als Snapshot (vor dem Überschreiben)
         version = WikiPageVersion(
             wiki_page_id=page.id,
             version_number=page.version_number,
@@ -254,17 +340,8 @@ def edit(slug):
             created_by=current_user.id
         )
         db.session.add(version)
-        
-        # Lösche älteste Versionen wenn nötig
-        versions = WikiPageVersion.query.filter_by(wiki_page_id=page.id).order_by(
-            WikiPageVersion.version_number.desc()
-        ).all()
-        
-        if len(versions) >= MAX_WIKI_VERSIONS:
-            oldest = versions[-1]
-            if os.path.exists(oldest.file_path):
-                os.remove(oldest.file_path)
-            db.session.delete(oldest)
+        db.session.flush()
+        _prune_wiki_versions(page.id)
         
         # Aktualisiere Seite
         new_slug = WikiPage.slugify(title)
@@ -349,16 +426,46 @@ def delete(slug):
 @login_required
 @check_module_access('module_wiki')
 def history(slug):
-    """Versionshistorie einer Wiki-Seite anzeigen."""
+    """Versionshistorie öffnet als Side-Panel auf der View-Seite (wie Dateien)."""
     if not check_wiki_module():
         return redirect(url_for('dashboard.index'))
-    
+
+    # Alte Bookmarks / Links → Viewer mit geöffnetem History-Panel
+    return redirect(url_for('wiki.view', slug=slug, history=1))
+
+
+@wiki_bp.route('/api/history/<slug>', methods=['GET'])
+@login_required
+@check_module_access('module_wiki')
+def api_history(slug):
+    """JSON-Versionshistorie für das Side-Panel."""
+    if not check_wiki_module():
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
+
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
     versions = WikiPageVersion.query.filter_by(wiki_page_id=page.id).order_by(
         WikiPageVersion.version_number.desc()
     ).all()
-    
-    return render_template('wiki/history.html', page=page, versions=versions)
+
+    return jsonify({
+        'success': True,
+        'page': {
+            'id': page.id,
+            'title': page.title,
+            'slug': page.slug,
+            'version_number': page.version_number,
+            'updated_at': format_datetime(page.updated_at) if page.updated_at else '',
+            'creator': page.creator.full_name if page.creator else '—',
+            'view_url': url_for('wiki.view', slug=page.slug),
+        },
+        'versions': [{
+            'version_number': v.version_number,
+            'created_at': format_datetime(v.created_at) if v.created_at else '',
+            'creator': v.creator.full_name if v.creator else '—',
+            'is_current': False,
+            'view_url': url_for('wiki.view_version', slug=page.slug, version_number=v.version_number),
+        } for v in versions]
+    })
 
 
 @wiki_bp.route('/search')
@@ -424,8 +531,14 @@ def toggle_favorite(page_id):
         )
         db.session.add(favorite)
         db.session.commit()
+        favorites_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
         
-        return jsonify({'success': True, 'is_favorite': True, 'message': _('wiki.api.favorite.added')})
+        return jsonify({
+            'success': True,
+            'is_favorite': True,
+            'favorites_count': favorites_count,
+            'message': _('wiki.api.favorite.added')
+        })
     
     elif request.method == 'DELETE':
         # Entferne aus Favoriten
@@ -437,7 +550,13 @@ def toggle_favorite(page_id):
         if favorite:
             db.session.delete(favorite)
             db.session.commit()
-            return jsonify({'success': True, 'is_favorite': False, 'message': _('wiki.api.favorite.removed')})
+            favorites_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
+            return jsonify({
+                'success': True,
+                'is_favorite': False,
+                'favorites_count': favorites_count,
+                'message': _('wiki.api.favorite.removed')
+            })
         else:
             return jsonify({'error': _('wiki.api.favorite.missing'), 'is_favorite': False}), 404
 

@@ -102,7 +102,11 @@ def get_mobile_nav_slots(user):
     if user is None:
         return dict(MOBILE_NAV_DEFAULT_SLOTS)
 
-    config = user.get_dashboard_config()
+    # Assessment-User haben kein Portal-Dashboard / keine Mobile-Slot-Config.
+    if user.__class__.__name__ == 'AssessmentUser' or not hasattr(user, 'get_dashboard_config'):
+        return dict(MOBILE_NAV_DEFAULT_SLOTS)
+
+    config = user.get_dashboard_config() or {}
     slots = config.get('mobile_nav_slots') or {}
     left = slots.get('left', MOBILE_NAV_DEFAULT_SLOTS['left'])
     right = slots.get('right', MOBILE_NAV_DEFAULT_SLOTS['right'])

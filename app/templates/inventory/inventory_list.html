@@ -1,82 +1,68 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ _('inventory.product.list.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-clipboard-checklist{% endblock %}
+{% block inventory_heading %}{{ _('inventory.product.list.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-clipboard-checklist"></i> {{ _('inventory.product.list.heading') }}</h1>
-        <p class="text-muted">{{ _('inventory.product.list.subtitle') }}</p>
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-primary">
-            <i class="bi bi-file-pdf"></i> {{ _('inventory.product.list.download_pdf') }}
-        </a>
-        <button class="btn btn-outline-primary ms-2" onclick="window.print()">
-            <i class="bi bi-printer"></i> {{ _('inventory.product.list.print') }}
-        </button>
-    </div>
+
+{% block inventory_content %}
+<div class="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+    <span class="inventory-count-accent">{{ products|length }}</span>
+    <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+        <i class="bi bi-file-pdf"></i> PDF
+    </a>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped" id="inventoryTable">
-                <thead>
-                    <tr>
-                        <th>{{ _('inventory.product.list.table.number') }}</th>
-                        <th>{{ _('inventory.product.list.table.name') }}</th>
-                        <th>{{ _('inventory.product.list.table.category') }}</th>
-                        <th>{{ _('inventory.product.list.table.serial_number') }}</th>
-                        <th>{{ _('inventory.product.list.table.location') }}</th>
-                        <th>{{ _('inventory.product.list.table.length') }}</th>
-                        <th>{{ _('inventory.product.list.table.status') }}</th>
-                        <th>{{ _('inventory.product.list.table.condition') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in products %}
-                    <tr>
-                        <td>{{ product.id }}</td>
-                        <td><strong>{{ product.name }}</strong></td>
-                        <td>{{ product.category or '-' }}</td>
-                        <td>{{ product.serial_number or '-' }}</td>
-                        <td>{{ product.location or '-' }}</td>
-                        <td>{{ product.length or '-' }}</td>
-                        <td>
-                            {% if product.status == 'available' %}
-                            <span class="badge bg-success">{{ _('inventory.product.list.table.available') }}</span>
-                            {% else %}
-                            <span class="badge bg-warning">{{ _('inventory.product.list.table.borrowed') }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if product.condition %}
-                            {{ product.condition }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        {% if not products %}
-        <div class="text-center py-5">
-            <p class="text-muted">{{ _('inventory.product.list.empty') }}</p>
-        </div>
-        {% endif %}
-    </div>
+{% if products %}
+<div class="mod-list-table-wrap">
+    <table class="table mod-list-table align-middle mb-0" id="inventoryTable">
+        <thead>
+            <tr>
+                <th>{{ _('inventory.product.list.table.number') }}</th>
+                <th>{{ _('inventory.product.list.table.name') }}</th>
+                <th class="d-none d-md-table-cell">{{ _('inventory.product.list.table.category') }}</th>
+                <th class="d-none d-lg-table-cell">{{ _('inventory.product.list.table.serial_number') }}</th>
+                <th class="d-none d-lg-table-cell">{{ _('inventory.product.list.table.location') }}</th>
+                <th class="d-none d-xl-table-cell">{{ _('inventory.product.list.table.length') }}</th>
+                <th>{{ _('inventory.product.list.table.status') }}</th>
+                <th class="d-none d-md-table-cell">{{ _('inventory.product.list.table.condition') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr class="mod-list-row">
+                <td>{{ product.id }}</td>
+                <td><strong>{{ product.name }}</strong></td>
+                <td class="d-none d-md-table-cell">{{ product.category or '-' }}</td>
+                <td class="d-none d-lg-table-cell">{{ product.serial_number or '-' }}</td>
+                <td class="d-none d-lg-table-cell">{{ product.location or '-' }}</td>
+                <td class="d-none d-xl-table-cell">{{ product.length or '-' }}</td>
+                <td>
+                    {% if product.status == 'available' %}
+                    <span class="badge bg-success">{{ _('inventory.product.list.table.available') }}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">{{ _('inventory.product.list.table.borrowed') }}</span>
+                    {% endif %}
+                </td>
+                <td class="d-none d-md-table-cell">{{ product.condition or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+{% else %}
+<div class="mod-empty-state py-5 text-center">
+    <i class="bi bi-clipboard-checklist d-block mb-2 fs-3 text-muted" aria-hidden="true"></i>
+    <p class="text-muted mb-0">{{ _('inventory.product.list.empty') }}</p>
+</div>
+{% endif %}
 
 <style media="print">
     @media print {
-        .btn, nav, .sidebar, .mobile-nav {
+        .btn, nav, .sidebar, .mobile-nav, .mod-sidebar, .inventory-view-toggle, .mod-mobile-topbar {
             display: none !important;
         }
-        .card {
+        .mod-list-table-wrap {
             border: none !important;
             box-shadow: none !important;
         }
@@ -86,4 +72,3 @@
     }
 </style>
 {% endblock %}
-

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from 'assessment/_sidebar.html' import assessment_sidebar_chrome with context %}
+
+{% block content %}
+<div class="assessment-page" data-assessment-endpoint="{{ request.endpoint or '' }}">
+<div class="assessment-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-clipboard2-check" aria-hidden="true"></i>
+        <span>{{ _('assessment.brand') }}</span>
+    </div>
+    {{ assessment_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="assessmentMobileNav" aria-labelledby="assessmentMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="assessmentMobileNavLabel">
+            <i class="bi bi-clipboard2-check" aria-hidden="true"></i>
+            <span>{{ _('assessment.brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0 d-flex flex-column h-100">
+        {{ assessment_sidebar_chrome('-mobile', true, false) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#assessmentMobileNav" aria-controls="assessmentMobileNav" aria-label="{{ _('assessment.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi {% block assessment_heading_icon %}bi-clipboard2-check{% endblock %}" aria-hidden="true"></i>
+                    <span>{% block assessment_heading %}{{ _('assessment.brand') }}{% endblock %}</span>
+                </h1>
+            </div>
+            <div class="flex-shrink-0 assessment-mobile-actions">
+                {% block assessment_mobile_actions %}
+                <a href="{{ assessment_print_url }}" class="assessment-print-link btn-sm" id="assessmentPrintMobile" target="_blank" rel="noopener" data-assessment-print>
+                    <i class="bi bi-printer"></i>
+                </a>
+                {% if 'evaluate' in (assessment_sections|default([])) and request.endpoint != 'assessment.evaluations.evaluate_page' %}
+                <a href="{{ url_for('assessment.evaluations.evaluate_page') }}" class="btn mod-new-btn btn-sm" title="{{ _('assessment.nav.evaluate') }}">
+                    <i class="bi bi-pencil-square"></i>
+                </a>
+                {% endif %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+
+    {% block assessment_content %}{% endblock %}
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assessment.js') }}"></script>
+<script>
+(function () {
+    document.querySelectorAll('[data-assessment-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('assessmentMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document.querySelector('.assessment-page') || document);
+    }
+    if (window.AssessmentUI) {
+        window.AssessmentUI.init();
+    }
+})();
+</script>
+{% block assessment_extra_js %}{% endblock %}
+{% endblock %}

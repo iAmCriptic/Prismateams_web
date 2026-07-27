@@ -3,66 +3,287 @@
 {% block title %}URL-Shortener{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="mb-0"><i class="bi bi-link-45deg"></i> URL-Shortener</h1>
-        <p class="text-muted mb-0">Verwalte deine kurzen Weiterleitungslinks.</p>
-    </div>
-    <a href="{{ url_for('shortlinks.create') }}" class="btn btn-accent">
-        <i class="bi bi-plus-circle me-1"></i>Neuer Kurzlink
+{% from 'shortlinks/_sidebar.html' import shortlinks_sidebar_chrome with context %}
+{% set create_url = url_for('shortlinks.create') %}
+{% set search_query = search_query|default('') %}
+{% set sort_by = sort_by|default('created') %}
+{% set sort_dir = sort_dir|default('desc') %}
+{% set status_filter = status_filter|default('') %}
+{% set expiry_filter = expiry_filter|default('') %}
+{% set password_filter = password_filter|default('') %}
+{% set clicks_filter = clicks_filter|default('') %}
+
+{% macro shortlinks_search_form(id_suffix='') %}
+<form method="GET" action="{{ url_for('shortlinks.index') }}" class="shortlinks-search" role="search" id="shortlinksSearchForm{{ id_suffix }}">
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="dir" value="{{ sort_dir }}">
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
+    {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
+    {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
+    <i class="bi bi-search shortlinks-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="shortlinksSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control shortlinks-search-input"
+           placeholder="Kürzel oder Ziel-URL…"
+           aria-label="Suche"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('shortlinks.index', sort=sort_by, dir=sort_dir, status=status_filter or None, expiry=expiry_filter or None, password=password_filter or None, clicks=clicks_filter or None) }}"
+       class="btn shortlinks-search-clear"
+       id="shortlinksSearchClear{{ id_suffix }}"
+       aria-label="Suche löschen">
+        <i class="bi bi-x-lg"></i>
     </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
+<div class="shortlinks-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+        <span>URL-Shortener</span>
+    </div>
+    {{ shortlinks_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="shortlinksMobileNav" aria-labelledby="shortlinksMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="shortlinksMobileNavLabel">
+            <i class="bi bi-link-45deg" aria-hidden="true"></i>
+            <span>URL-Shortener</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ shortlinks_sidebar_chrome('-mobile', true, false) }}
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        {% if links %}
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead>
-                    <tr>
-                        <th>Kurzlink</th>
-                        <th>Ziel</th>
-                        <th>Status</th>
-                        <th>Klicks</th>
-                        <th>Ablauf</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for link in links %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('shortlinks.resolve', slug=link.slug, _external=True) }}" target="_blank" rel="noopener">
-                                {{ url_for('shortlinks.resolve', slug=link.slug, _external=True) }}
-                            </a>
-                        </td>
-                        <td class="text-truncate" style="max-width: 300px;">{{ link.target_url }}</td>
-                        <td>
-                            {% if link.is_accessible() %}
-                            <span class="badge bg-success">Aktiv</span>
-                            {% else %}
-                            <span class="badge bg-secondary">Inaktiv/Abgelaufen</span>
-                            {% endif %}
-                            {% if link.password_hash %}
-                            <span class="badge bg-warning text-dark">Passwort</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
-                        <td>{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '-' }}</td>
-                        <td class="text-end">
-                            <a href="{{ url_for('shortlinks.edit', link_id=link.id) }}" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
-                            <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}" class="d-inline" onsubmit="return confirm('Kurzlink wirklich löschen?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#shortlinksMobileNav" aria-controls="shortlinksMobileNav" aria-label="Menü">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                    <span>URL-Shortener</span>
+                </h1>
+            </div>
+            <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                <i class="bi bi-plus-lg"></i> Neu
+            </a>
         </div>
+        <div class="shortlinks-mobile-toolbar mt-2">
+            <div class="shortlinks-mobile-search min-width-0 flex-grow-1">
+                {{ shortlinks_search_form('Mobile') }}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col-lg-3 min-width-0">
+            <h1 class="h4 mb-0 text-truncate">Kurzlinks</h1>
+        </div>
+        <div class="col-lg-6">
+            {{ shortlinks_search_form('') }}
+        </div>
+        <div class="col-lg-3"></div>
+    </div>
+
+    {% if links %}
+    <div class="mod-list-table-wrap">
+        <table class="table align-middle mod-list-table mb-0">
+            <thead>
+                <tr>
+                    <th>Kurzlink</th>
+                    <th class="d-none d-md-table-cell">Ziel</th>
+                    <th>Status</th>
+                    <th class="d-none d-sm-table-cell">Klicks</th>
+                    <th class="d-none d-lg-table-cell">Ablauf</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
+                <tr class="mod-list-row">
+                    <td>
+                        <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
+                        </a>
+                        <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ link.target_url }}</div>
+                    </td>
+                    <td class="d-none d-md-table-cell text-truncate" style="max-width: 280px;">
+                        <span class="text-muted" title="{{ link.target_url }}">{{ link.target_url }}</span>
+                    </td>
+                    <td>
+                        {% if link.is_accessible() %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                        {% if link.password_hash %}
+                        <span class="badge bg-warning text-dark">Passwort</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
+                    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
+                    <td class="text-end">
+                        <div class="mod-list-actions">
+                            <div class="mod-list-hover-actions">
+                                <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                                <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Aktionen">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shortlinks-actions-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ short_url }}" target="_blank" rel="noopener">
+                                            <i class="bi bi-box-arrow-up-right"></i> Öffnen
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('shortlinks.edit', link_id=link.id) }}">
+                                            <i class="bi bi-pencil"></i> Bearbeiten
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <button type="button" class="dropdown-item shortlinks-copy-btn" data-copy-url="{{ short_url }}">
+                                            <i class="bi bi-clipboard"></i> Link kopieren
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}">
+                                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Kurzlink wirklich löschen?">
+                                                <i class="bi bi-trash"></i> Löschen
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="mod-empty-state">
+        {% if search_query or status_filter or expiry_filter or password_filter or clicks_filter %}
+        Keine Kurzlinks für diese Filter.
         {% else %}
-        <p class="text-muted mb-0">Noch keine Kurzlinks vorhanden.</p>
+        Noch keine Kurzlinks vorhanden.
         {% endif %}
     </div>
+    {% endif %}
 </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+(function () {
+    document.querySelectorAll('[data-shortlinks-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('shortlinksMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+
+    function notify(message, category) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(String(message || ''), category || 'info');
+            return;
+        }
+        // Fallback ohne Banner-API (sollte im Portal nicht greifen)
+        console.warn(message);
+    }
+
+    function flashCopyFeedback(btn) {
+        var icon = btn.querySelector('i');
+        var prevClass = icon ? icon.className : '';
+        if (icon) {
+            icon.className = 'bi bi-check2';
+        }
+        btn.classList.add('shortlinks-copy-ok');
+        setTimeout(function () {
+            if (icon) icon.className = prevClass;
+            btn.classList.remove('shortlinks-copy-ok');
+        }, 1200);
+    }
+
+    function copyViaExecCommand(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        var ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch (_) {
+            ok = false;
+        }
+        document.body.removeChild(ta);
+        return ok;
+    }
+
+    function copyUrl(url, btn) {
+        function onSuccess() {
+            flashCopyFeedback(btn);
+        }
+        function onFail() {
+            if (copyViaExecCommand(url)) {
+                onSuccess();
+                return;
+            }
+            notify('Link konnte nicht kopiert werden.', 'danger');
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(onSuccess).catch(onFail);
+        } else {
+            onFail();
+        }
+    }
+
+    document.querySelectorAll('.shortlinks-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var url = btn.getAttribute('data-copy-url');
+            if (!url) return;
+            copyUrl(url, btn);
+        });
+    });
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
+});
+</script>
 {% endblock %}

@@ -1,16 +1,35 @@
-# Team Portal – Error Handling
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION.md](INSTALLATION.md) · [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [WARTUNG.md](WARTUNG.md)
+<h1 align="center">Prismateams – Fehlerbehebung</h1>
 
-Fehlerbehebung für typische Probleme nach der Installation.
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION.md">Installation</a> ·
+  <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="WARTUNG.md">Wartung</a>
+</p>
+
+---
+
+Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.0.0**.
+
+> **Installer:** Modularer Ubuntu-Installer ist einsatzbereit — [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Bei Skript-Problemen Terminal-Ausgabe und `$INSTALL_DIR/install-report.txt` prüfen.
 
 ## Skript-Installation schlägt fehl
 
 Bei Problemen mit der automatischen Ubuntu-Installation:
 
 - Terminal-Ausgabe und `[ERROR]`-Meldungen während der Installation prüfen
+- `$INSTALL_DIR/install-report.txt` und Schritt-Status (`ok` / `failed` / `skipped`) prüfen
 - `.env`-Datei im Installationsverzeichnis überprüfen
-- Details zum Skript: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)
+- Doku zum Skript: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)
 - Manuelle Nacharbeit (Webserver, Docker): [INSTALLATION.md](INSTALLATION.md)
 - Logs nach abgeschlossener Installation: [WARTUNG.md – Logs](WARTUNG.md#logs-überprüfen)
 
@@ -75,7 +94,7 @@ sudo journalctl -u teamportal -n 100
 sudo docker ps | grep onlyoffice
 
 # Prüfe Port 8080
-sudo netstat -tlnp | grep 8080
+sudo ss -ltnp | grep 8080
 
 # Prüfe OnlyOffice Logs
 sudo docker logs onlyoffice-documentserver
@@ -83,16 +102,20 @@ sudo docker logs onlyoffice-documentserver
 # OnlyOffice neu starten
 sudo docker restart onlyoffice-documentserver
 
-# Teste ob OnlyOffice direkt auf Port 8080 erreichbar ist
-curl http://127.0.0.1:8080/welcome/
+# Healthcheck / Welcome (Installer bindet 127.0.0.1:8080)
+curl -s http://127.0.0.1:8080/healthcheck
+curl -s http://127.0.0.1:8080/welcome/ | head
 
 # Teste ob OnlyOffice API über Nginx erreichbar ist
 curl http://IHRE-DOMAIN/onlyoffice/web-apps/apps/api/documents/api.js | head -20
 
 # Wenn die API HTML statt JavaScript zurückgibt, ist die Nginx-Konfiguration fehlerhaft
-# Nginx-Konfiguration neu laden:
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+**Installer: `OnlyOffice FEHLGESCHLAGEN Fehlercode 1`:** meist `docker pull`/`docker run` fehlgeschlagen (zu wenig RAM/Disk, kein amd64, Port 8080 belegt, Daemon down). Installer-Output und `docker logs onlyoffice-documentserver` prüfen. Neu: `sudo docker pull onlyoffice/documentserver:latest`.
+
+**Hinweis:** Portal braucht **Document Server (Docs)**, nicht Community Server/Workspace.
 
 **Hinweis zur Nginx-Konfiguration:** Für OnlyOffice muss `proxy_pass` mit trailing slash gesetzt sein: `proxy_pass http://127.0.0.1:8080/;` — siehe [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren).
 
@@ -219,6 +242,35 @@ sudo systemctl restart nginx
 
 4. **Firewall/Proxy:** WebSocket-Upgrades dürfen nicht blockiert werden (Cloudflare, Reverse-Proxy-Einstellungen prüfen).
 
+## Setup hängt nach Account-Erstellung (Login-Schleife)
+
+Symptom: Nach Setup-Schritt 2 (Admin-Account) landet man dauerhaft auf `/login` und kann sich nicht anmelden.
+
+**Ursache:** In Production ist `SESSION_COOKIE_SECURE=True`, der Server wird aber über HTTP erreicht. Der Browser verwirft den Session-Cookie.
+
+**Sofortmaßnahme (HTTP ohne SSL):**
+
+```bash
+cd /var/www/teamportal   # oder Ihr INSTALL_DIR
+# In .env setzen bzw. ergänzen:
+# SESSION_COOKIE_SECURE=False
+sudo nano .env
+sudo systemctl restart teamportal
+```
+
+**Wenn inzwischen HTTPS aktiv ist:** `SESSION_COOKIE_SECURE=True` belassen bzw. setzen und Service neu starten.
+
+**Setup-Flag prüfen** (falls Setup fälschlich als abgeschlossen gilt):
+
+```bash
+# MySQL-Beispiel – Key setup_completed in system_settings
+mysql -u ROOT_USER -p -e "SELECT * FROM teamportal.system_settings WHERE \`key\`='setup_completed';"
+# Bei value=true und unvollständigem Wizard:
+# UPDATE teamportal.system_settings SET value='false' WHERE \`key\`='setup_completed';
+```
+
+Danach `/setup` erneut öffnen bzw. mit dem angelegten Admin einloggen. Details: [WARTUNG.md – Session-Cookies](WARTUNG.md#session-cookies-http-vs-https).
+
 ## Support
 
 Bei anhaltenden Problemen:
@@ -227,3 +279,10 @@ Bei anhaltenden Problemen:
 2. Dieses Dokument und [INSTALLATION.md](INSTALLATION.md) durchgehen
 3. [GitHub Issues](https://github.com/iAmCriptic/Prismateams_web/issues) durchsuchen
 4. Neues Issue mit detaillierter Fehlerbeschreibung und Log-Auszügen erstellen
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0</sub>
+</p>

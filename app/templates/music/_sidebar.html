@@ -1,0 +1,87 @@
+{% macro music_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% set has_sort_state = (sort_by != 'created') or (sort_dir != 'desc') %}
+<div class="music-sidebar-actions mb-3">
+    <a href="{{ url_for('music.public_url_page') }}" class="btn music-public-url-pill rounded-pill w-100" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-link-45deg me-1"></i>{{ _('music.index.public_url_button') }}
+    </a>
+    <button type="button" class="btn music-reset-link w-100" onclick="resetAll()">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        <span>{{ _('music.index.reset_all') }}</span>
+    </button>
+</div>
+
+<nav class="mod-sidebar-nav nav flex-column gap-1 mb-3" aria-label="{{ _('music.index.nav.label') }}">
+    <button type="button" class="nav-link mod-nav-link active" data-music-tab="wishlist" id="wishlist-tab{{ id_suffix }}"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-heart me-2"></i>{{ _('music.index.tabs.wishlist') }}
+        <span class="badge mod-nav-badge music-badge-wishlist ms-auto">{{ wish_count }}</span>
+    </button>
+    <button type="button" class="nav-link mod-nav-link" data-music-tab="queue" id="queue-tab{{ id_suffix }}"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-list-ol me-2"></i>{{ _('music.index.tabs.queue') }}
+        <span class="badge mod-nav-badge music-badge-queue ms-auto">{{ queue_count }}</span>
+    </button>
+    <button type="button" class="nav-link mod-nav-link" data-music-tab="played" id="played-tab{{ id_suffix }}"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-check-circle me-2"></i>{{ _('music.index.tabs.played') }}
+        <span class="badge mod-nav-badge music-badge-played ms-auto">{{ played_count }}</span>
+    </button>
+</nav>
+
+<div class="mod-sidebar-tools">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-sort-down me-1"></i>{{ _('music.index.sort.heading') }}
+        </div>
+        <form method="GET" action="{{ url_for('music.index') }}" class="mod-sidebar-form d-grid gap-2" data-music-sort-form>
+            <div>
+                <label for="music-sort-field{{ id_suffix }}" class="form-label mb-1">{{ _('music.index.sort.field') }}</label>
+                <select id="music-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort">
+                    <option value="created" {% if sort_by == 'created' %}selected{% endif %}>{{ _('music.index.sort.options.created') }}</option>
+                    <option value="wish_count" {% if sort_by == 'wish_count' %}selected{% endif %}>{{ _('music.index.sort.options.wish_count') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="music-sort-dir{{ id_suffix }}" class="form-label mb-1">{{ _('music.index.sort.direction') }}</label>
+                <select id="music-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir">
+                    <option value="desc" {% if sort_dir == 'desc' %}selected{% endif %}>{{ _('music.index.sort.directions.desc') }}</option>
+                    <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>{{ _('music.index.sort.directions.asc') }}</option>
+                </select>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="submit" class="btn mod-sidebar-action flex-grow-1">
+                    <i class="bi bi-check2"></i>
+                    <span>{{ _('music.index.sort.apply') }}</span>
+                </button>
+                {% if has_sort_state %}
+                <a href="{{ url_for('music.index') }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
+                    <i class="bi bi-x-lg"></i>
+                    <span>{{ _('music.index.sort.reset') }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro music_wish_count_badge(count) %}
+{% set wish_count = count or 1 %}
+{% if wish_count > 1 %}
+    {% if wish_count <= 3 %}
+        <span class="badge bg-primary ms-2 wish-count-badge">{{ wish_count }}x</span>
+    {% elif wish_count <= 5 %}
+        <span class="badge bg-warning ms-2 wish-count-badge">{{ wish_count }}x</span>
+    {% else %}
+        <span class="badge bg-danger ms-2 wish-count-badge">{{ wish_count }}x</span>
+    {% endif %}
+{% else %}
+    <span class="badge bg-secondary ms-2 wish-count-badge">{{ wish_count }}x</span>
+{% endif %}
+{% endmacro %}
+
+{% macro music_cover(image_url) %}
+<div class="music-track-cover">
+    <i class="bi bi-music-note" aria-hidden="true"></i>
+    {% if image_url %}
+    <img data-src="{{ image_url }}" alt="" class="lazy-image" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';">
+    {% endif %}
+</div>
+{% endmacro %}

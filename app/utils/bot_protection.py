@@ -1,4 +1,4 @@
-"""Portal bot protection for registration and login forms."""
+"""Portal bot protection for registration, login, shares and mailboxes."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import requests
 from app import db
 from app.models.settings import SystemSettings
 
-BotContext = Literal['register', 'login', 'share_edit']
+BotContext = Literal['register', 'login', 'share_edit', 'mailbox']
 VALID_PROVIDERS = frozenset({'none', 'honeypot', 'recaptcha', 'turnstile'})
 VALID_RECAPTCHA_VERSIONS = frozenset({'v2', 'v3'})
 
@@ -20,6 +20,7 @@ SETTING_KEYS = {
     'register_enabled': 'portal_bot_protection_register',
     'login_enabled': 'portal_bot_protection_login',
     'share_edit_enabled': 'portal_bot_protection_share_edit',
+    'mailbox_enabled': 'portal_bot_protection_mailbox',
     'recaptcha_version': 'portal_recaptcha_version',
     'recaptcha_site_key': 'portal_recaptcha_site_key',
     'recaptcha_secret_key': 'portal_recaptcha_secret_key',
@@ -32,7 +33,8 @@ DEFAULT_SETTINGS = {
     SETTING_KEYS['provider']: ('none', 'Bot-Schutz-Methode für Registrierung/Login'),
     SETTING_KEYS['register_enabled']: ('true', 'Bot-Schutz bei Registrierung'),
     SETTING_KEYS['login_enabled']: ('false', 'Bot-Schutz bei Login'),
-    SETTING_KEYS['share_edit_enabled']: ('false', 'Bot-Schutz bei Freigabe (Bearbeiten)'),
+    SETTING_KEYS['share_edit_enabled']: ('false', 'Bot-Schutz bei Freigaben (Bearbeiten)'),
+    SETTING_KEYS['mailbox_enabled']: ('false', 'Bot-Schutz bei Briefkästen'),
     SETTING_KEYS['recaptcha_version']: ('v2', 'reCAPTCHA-Version (v2 oder v3)'),
     SETTING_KEYS['recaptcha_site_key']: ('', 'reCAPTCHA Site Key'),
     SETTING_KEYS['recaptcha_secret_key']: ('', 'reCAPTCHA Secret Key'),
@@ -112,6 +114,10 @@ def get_config() -> dict[str, Any]:
             _get_setting_value(SETTING_KEYS['share_edit_enabled'], 'false'),
             default=False,
         ),
+        'mailbox_enabled': _as_bool(
+            _get_setting_value(SETTING_KEYS['mailbox_enabled'], 'false'),
+            default=False,
+        ),
         'recaptcha_version': recaptcha_version,
         'recaptcha_site_key': _get_setting_value(SETTING_KEYS['recaptcha_site_key'], ''),
         'recaptcha_secret_key': _get_setting_value(SETTING_KEYS['recaptcha_secret_key'], ''),
@@ -147,6 +153,8 @@ def is_enabled_for(context: BotContext, config: dict[str, Any] | None = None) ->
         return config['login_enabled']
     if context == 'share_edit':
         return config['share_edit_enabled']
+    if context == 'mailbox':
+        return config['mailbox_enabled']
     return False
 
 
@@ -157,6 +165,7 @@ def get_template_context() -> dict[str, Any]:
         'bot_enabled_register': is_enabled_for('register', config),
         'bot_enabled_login': is_enabled_for('login', config),
         'bot_enabled_share_edit': is_enabled_for('share_edit', config),
+        'bot_enabled_mailbox': is_enabled_for('mailbox', config),
     }
 
 
@@ -248,6 +257,10 @@ def apply_bot_protection_settings(data: dict[str, Any]) -> None:
     upsert_setting(
         SETTING_KEYS['share_edit_enabled'],
         'true' if data.get('share_edit_enabled', False) else 'false',
+    )
+    upsert_setting(
+        SETTING_KEYS['mailbox_enabled'],
+        'true' if data.get('mailbox_enabled', False) else 'false',
     )
     upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
     upsert_setting(SETTING_KEYS['recaptcha_site_key'], data.get('recaptcha_site_key', '') or '')

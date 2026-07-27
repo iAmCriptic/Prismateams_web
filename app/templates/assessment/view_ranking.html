@@ -1,94 +1,89 @@
-{% extends "base.html" %}
-{% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Rangliste - Bewertung{% endblock %}
-{% block content %}
-<div class="row mb-4 page-toolbar-row align-items-center">
-    <div class="col min-width-0">
-        <h1 class="mb-0"><i class="bi bi-trophy text-primary me-2"></i>Rangliste</h1>
-        <p class="text-muted small mb-0">Auswertung der Jury-Bewertungen</p>
-    </div>
-    <div class="col-auto">
-        <a href="#" id="printLink" class="btn btn-outline-primary btn-sm" target="_blank"><i class="bi bi-printer me-1"></i>Drucken</a>
-    </div>
-</div>
-
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-6">
-                    <label class="form-label small text-muted">Bewertungsliste</label>
-                    <select class="form-select" id="listSelect">
-                        {% for lst in evaluation_lists %}
-                        <option value="{{ lst.id }}">{{ lst.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label small mb-1 text-muted">Sortierung</label>
-                    <div class="btn-group" role="group" id="sortGroup">
-                        {% for key, label in sort_labels.items() %}
-                        <button type="button" class="btn btn-outline-primary btn-sm sort-btn" data-sort="{{ key }}">{{ label }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th style="width: 56px">Rang</th>
-                            <th>Name</th>
-                            <th>Raum / Typ</th>
-                            <th class="text-end">Gesamtpunkte</th>
-                            <th class="text-end">Ø Punkte</th>
-                            <th class="text-end">Anzahl Bewertungen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rows"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-<script>
-let state = { sort: 'total' };
-
-function setActiveButtons() {
-    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === state.sort));
-    const printLink = document.getElementById('printLink');
-    const listId = document.getElementById('listSelect').value;
-    printLink.href = `/assessment/print_ranking?sort=${state.sort}&list_id=${listId}`;
-}
-
-async function load() {
-    const listId = document.getElementById('listSelect').value;
-    const params = new URLSearchParams({ sort: state.sort, list_id: listId });
-    const res = await fetch(`/assessment/api/ranking?${params}`);
-    const data = await res.json();
-    state.sort = data.sort_mode;
-    setActiveButtons();
-    document.getElementById('rows').innerHTML = (data.ranking || []).map((r, i) => `
-        <tr>
-            <td><strong>${i + 1}</strong></td>
-            <td>${escapeHtml(r.target_name || r.stand_name)}</td>
-            <td>${escapeHtml(r.room_name || r.stand_type_name || '—')}</td>
-            <td class="text-end"><strong>${r.displayed_total}</strong></td>
-            <td class="text-end">${(r.displayed_avg || 0).toFixed(2)}</td>
-            <td class="text-end">${r.displayed_votes}</td>
-        </tr>
-    `).join('') || '<tr><td colspan="6" class="text-center text-muted py-4">Es liegen noch keine Bewertungen vor.</td></tr>';
-}
-
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-document.querySelectorAll('.sort-btn').forEach(b => b.addEventListener('click', () => { state.sort = b.dataset.sort; load(); }));
-document.getElementById('listSelect').addEventListener('change', load);
-
-load();
-</script>
-{% endblock %}
+{% extends "assessment/layout.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
+{% block title %}{{ _('assessment.ranking.page_title') }}{% endblock %}
+{% block assessment_heading_icon %}bi-trophy{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.ranking') }}{% endblock %}
+
+{% block assessment_content %}
+{{ assessment_page_header(_('assessment.nav.ranking'), _('assessment.ranking.subtitle'), 'trophy') }}
+
+<div class="assessment-panel mb-3">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-6" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
+            <label class="form-label small text-muted" for="listSelect">{{ _('assessment.common.list_label') }}</label>
+            <select class="form-select" id="listSelect" data-inv-pill-select>
+                {% for lst in evaluation_lists %}
+                <option value="{{ lst.id }}">{{ lst.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="{% if evaluation_lists|length <= 1 %}col-12{% else %}col-md-6{% endif %}">
+            <label class="form-label small mb-1 text-muted">{{ _('assessment.ranking.sort_label') }}</label>
+            <div class="btn-group" role="group" id="sortGroup">
+                {% for key, label in sort_labels.items() %}
+                <button type="button" class="btn btn-outline-primary btn-sm sort-btn" data-sort="{{ key }}">{{ label }}</button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mod-list-table-wrap">
+    <table class="table mod-list-table align-middle mb-0">
+        <thead>
+            <tr>
+                <th scope="col">{{ _('assessment.ranking.col_name') }}</th>
+                <th scope="col" class="d-none d-md-table-cell">{{ _('assessment.ranking.col_room_type') }}</th>
+                <th scope="col" class="text-end">{{ _('assessment.ranking.col_total') }}</th>
+                <th scope="col" class="text-end d-none d-md-table-cell">{{ _('assessment.ranking.col_avg') }}</th>
+                <th scope="col" class="text-end d-none d-lg-table-cell">{{ _('assessment.ranking.col_votes') }}</th>
+            </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block assessment_extra_js %}
+<script>
+(function () {
+    let state = { sort: 'total' };
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+
+    function currentListId() {
+        const sel = document.getElementById('listSelect');
+        return sel ? sel.value : '';
+    }
+
+    function setActiveButtons() {
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === state.sort));
+        if (window.AssessmentUI) {
+            window.AssessmentUI.syncPrintLinks({ sort: state.sort, list_id: currentListId() });
+        }
+    }
+
+    async function load() {
+        const params = new URLSearchParams({ sort: state.sort, list_id: currentListId() });
+        const res = await fetch(`/assessment/api/ranking?${params}`);
+        const data = await res.json();
+        state.sort = data.sort_mode;
+        setActiveButtons();
+        const rows = data.ranking || [];
+        document.getElementById('rows').innerHTML = rows.map((r, i) => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-trophy-fill', r.target_name || r.stand_name, { iconColor: 'text-warning', prefix: '#' + (i + 1) })}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(r.room_name || r.stand_type_name || '—')}</td>
+                <td class="text-end"><strong>${r.displayed_total}</strong></td>
+                <td class="text-end d-none d-md-table-cell text-muted">${Number(r.displayed_avg || 0).toFixed(2)}</td>
+                <td class="text-end d-none d-lg-table-cell text-muted">${r.displayed_votes}</td>
+            </tr>`).join('') || `<tr><td colspan="5" class="text-center text-muted py-4">{{ _('assessment.ranking.empty') }}</td></tr>`;
+    }
+
+    document.querySelectorAll('.sort-btn').forEach(b => b.addEventListener('click', () => { state.sort = b.dataset.sort; load(); }));
+    const listSelect = document.getElementById('listSelect');
+    if (listSelect) listSelect.addEventListener('change', load);
+    load();
+})();
+</script>
+{% endblock %}

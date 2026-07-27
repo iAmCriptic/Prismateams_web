@@ -6,6 +6,8 @@ from flask_login import current_user, login_user
 from app import db
 from app.models.api_token import ApiToken
 from app.models.user import User
+from app.utils.common import portal_now_naive
+from app.utils.guest_accounts import parse_guest_login_email
 from app.utils.session_manager import create_session
 from app.utils.totp import verify_totp
 
@@ -44,8 +46,8 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
             if not email or not password:
                 return jsonify({"success": False, "error": "E-Mail und Passwort sind erforderlich"}), 400
 
-            if email.endswith("@gast.system.local"):
-                guest_username = email.replace("@gast.system.local", "")
+            guest_username = parse_guest_login_email(email)
+            if guest_username:
                 user = User.query.filter_by(guest_username=guest_username, is_guest=True).first()
             else:
                 user = User.query.filter_by(email=email).first()
@@ -71,9 +73,10 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
             user.failed_login_attempts = 0
             user.failed_login_until = None
 
-            if user.is_guest and user.guest_expires_at and datetime.utcnow() > user.guest_expires_at:
-                db.session.delete(user)
-                db.session.commit()
+            if user.is_guest and user.guest_expires_at and portal_now_naive() > user.guest_expires_at:
+                if user.is_active:
+                    user.is_active = False
+                    db.session.commit()
                 return jsonify({"success": False, "error": "Gast-Account ist abgelaufen"}), 401
 
             if not user.is_active:

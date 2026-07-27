@@ -1,0 +1,19 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}{{ subject or 'Nachricht zu Ihrer Buchung' }} - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block content %}
+<h2>Nachricht zu Ihrer Buchung</h2>
+<p>Hallo{% if booking_request.applicant_name %} {{ booking_request.applicant_name }}{% endif %},</p>
+<p>Sie haben eine Nachricht zu Ihrer Buchung <strong>{{ booking_request.event_name }}</strong> erhalten:</p>
+
+<div class="email-details">
+    <p style="white-space: pre-wrap; margin-bottom: 0;">{{ message_body }}</p>
+</div>
+
+{% if booking_url %}
+<p style="text-align: center;">
+    <a href="{{ booking_url }}" class="email-btn">Zur Buchungsübersicht</a>
+</p>
+{% endif %}
+
+<p style="margin-bottom: 0;">Mit freundlichen Grüßen,<br>Ihr {{ app_name or 'Prismateams' }} Team</p>
+{% endblock %}

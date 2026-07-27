@@ -1,45 +1,182 @@
-{% extends "base.html" %}
+{% extends "calendar/base_calendar.html" %}
 
-{% block title %}Kalender importieren - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block title %}{{ _('calendar.import.page_title') }}{% endblock %}
+{% block calendar_mobile_title %}{{ _('calendar.import.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">Termine</a></li>
-                <li class="breadcrumb-item active">Kalender importieren</li>
-            </ol>
-        </nav>
-        
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">Kalender importieren</h4>
+{% block calendar_content %}
+<div class="calendar-form">
+    <div class="calendar-form-header">
+        <h1 class="calendar-form-title">
+            <i class="bi bi-upload" aria-hidden="true"></i>
+            {{ _('calendar.import.heading') }}
+        </h1>
+    </div>
+
+    <div class="calendar-form-body">
+        <section class="calendar-form-card" aria-labelledby="cal-import-file">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-import-file" class="calendar-form-section-title">
+                    <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+                    {{ _('calendar.import.file_title') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <p>Importieren Sie Termine aus einer iCal-Datei (.ics). Die Datei kann von Google Calendar, Outlook oder anderen Kalenderanwendungen exportiert werden.</p>
-                
+            <div class="calendar-form-fields">
+                <p class="form-text mb-3">{{ _('calendar.import.file_intro') }}</p>
                 <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="ical_file" class="form-label">iCal-Datei (.ics)</label>
+                    <input type="hidden" name="action" value="import_file">
+                    <div class="calendar-form-field mb-3">
+                        <label for="ical_file" class="form-label">{{ _('calendar.import.file_label') }}</label>
                         <input type="file" class="form-control" id="ical_file" name="ical_file" accept=".ics" required>
-                        <small class="form-text text-muted">Nur .ics-Dateien werden unterstützt.</small>
+                        <small class="form-text text-muted">{{ _('calendar.import.file_hint') }}</small>
                     </div>
-                    
-                    <div class="alert alert-info">
+                    <p class="small text-muted mb-3">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Hinweis:</strong> Duplikate werden automatisch erkannt und nicht importiert.
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">Importieren</button>
-                        <a href="{{ url_for('calendar.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
-                    </div>
+                        {{ _('calendar.import.file_dup_hint') }}
+                    </p>
+                    <button type="submit" class="btn btn-accent calendar-form-submit">
+                        {{ _('calendar.import.file_submit') }}
+                    </button>
                 </form>
             </div>
-        </div>
+        </section>
+
+        <section class="calendar-form-card" aria-labelledby="cal-import-sync">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-import-sync" class="calendar-form-section-title">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    {{ _('calendar.import.sync_title') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
+                <p class="form-text mb-3">{{ _('calendar.import.sync_intro') }}</p>
+
+                <form method="POST" class="mb-4">
+                    <input type="hidden" name="action" value="add_sync">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label for="sync_name" class="form-label">{{ _('calendar.import.sync_name') }}</label>
+                            <input type="text" class="form-control" id="sync_name" name="sync_name" required
+                                   placeholder="{{ _('calendar.import.sync_name_placeholder') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sync_url" class="form-label">{{ _('calendar.import.sync_url') }}</label>
+                            <input type="url" class="form-control" id="sync_url" name="sync_url" required
+                                   placeholder="https://... oder webcal://...">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-accent w-100">{{ _('calendar.import.sync_add') }}</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% if sync_sources %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>{{ _('calendar.import.sync_col_name') }}</th>
+                                <th>{{ _('calendar.import.sync_col_url') }}</th>
+                                <th>{{ _('calendar.import.sync_col_last') }}</th>
+                                <th>{{ _('calendar.import.sync_col_status') }}</th>
+                                <th>{{ _('calendar.import.sync_col_actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in sync_sources %}
+                            {% set cal = source_calendars.get(source.id) %}
+                            {% set can_edit = current_user.is_admin or source.created_by == current_user.id %}
+                            <tr>
+                                <td>
+                                    <span class="calendar-color-dot me-1" style="background:{{ cal.color if cal else '#6c757d' }};display:inline-block;width:.7rem;height:.7rem;border-radius:50%;vertical-align:middle;"></span>
+                                    <strong>{{ source.name }}</strong>
+                                    <br><small class="text-muted">{{ _('calendar.import.sync_by') }} {{ source.creator.full_name if source.creator else source.created_by }}</small>
+                                </td>
+                                <td>
+                                    <code class="small text-break">{{ source.url }}</code>
+                                </td>
+                                <td>
+                                    {% if source.last_synced_at %}
+                                    {{ source.last_synced_at|localdatetime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if source.last_error %}
+                                    <span class="badge text-bg-danger" title="{{ source.last_error }}">{{ _('calendar.import.sync_error') }}</span>
+                                    {% elif source.last_synced_at %}
+                                    <span class="badge text-bg-success">{{ _('calendar.import.sync_ok') }}</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">{{ _('calendar.import.sync_pending') }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap">
+                                    {% if can_edit %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="collapse" data-bs-target="#editSync{{ source.id }}"
+                                            title="{{ _('calendar.import.sync_edit') }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    {% endif %}
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="action" value="sync_now">
+                                        <input type="hidden" name="source_id" value="{{ source.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="{{ _('calendar.import.sync_now') }}">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </form>
+                                    {% if can_edit %}
+                                    <form method="POST" class="d-inline"
+                                          onsubmit="return confirm('{{ _('calendar.import.sync_delete_confirm') }}');">
+                                        <input type="hidden" name="action" value="delete_sync">
+                                        <input type="hidden" name="source_id" value="{{ source.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ _('calendar.import.sync_delete') }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if can_edit %}
+                            <tr class="collapse" id="editSync{{ source.id }}">
+                                <td colspan="5">
+                                    <form method="POST" class="row g-2 align-items-end py-2">
+                                        <input type="hidden" name="action" value="edit_sync">
+                                        <input type="hidden" name="source_id" value="{{ source.id }}">
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="edit_name_{{ source.id }}">{{ _('calendar.import.sync_name') }}</label>
+                                            <input type="text" class="form-control" id="edit_name_{{ source.id }}"
+                                                   name="sync_name" value="{{ source.name }}" required>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="edit_url_{{ source.id }}">{{ _('calendar.import.sync_url') }}</label>
+                                            <input type="url" class="form-control" id="edit_url_{{ source.id }}"
+                                                   name="sync_url" value="{{ source.url }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="edit_color_{{ source.id }}">{{ _('calendar.import.sync_color') }}</label>
+                                            <input type="color" class="form-control form-control-color w-100"
+                                                   id="edit_color_{{ source.id }}" name="sync_color"
+                                                   value="{{ cal.color if cal else '#6c757d' }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-accent w-100">{{ _('calendar.import.sync_save') }}</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="form-text mb-0">
+                    <i class="bi bi-info-circle"></i> {{ _('calendar.import.sync_empty') }}
+                </p>
+                {% endif %}
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}
-
-

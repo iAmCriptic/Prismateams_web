@@ -1,371 +1,236 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Inventurtool - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-clipboard2-check{% endblock %}
+{% block inventory_heading %}Inventurtool{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
-<style>
-    .scanner-frame {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 250px;
-        height: 250px;
-        border: 3px solid #0d6efd;
-        border-radius: 8px;
-        pointer-events: none;
-        z-index: 12;
-    }
-    
-    .scanner-line {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 250px;
-        height: 3px;
-        background: linear-gradient(to right, transparent, #0d6efd, transparent);
-        animation: scanLine 2s linear infinite;
-        pointer-events: none;
-    }
-    
-    @keyframes scanLine {
-        0% { top: 25%; }
-        100% { top: 75%; }
-    }
-    
-    .scanner-success-popup {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #28a745;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: bold;
-        z-index: 1000;
-        animation: fadeInOut 2s;
-    }
-    
-    @keyframes fadeInOut {
-        0%, 100% { opacity: 0; }
-        10%, 90% { opacity: 1; }
-    }
-    
-    .inventory-item-row {
-        transition: background-color 0.3s;
-    }
-    
-    .inventory-item-row.updated {
-        background-color: #d4edda !important;
-        animation: highlightUpdate 2s;
-    }
-    
-    @keyframes highlightUpdate {
-        0% { background-color: #90ee90; }
-        100% { background-color: #d4edda; }
-    }
-    
-    .inventory-item-row.checked {
-        opacity: 0.6;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-clipboard2-check"></i> Inventurtool</h1>
-        {% if active_inventory %}
-        <div class="alert alert-info">
-            <strong>Inventur aktiv:</strong> {{ active_inventory.name }}
-            <br>
-            <small>Fortschritt: {{ active_inventory.checked_count }} von {{ active_inventory.total_count }} Produkten inventiert</small>
-        </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <strong>Keine aktive Inventur</strong> - Bitte starten Sie eine neue Inventur.
-        </div>
-        {% endif %}
+{% block inventory_content %}
+<div class="inventory-panel mb-3" id="inventurStartPanel">
+    <div class="inventory-panel-header">
+        <h2 class="inventory-panel-title">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            Neue Inventur
+        </h2>
+        <button type="button" class="inventory-info-btn"
+                data-bs-toggle="tooltip"
+                title="Startet eine Inventur über alle aktiven Produkte. Danach in der Historie öffnen."
+                aria-label="Hinweis zur Inventur">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+        </button>
     </div>
-    <div class="col-auto">
-        {% if active_inventory %}
-        <form method="POST" action="{{ url_for('inventory.inventory_complete', inventory_id=active_inventory.id) }}" style="display: inline;" onsubmit="return confirm('Möchten Sie die Inventur wirklich abschließen? Alle Änderungen werden auf die Produkte angewendet.');">
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle"></i> Inventur abschließen
-            </button>
+    <div class="inventory-panel-body inventory-form-grid">
+        <form method="POST" action="{{ url_for('inventory.inventory_tool') }}" id="startInventoryForm">
+            <input type="hidden" name="action" value="start">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="inventoryName" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="inventoryName" name="name"
+                           placeholder="z.B. Jahresinventur 2026"
+                           {% if active_inventory %}disabled{% else %}required{% endif %}>
+                </div>
+                <div class="col-md-7">
+                    <label for="inventoryDescription" class="form-label">Beschreibung</label>
+                    <input type="text" class="form-control" id="inventoryDescription" name="description"
+                           placeholder="optional"
+                           {% if active_inventory %}disabled{% endif %}>
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary"
+                            id="createInventoryBtn"
+                            {% if active_inventory %}disabled title="Es läuft bereits eine Inventur"{% endif %}>
+                        <i class="bi bi-play-circle"></i> Erstellen
+                    </button>
+                    <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+                        <i class="bi bi-printer"></i> Drucken
+                    </a>
+                </div>
+            </div>
         </form>
-        <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=active_inventory.id) }}" class="btn btn-primary ms-2">
-            <i class="bi bi-file-pdf"></i> PDF herunterladen
-        </a>
-        {% else %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#startInventoryModal">
-            <i class="bi bi-play-circle"></i> Inventur starten
-        </button>
-        <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-outline-primary ms-2">
-            <i class="bi bi-printer"></i> Inventarliste drucken
-        </a>
+        {% if active_inventory %}
+        <p class="small text-muted mt-3 mb-0">
+            Aktive Inventur: <strong>{{ active_inventory.name }}</strong> —
+            in der Liste öffnen, um fortzufahren.
+        </p>
         {% endif %}
-        <a href="{{ url_for('inventory.inventory_history') }}" class="btn btn-outline-secondary ms-2">
-            <i class="bi bi-clock-history"></i> Historie
-        </a>
     </div>
 </div>
 
-{% if active_inventory %}
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-4" id="inventoryTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="list-tab" data-bs-toggle="tab" data-bs-target="#list" type="button" role="tab">
-            <i class="bi bi-list-ul"></i> Liste
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="scanner-tab" data-bs-toggle="tab" data-bs-target="#scanner" type="button" role="tab">
-            <i class="bi bi-camera"></i> Kamera-Scanner
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual" type="button" role="tab">
-            <i class="bi bi-keyboard"></i> Manuelle Eingabe
-        </button>
-    </li>
-</ul>
+<section id="history" class="mt-2">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Historie</span>
+            <span class="inventory-count-accent" id="inventurHistoryCount">{{ inventories|length }}</span>
+        </div>
+        <div class="inventory-view-toggle" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+            <button type="button" class="inventory-view-toggle__btn" id="inventurListViewBtn" title="{{ _('inventory.shell.view_toggle.list') }}">
+                <i class="bi bi-list"></i>
+            </button>
+            <button type="button" class="inventory-view-toggle__btn active" id="inventurGridViewBtn" title="{{ _('inventory.shell.view_toggle.grid') }}">
+                <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+        </div>
+    </div>
 
-<!-- Tab Content -->
-<div class="tab-content" id="inventoryTabContent">
-    <!-- Tab 1: Liste -->
-    <div class="tab-pane fade show active" id="list" role="tabpanel">
-        <div class="card">
-            <div class="card-body">
-                <div class="mb-3">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Produkte suchen...">
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="inventoryTable">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;">Inventiert</th>
-                                <th>Produktname</th>
-                                <th>Kategorie</th>
-                                <th>Lagerort</th>
-                                <th>Zustand</th>
-                                <th>Anmerkungen</th>
-                                <th style="width: 100px;">Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryTableBody">
-                            <!-- Wird dynamisch gefüllt -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    {% if inventories %}
+    <div id="inventurHistoryList" class="mod-list-table-wrap" style="display: none;">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th class="d-none d-md-table-cell">Status</th>
+                    <th class="d-none d-md-table-cell">Gestartet</th>
+                    <th class="d-none d-lg-table-cell">Abgeschlossen</th>
+                    <th class="d-none d-md-table-cell">Fortschritt</th>
+                    <th class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inventory in inventories %}
+                {% set progress = (inventory.checked_count / inventory.total_count * 100) if inventory.total_count > 0 else 0 %}
+                {% set session_url = url_for('inventory.inventory_session', inventory_id=inventory.id) %}
+                {% set pdf_url = url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) %}
+                <tr class="mod-list-row" style="cursor: pointer;" onclick="window.location='{{ session_url }}'">
+                    <td>
+                        <a class="mod-list-name text-decoration-none" href="{{ session_url }}" onclick="event.stopPropagation()">
+                            <i class="bi bi-clipboard2-check me-2 text-muted" aria-hidden="true"></i>
+                            <span class="files-item-name-text" title="{{ inventory.name }}">{{ inventory.name }}</span>
+                        </a>
+                        {% if inventory.description %}
+                        <div class="small text-muted ms-4">{{ inventory.description }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        {% if inventory.status == 'active' %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Abgeschlossen</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ inventory.started_at|localdatetime('%d.%m.%Y %H:%M') }}</td>
+                    <td class="d-none d-lg-table-cell text-muted">
+                        {% if inventory.completed_at %}{{ inventory.completed_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        <div class="inventory-inventur-progress mb-1" style="max-width: 8rem;">
+                            <div class="inventory-inventur-progress-bar" style="width: {{ progress }}%;"></div>
+                        </div>
+                        <small class="text-muted">{{ inventory.checked_count }} / {{ inventory.total_count }}</small>
+                    </td>
+                    <td class="text-end" onclick="event.stopPropagation()">
+                        <div class="mod-list-actions">
+                            <div class="mod-list-hover-actions">
+                                <a class="btn btn-sm btn-link" href="{{ session_url }}" title="Öffnen"><i class="bi bi-box-arrow-in-right"></i></a>
+                                <a class="btn btn-sm btn-link" href="{{ pdf_url }}" title="PDF"><i class="bi bi-file-pdf"></i></a>
+                            </div>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                    <li><a class="dropdown-item" href="{{ session_url }}"><i class="bi bi-box-arrow-in-right me-2"></i>Öffnen</a></li>
+                                    <li><a class="dropdown-item" href="{{ pdf_url }}"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    
-    <!-- Tab 2: Kamera-Scanner -->
-    <div class="tab-pane fade" id="scanner" role="tabpanel">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">QR-Code Scanner</h5>
-                    <div>
-                        <button class="btn btn-sm btn-primary" id="startScannerBtn">
-                            <i class="bi bi-camera"></i> Kamera starten
-                        </button>
-                        <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
-                            <i class="bi bi-stop-circle"></i> Kamera stoppen
-                        </button>
-                    </div>
-                </div>
-                <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative; overflow: hidden; border-radius: 8px;">
-                    <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
-                    <canvas id="scannerCanvas" style="display: none;"></canvas>
-                    <div id="scannerFrame" class="scanner-frame"></div>
-                    <div id="scannerLine" class="scanner-line"></div>
-                    <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
-                        <i class="bi bi-check-circle-fill"></i> Produkt gefunden
-                    </div>
-                </div>
-                <div id="scannerError" class="alert alert-danger" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tab 3: Manuelle Eingabe -->
-    <div class="tab-pane fade" id="manual" role="tabpanel">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="mb-3">Manuelle Eingabe</h5>
-                <div class="mb-3">
-                    <label for="manualProductInput" class="form-label">Produkt-ID oder QR-Code eingeben</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="manualProductInput" 
-                               placeholder="Produkt-ID (z.B. 123) oder QR-Code (z.B. PROD-123)" 
-                               autocomplete="off">
-                        <button class="btn btn-accent" id="manualSearchBtn">
-                            <i class="bi bi-search"></i> Suchen
-                        </button>
-                    </div>
-                    <small class="form-text text-muted">Geben Sie die Produkt-ID oder den QR-Code ein. Das Produkt wird automatisch abgehakt und zum Bearbeiten geöffnet.</small>
-                </div>
-                <div id="manualSearchResult"></div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
-<!-- Modal: Inventur starten -->
-<div class="modal fade" id="startInventoryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Neue Inventur starten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('inventory.inventory_tool') }}">
-                <input type="hidden" name="action" value="start">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="inventoryName" class="form-label">Name der Inventur</label>
-                        <input type="text" class="form-control" id="inventoryName" name="name" 
-                               placeholder="z.B. Jahresinventur 2024" required>
+    <div id="inventurHistoryGrid" class="row g-3">
+        {% for inventory in inventories %}
+        {% set progress = (inventory.checked_count / inventory.total_count * 100) if inventory.total_count > 0 else 0 %}
+        {% set session_url = url_for('inventory.inventory_session', inventory_id=inventory.id) %}
+        {% set pdf_url = url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100 inventory-overview-card {% if inventory.status == 'active' %}inventory-overview-card--active{% endif %}"
+                 role="link" tabindex="0"
+                 onclick="window.location='{{ session_url }}'"
+                 onkeydown="if(event.key==='Enter'){window.location='{{ session_url }}';}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="min-width-0">
+                            <i class="bi bi-clipboard2-check fs-3 text-muted" aria-hidden="true"></i>
+                            <h6 class="mt-2 mb-1 text-truncate" title="{{ inventory.name }}">{{ inventory.name }}</h6>
+                            {% if inventory.description %}
+                            <p class="small text-muted mb-2 text-truncate" title="{{ inventory.description }}">{{ inventory.description }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-start gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                            <div class="inventory-grid-hover-actions">
+                                <a class="btn btn-sm btn-link" href="{{ session_url }}" title="Öffnen"><i class="bi bi-box-arrow-in-right"></i></a>
+                                <a class="btn btn-sm btn-link" href="{{ pdf_url }}" title="PDF"><i class="bi bi-file-pdf"></i></a>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                    <li><a class="dropdown-item" href="{{ session_url }}"><i class="bi bi-box-arrow-in-right me-2"></i>Öffnen</a></li>
+                                    <li><a class="dropdown-item" href="{{ pdf_url }}"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="inventoryDescription" class="form-label">Beschreibung (optional)</label>
-                        <textarea class="form-control" id="inventoryDescription" name="description" rows="3"></textarea>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        {% if inventory.status == 'active' %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Abgeschlossen</span>
+                        {% endif %}
+                        <span class="small text-muted">{{ inventory.started_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                     </div>
+                    <div class="inventory-inventur-progress mt-3 mb-1">
+                        <div class="inventory-inventur-progress-bar" style="width: {{ progress }}%;"></div>
+                    </div>
+                    <div class="small text-muted">{{ inventory.checked_count }} / {{ inventory.total_count }} · {{ inventory.starter.full_name if inventory.starter else '—' }}</div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Inventur starten</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Produkt bearbeiten -->
-<div class="modal fade" id="productEditModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Produkt bearbeiten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="productEditModalBody">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="closeProductModalBtn">Schließen</button>
-                <button type="button" class="btn btn-primary" id="saveProductBtn">Speichern</button>
             </div>
         </div>
+        {% endfor %}
     </div>
-</div>
+    {% else %}
+    <div class="mod-empty-state py-5 text-center">
+        <i class="bi bi-clipboard2-check d-block mb-2 fs-3 text-muted" aria-hidden="true"></i>
+        <p class="text-muted mb-0">Keine Inventur</p>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
-<script src="{{ url_for('static', filename='js/inventory_tool.js') }}"></script>
+{% block inventory_extra_js %}
 <script>
-// Inventurtool-Manager initialisieren
 document.addEventListener('DOMContentLoaded', function() {
-    {% if active_inventory %}
-    if (window.InventoryToolManager) {
-        window.inventoryToolManager = new InventoryToolManager({{ active_inventory.id }});
-        window.inventoryToolManager.init();
-        
-        // Scanner-Manager initialisieren
-        if (window.InventoryScannerManager) {
-            window.inventoryScannerManager = new InventoryScannerManager({{ active_inventory.id }}, window.inventoryToolManager);
-            window.inventoryScannerManager.init();
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
         }
-        
-        // Manuelle Eingabe Handler
-        const manualInput = document.getElementById('manualProductInput');
-        const manualSearchBtn = document.getElementById('manualSearchBtn');
-        
-        if (manualInput && manualSearchBtn) {
-            let isProcessing = false;
-            
-            const handleManualSearch = async () => {
-                if (isProcessing) {
-                    console.log('Bereits verarbeitend, ignoriere Eingabe');
-                    return;
-                }
-                
-                const input = manualInput.value.trim();
-                if (!input) {
-                    return;
-                }
-                
-                isProcessing = true;
-                manualInput.disabled = true;
-                
-                try {
-                    await window.inventoryToolManager.handleManualInput(input);
-                    // Leere Feld nach erfolgreicher Verarbeitung
-                    manualInput.value = '';
-                } catch (error) {
-                    console.error('Fehler bei manueller Eingabe:', error);
-                } finally {
-                    isProcessing = false;
-                    manualInput.disabled = false;
-                    // Fokussiere Feld wieder für nächste Eingabe
-                    setTimeout(() => {
-                        manualInput.focus();
-                    }, 200);
-                }
-            };
-            
-            manualSearchBtn.addEventListener('click', handleManualSearch);
-            
-            // Mehrere Event-Typen für bessere Kompatibilität
-            manualInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleManualSearch();
-                }
-            });
-            
-            manualInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            });
-            
-            // Input-Event für automatische Verarbeitung (falls Scanner sehr schnell ist)
-            let inputTimeout;
-            manualInput.addEventListener('input', (e) => {
-                // Wenn Scanner sehr schnell ist, könnte Enter vor dem Input-Event kommen
-                // Warte kurz und prüfe ob Enter gedrückt wurde
-                clearTimeout(inputTimeout);
-                inputTimeout = setTimeout(() => {
-                    // Wenn Enter gedrückt wurde, wird handleManualSearch bereits aufgerufen
-                    // Hier nur als Fallback
-                }, 50);
-            });
-            
-            // Fokussiere Feld beim Laden des Tabs
-            const manualTab = document.getElementById('manual-tab');
-            if (manualTab) {
-                manualTab.addEventListener('shown.bs.tab', () => {
-                    setTimeout(() => {
-                        manualInput.focus();
-                    }, 100);
-                });
-            }
-        }
+    });
+
+    const listBtn = document.getElementById('inventurListViewBtn');
+    const gridBtn = document.getElementById('inventurGridViewBtn');
+    const listView = document.getElementById('inventurHistoryList');
+    const gridView = document.getElementById('inventurHistoryGrid');
+    const storageKey = 'inventurOverviewViewMode';
+
+    function applyView(mode) {
+        const isGrid = mode !== 'list';
+        if (listView) listView.style.display = isGrid ? 'none' : '';
+        if (gridView) gridView.style.display = isGrid ? '' : 'none';
+        if (listBtn) listBtn.classList.toggle('active', !isGrid);
+        if (gridBtn) gridBtn.classList.toggle('active', isGrid);
+        try { localStorage.setItem(storageKey, isGrid ? 'grid' : 'list'); } catch (e) {}
     }
-    {% endif %}
+
+    if (listBtn && gridBtn) {
+        listBtn.addEventListener('click', () => applyView('list'));
+        gridBtn.addEventListener('click', () => applyView('grid'));
+        let saved = 'grid';
+        try { saved = localStorage.getItem(storageKey) || 'grid'; } catch (e) {}
+        applyView(saved);
+    }
 });
 </script>
 {% endblock %}
-

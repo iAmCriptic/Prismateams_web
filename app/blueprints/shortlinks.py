@@ -1,20 +1,30 @@
 import random
 import re
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import and_, case, or_
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 from app.models.shortlink import ShortLink
 from app.utils.access_control import check_module_access
+from app.utils.common import portal_now_naive
 
 shortlinks_bp = Blueprint('shortlinks', __name__)
 
 SLUG_PATTERN = re.compile(r'^[A-Za-z0-9_-]{3,64}$')
 SLUG_ALPHABET = string.ascii_letters + string.digits
+
+SORT_FIELDS = {'created', 'clicks', 'expires', 'slug', 'last_click'}
+SORT_DIRS = {'asc', 'desc'}
+STATUS_FILTERS = {'', 'active', 'inactive', 'disabled'}
+EXPIRY_FILTERS = {'', 'with', 'without', 'soon'}
+PASSWORD_FILTERS = {'', 'yes', 'no'}
+CLICKS_FILTERS = {'', 'with_limit', 'limit_reached'}
+EXPIRING_SOON_DAYS = 7
 
 
 def _normalize_target_url(raw_url):
@@ -67,12 +77,110 @@ def _parse_max_clicks(value):
         return 'invalid'
 
 
+def _whitelist(value, allowed, default=''):
+    raw = (value or '').strip()
+    return raw if raw in allowed else default
+
+
+def _not_expired_clause(now):
+    return or_(ShortLink.expires_at.is_(None), ShortLink.expires_at > now)
+
+
+def _not_max_clicks_clause():
+    return or_(ShortLink.max_clicks.is_(None), ShortLink.click_count < ShortLink.max_clicks)
+
+
 @shortlinks_bp.route('/shortlinks')
 @login_required
 @check_module_access('module_shortlinks')
 def index():
-    links = ShortLink.query.filter_by(created_by=current_user.id).order_by(ShortLink.created_at.desc()).all()
-    return render_template('shortlinks/index.html', links=links)
+    search_query = (request.args.get('q') or '').strip()
+    sort_by = _whitelist(request.args.get('sort'), SORT_FIELDS, 'created')
+    sort_dir = _whitelist(request.args.get('dir'), SORT_DIRS, 'desc')
+    status_filter = _whitelist(request.args.get('status'), STATUS_FILTERS)
+    expiry_filter = _whitelist(request.args.get('expiry'), EXPIRY_FILTERS)
+    password_filter = _whitelist(request.args.get('password'), PASSWORD_FILTERS)
+    clicks_filter = _whitelist(request.args.get('clicks'), CLICKS_FILTERS)
+
+    now = portal_now_naive()
+    soon = now + timedelta(days=EXPIRING_SOON_DAYS)
+
+    query = ShortLink.query.filter_by(created_by=current_user.id)
+
+    if search_query:
+        like = f'%{search_query}%'
+        query = query.filter(or_(
+            ShortLink.slug.ilike(like),
+            ShortLink.target_url.ilike(like),
+        ))
+
+    if status_filter == 'active':
+        query = query.filter(
+            ShortLink.is_active.is_(True),
+            _not_expired_clause(now),
+            _not_max_clicks_clause(),
+        )
+    elif status_filter == 'inactive':
+        query = query.filter(or_(
+            ShortLink.is_active.is_(False),
+            and_(ShortLink.expires_at.isnot(None), ShortLink.expires_at <= now),
+            and_(ShortLink.max_clicks.isnot(None), ShortLink.click_count >= ShortLink.max_clicks),
+        ))
+    elif status_filter == 'disabled':
+        query = query.filter(ShortLink.is_active.is_(False))
+
+    if expiry_filter == 'with':
+        query = query.filter(ShortLink.expires_at.isnot(None))
+    elif expiry_filter == 'without':
+        query = query.filter(ShortLink.expires_at.is_(None))
+    elif expiry_filter == 'soon':
+        query = query.filter(
+            ShortLink.expires_at.isnot(None),
+            ShortLink.expires_at > now,
+            ShortLink.expires_at <= soon,
+        )
+
+    if password_filter == 'yes':
+        query = query.filter(ShortLink.password_hash.isnot(None))
+    elif password_filter == 'no':
+        query = query.filter(ShortLink.password_hash.is_(None))
+
+    if clicks_filter == 'with_limit':
+        query = query.filter(ShortLink.max_clicks.isnot(None))
+    elif clicks_filter == 'limit_reached':
+        query = query.filter(
+            ShortLink.max_clicks.isnot(None),
+            ShortLink.click_count >= ShortLink.max_clicks,
+        )
+
+    sort_column_map = {
+        'created': ShortLink.created_at,
+        'clicks': ShortLink.click_count,
+        'slug': ShortLink.slug,
+        'last_click': ShortLink.last_clicked_at,
+    }
+
+    if sort_by == 'expires':
+        # Links without expiry go to the end regardless of direction
+        nulls_last = case((ShortLink.expires_at.is_(None), 1), else_=0)
+        col = ShortLink.expires_at.asc() if sort_dir == 'asc' else ShortLink.expires_at.desc()
+        query = query.order_by(nulls_last.asc(), col)
+    else:
+        col = sort_column_map[sort_by]
+        query = query.order_by(col.asc() if sort_dir == 'asc' else col.desc())
+
+    links = query.all()
+    return render_template(
+        'shortlinks/index.html',
+        links=links,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        status_filter=status_filter,
+        expiry_filter=expiry_filter,
+        password_filter=password_filter,
+        clicks_filter=clicks_filter,
+    )
 
 
 @shortlinks_bp.route('/shortlinks/create', methods=['GET', 'POST'])

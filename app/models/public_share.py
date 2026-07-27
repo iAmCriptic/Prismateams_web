@@ -9,11 +9,12 @@ class PublicShare(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resource_type = db.Column(db.String(16), nullable=False)  # 'file' | 'folder'
     resource_id = db.Column(db.Integer, nullable=False)
-    mode = db.Column(db.String(16), nullable=False)  # 'view' | 'edit'
+    mode = db.Column(db.String(16), nullable=False)  # 'view' | 'edit' | 'dropbox'
     token = db.Column(db.String(255), nullable=False, unique=True)
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=True)
+    label = db.Column(db.String(255), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -25,12 +26,8 @@ class PublicShare(db.Model):
         order_by='ShareAccessLog.accessed_at.desc()',
     )
 
-    __table_args__ = (
-        db.UniqueConstraint('resource_type', 'resource_id', 'mode', name='uq_public_share_resource_mode'),
-    )
-
     def __repr__(self):
-        return f'<PublicShare {self.resource_type}:{self.resource_id} mode={self.mode}>'
+        return f'<PublicShare {self.resource_type}:{self.resource_id} mode={self.mode} id={self.id}>'
 
 
 class ShareAccessLog(db.Model):

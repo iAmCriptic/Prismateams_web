@@ -2,6 +2,36 @@ from datetime import datetime
 from app import db
 
 
+class Calendar(db.Model):
+    """Kalender-Container: personal, public, events oder imported (Sync)."""
+    __tablename__ = 'calendars'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    calendar_type = db.Column(db.String(20), nullable=False, index=True)  # personal | public | events | imported
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, unique=True)
+    color = db.Column(db.String(7), nullable=False, default='#0d6efd')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_calendars', lazy='dynamic'))
+    sync_source = db.relationship(
+        'CalendarSyncSource',
+        back_populates='calendar',
+        foreign_keys=[sync_source_id],
+        uselist=False,
+    )
+    events = db.relationship(
+        'CalendarEvent',
+        back_populates='calendar',
+        lazy='dynamic',
+        foreign_keys='CalendarEvent.calendar_id',
+    )
+
+    def __repr__(self):
+        return f'<Calendar {self.id} {self.calendar_type} {self.name}>'
+
+
 class CalendarEvent(db.Model):
     __tablename__ = 'calendar_events'
     
@@ -16,6 +46,8 @@ class CalendarEvent(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    calendar_id = db.Column(db.Integer, db.ForeignKey('calendars.id'), nullable=True, index=True)
     
     # Wiederkehrende Termine
     recurrence_type = db.Column(db.String(20), default='none', nullable=False)  # 'none', 'daily', 'weekly', 'monthly', 'yearly'
@@ -32,11 +64,21 @@ class CalendarEvent(db.Model):
     
     # Buchungsmodul-Integration
     booking_request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=True)
+
+    # Inbound-Sync (externe Kalender-URLs)
+    sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, index=True)
+    ical_uid = db.Column(db.String(255), nullable=True, index=True)
     
     # Relationships
     creator = db.relationship('User', back_populates='created_events')
     participants = db.relationship('EventParticipant', back_populates='event', cascade='all, delete-orphan')
     parent_event = db.relationship('CalendarEvent', remote_side=[id], backref='recurring_instances')
+    sync_source = db.relationship('CalendarSyncSource', back_populates='events', foreign_keys=[sync_source_id])
+    calendar = db.relationship('Calendar', back_populates='events', foreign_keys=[calendar_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('sync_source_id', 'ical_uid', name='unique_sync_source_ical_uid'),
+    )
     
     def __repr__(self):
         return f'<CalendarEvent {self.title}>'
@@ -86,4 +128,32 @@ class PublicCalendarFeed(db.Model):
         return f'<PublicCalendarFeed {self.name or self.token}>'
 
 
+class CalendarSyncSource(db.Model):
+    """Externer iCal-Feed, der periodisch synchronisiert wird."""
+    __tablename__ = 'calendar_sync_sources'
 
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    url = db.Column(db.String(1000), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_synced_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    creator = db.relationship('User')
+    events = db.relationship(
+        'CalendarEvent',
+        back_populates='sync_source',
+        cascade='all, delete-orphan',
+        foreign_keys='CalendarEvent.sync_source_id'
+    )
+    calendar = db.relationship(
+        'Calendar',
+        back_populates='sync_source',
+        uselist=False,
+        foreign_keys='Calendar.sync_source_id',
+    )
+
+    def __repr__(self):
+        return f'<CalendarSyncSource {self.name}>'

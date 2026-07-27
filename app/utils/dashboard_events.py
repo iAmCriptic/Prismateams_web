@@ -34,6 +34,13 @@ def emit_dashboard_update(user_id, event_type, data):
     except Exception as e:
         logger.error(f"Fehler beim Senden des Dashboard-Updates {event_name} an Benutzer {user_id}: {e}")
 
+    # Parallel über SSE/Redis publizieren (Dashboard + globale Navbar-Badges)
+    try:
+        from app.blueprints.sse import emit_dashboard_update as sse_emit_dashboard_update
+        sse_emit_dashboard_update(user_id, event_type, data)
+    except Exception as e:
+        logger.debug(f"SSE-Dashboard-Update übersprungen: {e}")
+
 
 def emit_dashboard_update_multiple(user_ids, event_type, data):
     """

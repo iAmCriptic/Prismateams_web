@@ -1,5 +1,7 @@
 {% set _assess_scope = session.get('user_scope') == 'assessment' %}
-{% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
+{% if force_light_theme %}
+{% set _theme_dark = false %}{% set _theme_oled = false %}
+{% elif current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
 {% set _theme_dark = true %}{% set _theme_oled = true %}
 {% elif current_user.is_authenticated and current_user.dark_mode %}
 {% set _theme_dark = true %}{% set _theme_oled = false %}
@@ -13,17 +15,27 @@
       {% if current_user.is_authenticated %}data-preferred-layout="{{ (current_user.preferred_layout if current_user.preferred_layout is defined else 'auto') or 'auto' }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ app_name or 'Prismateams' }}{% endblock %}</title>
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="{{ _('layout.meta.description') }}">
-    <meta name="theme-color" content="#0d6efd">
+    {% if _theme_oled %}
+    <meta name="theme-color" content="#000000">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    {% elif _theme_dark %}
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="msapplication-TileColor" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    {% else %}
+    <meta name="theme-color" content="#f0f2f5">
+    <meta name="msapplication-TileColor" content="#f0f2f5">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    {% endif %}
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ app_name or 'Prismateams' }}">
-    <meta name="msapplication-TileColor" content="#0d6efd">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
     <!-- Favicon -->
@@ -49,17 +61,33 @@
     
     <!-- Base CSS (always loaded) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/module-ui.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/context-menu.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/cookie-consent.css') }}">
     
     <!-- Page-specific CSS -->
+    {% if request.args.get('embed') or request.form.get('embed') %}
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+    {% endif %}
     {% if request.endpoint %}
-        {% if 'chat' in request.endpoint %}
+        {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+            {% if request.endpoint.startswith('settings.booking_') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+            {% endif %}
+        {% elif 'chat' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
-        {% elif 'calendar' in request.endpoint or 'events' in request.endpoint %}
+        {% elif 'events' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
+        {% elif 'calendar' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
         {% elif 'files' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+        {% elif 'credentials' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
+        {% elif 'manuals' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
         {% elif 'contacts' in request.endpoint %}
@@ -68,18 +96,31 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+        {% elif 'setup' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
         {% elif 'errors' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
-        {% elif 'dashboard' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% elif 'inventory' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+        {% elif 'wiki' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
+        {% elif 'shortlinks' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
+        {% elif 'music' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
+        {% elif 'media_downloader' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}?v=4">
+        {% elif 'assessment' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
+        {% elif 'dashboard' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}
     {% endif %}
-    {% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated and not (request.endpoint and request.endpoint.startswith('setup.')) and not (request.args.get('embed') or request.form.get('embed')) %}
     <style>
         :root {
-            --accent-color: {{ current_user.accent_color }};
+            --accent-color: {{ current_user.accent_highlight_color }};
             --accent-style: {{ current_user.accent_style }};
         }
         
@@ -242,26 +283,26 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    {% if current_user.is_authenticated %}
+<body{% if _assess_scope %} class="assessment-scope-solo"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
+    {% set _is_setup = request.endpoint and request.endpoint.startswith('setup.') %}
+    {% set _is_embed = request.args.get('embed') or request.form.get('embed') %}
+    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
     <!-- Mobile Bottom Navigation -->
-    <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
+    <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
             {# 1: Benachrichtigungen #}
             <div class="mobile-nav-item">
-                {% if session.get('user_scope') != 'assessment' %}
                 <button type="button" class="nav-link notification-bell-btn border-0 bg-transparent position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
                     <i class="bi bi-bell"></i>
                     <span class="badge rounded-pill bg-danger notification-badge d-none">0</span>
                     <span class="mobile-nav-label">{{ _('layout.nav.notifications_short') }}</span>
                 </button>
-                {% endif %}
             </div>
 
             {# 2: Linker personalisierbarer Slot #}
             <div class="mobile-nav-item">
                 {% if mobile_nav_left %}
-                <a href="{{ mobile_nav_left.url }}" class="nav-link {% if request.endpoint and mobile_nav_left.active_prefix in request.endpoint %}active{% endif %}">
+                <a href="{{ mobile_nav_left.url }}" class="nav-link position-relative {% if request.endpoint and mobile_nav_left.active_prefix in request.endpoint %}active{% endif %}">
                     <i class="bi {{ mobile_nav_left.icon }}"></i>
                     <span class="mobile-nav-label">{{ _(mobile_nav_left.label_key) }}</span>
                 </a>
@@ -270,17 +311,16 @@
 
             {# 3: Home (erhaben) #}
             <div class="mobile-nav-item mobile-nav-item-home">
-                {% set _mobile_home_endpoint = 'assessment.general.home' if session.get('user_scope') == 'assessment' else 'dashboard.index' %}
-                <a href="{{ url_for(_mobile_home_endpoint) }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == _mobile_home_endpoint %}active{% endif %}" aria-label="{{ _('layout.nav.home') }}">
+                <a href="{{ url_for('dashboard.index') }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}" aria-label="{{ _('layout.nav.home') }}">
                     <i class="bi bi-house-door"></i>
                 </a>
-                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == _mobile_home_endpoint %}active{% endif %}">{{ _('layout.nav.home') }}</span>
+                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">{{ _('layout.nav.home') }}</span>
             </div>
 
             {# 4: Rechter personalisierbarer Slot #}
             <div class="mobile-nav-item">
                 {% if mobile_nav_right %}
-                <a href="{{ mobile_nav_right.url }}" class="nav-link {% if request.endpoint and mobile_nav_right.active_prefix in request.endpoint %}active{% endif %}">
+                <a href="{{ mobile_nav_right.url }}" class="nav-link position-relative {% if request.endpoint and mobile_nav_right.active_prefix in request.endpoint %}active{% endif %}">
                     <i class="bi {{ mobile_nav_right.icon }}"></i>
                     <span class="mobile-nav-label">{{ _(mobile_nav_right.label_key) }}</span>
                 </a>
@@ -298,10 +338,10 @@
     </nav>
 
     <!-- Desktop Sidebar -->
-    <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">
+    <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 sidebar" id="desktopSidebar">
         <div class="sidebar-header flex-shrink-0">
             <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-                <a href="{% if session.get('user_scope') == 'assessment' %}{{ url_for('assessment.general.home') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="d-flex align-items-center link-dark text-decoration-none flex-grow-1 min-width-0">
+                <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center link-dark text-decoration-none flex-grow-1 min-width-0">
                     {% if portal_logo_filename %}
                     <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2 flex-shrink-0">
                     {% elif app_logo %}
@@ -309,20 +349,15 @@
                     {% endif %}
                     <span class="fs-4 text-truncate">{{ app_name or 'Prismateams' }}</span>
                 </a>
-                {% if session.get('user_scope') != 'assessment' %}
                 <button type="button" class="btn btn-outline-secondary position-relative notification-bell-btn flex-shrink-0" id="notificationBellBtn" aria-label="{{ _('layout.notification_center.open') }}">
                     <i class="bi bi-bell"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">0</span>
                 </button>
-                {% endif %}
             </div>
             <hr>
         </div>
         <div class="sidebar-nav flex-grow-1 overflow-y-auto" id="sidebarNavList">
             <ul class="nav nav-pills flex-column mb-auto" id="sidebarNavItems">
-            {% if session.get('user_scope') == 'assessment' %}
-                {% include 'assessment/_sidebar_nav.html' %}
-            {% else %}
             <li class="nav-item sidebar-nav-item" data-nav-id="dashboard" data-nav-priority="always-visible">
                 <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">
                     <i class="bi bi-house-door me-2"></i>
@@ -459,7 +494,6 @@
                     {{ _('layout.nav.more') }}
                 </a>
             </li>
-            {% endif %}
             </ul>
         </div>
         <div class="sidebar-footer flex-shrink-0">
@@ -473,179 +507,208 @@
                         title="{{ _('layout.cookie_consent.open_settings') }}">
                     <i class="bi bi-shield-check"></i>
                 </button>
-                <div class="dropdown flex-grow-1">
-                <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-                    {% if current_user.profile_picture %}
-                    <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" width="32" height="32" class="rounded-circle me-2">
-                    {% else %}
-                    <i class="bi bi-person-circle fs-4 me-2"></i>
-                    {% endif %}
-                    <strong class="text-truncate">{{ current_user.full_name }}</strong>
-                </a>
-                <ul class="dropdown-menu text-small shadow">
-                    {% if session.get('user_scope') != 'assessment' %}
-                    <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    {% endif %}
-                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
-                </ul>
+                <div class="dropdown dropup flex-grow-1 min-width-0">
+                    <button type="button"
+                       class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle w-100 border-0 bg-transparent p-0"
+                       data-bs-toggle="dropdown"
+                       data-bs-display="static"
+                       aria-expanded="false"
+                       aria-label="{{ current_user.full_name }}">
+                        {% if current_user.profile_picture %}
+                        <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" width="32" height="32" class="rounded-circle me-2 flex-shrink-0">
+                        {% else %}
+                        <i class="bi bi-person-circle fs-4 me-2 flex-shrink-0"></i>
+                        {% endif %}
+                        <strong class="text-truncate">{{ current_user.full_name }}</strong>
+                    </button>
+                    <ul class="dropdown-menu sidebar-user-dropdown text-small shadow">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('settings.profile') }}">
+                                <i class="bi bi-person me-2" aria-hidden="true"></i>{{ _('layout.nav.profile') }}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item sidebar-user-logout" href="{{ url_for('auth.logout') }}">
+                                <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>{{ _('layout.nav.logout') }}
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- More Menu Offcanvas (Desktop) -->
-    <div class="offcanvas offcanvas-end offcanvas-accent d-none d-lg-block" tabindex="-1" id="desktopMoreMenu" style="width: 300px; left: 280px; right: auto;">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title">{{ _('layout.nav.more') }}</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <div class="offcanvas offcanvas-end offcanvas-accent more-menu d-none d-lg-block" tabindex="-1" id="desktopMoreMenu" style="width: 300px; left: 280px; right: auto;">
+        <div class="offcanvas-header more-menu-header">
+            <h5 class="offcanvas-title more-menu-title">{{ _('layout.nav.more') }}</h5>
+            <button type="button" class="more-menu-close" data-bs-dismiss="offcanvas" aria-label="Schließen">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
         </div>
-        <div class="offcanvas-body">
-            <ul class="nav nav-pills flex-column" id="desktopMoreMenuItems">
+        <div class="offcanvas-body more-menu-body">
+            <ul class="nav more-menu-nav flex-column" id="desktopMoreMenuItems">
                 <!-- Wird dynamisch mit JavaScript gefüllt -->
             </ul>
         </div>
     </div>
 
     <!-- More Menu Offcanvas (Mobile) -->
-    <div class="offcanvas offcanvas-end offcanvas-accent" tabindex="-1" id="moreMenu">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title">{{ _('layout.nav.more') }}</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <div class="offcanvas offcanvas-end offcanvas-accent more-menu" tabindex="-1" id="moreMenu" aria-labelledby="moreMenuTitle">
+        <div class="offcanvas-header more-menu-header">
+            <h5 class="offcanvas-title more-menu-title" id="moreMenuTitle">{{ _('layout.nav.more') }}</h5>
+            <button type="button" class="more-menu-close" data-bs-dismiss="offcanvas" aria-label="Schließen">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
         </div>
-        <div class="offcanvas-body">
-            <ul class="nav nav-pills flex-column">
-                {% if session.get('user_scope') == 'assessment' %}
-                {% include 'assessment/_sidebar_nav.html' %}
-                {% else %}
-                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
+        <div class="offcanvas-body more-menu-body">
+            <ul class="nav more-menu-nav flex-column">
+                {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
                 <li class="nav-item">
-                    <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-folder me-2"></i>
-                        {{ _('layout.nav.files') }}
+                    <a href="{{ url_for('chat.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-chat-dots"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.chats') }}</span>
                     </a>
                 </li>
                 {% endif %}
-                {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
+                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
                 <li class="nav-item">
-                    <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-envelope me-2"></i>
-                        {{ _('layout.nav.email') }}
+                    <a href="{{ url_for('files.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-folder"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.files') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
                 <li class="nav-item">
-                    <a href="{{ url_for('events.index') }}" class="nav-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-calendar2-week me-2"></i>
-                        Veranstaltungen
+                    <a href="{{ url_for('calendar.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-calendar-event"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.calendar') }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('events.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-calendar2-week"></i></span>
+                        <span class="more-menu-label">Veranstaltungen</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('email.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-envelope"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.email') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
                 <li class="nav-item">
-                    <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-person-lines-fill me-2"></i>
-                        {{ _('layout.nav.contacts') }}
+                    <a href="{{ url_for('contacts.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-person-lines-fill"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.contacts') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
-                <li>
-                    <a href="{{ url_for('credentials.index') }}" class="nav-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-key me-2"></i>
-                        {{ _('layout.nav.credentials') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('credentials.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-key"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.credentials') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_manuals') and (not current_user.is_authenticated or has_module_access(current_user, 'module_manuals')) %}
-                <li>
-                    <a href="{{ url_for('manuals.index') }}" class="nav-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-book me-2"></i>
-                        {{ _('layout.nav.manuals') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('manuals.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-book"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.manuals') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_inventory') and (not current_user.is_authenticated or has_module_access(current_user, 'module_inventory')) %}
-                <li>
-                    <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-box-seam me-2"></i>
-                        {{ _('layout.nav.inventory') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('inventory.dashboard') }}" class="nav-link more-menu-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-box-seam"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.inventory') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_wiki') and (not current_user.is_authenticated or has_module_access(current_user, 'module_wiki')) %}
-                <li>
-                    <a href="{{ url_for('wiki.index') }}" class="nav-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-journal-text me-2"></i>
-                        {{ _('layout.nav.wiki') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('wiki.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-journal-text"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.wiki') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_shortlinks') and (not current_user.is_authenticated or has_module_access(current_user, 'module_shortlinks')) %}
-                <li>
-                    <a href="{{ url_for('shortlinks.index') }}" class="nav-link {% if request.endpoint and 'shortlinks' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-link-45deg me-2"></i>
-                        Kurzlinks
+                <li class="nav-item">
+                    <a href="{{ url_for('shortlinks.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'shortlinks' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-link-45deg"></i></span>
+                        <span class="more-menu-label">Kurzlinks</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
-                <li>
-                    <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-calendar-check me-2"></i>
-                        Buchungen
+                <li class="nav-item">
+                    <a href="{{ url_for('booking.requests') }}" class="nav-link more-menu-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-calendar-check"></i></span>
+                        <span class="more-menu-label">Buchungen</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_music') and (not current_user.is_authenticated or has_module_access(current_user, 'module_music')) %}
-                <li>
-                    <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-music-note-beamed me-2"></i>
-                        {{ _('layout.nav.music') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('music.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-music-note-beamed"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.music') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_media_downloader') and (not current_user.is_authenticated or has_module_access(current_user, 'module_media_downloader')) %}
-                <li>
-                    <a href="{{ url_for('media_downloader.index') }}" class="nav-link {% if request.endpoint and 'media_downloader' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-download me-2"></i>
-                        {{ _('layout.nav.media_downloader') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('media_downloader.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'media_downloader' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-download"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.media_downloader') }}</span>
                     </a>
                 </li>
                 {% endif %}
                 {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
-                <li>
-                    <a href="{{ url_for('assessment.general.home') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
-                        <i class="bi bi-clipboard2-check me-2"></i>
-                        Bewertung
+                <li class="nav-item">
+                    <a href="{{ url_for('assessment.general.home') }}" class="nav-link more-menu-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-clipboard2-check"></i></span>
+                        <span class="more-menu-label">Bewertung</span>
                     </a>
                 </li>
                 {% endif %}
-                <li>
-                    <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-gear me-2"></i>
-                        {{ _('layout.nav.settings') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('settings.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-gear"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.settings') }}</span>
                     </a>
                 </li>
-                {% endif %}{# end user_scope != assessment #}
-                <li><hr></li>
-                <li>
-                    <button type="button" class="nav-link w-100 text-start border-0 bg-transparent" data-cookie-consent-open>
-                        <i class="bi bi-shield-check me-2"></i>
-                        {{ _('layout.cookie_consent.open_settings') }}
+            </ul>
+
+            <div class="more-menu-divider" role="separator"></div>
+
+            <ul class="nav more-menu-nav more-menu-nav--account flex-column">
+                <li class="nav-item">
+                    <button type="button" class="nav-link more-menu-link" data-cookie-consent-open>
+                        <span class="more-menu-icon"><i class="bi bi-shield-check"></i></span>
+                        <span class="more-menu-label">{{ _('layout.cookie_consent.open_settings') }}</span>
                     </button>
                 </li>
-                <li>
-                    <a href="{{ url_for('settings.profile') }}" class="nav-link">
-                        <i class="bi bi-person me-2"></i>
-                        {{ _('layout.nav.profile') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('settings.profile') }}" class="nav-link more-menu-link">
+                        <span class="more-menu-icon"><i class="bi bi-person"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.profile') }}</span>
                     </a>
                 </li>
-                <li>
-                    <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
-                        <i class="bi bi-box-arrow-right me-2"></i>
-                        {{ _('layout.nav.logout') }}
+                <li class="nav-item">
+                    <a href="{{ url_for('auth.logout') }}" class="nav-link more-menu-link more-menu-link--danger">
+                        <span class="more-menu-icon"><i class="bi bi-box-arrow-right"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.logout') }}</span>
                     </a>
                 </li>
             </ul>
@@ -653,24 +716,26 @@
     </div>
     {% endif %}
 
-    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed %}
     {% include 'partials/notification_center.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notification-center.css') }}">
     {% endif %}
 
     <!-- Main Content -->
-    <main class="{% if current_user.is_authenticated %}main-content{% endif %}">
-        <div class="container-fluid py-3">
-            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
-            {% if current_user.is_authenticated %}
+    <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
+        <div class="container-fluid{% if not _is_setup and not _is_embed %} py-3{% endif %}">
+            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten / Inventar-Shell) -->
+            {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
                 {% set index_endpoints = [
-                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index',
-                    'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view',
+                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
+                    'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
+                    'email.index', 'email.folder_view',
                     'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
-                    'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
+                    'shortlinks.index', 'booking.requests', 'music.index', 'media_downloader.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% if request.endpoint not in index_endpoints %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email'])) %}
+                {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
                         <i class="bi bi-arrow-left"></i> {{ _('layout.nav.back') }}
@@ -679,22 +744,76 @@
                 {% endif %}
             {% endif %}
             
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            <!-- Flash / App Banner Messages (fixed overlay — does not push content) -->
+            <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true">
+                {% block portal_alerts %}{% endblock %}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        {% set cat_raw = (category or 'info')|lower %}
+                        {% if cat_raw in ['error', 'danger'] %}
+                            {% set cat = 'danger' %}
+                            {% set icon = 'bi-exclamation-circle-fill' %}
+                        {% elif cat_raw == 'success' %}
+                            {% set cat = 'success' %}
+                            {% set icon = 'bi-check-circle-fill' %}
+                        {% elif cat_raw == 'warning' %}
+                            {% set cat = 'warning' %}
+                            {% set icon = 'bi-exclamation-triangle-fill' %}
+                        {% else %}
+                            {% set cat = 'info' %}
+                            {% set icon = 'bi-info-circle-fill' %}
+                        {% endif %}
+                        <div class="alert portal-msg portal-msg--{{ cat }} fade show" role="alert">
+                            <div class="portal-msg__body">
+                                <div class="portal-msg__icon" aria-hidden="true">
+                                    <i class="bi {{ icon }}"></i>
+                                </div>
+                                <div class="portal-msg__content">
+                                    <p class="portal-msg__text">{{ message }}</p>
+                                    <div class="portal-msg__actions">
+                                        <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" data-bs-dismiss="alert">
+                                            {{ _('common.close') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
             
             <!-- Page Content -->
             {% block content %}{% endblock %}
         </div>
     </main>
+
+    <!-- Global confirm dialog (replaces native window.confirm for deletes) -->
+    <div class="modal fade" id="ptConfirmModal" tabindex="-1" aria-labelledby="ptConfirmTitleText" aria-hidden="true"
+         data-i18n-title="{{ _('common.confirm_delete_title') }}"
+         data-i18n-message="{{ _('common.confirm_delete_default') }}"
+         data-i18n-ok="{{ _('common.delete') }}"
+         data-i18n-cancel="{{ _('common.cancel') }}">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content pt-confirm-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+                        <i id="ptConfirmIcon" class="bi bi-exclamation-triangle-fill text-danger flex-shrink-0" aria-hidden="true"></i>
+                        <span id="ptConfirmTitleText">{{ _('common.confirm_delete_title') }}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0" id="ptConfirmMessage">{{ _('common.confirm_delete_default') }}</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptConfirmCancelBtn">{{ _('common.cancel') }}</button>
+                    <button type="button" class="btn btn-danger" id="ptConfirmOkBtn">{{ _('common.delete') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -705,9 +824,25 @@
     window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{ (
         request.endpoint and (
             request.endpoint.startswith('files.public_share') or
-            request.endpoint.startswith('files.dropbox_')
+            request.endpoint.startswith('files.dropbox_') or
+            request.endpoint.startswith('auth.')
         )
     ) | tojson }};
+    window.PRISMATEAMS_I18N.common = {{ {
+        'cancel': _('common.cancel'),
+        'delete': _('common.delete'),
+        'confirm': _('common.confirm'),
+        'close': _('common.close'),
+        'confirm_delete_title': _('common.confirm_delete_title'),
+        'confirm_delete_default': _('common.confirm_delete_default')
+    } | tojson }};
+    window.PRISMATEAMS_I18N.pwa_install = {{ {
+        'title': _('layout.pwa_install.title'),
+        'description': _('layout.pwa_install.description'),
+        'install': _('layout.pwa_install.install'),
+        'later': _('layout.pwa_install.later'),
+        'never': _('layout.pwa_install.never')
+    } | tojson }};
     window.PRISMATEAMS_I18N.context_menu = {{ {
         'copy_info': _('context_menu.copy_info'),
         'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),
@@ -727,8 +862,10 @@
     <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>
     {% endif %}
 
+    {% if not (request.args.get('embed') or request.form.get('embed')) %}
     {% include 'partials/cookie_consent.html' %}
     <script src="{{ url_for('static', filename='js/cookie-consent.js') }}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

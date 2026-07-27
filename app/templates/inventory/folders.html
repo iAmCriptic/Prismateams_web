@@ -1,14 +1,17 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Produktordner - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-folder{% endblock %}
+{% block inventory_heading %}Produktordner{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-folder"></i> Produktordner</h1>
-    </div>
+
+{% block inventory_content %}
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
 </div>
-
 <div class="row">
     <div class="col-12 col-lg-4 mb-4">
         <div class="card">
@@ -83,9 +86,9 @@
                                 </td>
                                 <td>
                                     <form method="POST" action="{{ url_for('inventory.folder_delete', folder_id=folder.id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('Möchten Sie den Ordner \"{{ folder.name }}\" wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                          style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                data-confirm-delete="Möchten Sie den Ordner &quot;{{ folder.name }}&quot; wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.">
                                             <i class="bi bi-trash"></i> Löschen
                                         </button>
                                     </form>

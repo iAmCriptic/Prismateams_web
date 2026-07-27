@@ -1,104 +1,194 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.index.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.sidebar.start') }}{% endblock %}
 
-{% block content %}
-<h1><i class="bi bi-gear"></i> {{ _('settings.index.heading') }}</h1>
-
-<div class="row g-3 mt-3">
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-person-circle text-primary"></i>
-                    {{ _('settings.index.cards.profile.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.profile.description') }}</p>
-                <a href="{{ url_for('settings.profile') }}" class="btn btn-outline-primary">
-                    {{ _('settings.index.cards.profile.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-palette text-info"></i>
-                    {{ _('settings.index.cards.appearance.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.appearance.description') }}</p>
-                <a href="{{ url_for('settings.appearance') }}" class="btn btn-outline-primary">
-                    {{ _('settings.index.cards.appearance.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-bell text-success"></i>
-                    {{ _('settings.index.cards.notifications.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.notifications.description') }}</p>
-                <a href="{{ url_for('settings.notifications') }}" class="btn btn-outline-primary">
-                    {{ _('settings.index.cards.notifications.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-shield-lock text-danger"></i>
-                    {{ _('settings.index.cards.security.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.security.description') }}</p>
-                <a href="{{ url_for('settings.security') }}" class="btn btn-outline-primary">
-                    {{ _('settings.index.cards.security.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-info-circle text-secondary"></i>
-                    {{ _('settings.index.cards.about.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.about.description') }}</p>
-                <a href="{{ url_for('settings.about') }}" class="btn btn-outline-primary">
-                    {{ _('settings.index.cards.about.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    {% if current_user.is_admin %}
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100 border-warning">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-shield-lock text-warning"></i>
-                    {{ _('settings.index.cards.admin.title') }}
-                </h5>
-                <p class="card-text">{{ _('settings.index.cards.admin.description') }}</p>
-                <a href="{{ url_for('settings.admin') }}" class="btn btn-warning">
-                    {{ _('settings.index.cards.admin.button') }} <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    {% endif %}
+{% block settings_content %}
+<div class="d-none d-lg-block mb-4">
+    <h1 class="h4 mb-1"><i class="bi bi-gear"></i> {{ _('settings.index.heading') }}</h1>
+    <p class="text-muted mb-0 settings-start-lead">{{ _('settings.index.lead') }}</p>
 </div>
+
+<section class="settings-start-section mb-4" aria-labelledby="settings-account-heading">
+    <h2 id="settings-account-heading" class="settings-start-section-title">
+        {{ _('settings.sidebar.sections.account') }}
+    </h2>
+    <div class="row g-2 settings-tile-grid">
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.profile') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-person-circle"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.profile.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.profile.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.appearance') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-palette"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.appearance.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.appearance.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.notifications') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-bell"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.notifications.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.notifications.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.security') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-shield-lock"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.security.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.security.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.about') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-info-circle"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.about.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.about.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+</section>
+
+{% if current_user.is_admin %}
+<section id="admin" class="settings-start-section settings-start-admin" aria-labelledby="settings-admin-heading">
+    <div class="settings-start-admin-header">
+        <h2 id="settings-admin-heading" class="settings-start-section-title mb-0">
+            <i class="bi bi-shield-lock"></i> {{ _('settings.sidebar.admin_heading') }}
+        </h2>
+        <p class="text-muted small mb-0">{{ _('settings.index.admin_hint') }}</p>
+    </div>
+
+    <div class="row g-3 settings-admin-columns">
+        <div class="col-12 col-md-4">
+            <div class="settings-admin-group">
+                <h3 class="settings-admin-group-title">{{ _('settings.admin.sections.users.title') }}</h3>
+                <ul class="settings-admin-link-list">
+                    <li>
+                        <a href="{{ url_for('settings.admin_users') }}">
+                            <i class="bi bi-people"></i>
+                            <span>{{ _('settings.admin.cards.user_management.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_whitelist') }}">
+                            <i class="bi bi-shield-check"></i>
+                            <span>{{ _('settings.admin.cards.whitelist.title') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="settings-admin-group">
+                <h3 class="settings-admin-group-title">{{ _('settings.admin.sections.system.title') }}</h3>
+                <ul class="settings-admin-link-list">
+                    <li>
+                        <a href="{{ url_for('settings.admin_system') }}">
+                            <i class="bi bi-gear"></i>
+                            <span>{{ _('settings.admin.cards.system_settings.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_modules') }}">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>{{ _('settings.admin.cards.modules.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_push_subscriptions') }}">
+                            <i class="bi bi-bell"></i>
+                            <span>{{ _('settings.sidebar.push_subscriptions') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_backup') }}">
+                            <i class="bi bi-archive"></i>
+                            <span>{{ _('settings.admin.cards.backup.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_registration') }}">
+                            <i class="bi bi-shield-lock"></i>
+                            <span>{{ _('settings.admin.cards.registration_options.title') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="settings-admin-group">
+                <h3 class="settings-admin-group-title">{{ _('settings.sidebar.sections.modules') }}</h3>
+                <ul class="settings-admin-link-list">
+                    {% if is_module_enabled('module_booking') %}
+                    <li>
+                        <a href="{{ url_for('settings.booking_forms') }}">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>{{ _('booking.admin.cards.booking_forms.title') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_music') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_music') }}">
+                            <i class="bi bi-music-note-beamed"></i>
+                            <span>{{ _('booking.admin.cards.music_module.title') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_email') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_email_module') }}">
+                            <i class="bi bi-envelope"></i>
+                            <span>{{ _('settings.sidebar.email_module') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_inventory') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_inventory_settings') }}">
+                            <i class="bi bi-box-seam"></i>
+                            <span>{{ _('settings.sidebar.inventory') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_calendar') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_calendar_settings') }}">
+                            <i class="bi bi-calendar-event"></i>
+                            <span>{{ _('settings.admin.cards.calendar_settings.title') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_file_settings') }}">
+                            <i class="bi bi-folder"></i>
+                            <span>{{ _('settings.admin.cards.file_settings.title') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
 {% endblock %}
-
-
-

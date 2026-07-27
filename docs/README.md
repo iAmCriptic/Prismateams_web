@@ -1,255 +1,256 @@
-# Prismateams - Team Portal
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="140">
+</p>
 
-Ein umfassendes, webbasiertes Team-Portal mit modernem Design und vollständiger Funktionalität für Teams. Entwickelt mit Flask (Python) und Bootstrap 5.
+<h1 align="center">Prismateams</h1>
 
-### Disclaimer
-Das Portal und auch die Dazugehörige Dokumentation wurde zum Teil mit der IDE Cursor und den damit Verbunden KI Tools erstellt. Bei Fehlerhafter Dokuemntation & daraus resultierenden Problemen bitten wir dies zu entschuldigen, da dies ein schulprojekt ist und uns die Zeit fehlt alles ins detail zu überprüfen.
-Wir übernehmen keine Haftung wir ausgenutze Sicherlücken, fehlerhaftes verhalten, datenverlust oder ähnliches die Nutzung dieses Repos erfolgt auf eigene Gefahr.  
+<p align="center">
+  <strong>Team-Portal · Version 3.0.0</strong><br>
+  Modernes, modulares Web-Portal für Teams – Flask · Bootstrap · Mobile-First
+</p>
 
-## 📋 Inhaltsverzeichnis
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=for-the-badge" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
+  <img src="https://img.shields.io/badge/Bootstrap-5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white" alt="Bootstrap">
+  <img src="https://img.shields.io/badge/license-Non--Commercial%20Share--Alike-blue?style=for-the-badge" alt="License">
+</p>
 
-- [Features](#-features)
-- [Module](#-module)
-- [Installation](#-installation)
-- [Technische Details](#-technische-details)
-- [API-Dokumentation](#-api-dokumentation)
-- [Projektstruktur](#️-projektstruktur)
-- [Dokumentation](#-dokumentation)
-- [Lizenz & Support](#-lizenz--support)
+<p align="center">
+  <a href="#-neu-in-300">Neu in 3.0.0</a> ·
+  <a href="#-screenshots">Screenshots</a> ·
+  <a href="#-module">Module</a> ·
+  <a href="#-installation">Installation</a> ·
+  <a href="#-dokumentation">Dokumentation</a>
+</p>
 
-## ✨ Features
+---
 
-### Technische Features
+## Überblick
 
-- ✅ **Mobile-First Design** mit Bootstrap 5
-- ✅ **RESTful API** für zukünftige mobile Apps
-- ✅ **Push-Benachrichtigungen** mit Web Push API (VAPID)
-- ✅ **Service Worker** für Offline-Funktionalität
-- ✅ **WebSocket/Socket.IO** für Echtzeit-Updates
-- ✅ **Redis-Integration** für Multi-Worker-Setups
-- ✅ **OnlyOffice Document Server Integration** (optional) für Online-Dokumentenbearbeitung
-- ✅ **Benutzerverwaltung** mit Admin-Freischaltung
-- ✅ **Gast-Accounts** für temporären Zugriff
-- ✅ **Rollenbasierte Berechtigungen** (User/Admin/Gast)
-- ✅ **Modulbasierte Zugriffskontrolle**
-- ✅ **Dark Mode Support**
-- ✅ **Personalisierbare Akzentfarben**
-- ✅ **Sichere Passwort-Verschlüsselung** (Argon2)
-- ✅ **Verschlüsselte Credentials-Speicherung** (Fernet)
-- ✅ **Dateiversionierung** (letzte 3 Versionen)
-- ✅ **Responsive Navigation** (Desktop Sidebar / Mobile Bottom Nav)
-- ✅ **Setup-Assistent** für einfache Erstkonfiguration
-- ✅ **Modulare Architektur** - Module können aktiviert/deaktiviert werden
-- ✅ **Mehrsprachigkeit** (Deutsch, Englisch, Portugiesisch, Spanisch, Russisch)
-- ✅ **Automatische Installation** für Ubuntu Server
-- ✅ **Datenbank-Migrationen** für einfache Updates
+Prismateams ist ein webbasiertes Team-Portal mit einheitlicher Designsprache, modularem Aufbau und starker Mobile-Unterstützung. Module lassen sich gezielt aktivieren – von Chat und Dateien über Kalender und Inventar bis zu Events, Buchungen und Bewertung.
 
-## 📦 Module
+> **Schulprojekt / Disclaimer**  
+> Portal und Dokumentation wurden teilweise mit Cursor und KI-Tools erstellt. Fehlerhafte Doku oder Bugs können vorkommen. Keine Haftung für Sicherheitslücken, Fehlverhalten oder Datenverlust – Nutzung auf eigene Gefahr.
 
-Prismateams besteht aus verschiedenen Modulen, die je nach Bedarf aktiviert oder deaktiviert werden können:
+---
 
-### 📊 Dashboard
-Übersicht mit Widgets für Termine, Chats und E-Mails. Schnellzugriff auf wichtige Informationen, personalisierbare Ansicht und konfigurierbare Banner.
+## Neu in 3.0.0
 
-### 💬 Chat-System
-Haupt-Chat für alle Teammitglieder, Gruppen-Chats für spezifische Teams, Direktnachrichten zwischen Benutzern. Medien-Upload (Bilder, Videos, Dokumente), Echtzeit-Nachrichten mit WebSocket-Unterstützung, Push-Benachrichtigungen und Lesebestätigungen.
+PrismaTeams 3 bringt frisches Design, neue Module und mehr Sicherheit für den Alltag im Team.
 
-### 📁 Dateiverwaltung
-Cloud-Speicher mit Ordnerstruktur, Dateiversionierung (letzte 3 Versionen), OnlyOffice Integration (optional) für Online-Bearbeitung von Office-Dokumenten, Datei-Sharing mit temporären Links, Markdown-Vorschau und Text-Editor.
+| Bereich | Highlights |
+|--------|------------|
+| **Design** | Einheitliche Oberfläche, OLED-Modus, Farbverläufe, überarbeitete Navigation |
+| **Dashboard** | Widgets, Schnellzugriff, „Neues“-Overlay pro Version |
+| **Sicherheit** | 2FA (TOTP), Rate-Limiting, Bot-Schutz, Session-Tracking, Gast-Accounts |
+| **Dateien** | Private Bereiche, Quotas, Favoriten, Soft-Locks, Dropbox-Mode |
+| **Kalender** | Multi-Kalender, Tagesansicht, externe Sync, Kontextmenüs |
+| **Inventar** | Checkout-System, Event-Verknüpfung, erweiterte Produktfelder |
+| **Neu** | Veranstaltungen, Bewertung, Musik, Shortlinks, Media Downloader |
 
-### 📅 Kalender
-Gemeinsame Termine mit Teilnahmestatus, Termine erstellen/bearbeiten/löschen, Teilnahme zusagen/absagen, öffentliche Kalender-Feeds (iCal), Benachrichtigungen für anstehende Termine, monatliche und zeitraumbasierte Ansichten.
+---
 
-### 📧 E-Mail-Client
-Zentrales E-Mail-Konto mit IMAP/SMTP-Integration, E-Mails lesen/senden/verwalten, Anhänge unterstützt, E-Mail-Berechtigungen pro Benutzer (Admin-Verwaltung), HTML-E-Mail-Unterstützung, E-Mail-Synchronisation im Hintergrund.
+## Screenshots
 
-### 🔐 Zugangsdaten-Verwaltung
-Sichere Passwortverwaltung mit Verschlüsselung (Fernet), verschlüsselte Speicherung sensibler Daten, Kategorisierung und Organisation von Zugangsdaten, Passwort-Anzeige mit Berechtigungskontrolle.
+<p align="center">
+  <img src="Pictures/Dsahbaord.png" alt="Dashboard Desktop" width="85%">
+  <br><em>Dashboard – Desktop</em>
+</p>
 
-### 📚 Bedienungsanleitungen
-PDF-Verwaltung (Admin-Upload), zentrale Sammlung von Anleitungen und Dokumentationen, einfacher Zugriff für alle Teammitglieder.
+<p align="center">
+  <img src="Pictures/Dashbaord%20Mobil.png" alt="Dashboard Mobile" width="280">
+  <br><em>Dashboard – Mobile</em>
+</p>
 
-### 📦 Inventar-Verwaltung
-Produktverwaltung mit Kategorien und Ordnern, QR-Code-Generierung für Produkte, Ausleihsystem mit Transaktionsverfolgung, Inventurlisten und PDF-Export, Produktbilder und Metadaten, Statusverwaltung (verfügbar, ausgeliehen, fehlend), Scanner-Funktion für QR-Codes, Sets und Kategorien, Mobile-API für Scanner-Apps.
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="Pictures/Kalender.png" alt="Kalender"><br>
+      <em>Kalender</em>
+    </td>
+    <td width="50%" align="center">
+      <img src="Pictures/Dateien.png" alt="Dateien"><br>
+      <em>Dateien</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="Pictures/Invenatr.png" alt="Inventar"><br>
+      <em>Inventar</em>
+    </td>
+    <td width="50%" align="center">
+      <img src="Pictures/Kontakte.png" alt="Kontakte"><br>
+      <em>Kontakte</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="Pictures/Zuagnsdaten.png" alt="Zugangsdaten"><br>
+      <em>Zugangsdaten</em>
+    </td>
+    <td width="50%" align="center">
+      <img src="Pictures/Einstellungen.png" alt="Einstellungen"><br>
+      <em>Einstellungen</em>
+    </td>
+  </tr>
+</table>
 
-### 📝 Wiki
-Internes Wiki-System mit Versionsverwaltung, Kategorien und Tags, Markdown-Unterstützung, Favoriten-Funktion, Volltext-Suche.
+<p align="center">
+  <img src="Pictures/Anpassungen.png" alt="Darstellung anpassen" width="70%">
+  <br><em>Darstellung – Dark Mode, OLED, Farbverläufe, Layout</em>
+</p>
 
-### 💬 Kommentare
-Kommentar-System für verschiedene Module, Erwähnungen von Benutzern, Benachrichtigungen bei neuen Kommentaren.
+---
 
-### 📋 Buchungen
-Buchungssystem mit anpassbaren Formularen, öffentliche Buchungsformulare, Genehmigungsworkflows, Datei-Uploads für Buchungen, PDF-Export.
+## Features
 
-### ⚙️ Einstellungen
-Benutzerprofile verwalten, Dark Mode Support, personalisierbare Akzentfarben, Benachrichtigungseinstellungen, System-Einstellungen (nur für Admins), Modulverwaltung (Admin), Whitelist-Verwaltung (Admin).
+- **Mobile-First** – Sidebar Desktop, Bottom-Nav Mobile
+- **Modulare Architektur** – Module an/aus per Admin
+- **Echtzeit** – WebSocket / Socket.IO, optional Redis
+- **Push** – Web Push (VAPID), Service Worker
+- **API** – REST unter `/api/` für Apps und Integrationen
+- **Sicherheit** – Argon2, Fernet, 2FA, Rollen & Modulrechte
+- **Personalisierung** – Dark/OLED, Akzentfarben & Verläufe
+- **i18n** – u. a. Deutsch, Englisch, Portugiesisch, Spanisch, Russisch
+- **Optional** – OnlyOffice, Media Downloader
+- **Setup** – Assistent; modularer Ubuntu-Installer (produktionstauglich)
+- **Updates** – Migrationsskripte unter `migrations/`
 
-## 🚀 Installation
+---
 
-Für Ubuntu Server 24.04 wird die **automatische Installation** empfohlen:
+## Module
+
+| Modul | Beschreibung |
+|-------|--------------|
+| **Dashboard** | Widgets, Schnellzugriff, personalisierbare Startseite |
+| **Chats** | Team-/Gruppen-/Direktchats, Pins, Medien, Push |
+| **Dateien** | Ordner, Versionen, Quotas, Freigaben, OnlyOffice (opt.) |
+| **Kalender** | Multi-Kalender, Sync, iCal, Tages-/Monatsansicht |
+| **Veranstaltungen** | Termine, Zuweisungen, Bedarf, Scanner, PDF |
+| **E-Mail** | IMAP/SMTP, Rechte pro User, HTML & Anhänge |
+| **Kontakte** | Team-Kontakte mit Favoriten |
+| **Zugangsdaten** | Verschlüsselte Passwortverwaltung (Fernet) |
+| **Handbücher** | PDF-Anleitungen mit Ordnerstruktur |
+| **Inventar** | Produkte, QR, Checkout, Inventur, Event-Link |
+| **Wiki** | Markdown, Versionen, Tags, Suche |
+| **Buchungen** | Öffentliche Formulare, Freigabe, Nachrichten |
+| **Musik** | Wünsche, Playlists, öffentliche Wishlist |
+| **Shortlinks** | Kurzlinks fürs Team |
+| **Media Downloader** | Medien-Downloads (optional) |
+| **Bewertung** | Bewertungen, Ranking, Inspektionen |
+| **Einstellungen** | Profil, Theme, Module, Admin-Tools |
+
+---
+
+## Tech Stack
+
+| Schicht | Technologie |
+|---------|-------------|
+| Backend | Python, Flask, SQLAlchemy |
+| Frontend | Bootstrap 5, Vanilla JS, CSS |
+| Datenbank | MySQL / MariaDB oder SQLite |
+| Echtzeit | Socket.IO, optional Redis |
+| Auth | Sessions, Argon2, optional 2FA / reCAPTCHA / Turnstile |
+| Deploy | Gunicorn, Nginx/Apache, Ubuntu-Skript |
+
+**Minimal:** Python 3.8+, 2 GB RAM, 10 GB Speicher  
+**Empfohlen:** Python 3.12+, MySQL/MariaDB, 4 GB+ RAM, Redis bei Multi-Worker
+
+---
+
+## Installation
+
+### Ubuntu (empfohlen)
+
+Modularer Installer – **einsatzbereit** für Produktion:
 
 ```bash
 sudo bash scripts/install_ubuntu.sh
 ```
 
-**Dokumentation:**
+Details und Flags: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · Alternative: [manuelle Installation](INSTALLATION.md)
 
-- **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)** — Installationsskript, CLI-Optionen
-- **[INSTALLATION.md](INSTALLATION.md)** — Manuelle Schritt-für-Schritt-Installation
-- **[WARTUNG.md](WARTUNG.md)** — Updates, Migrationen, Backups
-- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** — Fehlerbehebung
+### Entwicklung (Kurz)
 
-## 🔧 Technische Details
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+cp docs/env.example .env
+python app.py
+```
 
-### Systemanforderungen
+Details:
 
-**Minimal:**
-- Python 3.8+
-- MySQL/MariaDB oder SQLite
-- 2GB RAM
-- 10GB Speicherplatz
+- [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) – Ubuntu-Installer (empfohlen)
+- [INSTALLATION.md](INSTALLATION.md) – manuelle Installation
+- [WARTUNG.md](WARTUNG.md) – Updates, Migrationen, Backups
+- [ERROR_HANDLING.md](ERROR_HANDLING.md) – Fehlerbehebung
+- [env.example](env.example) – Konfigurationsbeispiel
 
-**Empfohlen (Produktion):**
-- Python 3.12+
-- MySQL/MariaDB
-- 4GB+ RAM
-- 20GB+ Speicherplatz
-- Redis (für Multi-Worker-Setups)
+---
 
-**Mit OnlyOffice:**
-- 8GB+ RAM
-- 20GB+ zusätzlicher Speicherplatz
+## API
 
+REST unter `/api/` – Übersicht: **[API_Übersicht.md](API_Übersicht.md)**  
+Auth-Details: **[API_AUTH.md](API_AUTH.md)**
 
-## 🔑 API-Dokumentation
+Abgedeckt u. a.: Auth, Dashboard, Chat, Dateien, Kalender, E-Mail, Inventar, Wiki, Push, WebSocket.
 
-Eine vollständige API-Dokumentation mit allen Endpunkten finden Sie in:
+---
 
-**[📖 API_Übersicht.md](API_Übersicht.md)**
-
-Die REST API ist unter `/api/` verfügbar und unterstützt alle Hauptfunktionen des Systems:
-
-- Benutzer-API
-- Chat-API
-- Dateien-API
-- Kalender-API
-- E-Mail-API
-- Zugangsdaten-API
-- Dashboard-API
-- Inventar-API
-- Wiki-API
-- Musik-API
-- Push Notifications API
-- WebSocket/Socket.IO Events
-
-## 🗂️ Projektstruktur
+## Projektstruktur
 
 ```
 Prismateams_web/
 ├── app/
-│   ├── __init__.py              # Flask App Factory
-│   ├── models/                   # Datenbank-Modelle
-│   │   ├── user.py              # Benutzer, Gast-Accounts
-│   │   ├── chat.py              # Chat-System
-│   │   ├── file.py              # Dateiverwaltung
-│   │   ├── calendar.py          # Kalender
-│   │   ├── email.py             # E-Mail-Integration
-│   │   ├── credential.py        # Zugangsdaten
-│   │   ├── manual.py            # Bedienungsanleitungen
-│   │   ├── inventory.py         # Inventar-Verwaltung
-│   │   ├── notification.py      # Benachrichtigungen
-│   │   ├── settings.py          # Einstellungen
-│   │   ├── whitelist.py         # Whitelist
-│   │   ├── wiki.py              # Wiki
-│   │   ├── comment.py           # Kommentare
-│   │   ├── booking.py           # Buchungen
-│   │   ├── role.py              # Rollen/Berechtigungen
-│   │   ├── guest.py             # Gast-Accounts
-│   │   └── api_token.py         # API-Tokens
-│   ├── blueprints/               # Flask Blueprints (Module)
-│   │   ├── auth.py              # Authentifizierung
-│   │   ├── dashboard.py         # Dashboard
-│   │   ├── chat.py              # Chat
-│   │   ├── files.py             # Dateiverwaltung
-│   │   ├── calendar.py          # Kalender
-│   │   ├── email.py             # E-Mail
-│   │   ├── credentials.py       # Zugangsdaten
-│   │   ├── manuals.py           # Bedienungsanleitungen
-│   │   ├── inventory.py         # Inventar
-│   │   ├── settings.py          # Einstellungen
-│   │   ├── setup.py             # Setup-Assistent
-│   │   ├── api.py               # REST API
-│   │   ├── wiki.py              # Wiki
-│   │   ├── comments.py          # Kommentare
-│   │   └── booking.py           # Buchungen
-│   ├── templates/                # Jinja2 Templates
-│   ├── static/                   # Statische Dateien
-│   ├── tasks/                     # Hintergrund-Tasks
-│   └── utils/                     # Hilfsfunktionen
-├── docs/                          # Dokumentation
-│   ├── README.md                 # Diese Datei
-│   ├── INSTALLATION.md           # Manuelle Installation
-│   ├── INSTALLATION_SCRIPT.md    # Ubuntu-Installationsskript
-│   ├── WARTUNG.md                # Updates, Migrationen, Backups
-│   ├── ERROR_HANDLING.md         # Fehlerbehebung
-│   ├── API_Übersicht.md          # API-Dokumentation
-│   └── env.example               # Konfigurationsbeispiel
-├── migrations/                    # Datenbank-Migrationen
-│   └── migrate_to_2.3.3.py      # Aktuelle Migration
-├── scripts/                       # Hilfsskripte
-│   ├── install_ubuntu.sh         # Automatische Installation
-│   ├── generate_encryption_keys.py
-│   └── generate_vapid_keys.py
-├── uploads/                       # Upload-Verzeichnis
-├── app.py                         # Einstiegspunkt (Entwicklung)
-├── wsgi.py                        # WSGI-Einstiegspunkt (Produktion)
-├── config.py                      # Konfiguration
-└── requirements.txt               # Python Dependencies
+│   ├── blueprints/          # Module (Dashboard, Chat, Files, …)
+│   ├── models/              # SQLAlchemy-Modelle
+│   ├── services/            # Business-Logic
+│   ├── static/              # CSS, JS, Logo, Assets
+│   ├── templates/           # Jinja2
+│   └── utils/               # Hilfen (i18n, PDF, Push, …)
+├── docs/                    # Doku & Screenshots (diese README)
+│   └── Pictures/
+├── migrations/              # DB-Migrationen
+├── scripts/                 # install_ubuntu.sh (+ install_ubuntu/), Key-Generatoren
+├── app.py                   # Dev-Einstieg
+├── wsgi.py                  # Produktion
+├── config.py
+└── requirements.txt
 ```
-
-## 📚 Dokumentation
-
-### Lokale Dokumentation
-
-- **[README.md](README.md)** - Diese Datei (Überblick)
-- **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)** - Ubuntu-Installationsskript und CLI
-- **[INSTALLATION.md](INSTALLATION.md)** - Manuelle Schritt-für-Schritt-Installation
-- **[WARTUNG.md](WARTUNG.md)** - Updates, Migrationen, Backups
-- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Fehlerbehebung
-- **[API_Übersicht.md](API_Übersicht.md)** - Vollständige API-Dokumentation
-- **[env.example](env.example)** - Beispiel-Konfigurationsdatei
-
-### GitHub Wiki
-
-Für detaillierte Informationen zu einzelnen Modulen, Troubleshooting, Sicherheit und weiteren Themen besuchen Sie das [GitHub Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki).
-
-Das Wiki enthält:
-- Detaillierte Modul-Dokumentationen
-- Troubleshooting-Anleitungen
-- Sicherheitsrichtlinien
-- Entwickler-Dokumentation
-- Q&A-Bereich
-
-## 📜 Lizenz & Support
-
-### Lizenz
-
-Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe [LICENSE](../LICENSE) für Details.
-
-### Beitrag
-
-Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder öffnen Sie ein Issue auf GitHub.
-
-### Support
-
-Bei Fragen oder Problemen:
-
-1. Prüfen Sie die [Dokumentation](INSTALLATION.md) bzw. [ERROR_HANDLING.md](ERROR_HANDLING.md)
-2. Überprüfen Sie die [API-Dokumentation](API_Übersicht.md)
-3. Besuchen Sie das [GitHub Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki)
-4. Überprüfen Sie die Logs
-5. Öffnen Sie ein [Issue auf GitHub](https://github.com/iAmCriptic/Prismateams_web/issues)
 
 ---
 
-**Entwickelt mit ❤️ für effiziente Team-Zusammenarbeit**
+## Dokumentation
+
+| Dokument | Inhalt |
+|----------|--------|
+| [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) | Ubuntu-Installer (empfohlen, einsatzbereit) |
+| [INSTALLATION.md](INSTALLATION.md) | Manuelle Installation |
+| [WARTUNG.md](WARTUNG.md) | Updates & Backups |
+| [ERROR_HANDLING.md](ERROR_HANDLING.md) | Troubleshooting |
+| [API_Übersicht.md](API_Übersicht.md) | API-Endpunkte |
+| [API_AUTH.md](API_AUTH.md) | API-Login, 2FA, Tokens |
+| [GitHub Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki) | Erweiterte Modul-Doku |
+
+---
+
+## Lizenz & Support
+
+Lizenz: **Non-Commercial Share-Alike** – siehe [../LICENSE](../LICENSE).  
+Interne/kommerzielle Nutzung im eigenen Betrieb ok; Verkauf/Weitervertrieb als Produkt/Service nicht. Änderungen müssen öffentlich unter gleicher Lizenz bleiben.
+
+**Hilfe:** Doku prüfen → [Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki) → Logs → [Issue](https://github.com/iAmCriptic/Prismateams_web/issues)
+
+Beiträge willkommen (PR oder Issue).
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="48"><br>
+  <sub>Prismateams 3.0.0 – Team-Zusammenarbeit, modular & modern</sub>
+</p>

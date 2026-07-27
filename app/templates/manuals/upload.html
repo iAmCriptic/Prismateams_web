@@ -3,44 +3,106 @@
 {% block title %}{{ _('manuals.upload.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('manuals.index') }}">{{ _('manuals.upload.breadcrumb.index') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('manuals.upload.breadcrumb.current') }}</li>
-            </ol>
+{% set selected_folder_id = selected_folder_id|default(none) %}
+{% set folders = folders|default([]) %}
+{% set upload_url = url_for('manuals.upload', folder_id=selected_folder_id) if selected_folder_id else url_for('manuals.upload') %}
+{% set index_url = url_for('manuals.index', folder_id=selected_folder_id) if selected_folder_id else url_for('manuals.index') %}
+
+<div class="manuals-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-book" aria-hidden="true"></i>
+        <span>{{ _('manuals.index.heading') }}</span>
+    </div>
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ upload_url }}" class="btn mod-sidebar-new w-100 text-start">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('manuals.index.new_button') }}
+        </a>
+    </div>
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="manualsMobileNav" aria-labelledby="manualsMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="manualsMobileNavLabel">
+            <i class="bi bi-book" aria-hidden="true"></i>
+            <span>{{ _('manuals.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <nav class="mod-sidebar-nav nav flex-column gap-1">
+            <a class="nav-link mod-nav-link" href="{{ index_url }}">
+                <i class="bi bi-arrow-left me-2"></i>{{ _('manuals.upload.back') }}
+            </a>
         </nav>
-        
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('manuals.upload.card_title') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="title" class="form-label">{{ _('manuals.upload.form.title') }}</label>
-                        <input type="text" class="form-control" id="title" name="title" placeholder="{{ _('manuals.upload.form.title_placeholder') }}">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="file" class="form-label">{{ _('manuals.upload.form.file') }}</label>
-                        <input type="file" class="form-control" id="file" name="file" accept=".pdf" required>
-                        <div class="form-text">{{ _('manuals.upload.form.file_help') }}</div>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">
-                            <i class="bi bi-upload"></i> {{ _('manuals.upload.buttons.submit') }}
-                        </button>
-                        <a href="{{ url_for('manuals.index') }}" class="btn btn-outline-secondary">{{ _('manuals.upload.buttons.cancel') }}</a>
-                    </div>
-                </form>
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#manualsMobileNav" aria-controls="manualsMobileNav" aria-label="{{ _('manuals.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-upload" aria-hidden="true"></i>
+                    <span>{{ _('manuals.upload.card_title') }}</span>
+                </h1>
             </div>
         </div>
     </div>
+
+    <div class="manuals-form">
+        <div class="manuals-form-header">
+            <a href="{{ index_url }}" class="manuals-form-back">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>{{ _('manuals.upload.back') }}</span>
+            </a>
+            <div class="d-none d-lg-block">
+                <h1 class="manuals-form-title">{{ _('manuals.upload.card_title') }}</h1>
+                <p class="manuals-form-subtitle">{{ _('manuals.upload.subtitle') }}</p>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" class="manuals-form-body">
+            <section class="manuals-form-card" aria-labelledby="manuals-form-file">
+                <div class="manuals-form-card-head">
+                    <h2 id="manuals-form-file" class="manuals-form-section-title">
+                        <i class="bi bi-file-pdf" aria-hidden="true"></i>
+                        {{ _('manuals.upload.sections.file') }}
+                    </h2>
+                </div>
+                <div class="manuals-form-fields manuals-form-fields--2">
+                    <div class="manuals-form-field">
+                        <label class="form-label" for="title">{{ _('manuals.upload.form.title') }}</label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="{{ _('manuals.upload.form.title_placeholder') }}">
+                    </div>
+                    <div class="manuals-form-field">
+                        <label class="form-label" for="folder_id">{{ _('manuals.upload.form.folder') }}</label>
+                        <select class="form-select" id="folder_id" name="folder_id">
+                            <option value="" {% if not selected_folder_id %}selected{% endif %}>{{ _('manuals.upload.form.root_folder') }}</option>
+                            {% for folder in folders %}
+                            <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="manuals-form-field manuals-form-field--span-2">
+                        <label class="form-label" for="file">{{ _('manuals.upload.form.file') }} <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".pdf,application/pdf" required>
+                        <div class="form-text">{{ _('manuals.upload.form.file_help') }}</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="manuals-form-actions">
+                <button type="submit" class="btn btn-accent manuals-form-submit">
+                    <i class="bi bi-upload" aria-hidden="true"></i> {{ _('manuals.upload.buttons.submit') }}
+                </button>
+                <a href="{{ index_url }}" class="btn btn-outline-secondary manuals-form-cancel">{{ _('manuals.upload.buttons.cancel') }}</a>
+            </div>
+        </form>
+    </div>
+</div>
 </div>
 {% endblock %}
-
-
-

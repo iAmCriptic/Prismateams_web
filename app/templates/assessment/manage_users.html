@@ -1,150 +1,206 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
-{% block title %}Benutzerverwaltung - Bewertung{% endblock %}
-{% block content %}
-{{ assessment_page_header('Benutzerverwaltung', icon='people') }}
+{% block title %}{{ _('assessment.users.page_title') }}{% endblock %}
+{% block assessment_heading_icon %}bi-people{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.users') }}{% endblock %}
+{% block assessment_content %}
+{{ assessment_page_header(_('assessment.users.heading'), icon='people') }}
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-person-plus me-2"></i>Neuen Benutzer anlegen</h2>
+    <div class="assessment-panel mb-4">
+            <h2 class="assessment-panel-title"><i class="bi bi-person-plus me-2"></i>{{ _('assessment.users.create') }}</h2>
             <form id="userForm">
                 <input type="hidden" id="userId">
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">Benutzername</label>
-                        <input class="form-control" name="username" id="userUsername" required>
+                        <label class="form-label" for="userUsername">{{ _('assessment.users.username') }}</label>
+                        <input class="form-control assessment-pill-input" name="username" id="userUsername" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Anzeigename</label>
-                        <input class="form-control" name="display_name" id="userDisplay" required>
+                        <label class="form-label" for="userDisplay">{{ _('assessment.users.display_name') }}</label>
+                        <input class="form-control assessment-pill-input" name="display_name" id="userDisplay" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Passwort <small class="text-muted" id="pwHint"></small></label>
-                        <input type="password" class="form-control" name="password" id="userPassword">
+                        <label class="form-label" for="userPassword">{{ _('assessment.users.password') }} <small class="text-muted" id="pwHint"></small></label>
+                        <input type="password" class="form-control assessment-pill-input" name="password" id="userPassword">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Rollen</label>
-                        <div id="rolesBox" class="d-flex flex-wrap gap-3"></div>
+                        <label class="form-label">{{ _('assessment.users.roles') }}</label>
+                        <div id="rolesBox" class="assessment-chip-box d-flex flex-wrap gap-2"></div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">{{ _('assessment.users.lists') }}</label>
+                        <p class="text-muted small mb-2">{{ _('assessment.users.lists_hint') }}</p>
+                        <div id="listsBox" class="assessment-chip-box d-flex flex-wrap gap-2">
+                            {% for lst in evaluation_lists %}
+                            <label class="assessment-chip">
+                                <input type="checkbox" class="list-check" value="{{ lst.id }}" id="list_{{ lst.id }}">
+                                <span>{{ lst.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-3">
-                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>Abbrechen</button>
-                    <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>Benutzer anlegen</button>
+                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>{{ _('assessment.common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>{{ _('assessment.users.create_btn') }}</button>
                 </div>
             </form>
-        </div>
     </div>
 
     {{ assessment_excel_upload(
-        'Benutzer per Excel hochladen',
+        _('assessment.users.excel_title'),
         'excelForm',
         'users',
-        'Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).'
+        _('assessment.users.excel_hint')
     ) }}
 
-    <div class="card">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-people me-2"></i>Vorhandene Benutzer</h2>
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead><tr><th>Benutzername</th><th>Anzeigename</th><th>Rollen</th><th class="text-end">Aktion</th></tr></thead>
-                    <tbody id="rows"></tbody>
-                </table>
-            </div>
-        </div>
+    <h2 class="assessment-panel-title mb-2"><i class="bi bi-people me-2"></i>{{ _('assessment.users.existing') }}</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('assessment.users.username') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('assessment.users.display_name') }}</th>
+                    <th scope="col">{{ _('assessment.users.roles') }}</th>
+                    <th scope="col" class="d-none d-lg-table-cell">{{ _('assessment.users.lists') }}</th>
+                    <th scope="col" class="text-end assessment-col-actions">{{ _('assessment.common.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
+{% endblock %}
 
+{% block assessment_extra_js %}
 <script>
-let roles = [];
-const form = document.getElementById('userForm');
-const resetBtn = document.getElementById('resetFormBtn');
-const saveBtn = document.getElementById('saveBtn');
-const pwHint = document.getElementById('pwHint');
+(function () {
+    let roles = [];
+    let usersById = {};
+    const form = document.getElementById('userForm');
+    const resetBtn = document.getElementById('resetFormBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const pwHint = document.getElementById('pwHint');
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+    const createLabel = '{{ _("assessment.users.create_btn") }}';
+    const saveLabel = '{{ _("assessment.users.save_btn") }}';
 
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    async function loadRoles() {
+        const res = await fetch('/assessment/api/roles');
+        const data = await res.json();
+        roles = data.roles || [];
+        document.getElementById('rolesBox').innerHTML = roles.map(r => `
+            <label class="assessment-chip">
+                <input type="checkbox" class="role-check" value="${r.id}" id="role_${r.id}">
+                <span>${escapeHtml(r.name)}</span>
+            </label>
+        `).join('');
+    }
 
-async function loadRoles() {
-    const res = await fetch('/assessment/api/roles');
-    const data = await res.json();
-    roles = data.roles || [];
-    document.getElementById('rolesBox').innerHTML = roles.map(r => `
-        <div class="form-check">
-            <input class="form-check-input role-check" type="checkbox" value="${r.id}" id="role_${r.id}">
-            <label class="form-check-label" for="role_${r.id}">${escapeHtml(r.name)}</label>
-        </div>
-    `).join('');
-}
+    function listLabel(u) {
+        if (!(u.list_ids || []).length) return '{{ _("assessment.users.lists_all") }}';
+        return (u.list_names || []).map(escapeHtml).join(', ');
+    }
 
-async function loadUsers() {
-    const res = await fetch('/assessment/api/users');
-    const data = await res.json();
-    document.getElementById('rows').innerHTML = (data.users || []).map(u => `
-        <tr>
-            <td>${escapeHtml(u.username)}</td>
-            <td>${escapeHtml(u.display_name)}</td>
-            <td>${(u.role_names || []).map(escapeHtml).join(', ')}</td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick='editUser(${JSON.stringify(u)})'><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-}
+    function actionButtons(u) {
+        return buildRowActions([
+            { icon: 'bi-pencil', label: '{{ _("common.edit") }}', title: '{{ _("common.edit") }}', attrs: `data-edit-id="${u.id}"`, hover: true },
+            { icon: 'bi-trash', label: '{{ _("common.delete") }}', title: '{{ _("common.delete") }}', attrs: `data-delete="${u.id}"`, danger: true },
+        ]);
+    }
 
-function editUser(u) {
-    document.getElementById('userId').value = u.id;
-    document.getElementById('userUsername').value = u.username;
-    document.getElementById('userDisplay').value = u.display_name;
-    document.getElementById('userPassword').value = '';
-    pwHint.textContent = '(leer lassen = unverändert)';
-    document.querySelectorAll('.role-check').forEach(cb => cb.checked = (u.role_ids || []).includes(Number(cb.value)));
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
-    resetBtn.hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    async function loadUsers() {
+        const res = await fetch('/assessment/api/users');
+        const data = await res.json();
+        const users = data.users || [];
+        usersById = Object.fromEntries(users.map(u => [String(u.id), u]));
+        document.getElementById('rows').innerHTML = users.map(u => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-person-fill', u.username)}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(u.display_name)}</td>
+                <td class="text-muted">${(u.role_names || []).map(escapeHtml).join(', ')}</td>
+                <td class="text-muted d-none d-lg-table-cell">${listLabel(u)}</td>
+                <td class="text-end assessment-col-actions">${actionButtons(u)}</td>
+            </tr>`).join('') || `<tr><td colspan="5" class="text-center text-muted py-4">—</td></tr>`;
+    }
 
-function resetForm() {
-    form.reset();
-    document.getElementById('userId').value = '';
-    pwHint.textContent = '';
-    document.querySelectorAll('.role-check').forEach(cb => cb.checked = false);
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Benutzer anlegen';
-    resetBtn.hidden = true;
-}
+    function editUser(u) {
+        document.getElementById('userId').value = u.id;
+        document.getElementById('userUsername').value = u.username;
+        document.getElementById('userUsername').disabled = true;
+        document.getElementById('userDisplay').value = u.display_name;
+        document.getElementById('userPassword').value = '';
+        pwHint.textContent = '{{ _("assessment.users.password_hint") }}';
+        document.querySelectorAll('.role-check').forEach(cb => cb.checked = (u.role_ids || []).includes(Number(cb.value)));
+        document.querySelectorAll('.list-check').forEach(cb => cb.checked = (u.list_ids || []).includes(Number(cb.value)));
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>' + saveLabel;
+        resetBtn.hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-resetBtn.addEventListener('click', resetForm);
+    function resetForm() {
+        form.reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('userUsername').disabled = false;
+        pwHint.textContent = '';
+        document.querySelectorAll('.role-check').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.list-check').forEach(cb => cb.checked = false);
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>' + createLabel;
+        resetBtn.hidden = true;
+    }
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    payload.role_ids = [...document.querySelectorAll('.role-check:checked')].map(cb => Number(cb.value));
-    const id = document.getElementById('userId').value;
-    if (id) payload.id = Number(id);
-    const method = id ? 'PUT' : 'POST';
-    const res = await fetch('/assessment/api/users', { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-    const data = await res.json();
-    if (!data.success) alert(data.message || 'Fehler');
-    resetForm();
-    loadUsers();
-});
+    resetBtn.addEventListener('click', resetForm);
 
-async function deleteUser(id) {
-    if (!confirm('Benutzer wirklich löschen?')) return;
-    await fetch('/assessment/api/users', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id}) });
-    loadUsers();
-}
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const u = usersById[editBtn.getAttribute('data-edit-id')];
+            if (u) editUser(u);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm
+                ? await window.ptConfirm('{{ _("assessment.users.delete_confirm") }}', { danger: true })
+                : confirm('{{ _("assessment.users.delete_confirm") }}');
+            if (!ok) return;
+            await fetch('/assessment/api/users', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: Number(delBtn.dataset.delete)}) });
+            loadUsers();
+        }
+    });
 
-document.getElementById('excelForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const res = await fetch('/assessment/api/import/users', { method: 'POST', body: fd });
-    const data = await res.json();
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-    if (!data.success) return;
-    e.target.reset();
-    loadUsers();
-});
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        payload.role_ids = [...document.querySelectorAll('.role-check:checked')].map(cb => Number(cb.value));
+        payload.list_ids = [...document.querySelectorAll('.list-check:checked')].map(cb => Number(cb.value));
+        const id = document.getElementById('userId').value;
+        if (id) payload.id = Number(id);
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch('/assessment/api/users', { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!data.success) {
+            if (window.ptConfirm) await window.ptConfirm(data.message || '{{ _("assessment.common.error") }}', { danger: false, confirmLabel: 'OK' });
+            else alert(data.message || 'Error');
+            return;
+        }
+        resetForm();
+        loadUsers();
+    });
 
-loadRoles().then(loadUsers);
+    document.getElementById('excelForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const res = await fetch('/assessment/api/import/users', { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? '{{ _("assessment.common.done") }}' : '{{ _("assessment.common.error") }}'));
+        if (!data.success) return;
+        e.target.reset();
+        loadUsers();
+    });
+
+    loadRoles().then(loadUsers);
+})();
 </script>
 {% endblock %}

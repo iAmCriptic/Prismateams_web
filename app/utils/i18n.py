@@ -228,8 +228,7 @@ __all__ = [
 import json
 import os
 from copy import deepcopy
-from functools import lru_cache
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from flask import current_app, g, request
 from flask_login import current_user
@@ -254,32 +253,47 @@ def _safe_logger_warning(message: str) -> None:
         logger.warning(message)
 
 
-@lru_cache(maxsize=None)
+_TRANSLATION_FILE_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
+
 def _load_translations(language: str) -> Dict[str, Any]:
-    """Lädt die Übersetzungen für eine Sprache aus der JSON-Datei."""
+    """Lädt die Übersetzungen für eine Sprache aus der JSON-Datei (mtime-aware)."""
     ensure_translation_dir()
     file_path = os.path.join(TRANSLATION_DIR, f"{language}.json")
 
     if not os.path.exists(file_path):
+        _TRANSLATION_FILE_CACHE.pop(language, None)
         return {}
+
+    try:
+        mtime = os.path.getmtime(file_path)
+    except OSError:
+        _TRANSLATION_FILE_CACHE.pop(language, None)
+        return {}
+
+    cached = _TRANSLATION_FILE_CACHE.get(language)
+    if cached and cached[0] >= mtime:
+        return cached[1]
 
     try:
         with open(file_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
-            return data if isinstance(data, dict) else {}
+            if isinstance(data, dict):
+                _TRANSLATION_FILE_CACHE[language] = (mtime, data)
+                return data
     except Exception as exc:  # pylint: disable=broad-except
         _safe_logger_warning(f"Übersetzungen für '{language}' konnten nicht geladen werden: {exc}")
-        return {}
+
+    _TRANSLATION_FILE_CACHE.pop(language, None)
+    return {}
 
 
 def clear_translation_cache(language: Optional[str] = None) -> None:
     """Leert den Cache für Übersetzungen (z. B. nach Updates durch die Community)."""
     if language:
-        cache = _load_translations.cache_info()  # type: ignore[attr-defined]
-        if cache.hits or cache.misses:  # pragma: no branch - informative usage
-            _load_translations.cache_clear()  # type: ignore[attr-defined]
+        _TRANSLATION_FILE_CACHE.pop(language, None)
     else:
-        _load_translations.cache_clear()  # type: ignore[attr-defined]
+        _TRANSLATION_FILE_CACHE.clear()
 
 
 def _resolve_key(translations: Dict[str, Any], key: str) -> Optional[Any]:
@@ -340,18 +354,19 @@ def _get_system_language(setting_key: str, default: str) -> str:
 
 
 def determine_language() -> str:
-    """Bestimmt die aktuelle Sprache für den Request."""
-    lang = request.args.get("lang")
-    if lang and lang in BASE_SUPPORTED_LANGUAGES:
-        return lang
+    """Bestimmt die aktuelle Sprache für den Request (oder System-Default ohne Request)."""
+    if has_request_context():
+        lang = request.args.get("lang")
+        if lang and lang in BASE_SUPPORTED_LANGUAGES:
+            return lang
 
-    try:
-        if current_user.is_authenticated:
-            user_lang = getattr(current_user, "language", None)
-            if user_lang in BASE_SUPPORTED_LANGUAGES:
-                return user_lang
-    except Exception:  # pylint: disable=broad-except
-        pass
+        try:
+            if current_user.is_authenticated:
+                user_lang = getattr(current_user, "language", None)
+                if user_lang in BASE_SUPPORTED_LANGUAGES:
+                    return user_lang
+        except Exception:  # pylint: disable=broad-except
+            pass
 
     lang = _get_system_language("default_language", DEFAULT_LANGUAGE)
     if lang in BASE_SUPPORTED_LANGUAGES:
@@ -362,11 +377,12 @@ def determine_language() -> str:
 
 def get_current_language() -> str:
     """Gibt die aktuelle Sprache des Requests zurück (inkl. Caching auf g)."""
-    if hasattr(g, "current_language"):
+    if has_request_context() and hasattr(g, "current_language"):
         return g.current_language  # type: ignore[return-value]
 
     lang = determine_language()
-    g.current_language = lang  # type: ignore[attr-defined]
+    if has_request_context():
+        g.current_language = lang  # type: ignore[attr-defined]
     return lang
 
 

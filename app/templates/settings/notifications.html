@@ -1,597 +1,273 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.notifications.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.index.cards.notifications.title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.notifications.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.notifications.breadcrumb_notifications') }}</li>
-    </ol>
-</nav>
-
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <!-- Browser permissions -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-shield-check me-2"></i>
-                    {{ _('settings.notifications.permissions.title') }}
-                </h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">
-                    {{ _('settings.notifications.permissions.description') }}
-                </p>
-                
-                <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="bi bi-bell me-2"></i>
-                            {{ _('settings.notifications.permissions.push.title') }}
-                        </h6>
-                        <small class="text-muted">{{ _('settings.notifications.permissions.push.description') }}</small>
-                        <div class="mt-1">
-                            <span class="badge" id="push-status">{{ _('settings.notifications.js.checking') }}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-outline-primary me-2" id="subscribe-push-btn">
-                            {{ _('settings.notifications.permissions.push.activate') }}
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="test-push-btn">
-                            {{ _('settings.notifications.permissions.push.test') }}
-                        </button>
-                        <button type="button" class="btn btn-outline-danger ms-2" id="reset-push-btn">
-                            {{ _('settings.notifications.permissions.push.reset') }}
-                        </button>
-                        <div id="cooldown-container" style="display: none; margin-top: 10px;">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="text-muted">{{ _('settings.notifications.permissions.push.cooldown_label') }}</small>
-                                <small class="text-muted" id="cooldown-timer">{{ _('settings.notifications.permissions.push.cooldown_timer') }}</small>
-                            </div>
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-warning" id="cooldown-progress" role="progressbar" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="bi bi-mic me-2"></i>
-                            {{ _('settings.notifications.permissions.microphone.title') }}
-                        </h6>
-                        <small class="text-muted">{{ _('settings.notifications.permissions.microphone.description') }}</small>
-                        <div class="mt-1">
-                            <span class="badge" id="microphone-status-badge">{{ _('settings.notifications.js.checking') }}</span>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-outline-primary" id="request-microphone-btn">
-                        {{ _('settings.notifications.permissions.microphone.request') }}
-                    </button>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center p-3 border rounded">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="bi bi-phone me-2"></i>
-                            {{ _('settings.notifications.permissions.app.title') }}
-                        </h6>
-                        <small class="text-muted">{{ _('settings.notifications.permissions.app.description') }}</small>
-                    </div>
-                    <button type="button" class="btn btn-outline-success" id="install-app-btn" style="display: none;">
-                        {{ _('settings.notifications.permissions.app.install') }}
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-gear me-2"></i>
-                    {{ _('settings.notifications.status.title') }}
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>{{ _('settings.notifications.status.browser_title') }}</h6>
-                        <p class="text-muted">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            {{ _('settings.notifications.status.browser_description') }}
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>{{ _('settings.notifications.status.worker_title') }}</h6>
-                        <p class="text-muted">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            {{ _('settings.notifications.status.worker_description') }}
-                        </p>
-                    </div>
-                </div>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>{{ _('settings.notifications.status.info_strong') }}</strong>
-                    {{ _('settings.notifications.status.info_message') }}
-                </div>
-                
-                <div class="alert alert-warning" id="https-warning" style="display: none;">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    {{ _('settings.notifications.status.https_warning') }}
-                </div>
-                
-                <div class="alert alert-warning" id="push-setup-alert" style="display: none;">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>{{ _('settings.notifications.status.push_alert_title') }}</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>{{ _('settings.notifications.status.push_alert_step1') }}</li>
-                        <li>{{ _('settings.notifications.status.push_alert_step2') }}</li>
-                        <li>{{ _('settings.notifications.status.push_alert_step3') }}</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-        
-        <form method="POST" id="notificationForm">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-chat-dots me-2"></i>
-                        {{ _('settings.notifications.chat.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="chat_notifications_enabled" 
-                                   name="chat_notifications_enabled" {% if settings.chat_notifications_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="chat_notifications_enabled">
-                                {{ _('settings.notifications.chat.toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.notifications.chat.help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div id="chatSpecificSettings" style="display: {% if settings.chat_notifications_enabled %}block{% else %}none{% endif %};">
-                        <h6 class="mb-3">{{ _('settings.notifications.chat.table_title') }}</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>{{ _('settings.notifications.chat.table.chat') }}</th>
-                                        <th class="text-center">{{ _('settings.notifications.chat.table.notifications') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for chat in user_chats %}
-                                    <tr>
-                                        <td>
-                                            <i class="bi bi-{% if chat.is_main_chat %}house-door{% elif chat.is_direct_message %}person{% else %}people{% endif %} me-2"></i>
-                                            {{ chat.name }}
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox" 
-                                                       id="chat_{{ chat.id }}" name="chat_{{ chat.id }}"
-                                                       {% if chat_notification_settings[chat.id] %}checked{% endif %}>
-                                                <label class="form-check-label" for="chat_{{ chat.id }}"></label>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-folder me-2"></i>
-                        {{ _('settings.notifications.files.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="file_notifications_enabled" 
-                                   name="file_notifications_enabled" {% if settings.file_notifications_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="file_notifications_enabled">
-                                {{ _('settings.notifications.files.toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.notifications.files.help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div id="fileSpecificSettings" style="display: {% if settings.file_notifications_enabled %}block{% else %}none{% endif %};">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="file_new_notifications" 
-                                           name="file_new_notifications" {% if settings.file_new_notifications %}checked{% endif %}>
-                                    <label class="form-check-label" for="file_new_notifications">
-                                        {{ _('settings.notifications.files.new') }}
-                                    </label>
-                                    <div class="form-text">{{ _('settings.notifications.files.new_help') }}</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="file_modified_notifications" 
-                                           name="file_modified_notifications" {% if settings.file_modified_notifications %}checked{% endif %}>
-                                    <label class="form-check-label" for="file_modified_notifications">
-                                        {{ _('settings.notifications.files.modified') }}
-                                    </label>
-                                    <div class="form-text">{{ _('settings.notifications.files.modified_help') }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-envelope me-2"></i>
-                        {{ _('settings.notifications.email.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="email_notifications_enabled" 
-                               name="email_notifications_enabled" {% if settings.email_notifications_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="email_notifications_enabled">
-                            {{ _('settings.notifications.email.toggle') }}
-                        </label>
-                        <div class="form-text">{{ _('settings.notifications.email.help') }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-calendar-event me-2"></i>
-                        {{ _('settings.notifications.calendar.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="calendar_notifications_enabled" 
-                                   name="calendar_notifications_enabled" {% if settings.calendar_notifications_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_notifications_enabled">
-                                {{ _('settings.notifications.calendar.toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.notifications.calendar.help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div id="calendarSpecificSettings" style="display: {% if settings.calendar_notifications_enabled %}block{% else %}none{% endif %};">
-                        <h6 class="mb-3">{{ _('settings.notifications.calendar.filter_question') }}</h6>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="calendar_all_events" 
-                                       name="calendar_event_filter" value="all" {% if settings.calendar_all_events %}checked{% endif %}>
-                                <label class="form-check-label" for="calendar_all_events">
-                                    {{ _('settings.notifications.calendar.filter_all') }}
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="calendar_selective_events" 
-                                       name="calendar_event_filter" value="selective" {% if not settings.calendar_all_events %}checked{% endif %}>
-                                <label class="form-check-label" for="calendar_selective_events">
-                                    {{ _('settings.notifications.calendar.filter_selective') }}
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div id="selectiveEventSettings" style="display: {% if not settings.calendar_all_events %}block{% else %}none{% endif %};">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="calendar_participating_only" 
-                                               name="calendar_participating_only" {% if settings.calendar_participating_only %}checked{% endif %}>
-                                        <label class="form-check-label" for="calendar_participating_only">
-                                            {{ _('settings.notifications.calendar.filter_participating') }}
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="calendar_not_participating" 
-                                               name="calendar_not_participating" {% if settings.calendar_not_participating %}checked{% endif %}>
-                                        <label class="form-check-label" for="calendar_not_participating">
-                                            {{ _('settings.notifications.calendar.filter_not_participating') }}
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="calendar_no_response" 
-                                               name="calendar_no_response" {% if settings.calendar_no_response %}checked{% endif %}>
-                                        <label class="form-check-label" for="calendar_no_response">
-                                            {{ _('settings.notifications.calendar.filter_no_response') }}
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <hr class="my-4">
-                        <h6 class="mb-3">{{ _('settings.notifications.calendar.reminders_title') }}</h6>
-                        <p class="text-muted">{{ _('settings.notifications.calendar.reminders_help') }}</p>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_30min" name="reminder_times" value="30">
-                                    <label class="form-check-label" for="reminder_30min">{{ _('settings.notifications.calendar.reminder_30min') }}</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_1h" name="reminder_times" value="60">
-                                    <label class="form-check-label" for="reminder_1h">{{ _('settings.notifications.calendar.reminder_1h') }}</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_2h" name="reminder_times" value="120">
-                                    <label class="form-check-label" for="reminder_2h">{{ _('settings.notifications.calendar.reminder_2h') }}</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_6h" name="reminder_times" value="360">
-                                    <label class="form-check-label" for="reminder_6h">{{ _('settings.notifications.calendar.reminder_6h') }}</label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_8h" name="reminder_times" value="480">
-                                    <label class="form-check-label" for="reminder_8h">{{ _('settings.notifications.calendar.reminder_8h') }}</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_1d" name="reminder_times" value="1440">
-                                    <label class="form-check-label" for="reminder_1d">{{ _('settings.notifications.calendar.reminder_1d') }}</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="reminder_2d" name="reminder_times" value="2880">
-                                    <label class="form-check-label" for="reminder_2d">{{ _('settings.notifications.calendar.reminder_2d') }}</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary">{{ _('settings.notifications.save_button') }}</button>
-                <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
-            </div>
-        </form>
+{% block settings_content %}
+<div class="settings-notifications">
+    <div class="settings-notifications-header">
+        <h1 class="settings-notifications-title">{{ _('settings.notifications.heading') }}</h1>
+        <p class="settings-notifications-subtitle">{{ _('settings.notifications.subtitle') }}</p>
     </div>
+
+    {# —— Push —— #}
+    <section class="settings-notifications-push" aria-labelledby="notif-push-heading">
+        <div class="settings-notifications-push-main">
+            <h2 id="notif-push-heading" class="settings-notifications-section-title mb-0">{{ _('settings.notifications.permissions.push.title') }}</h2>
+            <p id="push-support-status" class="settings-notifications-push-status" data-ok="{{ _('settings.notifications.push_status.supported') }}" data-no="{{ _('settings.notifications.push_status.unsupported') }}">
+                {{ _('settings.notifications.push_status.checking') }}
+            </p>
+            <span id="push-status" class="settings-notifications-push-badge">{{ _('settings.notifications.js.checking') }}</span>
+        </div>
+        <div class="settings-notifications-push-actions">
+            <button type="button" class="btn btn-outline-primary settings-notifications-btn" id="subscribe-push-btn">
+                {{ _('settings.notifications.permissions.push.activate') }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary settings-notifications-btn" id="test-push-btn">
+                {{ _('settings.notifications.permissions.push.test') }}
+            </button>
+            <button type="button" class="btn btn-outline-danger settings-notifications-btn" id="reset-push-btn">
+                {{ _('settings.notifications.permissions.push.reset') }}
+            </button>
+        </div>
+        <div id="cooldown-container" class="settings-notifications-cooldown" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted">{{ _('settings.notifications.permissions.push.cooldown_label') }}</small>
+                <small class="text-muted" id="cooldown-timer">{{ _('settings.notifications.permissions.push.cooldown_timer') }}</small>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-warning" id="cooldown-progress" role="progressbar" style="width: 0%"></div>
+            </div>
+        </div>
+        <div id="https-warning" class="settings-notifications-warn" style="display: none;">
+            {{ _('settings.notifications.status.https_warning') }}
+        </div>
+        <div id="push-setup-alert" style="display: none;" aria-hidden="true"></div>
+    </section>
+
+    <form method="POST" id="notificationForm" class="settings-notifications-form">
+        <div class="settings-notifications-grid">
+            {# Chat #}
+            <section class="settings-notifications-card" aria-labelledby="notif-chat-heading">
+                <div class="settings-notifications-card-head">
+                    <h2 id="notif-chat-heading" class="settings-notifications-section-title mb-0">
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i> {{ _('settings.notifications.chat.title') }}
+                    </h2>
+                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.chat.help') }}" aria-label="{{ _('settings.notifications.chat.help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="chat_notifications_enabled" name="chat_notifications_enabled" {% if settings.chat_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="chat_notifications_enabled">{{ _('settings.notifications.chat.toggle') }}</label>
+                </div>
+                <div id="chatSpecificSettings" class="settings-notifications-nested" style="display: {% if settings.chat_notifications_enabled %}block{% else %}none{% endif %};">
+                    <p class="settings-notifications-nested-label">{{ _('settings.notifications.chat.table_title') }}</p>
+                    <div class="settings-notifications-chat-list">
+                        {% for chat in user_chats %}
+                        <label class="settings-notifications-chat-row" for="chat_{{ chat.id }}">
+                            <span class="settings-notifications-chat-name">
+                                <i class="bi bi-{% if chat.is_main_chat %}house-door{% elif chat.is_direct_message %}person{% else %}people{% endif %}" aria-hidden="true"></i>
+                                {{ chat.name }}
+                            </span>
+                            <input class="form-check-input" type="checkbox" id="chat_{{ chat.id }}" name="chat_{{ chat.id }}" {% if chat_notification_settings[chat.id] %}checked{% endif %}>
+                        </label>
+                        {% else %}
+                        <p class="text-muted small mb-0">{{ _('settings.notifications.chat.empty') }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            {# Dateien #}
+            <section class="settings-notifications-card" aria-labelledby="notif-files-heading">
+                <div class="settings-notifications-card-head">
+                    <h2 id="notif-files-heading" class="settings-notifications-section-title mb-0">
+                        <i class="bi bi-folder" aria-hidden="true"></i> {{ _('settings.notifications.files.title') }}
+                    </h2>
+                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.files.help') }}" aria-label="{{ _('settings.notifications.files.help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="file_notifications_enabled" name="file_notifications_enabled" {% if settings.file_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="file_notifications_enabled">{{ _('settings.notifications.files.toggle') }}</label>
+                </div>
+                <div id="fileSpecificSettings" class="settings-notifications-nested" style="display: {% if settings.file_notifications_enabled %}block{% else %}none{% endif %};">
+                    <div class="settings-notifications-checks">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="file_new_notifications" name="file_new_notifications" {% if settings.file_new_notifications %}checked{% endif %}>
+                            <label class="form-check-label" for="file_new_notifications">
+                                {{ _('settings.notifications.files.new') }}
+                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.files.new_help') }}" aria-label="{{ _('settings.notifications.files.new_help') }}" onclick="event.preventDefault()">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="file_modified_notifications" name="file_modified_notifications" {% if settings.file_modified_notifications %}checked{% endif %}>
+                            <label class="form-check-label" for="file_modified_notifications">
+                                {{ _('settings.notifications.files.modified') }}
+                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.files.modified_help') }}" aria-label="{{ _('settings.notifications.files.modified_help') }}" onclick="event.preventDefault()">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {# E-Mail #}
+            <section class="settings-notifications-card" aria-labelledby="notif-email-heading">
+                <div class="settings-notifications-card-head">
+                    <h2 id="notif-email-heading" class="settings-notifications-section-title mb-0">
+                        <i class="bi bi-envelope" aria-hidden="true"></i> {{ _('settings.notifications.email.title') }}
+                    </h2>
+                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.email.help') }}" aria-label="{{ _('settings.notifications.email.help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" {% if settings.email_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="email_notifications_enabled">{{ _('settings.notifications.email.toggle') }}</label>
+                </div>
+            </section>
+
+            {# Buchungsanfragen #}
+            <section class="settings-notifications-card" aria-labelledby="notif-booking-heading">
+                <div class="settings-notifications-card-head">
+                    <h2 id="notif-booking-heading" class="settings-notifications-section-title mb-0">
+                        <i class="bi bi-calendar2-check" aria-hidden="true"></i> {{ _('settings.notifications.booking.title') }}
+                    </h2>
+                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.booking.help') }}" aria-label="{{ _('settings.notifications.booking.help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="booking_notifications_enabled" name="booking_notifications_enabled" {% if settings.booking_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="booking_notifications_enabled">{{ _('settings.notifications.booking.toggle') }}</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="booking_message_notifications_enabled" name="booking_message_notifications_enabled" {% if settings.booking_message_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="booking_message_notifications_enabled">{{ _('settings.notifications.booking.toggle_messages') }}</label>
+                </div>
+            </section>
+
+            {# Kalender — volle Breite #}
+            <section class="settings-notifications-card settings-notifications-card--wide" aria-labelledby="notif-calendar-heading">
+                <div class="settings-notifications-card-head">
+                    <h2 id="notif-calendar-heading" class="settings-notifications-section-title mb-0">
+                        <i class="bi bi-calendar-event" aria-hidden="true"></i> {{ _('settings.notifications.calendar.title') }}
+                    </h2>
+                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.calendar.help') }}" aria-label="{{ _('settings.notifications.calendar.help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="calendar_notifications_enabled" name="calendar_notifications_enabled" {% if settings.calendar_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="calendar_notifications_enabled">{{ _('settings.notifications.calendar.toggle') }}</label>
+                </div>
+                <div id="calendarSpecificSettings" class="settings-notifications-nested" style="display: {% if settings.calendar_notifications_enabled %}block{% else %}none{% endif %};">
+                    <p class="settings-notifications-nested-label">{{ _('settings.notifications.calendar.filter_question') }}</p>
+                    <div class="settings-notifications-radio-row">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="calendar_all_events" name="calendar_event_filter" value="all" {% if settings.calendar_all_events %}checked{% endif %}>
+                            <label class="form-check-label" for="calendar_all_events">{{ _('settings.notifications.calendar.filter_all') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="calendar_selective_events" name="calendar_event_filter" value="selective" {% if not settings.calendar_all_events %}checked{% endif %}>
+                            <label class="form-check-label" for="calendar_selective_events">{{ _('settings.notifications.calendar.filter_selective') }}</label>
+                        </div>
+                    </div>
+                    <div id="selectiveEventSettings" class="settings-notifications-checks mt-2" style="display: {% if not settings.calendar_all_events %}flex{% else %}none{% endif %};">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="calendar_participating_only" name="calendar_participating_only" {% if settings.calendar_participating_only %}checked{% endif %}>
+                            <label class="form-check-label" for="calendar_participating_only">{{ _('settings.notifications.calendar.filter_participating') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="calendar_not_participating" name="calendar_not_participating" {% if settings.calendar_not_participating %}checked{% endif %}>
+                            <label class="form-check-label" for="calendar_not_participating">{{ _('settings.notifications.calendar.filter_not_participating') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="calendar_no_response" name="calendar_no_response" {% if settings.calendar_no_response %}checked{% endif %}>
+                            <label class="form-check-label" for="calendar_no_response">{{ _('settings.notifications.calendar.filter_no_response') }}</label>
+                        </div>
+                    </div>
+                    <div class="settings-notifications-reminders mt-2">
+                        <div class="settings-notifications-card-head mb-1">
+                            <p class="settings-notifications-nested-label mb-0">{{ _('settings.notifications.calendar.reminders_title') }}</p>
+                            <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.calendar.reminders_help') }}" aria-label="{{ _('settings.notifications.calendar.reminders_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-notifications-reminder-grid">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_30min" name="reminder_times" value="30"><label class="form-check-label" for="reminder_30min">{{ _('settings.notifications.calendar.reminder_30min') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_1h" name="reminder_times" value="60"><label class="form-check-label" for="reminder_1h">{{ _('settings.notifications.calendar.reminder_1h') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_2h" name="reminder_times" value="120"><label class="form-check-label" for="reminder_2h">{{ _('settings.notifications.calendar.reminder_2h') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_6h" name="reminder_times" value="360"><label class="form-check-label" for="reminder_6h">{{ _('settings.notifications.calendar.reminder_6h') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_8h" name="reminder_times" value="480"><label class="form-check-label" for="reminder_8h">{{ _('settings.notifications.calendar.reminder_8h') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_1d" name="reminder_times" value="1440"><label class="form-check-label" for="reminder_1d">{{ _('settings.notifications.calendar.reminder_1d') }}</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_2d" name="reminder_times" value="2880"><label class="form-check-label" for="reminder_2d">{{ _('settings.notifications.calendar.reminder_2d') }}</label></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="settings-notifications-actions">
+            <button type="submit" class="btn btn-accent settings-notifications-submit">{{ _('settings.notifications.save_button') }}</button>
+            <a href="{{ url_for('settings.index') }}" class="btn settings-notifications-cancel">{{ _('common.cancel') }}</a>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const notificationsI18n = {
-    checking: "{{ _('settings.notifications.js.checking') }}",
-    permissionGranted: "{{ _('settings.notifications.js.permission_granted') }}",
-    permissionDenied: "{{ _('settings.notifications.js.permission_denied') }}",
-    permissionPrompt: "{{ _('settings.notifications.js.permission_prompt') }}",
-    permissionUnsupported: "{{ _('settings.notifications.js.permission_unsupported') }}",
-    permissionUnknown: "{{ _('settings.notifications.js.permission_unknown') }}",
-    toastPushEnabledTitle: "{{ _('settings.notifications.js.toast_push_enabled_title') }}",
-    toastPushEnabledMessage: "{{ _('settings.notifications.js.toast_push_enabled_message') }}",
-    toastPushDeniedTitle: "{{ _('settings.notifications.js.toast_push_denied_title') }}",
-    toastPushDeniedMessage: "{{ _('settings.notifications.js.toast_push_denied_message') }}",
-    toastMicEnabledTitle: "{{ _('settings.notifications.js.toast_mic_enabled_title') }}",
-    toastMicEnabledMessage: "{{ _('settings.notifications.js.toast_mic_enabled_message') }}",
-    toastMicDeniedTitle: "{{ _('settings.notifications.js.toast_mic_denied_title') }}",
-    toastMicDeniedMessage: "{{ _('settings.notifications.js.toast_mic_denied_message') }}",
-    toastAppInstalledTitle: "{{ _('settings.notifications.js.toast_app_installed_title') }}",
-    toastAppInstalledMessage: "{{ _('settings.notifications.js.toast_app_installed_message') }}",
-    errorRemovePicture: "{{ _('settings.notifications.js.generic_error') }}"
-};
-
 document.addEventListener('DOMContentLoaded', function() {
     const chatToggle = document.getElementById('chat_notifications_enabled');
     const chatSpecific = document.getElementById('chatSpecificSettings');
-    
-    chatToggle.addEventListener('change', function() {
-        chatSpecific.style.display = this.checked ? 'block' : 'none';
-    });
-    
+    if (chatToggle && chatSpecific) {
+        chatToggle.addEventListener('change', function() {
+            chatSpecific.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
     const fileToggle = document.getElementById('file_notifications_enabled');
     const fileSpecific = document.getElementById('fileSpecificSettings');
-    
-    fileToggle.addEventListener('change', function() {
-        fileSpecific.style.display = this.checked ? 'block' : 'none';
-    });
-    
+    if (fileToggle && fileSpecific) {
+        fileToggle.addEventListener('change', function() {
+            fileSpecific.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
     const calendarToggle = document.getElementById('calendar_notifications_enabled');
     const calendarSpecific = document.getElementById('calendarSpecificSettings');
-    
-    calendarToggle.addEventListener('change', function() {
-        calendarSpecific.style.display = this.checked ? 'block' : 'none';
-    });
-    
-    const allEventsRadio = document.getElementById('calendar_all_events');
-    const selectiveEventsRadio = document.getElementById('calendar_selective_events');
-    const selectiveSettings = document.getElementById('selectiveEventSettings');
-    
-    function toggleSelectiveSettings() {
-        selectiveSettings.style.display = selectiveEventsRadio.checked ? 'block' : 'none';
+    if (calendarToggle && calendarSpecific) {
+        calendarToggle.addEventListener('change', function() {
+            calendarSpecific.style.display = this.checked ? 'block' : 'none';
+        });
     }
-    
-    allEventsRadio.addEventListener('change', toggleSelectiveSettings);
-    selectiveEventsRadio.addEventListener('change', toggleSelectiveSettings);
-    
+
+    const allEventsRadio = document.getElementById('calendar_all_events');
+    const selectiveRadio = document.getElementById('calendar_selective_events');
+    const selectiveSettings = document.getElementById('selectiveEventSettings');
+    function updateSelective() {
+        if (!selectiveSettings) return;
+        selectiveSettings.style.display = (selectiveRadio && selectiveRadio.checked) ? 'flex' : 'none';
+    }
+    if (allEventsRadio) allEventsRadio.addEventListener('change', updateSelective);
+    if (selectiveRadio) selectiveRadio.addEventListener('change', updateSelective);
+
     const reminderTimes = {{ settings.get_reminder_times() | tojson }};
     reminderTimes.forEach(function(time) {
-        const checkbox = document.querySelector(`input[name="reminder_times"][value="${time}"]`);
-        if (checkbox) {
-            checkbox.checked = true;
-        }
+        const checkbox = document.querySelector('input[name="reminder_times"][value="' + time + '"]');
+        if (checkbox) checkbox.checked = true;
     });
-    
-    const notificationStatusBadge = document.getElementById('push-status');
-    const microphoneStatusBadge = document.getElementById('microphone-status-badge');
-    const requestNotificationBtn = document.getElementById('subscribe-push-btn');
-    const requestMicrophoneBtn = document.getElementById('request-microphone-btn');
-    const installAppBtn = document.getElementById('install-app-btn');
-    
-    async function updatePermissionStatus() {
-        if ('Notification' in window) {
-            const notificationPermission = Notification.permission;
-            updateBadge(notificationStatusBadge, notificationPermission);
-            
-            if (notificationPermission === 'granted') {
-                requestNotificationBtn.style.display = 'none';
-            }
-        } else {
-            updateBadge(notificationStatusBadge, 'unsupported');
-            requestNotificationBtn.style.display = 'none';
-        }
-        
-        if ('permissions' in navigator) {
-            try {
-                const micPermission = await navigator.permissions.query({ name: 'microphone' });
-                updateBadge(microphoneStatusBadge, micPermission.state);
-                
-                if (micPermission.state === 'granted') {
-                    requestMicrophoneBtn.style.display = 'none';
-                }
-            } catch (e) {
-                updateBadge(microphoneStatusBadge, 'unknown');
-            }
-        } else {
-            updateBadge(microphoneStatusBadge, 'unsupported');
-        }
-        
-        if (window.deferredPrompt) {
-            installAppBtn.style.display = 'inline-block';
-        }
-    }
-    
-    function updateBadge(badge, status) {
-        badge.className = 'badge';
-        switch (status) {
-            case 'granted':
-                badge.className += ' bg-success';
-                badge.textContent = notificationsI18n.permissionGranted;
-                break;
-            case 'denied':
-                badge.className += ' bg-danger';
-                badge.textContent = notificationsI18n.permissionDenied;
-                break;
-            case 'prompt':
-            case 'default':
-                badge.className += ' bg-warning';
-                badge.textContent = notificationsI18n.permissionPrompt;
-                break;
-            case 'unsupported':
-                badge.className += ' bg-secondary';
-                badge.textContent = notificationsI18n.permissionUnsupported;
-                break;
-            default:
-                badge.className += ' bg-secondary';
-                badge.textContent = notificationsI18n.permissionUnknown;
-        }
-    }
-    
-    if (requestNotificationBtn) {
-        requestNotificationBtn.addEventListener('click', async function() {
-            if ('Notification' in window) {
-                const permission = await Notification.requestPermission();
-                updateBadge(notificationStatusBadge, permission);
-                
-                if (permission === 'granted') {
-                    requestNotificationBtn.style.display = 'none';
-                    showToast(notificationsI18n.toastPushEnabledTitle, notificationsI18n.toastPushEnabledMessage, 'success');
-                } else {
-                    showToast(notificationsI18n.toastPushDeniedTitle, notificationsI18n.toastPushDeniedMessage, 'warning');
-                }
-            }
-        });
-    }
-    
-    if (requestMicrophoneBtn) {
-        requestMicrophoneBtn.addEventListener('click', async function() {
-            if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    stream.getTracks().forEach(track => track.stop());
-                    
-                    updateBadge(microphoneStatusBadge, 'granted');
-                    requestMicrophoneBtn.style.display = 'none';
-                    showToast(notificationsI18n.toastMicEnabledTitle, notificationsI18n.toastMicEnabledMessage, 'success');
-                } catch (error) {
-                    updateBadge(microphoneStatusBadge, 'denied');
-                    showToast(notificationsI18n.toastMicDeniedTitle, notificationsI18n.toastMicDeniedMessage, 'warning');
-                }
-            }
-        });
-    }
-    
-    if (installAppBtn) {
-        installAppBtn.addEventListener('click', async function() {
-            if (window.deferredPrompt) {
-                window.deferredPrompt.prompt();
-                const { outcome } = await window.deferredPrompt.userChoice;
-                
-                if (outcome === 'accepted') {
-                    showToast(notificationsI18n.toastAppInstalledTitle, notificationsI18n.toastAppInstalledMessage, 'success');
-                    installAppBtn.style.display = 'none';
-                }
-                
-                window.deferredPrompt = null;
-            }
-        });
-    }
-    
-    function showToast(title, message, type) {
-        const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white bg-${type} border-0`;
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <strong>${title}:</strong> ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1060';
-            document.body.appendChild(toastContainer);
-        }
-        
-        toastContainer.appendChild(toast);
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-        
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
-    }
-    
-    updatePermissionStatus();
-    
-    if (window.location.protocol !== 'https:') {
+
+    if (!window.isSecureContext) {
         const httpsWarning = document.getElementById('https-warning');
-        if (httpsWarning) {
-            httpsWarning.style.display = 'block';
-        }
+        if (httpsWarning) httpsWarning.style.display = 'block';
     }
 });
 </script>

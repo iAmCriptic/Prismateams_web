@@ -1,10 +1,30 @@
-﻿# Team Portal - Installationsanleitung
+﻿<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [WARTUNG.md](WARTUNG.md) · [ERROR_HANDLING.md](ERROR_HANDLING.md)
+<h1 align="center">Prismateams – Installation</h1>
+
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="WARTUNG.md">Wartung</a> ·
+  <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
+</p>
+
+---
+
+> **Empfohlen: modularer Ubuntu-Installer**  
+> Produktion auf Ubuntu 24.04 / 26.04 LTS: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
 
 ## Hinweis zu VAPID- und Encryption-Keys
 
-Zurzeit kann eine nachträgliche Eintragung der VAPID- und Secret Keys für Benachrichtigungen, Passwörter und Music erforderlich sein:
+Der Installer erzeugt Keys in der Regel automatisch. Bei manueller Installation ggf. in `.env` nachtragen (Benachrichtigungen, Zugangsdaten, Music):
 
 ```bash
 # Encryption Keys (aus generate_encryption_keys.py kopieren)
@@ -15,20 +35,21 @@ VAPID_PUBLIC_KEY=your-vapid-public-key-here
 VAPID_PRIVATE_KEY=your-vapid-private-key-here
 ```
 
-## Empfohlene Installation (Ubuntu)
+Beispiel-Konfiguration: [env.example](env.example)
 
-Für Ubuntu Server 24.04 existiert ein automatisches Installationsskript: `scripts/install_ubuntu.sh`
+## Empfohlene Installation (Ubuntu)
 
 ```bash
 sudo bash scripts/install_ubuntu.sh
 ```
 
-Alle Details, CLI-Optionen und interaktive Abfragen: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
+CLI, Module und Beispiele: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
 
 ---
-## Produktionsinstallation (Ubuntu Server) - Manuelle Methode
 
-Diese Anleitung führt Sie Schritt für Schritt durch die vollständige Installation von Prismateams auf einem Ubuntu Server, inklusive optionaler Integrationen für Excalidraw und OnlyOffice.
+## Produktionsinstallation (Ubuntu Server) – Manuelle Methode
+
+Schritt-für-Schritt-Installation von **Prismateams 3.0.0** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, OnlyOffice).
 
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
 - **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
@@ -121,27 +142,44 @@ sudo ./venv/bin/pip install --upgrade pip
 sudo ./venv/bin/pip install -r requirements.txt
 ```
 
-### Schritt 5: Optionale Installation - OnlyOffice Document Server
+### Schritt 5: Optionale Installation - OnlyOffice Document Server (Docs)
 
-**⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie OnlyOffice für die Dokumentenbearbeitung verwenden möchten. Wenn nicht, setzen Sie `ONLYOFFICE_ENABLED=False` in der `.env`-Datei.
+**⚠️ OPTIONAL:** Nur nötig für Dokumentenbearbeitung im Portal. Sonst `ONLYOFFICE_ENABLED=False` in der `.env`.
+
+**Wichtig:** Installieren Sie **ONLYOFFICE Docs (Document Server)**, nicht Community Server / Workspace.
+Community Server ([Docker-CommunityServer](https://github.com/ONLYOFFICE/Docker-CommunityServer)) ist ein eigenes Portal und kollidiert mit Nginx/Apache (Port 80/443).
+Offizielles Image: [Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer) → `onlyoffice/documentserver:latest`.
+
+**Voraussetzungen:** ≥4 GB RAM, mehrere GB freier Disk, Architektur **amd64/x86_64**, Docker Engine ≥20.10.21.
 
 ```bash
-# OnlyOffice Document Server Container starten (Port 8080)
-sudo docker run -i -t -d -p 8080:80 --restart=always \
-    --name onlyoffice-documentserver \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-    -e JWT_SECRET=dein-jwt-secret-key-hier \
-    onlyoffice/documentserver
+# Volumes (Community Edition, offizielles Layout)
+sudo mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}
 
-# Prüfen ob OnlyOffice läuft
+# Neueste Docs-Version laden und starten (JWT aktiv, nur localhost)
+sudo docker pull onlyoffice/documentserver:latest
+sudo docker run -d --restart=always \
+    --name onlyoffice-documentserver \
+    -p 127.0.0.1:8080:80 \
+    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -e JWT_ENABLED=true \
+    -e JWT_SECRET=dein-jwt-secret-key-hier \
+    -e JWT_HEADER=Authorization \
+    -e ALLOW_PRIVATE_IP_ADDRESS=true \
+    onlyoffice/documentserver:latest
+
+# Prüfen (Erststart kann 1–3 Minuten dauern)
 sudo docker ps | grep onlyoffice
-curl http://localhost:8080/welcome/
+curl -s http://127.0.0.1:8080/healthcheck
+curl -s http://127.0.0.1:8080/welcome/ | head
 ```
 
-**Wichtig:** Notieren Sie sich den `JWT_SECRET`-Wert! Sie benötigen ihn später für die Konfiguration in der `.env`-Datei.
+**Wichtig:** Notieren Sie den `JWT_SECRET`-Wert – er muss mit `ONLYOFFICE_SECRET_KEY` in der `.env` übereinstimmen.
 
-**Hinweis:** Wenn Sie OnlyOffice ohne JWT-Authentifizierung betreiben möchten, können Sie die `-e JWT_SECRET=...` Zeile weglassen. In diesem Fall lassen Sie `ONLYOFFICE_SECRET_KEY` in der `.env` leer.
+**Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` in der `.env` leer lassen.
 
 ### Schritt 6: Optionale Installation - Excalidraw
 
@@ -261,9 +299,11 @@ REDIS_URL=redis://localhost:6379/0
 - **E-Mail (SMTP):** `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USE_SSL`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SENDER_NAME`
 - **E-Mail-Speicherlimits:** `EMAIL_HTML_MAX_LENGTH`, `EMAIL_TEXT_MAX_LENGTH`, `EMAIL_HTML_STORAGE_TYPE`
 - **IMAP:** `IMAP_SERVER`, `IMAP_PORT`, `IMAP_USE_SSL`
-- **Uploads/Limits:** `UPLOAD_FOLDER`, `MAX_CONTENT_LENGTH`
+- **Uploads:** `UPLOAD_FOLDER` (Dateigrößenlimits werden in den Datei-Einstellungen verwaltet)
 - **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
+  - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
+  - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
 
 ### Schritt 8: Berechtigungen setzen
 
@@ -749,6 +789,9 @@ sudo ufw status
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell
 - [ ] OnlyOffice JWT ist aktiviert (falls OnlyOffice installiert)
+- [ ] 2FA (TOTP) für Admin-Accounts empfohlen
+- [ ] Redis aktiv, wenn Gunicorn mit mehreren Workern läuft
+- [ ] `TOTP_ENCRYPTION_KEY` / Encryption-Keys gesetzt ([env.example](env.example))
 - [ ] `.env`-Datei hat korrekte Berechtigungen (nicht öffentlich lesbar)
 - [ ] Docker-Container laufen mit `--restart=always` (falls installiert)
 
@@ -794,3 +837,10 @@ Bei Problemen:
 1. [ERROR_HANDLING.md](ERROR_HANDLING.md) durchgehen
 2. [WARTUNG.md](WARTUNG.md) für Logs und Updates
 3. GitHub Issues durchsuchen oder neues Issue erstellen
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0</sub>
+</p>

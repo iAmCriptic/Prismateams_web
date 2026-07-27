@@ -1,372 +1,426 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.users.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.user_management.title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.users.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.users.breadcrumb_admin') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.admin.users.breadcrumb_users') }}</li>
-    </ol>
-</nav>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">{{ _('settings.admin.users.heading') }}</h2>
-    <div class="btn-group">
-        <a href="{{ url_for('settings.create_user') }}" class="btn btn-primary">
-            <i class="bi bi-person-plus"></i> Neuen Benutzer erstellen
-        </a>
-        <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-gear"></i> {{ _('settings.admin.users.configure_default_roles') }}
-        </a>
+{% block settings_content %}
+<div class="settings-admin-users">
+    <div class="settings-admin-users-header">
+        <div class="settings-admin-users-header-text">
+            <h1 class="settings-admin-users-title">{{ _('settings.admin.users.heading') }}</h1>
+            <p class="settings-admin-users-subtitle">{{ _('settings.admin.users.subtitle') }}</p>
+        </div>
+        <div class="settings-admin-users-header-actions">
+            <a href="{{ url_for('settings.create_user') }}" class="btn btn-accent settings-admin-users-btn">
+                <i class="bi bi-person-plus" aria-hidden="true"></i>
+                {{ _('settings.admin.users.create_user') }}
+            </a>
+            <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary settings-admin-users-btn">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+                {{ _('settings.admin.users.configure_default_roles') }}
+            </a>
+        </div>
     </div>
-</div>
 
-<!-- Pending Users -->
-{% if pending_users %}
-<div class="card mb-4">
-    <div class="card-header bg-warning">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Ausstehende Registrierungen ({{ pending_users|length }})</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
-            {% for user in pending_users %}
-            <div class="list-group-item">
-                <div class="d-flex w-100 justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1">{{ user.full_name }}</h6>
-                        <small class="text-muted">{{ user.email }} • {{ user.phone or 'Keine Telefonnummer' }}</small><br>
-                        <small class="text-muted">Registriert: {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+    {% if pending_users or confirmation_code_users %}
+    <div class="settings-admin-users-queue">
+        {% if pending_users %}
+        <section class="settings-admin-users-card settings-admin-users-card--warn" aria-labelledby="admin-users-pending">
+            <div class="settings-admin-users-card-head">
+                <h2 id="admin-users-pending" class="settings-admin-users-section-title mb-0">
+                    {{ _('settings.admin.users.pending_title') }}
+                    <span class="badge rounded-pill text-bg-warning">{{ pending_users|length }}</span>
+                </h2>
+            </div>
+            <div class="settings-admin-users-list">
+                {% for user in pending_users %}
+                <div class="settings-admin-users-row">
+                    <div class="settings-admin-users-row-main">
+                        <div class="settings-admin-users-name">{{ user.full_name }}</div>
+                        <div class="settings-admin-users-meta">
+                            <span>{{ user.email }}</span>
+                            {% if user.phone %}<span aria-hidden="true">·</span><span>{{ user.phone }}</span>{% endif %}
+                            <span aria-hidden="true">·</span>
+                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                        </div>
                     </div>
-                    <div class="btn-group">
-                        <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-accent">
-                                <i class="bi bi-check-circle"></i> Aktivieren
+                    <div class="settings-admin-users-row-actions">
+                        <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-sm btn-accent settings-admin-users-btn" title="{{ _('settings.admin.users.activate') }}">
+                                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                                <span class="d-none d-sm-inline">{{ _('settings.admin.users.activate') }}</span>
                             </button>
                         </form>
-                        <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-danger" data-confirm-delete="Registrierung ablehnen und löschen?">
-                                <i class="bi bi-x-circle"></i> Ablehnen
+                        <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.reject_confirm') }}" title="{{ _('settings.admin.users.reject') }}">
+                                <i class="bi bi-x-circle" aria-hidden="true"></i>
+                                <span class="d-none d-sm-inline">{{ _('settings.admin.users.reject') }}</span>
                             </button>
                         </form>
                     </div>
                 </div>
+                {% endfor %}
             </div>
+        </section>
+        {% endif %}
+
+        {% if confirmation_code_users %}
+        <section id="confirmation-codes" class="settings-admin-users-card settings-admin-users-card--info" aria-labelledby="admin-users-codes">
+            <div class="settings-admin-users-card-head">
+                <h2 id="admin-users-codes" class="settings-admin-users-section-title mb-0">
+                    {{ _('settings.admin.users.codes_title') }}
+                    <span class="badge rounded-pill text-bg-info">{{ confirmation_code_users|length }}</span>
+                </h2>
+                <button type="button" class="settings-admin-users-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.codes_help') }}" aria-label="{{ _('settings.admin.users.codes_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="settings-admin-users-list">
+                {% for user in confirmation_code_users %}
+                <div class="settings-admin-users-row">
+                    <div class="settings-admin-users-row-main">
+                        <div class="settings-admin-users-name">{{ user.full_name }}</div>
+                        <div class="settings-admin-users-meta">
+                            <span>{{ user.email }}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>
+                                {% if user.confirmation_code_expires %}
+                                    {{ _('settings.admin.users.code_expires') }} {{ user.confirmation_code_expires|localdatetime('%d.%m.%Y %H:%M') }}
+                                {% else %}
+                                    {{ _('settings.admin.users.code_unlimited') }}
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="settings-admin-users-code-wrap">
+                        <code class="settings-admin-users-code" data-code="{{ user.confirmation_code }}">{{ user.confirmation_code }}</code>
+                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-users-btn settings-admin-users-copy" data-code="{{ user.confirmation_code }}" title="{{ _('settings.admin.users.copy_code') }}">
+                            <i class="bi bi-clipboard" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <section class="settings-admin-users-card" aria-labelledby="admin-users-active">
+        <div class="settings-admin-users-card-head">
+            <h2 id="admin-users-active" class="settings-admin-users-section-title mb-0">
+                {{ _('settings.admin.users.active_title') }}
+                <span class="badge rounded-pill text-bg-secondary">{{ users_with_roles|length }}</span>
+            </h2>
+        </div>
+        <div class="settings-admin-users-list">
+            {% for item in users_with_roles %}
+            {% set user = item.user %}
+            <div class="settings-admin-users-row">
+                <div class="settings-admin-users-row-main">
+                    <div class="settings-admin-users-name">
+                        {{ user.full_name }}
+                        {% if user.is_admin %}
+                            {% if user.is_super_admin %}
+                            <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.users.badge_super_admin') }}</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_admin') }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.users.badge_user') }}</span>
+                        {% endif %}
+                        {% if user.is_super_admin or user.is_admin %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.users.badge_full_admin') }}</span>
+                        {% elif item.has_full_access %}
+                        <span class="badge rounded-pill text-bg-primary">{{ _('settings.admin.users.badge_full') }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_modules') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="settings-admin-users-meta">
+                        <span>{{ user.email }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{{ _('settings.admin.users.last_login') }} {{ user.last_login|localdatetime('%d.%m.%Y') if user.last_login else _('settings.admin.users.never') }}</span>
+                        {% if not user.is_super_admin and not user.is_admin and not item.has_full_access and item.module_roles %}
+                        <span aria-hidden="true">·</span>
+                        <span>
+                            {% for module_key, has_access in item.module_roles.items() if has_access %}
+                                {% for key, name in all_modules if key == module_key %}{{ name }}{% endfor %}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="settings-admin-users-row-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.manage_roles') }}" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
+                        <i class="bi bi-person-badge" aria-hidden="true"></i>
+                    </button>
+                    {% if not user.is_admin %}
+                    <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{{ _('settings.admin.users.make_admin') }}">
+                            <i class="bi bi-shield-plus" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary settings-admin-users-btn" title="{{ _('settings.admin.users.remove_admin') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                            <i class="bi bi-shield-minus" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{{ _('settings.admin.users.deactivate') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                            <i class="bi bi-pause-circle" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.delete_confirm') }}" title="{{ _('settings.admin.users.delete') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <p class="settings-admin-users-empty">{{ _('settings.admin.users.no_active') }}</p>
             {% endfor %}
         </div>
-    </div>
-</div>
-{% endif %}
+    </section>
 
-<!-- Active Users -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-people"></i> Aktive Benutzer ({{ active_users|length }})</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>E-Mail</th>
-                        <th>Typ / Rolle</th>
-                        <th>Rollenstatus</th>
-                        <th>Letzter Login</th>
-                        <th>Info</th>
-                        <th>Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in users_with_roles %}
-                    {% set user = item.user %}
-                    <tr>
-                        <td>{{ user.full_name }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>
-                            {% if user.is_admin %}
-                                {% if user.is_super_admin %}
-                                <span class="badge bg-danger">Hauptadministrator</span>
-                                {% else %}
-                                <span class="badge bg-warning">Administrator</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="badge bg-secondary">Benutzer</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user.is_super_admin or user.is_admin %}
-                                <span class="badge bg-success">Vollzugriff (Admin)</span>
-                            {% elif item.has_full_access %}
-                                <span class="badge bg-primary">Vollzugriff</span>
-                            {% else %}
-                                <span class="badge bg-info">Modulspezifisch</span>
-                                <div class="small text-muted mt-1">
-                                    {% for module_key, has_access in item.module_roles.items() %}
-                                        {% if has_access %}
-                                            {% for key, name in all_modules %}
-                                                {% if key == module_key %}
-                                                    {{ name }}{% if not loop.last %}, {% endif %}
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>{{ user.last_login.strftime('%d.%m.%Y') if user.last_login else 'Nie' }}</td>
-                        <td>
-                            <small class="text-muted">-</small>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-primary" title="Rollen verwalten" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
-                                    <i class="bi bi-person-badge"></i>
-                                </button>
-                                {% if not user.is_admin %}
-                                <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-warning" title="Zum Admin machen">
-                                        <i class="bi bi-shield-plus"></i>
-                                    </button>
-                                </form>
-                                {% else %}
-                                <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-secondary" title="Admin-Rechte entziehen" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                                        <i class="bi bi-shield-minus"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-warning" title="Deaktivieren" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                                        <i class="bi bi-pause-circle"></i>
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-danger" data-confirm-delete="Benutzer wirklich löschen?" title="Löschen" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <section class="settings-admin-users-card" aria-labelledby="admin-users-guests">
+        <div class="settings-admin-users-card-head">
+            <h2 id="admin-users-guests" class="settings-admin-users-section-title mb-0">
+                {{ _('settings.admin.users.guests_title') }}
+                <span class="badge rounded-pill text-bg-secondary">{{ guest_users_with_roles|length }}</span>
+            </h2>
         </div>
-    </div>
-</div>
-
-<!-- Guest Accounts -->
-<div class="card">
-    <div class="card-header bg-info text-white">
-        <h5 class="mb-0"><i class="bi bi-person-dash"></i> Gast-Accounts ({{ guest_users_with_roles|length }})</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Gast-Benutzername</th>
-                        <th>Modulzugriff</th>
-                        <th>Freigabelinks</th>
-                        <th>Ablaufdatum</th>
-                        <th>Status</th>
-                        <th>Erstellt am</th>
-                        <th>Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if guest_users_with_roles %}
-                    {% for item in guest_users_with_roles %}
-                    {% set guest = item.user %}
-                    {% set is_expired = guest.guest_expires_at and guest.guest_expires_at < now %}
-                    <tr {% if is_expired %}class="table-warning"{% elif not guest.is_active %}class="table-secondary"{% endif %}>
-                        <td>
-                            <strong>{{ guest.full_name }}</strong>
-                            <span class="badge bg-info ms-2">Gast</span>
-                        </td>
-                        <td>
-                            <code class="text-primary">{{ guest.guest_username or guest.email }}</code>
-                        </td>
-                        <td>
-                            {% if item.module_roles %}
-                                <div class="small">
-                                    {% for module_key, has_access in item.module_roles.items() %}
-                                        {% if has_access %}
-                                            {% for key, name in all_modules %}
-                                                {% if key == module_key %}
-                                                    <span class="badge bg-secondary me-1">{{ name }}</span>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
+        <div class="settings-admin-users-list">
+            {% if guest_users_with_roles %}
+            {% for item in guest_users_with_roles %}
+            {% set guest = item.user %}
+            {% set is_expired = guest.guest_expires_at and guest.guest_expires_at < now %}
+            <div class="settings-admin-users-row{% if is_expired %} is-warn{% elif not guest.is_active %} is-muted{% endif %}">
+                <div class="settings-admin-users-row-main">
+                    <div class="settings-admin-users-name">
+                        {{ guest.full_name }}
+                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
+                        {% if guest.is_active %}
+                            {% if is_expired %}
+                            <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.users.badge_expired') }}</span>
                             {% else %}
-                                <small class="text-muted">Keine Module</small>
+                            <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.users.badge_active') }}</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            {% if item.share_count > 0 %}
-                            <span class="badge bg-success">{{ item.share_count }} Freigabelink(s)</span>
-                            {% else %}
-                            <small class="text-muted">Keine</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if guest.guest_expires_at %}
-                                {% if is_expired %}
-                                <span class="text-danger"><strong>Abgelaufen</strong><br>{{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                                {% else %}
-                                <small>{{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</small>
-                                {% endif %}
-                            {% else %}
-                            <small class="text-muted">Unbegrenzt</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if guest.is_active %}
-                                {% if is_expired %}
-                                <span class="badge bg-danger">Abgelaufen</span>
-                                {% else %}
-                                <span class="badge bg-success">Aktiv</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="badge bg-secondary">Inaktiv</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <small class="text-muted">{{ guest.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('settings.edit_guest_user', user_id=guest.id) }}" class="btn btn-outline-primary" title="Bearbeiten">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-warning" title="{% if guest.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}">
-                                        <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle"></i>
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=guest.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-danger" data-confirm-delete="Gast-Account wirklich löschen?" title="Löschen">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% else %}
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
-                            <i class="bi bi-inbox"></i> Keine Gast-Accounts vorhanden
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Rollenverwaltungs-Modal -->
-<div class="modal fade" id="rolesModal" tabindex="-1" aria-labelledby="rolesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="rolesModalLabel">
-                    <i class="bi bi-person-badge"></i> Rollen verwalten: <span id="modalUserName"></span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        {% else %}
+                            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.users.badge_inactive') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="settings-admin-users-meta">
+                        <code>{{ guest.guest_username or guest.email }}</code>
+                        {% if item.share_count > 0 %}
+                        <span aria-hidden="true">·</span>
+                        <span>{{ _('settings.admin.users.shares_count', count=item.share_count) }}</span>
+                        {% endif %}
+                        <span aria-hidden="true">·</span>
+                        {% if guest.guest_expires_at %}
+                        <span class="{% if is_expired %}text-danger{% endif %}">{{ _('settings.admin.users.expires') }} {{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        {% else %}
+                        <span>{{ _('settings.admin.users.code_unlimited') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="settings-admin-users-row-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.edit_guest') }}" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
+                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                    </button>
+                    <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{% if guest.is_active %}{{ _('settings.admin.users.deactivate') }}{% else %}{{ _('settings.admin.users.activate') }}{% endif %}">
+                            <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('settings.delete_user', user_id=guest.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.delete_guest_confirm') }}" title="{{ _('settings.admin.users.delete') }}">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
-            <div class="modal-body">
-                <form id="rolesForm">
-                    <input type="hidden" id="modalUserId" name="user_id">
-                    
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access" 
-                                   onchange="toggleModuleRoles()">
-                            <label class="form-check-label" for="modalHasFullAccess">
-                                <strong>Vollzugriff</strong>
-                            </label>
+            {% endfor %}
+            {% else %}
+            <p class="settings-admin-users-empty">{{ _('settings.admin.users.no_guests') }}</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+{# —— Gast bearbeiten (neues Settings-Design, wie Rollen-Modal) —— #}
+<div class="modal fade settings-admin-roles-modal" id="guestEditModal" tabindex="-1" aria-labelledby="guestEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header settings-admin-roles-modal-header">
+                <h5 class="modal-title" id="guestEditModalLabel">
+                    {{ _('settings.admin.users.edit_guest') }}: <span id="guestEditModalName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body settings-admin-roles-modal-body">
+                <form id="guestEditForm" class="settings-admin-roles-form" onsubmit="return false;">
+                    <input type="hidden" id="guestEditUserId" name="user_id">
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-details-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-details-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.section_details') }}</h2>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            Wenn aktiviert, hat der Benutzer Zugriff auf alle Module. Modulspezifische Rollen werden ignoriert.
-                        </small>
-                    </div>
-                    
-                    <div id="moduleRolesSection">
-                        <h6 class="mb-3">Modulspezifische Rollen</h6>
-                        <p class="text-muted mb-3">Wählen Sie die Module aus, auf die dieser Benutzer Zugriff haben soll:</p>
-                        
-                        <div class="row g-3" id="moduleCheckboxes">
-                            <!-- Wird dynamisch geladen -->
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div id="emailPermissionsSection">
-                        <h6 class="mb-3"><i class="bi bi-envelope"></i> E-Mail-Berechtigungen</h6>
-                        <p class="text-muted mb-3">Legen Sie fest, welche E-Mail-Funktionen dieser Benutzer nutzen kann:</p>
-                        
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="emailCanRead" name="email_can_read">
-                                <label class="form-check-label" for="emailCanRead">
-                                    <strong>E-Mails lesen</strong>
-                                </label>
+                        <div class="settings-admin-roles-fields">
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditFirstName" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditFirstName" name="first_name" required autocomplete="off">
                             </div>
-                            <small class="text-muted d-block ms-4">Benutzer kann E-Mails im Portal anzeigen und lesen</small>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="emailCanSend" name="email_can_send">
-                                <label class="form-check-label" for="emailCanSend">
-                                    <strong>E-Mails senden</strong>
-                                </label>
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditLastName" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditLastName" name="last_name" required autocomplete="off">
                             </div>
-                            <small class="text-muted d-block ms-4">Benutzer kann E-Mails über das Portal versenden</small>
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div id="borrowPermissionsSection">
-                        <h6 class="mb-3"><i class="bi bi-box-arrow-right"></i> Leihrechte</h6>
-                        <p class="text-muted mb-3">Legen Sie fest, ob dieser Benutzer Artikel aus der Lagerverwaltung ausleihen darf:</p>
-                        
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
-                                <label class="form-check-label" for="canBorrow">
-                                    <strong>Artikel ausleihen können</strong>
-                                </label>
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditUsername" class="form-label">{{ _('settings.admin.create_user.guest_username') }}</label>
+                                <input type="text" class="form-control settings-admin-roles-input font-monospace" id="guestEditUsername" readonly tabindex="-1">
                             </div>
-                            <small class="text-muted d-block ms-4">Benutzer kann Artikel aus der Lagerverwaltung ausleihen und zurückgeben</small>
+                            <div class="settings-admin-roles-field">
+                                <div class="settings-admin-roles-card-head settings-admin-roles-field-label">
+                                    <label for="guestEditExpires" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
+                                    <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
+                                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <input type="datetime-local" class="form-control settings-admin-roles-input" id="guestEditExpires" name="guest_expires_at">
+                            </div>
                         </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div id="bookingRolesSection">
-                        <h6 class="mb-3">Buchungsrollen</h6>
-                        <p class="text-muted mb-3">Weisen Sie diesem Benutzer Buchungsrollen zu, damit er Buchungsanfragen zustimmen oder ablehnen kann:</p>
-                        
-                        <div id="bookingRolesCheckboxes">
-                            <!-- Wird dynamisch geladen -->
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-shares-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-shares-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.shares_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
                         </div>
-                    </div>
+                        <div class="settings-admin-roles-chips" id="guestEditShares" role="group" aria-label="{{ _('settings.admin.create_user.shares_title') }}"></div>
+                        <p id="guestEditSharesEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.shares_empty') }}</p>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-chats-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-chats-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.chats_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-chips" id="guestEditChats" role="group" aria-label="{{ _('settings.admin.create_user.chats_title') }}"></div>
+                        <p id="guestEditChatsEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.chats_empty') }}</p>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-modules-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.modules_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-chips" id="guestEditModules" role="group" aria-label="{{ _('settings.admin.create_user.modules_title') }}"></div>
+                        <p class="settings-admin-roles-hint">{{ _('settings.admin.create_user.guest_hint') }}</p>
+                    </section>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" onclick="saveRoles()">
-                    <i class="bi bi-save"></i> Speichern
+            <div class="modal-footer settings-admin-roles-modal-footer">
+                <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent settings-admin-roles-btn" id="guestEditSaveBtn">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    {{ _('common.save') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# —— Rollen-Modal (neues Settings-Design) —— #}
+<div class="modal fade settings-admin-roles-modal" id="rolesModal" tabindex="-1" aria-labelledby="rolesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header settings-admin-roles-modal-header">
+                <h5 class="modal-title" id="rolesModalLabel">
+                    {{ _('settings.admin.users.manage_roles') }}: <span id="modalUserName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body settings-admin-roles-modal-body">
+                <form id="rolesForm" class="settings-admin-roles-form" onsubmit="return false;">
+                    <input type="hidden" id="modalUserId" name="user_id">
+
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-full-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-full-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.badge_full') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.full_access_help') }}" aria-label="{{ _('settings.admin.users.full_access_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="form-check form-switch settings-admin-roles-switch">
+                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access">
+                            <label class="form-check-label" for="modalHasFullAccess">{{ _('settings.admin.users.badge_full') }}</label>
+                        </div>
+                    </section>
+
+                    <section id="moduleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-modules-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.module_roles_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.module_roles_help') }}" aria-label="{{ _('settings.admin.users.module_roles_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <p id="rolesModalFullHint" class="settings-admin-roles-hint" hidden>{{ _('settings.admin.roles.full_access_active_hint') }}</p>
+                        <div class="settings-admin-roles-chips" id="moduleCheckboxes" role="group" aria-label="{{ _('settings.admin.users.module_roles_title') }}"></div>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-email-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-email-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.email_perms_title') }}</h2>
+                        </div>
+                        <div class="settings-admin-roles-switch-stack">
+                            <div class="form-check form-switch settings-admin-roles-switch">
+                                <input class="form-check-input" type="checkbox" id="emailCanRead" name="email_can_read">
+                                <label class="form-check-label" for="emailCanRead">{{ _('settings.admin.users.email_read') }}</label>
+                            </div>
+                            <div class="form-check form-switch settings-admin-roles-switch">
+                                <input class="form-check-input" type="checkbox" id="emailCanSend" name="email_can_send">
+                                <label class="form-check-label" for="emailCanSend">{{ _('settings.admin.users.email_send') }}</label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-borrow-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-borrow-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.borrow_title') }}</h2>
+                        </div>
+                        <div class="form-check form-switch settings-admin-roles-switch">
+                            <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
+                            <label class="form-check-label" for="canBorrow">{{ _('settings.admin.users.borrow_toggle') }}</label>
+                        </div>
+                    </section>
+
+                    <section id="bookingRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-booking-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-booking-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.booking_roles_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.booking_roles_help') }}" aria-label="{{ _('settings.admin.users.booking_roles_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div id="bookingRolesCheckboxes" class="settings-admin-roles-booking"></div>
+                    </section>
+                </form>
+            </div>
+            <div class="modal-footer settings-admin-roles-modal-footer">
+                <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent settings-admin-roles-btn" id="rolesSaveBtn">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    {{ _('common.save') }}
                 </button>
             </div>
         </div>
@@ -374,89 +428,239 @@
 </div>
 
 <script>
-// Liste aller Module
-const allModules = [
-    {key: 'module_chat', name: 'Chat'},
-    {key: 'module_files', name: 'Dateien'},
-    {key: 'module_calendar', name: 'Kalender'},
-    {key: 'module_events', name: 'Veranstaltungen'},
-    {key: 'module_email', name: 'E-Mail'},
-    {key: 'module_contacts', name: 'Kontakte'},
-    {key: 'module_credentials', name: 'Zugangsdaten'},
-    {key: 'module_manuals', name: 'Anleitungen'},
-    {key: 'module_inventory', name: 'Lagerverwaltung'},
-    {key: 'module_wiki', name: 'Wiki'},
-    {key: 'module_booking', name: 'Buchungen'},
-    {key: 'module_music', name: 'Musik'},
-    {key: 'module_media_downloader', name: 'Media Downloader'},
-    {key: 'module_assessment', name: 'Bewertung'},
-    {key: 'module_shortlinks', name: 'Kurzlinks'}
-];
+const allModules = {{ all_modules|tojson }};
+const guestModules = {{ guest_modules|tojson }};
+const guestShares = {{ assignable_shares|tojson }};
+const guestChats = {{ guest_chats_json|tojson }};
+const guestEmailSuffix = {{ guest_email_suffix|tojson }};
+const i18nGuestEdit = {
+    mainChat: {{ _('settings.admin.create_user.main_chat')|tojson }},
+    loadError: {{ _('settings.admin.users.flash_guest_load_error')|tojson }},
+    saveError: {{ _('settings.admin.users.flash_guest_save_error')|tojson }}
+};
 
-// Modal öffnen und Daten laden
-document.getElementById('rolesModal').addEventListener('show.bs.modal', function (event) {
-    const button = event.relatedTarget;
-    const userId = button.getAttribute('data-user-id');
-    const userName = button.getAttribute('data-user-name');
-    
-    document.getElementById('modalUserId').value = userId;
-    document.getElementById('modalUserName').textContent = userName;
-    
-    // Lade Rollen-Daten
-    loadUserRoles(userId);
+document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"], #rolesModal [data-bs-toggle="tooltip"], #guestEditModal [data-bs-toggle="tooltip"]').forEach(function (el) {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        new bootstrap.Tooltip(el);
+    }
 });
+
+document.querySelectorAll('.settings-admin-users-copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var code = btn.getAttribute('data-code') || '';
+        if (!code || !navigator.clipboard) return;
+        navigator.clipboard.writeText(code).then(function () {
+            btn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
+            setTimeout(function () {
+                btn.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
+            }, 1200);
+        });
+    });
+});
+
+function moveModalToBody(el) {
+    if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+    }
+}
+
+(function () {
+    const rolesModalEl = document.getElementById('rolesModal');
+    if (!rolesModalEl) return;
+    moveModalToBody(rolesModalEl);
+    rolesModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+        const userId = button.getAttribute('data-user-id');
+        const userName = button.getAttribute('data-user-name');
+        document.getElementById('modalUserId').value = userId;
+        document.getElementById('modalUserName').textContent = userName;
+        loadUserRoles(userId);
+    });
+})();
+
+(function () {
+    const guestModalEl = document.getElementById('guestEditModal');
+    if (!guestModalEl) return;
+    moveModalToBody(guestModalEl);
+    guestModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+        const userId = button.getAttribute('data-user-id');
+        const userName = button.getAttribute('data-user-name');
+        document.getElementById('guestEditUserId').value = userId;
+        document.getElementById('guestEditModalName').textContent = userName || '';
+        loadGuestEdit(userId);
+    });
+    const saveBtn = document.getElementById('guestEditSaveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', saveGuestEdit);
+})();
+
+document.getElementById('modalHasFullAccess').addEventListener('change', toggleModuleRoles);
+document.getElementById('rolesSaveBtn').addEventListener('click', saveRoles);
+
+function fillGuestChipGroup(container, emptyEl, items, selected, idPrefix, valueKey, labelFn) {
+    container.innerHTML = '';
+    const selectedSet = new Set((selected || []).map(String));
+    if (!items || !items.length) {
+        if (emptyEl) emptyEl.hidden = false;
+        container.hidden = true;
+        return;
+    }
+    if (emptyEl) emptyEl.hidden = true;
+    container.hidden = false;
+    items.forEach(function (item, index) {
+        const value = String(Array.isArray(item) ? item[0] : item[valueKey]);
+        const labelText = labelFn ? labelFn(item) : (Array.isArray(item) ? item[1] : item.label);
+        const id = idPrefix + '_' + (value.replace(/[^a-zA-Z0-9_-]/g, '_') || index);
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'btn-check';
+        checkbox.id = id;
+        checkbox.value = value;
+        checkbox.autocomplete = 'off';
+        checkbox.checked = selectedSet.has(value);
+        const label = document.createElement('label');
+        label.className = 'settings-admin-roles-chip';
+        label.htmlFor = id;
+        label.textContent = labelText;
+        container.appendChild(checkbox);
+        container.appendChild(label);
+    });
+}
+
+function loadGuestEdit(userId) {
+    fetch('/settings/admin/users/' + userId + '/edit_guest?format=json', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+        if (!data || data.success === false) {
+            alert((data && data.error) || i18nGuestEdit.loadError);
+            return;
+        }
+        document.getElementById('guestEditFirstName').value = data.first_name || '';
+        document.getElementById('guestEditLastName').value = data.last_name || '';
+        document.getElementById('guestEditUsername').value = data.guest_username
+            ? (data.guest_username + guestEmailSuffix)
+            : (data.email || '');
+        document.getElementById('guestEditExpires').value = data.guest_expires_at || '';
+        document.getElementById('guestEditModalName').textContent = data.full_name || '';
+
+        fillGuestChipGroup(
+            document.getElementById('guestEditShares'),
+            document.getElementById('guestEditSharesEmpty'),
+            guestShares,
+            data.current_share_tokens || [],
+            'guest_share',
+            'token',
+            function (share) { return share.label + ' (' + share.token_prefix + '…)'; }
+        );
+        fillGuestChipGroup(
+            document.getElementById('guestEditChats'),
+            document.getElementById('guestEditChatsEmpty'),
+            guestChats,
+            (data.current_chat_ids || []).map(String),
+            'guest_chat',
+            'id',
+            function (chat) {
+                return chat.name + (chat.is_main_chat ? (' · ' + i18nGuestEdit.mainChat) : '');
+            }
+        );
+        fillGuestChipGroup(
+            document.getElementById('guestEditModules'),
+            null,
+            guestModules,
+            data.current_modules || [],
+            'guest_mod',
+            null,
+            null
+        );
+    })
+    .catch(function (error) {
+        console.error(error);
+        alert(i18nGuestEdit.loadError);
+    });
+}
+
+function saveGuestEdit() {
+    const userId = document.getElementById('guestEditUserId').value;
+    const formData = new FormData();
+    formData.append('first_name', document.getElementById('guestEditFirstName').value.trim());
+    formData.append('last_name', document.getElementById('guestEditLastName').value.trim());
+    formData.append('guest_expires_at', document.getElementById('guestEditExpires').value || '');
+
+    document.querySelectorAll('#guestEditShares .btn-check:checked').forEach(function (cb) {
+        formData.append('share_tokens', cb.value);
+    });
+    document.querySelectorAll('#guestEditChats .btn-check:checked').forEach(function (cb) {
+        formData.append('chat_ids', cb.value);
+    });
+    document.querySelectorAll('#guestEditModules .btn-check:checked').forEach(function (cb) {
+        formData.append('allowed_modules', cb.value);
+    });
+
+    const saveBtn = document.getElementById('guestEditSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
+
+    fetch('/settings/admin/users/' + userId + '/edit_guest', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+    .then(function (result) {
+        if (result.data && result.data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('guestEditModal'));
+            if (modal) modal.hide();
+            location.reload();
+            return;
+        }
+        if (saveBtn) saveBtn.disabled = false;
+        alert((result.data && result.data.error) || i18nGuestEdit.saveError);
+    })
+    .catch(function (error) {
+        console.error(error);
+        if (saveBtn) saveBtn.disabled = false;
+        alert(i18nGuestEdit.saveError);
+    });
+}
 
 function loadUserRoles(userId) {
     fetch(`/settings/admin/roles/user/${userId}?format=json`)
         .then(response => response.json())
         .then(data => {
-            // Setze Vollzugriff
-            document.getElementById('modalHasFullAccess').checked = data.has_full_access || false;
-            
-            // Setze E-Mail-Berechtigungen
+            document.getElementById('modalHasFullAccess').checked = !!data.has_full_access;
             if (data.email_permissions) {
-                document.getElementById('emailCanRead').checked = data.email_permissions.can_read || false;
-                document.getElementById('emailCanSend').checked = data.email_permissions.can_send || false;
+                document.getElementById('emailCanRead').checked = !!data.email_permissions.can_read;
+                document.getElementById('emailCanSend').checked = !!data.email_permissions.can_send;
             } else {
                 document.getElementById('emailCanRead').checked = false;
                 document.getElementById('emailCanSend').checked = false;
             }
-            
-            // Setze Leihrechte
-            document.getElementById('canBorrow').checked = data.can_borrow || false;
-            
-            // Erstelle Checkboxen für Module
+            document.getElementById('canBorrow').checked = !!data.can_borrow;
+
             const container = document.getElementById('moduleCheckboxes');
             container.innerHTML = '';
-            
             allModules.forEach(module => {
-                const col = document.createElement('div');
-                col.className = 'col-md-6';
-                
-                const formCheck = document.createElement('div');
-                formCheck.className = 'form-check form-switch';
-                
+                const key = Array.isArray(module) ? module[0] : module.key;
+                const name = Array.isArray(module) ? module[1] : module.name;
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.className = 'form-check-input module-checkbox';
-                checkbox.id = `modal_${module.key}`;
-                checkbox.name = module.key;
-                checkbox.checked = data.module_roles[module.key] || false;
-                
+                checkbox.className = 'btn-check module-checkbox';
+                checkbox.id = `modal_${key}`;
+                checkbox.name = key;
+                checkbox.value = 'on';
+                checkbox.autocomplete = 'off';
+                checkbox.checked = !!(data.module_roles && data.module_roles[key]);
                 const label = document.createElement('label');
-                label.className = 'form-check-label';
-                label.htmlFor = `modal_${module.key}`;
-                label.textContent = module.name;
-                
-                formCheck.appendChild(checkbox);
-                formCheck.appendChild(label);
-                col.appendChild(formCheck);
-                container.appendChild(col);
+                label.className = 'settings-admin-roles-chip';
+                label.htmlFor = `modal_${key}`;
+                label.textContent = name;
+                container.appendChild(checkbox);
+                container.appendChild(label);
             });
-            
-            // Lade Buchungsrollen
             loadBookingRoles(data.booking_roles || []);
-            
             toggleModuleRoles();
         })
         .catch(error => {
@@ -468,13 +672,10 @@ function loadUserRoles(userId) {
 function loadBookingRoles(bookingRoles) {
     const container = document.getElementById('bookingRolesCheckboxes');
     container.innerHTML = '';
-    
     if (!bookingRoles || bookingRoles.length === 0) {
-        container.innerHTML = '<p class="text-muted">Keine Buchungsrollen verfügbar. Erstellen Sie zuerst Rollen in den Buchungsformularen.</p>';
+        container.innerHTML = '<p class="settings-admin-roles-empty">Keine Buchungsrollen verfügbar.</p>';
         return;
     }
-    
-    // Gruppiere nach Formular
     const formsMap = {};
     bookingRoles.forEach(role => {
         if (!formsMap[role.form_id]) {
@@ -486,128 +687,98 @@ function loadBookingRoles(bookingRoles) {
         }
         formsMap[role.form_id].roles.push(role);
     });
-    
-    // Erstelle UI für jedes Formular
     Object.keys(formsMap).forEach(formId => {
         const formData = formsMap[formId];
-        
-        const formCard = document.createElement('div');
-        formCard.className = 'card mb-3';
-        
-        const cardHeader = document.createElement('div');
-        cardHeader.className = formData.form_is_active ? 'card-header bg-light' : 'card-header bg-secondary text-white';
-        let headerText = `<strong>${formData.form_title}</strong>`;
+        const group = document.createElement('div');
+        group.className = 'settings-admin-roles-booking-group';
+        const title = document.createElement('div');
+        title.className = 'settings-admin-roles-booking-title';
+        title.textContent = formData.form_title;
         if (!formData.form_is_active) {
-            headerText += ' <span class="badge bg-warning ms-2">Inaktiv</span>';
+            const badge = document.createElement('span');
+            badge.className = 'badge rounded-pill text-bg-warning ms-2';
+            badge.textContent = 'Inaktiv';
+            title.appendChild(badge);
         }
-        cardHeader.innerHTML = headerText;
-        formCard.appendChild(cardHeader);
-        
-        const cardBody = document.createElement('div');
-        cardBody.className = 'card-body';
-        
+        group.appendChild(title);
+        const chips = document.createElement('div');
+        chips.className = 'settings-admin-roles-chips';
         formData.roles.forEach(role => {
-            const formCheck = document.createElement('div');
-            formCheck.className = 'form-check form-switch mb-2';
-            
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.className = 'form-check-input booking-role-checkbox';
+            checkbox.className = 'btn-check booking-role-checkbox';
             checkbox.id = `booking_role_${role.role_id}`;
             checkbox.name = 'booking_role';
             checkbox.value = role.role_id;
-            checkbox.checked = role.is_assigned || false;
-            
+            checkbox.checked = !!role.is_assigned;
+            checkbox.autocomplete = 'off';
             const label = document.createElement('label');
-            label.className = 'form-check-label';
+            label.className = 'settings-admin-roles-chip';
             label.htmlFor = `booking_role_${role.role_id}`;
-            label.innerHTML = `${role.role_name} ${role.is_required ? '<span class="badge bg-danger ms-2">Erforderlich</span>' : '<span class="badge bg-secondary ms-2">Optional</span>'}`;
-            
-            formCheck.appendChild(checkbox);
-            formCheck.appendChild(label);
-            cardBody.appendChild(formCheck);
+            label.textContent = role.role_name + (role.is_required ? ' · erforderlich' : '');
+            chips.appendChild(checkbox);
+            chips.appendChild(label);
         });
-        
-        formCard.appendChild(cardBody);
-        container.appendChild(formCard);
+        group.appendChild(chips);
+        container.appendChild(group);
     });
 }
 
 function toggleModuleRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
-    const moduleSection = document.getElementById('moduleRolesSection');
+    const chips = document.getElementById('moduleCheckboxes');
+    const hint = document.getElementById('rolesModalFullHint');
     const moduleCheckboxes = document.querySelectorAll('.module-checkbox');
-    
-    if (fullAccess) {
-        moduleSection.style.opacity = '0.5';
-        moduleCheckboxes.forEach(cb => {
-            cb.disabled = true;
-        });
-    } else {
-        moduleSection.style.opacity = '1';
-        moduleCheckboxes.forEach(cb => {
-            cb.disabled = false;
-        });
-    }
+    if (hint) hint.hidden = !fullAccess;
+    if (chips) chips.hidden = fullAccess;
+    moduleCheckboxes.forEach(cb => { cb.disabled = fullAccess; });
 }
 
 function saveRoles() {
     const userId = document.getElementById('modalUserId').value;
     const formData = new FormData();
-    
-    formData.append('has_full_access', document.getElementById('modalHasFullAccess').checked ? 'on' : '');
-    
-    // Sammle Modul-Checkboxen
+    const fullAccess = document.getElementById('modalHasFullAccess').checked;
+    formData.append('has_full_access', fullAccess ? 'on' : '');
+    // Disabled chips mitsenden (FormData liest .checked direkt)
+    document.querySelectorAll('.module-checkbox').forEach(cb => { cb.disabled = false; });
     allModules.forEach(module => {
-        const checkbox = document.getElementById(`modal_${module.key}`);
-        if (checkbox && checkbox.checked) {
-            formData.append(module.key, 'on');
+        const key = Array.isArray(module) ? module[0] : module.key;
+        const checkbox = document.getElementById(`modal_${key}`);
+        if (checkbox && checkbox.checked && !fullAccess) {
+            formData.append(key, 'on');
         }
     });
-    
-    // Sammle E-Mail-Berechtigungen
     formData.append('email_can_read', document.getElementById('emailCanRead').checked ? 'on' : '');
     formData.append('email_can_send', document.getElementById('emailCanSend').checked ? 'on' : '');
-    
-    // Sammle Leihrechte
     formData.append('can_borrow', document.getElementById('canBorrow').checked ? 'on' : '');
-    
-    // Sammle Buchungsrollen-Checkboxen
-    const bookingRoleCheckboxes = document.querySelectorAll('.booking-role-checkbox:checked');
-    bookingRoleCheckboxes.forEach(checkbox => {
+    document.querySelectorAll('.booking-role-checkbox:checked').forEach(checkbox => {
         formData.append('booking_role', checkbox.value);
     });
-    
+    const saveBtn = document.getElementById('rolesSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
     fetch(`/settings/admin/roles/user/${userId}/update`, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Schließe Modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('rolesModal'));
-            modal.hide();
-            
-            // Zeige Erfolgsmeldung
-            alert('Rollen erfolgreich gespeichert!');
-            
-            // Lade Seite neu, um Änderungen anzuzeigen
+            if (modal) modal.hide();
             location.reload();
         } else {
+            if (saveBtn) saveBtn.disabled = false;
+            toggleModuleRoles();
             alert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'));
         }
     })
     .catch(error => {
         console.error('Fehler beim Speichern:', error);
+        if (saveBtn) saveBtn.disabled = false;
+        toggleModuleRoles();
         alert('Fehler beim Speichern der Rollen. Bitte erneut versuchen.');
     });
 }
 </script>
 {% endblock %}
-
-
-

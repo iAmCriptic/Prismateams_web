@@ -1,127 +1,84 @@
 {% extends "base.html" %}
 
-{% block title %}Backup importieren - Setup{% endblock %}
+{% block title %}{{ _('setup.import_backup.page_title') }}{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 {% endblock %}
 
 {% block content %}
+{% set cats = category_definitions if category_definitions is defined else [] %}
 <div class="setup-container">
     <div class="setup-card">
         <div class="card">
             <div class="card-body p-4">
-                <h1 class="text-center mb-4">
-                    <i class="bi bi-archive text-primary"></i>
+                <h1 class="text-center mb-3">
+                    <i class="bi bi-archive text-primary" aria-hidden="true"></i>
                 </h1>
-                <h5 class="text-center mb-4">Backup importieren</h5>
-                
+                <h5 class="text-center mb-3">{{ _('setup.import_backup.heading') }}</h5>
+
                 <div class="alert alert-info mb-4">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Hinweis:</strong> Falls Sie bereits ein Backup haben, können Sie es jetzt importieren. 
-                    Alle Daten, die nicht im Backup enthalten sind, werden im Setup-Prozess neu angelegt.
-                    Sie können diesen Schritt auch überspringen und direkt mit dem Setup beginnen.
+                    <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+                    {{ _('setup.import_backup.hint') }}
                 </div>
-                
-                <form method="POST" enctype="multipart/form-data" id="backupForm">
+
+                <form method="POST" enctype="multipart/form-data" id="backupForm" class="setup-backup-form">
                     <div class="mb-3">
-                        <label for="backup_file" class="form-label fw-bold">Backup-Datei auswählen:</label>
+                        <label for="backup_file" class="form-label fw-bold">{{ _('settings.admin.backup.file_label') }}</label>
                         <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".prismateams">
-                        <div class="form-text">Nur .prismateams-Dateien werden akzeptiert.</div>
+                        <div class="form-text">{{ _('settings.admin.backup.file_help') }}</div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Zu importierende Kategorien:</label>
-                        <div class="row g-2">
-                            {% for key, label in categories.items() %}
-                            <div class="col-md-6">
-                                <div class="form-check d-flex align-items-center">
-                                    <input class="form-check-input" type="checkbox" name="import_categories" value="{{ key }}" id="import_{{ key }}" checked>
-                                    <label class="form-check-label flex-grow-1" for="import_{{ key }}">
-                                        {% if key == 'settings' %}
-                                            <i class="bi bi-gear me-2"></i>
-                                        {% elif key == 'users' %}
-                                            <i class="bi bi-people me-2"></i>
-                                        {% elif key == 'emails' %}
-                                            <i class="bi bi-envelope me-2"></i>
-                                        {% elif key == 'appointments' %}
-                                            <i class="bi bi-calendar-event me-2"></i>
-                                        {% elif key == 'credentials' %}
-                                            <i class="bi bi-key me-2"></i>
-                                        {% elif key == 'files' %}
-                                            <i class="bi bi-folder me-2"></i>
-                                        {% elif key == 'wiki' %}
-                                            <i class="bi bi-book me-2"></i>
-                                        {% elif key == 'comments' %}
-                                            <i class="bi bi-chat-left-text me-2"></i>
-                                        {% endif %}
-                                        {{ label }}
-                                    </label>
-                                    <i class="bi bi-info-circle text-info ms-2" 
-                                       data-bs-toggle="popover" 
-                                       data-bs-trigger="hover"
-                                       data-bs-placement="right"
-                                       data-bs-html="true"
-                                       data-bs-content="
-                                       {% if key == 'settings' %}
-                                       <strong>Enthält:</strong><br>
-                                       • System-Einstellungen (Portal-Name, Logo, Module-Aktivierung, Datei-Einstellungen)<br>
-                                       • Whitelist-Einträge (E-Mail-Adressen und Domains)
-                                       {% elif key == 'users' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Alle Benutzerdaten (Name, E-Mail, Profilbild, Einstellungen)<br>
-                                       • Passwort-Hashes (verschlüsselt, für Anmeldung nach Import)<br>
-                                       • Benachrichtigungseinstellungen
-                                       {% elif key == 'emails' %}
-                                       <strong>Enthält:</strong><br>
-                                       • E-Mail-Nachrichten (Betreff, Inhalt, Absender, Empfänger)<br>
-                                       • E-Mail-Anhänge<br>
-                                       • E-Mail-Berechtigungen (Lese- und Sende-Berechtigungen)
-                                       {% elif key == 'appointments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kalender-Termine (Titel, Beschreibung, Zeit, Ort)<br>
-                                       • Teilnehmer-Status (wer nimmt teil, wer hat abgelehnt)
-                                       {% elif key == 'credentials' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Website-Zugangsdaten (URL, Benutzername, Passwort, Notizen)<br>
-                                       <small class='text-muted'>Hinweis: Passwörter werden entschlüsselt exportiert</small>
-                                       {% elif key == 'files' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
-                                       • Ordnerstruktur<br>
-                                       • Datei-Versionen
-                                       {% elif key == 'wiki' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
-                                       • Wiki-Kategorien<br>
-                                       • Wiki-Tags<br>
-                                       • Wiki-Versionen
-                                       {% elif key == 'comments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
-                                       • Kommentar-Mentions (@-Erwähnungen)<br>
-                                       • Kommentar-Threads (Antworten)
-                                       {% endif %}
-                                       "
-                                       title="{{ label }}"></i>
-                                </div>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                            <label class="form-label fw-bold mb-0">{{ _('settings.admin.backup.categories_label') }}</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-backup-select="import" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-backup-select="import" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
+                            </div>
+                        </div>
+                        <div class="setup-backup-chips" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
+                            {% for cat in cats %}
+                            {% set cid = 'import_' ~ cat.key %}
+                            <div class="setup-backup-chip-wrap">
+                                <input type="checkbox" class="btn-check" name="import_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off" checked>
+                                <label class="setup-backup-chip" for="{{ cid }}">
+                                    <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
+                                    <span>{{ _(cat.label_key) }}</span>
+                                </label>
+                                <button type="button" class="setup-backup-info btn btn-link p-0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _(cat.help_key) }}" aria-label="{{ _(cat.help_key) }}">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
-                    
+
                     <div class="alert alert-warning mb-4">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Warnung:</strong> Beim Import werden bestehende Daten überschrieben oder neue Daten hinzugefügt. 
-                        IDs werden neu generiert.
+                        <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+                        {{ _('settings.admin.backup.import_warn') }}
                     </div>
-                    
+                    <div class="alert alert-warning mb-4">
+                        <i class="bi bi-key me-2" aria-hidden="true"></i>
+                        {{ _('settings.admin.backup.credentials_warn') }}
+                    </div>
+
                     <div class="d-grid gap-2">
-                        <button type="submit" name="action" value="import" class="btn btn-primary btn-lg" onclick="document.getElementById('backupForm').action = ''; return confirm('Sind Sie sicher, dass Sie das Backup importieren möchten?')">
-                            <i class="bi bi-upload me-2"></i>Backup importieren
+                        <button type="submit" name="action" value="import" class="btn btn-primary btn-lg"
+                                data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
+                                data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
+                                data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
+                                data-pt-confirm-danger="false">
+                            <i class="bi bi-upload me-2" aria-hidden="true"></i>
+                            {{ _('settings.admin.backup.import_submit') }}
+                        </button>
+                        <button type="submit" name="action" value="skip" class="btn btn-outline-secondary btn-lg" formnovalidate>
+                            <i class="bi bi-skip-forward me-2" aria-hidden="true"></i>
+                            {{ _('setup.import_backup.skip') }}
                         </button>
                         <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-outline-secondary btn-lg">
-                            <i class="bi bi-arrow-left me-2"></i>Zurück zum Setup
+                            <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>
+                            {{ _('setup.import_backup.back') }}
                         </a>
                     </div>
                 </form>
@@ -131,30 +88,32 @@
 </div>
 
 <script>
-// Bootstrap Popover initialisieren
-document.addEventListener('DOMContentLoaded', function() {
-    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl);
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
     });
-});
 
-// Farbverlauf-Vorschau
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    document.querySelectorAll('[data-backup-select]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var type = btn.getAttribute('data-backup-select');
+            var mode = btn.getAttribute('data-backup-mode');
+            var checked = mode === 'all';
+            document.querySelectorAll('input[name="' + type + '_categories"]').forEach(function (cb) {
+                cb.checked = checked;
+            });
+        });
+    });
+
+    var body = document.body;
     {% if color_gradient %}
     body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
     {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
     body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    {% endif %}
     body.style.backgroundAttachment = 'fixed';
     body.style.backgroundSize = 'cover';
-    {% endif %}
 });
 </script>
 {% endblock %}
-

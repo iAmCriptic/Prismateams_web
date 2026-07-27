@@ -1,131 +1,101 @@
 {% extends "base.html" %}
 
-{% block title %}Setup Schritt 1 - Prismateams{% endblock %}
+{% block title %}Setup – Organisation - Prismateams{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="setup-container">
-    <div class="setup-card">
-        <div class="card">
-            <div class="card-body p-4">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-gear-fill text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-4">Schritt 1 von 4</h5>
-                <div class="setup-step">
-                    <h5><i class="bi bi-building me-2"></i>Organisation einrichten</h5>
-                    <p>Legen Sie den Namen Ihrer Organisation und das Design fest.</p>
-                </div>
-                
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="mb-4">
-                        <label for="portal_name" class="form-label">Portalsname *</label>
-                        <input type="text" class="form-control" id="portal_name" name="portal_name" required autofocus>
-                        <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="portal_logo" class="form-label">Portalslogo</label>
-                        <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
-                        <div class="form-text">Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)</div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="default_accent_color" class="form-label">Standard-Akzentfarbe</label>
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="#0d6efd" title="Wählen Sie eine Farbe">
-                            <span class="badge" id="default-color-preview" style="background-color: #0d6efd; padding: 1rem 2rem;">Vorschau</span>
-                        </div>
-                        <div class="form-text">Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.</div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="color_gradient" class="form-label">Farbverlauf für Login/Register</label>
-                        <select class="form-select" id="color_gradient" name="color_gradient">
-                            <option value="" {% if not color_gradient %}selected{% endif %}>Standard (Blau-Violett)</option>
-                            <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" {% if color_gradient == 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}selected{% endif %}>Blau-Violett</option>
-                            <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" {% if color_gradient == 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' %}selected{% endif %}>Pink-Rot</option>
-                            <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" {% if color_gradient == 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' %}selected{% endif %}>Blau-Cyan</option>
-                            <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" {% if color_gradient == 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' %}selected{% endif %}>Grün-Türkis</option>
-                            <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" {% if color_gradient == 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' %}selected{% endif %}>Pink-Gelb</option>
-                            <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" {% if color_gradient == 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' %}selected{% endif %}>Pastell</option>
-                            <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" {% if color_gradient == 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' %}selected{% endif %}>Rosa-Pastell</option>
-                            <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" {% if color_gradient == 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' %}selected{% endif %}>Orange-Pastell</option>
-                        </select>
-                        <div class="form-text">Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.</div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="default_language" class="form-label">Standardsprache</label>
-                        <select class="form-select" id="default_language" name="default_language">
-                            {% for lang_code, lang_name in languages %}
-                            <option value="{{ lang_code }}" {% if current_language == lang_code %}selected{% endif %}>{{ lang_name }}{% if lang_code == 'de' %} (Voreingestellt){% endif %}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">Die Standardsprache für das Portal. Neue Benutzer erhalten diese Sprache standardmäßig.</div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between">
-                        <div></div>
-                        <button type="submit" class="btn btn-accent">
-                            <i class="bi bi-arrow-right me-2"></i>
-                            Weiter
-                        </button>
-                    </div>
-                </form>
+    <div class="setup-shell setup-shell--wide">
+        <div class="setup-panel">
+            {% include 'setup/_stepper.html' %}
+
+            <div class="setup-intro">
+                <h2><i class="bi bi-building"></i> Organisation einrichten</h2>
+                <p>Legen Sie den Namen Ihrer Organisation und das Design fest.</p>
             </div>
+
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="portal_name" class="form-label">Portalname *</label>
+                    <input type="text" class="form-control" id="portal_name" name="portal_name" required autofocus value="{{ portal_name or '' }}">
+                    <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="portal_logo" class="form-label">Portallogo</label>
+                    <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
+                    <div class="form-text">PNG, JPG, JPEG, GIF oder SVG, max. 5MB</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="default_accent_color" class="form-label">Standard-Akzentfarbe</label>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color or '#0d6efd' }}" title="Farbe wählen">
+                        <span class="setup-color-preview" id="default-color-preview" style="background-color: {{ default_accent_color or '#0d6efd' }};">Vorschau</span>
+                    </div>
+                    <div class="form-text">Für neue Benutzer. Später jederzeit änderbar.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="color_gradient" class="form-label">Farbverlauf für Login/Register</label>
+                    <select class="form-select" id="color_gradient" name="color_gradient">
+                        <option value="" {% if not selected_gradient %}selected{% endif %}>Standard (Blau-Violett)</option>
+                        <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" {% if selected_gradient == 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}selected{% endif %}>Blau-Violett</option>
+                        <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" {% if selected_gradient == 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' %}selected{% endif %}>Pink-Rot</option>
+                        <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" {% if selected_gradient == 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' %}selected{% endif %}>Blau-Cyan</option>
+                        <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" {% if selected_gradient == 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' %}selected{% endif %}>Grün-Türkis</option>
+                        <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" {% if selected_gradient == 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' %}selected{% endif %}>Pink-Gelb</option>
+                        <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" {% if selected_gradient == 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' %}selected{% endif %}>Pastell</option>
+                        <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" {% if selected_gradient == 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' %}selected{% endif %}>Rosa-Pastell</option>
+                        <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" {% if selected_gradient == 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' %}selected{% endif %}>Orange-Pastell</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="default_language" class="form-label">Standardsprache</label>
+                    <select class="form-select" id="default_language" name="default_language">
+                        {% for lang_code, lang_name in languages %}
+                        <option value="{{ lang_code }}" {% if current_language == lang_code %}selected{% endif %}>{{ lang_name }}{% if lang_code == 'de' %} (Voreingestellt){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="setup-actions">
+                    <span></span>
+                    <button type="submit" class="btn setup-btn setup-btn--accent">
+                        Weiter <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-// Farbverlauf-Vorschau
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    const colorInput = document.getElementById('default_accent_color');
+    const preview = document.getElementById('default-color-preview');
+    if (colorInput && preview) {
+        colorInput.addEventListener('input', function () {
+            preview.style.backgroundColor = this.value;
+        });
+    }
+    const defaultBg = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    function applyBg(value) {
+        const bg = value || defaultBg;
+        document.documentElement.style.setProperty('--setup-page-bg', bg);
+    }
+    applyBg({{ (setup_bg or '')|tojson }});
     const colorSelect = document.getElementById('color_gradient');
-    const body = document.body;
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% endif %}
-    
-    // Event Listener für Farbverlauf-Änderungen
-    colorSelect.addEventListener('change', function() {
-        const gradient = this.value;
-        if (gradient) {
-            body.style.background = gradient;
-            body.style.backgroundAttachment = 'fixed';
-            body.style.backgroundSize = 'cover';
-        } else {
-            body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            body.style.backgroundAttachment = 'fixed';
-            body.style.backgroundSize = 'cover';
-        }
-    });
-    
-    // Event Listener für Default-Akzentfarbe
-    const defaultAccentColor = document.getElementById('default_accent_color');
-    const colorPreview = document.getElementById('default-color-preview');
-    if (defaultAccentColor && colorPreview) {
-        defaultAccentColor.addEventListener('input', function() {
-            colorPreview.style.backgroundColor = this.value;
+    if (colorSelect) {
+        colorSelect.addEventListener('change', function () {
+            applyBg(this.value);
+        });
+        colorSelect.addEventListener('input', function () {
+            applyBg(this.value);
         });
     }
 });

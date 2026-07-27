@@ -47,6 +47,18 @@ class Product(db.Model):
     image_path = db.Column(db.String(500), nullable=True)  # Pfad zum Produktbild
     qr_code_data = db.Column(db.String(255), nullable=True)  # QR-Code-Wert (z.B. "PROD-{id}")
     folder_id = db.Column(db.Integer, db.ForeignKey('product_folders.id'), nullable=True, index=True)  # Ordner-Zuordnung
+    # Phase C fields
+    weight_kg = db.Column(db.Float, nullable=True)
+    width_cm = db.Column(db.Float, nullable=True)
+    height_cm = db.Column(db.Float, nullable=True)
+    depth_cm = db.Column(db.Float, nullable=True)
+    purchase_price = db.Column(db.Numeric(12, 2), nullable=True)
+    replacement_value = db.Column(db.Numeric(12, 2), nullable=True)
+    dguv_last_check = db.Column(db.Date, nullable=True)
+    dguv_next_check = db.Column(db.Date, nullable=True)
+    dguv_interval_months = db.Column(db.Integer, nullable=True)
+    external_barcode = db.Column(db.String(100), nullable=True, index=True)
+    damage_image_path = db.Column(db.String(500), nullable=True)
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -56,6 +68,7 @@ class Product(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
     folder = db.relationship('ProductFolder', back_populates='products')
     borrow_transactions = db.relationship('BorrowTransaction', back_populates='product', cascade='all, delete-orphan')
+    checkout_items = db.relationship('CheckoutItem', back_populates='product', cascade='all, delete-orphan')
     lots = db.relationship('ProductLot', back_populates='product', cascade='all, delete-orphan')
     status_history = db.relationship('ProductStatusHistory', back_populates='product', cascade='all, delete-orphan')
     stock_movements = db.relationship('StockMovement', back_populates='product', cascade='all, delete-orphan')
@@ -154,6 +167,93 @@ class BorrowTransaction(db.Model):
         self.actual_return_date = date.today()
         if self.product:
             self.product.status = 'available'
+
+
+class Checkout(db.Model):
+    """Ausleihvorgang (Kopf): mehrere Artikel in einem Checkout."""
+    __tablename__ = 'checkouts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    checkout_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    event_name = db.Column(db.String(255), nullable=False)
+    borrower_name = db.Column(db.String(255), nullable=False)
+    borrower_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    contact_email = db.Column(db.String(255), nullable=True)
+    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(30), default='active', nullable=False, index=True)  # active | partially_returned | completed
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    qr_code_data = db.Column(db.String(255), nullable=True)
+    legacy_borrow_group_id = db.Column(db.String(50), nullable=True, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True, index=True)
+    event_appointment_id = db.Column(db.Integer, db.ForeignKey('event_appointments.id'), nullable=True, index=True)
+    receipt_email_sent = db.Column(db.Boolean, default=False, nullable=False)
+    return_email_sent = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    borrower = db.relationship('User', foreign_keys=[borrower_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+    items = db.relationship('CheckoutItem', back_populates='checkout', cascade='all, delete-orphan')
+    event = db.relationship('Event', foreign_keys=[event_id])
+    event_appointment = db.relationship('EventAppointment', foreign_keys=[event_appointment_id])
+
+    def __repr__(self):
+        return f'<Checkout {self.checkout_number}>'
+
+    @property
+    def active_items(self):
+        return [item for item in self.items if item.returned_at is None]
+
+    @property
+    def returned_items(self):
+        return [item for item in self.items if item.returned_at is not None]
+
+    @property
+    def is_overdue(self):
+        if self.status == 'completed':
+            return False
+        end = self.end_date.date() if isinstance(self.end_date, datetime) else self.end_date
+        return date.today() > end and len(self.active_items) > 0
+
+    def refresh_status(self):
+        total = len(self.items)
+        if total == 0:
+            self.status = 'completed'
+            return self.status
+        returned = len(self.returned_items)
+        if returned == 0:
+            self.status = 'active'
+        elif returned >= total:
+            self.status = 'completed'
+        else:
+            self.status = 'partially_returned'
+        return self.status
+
+
+class CheckoutItem(db.Model):
+    """Einzelner Artikel in einem Checkout."""
+    __tablename__ = 'checkout_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    checkout_id = db.Column(db.Integer, db.ForeignKey('checkouts.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    source_set_id = db.Column(db.Integer, db.ForeignKey('product_sets.id'), nullable=True, index=True)
+    returned_at = db.Column(db.DateTime, nullable=True)
+    return_email_sent = db.Column(db.Boolean, default=False, nullable=False)
+    legacy_transaction_id = db.Column(db.Integer, nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    checkout = db.relationship('Checkout', back_populates='items')
+    product = db.relationship('Product', back_populates='checkout_items')
+    source_set = db.relationship('ProductSet', foreign_keys=[source_set_id])
+
+    def __repr__(self):
+        return f'<CheckoutItem checkout={self.checkout_id} product={self.product_id}>'
+
+    @property
+    def is_out(self):
+        return self.returned_at is None
 
 
 class ProductSet(db.Model):
@@ -303,6 +403,7 @@ class InventoryItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     checked = db.Column(db.Boolean, default=False, nullable=False)
     notes = db.Column(db.Text, nullable=True)
+    counted_quantity = db.Column(db.Integer, nullable=True)  # Gezählte Menge (z.B. gleiche Kabel)
     location_changed = db.Column(db.Boolean, default=False, nullable=False)
     new_location = db.Column(db.String(255), nullable=True)
     condition_changed = db.Column(db.Boolean, default=False, nullable=False)

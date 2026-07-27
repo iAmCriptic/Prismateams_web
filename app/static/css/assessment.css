@@ -1,1 +1,392 @@
-/* Bewertungsmodul – keine modulspezifischen Overrides; nutzt Portal base.css */
+/* Assessment module — domain only (shell in module-ui.css) */
+
+.assessment-page {
+    min-width: 0;
+}
+
+.assessment-sidebar-print {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.55rem;
+    margin-top: 0.35rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    color: var(--accent-color, #0d6efd) !important;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+.assessment-sidebar-print:hover,
+.assessment-sidebar-print:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, #0d6efd) !important;
+    filter: brightness(0.95);
+}
+
+.assessment-sidebar-print i {
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+.assessment-logout-link {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
+.assessment-logout-link:hover {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+    color: var(--bs-danger, #dc3545) !important;
+}
+
+.assessment-view-sub {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.assessment-panel {
+    padding: 1rem 1.15rem;
+    margin-bottom: 1rem;
+    border-radius: var(--mod-radius-panel, 0.85rem);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    background: transparent;
+}
+
+.assessment-panel-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.85rem;
+}
+
+.assessment-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.assessment-dash-rank {
+    flex-shrink: 0;
+    width: 1.5rem;
+    font-weight: 650;
+    color: var(--accent-color, #0d6efd);
+}
+
+.assessment-dash-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.assessment-dash-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    font-weight: 500;
+    color: var(--accent-color, #0d6efd);
+    text-decoration: none;
+}
+
+.assessment-dash-link:hover {
+    text-decoration: underline;
+}
+
+.assessment-table {
+    --bs-table-bg: transparent;
+    --bs-table-accent-bg: transparent;
+    background: transparent !important;
+}
+
+.assessment-table > :not(caption) > * > * {
+    background: transparent !important;
+    border-bottom-color: var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+}
+
+.assessment-table tbody tr:last-child > * {
+    border-bottom: none;
+}
+
+.assessment-page .mod-empty-state,
+.assessment-page .mod-empty-state--compact {
+    min-height: min(36vh, 16rem);
+    font-size: 1.05rem;
+}
+
+.assessment-page .mod-view-heading {
+    margin-bottom: 0.35rem !important;
+}
+
+body.assessment-scope-solo .main-content,
+body.assessment-scope-solo .assessment-solo-main {
+    margin-left: 0 !important;
+}
+
+body.assessment-scope-solo .mod-sidebar {
+    max-height: calc(100vh - 2rem);
+}
+
+.assessment-quick-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.assessment-quick-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    text-decoration: none;
+}
+
+.assessment-quick-pill:hover,
+.assessment-quick-pill:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    color: var(--accent-color, #0d6efd) !important;
+    border-color: var(--accent-color, #0d6efd);
+}
+
+.assessment-page .btn,
+.assessment-page .btn-accent,
+.assessment-page .btn-sm,
+.assessment-page .btn-outline-primary,
+.assessment-page .btn-outline-secondary,
+.assessment-page .btn-outline-danger,
+.assessment-page .btn-primary,
+.assessment-page .mod-mobile-topbar .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.assessment-page .btn-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.assessment-page .btn-group > .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    margin: 0 !important;
+}
+
+.assessment-page .sort-btn.active,
+.assessment-page .btn-group > .btn.active {
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    border-color: var(--accent-color, #0d6efd) !important;
+    color: #fff !important;
+}
+
+.assessment-print-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.7rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--accent-color, #0d6efd) !important;
+    text-decoration: none;
+}
+
+.assessment-print-link:hover,
+.assessment-print-link:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, #0d6efd) !important;
+}
+
+.assessment-print-link i {
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+[data-oled-mode="true"] .assessment-table,
+[data-bs-theme="dark"] .assessment-table {
+    background: transparent !important;
+}
+
+[data-oled-mode="true"] .assessment-table > :not(caption) > * > *,
+[data-bs-theme="dark"] .assessment-table > :not(caption) > * > * {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.assessment-pill-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    min-height: 2.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.assessment-chip-box {
+    gap: 0.45rem;
+}
+
+.assessment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.3));
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    user-select: none;
+}
+
+.assessment-chip:has(input:checked) {
+    border-color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    color: var(--accent-color, #0d6efd);
+    font-weight: 600;
+}
+
+.assessment-chip input {
+    margin: 0;
+}
+
+.assessment-view-toggle {
+    display: inline-flex;
+}
+
+.assessment-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+}
+
+.assessment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.85rem;
+}
+
+.assessment-grid-card {
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: var(--mod-radius-card, 1rem);
+    padding: 0.9rem;
+    background: transparent;
+    position: relative;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.assessment-grid-card:hover .mod-list-hover-actions,
+.assessment-grid-card:focus-within .mod-list-hover-actions {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.assessment-grid-card:hover,
+.assessment-grid-card.is-selected,
+.mod-list-row.is-selected {
+    border-color: var(--accent-color, #0d6efd);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+}
+
+.assessment-grid-card:active {
+    transform: scale(0.99);
+}
+
+.assessment-inspection-card .assessment-panel-title {
+    margin-bottom: 0.75rem;
+}
+
+.assessment-page .form-control,
+.assessment-page .form-select {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    min-height: 2.75rem;
+}
+
+.assessment-page textarea.form-control {
+    border-radius: 1rem !important;
+    min-height: 4.5rem;
+}
+
+@media (max-width: 991.98px) {
+    .assessment-page .btn-accent,
+    .assessment-page .assessment-quick-pill {
+        min-height: 2.75rem;
+    }
+}
+
+/* Listen wie Dateien: Pill-Dropdowns an Zeilenaktionen */
+.assessment-page .mod-list-table-wrap {
+    overflow: visible;
+}
+
+.assessment-page .mod-list-table {
+    --bs-table-bg: transparent;
+    --bs-table-accent-bg: transparent;
+}
+
+.assessment-dropdown-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+}
+
+.assessment-dropdown-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.assessment-dropdown-menu .dropdown-item:hover,
+.assessment-dropdown-menu .dropdown-item:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.assessment-page .mod-list-actions .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+}
+
+/* Kein Dateien-Flex-Collapse: Namen + 3-Punkte sichtbar */
+.assessment-page .mod-list-table td.files-list-name-cell,
+.assessment-page .mod-list-table td:first-child {
+    display: table-cell !important;
+    max-width: 0;
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+.assessment-page .mod-list-table th.assessment-col-actions,
+.assessment-page .mod-list-table td.assessment-col-actions {
+    width: 3.5rem;
+    max-width: 3.5rem;
+    overflow: visible;
+}
+
+.assessment-page .mod-list-name > .bi {
+    flex-shrink: 0;
+}

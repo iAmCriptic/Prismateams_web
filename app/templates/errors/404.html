@@ -1,50 +1,13 @@
-{% extends "base.html" %}
+{% extends "errors/_base.html" %}
 
 {% block title %}Seite nicht gefunden - {{ app_name or 'Prismateams' }}{% endblock %}
 
-{% block content %}
-<div class="error-page">
-    <div class="error-container">
-        <!-- Error Icon -->
-        <i class="bi bi-exclamation-triangle-fill text-warning error-icon"></i>
-        
-        <!-- Error Code -->
-        <h1 class="error-code text-primary">404</h1>
-        
-        <!-- Error Message -->
-        <h2 class="error-title">Seite nicht gefunden</h2>
-        <p class="error-description">
-            Die angeforderte Seite konnte leider nicht gefunden werden. 
-            Möglicherweise wurde sie verschoben oder existiert nicht mehr.
-        </p>
-        
-        <!-- Action Buttons -->
-        <div class="error-actions">
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary error-btn">
-                    <i class="bi bi-house-door me-2"></i>
-                    Zurück zum Dashboard
-                </a>
-            {% else %}
-                <a href="{{ url_for('auth.login') }}" class="btn btn-primary error-btn">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>
-                    Anmelden
-                </a>
-            {% endif %}
-            
-            <button onclick="history.back()" class="btn btn-outline-secondary error-btn">
-                <i class="bi bi-arrow-left me-2"></i>
-                Zurück
-            </button>
-        </div>
-        
-        <!-- Help Text -->
-        <div class="error-help">
-            <small>
-                <i class="bi bi-info-circle me-1"></i>
-                Falls das Problem weiterhin besteht, wenden Sie sich an den Administrator.
-            </small>
-        </div>
-    </div>
-</div>
+{% block error_code %}404{% endblock %}
+
+{% block error_body %}
+<h1 class="error-title">Seite nicht gefunden</h1>
+<p class="error-description">
+    Die angeforderte Seite konnte leider nicht gefunden werden.
+    Möglicherweise wurde sie verschoben oder existiert nicht mehr.
+</p>
 {% endblock %}

@@ -10,7 +10,9 @@ NOTIFICATION_TYPE_ICONS = {
     'chat': 'bi-chat-dots',
     'email': 'bi-envelope',
     'calendar': 'bi-calendar-event',
+    'calendar_invite': 'bi-calendar-plus',
     'file': 'bi-folder',
+    'booking': 'bi-calendar2-check',
     'test': 'bi-bell',
     'generic': 'bi-bell',
 }
@@ -77,6 +79,8 @@ def register_notification_routes(api_bp, require_api_auth):
                 "file_new_notifications": settings.file_new_notifications,
                 "file_modified_notifications": settings.file_modified_notifications,
                 "email_notifications_enabled": settings.email_notifications_enabled,
+                "booking_notifications_enabled": getattr(settings, "booking_notifications_enabled", True),
+                "booking_message_notifications_enabled": getattr(settings, "booking_message_notifications_enabled", True),
                 "calendar_notifications_enabled": settings.calendar_notifications_enabled,
                 "calendar_all_events": settings.calendar_all_events,
                 "calendar_participating_only": settings.calendar_participating_only,
@@ -91,7 +95,10 @@ def register_notification_routes(api_bp, require_api_auth):
     @login_required
     def update_notification_settings():
         try:
-            from app.utils.notifications import get_or_create_notification_settings
+            from app.utils.notifications import (
+                get_or_create_notification_settings,
+                sync_user_notification_flags,
+            )
 
             data = request.get_json()
             settings = get_or_create_notification_settings(current_user.id)
@@ -100,12 +107,17 @@ def register_notification_routes(api_bp, require_api_auth):
             settings.file_new_notifications = data.get("file_new_notifications", True)
             settings.file_modified_notifications = data.get("file_modified_notifications", True)
             settings.email_notifications_enabled = data.get("email_notifications_enabled", True)
+            settings.booking_notifications_enabled = data.get("booking_notifications_enabled", True)
+            settings.booking_message_notifications_enabled = data.get(
+                "booking_message_notifications_enabled", True
+            )
             settings.calendar_notifications_enabled = data.get("calendar_notifications_enabled", True)
             settings.calendar_all_events = data.get("calendar_all_events", False)
             settings.calendar_participating_only = data.get("calendar_participating_only", True)
             settings.calendar_not_participating = data.get("calendar_not_participating", False)
             settings.calendar_no_response = data.get("calendar_no_response", False)
             settings.set_reminder_times(data.get("reminder_times", []))
+            sync_user_notification_flags(current_user, settings)
             db.session.commit()
             return jsonify({"message": "Benachrichtigungseinstellungen aktualisiert"})
         except Exception as e:

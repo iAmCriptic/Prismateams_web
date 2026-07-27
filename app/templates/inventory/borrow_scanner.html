@@ -1,366 +1,128 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
-{% block title %}Ausleihen geben - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block title %}Quick Scan - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-qr-code-scan{% endblock %}
+{% block inventory_heading %}{{ _('inventory.shell.nav.quick_scan') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> Ausleihen geben</h1>
-        <p class="text-muted">Geben Sie Produkte ein, um sie auszuleihen</p>
-    </div>
-</div>
 
-<div class="row">
-    <!-- Scanner-Bereich -->
-    <div class="col-12 col-lg-7 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Produkt eingeben</h5>
+{% block inventory_content %}
+<p class="text-muted mb-3">
+    Artikel scannen und ausleihen. Rückgabe-QR wird automatisch erkannt und zurückgebucht.
+    Projekt und Rückgabedatum sind optional; Verantwortlicher ist immer du.
+</p>
+
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    Produkt eingeben
+                </h2>
             </div>
-            <div class="card-body">
-                <!-- QR-Code Scanner -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0">QR-Code scannen</label>
-                        <div>
-                            <button class="btn btn-sm btn-primary" id="startScannerBtn">
-                                <i class="bi bi-camera"></i> Kamera starten
-                            </button>
-                            <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
-                                <i class="bi bi-stop-circle"></i> Kamera stoppen
-                            </button>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">QR-Code scannen</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i> Erfasst
                         </div>
                     </div>
-                    <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative;">
-                        <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
-                        <canvas id="scannerCanvas" style="display: none;"></canvas>
-                        <!-- Visueller Scan-Rahmen -->
-                        <div id="scannerFrame" class="scanner-frame"></div>
-                        <!-- Scan-Animation (Strich von oben nach unten) -->
-                        <div id="scannerLine" class="scanner-line"></div>
-                        <!-- Erfolgs-Popup -->
-                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
-                            <i class="bi bi-check-circle-fill"></i> Produkt hinzugefügt
-                        </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> Kamera starten
+                        </button>
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Kamera stoppen
+                        </button>
                     </div>
                     <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
                     <div id="scannerFeedback" class="alert mt-2 d-none"></div>
                 </div>
-                
-                <hr>
-                
-                <!-- Manuelle Eingabe -->
-                <div>
-                    <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID eingeben</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="manualQrInput" 
-                               placeholder="QR-Code oder Produkt-ID eingeben (z.B. PROD-123 oder SET-456)" 
-                               autocomplete="off">
-                        <button class="btn btn-accent" id="addToCartBtn">
+
+                <div class="mb-3">
+                    <label for="manualQrInput" class="form-label">ID</label>
+                    <div class="inventory-manual-row">
+                        <div class="inventory-manual-input-wrap flex-grow-1">
+                            <input type="text" class="form-control" id="manualQrInput" autofocus
+                                   placeholder="PROD, SET, BORROW"
+                                   autocomplete="off">
+                        </div>
+                        <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
                             <i class="bi bi-plus-circle"></i> Hinzufügen
                         </button>
                     </div>
-                    <small class="form-text text-muted">Geben Sie den QR-Code oder die Produkt-ID ein, um ein Produkt zum Warenkorb hinzuzufügen. Sie können auch SET-QR-Codes scannen, um alle Produkte eines Sets hinzuzufügen.</small>
                 </div>
+                <div>
+                    <label for="productSearchInput" class="form-label">Produkt suchen</label>
+                    <div class="inventory-manual-input-wrap position-relative">
+                        <input type="text" class="form-control" id="productSearchInput"
+                               placeholder="Name, Seriennummer, Kategorie…"
+                               autocomplete="off">
+                        <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
+                    </div>
+                </div>
+                <div id="returnScanResult" class="mt-3"></div>
             </div>
         </div>
     </div>
 
-    <!-- Warenkorb -->
-    <div class="col-12 col-lg-5">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Produkte</h5>
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100" id="borrowCartPanel">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-cart3" aria-hidden="true"></i>
+                    Warenkorb
+                </h2>
                 <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
             </div>
-            <div class="card-body">
-                <div id="cartItems">
+            <div class="inventory-panel-body">
+                <div id="cartItems" class="inventory-cart-list">
                     {% if cart_products %}
                     {% for product in cart_products %}
-                    <div class="card mb-2 cart-item" data-product-id="{{ product.id }}">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ product.name }}</strong>
-                                    {% if product.category %}
-                                    <br><small class="text-muted">{{ product.category }}</small>
-                                    {% endif %}
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="{{ product.id }}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    {% include "inventory/_cart_item.html" %}
                     {% endfor %}
                     {% else %}
-                    <p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>
+                    <p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>
                     {% endif %}
                 </div>
 
-                {% if cart_products %}
                 <hr>
-                <form method="POST" action="{{ url_for('inventory.borrow_scanner_checkout') }}" id="checkoutForm">
-                    <div class="mb-3">
-                        <label for="borrower_id" class="form-label">Ausleihender</label>
-                        <select class="form-select" id="borrower_id" name="borrower_id">
-                            <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
-                            {% for user in users %}
-                            {% if user.id != current_user.id %}
-                            <option value="{{ user.id }}">{{ user.full_name }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
+                <form method="POST" action="{{ url_for('inventory.borrow_scanner_checkout') }}" id="checkoutForm" class="inventory-form-grid">
+                    <div class="mb-2">
+                        <label for="event_name" class="form-label">Projekt (optional)</label>
+                        <input type="text" class="form-control" id="event_name" name="event_name"
+                               placeholder="z.B. Probe" autocomplete="off">
                     </div>
-
                     <div class="mb-3">
-                        <label for="expected_return_date" class="form-label">
-                            Erwartetes Rückgabedatum <span class="text-danger">*</span>
-                        </label>
-                        <input type="date" class="form-control" id="expected_return_date" 
-                               name="expected_return_date" required>
+                        <label for="end_date" class="form-label">Rückgabe bis (optional)</label>
+                        <input type="datetime-local" class="form-control" id="end_date" name="end_date">
                     </div>
-
-                    <button type="submit" class="btn btn-accent w-100">
-                        <i class="bi bi-check-circle"></i> Produkte ausleihen
+                    <button type="submit" class="btn btn-accent inventory-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
+                        <i class="bi bi-check-circle"></i> Ausleihe bestätigen
                     </button>
                 </form>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Versteckte Benutzer-Liste für dynamisches Checkout-Formular -->
-<select id="hidden_borrower_list" style="display: none;">
-    <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
-    {% for user in users %}
-    {% if user.id != current_user.id %}
-    <option value="{{ user.id }}">{{ user.full_name }}</option>
-    {% endif %}
-    {% endfor %}
-</select>
-
-<!-- Modal für Set-Scanning -->
-<div class="modal fade" id="setScannedModal" tabindex="-1" aria-labelledby="setScannedModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="setScannedModalLabel">
-                    <i class="bi bi-collection"></i> Set gescannt
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">
-                    <strong>Zu dem Set "<span id="setScannedName"></span>" gehören:</strong>
-                </p>
-                <ul id="setScannedProducts" class="list-group list-group-flush mb-3">
-                    <!-- Wird dynamisch gefüllt -->
-                </ul>
-                <div id="setScannedUnavailable" class="alert alert-warning" style="display: none;">
-                    <strong>Hinweis:</strong> Folgende Produkte konnten nicht hinzugefügt werden (nicht verfügbar):
-                    <ul id="setScannedUnavailableList" class="mb-0 mt-2">
-                        <!-- Wird dynamisch gefüllt -->
-                    </ul>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="d-flex gap-2 mt-3">
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="undoLastCartActionBtn" disabled>
-        <i class="bi bi-arrow-counterclockwise"></i> Letzte Aktion rueckgaengig
-    </button>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="retryLastCartActionBtn" disabled>
-        <i class="bi bi-arrow-repeat"></i> Letzten Request wiederholen
-    </button>
-</div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize BorrowScannerManager
+    window.inventoryScanMode = 'borrow';
     if (typeof BorrowScannerManager !== 'undefined') {
         window.borrowScannerManager = new BorrowScannerManager();
         window.borrowScannerManager.init();
     }
-    
-    // Manuelle Eingabe für Warenkorb
-    const manualInput = document.getElementById('manualQrInput');
-    const addBtn = document.getElementById('addToCartBtn');
-    
-    async function addToCart() {
-        if (!manualInput || !manualInput.value.trim()) {
-            if (window.borrowScannerManager) {
-                window.borrowScannerManager.showError('Bitte geben Sie einen QR-Code oder eine Produkt-ID ein.');
-            }
-            return;
-        }
-        
-        try {
-            const formData = new FormData();
-            formData.append('action', 'add_to_cart');
-            formData.append('qr_code', manualInput.value.trim());
-            
-            const response = await fetch('/inventory/borrow-scanner', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                manualInput.value = '';
-                
-                // Zeige Modal für Sets
-                if (result.is_set && window.borrowScannerManager) {
-                    window.borrowScannerManager.showSetScannedModal(result);
-                } else if (result.is_set) {
-                    console.log('Set gescannt, Manager-Fallback aktiv.');
-                } else {
-                    // Einzelnes Produkt wurde hinzugefügt
-                    const productName = result.product.name + (result.product.category ? ' (' + result.product.category + ')' : '');
-                    if (window.borrowScannerManager) {
-                        window.borrowScannerManager.showSuccess(`Produkt "${productName}" wurde hinzugefuegt.`);
-                    }
-                }
-                
-                // Verwende BorrowScannerManager statt Reload
-                if (window.borrowScannerManager) {
-                    window.borrowScannerManager.updateCartFromJSON(result);
-                    window.borrowScannerManager.registerAddAction(result);
-                    // Prüfe ob Checkout-Formular benötigt wird
-                    const checkoutForm = document.getElementById('checkoutForm');
-                    if (!checkoutForm && result.cart_count > 0) {
-                        // Warte bis updateCartFromJSON vollständig fertig ist
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                const checkoutFormNow = document.getElementById('checkoutForm');
-                                if (!checkoutFormNow) {
-                                    window.borrowScannerManager.loadCheckoutForm().catch(err => {
-                                        console.error('Checkout-Formular konnte nicht geladen werden:', err);
-                                    });
-                                }
-                            });
-                        });
-                    }
-                } else {
-                    // Fallback: Seite neu laden nur wenn Manager nicht verfügbar
-                    window.location.reload();
-                }
-            } else {
-                if (window.borrowScannerManager) {
-                    window.borrowScannerManager.showError(result.error || 'Fehler beim Hinzufuegen zum Warenkorb.');
-                    window.borrowScannerManager.enableRetry(addToCart);
-                }
-            }
-        } catch (error) {
-            console.error('Fehler:', error);
-            if (window.borrowScannerManager) {
-                window.borrowScannerManager.showError('Fehler beim Hinzufuegen zum Warenkorb.');
-                window.borrowScannerManager.enableRetry(addToCart);
-            }
-        }
-    }
-    
-    if (addBtn) {
-        addBtn.addEventListener('click', addToCart);
-    }
-    
-    if (manualInput) {
-        manualInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addToCart();
-            }
-        });
-    }
-    
-    // Remove from cart buttons
-    document.querySelectorAll('.remove-from-cart').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const productId = e.target.closest('.remove-from-cart').dataset.productId;
-            if (window.borrowScannerManager) {
-                window.borrowScannerManager.removeFromCart(productId);
-            }
-        });
-    });
-    
-    // Checkout-Formular: PDF wird per E-Mail versendet
-    const checkoutForm = document.getElementById('checkoutForm');
-    if (checkoutForm) {
-        const dateInput = document.getElementById('expected_return_date');
-        if (dateInput) {
-            // Mindest-Datum auf morgen setzen
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            dateInput.min = tomorrow.toISOString().split('T')[0];
-        }
-        
-        checkoutForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(checkoutForm);
-            
-            // Deaktiviere Button während des Requests
-            const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
-            }
-            
-            try {
-                const response = await fetch(checkoutForm.action, {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response.ok) {
-                    throw new Error('Checkout fehlgeschlagen');
-                }
-                if (window.borrowScannerManager) {
-                    window.borrowScannerManager.showSuccess('Ausleihe wurde erstellt. Weiterleitung...');
-                }
-                window.setTimeout(() => {
-                    window.location.href = '/inventory/';
-                }, 700);
-                
-            } catch (error) {
-                console.error('Fehler:', error);
-                // Bei Netzwerkfehlern Button wieder aktivieren
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnText;
-                }
-                if (window.borrowScannerManager) {
-                    window.borrowScannerManager.showError('Checkout fehlgeschlagen. Bitte pruefen und erneut versuchen.');
-                    window.borrowScannerManager.enableRetry(() => checkoutForm.requestSubmit());
-                }
-            }
-        });
-    }
-
-    const undoBtn = document.getElementById('undoLastCartActionBtn');
-    if (undoBtn) {
-        undoBtn.addEventListener('click', () => {
-            window.borrowScannerManager?.undoLastAction();
-        });
-    }
-    const retryBtn = document.getElementById('retryLastCartActionBtn');
-    if (retryBtn) {
-        retryBtn.addEventListener('click', () => {
-            window.borrowScannerManager?.retryLastAction();
-        });
-    }
 });
 </script>
 {% endblock %}
-

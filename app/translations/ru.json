@@ -41,6 +41,13 @@
       "category_functional_desc": "Сохраняет локальные настройки и включает функции PWA.",
       "category_analytics_title": "Статистика",
       "category_analytics_desc": "Анонимная статистика использования для улучшения портала (сейчас не активна)."
+    },
+    "pwa_install": {
+      "title": "Установить приложение",
+      "description": "Установите портал как приложение для быстрого доступа и офлайн-работы.",
+      "install": "Установить",
+      "later": "Позже",
+      "never": "Больше не показывать"
     }
   },
   "common": {
@@ -74,7 +81,10 @@
       "remember_me": "Оставаться в системе",
       "submit": "Войти",
       "register_link_prefix": "Впервые в Prismateams?",
-      "register_link_cta": "Создать аккаунт"
+      "register_link_cta": "Создать аккаунт",
+      "switch_title": "Впервые здесь?",
+      "switch_text": "Ещё нет аккаунта? Зарегистрируйтесь и начните с Prismateams.",
+      "switch_cta": "Регистрация"
     },
     "register": {
       "title": "Регистрация",
@@ -90,13 +100,16 @@
       "dark_mode_help": "Вы можете изменить эту настройку позже в профиле.",
       "submit": "Создать аккаунт",
       "login_link_prefix": "Уже зарегистрированы?",
-      "login_link_cta": "Войти здесь"
+      "login_link_cta": "Войти здесь",
+      "switch_title": "Уже с нами?",
+      "switch_text": "Уже есть аккаунт? Войдите и продолжайте.",
+      "switch_cta": "Войти"
     },
     "confirm_email": {
       "title": "Подтвердите e-mail",
       "subtitle": "Введите код подтверждения, который мы вам отправили.",
       "info_title": "Информация",
-      "info_message": "Код действует 15 минут. Проверьте также папку со спамом.",
+      "info_message": "Код действует 24 часа. Проверьте также папку со спамом.",
       "code": "Код подтверждения",
       "code_help": "Код находится в письме с темой «Подтвердите e-mail».",
       "submit": "Подтвердить код",
@@ -166,11 +179,39 @@
         "return_by": "Вернуть до {date}",
         "return_button": "Вернуть",
         "empty": "Нет активных выдач"
+      },
+      "contacts": {
+        "title": "Контакты",
+        "empty": "Нет контактов",
+        "call": "Позвонить",
+        "mail": "Почта"
       }
     },
     "quick_access": {
       "title": "Быстрый доступ",
       "edit_dashboard": "Редактировать панель"
+    },
+    "greeting": {
+      "morning": "Доброе утро, {name}!",
+      "afternoon": "Добрый день, {name}!",
+      "evening": "Добрый вечер, {name}!"
+    },
+    "edit": {
+      "widgets": {
+        "add": "Добавить виджет",
+        "empty": "Пока нет виджетов.",
+        "calendars_label": "Календари",
+        "contacts_label": "Выбрать контакты",
+        "contacts_hint": "Выберите до пяти контактов.",
+        "contacts_search": "Поиск контакта…",
+        "contacts_max": "Максимум 5 контактов",
+        "items": {
+          "kontakte": {
+            "label": "Контакты",
+            "description": "Показывает выбранные контакты."
+          }
+        }
+      }
     }
   },
   "media_downloader": {
@@ -178,19 +219,44 @@
     "heading": "Загрузчик медиа",
     "description": "Скачивайте контент с YouTube и YouTube Music в MP3 или MP4.",
     "legal_notice": "Вы несёте ответственность за соблюдение авторских прав и условий платформ. Файлы автоматически удаляются через час.",
+    "nav": {
+      "label": "Навигация загрузчика медиа",
+      "menu": "Меню",
+      "download": "Новая загрузка",
+      "jobs": "Мои загрузки",
+      "clear_all": "Удалить всё"
+    },
     "form": {
       "title": "Новая загрузка",
+      "link_box_title": "Ссылка / Поиск",
+      "single_label": "Один трек / видео",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Только отдельные видео или треки — без плейлистов.",
+      "playlist_label": "Плейлист",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Вставьте ссылку на плейлист. Настройки появятся в блоке фрагмента.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Поддерживается: YouTube и YouTube Music",
       "format_label": "Формат",
       "format_audio": "Аудио (MP3)",
       "format_video": "Видео (MP4)",
+      "segment_heading": "Временной фрагмент",
       "start_label": "Начало (необяз.)",
       "end_label": "Конец (необяз.)",
       "time_placeholder": "M:SS",
       "segment_hint": "Необязательно: скачать только фрагмент (укажите начало и конец, напр. 1:30 и 3:45).",
       "submit": "Начать загрузку"
+    },
+    "search": {
+      "label": "Поиск YouTube",
+      "placeholder": "Поиск трека или исполнителя…",
+      "hint": "Подсказки YouTube Data API — выберите результат, URL подставится.",
+      "loading": "Поиск…",
+      "empty": "Ничего не найдено.",
+      "error": "Ошибка поиска.",
+      "unavailable": "Поиск YouTube недоступен.",
+      "unavailable_hint": "Нет ключа YouTube API. Добавьте его в Настройки → Музыка."
     },
     "jobs": {
       "title": "Мои загрузки",
@@ -200,7 +266,15 @@
       "column_expires": "Доступно до",
       "column_actions": "Действия",
       "download": "Скачать",
-      "empty": "Загрузок пока нет."
+      "empty": "Загрузок пока нет.",
+      "clear_all": "Удалить всё",
+      "clear_all_confirm": "Удалить все загрузки и отменить активные?",
+      "delete_confirm": "Удалить эту загрузку?",
+      "open_source": "Открыть источник",
+      "actions": "Действия",
+      "view_toggle": "Переключить вид",
+      "view_list": "Список",
+      "view_grid": "Сетка"
     },
     "format": {
       "audio": "MP3",
@@ -210,7 +284,20 @@
       "pending": "Ожидание",
       "processing": "Обработка",
       "completed": "Готово",
-      "failed": "Ошибка"
+      "failed": "Прервано из-за ошибки",
+      "cancelled": "Отменено",
+      "cancelling": "Отмена…"
+    },
+    "playlist": {
+      "modal_title": "Скачать плейлист",
+      "segment_heading": "Настройки плейлиста",
+      "inline_hint": "Все треки целиком или таймкоды по трекам — затем начать загрузку.",
+      "loading": "Загрузка плейлиста…",
+      "song_count": "%(count)s треков в этом плейлисте",
+      "mode_complete": "Скачать все треки целиком",
+      "mode_timestamps": "Указать таймкоды для каждого трека",
+      "download_all": "Скачать плейлист",
+      "preview_error": "Не удалось загрузить плейлист."
     },
     "flash": {
       "unavailable": "Загрузчик недоступен.",
@@ -230,8 +317,231 @@
       "err_age_restricted": "Видео имеет возрастное ограничение и не может быть загружено без входа/cookies.",
       "err_video_unavailable": "Это видео недоступно.",
       "err_download_failed": "Ошибка загрузки. Попробуйте снова.",
-      "file_missing": "Файл не найден."
+      "file_missing": "Файл не найден.",
+      "not_a_playlist": "Этот URL не является плейлистом.",
+      "empty_playlist": "В плейлисте нет загружаемых треков.",
+      "preview_failed": "Не удалось загрузить предпросмотр плейлиста.",
+      "playlist_started": "Запущено загрузок: %(count)s.",
+      "use_playlist_modal": "Используйте окно плейлиста для загрузки.",
+      "invalid_batch_item": "Неверный элемент в списке загрузки.",
+      "cancelled": "Загрузка отменена.",
+      "cancelling": "Отмена загрузки…"
+    }
+  },
+  "booking": {
+    "requests": {
+      "sidebar_brand": "Бронирования",
+      "nav": {
+        "overview": "Обзор",
+        "neu": "Новые",
+        "accepted": "Принятые",
+        "rejected": "Отклонённые",
+        "archived": "Архив",
+        "no_forms": "Нет форм",
+        "public_link": "Публичная ссылка"
+      },
+      "stats": {
+        "pending": "Ожидают",
+        "accepted": "Приняты",
+        "rejected": "Отклонены",
+        "archived": "Архив",
+        "total": "Всего",
+        "acceptance_rate": "Доля принятых",
+        "upcoming": "Предстоящие",
+        "busy_days": "Занятые дни",
+        "this_month": "В этом месяце"
+      },
+      "dashboard": {
+        "upcoming_title": "Предстоящие",
+        "upcoming_empty": "Нет предстоящих бронирований",
+        "recent_title": "Недавно полученные"
+      }
+    },
+    "request_detail": {
+      "actions_heading": "Действия"
+    }
+  },
+  "music": {
+    "index": {
+      "nav": {
+        "label": "Навигация музыки",
+        "menu": "Меню"
+      },
+      "played": {
+        "clear": "Очистить сыгранные"
+      },
+      "sort": {
+        "heading": "Сортировка",
+        "field": "Поле",
+        "direction": "Направление",
+        "apply": "Применить",
+        "reset": "Сбросить",
+        "options": {
+          "created": "Создано",
+          "wish_count": "Желания"
+        },
+        "directions": {
+          "asc": "По возрастанию",
+          "desc": "По убыванию"
+        }
+      },
+      "confirmations": {
+        "title": "Подтвердить",
+        "reset_title": "Сбросить всё?",
+        "clear_played": "Очистить список сыгранных?"
+      }
+    }
+  },
+  "wiki": {
+    "index": {
+      "new_button": "Создать",
+      "nav": {
+        "menu": "Меню"
+      },
+      "sort": {
+        "menu_button": "Сортировка",
+        "field": "Поле",
+        "direction": "Направление",
+        "apply": "Применить",
+        "directions": {
+          "asc": "По возрастанию",
+          "desc": "По убыванию"
+        }
+      },
+      "filters": {
+        "menu_button": "Фильтры",
+        "category": "Категория",
+        "tag": "Тег",
+        "apply": "Применить"
+      },
+      "favorites": {
+        "title": "Избранное",
+        "empty": "Нет избранного"
+      }
+    }
+  },
+  "chat": {
+    "create": {
+      "page_title": "Новый чат - Team Portal",
+      "breadcrumb": {
+        "index": "Чаты",
+        "current": "Новый чат"
+      },
+      "heading": "Новый чат",
+      "pick_member_hint": "Нажмите на человека, чтобы сразу начать переписку.",
+      "new_group": "Новая группа",
+      "members_heading": "Участники портала",
+      "members_empty": "Других участников нет.",
+      "back_to_members": "Назад",
+      "group_step_heading": "Новая группа",
+      "group_step_hint": "Слева участники, справа данные группы.",
+      "avatar": {
+        "label": "Фото группы",
+        "help": "Необязательно — можно задать позже."
+      },
+      "form": {
+        "chat_type": {
+          "label": "Тип чата",
+          "group": "Групповой чат",
+          "private": "Личный чат"
+        },
+        "chat_name": {
+          "label": "Название группы",
+          "placeholder": "напр. Команда проекта"
+        },
+        "members": {
+          "label": "Добавить участников",
+          "single_label": "Выбрать человека",
+          "help": "Выберите хотя бы одного участника",
+          "help_private": "Выберите человека для личного чата"
+        },
+        "buttons": {
+          "submit": "Создать чат",
+          "create_group": "Создать группу",
+          "cancel": "Отмена"
+        },
+        "alerts": {
+          "select_private": "Выберите человека для личного чата.",
+          "enter_name": "Введите название чата.",
+          "select_members": "Выберите хотя бы одного участника."
+        },
+        "description": {
+          "label": "Описание",
+          "placeholder": "Необязательно: о чём эта группа?",
+          "help": "Необязательно"
+        }
+      },
+      "search": {
+        "placeholder": "Искать людей...",
+        "empty": "Никого не найдено."
+      }
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Командный чат",
+      "body_one": "1 новое сообщение",
+      "body_many": "{count} новых сообщений"
+    },
+    "file": {
+      "new_title": "Новый файл",
+      "new_body": "{name} загружен",
+      "modified_title": "Файл изменён",
+      "modified_body": "{name} обновлён"
+    },
+    "email": {
+      "title": "Новое письмо",
+      "body_one": "1 непрочитанное письмо",
+      "body_many": "{count} непрочитанных писем"
+    },
+    "calendar": {
+      "reminder_title": "Напоминание о событии",
+      "reminder_body": "{title} начинается {time_text} ({date} в {time})",
+      "in_minutes": "через {count} мин.",
+      "in_hour_one": "через 1 час",
+      "in_hours": "через {count} ч.",
+      "in_day_one": "через 1 день",
+      "in_days": "через {count} дн."
+    },
+    "booking": {
+      "request_title": "Новая заявка на бронирование",
+      "request_body": "{event} – {applicant}",
+      "message_title": "Новое сообщение по бронированию",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "push": {
+      "test_title": "Тестовое уведомление",
+      "test_body": "Тест от {portal_name}. Push работает."
+    }
+  },
+  "email": {
+    "compose": {
+      "buttons": {
+        "save_draft": "Сохранить черновик",
+        "send": "Отправить",
+        "cancel": "Отмена"
+      },
+      "messages": {
+        "draft_saved": "Черновик сохранён.",
+        "draft_empty": "Нечего сохранять.",
+        "draft_error": "Не удалось сохранить черновик."
+      }
+    }
+  },
+  "files": {
+    "view": {
+      "history": "История",
+      "history_loading": "Загрузка версий…",
+      "history_empty": "Нет предыдущих версий.",
+      "history_current": "текущая",
+      "more": "Ещё",
+      "version_label": "Version {number}"
+    },
+    "index": {
+      "search_placeholder": "Поиск в файлах",
+      "search_empty": "Нет совпадений в этой папке."
     }
   }
 }
-

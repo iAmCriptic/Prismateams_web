@@ -2,38 +2,50 @@
 
 {% block title %}Freigabe - Passwort{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <i class="bi bi-link-45deg fs-1 text-primary mb-3"></i>
-                    <h3>Freigabe</h3>
-                    <p class="text-muted">Passwort eingeben um fortzufahren</p>
-                </div>
-                <form method="POST" action="{{ url_for('files.public_share', token=token) }}">
-                    {% if share_mode == 'edit' and show_bot %}
-                    {% include 'auth/_bot_protection.html' %}
-                    {% endif %}
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Passwort</label>
-                        <input type="password" class="form-control" id="password" name="password" required autofocus>
+<div class="share-shell files-ext-shell">
+    <div class="files-ext-brand">
+        {% if portal_logo_filename %}
+        <img class="files-ext-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% elif app_logo %}
+        <img class="files-ext-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% else %}
+        <span class="files-ext-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+        {% endif %}
+        <div class="files-ext-brand-text">
+            <span class="files-ext-brand-name">{{ app_name or 'Prismateams' }}</span>
+            <span class="files-ext-brand-kind">Freigabe</span>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card share-gate-modal border-0 shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-link-45deg fs-1 text-primary mb-3"></i>
+                        <h3>Freigabe</h3>
+                        <p class="text-muted">Passwort eingeben um fortzufahren</p>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-unlock"></i> Zugang gewähren
-                    </button>
-                </form>
+                    <form method="POST" action="{{ url_for('files.public_share', token=token) }}">
+                        {% if share_mode == 'edit' and show_bot %}
+                        {% include 'auth/_bot_protection.html' %}
+                        {% endif %}
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Passwort</label>
+                            <input type="password" class="form-control files-pill-input" id="password" name="password" required autofocus>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-100 files-pill-btn">
+                            <i class="bi bi-unlock"></i> Zugang gewähren
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
-
-
-
-
-
-
-
-

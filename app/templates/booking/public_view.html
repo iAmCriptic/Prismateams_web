@@ -3,117 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buchungsübersicht - {{ request.event_name }}</title>
+    <title>Buchungsübersicht - {{ booking_request.event_name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
+    {% include 'auth/_auth_bg.html' %}
     <style>
-        .status-badge {
-            font-size: 1.1rem;
-            padding: 0.5rem 1rem;
-        }
+        :root { --booking-public-bg: var(--auth-page-bg); }
     </style>
 </head>
-<body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="text-center mb-3">
-                            <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
-                                {% if portal_logo_filename %}
-                                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="Portal Logo" style="max-height: 50px; height: auto;">
-                                {% endif %}
-                                {% if form.secondary_logo_path %}
-                                {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
-                                <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="Formular Logo" style="max-height: 50px; height: auto;">
-                                {% endif %}
-                            </div>
-                        </div>
-                        <h3 class="mb-0 text-center">{{ request.event_name }}</h3>
+<body class="booking-public-body">
+    <div class="booking-public-shell">
+        <div class="booking-public-panel">
+            <div class="booking-public-logos">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="Portal Logo">
+                {% endif %}
+                {% if form.secondary_logo_path %}
+                {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
+                <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="Formular Logo">
+                {% endif %}
+            </div>
+
+            <h1 class="booking-public-title">{{ booking_request.event_name }}</h1>
+            <p class="booking-public-subtitle">Status Ihrer Buchungsanfrage</p>
+
+            <div class="alert portal-msg portal-msg--info alert-permanent mb-3" role="note">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-info-circle-fill"></i>
                     </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <strong>Status:</strong>
-                            {% if request.status == 'pending' %}
-                            <span class="badge bg-warning status-badge">Offen</span>
-                            {% elif request.status == 'accepted' %}
-                            <span class="badge bg-success status-badge">Angenommen</span>
-                            {% elif request.status == 'rejected' %}
-                            <span class="badge bg-danger status-badge">Abgelehnt</span>
-                            {% elif request.status == 'archived' %}
-                            <span class="badge bg-secondary status-badge">Archiviert</span>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="mb-3">
-                            <strong>E-Mail:</strong> {{ request.email }}
-                        </div>
-                        
-                        {% if request.event_date %}
-                        <div class="mb-3">
-                            <strong>Gewünschtes Datum:</strong> {{ request.event_date.strftime('%d.%m.%Y') }}
-                            {% if request.event_start_time %}
-                            um {{ request.event_start_time.strftime('%H:%M') }} Uhr
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        
-                        {% if request.status == 'accepted' and request.calendar_event %}
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle"></i> Ihre Buchung wurde angenommen! 
-                            Der Termin wurde in den Kalender eingetragen.
-                        </div>
-                        {% endif %}
-                        
-                        {% if request.status == 'rejected' and request.rejection_reason %}
-                        <div class="alert alert-danger">
-                            <i class="bi bi-x-circle"></i> <strong>Buchung abgelehnt</strong><br>
-                            {{ request.rejection_reason }}
-                        </div>
-                        {% endif %}
-                        
-                        {% if field_values %}
-                        <hr>
-                        <h5>Weitere Informationen</h5>
-                        {% for field in form.fields %}
-                            {% if field.id in field_values %}
-                            <div class="mb-2">
-                                <strong>{{ field.field_label }}:</strong>
-                                {% if field_values[field.id].file_path %}
-                                <a href="{{ url_for('booking.download_file', request_id=request.id, field_id=field.id) }}" target="_blank">
-                                    Datei anzeigen
-                                </a>
-                                {% else %}
-                                {{ field_values[field.id].field_value }}
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                        {% endif %}
-                        
-                        {% if request.folder and (form.enable_mailbox or form.enable_shared_folder) %}
-                        <hr>
-                        <h5>Dateien</h5>
-                        <p>
-                            {% if form.enable_mailbox %}
-                            <i class="bi bi-mailbox"></i> Briefkasten verfügbar
-                            <br>
-                            <a href="{{ url_for('booking.mailbox_upload', token=token) }}" class="btn btn-primary mt-2">
-                                <i class="bi bi-upload"></i> Dateien zum Briefkasten hinzufügen
-                            </a>
-                            {% endif %}
-                            {% if form.enable_shared_folder %}
-                            <br>
-                            <i class="bi bi-folder"></i> Geteilter Ordner verfügbar
-                            {% endif %}
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">
+                            Auf dieser Seite sehen Sie den Status Ihrer Anfrage. Speichern Sie sich diese Seite vorübergehend ab.
+                            Bei Aktualisierung sollten Sie außerdem eine E-Mail erhalten.
                         </p>
-                        {% endif %}
                     </div>
                 </div>
             </div>
+
+            <div class="booking-public-meta">
+                <div class="booking-public-meta-row">
+                    <strong>Status:</strong>
+                    {% if booking_request.status == 'pending' %}
+                    <span class="booking-public-status bg-warning text-dark">Offen</span>
+                    {% elif booking_request.status == 'accepted' %}
+                    <span class="booking-public-status bg-success text-white">Angenommen</span>
+                    {% elif booking_request.status == 'rejected' %}
+                    <span class="booking-public-status bg-danger text-white">Abgelehnt</span>
+                    {% elif booking_request.status == 'archived' %}
+                    <span class="booking-public-status bg-secondary text-white">Archiviert</span>
+                    {% endif %}
+                </div>
+                <div class="booking-public-meta-row">
+                    <strong>E-Mail:</strong>
+                    <span>{{ booking_request.email }}</span>
+                </div>
+                {% if booking_request.event_date %}
+                <div class="booking-public-meta-row">
+                    <strong>Datum:</strong>
+                    <span>
+                        {{ booking_request.event_date.strftime('%d.%m.%Y') }}
+                        {% if booking_request.event_start_time %}
+                        um {{ booking_request.event_start_time.strftime('%H:%M') }} Uhr
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if booking_request.status == 'accepted' and booking_request.calendar_event %}
+            <div class="alert portal-msg portal-msg--success alert-permanent mb-3" role="status">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">Ihre Buchung wurde angenommen! Der Termin wurde in den Kalender eingetragen.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if booking_request.status == 'rejected' and booking_request.rejection_reason %}
+            <div class="alert portal-msg portal-msg--danger alert-permanent mb-3" role="alert">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <h6 class="portal-msg__title">Buchung abgelehnt</h6>
+                        <p class="portal-msg__text">{{ booking_request.rejection_reason }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if field_values %}
+            <div class="booking-public-section">
+                <h4>Weitere Informationen</h4>
+                {% for field in form.fields %}
+                    {% if field.id in field_values %}
+                    <div class="booking-public-meta-row mb-2">
+                        <strong>{{ field.field_label }}:</strong>
+                        {% if field_values[field.id].file_path %}
+                        <a href="{{ url_for('booking.download_file', request_id=booking_request.id, field_id=field.id) }}" target="_blank">
+                            Datei anzeigen
+                        </a>
+                        {% else %}
+                        <span>{{ field_values[field.id].field_value }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if form.enable_mailbox or form.enable_shared_folder %}
+            <div class="booking-public-section">
+                <h4>Dateien</h4>
+                {% if booking_request.folder %}
+                    {% if form.enable_mailbox %}
+                    <p class="mb-2">
+                        <i class="bi bi-mailbox"></i> Briefkasten verfügbar
+                    </p>
+                    <a href="{{ url_for('booking.mailbox_upload', token=token) }}" class="btn booking-public-btn booking-public-btn--primary">
+                        <i class="bi bi-upload"></i> Dateien zum Briefkasten hinzufügen
+                    </a>
+                    {% endif %}
+                    {% if form.enable_shared_folder %}
+                    <p class="mt-3 mb-0">
+                        <i class="bi bi-folder"></i> Geteilter Ordner verfügbar
+                    </p>
+                    {% endif %}
+                {% else %}
+                <p class="text-muted mb-0">
+                    {% if form.enable_mailbox and form.enable_shared_folder %}
+                    Briefkasten und geteilter Ordner werden nach Annahme Ihrer Anfrage freigeschaltet.
+                    {% elif form.enable_mailbox %}
+                    Der Briefkasten wird nach Annahme Ihrer Anfrage freigeschaltet.
+                    {% else %}
+                    Der geteilte Ordner wird nach Annahme Ihrer Anfrage freigeschaltet.
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if messages %}
+            <div class="booking-public-section">
+                <h4>Nachrichten</h4>
+                <p class="text-muted small mb-3">Antworten Sie bitte auf die E-Mail, um zu schreiben. Die Nachrichten erscheinen hier.</p>
+                <div class="booking-msg-thread">
+                    {% for msg in messages %}
+                    <div class="booking-msg-bubble booking-msg-bubble--{{ msg.direction }}">
+                        <div class="booking-msg-meta">
+                            <span>
+                                {% if msg.direction == 'outbound' %}Team{% else %}Sie{% endif %}
+                            </span>
+                            <span>{{ msg.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                            {% if msg.subject %}<span>{{ msg.subject }}</span>{% endif %}
+                        </div>
+                        <p class="booking-msg-body">{{ msg.body_text or '' }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </body>
 </html>
-

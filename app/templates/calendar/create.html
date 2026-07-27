@@ -1,93 +1,121 @@
-{% extends "base.html" %}
+{% extends "calendar/base_calendar.html" %}
 
 {% block title %}{{ _('calendar.create.page_title') }}{% endblock %}
+{% block calendar_mobile_title %}{{ _('calendar.create.breadcrumb.current') }}{% endblock %}
 
-{% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">{{ _('calendar.create.breadcrumb.index') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('calendar.create.breadcrumb.current') }}</li>
-            </ol>
-        </nav>
-        
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('calendar.create.card_title') }}</h4>
+{% block calendar_content %}
+<div class="calendar-form">
+    <div class="calendar-form-header">
+        <h1 class="calendar-form-title">{{ _('calendar.create.card_title') }}</h1>
+        <p class="calendar-form-subtitle">{{ _('calendar.create.subtitle') }}</p>
+    </div>
+
+    <form method="POST" class="calendar-form-body">
+        <section class="calendar-form-card" aria-labelledby="cal-create-basics">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-basics" class="calendar-form-section-title">
+                    <i class="bi bi-card-heading" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.basics') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="title" class="form-label">{{ _('calendar.create.form.title') }}</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">{{ _('calendar.create.form.description') }}</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ _('calendar.create.form.start_time') }}</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control" id="start_date" name="start_date" required>
-                                    <small class="form-text text-muted">Datum</small>
-                                </div>
-                                <div class="col-6">
-                                    <input type="time" class="form-control" id="start_time" name="start_time">
-                                    <small class="form-text text-muted">Uhrzeit (optional - leer = ganztägig)</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ _('calendar.create.form.end_time') }}</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control" id="end_date" name="end_date" required>
-                                    <small class="form-text text-muted">Datum</small>
-                                </div>
-                                <div class="col-6">
-                                    <input type="time" class="form-control" id="end_time" name="end_time">
-                                    <small class="form-text text-muted">Uhrzeit (optional - leer = ganztägig)</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="location" class="form-label">{{ _('calendar.create.form.location') }}</label>
-                        <input type="text" class="form-control" id="location" name="location">
-                    </div>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <label for="title" class="form-label">{{ _('calendar.create.form.title') }}</label>
+                    <input type="text" class="form-control" id="title" name="title" required>
+                </div>
+                <div class="calendar-form-field">
+                    <label for="description" class="form-label">{{ _('calendar.create.form.description') }}</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+                <div class="calendar-form-field">
+                    <label for="location" class="form-label">{{ _('calendar.create.form.location') }}</label>
+                    <input type="text" class="form-control" id="location" name="location">
+                </div>
+            </div>
+        </section>
 
-                    <div class="mb-3">
-                        <label for="event_color" class="form-label">Farbe</label>
-                        <div class="d-flex flex-wrap align-items-center gap-2 calendar-color-picker-row">
-                            <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="#0d6efd" title="Terminfarbe">
-                            <div class="calendar-color-presets d-flex align-items-center flex-wrap" role="group" aria-label="Schnellfarben">
-                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#0d6efd" style="background-color:#0d6efd" title="Standard (Blau)"></button>
-                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#198754" style="background-color:#198754" title="Grün"></button>
-                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#fd7e14" style="background-color:#fd7e14" title="Orange"></button>
-                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#6f42c1" style="background-color:#6f42c1" title="Violett"></button>
-                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#dc3545" style="background-color:#dc3545" title="Rot"></button>
-                            </div>
+
+        <section class="calendar-form-card" aria-labelledby="cal-create-time">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-time" class="calendar-form-section-title">
+                    <i class="bi bi-clock" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.time') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields calendar-form-fields--2">
+                <div class="calendar-form-field">
+                    <label class="form-label">{{ _('calendar.create.form.start_time') }}</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            <small class="form-text">Datum</small>
+                        </div>
+                        <div class="col-6">
+                            <input type="time" class="form-control" id="start_time" name="start_time">
+                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
                         </div>
                     </div>
-                    
-                    <!-- Wiederkehrende Termine -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring">
-                            <label class="form-check-label" for="is_recurring">
-                                {{ _('calendar.create.form.recurrence.label') }}
-                            </label>
+                </div>
+                <div class="calendar-form-field">
+                    <label class="form-label">{{ _('calendar.create.form.end_time') }}</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            <small class="form-text">Datum</small>
+                        </div>
+                        <div class="col-6">
+                            <input type="time" class="form-control" id="end_time" name="end_time">
+                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
                         </div>
                     </div>
-                    
-                    <div id="recurrence_options" style="display: none;">
-                        <div class="mb-3">
+                </div>
+            </div>
+        </section>
+
+        <div class="calendar-form-row calendar-form-row--2">
+        <section class="calendar-form-card" aria-labelledby="cal-create-appearance">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-appearance" class="calendar-form-section-title">
+                    <i class="bi bi-palette" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.appearance') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <label for="event_color" class="form-label">Farbe</label>
+                    <div class="d-flex flex-wrap align-items-center gap-2 calendar-color-picker-row">
+                        <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="#0d6efd" title="Terminfarbe">
+                        <div class="calendar-color-presets d-flex align-items-center flex-wrap" role="group" aria-label="Schnellfarben">
+                            <button type="button" class="calendar-color-preset" data-calendar-preset-color="#0d6efd" style="background-color:#0d6efd" title="Standard (Blau)"></button>
+                            <button type="button" class="calendar-color-preset" data-calendar-preset-color="#198754" style="background-color:#198754" title="Grün"></button>
+                            <button type="button" class="calendar-color-preset" data-calendar-preset-color="#fd7e14" style="background-color:#fd7e14" title="Orange"></button>
+                            <button type="button" class="calendar-color-preset" data-calendar-preset-color="#6f42c1" style="background-color:#6f42c1" title="Violett"></button>
+                            <button type="button" class="calendar-color-preset" data-calendar-preset-color="#dc3545" style="background-color:#dc3545" title="Rot"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="calendar-form-card" aria-labelledby="cal-create-recurrence">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-recurrence" class="calendar-form-section-title">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.recurrence') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring">
+                        <label class="form-check-label" for="is_recurring">
+                            {{ _('calendar.create.form.recurrence.label') }}
+                        </label>
+                    </div>
+                </div>
+                <div id="recurrence_options" style="display: none;">
+                    <div class="calendar-form-fields">
+                        <div class="calendar-form-field">
                             <label for="recurrence_type" class="form-label">{{ _('calendar.create.form.recurrence.type_label') }}</label>
                             <select class="form-select" id="recurrence_type" name="recurrence_type">
                                 <option value="none">{{ _('calendar.create.form.recurrence.options.none') }}</option>
@@ -97,14 +125,12 @@
                                 <option value="yearly">{{ _('calendar.create.form.recurrence.options.yearly') }}</option>
                             </select>
                         </div>
-                        
-                        <div class="mb-3" id="recurrence_interval_group">
+                        <div class="calendar-form-field" id="recurrence_interval_group">
                             <label for="recurrence_interval" class="form-label">{{ _('calendar.create.form.recurrence.interval_label') }}</label>
                             <input type="number" class="form-control" id="recurrence_interval" name="recurrence_interval" value="1" min="1">
-                            <small class="form-text text-muted" id="interval_help">{{ current_translations.get('calendar', {}).get('create', {}).get('form', {}).get('recurrence', {}).get('interval_help', {}).get('default', '') }}</small>
+                            <small class="form-text" id="interval_help">{{ current_translations.get('calendar', {}).get('create', {}).get('form', {}).get('recurrence', {}).get('interval_help', {}).get('default', '') }}</small>
                         </div>
-                        
-                        <div class="mb-3" id="recurrence_days_group" style="display: none;">
+                        <div class="calendar-form-field" id="recurrence_days_group" style="display: none;">
                             <label class="form-label">{{ _('calendar.create.form.recurrence.days_label') }}</label>
                             {% set weekday_names = current_translations.get('calendar', {}).get('create', {}).get('form', {}).get('recurrence', {}).get('weekday_names', []) %}
                             {% for weekday in weekday_names %}
@@ -115,22 +141,53 @@
                             {% endfor %}
                             <input type="hidden" id="recurrence_days" name="recurrence_days">
                         </div>
-                        
-                        <div class="mb-3">
+                        <div class="calendar-form-field">
                             <label for="recurrence_end_date" class="form-label">{{ _('calendar.create.form.recurrence.end_label') }}</label>
                             <input type="datetime-local" class="form-control" id="recurrence_end_date" name="recurrence_end_date">
-                            <small class="form-text text-muted">{{ _('calendar.create.form.recurrence.end_help') }}</small>
+                            <small class="form-text">{{ _('calendar.create.form.recurrence.end_help') }}</small>
                         </div>
                     </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">{{ _('calendar.create.buttons.submit') }}</button>
-                        <a href="{{ url_for('calendar.index') }}" class="btn btn-outline-secondary">{{ _('calendar.create.buttons.cancel') }}</a>
-                    </div>
-                </form>
+                </div>
             </div>
+        </section>
         </div>
-    </div>
+
+        {% if calendar_multi_enabled %}
+        <section class="calendar-form-card" aria-labelledby="cal-create-calendar">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-calendar" class="calendar-form-section-title">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.calendar') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <label for="calendar_id" class="form-label">{{ _('calendar.create.form.calendar_label') }}</label>
+                    <select class="form-select" id="calendar_id" name="calendar_id" required>
+                        {% for cal in writable_calendars %}
+                        <option value="{{ cal.id }}" data-calendar-type="{{ cal.calendar_type }}" {% if cal.id == default_calendar_id %}selected{% endif %}>{{ cal.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="calendar-form-field" id="inviteesSection">
+                    <label for="inviteeSearch" class="form-label">{{ _('calendar.create.form.invitees_label') }}</label>
+                    <div class="position-relative">
+                        <input type="search" class="form-control" id="inviteeSearch" autocomplete="off" placeholder="{{ _('calendar.create.form.invitees_search') }}">
+                        <div id="inviteeSearchResults" class="calendar-invitee-results list-group shadow-sm d-none"></div>
+                    </div>
+                    <div id="inviteeChips" class="calendar-invitee-chips d-flex flex-wrap gap-2 mt-2" aria-live="polite"></div>
+                    <div id="inviteeHiddenInputs"></div>
+                    <small class="form-text">{{ _('calendar.create.form.invitees_help') }}</small>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <div class="calendar-form-actions">
+            <button type="submit" class="btn btn-accent calendar-form-submit">{{ _('calendar.create.buttons.submit') }}</button>
+            <a href="{{ url_for('calendar.index') }}" class="btn btn-outline-secondary calendar-form-cancel">{{ _('calendar.create.buttons.cancel') }}</a>
+        </div>
+    </form>
 </div>
 
 <script>
@@ -166,8 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const intervalHelpTexts = CAL_CREATE_I18N.form?.recurrence?.interval_help || {};
     const recurrenceDaysInput = document.getElementById('recurrence_days');
     const dayCheckboxes = document.querySelectorAll('input[name="recurrence_days_check"]');
-    
-    // Toggle Wiederholungsoptionen
+
     isRecurringCheckbox.addEventListener('change', function() {
         recurrenceOptions.style.display = this.checked ? 'block' : 'none';
         if (!this.checked) {
@@ -175,21 +231,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         updateRecurrenceOptions();
     });
-    
-    // Update Wiederholungsoptionen basierend auf Typ
+
     recurrenceType.addEventListener('change', updateRecurrenceOptions);
-    
+
     function updateRecurrenceOptions() {
         const type = recurrenceType.value;
-        
-        // Wochentage nur bei wöchentlicher Wiederholung anzeigen
         recurrenceDaysGroup.style.display = (type === 'weekly') ? 'block' : 'none';
-        
-        // Intervall-Hilfetext anpassen
         intervalHelp.textContent = intervalHelpTexts[type] || intervalHelpTexts.default || '';
     }
-    
-    // Wochentage sammeln
+
     dayCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             const selectedDays = Array.from(dayCheckboxes)
@@ -199,24 +249,21 @@ document.addEventListener('DOMContentLoaded', function() {
             recurrenceDaysInput.value = selectedDays;
         });
     });
-    
-    // Datum- und Zeit-Synchronisation
+
     const startDate = document.getElementById('start_date');
     const startTime = document.getElementById('start_time');
     const endDate = document.getElementById('end_date');
     const endTime = document.getElementById('end_time');
-    
-    // Funktion zum Hinzufügen einer Stunde zur Zeit
+
     function addHourToTime(timeString) {
         if (!timeString) return '';
         const [hours, minutes] = timeString.split(':').map(Number);
         const date = new Date();
         date.setHours(hours, minutes, 0, 0);
         date.setHours(date.getHours() + 1);
-        return date.toTimeString().slice(0, 5); // HH:MM Format
+        return date.toTimeString().slice(0, 5);
     }
-    
-    // Initialisiere Enddatum und Endzeit beim Laden
+
     function initializeEndDateTime() {
         if (startDate.value && !endDate.value) {
             endDate.value = startDate.value;
@@ -225,26 +272,22 @@ document.addEventListener('DOMContentLoaded', function() {
             endTime.value = addHourToTime(startTime.value);
         }
     }
-    
-    // Beim Ändern des Startdatums: Enddatum auf gleichen Tag setzen
+
     startDate.addEventListener('change', function() {
         if (this.value) {
             endDate.value = this.value;
         }
     });
-    
-    // Beim Ändern der Startzeit: Endzeit auf eine Stunde später setzen
+
     startTime.addEventListener('change', function() {
         if (this.value) {
             endTime.value = addHourToTime(this.value);
-            // Wenn Startdatum gesetzt ist, Enddatum auch setzen
             if (startDate.value && !endDate.value) {
                 endDate.value = startDate.value;
             }
         }
     });
-    
-    // Datum aus URL-Parameter übernehmen (z. B. beim Klick auf einen Tag im Kalender)
+
     const urlParams = new URLSearchParams(window.location.search);
     const prefillDate = urlParams.get('date');
     if (prefillDate && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)) {
@@ -252,11 +295,107 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!endDate.value) endDate.value = prefillDate;
     }
 
-    // Initialisiere beim Laden
     initializeEndDateTime();
+
+    (function initInvitePicker() {
+        const calendarSelect = document.getElementById('calendar_id');
+        const inviteSection = document.getElementById('inviteesSection');
+        const searchInput = document.getElementById('inviteeSearch');
+        const resultsEl = document.getElementById('inviteeSearchResults');
+        const chipsEl = document.getElementById('inviteeChips');
+        const hiddenEl = document.getElementById('inviteeHiddenInputs');
+        if (!calendarSelect || !inviteSection || !searchInput) return;
+
+        const inviteUsers = {{ invite_users_json|default([])|tojson }};
+        const selected = new Map();
+
+        function isPublicSelected() {
+            const opt = calendarSelect.options[calendarSelect.selectedIndex];
+            return opt && opt.getAttribute('data-calendar-type') === 'public';
+        }
+
+        function syncInviteVisibility() {
+            const hide = isPublicSelected();
+            inviteSection.style.display = hide ? 'none' : '';
+            if (hide) {
+                selected.clear();
+                renderChips();
+                searchInput.value = '';
+                resultsEl.classList.add('d-none');
+                resultsEl.innerHTML = '';
+            }
+        }
+
+        function renderChips() {
+            chipsEl.innerHTML = '';
+            hiddenEl.innerHTML = '';
+            selected.forEach(function(name, id) {
+                const chip = document.createElement('span');
+                chip.className = 'calendar-invitee-chip';
+                chip.innerHTML = '<span class="calendar-invitee-chip-label"></span><button type="button" class="calendar-invitee-chip-remove" aria-label="Entfernen">&times;</button>';
+                chip.querySelector('.calendar-invitee-chip-label').textContent = name;
+                chip.querySelector('.calendar-invitee-chip-remove').addEventListener('click', function() {
+                    selected.delete(id);
+                    renderChips();
+                    renderResults(searchInput.value);
+                });
+                chipsEl.appendChild(chip);
+
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'invitee_ids';
+                input.value = String(id);
+                hiddenEl.appendChild(input);
+            });
+        }
+
+        function renderResults(query) {
+            const q = (query || '').trim().toLowerCase();
+            resultsEl.innerHTML = '';
+            if (!q || isPublicSelected()) {
+                resultsEl.classList.add('d-none');
+                return;
+            }
+            const matches = inviteUsers.filter(function(u) {
+                return !selected.has(u.id) && u.name.toLowerCase().includes(q);
+            }).slice(0, 8);
+            if (!matches.length) {
+                resultsEl.classList.add('d-none');
+                return;
+            }
+            matches.forEach(function(u) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = u.name;
+                btn.addEventListener('click', function() {
+                    selected.set(u.id, u.name);
+                    searchInput.value = '';
+                    resultsEl.classList.add('d-none');
+                    renderChips();
+                    searchInput.focus();
+                });
+                resultsEl.appendChild(btn);
+            });
+            resultsEl.classList.remove('d-none');
+        }
+
+        calendarSelect.addEventListener('change', syncInviteVisibility);
+        searchInput.addEventListener('input', function() {
+            renderResults(this.value);
+        });
+        searchInput.addEventListener('focus', function() {
+            if (this.value.trim()) renderResults(this.value);
+        });
+        document.addEventListener('click', function(e) {
+            if (!inviteSection.contains(e.target)) {
+                resultsEl.classList.add('d-none');
+            }
+        });
+
+        syncInviteVisibility();
+        renderChips();
+    })();
 });
 </script>
 {% endblock %}
-
-
-

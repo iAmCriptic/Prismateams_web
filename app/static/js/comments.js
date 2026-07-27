@@ -85,17 +85,51 @@ class CommentSystem {
                 this.renderComments(data.comments, commentsList);
                 this.updateCommentCount(data.comments.length);
             } else {
-                commentsList.innerHTML = `<div class="comment-empty">${this.translate('list.empty', 'No comments yet')}</div>`;
+                commentsList.innerHTML = this.statusMessageHtml(
+                    this.translate('list.empty', 'No comments yet'),
+                    'info',
+                    'bi-chat-dots'
+                );
             }
         } catch (error) {
             console.error('Error loading comments:', error);
-            commentsList.innerHTML = `<div class="comment-empty">${this.translate('list.error', 'Failed to load comments')}</div>`;
+            commentsList.innerHTML = this.statusMessageHtml(
+                this.translate('list.error', 'Failed to load comments'),
+                'danger',
+                'bi-exclamation-circle'
+            );
         }
+    }
+
+    statusMessageHtml(message, variant = 'info', icon = 'bi-info-circle') {
+        const safeVariant = ['info', 'success', 'warning', 'danger'].includes(variant) ? variant : 'info';
+        return `
+            <div class="comment-empty alert portal-msg portal-msg--${safeVariant}" role="status">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true"><i class="bi ${icon}"></i></div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">${this.escapeHtml(message)}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    notify(message, category = 'info') {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, category);
+            return;
+        }
+        window.alert(message);
     }
     
     renderComments(comments, container) {
         if (comments.length === 0) {
-            container.innerHTML = `<div class="comment-empty">${this.translate('list.empty', 'No comments yet')}</div>`;
+            container.innerHTML = this.statusMessageHtml(
+                this.translate('list.empty', 'No comments yet'),
+                'info',
+                'bi-chat-dots'
+            );
             return;
         }
         
@@ -226,17 +260,18 @@ class CommentSystem {
         
         const content = textarea.value.trim();
         if (!content) {
-            alert(this.translate('alerts.content_required', 'Please enter a comment.'));
+            this.notify(this.translate('alerts.content_required', 'Please enter a comment.'), 'warning');
             return;
         }
         
         const submitBtn = parentId
             ? container.querySelector(`.comment-reply-form[data-parent-id="${parentId}"] .comment-submit-btn`)
             : container.querySelector('.comment-submit-btn');
+        const submitDefaultHtml = submitBtn ? submitBtn.innerHTML : '';
         
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = this.translate('form.sending', 'Sending...');
+            submitBtn.innerHTML = `<i class="bi bi-hourglass-split" aria-hidden="true"></i><span>${this.translate('form.sending', 'Sending...')}</span>`;
         }
         
         try {
@@ -267,15 +302,15 @@ class CommentSystem {
                 }
             } else {
                 const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
-                alert(`${this.translate('alerts.create_error', 'Failed to create comment.')} ${errorDetail}`);
+                this.notify(`${this.translate('alerts.create_error', 'Failed to create comment.')} ${errorDetail}`, 'danger');
             }
         } catch (error) {
             console.error('Error creating comment:', error);
-            alert(this.translate('alerts.create_error', 'Failed to create comment.'));
+            this.notify(this.translate('alerts.create_error', 'Failed to create comment.'), 'danger');
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = this.translate('form.submit', 'Send comment');
+                submitBtn.innerHTML = submitDefaultHtml || `<i class="bi bi-send" aria-hidden="true"></i><span>${this.translate('form.submit', 'Send comment')}</span>`;
             }
         }
     }
@@ -302,11 +337,11 @@ class CommentSystem {
                 <div class="comment-mention-suggestions"></div>
             </div>
             <div class="comment-form-actions">
-                <button class="btn btn-secondary btn-sm" onclick="this.closest('.comment-reply-form').remove()">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="this.closest('.comment-reply-form').remove()">
                     ${replyCancel}
                 </button>
-                <button class="btn btn-primary btn-sm comment-submit-btn" onclick="window.commentSystem.createComment(${parentId})">
-                    ${replySubmit}
+                <button type="button" class="btn btn-accent btn-sm comment-submit-btn" onclick="window.commentSystem.createComment(${parentId})">
+                    <i class="bi bi-reply" aria-hidden="true"></i><span>${replySubmit}</span>
                 </button>
             </div>
         `;
@@ -346,11 +381,11 @@ class CommentSystem {
                 <textarea class="comment-textarea">${this.escapeHtml(currentContent)}</textarea>
             </div>
             <div class="comment-form-actions">
-                <button class="btn btn-secondary btn-sm" onclick="this.closest('.comment-edit-form').remove(); this.closest('.comment-item').querySelector('.comment-content').style.display = 'block'">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="this.closest('.comment-edit-form').remove(); this.closest('.comment-item').querySelector('.comment-content').style.display = 'block'">
                     ${editCancel}
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="window.commentSystem.updateComment(${commentId})">
-                    ${editSubmit}
+                <button type="button" class="btn btn-accent btn-sm" onclick="window.commentSystem.updateComment(${commentId})">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i><span>${editSubmit}</span>
                 </button>
             </div>
         `;
@@ -375,7 +410,7 @@ class CommentSystem {
         const content = textarea.value.trim();
         
         if (!content) {
-            alert(this.translate('alerts.content_required', 'Please enter a comment.'));
+            this.notify(this.translate('alerts.content_required', 'Please enter a comment.'), 'warning');
             return;
         }
         
@@ -396,16 +431,19 @@ class CommentSystem {
                 this.loadComments();
             } else {
                 const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
-                alert(`${this.translate('alerts.update_error', 'Failed to update comment.')} ${errorDetail}`);
+                this.notify(`${this.translate('alerts.update_error', 'Failed to update comment.')} ${errorDetail}`, 'danger');
             }
         } catch (error) {
             console.error('Error updating comment:', error);
-            alert(this.translate('alerts.update_error', 'Failed to update comment.'));
+            this.notify(this.translate('alerts.update_error', 'Failed to update comment.'), 'danger');
         }
     }
     
     async deleteComment(commentId) {
-        if (!confirm(this.translate('actions.confirm_delete', 'Delete this comment?'))) {
+        const confirmed = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(this.translate('actions.confirm_delete', 'Delete this comment?'), { danger: true })
+            : window.confirm(this.translate('actions.confirm_delete', 'Delete this comment?'));
+        if (!confirmed) {
             return;
         }
         
@@ -420,11 +458,11 @@ class CommentSystem {
                 this.loadComments();
             } else {
                 const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
-                alert(`${this.translate('alerts.delete_error', 'Failed to delete comment.')} ${errorDetail}`);
+                this.notify(`${this.translate('alerts.delete_error', 'Failed to delete comment.')} ${errorDetail}`, 'danger');
             }
         } catch (error) {
             console.error('Error deleting comment:', error);
-            alert(this.translate('alerts.delete_error', 'Failed to delete comment.'));
+            this.notify(this.translate('alerts.delete_error', 'Failed to delete comment.'), 'danger');
         }
     }
     
@@ -433,23 +471,21 @@ class CommentSystem {
         const cursorPos = textarea.selectionStart;
         const textBeforeCursor = textarea.value.substring(0, cursorPos);
         const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-        
-        if (lastAtIndex === -1 || lastAtIndex === cursorPos - 1) {
+
+        if (lastAtIndex === -1) {
             this.hideMentionSuggestions();
             return;
         }
-        
+
+        // Nur Mentions am aktuellen Cursor (kein @ mit Leerzeichen dazwischen)
         const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
         if (/\s/.test(textAfterAt)) {
             this.hideMentionSuggestions();
             return;
         }
-        
-        if (textAfterAt.length >= 2) {
-            await this.showMentionSuggestions(textarea, textAfterAt, lastAtIndex);
-        } else {
-            this.hideMentionSuggestions();
-        }
+
+        // Direkt ab "@" Vorschläge zeigen (Suche + 2–3 Treffer)
+        await this.showMentionSuggestions(textarea, textAfterAt, lastAtIndex);
     }
     
     async showMentionSuggestions(textarea, query, atIndex) {
@@ -462,28 +498,28 @@ class CommentSystem {
             suggestionsDiv.className = 'comment-mention-suggestions';
             container.appendChild(suggestionsDiv);
         }
-        
-        // Cache für Mentions
-        if (!this.mentionCache[query]) {
+
+        const cacheKey = query || '__all__';
+        if (!this.mentionCache[cacheKey]) {
             try {
-                const response = await fetch(`/api/comments/users/search?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/comments/users/search?q=${encodeURIComponent(query || '')}&limit=3`);
                 const data = await response.json();
-                this.mentionCache[query] = data.users || [];
+                this.mentionCache[cacheKey] = data.users || [];
             } catch (error) {
                 console.error('Error loading users:', error);
-                this.mentionCache[query] = [];
+                this.mentionCache[cacheKey] = [];
             }
         }
         
-        const users = this.mentionCache[query];
+        const users = (this.mentionCache[cacheKey] || []).slice(0, 3);
         
         if (users.length === 0) {
-            suggestionsDiv.innerHTML = `<div class="comment-mention-item">${this.translate('mentions.no_results', 'No users found')}</div>`;
+            suggestionsDiv.innerHTML = `<div class="comment-mention-item is-empty">${this.translate('mentions.no_results', 'No users found')}</div>`;
         } else {
             suggestionsDiv.innerHTML = users.map((user, index) => `
-                <div class="comment-mention-item ${index === 0 ? 'selected' : ''}" 
+                <div class="comment-mention-item ${index === 0 ? 'selected' : ''}"
                      data-user-name="${this.escapeHtml(user.mention)}"
-                     onclick="window.commentSystem.insertMention('${this.escapeHtml(user.mention)}', ${atIndex})">
+                     onclick="window.commentSystem.insertMention('${this.escapeHtml(user.mention).replace(/'/g, "\\'")}', ${atIndex})">
                     <div class="mention-name">${this.escapeHtml(user.name)}</div>
                     <div class="mention-email">${this.escapeHtml(user.email)}</div>
                 </div>

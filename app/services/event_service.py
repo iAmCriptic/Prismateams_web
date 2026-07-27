@@ -15,12 +15,25 @@ class EventService:
     def sync_calendar_for_appointment(event_obj, appointment, actor_user_id):
         calendar_event = appointment.calendar_event
         if calendar_event is None:
+            calendar_id = None
+            try:
+                from app.utils.multi_calendars import target_calendar_id_for_module_events
+                calendar_id = target_calendar_id_for_module_events()
+            except Exception:
+                calendar_id = None
             calendar_event = CalendarEvent(
                 created_by=actor_user_id,
                 recurrence_type='none',
+                calendar_id=calendar_id,
             )
             db.session.add(calendar_event)
             appointment.calendar_event = calendar_event
+        elif getattr(calendar_event, 'calendar_id', None) is None:
+            try:
+                from app.utils.multi_calendars import target_calendar_id_for_module_events
+                calendar_event.calendar_id = target_calendar_id_for_module_events()
+            except Exception:
+                pass
 
         calendar_event.title = EventService._calendar_title(event_obj.name, appointment.label)
         calendar_event.description = appointment.description or event_obj.description

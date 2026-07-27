@@ -1,16 +1,17 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Dokumente - {{ product.name }}{% endblock %}
+{% block inventory_heading_icon %}bi-file-earmark{% endblock %}
+{% block inventory_heading %}Dokumente für "{{ product.name }}"{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-file-earmark"></i> Dokumente für "{{ product.name }}"
-        </h1>
-    </div>
+
+{% block inventory_content %}
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
 </div>
-
 <div class="row">
     <div class="col-12 col-lg-8">
         <!-- Dokumente-Liste -->
@@ -65,7 +66,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{ doc.created_at.strftime('%d.%m.%Y') }}
+                                    {{ doc.created_at|localdatetime('%d.%m.%Y') }}
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
@@ -75,9 +76,9 @@
                                         </a>
                                         <form method="POST" 
                                               action="{{ url_for('inventory.product_document_delete', product_id=product.id, document_id=doc.id) }}" 
-                                              class="d-inline"
-                                              onsubmit="return confirm('Möchten Sie dieses Dokument wirklich löschen?');">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                              class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
+                                                    data-confirm-delete="Möchten Sie dieses Dokument wirklich löschen?">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>

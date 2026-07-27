@@ -32,6 +32,7 @@ class Credential(db.Model):
     notes = db.Column(db.Text, nullable=True)
     favicon_url = db.Column(db.String(500), nullable=True)
     folder_id = db.Column(db.Integer, db.ForeignKey('credential_folders.id'), nullable=True)
+    # Legacy global flag — prefer CredentialFavorite for per-user state
     is_favorite = db.Column(db.Boolean, nullable=False, default=False)
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -54,4 +55,21 @@ class Credential(db.Model):
         return f'<Credential {self.website_name}>'
 
 
+class CredentialFavorite(db.Model):
+    """Per-user credential favorites for the Zugangsdaten nav."""
+    __tablename__ = 'credential_favorites'
 
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    credential_id = db.Column(db.Integer, db.ForeignKey('credentials.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='credential_favorites')
+    credential = db.relationship('Credential', backref='favorited_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'credential_id', name='unique_user_credential_favorite'),
+    )
+
+    def __repr__(self):
+        return f'<CredentialFavorite user={self.user_id} credential={self.credential_id}>'

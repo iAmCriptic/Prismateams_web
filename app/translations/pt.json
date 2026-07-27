@@ -41,6 +41,13 @@
       "category_functional_desc": "Armazena preferências locais e habilita recursos PWA.",
       "category_analytics_title": "Estatísticas",
       "category_analytics_desc": "Estatísticas de uso anônimas para melhorar o portal (atualmente inativas)."
+    },
+    "pwa_install": {
+      "title": "Instalar app",
+      "description": "Instale o portal como app para acesso mais rápido e uso offline.",
+      "install": "Instalar",
+      "later": "Mais tarde",
+      "never": "Não mostrar novamente"
     }
   },
   "common": {
@@ -74,7 +81,10 @@
       "remember_me": "Manter conectado",
       "submit": "Entrar",
       "register_link_prefix": "Novo no Prismateams?",
-      "register_link_cta": "Criar uma conta"
+      "register_link_cta": "Criar uma conta",
+      "switch_title": "Novo por aqui?",
+      "switch_text": "Ainda não tem conta? Registre-se e comece com o Prismateams.",
+      "switch_cta": "Registrar"
     },
     "register": {
       "title": "Registrar",
@@ -90,13 +100,16 @@
       "dark_mode_help": "Você pode alterar esta configuração a qualquer momento no perfil.",
       "submit": "Criar conta",
       "login_link_prefix": "Já possui conta?",
-      "login_link_cta": "Entre aqui"
+      "login_link_cta": "Entre aqui",
+      "switch_title": "Já faz parte?",
+      "switch_text": "Já tem uma conta? Entre e continue.",
+      "switch_cta": "Entrar"
     },
     "confirm_email": {
       "title": "Confirmar e-mail",
       "subtitle": "Insira o código de verificação que enviamos.",
       "info_title": "Informação",
-      "info_message": "O código é válido por 15 minutos. Verifique também a pasta de spam.",
+      "info_message": "O código é válido por 24 horas. Verifique também a pasta de spam.",
       "code": "Código de verificação",
       "code_help": "Você encontra o código no e-mail com o assunto \"Confirmar e-mail\".",
       "submit": "Confirmar código",
@@ -166,11 +179,39 @@
         "return_by": "Devolver até {date}",
         "return_button": "Devolver",
         "empty": "Nenhum empréstimo ativo"
+      },
+      "contacts": {
+        "title": "Contactos",
+        "empty": "Sem contactos",
+        "call": "Ligar",
+        "mail": "E-mail"
       }
     },
     "quick_access": {
       "title": "Acesso rápido",
       "edit_dashboard": "Editar painel"
+    },
+    "greeting": {
+      "morning": "Bom dia, {name}!",
+      "afternoon": "Boa tarde, {name}!",
+      "evening": "Boa noite, {name}!"
+    },
+    "edit": {
+      "widgets": {
+        "add": "Adicionar widget",
+        "empty": "Ainda sem widgets.",
+        "calendars_label": "Calendários",
+        "contacts_label": "Selecionar contactos",
+        "contacts_hint": "Escolha até cinco contactos.",
+        "contacts_search": "Pesquisar contacto…",
+        "contacts_max": "Máximo 5 contactos",
+        "items": {
+          "kontakte": {
+            "label": "Contactos",
+            "description": "Mostra contactos selecionados."
+          }
+        }
+      }
     }
   },
   "media_downloader": {
@@ -178,19 +219,44 @@
     "heading": "Downloader de mídia",
     "description": "Baixe conteúdo do YouTube e YouTube Music como MP3 ou MP4.",
     "legal_notice": "Você é responsável por cumprir os direitos autorais e os termos das plataformas. Os arquivos são excluídos automaticamente após uma hora.",
+    "nav": {
+      "label": "Navegação do downloader de mídia",
+      "menu": "Menu",
+      "download": "Novo download",
+      "jobs": "Meus downloads",
+      "clear_all": "Limpar tudo"
+    },
     "form": {
       "title": "Novo download",
+      "link_box_title": "Link / Pesquisa",
+      "single_label": "Música / vídeo individual",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Apenas vídeos ou músicas individuais — sem playlists.",
+      "playlist_label": "Playlist",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Cole o link da playlist. As opções aparecem na caixa de segmento.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Suportado: YouTube e YouTube Music",
       "format_label": "Formato",
       "format_audio": "Áudio (MP3)",
       "format_video": "Vídeo (MP4)",
+      "segment_heading": "Segmento de tempo",
       "start_label": "Início (opcional)",
       "end_label": "Fim (opcional)",
       "time_placeholder": "M:SS",
       "segment_hint": "Opcional: baixar apenas um trecho (informe início e fim, ex.: 1:30 e 3:45).",
       "submit": "Iniciar download"
+    },
+    "search": {
+      "label": "Pesquisa YouTube",
+      "placeholder": "Pesquisar música ou artista…",
+      "hint": "Sugestões da API do YouTube — escolha um resultado para preencher a URL.",
+      "loading": "Pesquisando…",
+      "empty": "Nenhum resultado encontrado.",
+      "error": "Falha na pesquisa.",
+      "unavailable": "A pesquisa do YouTube não está disponível.",
+      "unavailable_hint": "Chave da API do YouTube em falta. Adicione-a em Definições → Música."
     },
     "jobs": {
       "title": "Meus downloads",
@@ -200,7 +266,15 @@
       "column_expires": "Disponível até",
       "column_actions": "Ações",
       "download": "Baixar",
-      "empty": "Nenhum download ainda."
+      "empty": "Nenhum download ainda.",
+      "clear_all": "Limpar tudo",
+      "clear_all_confirm": "Remover todos os downloads e cancelar os ativos?",
+      "delete_confirm": "Excluir este download?",
+      "open_source": "Abrir fonte",
+      "actions": "Ações",
+      "view_toggle": "Alternar visualização",
+      "view_list": "Vista de lista",
+      "view_grid": "Vista em grade"
     },
     "format": {
       "audio": "MP3",
@@ -210,7 +284,20 @@
       "pending": "Pendente",
       "processing": "Processando",
       "completed": "Concluído",
-      "failed": "Falhou"
+      "failed": "Cancelado por erro",
+      "cancelled": "Cancelado",
+      "cancelling": "Cancelando"
+    },
+    "playlist": {
+      "modal_title": "Baixar playlist",
+      "segment_heading": "Definições da playlist",
+      "inline_hint": "Todas as músicas completas ou timestamps por música — depois iniciar o download.",
+      "loading": "Carregando playlist…",
+      "song_count": "%(count)s músicas nesta playlist",
+      "mode_complete": "Baixar todas as músicas completas",
+      "mode_timestamps": "Definir timestamps por música",
+      "download_all": "Baixar playlist",
+      "preview_error": "Não foi possível carregar a playlist."
     },
     "flash": {
       "unavailable": "Downloader indisponível.",
@@ -230,7 +317,231 @@
       "err_age_restricted": "Este vídeo tem restrição de idade e não pode ser baixado sem login/cookies.",
       "err_video_unavailable": "Este vídeo não está disponível.",
       "err_download_failed": "Falha no download. Tente novamente.",
-      "file_missing": "Arquivo não encontrado."
+      "file_missing": "Arquivo não encontrado.",
+      "not_a_playlist": "Esta URL não é uma playlist.",
+      "empty_playlist": "A playlist não contém músicas para download.",
+      "preview_failed": "Falha na pré-visualização da playlist.",
+      "playlist_started": "%(count)s downloads foram iniciados.",
+      "use_playlist_modal": "Use a janela de playlist para baixar.",
+      "invalid_batch_item": "Item inválido na lista de download.",
+      "cancelled": "Download cancelado.",
+      "cancelling": "Cancelando download…"
+    }
+  },
+  "booking": {
+    "requests": {
+      "sidebar_brand": "Reservas",
+      "nav": {
+        "overview": "Visão geral",
+        "neu": "Novas",
+        "accepted": "Aceites",
+        "rejected": "Rejeitadas",
+        "archived": "Arquivadas",
+        "no_forms": "Sem formulários",
+        "public_link": "Link público"
+      },
+      "stats": {
+        "pending": "Pendentes",
+        "accepted": "Aceites",
+        "rejected": "Rejeitadas",
+        "archived": "Arquivadas",
+        "total": "Total",
+        "acceptance_rate": "Taxa de aceitação",
+        "upcoming": "Próximas",
+        "busy_days": "Dias ocupados",
+        "this_month": "Este mês"
+      },
+      "dashboard": {
+        "upcoming_title": "Próximas",
+        "upcoming_empty": "Sem reservas próximas",
+        "recent_title": "Recebidas recentemente"
+      }
+    },
+    "request_detail": {
+      "actions_heading": "Ações"
+    }
+  },
+  "music": {
+    "index": {
+      "nav": {
+        "label": "Navegação de música",
+        "menu": "Menu"
+      },
+      "played": {
+        "clear": "Limpar tocadas"
+      },
+      "sort": {
+        "heading": "Ordenação",
+        "field": "Campo",
+        "direction": "Direção",
+        "apply": "Aplicar",
+        "reset": "Repor",
+        "options": {
+          "created": "Criado",
+          "wish_count": "Pedidos"
+        },
+        "directions": {
+          "asc": "Ascendente",
+          "desc": "Descendente"
+        }
+      },
+      "confirmations": {
+        "title": "Confirmar",
+        "reset_title": "Repor tudo?",
+        "clear_played": "Limpar a lista de tocadas?"
+      }
+    }
+  },
+  "wiki": {
+    "index": {
+      "new_button": "Novo",
+      "nav": {
+        "menu": "Menu"
+      },
+      "sort": {
+        "menu_button": "Ordenação",
+        "field": "Campo",
+        "direction": "Direção",
+        "apply": "Aplicar",
+        "directions": {
+          "asc": "Ascendente",
+          "desc": "Descendente"
+        }
+      },
+      "filters": {
+        "menu_button": "Filtros",
+        "category": "Categoria",
+        "tag": "Tag",
+        "apply": "Aplicar"
+      },
+      "favorites": {
+        "title": "Favoritos",
+        "empty": "Sem favoritos"
+      }
+    }
+  },
+  "chat": {
+    "create": {
+      "page_title": "Novo chat - Team Portal",
+      "breadcrumb": {
+        "index": "Chats",
+        "current": "Novo chat"
+      },
+      "heading": "Novo chat",
+      "pick_member_hint": "Toque numa pessoa para começar a conversar de imediato.",
+      "new_group": "Novo grupo",
+      "members_heading": "Membros do portal",
+      "members_empty": "Não há outros membros disponíveis.",
+      "back_to_members": "Voltar",
+      "group_step_heading": "Novo grupo",
+      "group_step_hint": "Escolha membros à esquerda e detalhes à direita.",
+      "avatar": {
+        "label": "Foto do grupo",
+        "help": "Opcional — também pode definir mais tarde."
+      },
+      "form": {
+        "chat_type": {
+          "label": "Tipo de chat",
+          "group": "Chat de grupo",
+          "private": "Chat privado"
+        },
+        "chat_name": {
+          "label": "Nome do grupo",
+          "placeholder": "ex. Equipa do projeto"
+        },
+        "members": {
+          "label": "Adicionar membros",
+          "single_label": "Selecionar pessoa",
+          "help": "Selecione pelo menos um membro",
+          "help_private": "Selecione uma pessoa para o chat privado"
+        },
+        "buttons": {
+          "submit": "Criar chat",
+          "create_group": "Criar grupo",
+          "cancel": "Cancelar"
+        },
+        "alerts": {
+          "select_private": "Selecione uma pessoa para o chat privado.",
+          "enter_name": "Introduza um nome de chat.",
+          "select_members": "Selecione pelo menos um membro."
+        },
+        "description": {
+          "label": "Descrição",
+          "placeholder": "Opcional: Sobre o que é o grupo?",
+          "help": "Opcional"
+        }
+      },
+      "search": {
+        "placeholder": "Pesquisar pessoas...",
+        "empty": "Nenhuma pessoa encontrada."
+      }
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Chat da equipe",
+      "body_one": "1 nova mensagem",
+      "body_many": "{count} novas mensagens"
+    },
+    "file": {
+      "new_title": "Novo ficheiro",
+      "new_body": "{name} foi enviado",
+      "modified_title": "Ficheiro atualizado",
+      "modified_body": "{name} foi atualizado"
+    },
+    "email": {
+      "title": "Novo e-mail",
+      "body_one": "1 e-mail não lido",
+      "body_many": "{count} e-mails não lidos"
+    },
+    "calendar": {
+      "reminder_title": "Lembrete de evento",
+      "reminder_body": "{title} começa {time_text} ({date} às {time})",
+      "in_minutes": "em {count} minutos",
+      "in_hour_one": "em 1 hora",
+      "in_hours": "em {count} horas",
+      "in_day_one": "em 1 dia",
+      "in_days": "em {count} dias"
+    },
+    "booking": {
+      "request_title": "Novo pedido de reserva",
+      "request_body": "{event} – {applicant}",
+      "message_title": "Nova mensagem de reserva",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "push": {
+      "test_title": "Notificação de teste",
+      "test_body": "Teste de {portal_name}. Push funciona."
+    }
+  },
+  "email": {
+    "compose": {
+      "buttons": {
+        "save_draft": "Guardar rascunho",
+        "send": "Enviar",
+        "cancel": "Cancelar"
+      },
+      "messages": {
+        "draft_saved": "Rascunho guardado.",
+        "draft_empty": "Nada para guardar.",
+        "draft_error": "Nao foi possivel guardar o rascunho."
+      }
+    }
+  },
+  "files": {
+    "view": {
+      "history": "Histórico",
+      "history_loading": "A carregar versões...",
+      "history_empty": "Sem versões anteriores.",
+      "history_current": "atual",
+      "more": "Mais",
+      "version_label": "Versão {number}"
+    },
+    "index": {
+      "search_placeholder": "Pesquisar em ficheiros",
+      "search_empty": "Sem resultados nesta pasta."
     }
   }
 }

@@ -1,112 +1,139 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from app import db
-from app.models.assessment import (
-    AssessmentList,
-    AssessmentListSubject,
-    AssessmentStand,
-    AssessmentWarning,
-)
+from app.models.assessment import AssessmentStand, AssessmentWarning
 from app.utils.assessment_auth import assessment_role_required
+from app.utils.assessment_pdf import generate_warnings_pdf
+from app.utils.i18n import _
 
-from .helpers import resolve_evaluation_list_from_request, stands_for_list, subjects_for_list, validate_evaluation_target
+from .helpers import current_actor
 
 warnings_bp = Blueprint("warnings", __name__)
+
+
+def _warnings_payload():
+    warnings = AssessmentWarning.query.order_by(AssessmentWarning.timestamp.desc()).all()
+    return [
+        {
+            "id": w.id,
+            "list_id": w.list_id,
+            "stand_id": w.stand_id,
+            "subject_id": w.subject_id,
+            "target_name": (w.stand.name if w.stand else None)
+            or (w.subject.name if w.subject else None),
+            "comment": w.comment,
+            "timestamp": w.timestamp.isoformat() if w.timestamp else None,
+            "is_invalidated": w.is_invalidated,
+            "invalidation_comment": w.invalidation_comment,
+        }
+        for w in warnings
+    ]
 
 
 @warnings_bp.route("/")
 @assessment_role_required(["Administrator", "Verwarner"])
 def warnings_page():
-    lists = AssessmentList.query.filter_by(is_active=True).order_by(
-        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
-    ).all()
-    return render_template("assessment/warnings.html", evaluation_lists=lists)
+    return render_template("assessment/warnings.html")
 
 
-@warnings_bp.route("/api/items", methods=["GET", "POST", "PUT"])
+@warnings_bp.route("/pdf/warnings")
+@assessment_role_required(["Administrator", "Verwarner"])
+def pdf_warnings():
+    pdf = generate_warnings_pdf(_warnings_payload())
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="verwarnungen.pdf",
+    )
+
+
+@warnings_bp.route("/api/items", methods=["GET", "POST", "PUT", "DELETE"])
 @assessment_role_required(["Administrator", "Verwarner"])
 def warnings_api():
-    from .helpers import current_actor
-
     actor = current_actor()
-    evaluation_list = resolve_evaluation_list_from_request(require_active=False)
 
     if request.method == "GET":
-        query = AssessmentWarning.query
-        if evaluation_list:
-            query = query.filter_by(list_id=evaluation_list.id)
-        warnings = query.order_by(AssessmentWarning.timestamp.desc()).all()
-
-        targets = []
-        if evaluation_list:
-            if evaluation_list.subject_mode == "stand":
-                targets = [{"id": s.id, "name": s.name} for s in stands_for_list(evaluation_list)]
-            else:
-                targets = [{"id": s.id, "name": s.name} for s in subjects_for_list(evaluation_list)]
-        else:
-            targets = [{"id": s.id, "name": s.name} for s in AssessmentStand.query.order_by(AssessmentStand.name.asc()).all()]
-
+        targets = [
+            {"id": s.id, "name": s.name}
+            for s in AssessmentStand.query.order_by(AssessmentStand.name.asc()).all()
+        ]
         return jsonify(
             {
                 "success": True,
-                "list_id": evaluation_list.id if evaluation_list else None,
-                "subject_mode": evaluation_list.subject_mode if evaluation_list else "stand",
-                "warnings": [
-                    {
-                        "id": w.id,
-                        "list_id": w.list_id,
-                        "stand_id": w.stand_id,
-                        "subject_id": w.subject_id,
-                        "target_name": (w.stand.name if w.stand else None) or (w.subject.name if w.subject else None),
-                        "comment": w.comment,
-                        "timestamp": w.timestamp.isoformat() if w.timestamp else None,
-                        "is_invalidated": w.is_invalidated,
-                        "invalidation_comment": w.invalidation_comment,
-                    }
-                    for w in warnings
-                ],
+                "subject_mode": "stand",
+                "warnings": _warnings_payload(),
                 "targets": targets,
             }
         )
 
     data = request.get_json(silent=True) or {}
-    if request.method == "POST":
-        list_id = data.get("list_id")
-        if not list_id and evaluation_list:
-            list_id = evaluation_list.id
-        evaluation_list = AssessmentList.query.get(list_id) if list_id else None
-        if not evaluation_list:
-            return jsonify({"success": False, "message": "Bewertungsliste ist erforderlich."}), 400
 
+    if request.method == "POST":
         stand_id = data.get("stand_id")
-        subject_id = data.get("subject_id")
-        valid, _ = validate_evaluation_target(evaluation_list, stand_id=stand_id, subject_id=subject_id)
-        if not valid:
-            return jsonify({"success": False, "message": _}), 400
+        stand = AssessmentStand.query.get(stand_id) if stand_id else None
+        if not stand:
+            return jsonify({"success": False, "message": _("assessment.warnings.err_stand")}), 400
+
+        comment = (data.get("comment") or "").strip()
+        if not comment:
+            return jsonify({"success": False, "message": _("assessment.warnings.err_comment")}), 400
 
         warning = AssessmentWarning(
-            list_id=evaluation_list.id,
-            stand_id=stand_id if evaluation_list.subject_mode == "stand" else None,
-            subject_id=subject_id if evaluation_list.subject_mode == "custom" else None,
+            list_id=None,
+            stand_id=stand.id,
+            subject_id=None,
             user_type=actor["user_type"],
             user_id=actor["user_id"],
-            comment=(data.get("comment") or "").strip(),
+            comment=comment,
         )
-        if not warning.comment:
-            return jsonify({"success": False, "message": "Kommentar ist erforderlich."}), 400
         db.session.add(warning)
         db.session.commit()
-        return jsonify({"success": True, "message": "Verwarnung gespeichert."})
+        return jsonify({"success": True, "message": _("assessment.warnings.saved")})
 
     warning_id = data.get("id")
-    warning = AssessmentWarning.query.get(warning_id)
+    warning = AssessmentWarning.query.get(warning_id) if warning_id else None
     if not warning:
-        return jsonify({"success": False, "message": "Eintrag nicht gefunden."}), 404
-    warning.is_invalidated = True
-    warning.invalidation_comment = (data.get("invalidation_comment") or "").strip()
-    warning.invalidation_timestamp = datetime.utcnow()
-    warning.invalidated_by_user_id = actor["user_id"]
-    db.session.commit()
-    return jsonify({"success": True, "message": "Verwarnung wurde invalidiert."})
+        return jsonify({"success": False, "message": _("assessment.warnings.err_not_found")}), 404
+
+    if request.method == "DELETE":
+        db.session.delete(warning)
+        db.session.commit()
+        return jsonify({"success": True, "message": _("assessment.warnings.deleted")})
+
+    action = (data.get("action") or "update").strip().lower()
+
+    if action == "invalidate":
+        warning.is_invalidated = True
+        warning.invalidation_comment = (data.get("invalidation_comment") or "").strip() or None
+        warning.invalidation_timestamp = datetime.utcnow()
+        warning.invalidated_by_user_id = actor["user_id"]
+        db.session.commit()
+        return jsonify({"success": True, "message": _("assessment.warnings.lifted")})
+
+    if action == "reinstate":
+        warning.is_invalidated = False
+        warning.invalidation_comment = None
+        warning.invalidation_timestamp = None
+        warning.invalidated_by_user_id = None
+        db.session.commit()
+        return jsonify({"success": True, "message": _("assessment.warnings.reinstated")})
+
+    if action == "update":
+        comment = (data.get("comment") or "").strip()
+        if not comment:
+            return jsonify({"success": False, "message": _("assessment.warnings.err_comment")}), 400
+        stand_id = data.get("stand_id")
+        if stand_id is not None:
+            stand = AssessmentStand.query.get(stand_id)
+            if not stand:
+                return jsonify({"success": False, "message": _("assessment.warnings.err_stand")}), 400
+            warning.stand_id = stand.id
+            warning.subject_id = None
+        warning.comment = comment
+        db.session.commit()
+        return jsonify({"success": True, "message": _("assessment.warnings.updated")})
+
+    return jsonify({"success": False, "message": _("assessment.warnings.err_action")}), 400

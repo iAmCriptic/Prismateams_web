@@ -3,191 +3,136 @@
 {% block title %}{{ _('wiki.create.page_title') }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
-<style>
-    .wiki-editor-fullscreen {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background: var(--bs-body-bg);
-        z-index: 1060;
-        display: flex !important;
-        flex-direction: column !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-    }
-    
-    .wiki-metadata-section {
-        background: var(--bs-body-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        padding: 1rem 1.5rem;
-        flex-shrink: 0;
-    }
-    
-    .wiki-metadata-card {
-        background: var(--bs-secondary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.375rem;
-        padding: 1rem;
-    }
-    
-    .wiki-editor-toolbar {
-        background: var(--bs-body-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        padding: 0.75rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        flex-shrink: 0;
-    }
-    
-    .wiki-editor-content {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-    }
-    
-    .wiki-editor-textarea {
-        flex: 1 !important;
-        border: none !important;
-        outline: none !important;
-        padding: 1rem !important;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-        font-size: 14px !important;
-        line-height: 1.5 !important;
-        resize: none !important;
-        background: transparent !important;
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    #new_category_input {
-        display: none;
-    }
-    
-    #new_category_input.show {
-        display: block;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<form method="POST" id="createForm" action="{{ url_for('wiki.create') }}">
-<div class="wiki-editor-fullscreen">
-    <div class="wiki-metadata-section">
-        <div class="wiki-metadata-card">
-            <div class="row g-3">
-                <div class="col-12 col-md-4">
-                    <label for="title" class="form-label">{{ _('wiki.create.form.title.label') }}</label>
-                    <input type="text" class="form-control" id="title" name="title" value="{{ title or '' }}" required>
-                </div>
-                <div class="col-12 col-md-4">
-                    <label for="category_id" class="form-label">{{ _('wiki.create.form.category.label') }}</label>
-                    <select class="form-select" id="category_id" name="category_id" onchange="handleCategoryChange()">
-                        <option value="">{{ _('wiki.create.form.category.none') }}</option>
-                        <option value="__new__">{{ _('wiki.create.form.category.new_option') }}</option>
-                        {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <div id="new_category_input" class="mt-2">
-                        <input type="text" class="form-control" id="new_category_name" name="new_category_name" placeholder="{{ _('wiki.create.form.category.new_placeholder') }}">
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <label for="tags" class="form-label">{{ _('wiki.create.form.tags.label') }}</label>
-                    <input type="text" class="form-control" id="tags" name="tags" placeholder="{{ _('wiki.create.form.tags.placeholder') }}">
-                </div>
+<form method="POST" id="createForm" class="markdown-editor-fullscreen wiki-editor-shell" action="{{ url_for('wiki.create') }}">
+    <div class="markdown-editor-toolbar">
+        <div class="markdown-editor-brand">
+            {% if portal_logo_filename %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% elif app_logo %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% else %}
+            <span class="markdown-editor-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+            {% endif %}
+            <div class="markdown-editor-brand-text">
+                <span class="markdown-editor-filename" id="wikiBrandTitle" title="{{ title or _('wiki.create.page_title') }}">{{ title or _('wiki.create.page_title') }}</span>
+                <span class="markdown-editor-brand-kind">Wiki</span>
             </div>
         </div>
-    </div>
-    
-    <div class="wiki-editor-toolbar">
-        <button type="button" class="btn btn-outline-secondary" onclick="goBack()">
+
+        <div class="markdown-editor-toolbar-divider" aria-hidden="true"></div>
+
+        <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()">
             <i class="bi bi-arrow-left"></i> {{ _('wiki.create.toolbar.back') }}
         </button>
-        <button type="button" class="btn btn-accent" onclick="savePage()">
+        <button type="button" class="btn btn-accent files-pill-btn" id="saveBtn" onclick="savePage()">
             <i class="bi bi-check-lg"></i> {{ _('wiki.create.toolbar.submit') }}
         </button>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('bold')" title="{{ _('wiki.create.toolbar.bold') }}">
+
+        <div class="markdown-editor-toolbar-divider d-none d-md-block" aria-hidden="true"></div>
+
+        <div class="btn-group markdown-editor-toolgroup" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('bold')" title="{{ _('wiki.create.toolbar.bold') }}">
                 <i class="bi bi-type-bold"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('italic')" title="{{ _('wiki.create.toolbar.italic') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('italic')" title="{{ _('wiki.create.toolbar.italic') }}">
                 <i class="bi bi-type-italic"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('strikethrough')" title="{{ _('wiki.create.toolbar.strikethrough') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('strikethrough')" title="{{ _('wiki.create.toolbar.strikethrough') }}">
                 <i class="bi bi-type-strikethrough"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading1')" title="{{ _('wiki.create.toolbar.heading1') }}">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-lg-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading1')" title="{{ _('wiki.create.toolbar.heading1') }}">
                 <i class="bi bi-type-h1"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading2')" title="{{ _('wiki.create.toolbar.heading2') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading2')" title="{{ _('wiki.create.toolbar.heading2') }}">
                 <i class="bi bi-type-h2"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading3')" title="{{ _('wiki.create.toolbar.heading3') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading3')" title="{{ _('wiki.create.toolbar.heading3') }}">
                 <i class="bi bi-type-h3"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('link')" title="{{ _('wiki.create.toolbar.link') }}">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-xl-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('link')" title="{{ _('wiki.create.toolbar.link') }}">
                 <i class="bi bi-link-45deg"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('code')" title="{{ _('wiki.create.toolbar.code') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('code')" title="{{ _('wiki.create.toolbar.code') }}">
                 <i class="bi bi-code"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('list')" title="{{ _('wiki.create.toolbar.list') }}">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('list')" title="{{ _('wiki.create.toolbar.list') }}">
                 <i class="bi bi-list-ul"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('wikilink')" title="{{ _('wiki.create.toolbar.wikilink') }}">
-                <i class="bi bi-link"></i> [[
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('wikilink')" title="{{ _('wiki.create.toolbar.wikilink') }}">
+                <i class="bi bi-journal-text"></i>
             </button>
         </div>
-        
-        <div class="ms-auto">
-            <button type="button" class="btn btn-outline-primary" onclick="openPreview()">
+
+        <div class="markdown-editor-toolbar-end">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="openPreview()">
                 <i class="bi bi-eye"></i> {{ _('wiki.create.toolbar.preview') }}
             </button>
         </div>
     </div>
-    
-    <div class="wiki-editor-content">
-        <div class="container-fluid h-100">
-            <div class="row g-3 h-100">
-                <div class="col-12 col-md-8">
-                    <textarea 
-                        class="wiki-editor-textarea" 
-                        name="content" 
-                        id="wikiEditor"
-                        placeholder="{{ _('wiki.create.editor.placeholder') }}">{{ content or '' }}</textarea>
-                </div>
-            </div>
+
+    <div class="wiki-editor-meta" role="group" aria-label="{{ _('wiki.create.form.title.label') }}">
+        <label class="wiki-meta-chip wiki-meta-chip--title" for="title">
+            <span class="wiki-meta-chip-icon" aria-hidden="true"><i class="bi bi-type"></i></span>
+            <span class="wiki-meta-chip-body">
+                <span class="wiki-meta-chip-label">{{ _('wiki.create.form.title.label') }}</span>
+                <input type="text" class="wiki-meta-input" id="title" name="title" value="{{ title or '' }}" required placeholder="{{ _('wiki.create.form.title.label') }}">
+            </span>
+        </label>
+
+        <div class="wiki-meta-chip wiki-meta-chip--category" id="categoryChip">
+            <span class="wiki-meta-chip-icon" aria-hidden="true"><i class="bi bi-folder2"></i></span>
+            <span class="wiki-meta-chip-body">
+                <span class="wiki-meta-chip-label">{{ _('wiki.create.form.category.label') }}</span>
+                <span class="wiki-meta-chip-value"></span>
+                <select class="wiki-meta-input wiki-meta-select" id="category_id" name="category_id" onchange="handleCategoryChange()" aria-label="{{ _('wiki.create.form.category.label') }}">
+                    <option value="">{{ _('wiki.create.form.category.none') }}</option>
+                    <option value="__new__" data-icon="bi-folder-plus">{{ _('wiki.create.form.category.new_option') }}</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" data-icon="bi-folder2">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </span>
         </div>
+
+        <div class="wiki-meta-chip wiki-meta-chip--new-category" id="new_category_input">
+            <span class="wiki-meta-chip-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+            <span class="wiki-meta-chip-body">
+                <span class="wiki-meta-chip-label">{{ _('wiki.create.form.category.new_placeholder') }}</span>
+                <input type="text" class="wiki-meta-input" id="new_category_name" name="new_category_name" placeholder="{{ _('wiki.create.form.category.new_placeholder') }}">
+            </span>
+        </div>
+
+        <label class="wiki-meta-chip wiki-meta-chip--tags" for="tags">
+            <span class="wiki-meta-chip-icon" aria-hidden="true"><i class="bi bi-tags"></i></span>
+            <span class="wiki-meta-chip-body">
+                <span class="wiki-meta-chip-label">{{ _('wiki.create.form.tags.label') }}</span>
+                <input type="text" class="wiki-meta-input" id="tags" name="tags" placeholder="{{ _('wiki.create.form.tags.placeholder') }}">
+            </span>
+        </label>
     </div>
-</div>
+
+    <div class="markdown-editor-content">
+        <textarea
+            class="markdown-editor-textarea"
+            name="content"
+            id="wikiEditor"
+            placeholder="{{ _('wiki.create.editor.placeholder') }}">{{ content or '' }}</textarea>
+    </div>
 </form>
 
+<script src="{{ url_for('static', filename='js/wiki_meta_select.js') }}"></script>
 <script>
 const WIKI_CREATE_I18N = {{ current_translations.get('wiki', {}).get('create', {})|tojson }};
 const WIKI_CREATE_TOOLBAR = WIKI_CREATE_I18N.toolbar || {};
@@ -195,32 +140,46 @@ const WIKI_CREATE_ALERTS = WIKI_CREATE_I18N.alerts || {};
 const WIKI_CREATE_EDITOR = WIKI_CREATE_I18N.editor || {};
 const WIKI_CREATE_FORMAT = WIKI_CREATE_I18N.format_defaults || {};
 
-function wikiCreateTranslate(path, fallback = '') {
-    return path.split('.').reduce((obj, key) => (obj && obj[key] !== undefined ? obj[key] : undefined), WIKI_CREATE_I18N) ?? fallback;
-}
-
 function formatDefault(key, fallback) {
     return WIKI_CREATE_FORMAT[key] || fallback;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const editor = document.getElementById('wikiEditor');
+    const titleInput = document.getElementById('title');
+    const brandTitle = document.getElementById('wikiBrandTitle');
+    const fallbackTitle = {{ _('wiki.create.page_title')|tojson }};
+
     if (editor) {
         editor.placeholder = WIKI_CREATE_EDITOR.placeholder || editor.placeholder;
         editor.focus();
     }
+
+    function syncBrandTitle() {
+        if (!brandTitle || !titleInput) return;
+        const value = titleInput.value.trim() || fallbackTitle;
+        brandTitle.textContent = value;
+        brandTitle.title = value;
+    }
+
+    if (titleInput) {
+        titleInput.addEventListener('input', syncBrandTitle);
+        syncBrandTitle();
+    }
+
+    handleCategoryChange();
 });
 
 function handleCategoryChange() {
     const categorySelect = document.getElementById('category_id');
     const newCategoryInput = document.getElementById('new_category_input');
     const newCategoryName = document.getElementById('new_category_name');
-    
+
     if (categorySelect.value === '__new__') {
-        newCategoryInput.classList.add('show');
+        newCategoryInput.classList.add('is-visible');
         newCategoryName.focus();
     } else {
-        newCategoryInput.classList.remove('show');
+        newCategoryInput.classList.remove('is-visible');
         newCategoryName.value = '';
     }
 }
@@ -234,12 +193,14 @@ function savePage() {
     const title = document.getElementById('title').value.trim();
     const categorySelect = document.getElementById('category_id');
     const newCategoryName = document.getElementById('new_category_name').value.trim();
-    
+    const saveBtn = document.getElementById('saveBtn');
+
     if (!title) {
         alert(WIKI_CREATE_ALERTS.title_required || 'Please enter a title.');
+        document.getElementById('title').focus();
         return;
     }
-    
+
     if (categorySelect.value === '__new__') {
         if (!newCategoryName) {
             alert(WIKI_CREATE_ALERTS.new_category_required || 'Please enter a name for the new category.');
@@ -247,13 +208,12 @@ function savePage() {
         }
         categorySelect.value = '';
     }
-    
-    const saveBtn = document.querySelector('.btn-accent');
+
     if (saveBtn) {
         saveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> ${WIKI_CREATE_EDITOR.saving || 'Creating...'}`;
         saveBtn.disabled = true;
     }
-    
+
     form.submit();
 }
 
@@ -262,7 +222,7 @@ function formatText(type) {
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     const selectedText = editor.value.substring(start, end);
-    
+
     let replacement = '';
     switch(type) {
         case 'bold':
@@ -296,7 +256,7 @@ function formatText(type) {
             replacement = `[[${selectedText || formatDefault('page_name', 'Page name')}]]`;
             break;
     }
-    
+
     editor.value = editor.value.substring(0, start) + replacement + editor.value.substring(end);
     const newCursorPos = start + replacement.length;
     editor.setSelectionRange(newCursorPos, newCursorPos);
@@ -304,12 +264,16 @@ function formatText(type) {
 }
 
 function openPreview() {
-    alert('Vorschau ueber /view ist bei neuen Seiten erst nach dem ersten Speichern verfuegbar.');
+    alert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.');
 }
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         goBack();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        savePage();
     }
 });
 </script>

@@ -81,4 +81,23 @@ class ChatMessage(db.Model):
         self.metadata_json = json.dumps(value, ensure_ascii=False)
 
 
+class ChatPin(db.Model):
+    """Per-user pinned chats for the chat nav (max 6 enforced in API)."""
+    __tablename__ = 'chat_pins'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='chat_pins')
+    chat = db.relationship('Chat', backref='pinned_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'chat_id', name='unique_user_chat_pin'),
+    )
+
+    def __repr__(self):
+        return f'<ChatPin user={self.user_id} chat={self.chat_id}>'
+
 

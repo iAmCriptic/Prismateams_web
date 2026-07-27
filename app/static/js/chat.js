@@ -23,6 +23,16 @@
         return document.getElementById(id);
     }
 
+    function notify(message, category) {
+        const msg = String(message || "");
+        if (!msg) return;
+        if (typeof window.showAppBanner === "function") {
+            window.showAppBanner(msg, category || "danger");
+            return;
+        }
+        console.warn(msg);
+    }
+
     function escapeHtml(value) {
         const div = document.createElement("div");
         div.textContent = value || "";
@@ -319,7 +329,7 @@
             if (fileLabelId && byId(fileLabelId)) byId(fileLabelId).textContent = "";
             scrollToBottom();
         } catch (err) {
-            alert((i18n.send_error_prefix || "Fehler: {error}").replace("{error}", err.message || ""));
+            notify((i18n.send_error_prefix || "Fehler: {error}").replace("{error}", err.message || ""));
         } finally {
             isSendingMessage = false;
         }
@@ -344,7 +354,7 @@
             lastMessageId = payload.id;
             scrollToBottom();
         } catch (err) {
-            alert(err.message || "Fehler beim Senden");
+            notify(err.message || "Fehler beim Senden");
         } finally {
             isSendingMessage = false;
         }
@@ -369,7 +379,7 @@
             lastMessageId = payload.id;
             scrollToBottom();
         } catch (e) {
-            alert(e.message || i18n.voice_error || "Sprachnachricht fehlgeschlagen");
+            notify(e.message || i18n.voice_error || "Sprachnachricht fehlgeschlagen");
         } finally {
             isSendingMessage = false;
         }
@@ -401,7 +411,7 @@
             if (micIcon) micIcon.className = "bi bi-stop-circle fs-5 text-danger";
             if (micIconDesktop) micIconDesktop.className = "bi bi-stop-circle text-danger";
         } catch (e) {
-            alert(i18n.microphone_denied || "Mikrofonzugriff verweigert");
+            notify(i18n.microphone_denied || "Mikrofonzugriff verweigert");
         }
     };
 
@@ -528,7 +538,7 @@
             }
             new bootstrap.Modal(modalEl).show();
         } catch (error) {
-            alert(error.message || "Ordner konnten nicht geladen werden");
+            notify(error.message || "Ordner konnten nicht geladen werden");
         }
     }
 
@@ -555,7 +565,7 @@
                 });
             new bootstrap.Modal(modalEl).show();
         } catch (error) {
-            alert(error.message || "Termine konnten nicht geladen werden");
+            notify(error.message || "Termine konnten nicht geladen werden");
         }
     }
 
@@ -574,7 +584,7 @@
                 replaceCalendarCardInMessage(messageElement, payload.message);
             }
         } catch (error) {
-            alert(error.message || "Antwort konnte nicht gespeichert werden");
+            notify(error.message || "Antwort konnte nicht gespeichert werden");
         }
     }
 
@@ -634,7 +644,7 @@
                 replacePollCardInMessage(messageElement, payload.message);
             }
         } catch (e) {
-            alert(e.message || "Abstimmung fehlgeschlagen");
+            notify(e.message || "Abstimmung fehlgeschlagen");
         }
     }
 
@@ -744,7 +754,7 @@
                     .slice(0, 8)
                     .map((line, index) => ({ id: `opt_${index + 1}`, text: line, votes: [] }));
                 if (options.length < 2) {
-                    alert("Bitte mindestens zwei Optionen angeben.");
+                    notify("Bitte mindestens zwei Optionen angeben.");
                     return;
                 }
                 await sendStructuredMessage("poll", { question, description, options, allow_multiple: allowMultiple, total_votes: 0 });
@@ -759,13 +769,13 @@
                 event.preventDefault();
                 const selectEl = byId("folder-picker-select");
                 if (!selectEl || !selectEl.value) {
-                    alert("Bitte einen Ordner auswählen.");
+                    notify("Bitte einen Ordner auswählen.");
                     return;
                 }
                 const selectedOption = selectEl.options[selectEl.selectedIndex];
                 const folderId = Number(selectEl.value);
                 if (!Number.isFinite(folderId) || folderId <= 0) {
-                    alert("Bitte einen gültigen Ordner auswählen.");
+                    notify("Bitte einen gültigen Ordner auswählen.");
                     return;
                 }
                 const note = (byId("folder-picker-note")?.value || "").trim();
@@ -786,13 +796,13 @@
                 const selectEl = byId("calendar-picker-select");
                 const note = (byId("calendar-picker-note")?.value || "").trim();
                 if (!selectEl || !selectEl.value) {
-                    alert("Bitte einen Termin auswählen.");
+                    notify("Bitte einen Termin auswählen.");
                     return;
                 }
 
                 const eventId = Number(selectEl.value);
                 if (!Number.isFinite(eventId) || eventId <= 0) {
-                    alert("Bitte einen gültigen Termin auswählen.");
+                    notify("Bitte einen gültigen Termin auswählen.");
                     return;
                 }
 
@@ -829,7 +839,7 @@
                     bootstrap.Modal.getInstance(byId("calendarPickerModal"))?.hide();
                     calendarForm.reset();
                 } catch (error) {
-                    alert(error.message || "Termin konnte nicht gesendet werden");
+                    notify(error.message || "Termin konnte nicht gesendet werden");
                 }
             });
         }
@@ -867,6 +877,14 @@
             initial.style.display = "flex";
             initial.textContent = name ? name[0].toUpperCase() : "?";
         }
+
+        // Avoid stacked modals when opening a profile from "Alle Mitglieder"
+        const allMembers = byId("allMembersModal");
+        if (allMembers) {
+            const openAll = bootstrap.Modal.getInstance(allMembers);
+            if (openAll) openAll.hide();
+        }
+
         const modal = byId("memberModal");
         if (modal) new bootstrap.Modal(modal).show();
     };

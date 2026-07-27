@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
@@ -22,24 +23,105 @@ ALLOWED_HOSTS = {
 
 TIME_PATTERN = re.compile(r'^(\d+):([0-5]\d)(?::([0-5]\d))?$')
 
-PLAYLIST_LIST_PREFIXES = ('PL', 'RD', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
+# True playlists / albums / library lists. RD (mix/radio) intentionally excluded.
+PLAYLIST_LIST_PREFIXES = ('PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
+
+FFMPEG_FALLBACK_PATHS = (
+    '/usr/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg',
+)
 
 
 class DownloadCancelledError(Exception):
     """Raised when an active download should be cancelled."""
 
 
+def normalize_media_url(url):
+    """Trim, strip wrapping junk, and ensure http(s) scheme for YouTube URLs."""
+    if not url or not str(url).strip():
+        return ''
+
+    cleaned = str(url).strip()
+    # First URL in pasted text (chat messages, etc.)
+    match = re.search(r'https?://[^\s<>"\']+', cleaned, flags=re.IGNORECASE)
+    if match:
+        cleaned = match.group(0)
+    else:
+        # Bare youtube.com / youtu.be without scheme
+        bare = re.search(
+            r'(?:www\.)?(?:music\.)?(?:m\.)?(?:youtube\.com|youtu\.be)/\S+',
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        if bare:
+            cleaned = 'https://' + bare.group(0).lstrip('/')
+
+    cleaned = cleaned.rstrip(').,;\'"')
+    return cleaned
+
+
+def _normalize_host(netloc):
+    host = (netloc or '').lower().split(':')[0]
+    if host.startswith('www.'):
+        host = host[4:]
+    return host
+
+
+def _is_allowed_host(host):
+    if not host:
+        return False
+    if host in ALLOWED_HOSTS:
+        return True
+    if f'www.{host}' in ALLOWED_HOSTS:
+        return True
+    # m.youtube.com / music.youtube.com already covered; allow *.youtube.com
+    if host.endswith('.youtube.com') or host == 'youtube.com' or host == 'youtu.be':
+        return True
+    return False
+
+
 def get_ffmpeg_path():
-    """Return configured FFmpeg path or discover it on PATH."""
+    """Return configured FFmpeg path or discover it on PATH / common locations."""
     configured = current_app.config.get('FFMPEG_PATH', '')
     if configured and os.path.isfile(configured):
         return configured
-    return shutil.which('ffmpeg')
+
+    found = shutil.which('ffmpeg')
+    if found:
+        return found
+
+    for candidate in FFMPEG_FALLBACK_PATHS:
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None
 
 
 def is_media_downloader_compatible():
     """True when FFmpeg is available (system requirement for downloads)."""
     return bool(get_ffmpeg_path())
+
+
+def get_ffmpeg_version():
+    """Return installed FFmpeg version string, or None if unavailable."""
+    ffmpeg_path = get_ffmpeg_path()
+    if not ffmpeg_path:
+        return None
+
+    try:
+        result = subprocess.run(
+            [ffmpeg_path, '-version'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        first_line = (result.stdout or '').splitlines()[0] if result.stdout else ''
+        match = re.search(r'ffmpeg version\s+(\S+)', first_line, flags=re.IGNORECASE)
+        return match.group(1) if match else None
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError):
+        logger.debug('Could not determine FFmpeg version', exc_info=True)
+        return None
 
 
 def _get_playlist_list_id(parsed):
@@ -50,30 +132,65 @@ def _get_playlist_list_id(parsed):
     return list_id or None
 
 
+def _is_true_playlist_list_id(list_id):
+    """True when list= ID looks like a real playlist (not mix/radio RD…)."""
+    if not list_id:
+        return False
+    upper = list_id.upper()
+    return any(upper.startswith(prefix) for prefix in PLAYLIST_LIST_PREFIXES)
+
+
 def is_playlist_url(url):
     """Return True when the URL refers to a YouTube / YouTube Music playlist."""
-    if not url or not url.strip():
+    url = normalize_media_url(url)
+    if not url:
         return False
 
-    parsed = urlparse(url.strip())
-    host = parsed.netloc.lower().split(':')[0]
-    if host not in ALLOWED_HOSTS:
+    parsed = urlparse(url)
+    host = _normalize_host(parsed.netloc)
+    if not _is_allowed_host(host):
         return False
 
-    path = parsed.path.rstrip('/').lower()
+    path = parsed.path.rstrip('/').lower() or '/'
     list_id = _get_playlist_list_id(parsed)
 
-    if path.endswith('/playlist') and list_id:
+    # Explicit playlist pages (YouTube + YouTube Music)
+    if path == '/playlist' or path.endswith('/playlist'):
+        return bool(list_id)
+
+    # Any allowed host with a real playlist list= id (watch, share, music browse…)
+    if _is_true_playlist_list_id(list_id):
         return True
 
-    if path in ('/watch', '') or path.startswith('/watch'):
-        return list_id is not None
-
-    if host.startswith('music.') and path.strip('/'):
-        if path.endswith('/playlist') or list_id:
+    if host.startswith('music.') or host == 'music.youtube.com':
+        if path.startswith('/browse/') and list_id:
             return True
+        if path.startswith('/playlist'):
+            return bool(list_id)
 
     return False
+
+
+def canonicalize_playlist_url(url):
+    """
+    Rewrite watch/share/music URLs with list= to a canonical /playlist?list= URL.
+
+    yt-dlp often returns _type=url (no entries) for watch?v=…&list=PL… links;
+    /playlist?list=… extracts entries reliably.
+    """
+    url = normalize_media_url(url)
+    if not url or not is_playlist_url(url):
+        return url
+
+    parsed = urlparse(url)
+    list_id = _get_playlist_list_id(parsed)
+    if not list_id:
+        return url
+
+    host = _normalize_host(parsed.netloc)
+    if host.startswith('music.') or host == 'music.youtube.com':
+        return f'https://music.youtube.com/playlist?list={list_id}'
+    return f'https://www.youtube.com/playlist?list={list_id}'
 
 
 def validate_media_url(url):
@@ -83,36 +200,46 @@ def validate_media_url(url):
     Returns:
         tuple: (is_valid: bool, error_key: str | None)
     """
-    if not url or not url.strip():
+    url = normalize_media_url(url)
+    if not url:
         return False, 'empty_url'
 
-    parsed = urlparse(url.strip())
+    parsed = urlparse(url)
     if parsed.scheme not in ('http', 'https'):
         return False, 'invalid_scheme'
 
-    host = parsed.netloc.lower().split(':')[0]
-    if host not in ALLOWED_HOSTS:
+    host = _normalize_host(parsed.netloc)
+    raw_host = (parsed.netloc or '').lower().split(':')[0]
+    if raw_host not in ALLOWED_HOSTS and not _is_allowed_host(host):
         return False, 'invalid_host'
 
     if host in ('youtu.be',) and not parsed.path.strip('/'):
         return False, 'invalid_url'
 
-    path = parsed.path.rstrip('/').lower()
-    if path.endswith('/playlist'):
-        if _get_playlist_list_id(parsed):
+    path = parsed.path.rstrip('/').lower() or '/'
+    list_id = _get_playlist_list_id(parsed)
+
+    # Playlist URLs are always valid when they carry a list id
+    if path == '/playlist' or path.endswith('/playlist'):
+        if list_id:
             return True, None
         return False, 'invalid_url'
 
-    if host.endswith('youtube.com') and 'watch' not in parsed.path and 'shorts' not in parsed.path:
-        if host.startswith('music.') and parsed.path.strip('/'):
-            return True, None
-        if host.startswith('music.'):
-            return False, 'invalid_url'
-        if parsed.path.strip('/') and parsed.path not in ('/', ''):
-            if not parsed.path.startswith('/watch') and not parsed.path.startswith('/shorts'):
-                return False, 'invalid_url'
+    if _is_true_playlist_list_id(list_id):
+        return True, None
 
-    return True, None
+    if host.startswith('music.') or host == 'music.youtube.com':
+        if path.strip('/') or list_id:
+            return True, None
+        return False, 'invalid_url'
+
+    if path.startswith('/watch') or path.startswith('/shorts') or host == 'youtu.be':
+        return True, None
+
+    if path in ('/', ''):
+        return False, 'invalid_url'
+
+    return False, 'invalid_url'
 
 
 def _time_string_to_seconds(time_str):
@@ -157,7 +284,11 @@ def parse_time_segment(start_str, end_str):
 
 def get_upload_dir():
     base = current_app.config['UPLOAD_FOLDER']
-    target = os.path.join(base, 'media_downloader')
+    if not os.path.isabs(base):
+        # Defense: avoid Flask send_file resolving relative paths under app.root_path
+        project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
+        base = os.path.join(project_root, base)
+    target = os.path.abspath(os.path.join(base, 'media_downloader'))
     os.makedirs(target, exist_ok=True)
     return target
 
@@ -169,7 +300,7 @@ def get_retention_timedelta():
 
 def _get_common_ydl_opts():
     """Shared yt-dlp options for metadata extraction and downloads."""
-    max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 524288000)
+    max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 100 * 1024 * 1024)
     ffmpeg_path = get_ffmpeg_path()
 
     ydl_opts = {
@@ -184,12 +315,6 @@ def _get_common_ydl_opts():
                 'Chrome/125.0.0.0 Safari/537.36'
             ),
             'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-        },
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web'],
-                'skip': ['hls', 'dash'],
-            }
         },
         'retries': 3,
         'fragment_retries': 3,
@@ -211,42 +336,153 @@ def extract_playlist_entries(url):
     """
     import yt_dlp
 
-    ydl_opts = _get_common_ydl_opts()
-    ydl_opts.update({
-        'extract_flat': 'in_playlist',
-        'skip_download': True,
-    })
+    url = canonicalize_playlist_url(normalize_media_url(url))
+    if not url:
+        return None, 'empty_url'
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except Exception as exc:
-        logger.error('Playlist preview failed for %s: %s', url, exc, exc_info=True)
-        return None, 'preview_failed'
+    def _pull(target_url, opts):
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(target_url, download=False)
+
+    def _materialize_entries(raw):
+        if raw is None:
+            return None
+        try:
+            return [e for e in raw]
+        except TypeError:
+            return []
+
+    def _has_usable_entries(info):
+        if not info:
+            return False
+        materialized = _materialize_entries(info.get('entries'))
+        if materialized is None:
+            return False
+        # Cache list back onto info so generators are not consumed twice
+        info['entries'] = materialized
+        return any(bool(e) for e in materialized)
+
+    base_opts = _get_common_ydl_opts()
+    attempts = [
+        {
+            **base_opts,
+            'extract_flat': True,
+            'skip_download': True,
+            'noplaylist': False,
+            'yes_playlist': True,
+            'playlistend': 500,
+            'ignoreerrors': True,
+        },
+        {
+            **base_opts,
+            'extract_flat': 'in_playlist',
+            'skip_download': True,
+            'noplaylist': False,
+            'ignoreerrors': True,
+        },
+        {
+            **base_opts,
+            'skip_download': True,
+            'noplaylist': False,
+            'yes_playlist': True,
+            'playlistend': 200,
+            'ignoreerrors': True,
+        },
+    ]
+
+    info = None
+    last_exc = None
+    tried_urls = []
+    urls_to_try = [url]
+
+    for target_url in urls_to_try:
+        if target_url in tried_urls:
+            continue
+        tried_urls.append(target_url)
+
+        for opts in attempts:
+            try:
+                candidate = _pull(target_url, opts)
+            except Exception as exc:
+                last_exc = exc
+                logger.warning('Playlist preview attempt failed for %s: %s', target_url, exc)
+                continue
+
+            if not candidate:
+                continue
+
+            # watch?list=… often returns a redirect stub — follow once
+            if candidate.get('_type') == 'url' and candidate.get('url'):
+                redirect = normalize_media_url(candidate.get('url'))
+                if redirect:
+                    redirect = canonicalize_playlist_url(redirect) or redirect
+                    if redirect not in tried_urls and redirect not in urls_to_try:
+                        urls_to_try.append(redirect)
+                info = candidate
+                continue
+
+            info = candidate
+            if _has_usable_entries(candidate):
+                break
+        if _has_usable_entries(info):
+            break
 
     if not info:
-        return None, 'empty_playlist'
+        if last_exc:
+            logger.error('Playlist preview failed for %s: %s', url, last_exc, exc_info=True)
+        return None, 'preview_failed'
+
+    entries_raw = _materialize_entries(info.get('entries'))
+    if entries_raw is None:
+        if info.get('_type') == 'url' and info.get('url'):
+            redirect = canonicalize_playlist_url(info.get('url')) or normalize_media_url(info.get('url'))
+            if redirect and redirect not in tried_urls:
+                try:
+                    info = _pull(redirect, attempts[0]) or {}
+                    entries_raw = _materialize_entries(info.get('entries'))
+                except Exception as exc:
+                    logger.warning('Playlist redirect follow failed for %s: %s', redirect, exc)
+                    return None, 'preview_failed'
+        if entries_raw is None:
+            if info.get('_type') == 'playlist':
+                entries_raw = []
+            else:
+                return None, 'not_a_playlist'
+    else:
+        info['entries'] = entries_raw
 
     entries = []
-    for entry in info.get('entries') or []:
+    for entry in entries_raw or []:
         if not entry:
             continue
 
         video_id = (entry.get('id') or '').strip()
+        # Flat extracts sometimes put the video id in ie_key/url fields only
+        if not video_id:
+            raw_url = (entry.get('url') or '').strip()
+            if raw_url and not raw_url.startswith(('http://', 'https://')) and '/' not in raw_url:
+                video_id = raw_url
 
         title = (entry.get('title') or '').strip()
-        if title in ('[Private video]', '[Deleted video]'):
+        if title in ('[Private video]', '[Deleted video]', '[Unavailable video]'):
             continue
 
-        entry_url = (entry.get('url') or entry.get('webpage_url') or '').strip()
+        entry_url = (entry.get('webpage_url') or '').strip()
+        if not entry_url:
+            entry_url = (entry.get('url') or '').strip()
         if entry_url and not entry_url.startswith(('http://', 'https://')):
             if 'watch?' in entry_url:
                 entry_url = f'https://www.youtube.com/{entry_url.lstrip("/")}'
             else:
+                # Flat mode: url is often just the video id
                 entry_url = f'https://www.youtube.com/watch?v={entry_url}'
         if not entry_url:
             if not video_id:
                 continue
+            entry_url = f'https://www.youtube.com/watch?v={video_id}'
+
+        # Never keep playlist URLs as entry targets
+        if is_playlist_url(entry_url) and video_id:
             entry_url = f'https://www.youtube.com/watch?v={video_id}'
 
         entries.append({
@@ -281,6 +517,7 @@ def run_download(job, should_cancel=None):
 
     ydl_opts = _get_common_ydl_opts()
     ydl_opts['outtmpl'] = output_template
+    ydl_opts['noplaylist'] = True
 
     if job.format == 'audio':
         ydl_opts.update({
@@ -342,9 +579,14 @@ def run_download(job, should_cancel=None):
         message = str(exc).lower()
         if 'http error 403' in message or 'forbidden' in message:
             return False, 'err_http_403'
-        if 'sign in to confirm your age' in message:
+        if (
+            'sign in to confirm your age' in message
+            or 'confirm your age' in message
+            or 'age-restricted' in message
+            or 'age restricted' in message
+        ):
             return False, 'err_age_restricted'
-        if 'video is unavailable' in message:
+        if 'video is unavailable' in message or 'video unavailable' in message:
             return False, 'err_video_unavailable'
         if 'output_not_found' in message:
             return False, 'output_not_found'

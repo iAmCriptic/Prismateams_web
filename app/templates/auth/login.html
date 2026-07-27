@@ -1,3 +1,4 @@
+{% set force_light_theme = true %}
 {% extends "base.html" %}
 
 {% block title %}{{ _('auth.login.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
@@ -5,8 +6,8 @@
 {% block content %}
 <div class="auth-container auth-login">
     <div class="auth-card">
-        <div class="card">
-            <div class="card-body p-4">
+        <div class="auth-panel">
+            <div class="auth-panel-body">
                 <h1 class="text-center mb-4">
                     {% if portal_logo_filename %}
                     <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
@@ -18,8 +19,8 @@
                     {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-2">{{ _('auth.login.title') }}</h5>
-                <p class="text-center text-muted mb-4">{{ _('auth.login.subtitle') }}</p>
-                
+                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.login.subtitle') }}</p>
+
                 <form method="POST">
                     {% if request.args.get('next') %}
                     <input type="hidden" name="next" value="{{ request.args.get('next') }}">
@@ -28,7 +29,7 @@
                         <label for="email" class="form-label">E-Mail oder Benutzername</label>
                         <input type="text" class="form-control" id="email" name="email" autocomplete="username" required autofocus>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="password" class="form-label">{{ _('auth.login.password') }}</label>
                         <div class="input-group">
@@ -38,7 +39,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="remember" name="remember">
                         <label class="form-check-label" for="remember">
@@ -48,18 +49,18 @@
 
                     {% set bot_context = 'login' %}
                     {% include 'auth/_bot_protection.html' %}
-                    
+
                     <button type="submit" class="btn btn-accent w-100 mb-3">{{ _('auth.login.submit') }}</button>
                 </form>
-                
+
                 <div class="text-center mb-3">
                     <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">
                         {{ _('auth.login.forgot_password') }}
                     </a>
                 </div>
-                
+
                 <hr class="my-4">
-                
+
                 <p class="text-center mb-0">
                     {{ _('auth.login.register_link_prefix') }}
                     <a href="{{ url_for('auth.register') }}">{{ _('auth.login.register_link_cta') }}</a>
@@ -69,43 +70,5 @@
     </div>
 </div>
 
-<script>
-// Farbverlauf-Vorschau für Auth-Seiten
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    const container = document.querySelector('.auth-container');
-    const isMobile = window.innerWidth <= 768;
-    
-    // Auf mobilen Geräten keinen Farbverlauf - einfacher Hintergrund
-    if (isMobile) {
-        // Kein Farbverlauf auf mobilen Geräten - einfacher Hintergrund
-        body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        body.style.backgroundAttachment = 'scroll';
-        container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        container.style.backgroundAttachment = 'scroll';
-        container.style.backgroundSize = 'auto';
-    } else {
-        // Vollständiger Farbverlauf für Desktop
-        {% if color_gradient %}
-        body.style.background = '{{ color_gradient }}';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = '{{ color_gradient }}';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% else %}
-        // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-        body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% endif %}
-    }
-});
-</script>
+{% include 'auth/_auth_bg.html' %}
 {% endblock %}
-
-
-

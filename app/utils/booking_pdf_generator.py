@@ -1,233 +1,242 @@
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from flask import current_app
-from io import BytesIO
-from datetime import datetime
-import os
+"""PDF-Generator für Buchungsanfragen — Portal-Standardlayout."""
+
+from __future__ import annotations
+
 import re
-from app.utils.pdf_generator import get_logo_path
+from datetime import datetime
+from io import BytesIO
+
+from flask import current_app
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
+
+from app.utils.pdf_generator import (
+    build_standard_header,
+    build_standard_pdf,
+    pdf_paragraph_styles,
+    standard_table_style,
+)
+
+
+def _applicant_display_name(booking_request) -> str:
+    if booking_request.applicant_name:
+        return booking_request.applicant_name
+    email = booking_request.email or ''
+    if '@' in email:
+        return email.split('@', 1)[0]
+    return email
+
+
+def _build_time_range(booking_request) -> str:
+    if not booking_request.event_date:
+        return ''
+    date_str = booking_request.event_date.strftime('%d.%m.%Y')
+    if booking_request.event_start_time and booking_request.event_end_time:
+        return (
+            f"{date_str} von {booking_request.event_start_time.strftime('%H:%M')} Uhr "
+            f"bis {booking_request.event_end_time.strftime('%H:%M')} Uhr"
+        )
+    if booking_request.event_start_time:
+        return f"{date_str} ab {booking_request.event_start_time.strftime('%H:%M')} Uhr"
+    return date_str
+
+
+def _role_approver_name(booking_request, role) -> str:
+    for appr in booking_request.approvals:
+        if appr.role_id != role.id:
+            continue
+        if appr.status in {'approved', 'rejected'} and appr.approver:
+            return appr.approver.full_name
+    return ''
+
+
+def _status_text(booking_request, roles) -> tuple[str, bool]:
+    is_rejected = False
+    for role in roles:
+        for appr in booking_request.approvals:
+            if appr.role_id == role.id and appr.status == 'rejected':
+                is_rejected = True
+                break
+        if is_rejected:
+            break
+
+    if is_rejected:
+        return 'Abgelehnt', True
+    if booking_request.status == 'accepted':
+        return 'Angenommen', False
+    return 'Ausstehend', False
+
+
+def _apply_placeholders(text: str, booking_request) -> str:
+    form = booking_request.form
+    roles = sorted(form.roles, key=lambda r: r.role_order)
+    applicant_name = _applicant_display_name(booking_request)
+    applicant_email = booking_request.email or ''
+    status_text, is_rejected = _status_text(booking_request, roles)
+    time_range = _build_time_range(booking_request)
+    event_name = booking_request.event_name or ''
+
+    replacements = {
+        '{applicant_name}': applicant_name,
+        '{name}': applicant_name,
+        '{applicant}': applicant_name,
+        '{applicant_email}': applicant_email,
+        '{email}': applicant_email,
+        '{event_name}': event_name,
+        '{time_range}': time_range,
+        '{status}': status_text,
+        '{approved}': 'Angenommen' if booking_request.status == 'accepted' else 'Nicht angenommen',
+        '{rejected}': 'Abgelehnt' if is_rejected else 'Nicht abgelehnt',
+    }
+
+    for idx, role in enumerate(roles, start=1):
+        role_text = _role_approver_name(booking_request, role)
+        for key in (
+            f'{{role_{idx}}}',
+            f'{{Role_{idx}}}',
+            f'{{ROLE_{idx}}}',
+            f'{{role {idx}}}',
+            f'{{Role {idx}}}',
+            f'{{ROLE {idx}}}',
+            f'{{role{idx}}}',
+            f'{{Role{idx}}}',
+            f'{{ROLE{idx}}}',
+        ):
+            replacements[key] = role_text
+
+    result = text
+    for placeholder, value in replacements.items():
+        result = result.replace(placeholder, str(value))
+
+    for idx, role in enumerate(roles, start=1):
+        role_text = _role_approver_name(booking_request, role)
+        pattern = rf'\{{[Rr][Oo][Ll][Ee][_\s]*{idx}\}}'
+        result = re.sub(pattern, role_text, result)
+
+    return result
+
+
+def _secondary_logo_flowable(path: str, size=2.0 * cm):
+    if not path:
+        return None
+    try:
+        return Image(path, width=size, height=size, kind='proportional')
+    except Exception as exc:
+        current_app.logger.warning(f'Konnte optionales 2. Logo nicht laden: {exc}')
+        return None
+
+
+def _field_values_table(booking_request, usable_width: float):
+    rows = [['Feld', 'Wert']]
+    for fv in booking_request.field_values:
+        label = fv.field.field_label if fv.field else f'Feld #{fv.field_id}'
+        value = fv.field_value or ''
+        rows.append([str(label), str(value)])
+    if len(rows) <= 1:
+        return None
+    col1 = usable_width * 0.35
+    col2 = usable_width * 0.65
+    table = Table(rows, colWidths=[col1, col2])
+    table.setStyle(standard_table_style(header=True))
+    return table
 
 
 def generate_booking_request_pdf(booking_request, output=None):
     """
-    Generiert ein PDF für eine Buchungsanfrage mit benutzerdefiniertem Text.
-    
+    Generiert ein PDF für eine Buchungsanfrage im Portal-Standardstil.
+
     Args:
         booking_request: BookingRequest Objekt
         output: BytesIO Objekt oder Dateipfad (optional)
-    
+
     Returns:
         BytesIO Objekt mit PDF-Daten (falls output=None)
     """
     if output is None:
         output = BytesIO()
-    
-    doc = SimpleDocTemplate(output, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
-    story = []
-    
-    styles = getSampleStyleSheet()
-    
-    # Header mit Logos
-    logo_path = get_logo_path()
-    secondary_logo_path = booking_request.form.secondary_logo_path
-    
-    # Erstelle Logo-Tabelle (zwei Spalten wenn beide Logos vorhanden)
-    if logo_path and secondary_logo_path:
-        # Beide Logos nebeneinander
-        logo_table_data = []
-        logo_row = []
-        
-        try:
-            logo1 = Image(logo_path, width=3*cm, height=3*cm, kind='proportional')
-            logo_row.append(logo1)
-        except Exception as e:
-            current_app.logger.warning(f"Konnte primäres Logo nicht laden: {e}")
-            logo_row.append(Paragraph("", styles['Normal']))
-        
-        try:
-            logo2 = Image(secondary_logo_path, width=3*cm, height=3*cm, kind='proportional')
-            logo_row.append(logo2)
-        except Exception as e:
-            current_app.logger.warning(f"Konnte optionales 2. Logo nicht laden: {e}")
-            logo_row.append(Paragraph("", styles['Normal']))
-        
-        logo_table_data.append(logo_row)
-        logo_table = Table(logo_table_data, colWidths=[9*cm, 9*cm])
-        logo_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        story.append(logo_table)
-    elif logo_path:
-        # Nur primäres Logo
-        try:
-            logo = Image(logo_path, width=3*cm, height=3*cm, kind='proportional')
-            story.append(logo)
-        except Exception as e:
-            current_app.logger.warning(f"Konnte Logo nicht laden: {e}")
-    elif secondary_logo_path:
-        # Nur sekundäres Logo
-        try:
-            logo = Image(secondary_logo_path, width=3*cm, height=3*cm, kind='proportional')
-            story.append(logo)
-        except Exception as e:
-            current_app.logger.warning(f"Konnte optionales 2. Logo nicht laden: {e}")
-    
-    story.append(Spacer(1, 0.5*cm))
-    
-    # Titel (wird immer übernommen)
-    title_style = ParagraphStyle(
-        'BookingTitle',
-        parent=styles['Heading1'],
-        fontSize=20,
-        textColor=colors.HexColor('#0d6efd'),
-        alignment=TA_CENTER,
-        spaceAfter=10
-    )
-    story.append(Paragraph(booking_request.form.title, title_style))
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Benutzerdefinierter PDF-Text mit Platzhaltern
+
+    usable_width = A4[0] - 4 * cm
     form = booking_request.form
+    story = []
+
+    header = build_standard_header(
+        form.title,
+        subtitle=booking_request.event_name or None,
+        pagesize=A4,
+        content_width=usable_width,
+    )
+    secondary = _secondary_logo_flowable(getattr(form, 'secondary_logo_path', None))
+    if secondary:
+        logo_col = 2.6 * cm
+        header_with_second = Table(
+            [[header, secondary]],
+            colWidths=[usable_width - logo_col, logo_col],
+        )
+        header_with_second.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(header_with_second)
+    else:
+        story.append(header)
+
+    story.append(Spacer(1, 0.45 * cm))
+
+    ps = pdf_paragraph_styles()
+    meta_style = ParagraphStyle(
+        'BookingMeta',
+        parent=ps['muted'],
+        fontSize=10,
+        spaceAfter=4,
+    )
+    story.append(Paragraph(
+        f"Antragsteller: {_applicant_display_name(booking_request)} · {booking_request.email or '—'}",
+        meta_style,
+    ))
+    time_range = _build_time_range(booking_request)
+    if time_range:
+        story.append(Paragraph(f"Zeitraum: {time_range}", meta_style))
+    story.append(Spacer(1, 0.35 * cm))
+
     if form.pdf_application_text:
-        # Bereite Platzhalter vor
-        replacements = {}
-        
-        # Antragsteller - Name aus dem Formular
-        applicant_name = booking_request.applicant_name if booking_request.applicant_name else booking_request.email.split('@')[0] if '@' in booking_request.email else booking_request.email
-        replacements['{applicant}'] = applicant_name
-        
-        # Zeitraum
-        time_range = ""
-        if booking_request.event_date:
-            date_str = booking_request.event_date.strftime('%d.%m.%Y')
-            if booking_request.event_start_time and booking_request.event_end_time:
-                time_range = f"{date_str} von {booking_request.event_start_time.strftime('%H:%M')} Uhr bis {booking_request.event_end_time.strftime('%H:%M')} Uhr"
-            elif booking_request.event_start_time:
-                time_range = f"{date_str} ab {booking_request.event_start_time.strftime('%H:%M')} Uhr"
-            else:
-                time_range = date_str
-        replacements['{time_range}'] = time_range
-        
-        # Zustimmungsrollen (durchnummeriert ab 1) - zeigt nur den Namen der Person
-        roles = sorted(form.roles, key=lambda r: r.role_order)
-        for idx, role in enumerate(roles, start=1):
-            approval = None
-            for appr in booking_request.approvals:
-                if appr.role_id == role.id:
-                    approval = appr
-                    break
-            
-            role_text = ""  # Leer wenn noch keine Zustimmung
-            if approval:
-                if approval.status == 'approved' and approval.approver:
-                    role_text = approval.approver.full_name
-                elif approval.status == 'rejected' and approval.approver:
-                    role_text = approval.approver.full_name
-            
-            # Unterstütze verschiedene Schreibweisen des Platzhalters
-            replacements[f'{{role_{idx}}}'] = role_text
-            replacements[f'{{Role_{idx}}}'] = role_text
-            replacements[f'{{ROLE_{idx}}}'] = role_text
-            replacements[f'{{role {idx}}}'] = role_text
-            replacements[f'{{Role {idx}}}'] = role_text
-            replacements[f'{{ROLE {idx}}}'] = role_text
-            replacements[f'{{role{idx}}}'] = role_text
-            replacements[f'{{Role{idx}}}'] = role_text
-            replacements[f'{{ROLE{idx}}}'] = role_text
-        
-        # Status - zeigt ob der Antrag angenommen oder abgelehnt wurde
-        status_text = "Ausstehend"
-        
-        # Prüfe ob jemand abgelehnt hat (wenn ja, ist der Antrag abgelehnt)
-        is_rejected = False
-        for role in roles:
-            approval = None
-            for appr in booking_request.approvals:
-                if appr.role_id == role.id:
-                    approval = appr
-                    break
-            
-            if approval and approval.status == 'rejected':
-                is_rejected = True
-                break  # Sobald einer ablehnt, ist der Antrag abgelehnt
-        
-        if is_rejected:
-            status_text = "Abgelehnt"
-        elif booking_request.status == 'accepted':
-            status_text = "Angenommen"
-        
-        # Setze Platzhalter
-        replacements['{status}'] = status_text
-        # Alte Platzhalter für Rückwärtskompatibilität (falls noch verwendet)
-        replacements['{approved}'] = "Angenommen" if booking_request.status == 'accepted' else "Nicht angenommen"
-        replacements['{rejected}'] = "Abgelehnt" if is_rejected else "Nicht abgelehnt"
-        
-        # Ersetze alle Platzhalter im Text
-        pdf_text = form.pdf_application_text
-        
-        # Ersetze alle definierten Platzhalter
-        for placeholder, value in replacements.items():
-            pdf_text = pdf_text.replace(placeholder, str(value))
-        
-        # Zusätzlich: Ersetze Rollen-Platzhalter in verschiedenen Schreibweisen (case-insensitive)
-        # Unterstützt: {role_1}, {Role_1}, {ROLE_1}, {role 1}, {Role 1}, {role1}, {Role1}, etc.
-        roles = sorted(form.roles, key=lambda r: r.role_order)
-        for idx, role in enumerate(roles, start=1):
-            approval = None
-            for appr in booking_request.approvals:
-                if appr.role_id == role.id:
-                    approval = appr
-                    break
-            
-            role_text = ""
-            if approval:
-                if approval.status == 'approved' and approval.approver:
-                    role_text = approval.approver.full_name
-                elif approval.status == 'rejected' and approval.approver:
-                    role_text = approval.approver.full_name
-            
-            # Ersetze alle Varianten des Platzhalters (case-insensitive, mit/ohne Leerzeichen, mit/ohne Unterstrich)
-            # Pattern: {role_1}, {role 1}, {role1}, {Role_1}, {Role 1}, {Role1}, etc.
-            pattern = rf'\{{[Rr][Oo][Ll][Ee][_\s]*{idx}\}}'
-            pdf_text = re.sub(pattern, role_text, pdf_text)
-        
-        # Konvertiere Zeilenumbrüche zu HTML <br/> Tags für Paragraph
-        # Paragraph unterstützt HTML-ähnliche Tags, aber nicht \n
+        pdf_text = _apply_placeholders(form.pdf_application_text, booking_request)
         pdf_text = pdf_text.replace('\n', '<br/>')
-        
-        # Rendere den Text als Paragraph (Paragraph unterstützt HTML-ähnliche Tags)
         text_style = ParagraphStyle(
-            'PDFText',
-            parent=styles['Normal'],
+            'BookingPdfText',
+            parent=ps['body'],
             fontSize=11,
             alignment=TA_LEFT,
-            spaceAfter=15,
-            leading=16
+            spaceAfter=12,
+            leading=16,
         )
         story.append(Paragraph(pdf_text, text_style))
-    
-    # Footer mit Erstellungsdatum
-    story.append(Spacer(1, 1*cm))
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=TA_CENTER,
-    )
-    footer_text = f"Erstellt am {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-    story.append(Paragraph(footer_text, footer_style))
-    
-    # PDF bauen
-    doc.build(story)
-    
+
+    fields_table = _field_values_table(booking_request, usable_width)
+    if fields_table:
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(fields_table)
+
+    if form.pdf_footer_text:
+        story.append(Spacer(1, 0.45 * cm))
+        footer_extra = _apply_placeholders(form.pdf_footer_text, booking_request).replace('\n', '<br/>')
+        footer_style = ParagraphStyle(
+            'BookingPdfFooterExtra',
+            parent=ps['muted'],
+            fontSize=9,
+            leading=12,
+        )
+        story.append(Paragraph(footer_extra, footer_style))
+
+    build_standard_pdf(story, pagesize=A4, output=output)
+
     if isinstance(output, BytesIO):
         output.seek(0)
         return output
-    
     return output

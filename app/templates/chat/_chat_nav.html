@@ -1,0 +1,15 @@
+{# Chat list used in desktop sidebar and mobile index. #}
+{% set nav_items = nav_items|default([]) %}
+{% set active_chat_id = active_chat_id|default(none) %}
+
+<nav class="chat-nav-list" aria-label="{{ _('chat.index.heading') }}">
+    {% if nav_items %}
+        {% for item in nav_items %}
+            {% include 'chat/_chat_nav_item.html' %}
+        {% endfor %}
+    {% else %}
+        <div class="chat-nav-empty text-muted small px-2 py-3">
+            {{ _('chat.index.empty') }}
+        </div>
+    {% endif %}
+</nav>

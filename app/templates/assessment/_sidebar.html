@@ -1,0 +1,118 @@
+{# Assessment module secondary nav — Inventory/Files pattern #}
+{% macro assessment_nav_attr(dismiss_offcanvas) -%}
+{% if dismiss_offcanvas %} data-assessment-dismiss-offcanvas="1"{% endif %}
+{%- endmacro %}
+
+{% macro assessment_sidebar_nav(dismiss_offcanvas=false) %}
+{% set ep = request.endpoint or '' %}
+{% set sections = assessment_sections|default([]) %}
+<div class="mod-sidebar-nav">
+    <div class="mod-sidebar-section">
+        <nav class="nav flex-column gap-1" aria-label="{{ _('assessment.nav.label') }}">
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.general.home' %}active{% endif %}"
+               href="{{ url_for('assessment.general.home') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>{{ _('assessment.nav.dashboard') }}
+            </a>
+            {% if 'evaluate' in sections %}
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.evaluations.evaluate_page' %}active{% endif %}"
+               href="{{ url_for('assessment.evaluations.evaluate_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>{{ _('assessment.nav.evaluate') }}
+            </a>
+            {% endif %}
+            {% if 'my_evaluations' in sections %}
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.evaluations.view_my_evaluations_page' %}active{% endif %}"
+               href="{{ url_for('assessment.evaluations.view_my_evaluations_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-ui-checks me-2" aria-hidden="true"></i>{{ _('assessment.nav.my_evaluations') }}
+            </a>
+            {% endif %}
+            {% if 'ranking' in sections %}
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.ranking.view_ranking' %}active{% endif %}"
+               href="{{ url_for('assessment.ranking.view_ranking') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-trophy me-2" aria-hidden="true"></i>{{ _('assessment.nav.ranking') }}
+            </a>
+            {% endif %}
+            {% if 'inspections' in sections %}
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.inspections.room_inspections_page' %}active{% endif %}"
+               href="{{ url_for('assessment.inspections.room_inspections_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-bucket me-2" aria-hidden="true"></i>{{ _('assessment.nav.inspections') }}
+            </a>
+            {% endif %}
+            {% if 'warnings' in sections %}
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.warnings.warnings_page' %}active{% endif %}"
+               href="{{ url_for('assessment.warnings.warnings_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-exclamation-octagon me-2" aria-hidden="true"></i>{{ _('assessment.nav.warnings') }}
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+
+    {% if 'admin' in sections %}
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">{{ _('assessment.nav.admin') }}</div>
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.lists.') %}active{% endif %}"
+               href="{{ url_for('assessment.lists.manage_lists_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-list-ul me-2" aria-hidden="true"></i>{{ _('assessment.nav.lists') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.stand_types.') %}active{% endif %}"
+               href="{{ url_for('assessment.stand_types.manage_stand_types_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-tags me-2" aria-hidden="true"></i>{{ _('assessment.nav.stand_types') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.stands.') %}active{% endif %}"
+               href="{{ url_for('assessment.stands.manage_stand_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-shop me-2" aria-hidden="true"></i>{{ _('assessment.nav.stands') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.criteria.') %}active{% endif %}"
+               href="{{ url_for('assessment.criteria.manage_criteria_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-list-check me-2" aria-hidden="true"></i>{{ _('assessment.nav.criteria') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.users.') %}active{% endif %}"
+               href="{{ url_for('assessment.users.manage_users_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-people me-2" aria-hidden="true"></i>{{ _('assessment.nav.users') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.rooms.') %}active{% endif %}"
+               href="{{ url_for('assessment.rooms.manage_rooms_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-door-open me-2" aria-hidden="true"></i>{{ _('assessment.nav.rooms') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep == 'assessment.general.manage_list_page' %}active{% endif %}"
+               href="{{ url_for('assessment.general.manage_list_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-trash me-2" aria-hidden="true"></i>{{ _('assessment.nav.reset') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if ep.startswith('assessment.admin_settings.') %}active{% endif %}"
+               href="{{ url_for('assessment.admin_settings.admin_settings_page') }}"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+                <i class="bi bi-sliders me-2" aria-hidden="true"></i>{{ _('assessment.nav.settings') }}
+            </a>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro assessment_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
+{% set sections = assessment_sections|default([]) %}
+{% if include_new and ('evaluate' in sections or 'print_blank' in sections) %}
+<div class="mod-sidebar-new-wrap w-100">
+    {% if 'evaluate' in sections %}
+    <a href="{{ url_for('assessment.evaluations.evaluate_page') }}" class="btn mod-sidebar-new w-100 text-start"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+        <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>{{ _('assessment.nav.evaluate') }}
+    </a>
+    {% endif %}
+    {% if 'print_blank' in sections %}
+    <a href="{{ assessment_print_url }}" class="btn assessment-sidebar-print w-100 text-start" target="_blank" rel="noopener" data-assessment-print{{ assessment_nav_attr(dismiss_offcanvas) }}>
+        <i class="bi bi-printer me-1" aria-hidden="true"></i>{{ _('assessment.nav.print') }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{{ assessment_sidebar_nav(dismiss_offcanvas) }}
+{% if session.get('user_scope') == 'assessment' %}
+<div class="mod-sidebar-footer mt-auto pt-3">
+    <div class="mod-sidebar-user text-truncate" title="{{ current_user.full_name }}">
+        <i class="bi bi-person-circle me-2" aria-hidden="true"></i>{{ current_user.full_name }}
+    </div>
+    <a href="{{ url_for('auth.logout') }}" class="nav-link mod-nav-link assessment-logout-link"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+        <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>{{ _('layout.nav.logout') }}
+    </a>
+</div>
+{% endif %}
+{% endmacro %}

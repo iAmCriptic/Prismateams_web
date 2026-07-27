@@ -35,6 +35,7 @@ instance/
 *.db
 *.sqlite
 *.sqlite3
+.schema_init.lock
 
 # Uploads
 uploads/
@@ -62,3 +63,8 @@ credential_key.key
 graphify-out/
 .graphify_python
 claude.md
+
+
+System level files
+.cursor/
+.graphify_python

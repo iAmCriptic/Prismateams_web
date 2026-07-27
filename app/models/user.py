@@ -60,7 +60,7 @@ class User(UserMixin, db.Model):
     # Guest Account Fields
     is_guest = db.Column(db.Boolean, default=False, nullable=False)  # Kennzeichnet Gast-Accounts
     guest_expires_at = db.Column(db.DateTime, nullable=True)  # Ablaufzeit für Gast-Accounts
-    guest_username = db.Column(db.String(100), nullable=True)  # Benutzername für Gast-Accounts (z.B. "max.mustermann" für "max.mustermann@gast.system.local")
+    guest_username = db.Column(db.String(100), nullable=True)  # Gast-Benutzername (Login: {username}@{guest_email_domain})
     
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
@@ -83,10 +83,13 @@ class User(UserMixin, db.Model):
     dashboard_config = db.Column(db.Text, nullable=True)
     
     show_update_notifications = db.Column(db.Boolean, default=True, nullable=False)
+
+    # What's New: zuletzt gesehene Versionsnummer (bei Release WHATS_NEW_VERSION bumpen → erneut anzeigen)
+    whats_new_seen_version = db.Column(db.String(32), nullable=True)
     
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')
-    uploaded_files = db.relationship('File', back_populates='uploader', cascade='all, delete-orphan')
+    uploaded_files = db.relationship('File', foreign_keys='File.uploaded_by', back_populates='uploader', cascade='all, delete-orphan')
     created_events = db.relationship('CalendarEvent', back_populates='creator', cascade='all, delete-orphan')
     event_participations = db.relationship('EventParticipant', back_populates='user', cascade='all, delete-orphan')
     email_permissions = db.relationship('EmailPermission', back_populates='user', uselist=False, cascade='all, delete-orphan')
@@ -111,6 +114,23 @@ class User(UserMixin, db.Model):
     def full_name(self):
         """Return user's full name."""
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def accent_highlight_color(self):
+        """Solid color for UI highlights (links, checkboxes).
+
+        When a gradient accent is set, use the first color stop so highlights
+        match the accent style instead of a leftover solid blue.
+        """
+        import re
+        if self.accent_gradient:
+            matches = re.findall(r'#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b', self.accent_gradient)
+            if matches:
+                raw = matches[0]
+                if len(raw) == 3:
+                    raw = ''.join(ch * 2 for ch in raw)
+                return f'#{raw.lower()}'
+        return (self.accent_color or '#0d6efd').lower()
     
     @property
     def accent_style(self):
@@ -139,22 +159,97 @@ class User(UserMixin, db.Model):
         return email_perm
     
     def get_dashboard_config(self):
-        """Gibt die Dashboard-Konfiguration zurück."""
+        """Gibt die Dashboard-Konfiguration zurück (inkl. widgets[]-Migration)."""
+        raw = None
         if self.dashboard_config:
             try:
-                return json.loads(self.dashboard_config)
-            except:
-                pass
-        # Standard-Konfiguration - nur die wichtigsten Widgets aktiv
+                raw = json.loads(self.dashboard_config)
+            except Exception:
+                raw = None
+        needs_persist = (
+            not isinstance(raw, dict)
+            or not isinstance(raw.get('widgets'), list)
+        )
+        normalized = self.normalize_dashboard_config(raw)
+        if needs_persist:
+            # Altes Schema einmalig speichern, damit Widget-IDs stabil bleiben
+            self.dashboard_config = json.dumps(normalized)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return normalized
+
+    @staticmethod
+    def _new_widget_instance_id():
+        import uuid
+        return uuid.uuid4().hex[:10]
+
+    @classmethod
+    def normalize_dashboard_config(cls, config):
+        """Stellt widgets[] bereit; migriert alte enabled_widgets-Listen."""
+        if not isinstance(config, dict):
+            config = {}
+
+        quick_access = config.get('quick_access_links')
+        if not isinstance(quick_access, list):
+            quick_access = ['files', 'credentials', 'manuals']
+
+        mobile_nav = config.get('mobile_nav_slots')
+        if not isinstance(mobile_nav, dict):
+            mobile_nav = {'left': 'chat', 'right': 'calendar'}
+
+        widgets = config.get('widgets')
+        if not isinstance(widgets, list):
+            widgets = None
+
+        if widgets is None:
+            enabled = config.get('enabled_widgets')
+            if not isinstance(enabled, list):
+                enabled = ['termine', 'nachrichten', 'emails', 'passwoerter']
+            widgets = []
+            for wtype in enabled:
+                if not wtype:
+                    continue
+                widgets.append({
+                    'id': cls._new_widget_instance_id(),
+                    'type': str(wtype),
+                })
+
+        normalized = []
+        for item in widgets:
+            if not isinstance(item, dict):
+                continue
+            wtype = item.get('type')
+            if not wtype:
+                continue
+            wid = item.get('id') or cls._new_widget_instance_id()
+            entry = {'id': str(wid), 'type': str(wtype)}
+            if wtype == 'termine':
+                cids = item.get('calendar_ids') or []
+                if isinstance(cids, list):
+                    entry['calendar_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)]
+                else:
+                    entry['calendar_ids'] = []
+            elif wtype == 'kontakte':
+                cids = item.get('contact_ids') or []
+                if isinstance(cids, list):
+                    entry['contact_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)][:3]
+                else:
+                    entry['contact_ids'] = []
+            normalized.append(entry)
+
         return {
-            "enabled_widgets": ["termine", "nachrichten", "emails", "passwoerter"],
-            "quick_access_links": ["files", "credentials", "manuals"],
-            "mobile_nav_slots": {"left": "chat", "right": "calendar"},
+            'widgets': normalized,
+            'enabled_widgets': [w['type'] for w in normalized],
+            'quick_access_links': quick_access,
+            'mobile_nav_slots': mobile_nav,
         }
-    
+
     def set_dashboard_config(self, config):
-        """Setzt die Dashboard-Konfiguration."""
-        self.dashboard_config = json.dumps(config)
+        """Setzt die Dashboard-Konfiguration (normalisiert)."""
+        normalized = self.normalize_dashboard_config(config)
+        self.dashboard_config = json.dumps(normalized)
         db.session.commit()
     
     def is_online(self, threshold_minutes=5):

@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, render_template, request, session
+from flask_login import current_user
 
 from app import db
 from app.models.assessment import AssessmentAppSetting, AssessmentUser

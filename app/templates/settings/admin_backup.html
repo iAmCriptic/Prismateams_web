@@ -1,270 +1,153 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
-{% block title %}Backup Import/Export - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.backup.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.backup.title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">Backup Import/Export</li>
-    </ol>
-</nav>
+{% block settings_content %}
+{% set cats = category_definitions if category_definitions is defined else [] %}
+<div class="settings-admin-backup">
+    <div class="settings-admin-backup-header">
+        <h1 class="settings-admin-backup-title">{{ _('settings.admin.backup.heading') }}</h1>
+        <p class="settings-admin-backup-subtitle">{{ _('settings.admin.backup.subtitle') }}</p>
+    </div>
 
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <!-- Export-Bereich -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="bi bi-download me-2"></i>Backup erstellen</h4>
+    <div class="settings-admin-backup-grid">
+        <section class="settings-admin-backup-card" aria-labelledby="backup-export-title">
+            <div class="settings-admin-backup-card-head">
+                <h2 id="backup-export-title" class="settings-admin-backup-section-title mb-0">
+                    <i class="bi bi-download" aria-hidden="true"></i>
+                    {{ _('settings.admin.backup.export_title') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <p class="text-muted mb-4">
-                    Erstellen Sie ein Backup Ihrer Daten. Wählen Sie die Kategorien aus, die Sie exportieren möchten.
+            <p class="settings-admin-backup-card-lead">{{ _('settings.admin.backup.export_lead') }}</p>
+
+            <form method="POST" id="exportForm" class="settings-admin-backup-form">
+                <input type="hidden" name="action" value="export">
+
+                <div class="settings-admin-backup-field">
+                    <div class="settings-admin-backup-label-row">
+                        <span class="form-label mb-0">{{ _('settings.admin.backup.categories_label') }}</span>
+                        <div class="settings-admin-backup-select-btns">
+                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="export" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="export" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
+                        </div>
+                    </div>
+                    <div class="settings-admin-backup-chips" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
+                        {% for cat in cats %}
+                        {% set cid = 'export_' ~ cat.key %}
+                        <div class="settings-admin-backup-chip-wrap">
+                            <input type="checkbox" class="btn-check" name="export_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
+                            <label class="settings-admin-backup-chip" for="{{ cid }}">
+                                <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
+                                <span>{{ _(cat.label_key) }}</span>
+                            </label>
+                            <button type="button" class="settings-admin-backup-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _(cat.help_key) }}" aria-label="{{ _(cat.help_key) }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <p class="settings-admin-backup-hint">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    {{ _('settings.admin.backup.export_hint') }}
                 </p>
-                
-                <form method="POST" id="exportForm">
-                    <input type="hidden" name="action" value="export">
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Zu exportierende Kategorien:</label>
-                        <div class="row g-3">
-                            {% for key, label in categories.items() %}
-                            <div class="col-md-6">
-                                <div class="form-check d-flex align-items-center">
-                                    <input class="form-check-input" type="checkbox" name="export_categories" value="{{ key }}" id="export_{{ key }}">
-                                    <label class="form-check-label flex-grow-1" for="export_{{ key }}">
-                                        {% if key == 'settings' %}
-                                            <i class="bi bi-gear me-2"></i>
-                                        {% elif key == 'users' %}
-                                            <i class="bi bi-people me-2"></i>
-                                        {% elif key == 'emails' %}
-                                            <i class="bi bi-envelope me-2"></i>
-                                        {% elif key == 'appointments' %}
-                                            <i class="bi bi-calendar-event me-2"></i>
-                                        {% elif key == 'credentials' %}
-                                            <i class="bi bi-key me-2"></i>
-                                        {% elif key == 'files' %}
-                                            <i class="bi bi-folder me-2"></i>
-                                        {% elif key == 'wiki' %}
-                                            <i class="bi bi-book me-2"></i>
-                                        {% elif key == 'comments' %}
-                                            <i class="bi bi-chat-left-text me-2"></i>
-                                        {% endif %}
-                                        {{ label }}
-                                    </label>
-                                    <i class="bi bi-info-circle text-info ms-2" 
-                                       data-bs-toggle="popover" 
-                                       data-bs-trigger="hover"
-                                       data-bs-placement="right"
-                                       data-bs-html="true"
-                                       data-bs-content="
-                                       {% if key == 'settings' %}
-                                       <strong>Enthält:</strong><br>
-                                       • System-Einstellungen (Portal-Name, Logo, Module-Aktivierung, Datei-Einstellungen)<br>
-                                       • Whitelist-Einträge (E-Mail-Adressen und Domains)
-                                       {% elif key == 'users' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Alle Benutzerdaten (Name, E-Mail, Profilbild, Einstellungen)<br>
-                                       • Passwort-Hashes (verschlüsselt, für Anmeldung nach Import)<br>
-                                       • Benachrichtigungseinstellungen
-                                       {% elif key == 'emails' %}
-                                       <strong>Enthält:</strong><br>
-                                       • E-Mail-Nachrichten (Betreff, Inhalt, Absender, Empfänger)<br>
-                                       • E-Mail-Anhänge<br>
-                                       • E-Mail-Berechtigungen (Lese- und Sende-Berechtigungen)
-                                       {% elif key == 'appointments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kalender-Termine (Titel, Beschreibung, Zeit, Ort)<br>
-                                       • Teilnehmer-Status (wer nimmt teil, wer hat abgelehnt)
-                                       {% elif key == 'credentials' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Website-Zugangsdaten (URL, Benutzername, Passwort, Notizen)<br>
-                                       <small class='text-muted'>Hinweis: Passwörter werden entschlüsselt exportiert</small>
-                                       {% elif key == 'files' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
-                                       • Ordnerstruktur<br>
-                                       • Datei-Versionen
-                                       {% elif key == 'wiki' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
-                                       • Wiki-Kategorien<br>
-                                       • Wiki-Tags<br>
-                                       • Wiki-Versionen
-                                       {% elif key == 'comments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
-                                       • Kommentar-Mentions (@-Erwähnungen)<br>
-                                       • Kommentar-Threads (Antworten)
-                                       {% endif %}
-                                       "
-                                       title="{{ label }}"></i>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll('export')">Alle auswählen</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll('export')">Alle abwählen</button>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Hinweis:</strong> Die Backup-Datei wird im Format <code>.prismateams</code> erstellt. 
-                        Benutzer-Passwörter werden als verschlüsselte Hashes exportiert, damit sich Benutzer nach dem Import weiterhin anmelden können.
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-download me-2"></i>Backup erstellen und herunterladen
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Import-Bereich -->
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0"><i class="bi bi-upload me-2"></i>Backup importieren</h4>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-4">
-                    Importieren Sie ein Backup. Wählen Sie die Kategorien aus, die Sie importieren möchten.
+                <p class="settings-admin-backup-warn">
+                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                    {{ _('settings.admin.backup.credentials_warn') }}
                 </p>
-                
-                <form method="POST" enctype="multipart/form-data" id="importForm">
-                    <input type="hidden" name="action" value="import">
-                    
-                    <div class="mb-3">
-                        <label for="backup_file" class="form-label fw-bold">Backup-Datei auswählen:</label>
-                        <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".prismateams" required>
-                        <div class="form-text">Nur .prismateams-Dateien werden akzeptiert.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Zu importierende Kategorien:</label>
-                        <div class="row g-3">
-                            {% for key, label in categories.items() %}
-                            <div class="col-md-6">
-                                <div class="form-check d-flex align-items-center">
-                                    <input class="form-check-input" type="checkbox" name="import_categories" value="{{ key }}" id="import_{{ key }}">
-                                    <label class="form-check-label flex-grow-1" for="import_{{ key }}">
-                                        {% if key == 'settings' %}
-                                            <i class="bi bi-gear me-2"></i>
-                                        {% elif key == 'users' %}
-                                            <i class="bi bi-people me-2"></i>
-                                        {% elif key == 'emails' %}
-                                            <i class="bi bi-envelope me-2"></i>
-                                        {% elif key == 'appointments' %}
-                                            <i class="bi bi-calendar-event me-2"></i>
-                                        {% elif key == 'credentials' %}
-                                            <i class="bi bi-key me-2"></i>
-                                        {% elif key == 'files' %}
-                                            <i class="bi bi-folder me-2"></i>
-                                        {% elif key == 'wiki' %}
-                                            <i class="bi bi-book me-2"></i>
-                                        {% elif key == 'comments' %}
-                                            <i class="bi bi-chat-left-text me-2"></i>
-                                        {% endif %}
-                                        {{ label }}
-                                    </label>
-                                    <i class="bi bi-info-circle text-info ms-2" 
-                                       data-bs-toggle="popover" 
-                                       data-bs-trigger="hover"
-                                       data-bs-placement="right"
-                                       data-bs-html="true"
-                                       data-bs-content="
-                                       {% if key == 'settings' %}
-                                       <strong>Enthält:</strong><br>
-                                       • System-Einstellungen (Portal-Name, Logo, Module-Aktivierung, Datei-Einstellungen)<br>
-                                       • Whitelist-Einträge (E-Mail-Adressen und Domains)
-                                       {% elif key == 'users' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Alle Benutzerdaten (Name, E-Mail, Profilbild, Einstellungen)<br>
-                                       • Passwort-Hashes (verschlüsselt, für Anmeldung nach Import)<br>
-                                       • Benachrichtigungseinstellungen
-                                       {% elif key == 'emails' %}
-                                       <strong>Enthält:</strong><br>
-                                       • E-Mail-Nachrichten (Betreff, Inhalt, Absender, Empfänger)<br>
-                                       • E-Mail-Anhänge<br>
-                                       • E-Mail-Berechtigungen (Lese- und Sende-Berechtigungen)
-                                       {% elif key == 'appointments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kalender-Termine (Titel, Beschreibung, Zeit, Ort)<br>
-                                       • Teilnehmer-Status (wer nimmt teil, wer hat abgelehnt)
-                                       {% elif key == 'credentials' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Website-Zugangsdaten (URL, Benutzername, Passwort, Notizen)<br>
-                                       <small class='text-muted'>Hinweis: Passwörter werden entschlüsselt exportiert</small>
-                                       {% elif key == 'files' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
-                                       • Ordnerstruktur<br>
-                                       • Datei-Versionen
-                                       {% elif key == 'wiki' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
-                                       • Wiki-Kategorien<br>
-                                       • Wiki-Tags<br>
-                                       • Wiki-Versionen
-                                       {% elif key == 'comments' %}
-                                       <strong>Enthält:</strong><br>
-                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
-                                       • Kommentar-Mentions (@-Erwähnungen)<br>
-                                       • Kommentar-Threads (Antworten)
-                                       {% endif %}
-                                       "
-                                       title="{{ label }}"></i>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll('import')">Alle auswählen</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll('import')">Alle abwählen</button>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Warnung:</strong> Beim Import werden bestehende Daten überschrieben oder neue Daten hinzugefügt. 
-                        IDs werden neu generiert. Stellen Sie sicher, dass Sie ein aktuelles Backup haben, bevor Sie importieren.
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success" onclick="return confirm('Sind Sie sicher, dass Sie das Backup importieren möchten?')">
-                            <i class="bi bi-upload me-2"></i>Backup importieren
-                        </button>
-                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">Zurück</a>
-                    </div>
-                </form>
+
+                <div class="settings-admin-backup-actions">
+                    <button type="submit" class="btn btn-accent settings-admin-backup-submit">
+                        <i class="bi bi-download" aria-hidden="true"></i>
+                        {{ _('settings.admin.backup.export_submit') }}
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="settings-admin-backup-card" aria-labelledby="backup-import-title">
+            <div class="settings-admin-backup-card-head">
+                <h2 id="backup-import-title" class="settings-admin-backup-section-title mb-0">
+                    <i class="bi bi-upload" aria-hidden="true"></i>
+                    {{ _('settings.admin.backup.import_title') }}
+                </h2>
             </div>
-        </div>
+            <p class="settings-admin-backup-card-lead">{{ _('settings.admin.backup.import_lead') }}</p>
+
+            <form method="POST" enctype="multipart/form-data" id="importForm" class="settings-admin-backup-form">
+                <input type="hidden" name="action" value="import">
+
+                <div class="settings-admin-backup-field">
+                    <label for="backup_file" class="form-label">{{ _('settings.admin.backup.file_label') }}</label>
+                    <input type="file" class="form-control settings-admin-backup-file" id="backup_file" name="backup_file" accept=".prismateams" required>
+                    <div class="form-text">{{ _('settings.admin.backup.file_help') }}</div>
+                </div>
+
+                <div class="settings-admin-backup-field">
+                    <div class="settings-admin-backup-label-row">
+                        <span class="form-label mb-0">{{ _('settings.admin.backup.categories_label') }}</span>
+                        <div class="settings-admin-backup-select-btns">
+                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="import" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="import" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
+                        </div>
+                    </div>
+                    <div class="settings-admin-backup-chips" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
+                        {% for cat in cats %}
+                        {% set cid = 'import_' ~ cat.key %}
+                        <div class="settings-admin-backup-chip-wrap">
+                            <input type="checkbox" class="btn-check" name="import_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
+                            <label class="settings-admin-backup-chip" for="{{ cid }}">
+                                <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
+                                <span>{{ _(cat.label_key) }}</span>
+                            </label>
+                            <button type="button" class="settings-admin-backup-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _(cat.help_key) }}" aria-label="{{ _(cat.help_key) }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <p class="settings-admin-backup-warn">
+                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                    {{ _('settings.admin.backup.import_warn') }}
+                </p>
+
+                <div class="settings-admin-backup-actions">
+                    <button type="submit" class="btn btn-accent settings-admin-backup-submit"
+                            data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
+                            data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
+                            data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
+                            data-pt-confirm-danger="false">
+                        <i class="bi bi-upload" aria-hidden="true"></i>
+                        {{ _('settings.admin.backup.import_submit') }}
+                    </button>
+                </div>
+            </form>
+        </section>
     </div>
 </div>
 
 <script>
-function selectAll(type) {
-    const checkboxes = document.querySelectorAll(`input[name="${type}_categories"]`);
-    checkboxes.forEach(cb => cb.checked = true);
-}
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.settings-admin-backup [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
 
-function deselectAll(type) {
-    const checkboxes = document.querySelectorAll(`input[name="${type}_categories"]`);
-    checkboxes.forEach(cb => cb.checked = false);
-}
-
-// Bootstrap Popover initialisieren
-document.addEventListener('DOMContentLoaded', function() {
-    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl);
+    document.querySelectorAll('[data-backup-select]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var type = btn.getAttribute('data-backup-select');
+            var mode = btn.getAttribute('data-backup-mode');
+            var checked = mode === 'all';
+            document.querySelectorAll('input[name="' + type + '_categories"]').forEach(function (cb) {
+                cb.checked = checked;
+            });
+        });
     });
 });
-
 </script>
 {% endblock %}
-

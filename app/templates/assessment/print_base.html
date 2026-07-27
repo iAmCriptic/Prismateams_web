@@ -4,15 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Druckansicht{% endblock %}</title>
+    {% set _created = assessment_print_created_at|default('') %}
+    {% set _portal = app_name or 'Prismateams' %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        @page { size: A4; margin: 18mm 16mm 22mm 16mm; }
+        /* Einheitlich wie Veranstaltungs-PDF: Logo links + Titel; Fuß Erstellt am | © | X/Y */
+        @page {
+            size: A4;
+            margin: 16mm 16mm 22mm 16mm;
+
+            @bottom-left {
+                content: "Erstellt am {{ _created }}";
+                font-family: Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #666666;
+                vertical-align: top;
+                padding-top: 4mm;
+                border-top: 0.6pt solid #bbbbbb;
+            }
+            @bottom-center {
+                content: "© {{ _portal }}";
+                font-family: Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #666666;
+                vertical-align: top;
+                padding-top: 4mm;
+                border-top: 0.6pt solid #bbbbbb;
+            }
+            @bottom-right {
+                content: counter(page) "/" counter(pages);
+                font-family: Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #666666;
+                vertical-align: top;
+                padding-top: 4mm;
+                border-top: 0.6pt solid #bbbbbb;
+            }
+        }
+
         :root { --accent: #0d6efd; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         html, body { background: #ffffff !important; color: #212529 !important; }
         body {
-            font-family: 'Inter', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-family: Helvetica, Arial, 'Segoe UI', sans-serif;
             margin: 0;
             padding: 0;
         }
@@ -20,7 +55,7 @@
             max-width: 210mm;
             min-height: 297mm;
             margin: 0 auto;
-            padding: 20mm 18mm 24mm 18mm;
+            padding: 12mm 16mm 28mm 16mm;
             box-sizing: border-box;
             background: #fff;
             display: flex;
@@ -30,33 +65,76 @@
         .print-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 10px;
-            margin-bottom: 22px;
+            gap: 14px;
+            margin-bottom: 18px;
         }
-        .print-header .brand { display: flex; align-items: center; gap: 14px; }
-        .print-header img.logo { max-height: 54px; max-width: 200px; object-fit: contain; }
-        .print-header .brand-text h1 { font-size: 22px; line-height: 1.1; margin: 0 0 4px; font-weight: 600; }
-        .print-header .brand-text small { color: #6c757d; font-size: 11px; }
-        .print-header .meta { font-size: 11px; color: #6c757d; text-align: right; }
-        .print-main { flex: 1 0 auto; }
-        .print-section-title { font-size: 15px; font-weight: 600; margin: 18px 0 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 4px; }
-        .print-footer {
-            margin-top: 30px;
-            padding-top: 10px;
-            border-top: 1px solid #dee2e6;
-            font-size: 10px;
-            color: #6c757d;
+        .print-header .brand-logo {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
         }
-        .print-footer .powered { display: flex; align-items: center; gap: 6px; }
+        .print-header img.logo {
+            max-height: 56px;
+            max-width: 56px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        .print-header .brand-text {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .print-header .brand-text h1 {
+            font-size: 18pt;
+            line-height: 1.2;
+            margin: 0 0 2px;
+            font-weight: 700;
+            color: #212529;
+        }
+        .print-header .brand-text .subtitle {
+            color: #555555;
+            font-size: 10pt;
+            margin: 0;
+        }
+        .print-header .brand-text .meta {
+            color: #6c757d;
+            font-size: 9pt;
+            margin-top: 2px;
+        }
+        .print-main { flex: 1 0 auto; }
+        .print-section-title {
+            font-size: 12pt;
+            font-weight: 600;
+            margin: 16px 0 8px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 4px;
+        }
+        .print-footer {
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 0.6pt solid #bbbbbb;
+            font-size: 8pt;
+            color: #666666;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+        .print-footer .footer-left { text-align: left; }
+        .print-footer .footer-center { text-align: center; }
+        .print-footer .footer-right { text-align: right; }
         table.print-table { width: 100%; border-collapse: collapse; }
-        table.print-table th, table.print-table td { border: 1px solid #dee2e6; padding: 6px 8px; font-size: 12px; vertical-align: middle; }
+        table.print-table th,
+        table.print-table td {
+            border: 1px solid #dee2e6;
+            padding: 6px 8px;
+            font-size: 10pt;
+            vertical-align: middle;
+        }
         table.print-table thead th { background: #f8f9fa; font-weight: 600; }
-        table.print-table tfoot th, table.print-table tfoot td { background: #f1f3f5; }
+        table.print-table tfoot th,
+        table.print-table tfoot td { background: #f1f3f5; }
         .print-toolbar {
             position: sticky;
             top: 0;
@@ -70,42 +148,55 @@
         }
         @media print {
             .print-toolbar { display: none !important; }
-            .print-sheet { margin: 0; padding: 0 0 10mm 0; max-width: none; width: 100%; min-height: 0; }
+            .print-footer { display: none !important; }
+            .print-sheet {
+                margin: 0;
+                padding: 0;
+                max-width: none;
+                width: 100%;
+                min-height: 0;
+            }
         }
     </style>
     {% block extra_style %}{% endblock %}
 </head>
 <body>
     <div class="print-toolbar">
-        <button type="button" class="btn btn-accent btn-sm text-white" style="background: var(--accent); border: none;" onclick="window.print()"><i class="bi bi-printer me-1"></i>Drucken / als PDF speichern</button>
-        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Schließen</a>
+        <button type="button" class="btn btn-accent btn-sm text-white" style="background: var(--accent); border: none;" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Drucken / als PDF speichern
+        </button>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-lg me-1"></i>Schließen
+        </a>
     </div>
     <div class="print-sheet">
         <header class="print-header">
-            <div class="brand">
+            <div class="brand-logo">
                 {% if portal_logo_filename %}
-                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="logo">
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ _portal }}" class="logo">
                 {% elif app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="logo">
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ _portal }}" class="logo">
                 {% endif %}
-                <div class="brand-text">
-                    <h1>{% block document_title %}{{ app_name or 'Bewertung' }}{% endblock %}</h1>
-                    {% block document_subtitle %}{% endblock %}
-                </div>
             </div>
-            <div class="meta">{% block document_meta %}{% endblock %}</div>
+            <div class="brand-text">
+                <h1>{% block document_title %}{{ _portal }}{% endblock %}</h1>
+                {% block document_subtitle %}{% endblock %}
+                {% set meta %}{% block document_meta %}{% endblock %}{% endset %}
+                {% if meta|trim %}
+                <div class="meta">{{ meta }}</div>
+                {% endif %}
+            </div>
         </header>
 
         <main class="print-main">
             {% block print_content %}{% endblock %}
         </main>
 
-        {% block print_footer %}
-        <footer class="print-footer">
-            <span>{% block footer_left %}{% endblock %}</span>
-            <span class="powered">Powered by <strong>{{ app_name or 'Prismateams' }}</strong></span>
+        <footer class="print-footer" aria-hidden="true">
+            <span class="footer-left">Erstellt am {{ _created }}</span>
+            <span class="footer-center">© {{ _portal }}</span>
+            <span class="footer-right">1/1</span>
         </footer>
-        {% endblock %}
     </div>
 </body>
 </html>

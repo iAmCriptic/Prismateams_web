@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu with context %}
+
+{% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
+{% set calendar_export_enabled = calendar_export_enabled|default(true) %}
+{% set calendar_import_enabled = calendar_import_enabled|default(true) %}
+{% set selected_calendar_ids = selected_calendar_ids|default([]) %}
+{% set focus_calendar_id = focus_calendar_id|default(none) %}
+{% set can_create_focus = can_create_focus|default(true) %}
+{% set sc = sidebar_calendars|default(none) %}
+{% set calendar_back_url = calendar_back_url|default(url_for('calendar.index')) %}
+{% set calendar_back_label = calendar_back_label|default(_('layout.nav.back')) %}
+
+<div class="calendar-shell calendar-shell--fill calendar-shell--page {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
+{{ calendar_sidebar(show_view_pills=false, interactive=false, minimal=true) }}
+
+<div class="calendar-main flex-grow-1 min-width-0">
+    <div class="calendar-mobile-topbar d-lg-none mb-2">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <h1 class="h5 mb-0 text-truncate calendar-mobile-title">
+                    <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                    <span>{% block calendar_mobile_title %}{{ _('calendar.sidebar.brand') }}{% endblock %}</span>
+                </h1>
+            </div>
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                {{ calendar_more_menu(align_end=true) }}
+                {% if calendar_multi_enabled and sc %}
+                <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn mod-new-btn btn-sm">
+                    <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
+                </a>
+                {% elif can_create_focus %}
+                <a href="{{ url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
+                    <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="calendar-page-scroll">
+        <div class="calendar-page-header">
+            <a href="{{ calendar_back_url }}" class="calendar-page-back">
+                <i class="bi bi-arrow-left"></i>
+                <span>{{ calendar_back_label }}</span>
+            </a>
+        </div>
+        {% block calendar_content %}{% endblock %}
+    </div>
+</div>
+</div>
+{% endblock %}

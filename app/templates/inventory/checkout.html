@@ -1,0 +1,287 @@
+{% extends "inventory/layout.html" %}
+
+{% block title %}Ausleihe / Rückgabe - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-box-arrow-right{% endblock %}
+{% block inventory_heading %}{{ _('inventory.shell.nav.checkout') }}{% endblock %}
+
+
+{% block inventory_content %}
+<p class="text-muted mb-3">
+    Kopfdaten setzen, Artikel scannen, bestätigen. Rückgabe-QR wird automatisch zurückgebucht.
+</p>
+
+<div class="inventory-panel mb-3" id="checkoutHeaderCard">
+    <div class="inventory-panel-header">
+        <h2 class="inventory-panel-title">
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            Kopfdaten
+        </h2>
+    </div>
+    <div class="inventory-panel-body inventory-form-grid">
+        {% if preset_event_appointment_id %}
+        <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-link-45deg"></i>
+            Verknüpft mit Veranstaltungstermin – bitte nur noch <strong>Von</strong> und <strong>Bis</strong> setzen, Artikel scannen und bestätigen.
+        </div>
+        {% endif %}
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="event_name" class="form-label">Projekt / Veranstaltung <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="event_name" name="event_name" form="checkoutForm" required
+                       value="{{ preset_event_name or '' }}"
+                       placeholder="z.B. Stadtfest 2026" autocomplete="off">
+            </div>
+            <div class="col-md-4">
+                <label for="borrower_name" class="form-label">Verantwortlicher <span class="text-danger">*</span></label>
+                <div class="position-relative">
+                    <input type="text" class="form-control" id="borrower_name" name="borrower_name" form="checkoutForm" required
+                           value="{% if preset_borrower_name %}{{ preset_borrower_name }}{% else %}{{ current_user.full_name }}{% endif %}" placeholder="Name suchen oder frei eingeben" autocomplete="off">
+                    <input type="hidden" id="borrower_id" name="borrower_id" form="checkoutForm"
+                           value="{% if preset_borrower_id %}{{ preset_borrower_id }}{% elif not preset_event_appointment_id %}{{ current_user.id }}{% endif %}">
+                    <div id="borrowerSuggest" class="list-group inventory-suggest-dropdown" style="display: none;"></div>
+                </div>
+                <small class="form-text text-muted">Portal-User wählen oder Freitext eingeben.</small>
+            </div>
+            <div class="col-md-4" id="contactEmailWrap">
+                <label for="contact_email" class="form-label">Kontakt-E-Mail <span class="text-danger" id="emailRequiredMark" style="display:none;">*</span></label>
+                <input type="email" class="form-control inventory-input-locked" id="contact_email" name="contact_email" form="checkoutForm"
+                       value="{{ preset_contact_email or current_user.email or '' }}" placeholder="name@example.com" autocomplete="off" disabled
+                       title="E-Mail des Portal-Users">
+                <small class="form-text text-muted" id="contactEmailHint">E-Mail des verknüpften Portal-Users (nicht änderbar).</small>
+            </div>
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Von</label>
+                <input type="datetime-local" class="form-control" id="start_date" name="start_date" form="checkoutForm">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">Bis <span class="text-danger">*</span></label>
+                <input type="datetime-local" class="form-control" id="end_date" name="end_date" form="checkoutForm" required>
+            </div>
+        </div>
+        <input type="hidden" id="event_id" name="event_id" form="checkoutForm" value="{{ preset_event_id or '' }}">
+        <input type="hidden" id="event_appointment_id" name="event_appointment_id" form="checkoutForm" value="{{ preset_event_appointment_id or '' }}">
+    </div>
+</div>
+
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    Produkt eingeben
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">QR-Code scannen</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i> Erfasst
+                        </div>
+                    </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> Kamera starten
+                        </button>
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Kamera stoppen
+                        </button>
+                    </div>
+                    <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                    <div id="scannerFeedback" class="alert mt-2 d-none"></div>
+                </div>
+                <div class="mb-3">
+                    <label for="manualQrInput" class="form-label">ID</label>
+                    <div class="inventory-manual-row">
+                        <div class="inventory-manual-input-wrap flex-grow-1">
+                            <input type="text" class="form-control" id="manualQrInput" autofocus
+                                   placeholder="PROD, SET, BORROW" autocomplete="off">
+                        </div>
+                        <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
+                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label for="productSearchInput" class="form-label">Produkt suchen</label>
+                    <div class="inventory-manual-input-wrap position-relative">
+                        <input type="text" class="form-control" id="productSearchInput"
+                               placeholder="Name, Seriennummer, Kategorie…"
+                               autocomplete="off">
+                        <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
+                    </div>
+                </div>
+                <div id="returnScanResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100" id="borrowCartPanel">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-cart3" aria-hidden="true"></i>
+                    Warenkorb
+                </h2>
+                <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
+            </div>
+            <div class="inventory-panel-body">
+                <div id="cartItems" class="inventory-cart-list">
+                    {% if cart_products %}
+                    {% for product in cart_products %}
+                    {% include "inventory/_cart_item.html" %}
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>
+                    {% endif %}
+                </div>
+                <hr>
+                <form method="POST" action="{{ url_for('inventory.inventory_checkout_confirm') }}" id="checkoutForm">
+                    <button type="submit" class="btn btn-accent inventory-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
+                        <i class="bi bi-check-circle"></i> Ausleihe bestätigen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block inventory_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    window.inventoryScanMode = 'borrow';
+    const users = {{ users_json|tojson }};
+    const borrowerInput = document.getElementById('borrower_name');
+    const borrowerIdInput = document.getElementById('borrower_id');
+    const emailInput = document.getElementById('contact_email');
+    const emailRequiredMark = document.getElementById('emailRequiredMark');
+    const contactEmailHint = document.getElementById('contactEmailHint');
+    const suggestEl = document.getElementById('borrowerSuggest');
+
+    function findUserEmail(userId) {
+        if (!userId) return '';
+        const u = users.find(x => String(x.id) === String(userId));
+        return (u && u.email) ? u.email : '';
+    }
+
+    function syncEmailRequirement() {
+        const hasUser = !!(borrowerIdInput && borrowerIdInput.value);
+        if (emailRequiredMark) emailRequiredMark.style.display = hasUser ? 'none' : 'inline';
+        if (emailInput) {
+            emailInput.required = !hasUser;
+            emailInput.disabled = hasUser;
+            if (hasUser) {
+                emailInput.removeAttribute('required');
+                emailInput.classList.add('inventory-input-locked');
+                const portalEmail = findUserEmail(borrowerIdInput.value) || emailInput.value || '';
+                emailInput.value = portalEmail;
+                emailInput.placeholder = portalEmail || 'Keine E-Mail hinterlegt';
+                if (contactEmailHint) {
+                    contactEmailHint.textContent = 'E-Mail des verknüpften Portal-Users (nicht änderbar).';
+                }
+            } else {
+                emailInput.classList.remove('inventory-input-locked');
+                emailInput.placeholder = 'name@example.com';
+                if (contactEmailHint) {
+                    contactEmailHint.textContent = 'Pflicht, wenn kein Portal-User verknüpft ist.';
+                }
+            }
+        }
+    }
+
+    function renderSuggest(q) {
+        if (!suggestEl) return;
+        const query = (q || '').toLowerCase().trim();
+        if (!query) {
+            suggestEl.style.display = 'none';
+            suggestEl.replaceChildren();
+            return;
+        }
+        const matches = users.filter(u =>
+            (u.name || '').toLowerCase().includes(query) || (u.email || '').toLowerCase().includes(query)
+        ).slice(0, 8);
+        if (!matches.length) {
+            suggestEl.style.display = 'none';
+            suggestEl.replaceChildren();
+            return;
+        }
+        suggestEl.replaceChildren();
+        matches.forEach((u) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action';
+            btn.dataset.id = String(u.id);
+            btn.dataset.name = u.name || '';
+            btn.dataset.email = u.email || '';
+            btn.appendChild(document.createTextNode(u.name || ''));
+            if (u.email) {
+                btn.appendChild(document.createTextNode(' '));
+                const small = document.createElement('small');
+                small.className = 'text-muted';
+                small.textContent = '(' + u.email + ')';
+                btn.appendChild(small);
+            }
+            btn.addEventListener('click', () => {
+                borrowerInput.value = btn.dataset.name || '';
+                borrowerIdInput.value = btn.dataset.id || '';
+                if (emailInput) emailInput.value = btn.dataset.email || '';
+                suggestEl.style.display = 'none';
+                syncEmailRequirement();
+            });
+            suggestEl.appendChild(btn);
+        });
+        suggestEl.style.display = 'block';
+    }
+
+    if (borrowerInput) {
+        borrowerInput.addEventListener('input', () => {
+            borrowerIdInput.value = '';
+            if (emailInput) emailInput.value = '';
+            syncEmailRequirement();
+            renderSuggest(borrowerInput.value);
+        });
+        borrowerInput.addEventListener('blur', () => {
+            window.setTimeout(() => { if (suggestEl) suggestEl.style.display = 'none'; }, 180);
+        });
+        borrowerInput.addEventListener('focus', () => renderSuggest(borrowerInput.value));
+    }
+    syncEmailRequirement();
+
+    const startInput = document.getElementById('start_date');
+    const endInput = document.getElementById('end_date');
+    const linkedFromEvent = !!(document.getElementById('event_appointment_id')?.value);
+    if (!linkedFromEvent) {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        if (startInput && !startInput.value) startInput.value = toLocal(now);
+        if (endInput && !endInput.value) endInput.value = toLocal(new Date(now.getTime() + 24*60*60*1000));
+    }
+
+    if (typeof BorrowScannerManager !== 'undefined') {
+        window.borrowScannerManager = new BorrowScannerManager();
+        window.borrowScannerManager.init();
+    }
+
+    // Manual add / remove: only via BorrowScannerManager (avoids double cart adds)
+    const manualInput = document.getElementById('manualQrInput');
+
+    const preset = {{ (preset_ref or '')|tojson }};
+    if (preset && window.borrowScannerManager) {
+        if (manualInput) manualInput.value = preset;
+        window.borrowScannerManager.addToCart(preset).then(() => {
+            if (manualInput) manualInput.value = '';
+        }).catch(() => {});
+    }
+});
+</script>
+{% endblock %}

@@ -8,9 +8,8 @@ from flask_limiter.util import get_remote_address
 from config import config
 import json
 import os
-import subprocess
-import sys
 from app.utils.i18n import register_i18n, translate
+from urllib.parse import urlparse
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -26,6 +25,53 @@ def create_socketio():
 socketio = create_socketio()
 
 
+def _is_insecure_secret_key(value):
+    secret = (value or "").strip()
+    return (not secret) or secret == 'dev-secret-key-change-in-production'
+
+
+def _is_same_origin(target_url, expected_host):
+    if not target_url:
+        return False
+    try:
+        parsed = urlparse(target_url)
+        return (parsed.netloc or '').lower() == (expected_host or '').lower()
+    except Exception:
+        return False
+
+
+def _env_flag(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _current_release_marker(app):
+    release = str(app.config.get('ABOUT_RELEASE_VERSION') or '').strip()
+    build = str(app.config.get('ABOUT_BUILD_NUMBER') or '').strip()
+    if release and build:
+        return f"{release}:{build}"
+    return release or build or 'unknown'
+
+
+def _should_run_migrations_after_update(app):
+    """
+    Auto-Migration nur nach Update:
+    Läuft, wenn der gespeicherte Release-Marker vom aktuellen Marker abweicht.
+    """
+    try:
+        from app.models.settings import SystemSettings
+        marker = _current_release_marker(app)
+        setting = SystemSettings.query.filter_by(key='last_auto_migrated_release').first()
+        if not setting:
+            return True, marker
+        return (str(setting.value or '').strip() != marker), marker
+    except Exception:
+        # Fallback: lieber migrieren als ein notwendiges Update zu verpassen.
+        return True, _current_release_marker(app)
+
+
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
     import os
@@ -34,6 +80,19 @@ def create_app(config_name='default'):
     app.url_map.strict_slashes = False
     
     app.config.from_object(config[config_name])
+
+    if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
+        raise RuntimeError(
+            "Production requires a strong SECRET_KEY via environment variable SECRET_KEY."
+        )
+
+    # Relative UPLOAD_FOLDER must resolve to project root, not app package
+    # (Flask send_file joins relative paths with app.root_path = .../app).
+    upload_folder = app.config.get('UPLOAD_FOLDER') or 'uploads'
+    if not os.path.isabs(upload_folder):
+        project_root = os.path.dirname(basedir)
+        upload_folder = os.path.join(project_root, upload_folder)
+    app.config['UPLOAD_FOLDER'] = os.path.abspath(upload_folder)
     
     db.init_app(app)
     login_manager.init_app(app)
@@ -71,21 +130,22 @@ def create_app(config_name='default'):
     
     # Flask-Limiter für Rate Limiting initialisieren
     # Verwende Redis als Storage-Backend wenn verfügbar (für Production)
-    if redis_enabled:
+    rate_limit_uri = app.config.get('RATELIMIT_STORAGE_URI') or (redis_url if redis_enabled else None)
+    if rate_limit_uri:
         try:
-            # Verwende Redis als Storage-Backend für Rate Limiting
-            limiter.init_app(app, storage_uri=redis_url)
-            logger.info(f"Flask-Limiter mit Redis Storage konfiguriert: {redis_url}")
+            limiter.init_app(app, storage_uri=rate_limit_uri)
+            logger.info(f"Flask-Limiter Storage: {rate_limit_uri}")
         except Exception as e:
             logger.warning(f"Fehler beim Konfigurieren von Flask-Limiter mit Redis: {e}")
             logger.warning("Verwende Memory-Storage als Fallback (nicht für Production empfohlen)")
             limiter.init_app(app)
     else:
-        # In Development: Memory-Storage mit Warnung
-        # In Production: Warnung ausgeben
         if config_name == 'production':
             logger.warning("⚠️  WICHTIG: Flask-Limiter verwendet Memory-Storage in Production!")
-            logger.warning("⚠️  Für Production sollte Redis aktiviert werden (REDIS_ENABLED=True)")
+            logger.warning("⚠️  Für Production Redis setzen: REDIS_ENABLED=True und REDIS_URL=…")
+            logger.warning("⚠️  Alternativ RATELIMIT_STORAGE_URI=redis://… in .env")
+        else:
+            logger.info("Flask-Limiter: Memory-Storage (Dev). Für Multi-Worker: REDIS_ENABLED=True")
         limiter.init_app(app)
     
     if redis_enabled:
@@ -206,6 +266,56 @@ def create_app(config_name='default'):
         logger.debug("Socket.IO: Client getrennt")
     
     @app.before_request
+    def csrf_same_origin_guard():
+        """
+        CSRF mitigation without breaking existing forms/AJAX:
+        enforce same-origin on state-changing requests.
+        """
+        if request.method in {'GET', 'HEAD', 'OPTIONS', 'TRACE'}:
+            return
+
+        # Ignore Socket.IO transport paths.
+        if request.path.startswith('/socket.io/'):
+            return
+
+        endpoint = request.endpoint or ''
+
+        # Machine callbacks/webhooks and token/public paths are excluded.
+        if (
+            endpoint.startswith('files.onlyoffice') or
+            endpoint.startswith('files.share_onlyoffice') or
+            request.path.startswith('/onlyoffice') or
+            '/onlyoffice-callback' in request.path
+        ):
+            return
+
+        origin = request.headers.get('Origin', '')
+        referer = request.headers.get('Referer', '')
+        sec_fetch_site = (request.headers.get('Sec-Fetch-Site') or '').strip().lower()
+        host = request.host
+
+        if origin:
+            if _is_same_origin(origin, host):
+                return
+            app.logger.warning("CSRF blocked by Origin mismatch: %s -> %s", origin, host)
+            return jsonify({'error': 'CSRF validation failed'}), 403
+
+        if referer:
+            if _is_same_origin(referer, host):
+                return
+            app.logger.warning("CSRF blocked by Referer mismatch: %s -> %s", referer, host)
+            return jsonify({'error': 'CSRF validation failed'}), 403
+
+        # Einige Reverse-Proxy/Client-Kombinationen senden kein Origin/Referer.
+        # Wenn Browser den Request als same-origin/same-site/none klassifiziert,
+        # akzeptieren wir den State-Change trotzdem.
+        if sec_fetch_site in {'same-origin', 'same-site', 'none'}:
+            return
+
+        app.logger.warning("CSRF blocked: missing Origin/Referer for %s %s", request.method, request.path)
+        return jsonify({'error': 'CSRF validation failed'}), 403
+
+    @app.before_request
     def check_email_confirmation():
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
@@ -258,7 +368,8 @@ def create_app(config_name='default'):
     @app.before_request
     def ensure_portal_session_tracking():
         """Sorgt dafür, dass authentifizierte Portal-Sessions in user_sessions erfasst sind."""
-        from flask_login import current_user
+        from flask import redirect, url_for, flash
+        from flask_login import current_user, logout_user
 
         if not current_user.is_authenticated:
             return
@@ -274,14 +385,53 @@ def create_app(config_name='default'):
         if request.endpoint and request.endpoint.startswith('static'):
             return
 
+        # Setup-Wizard: Session-Tracking erst nach Abschluss erzwingen.
+        # Sonst landet man nach Admin-Anlage (login_user ohne session_id) sofort auf /login.
+        if request.endpoint and request.endpoint.startswith('setup.'):
+            return
+
         from datetime import datetime, timedelta
-        from app.utils.session_manager import get_current_session, create_session
+        from app.utils.session_manager import get_current_session, revoke_all_sessions
+        from app.utils.common import portal_now_naive
 
         try:
+            # Abgelaufene Gast-Accounts sofort deaktivieren und abmelden.
+            if getattr(current_user, 'is_guest', False) and current_user.guest_expires_at:
+                if portal_now_naive() > current_user.guest_expires_at:
+                    if current_user.is_active:
+                        current_user.is_active = False
+                        revoke_all_sessions(current_user.id, exclude_current=False)
+                        db.session.commit()
+                    logout_user()
+                    session.clear()
+                    if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                        return jsonify({'error': 'Guest access expired'}), 401
+                    flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
+                    return redirect(url_for('auth.login'))
+
+            if not getattr(current_user, 'is_active', True):
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Account deactivated'}), 401
+                return redirect(url_for('auth.login'))
+
+            current_session_id = session.get('session_id')
+            if not current_session_id:
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Session invalidated'}), 401
+                return redirect(url_for('auth.login'))
+
             current_session = get_current_session(current_user.id)
             if current_session is None:
-                create_session(current_user.id)
-                return
+                # WICHTIG: Keine automatische Neuanlage widerrufener Sessions.
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Session invalidated'}), 401
+                return redirect(url_for('auth.login'))
 
             # Last-Activity nicht bei jedem Request schreiben, um DB-Last zu reduzieren.
             if not current_session.last_activity or (datetime.utcnow() - current_session.last_activity) >= timedelta(minutes=1):
@@ -432,30 +582,30 @@ def create_app(config_name='default'):
                 'settings.notifications': 'settings.index',
                 'settings.about': 'settings.index',
                 'settings.admin': 'settings.index',
-                'settings.admin_users': 'settings.admin',
-                'settings.admin_email_permissions': 'settings.admin',
-                'settings.admin_email_footer': 'settings.admin',
-                'settings.admin_system': 'settings.admin',
-                'settings.admin_modules': 'settings.admin',
-                'settings.admin_backup': 'settings.admin',
-                'settings.admin_whitelist': 'settings.admin',
-                'settings.add_whitelist_entry': 'settings.admin',
-                'settings.toggle_whitelist_entry': 'settings.admin',
-                'settings.delete_whitelist_entry': 'settings.admin',
-                'settings.admin_file_settings': 'settings.admin',
-                'settings.booking_forms': 'settings.admin',
-                'settings.booking_form_create': 'settings.admin',
-                'settings.booking_form_edit': 'settings.admin',
-                'settings.booking_form_delete': 'settings.admin',
-                'settings.booking_field_add': 'settings.admin',
-                'settings.booking_field_edit': 'settings.admin',
-                'settings.booking_field_delete': 'settings.admin',
-                'settings.booking_field_order': 'settings.admin',
-                'settings.booking_image_upload': 'settings.admin',
-                'settings.booking_image_delete': 'settings.admin',
-                'settings.booking_image': 'settings.admin',
-                'auth.show_confirmation_codes': 'settings.admin',
-                'auth.test_email': 'settings.admin',
+                'settings.admin_users': 'settings.index',
+                'settings.admin_email_permissions': 'settings.index',
+                'settings.admin_email_footer': 'settings.index',
+                'settings.admin_system': 'settings.index',
+                'settings.admin_modules': 'settings.index',
+                'settings.admin_backup': 'settings.index',
+                'settings.admin_whitelist': 'settings.index',
+                'settings.add_whitelist_entry': 'settings.index',
+                'settings.toggle_whitelist_entry': 'settings.index',
+                'settings.delete_whitelist_entry': 'settings.index',
+                'settings.admin_file_settings': 'settings.index',
+                'settings.booking_forms': 'settings.index',
+                'settings.booking_form_create': 'settings.index',
+                'settings.booking_form_edit': 'settings.index',
+                'settings.booking_form_delete': 'settings.index',
+                'settings.booking_field_add': 'settings.index',
+                'settings.booking_field_edit': 'settings.index',
+                'settings.booking_field_delete': 'settings.index',
+                'settings.booking_field_order': 'settings.index',
+                'settings.booking_image_upload': 'settings.index',
+                'settings.booking_image_delete': 'settings.index',
+                'settings.booking_image': 'settings.index',
+                'auth.show_confirmation_codes': 'settings.index',
+                'auth.test_email': 'settings.index',
                 'calendar.view': 'calendar.index',
                 'calendar.edit_event': 'calendar.index',
                 'calendar.create': 'calendar.index',
@@ -476,6 +626,7 @@ def create_app(config_name='default'):
                 'credentials.edit': 'credentials.index',
                 'credentials.create': 'credentials.index',
                 'manuals.view': 'manuals.index',
+                'manuals.raw': 'manuals.index',
                 'manuals.edit': 'manuals.index',
                 'manuals.create': 'manuals.index',
                 'assessment.lists.manage_list_subjects_page': 'assessment.lists.manage_lists_page',
@@ -495,7 +646,7 @@ def create_app(config_name='default'):
                 return url_for('files.index')
             
             if endpoint.startswith('settings.admin_'):
-                return url_for('settings.admin')
+                return url_for('settings.index')
             
             module_mapping = {
                 'inventory': 'inventory.dashboard',
@@ -524,7 +675,8 @@ def create_app(config_name='default'):
         mobile_nav_slots = None
         mobile_nav_left = None
         mobile_nav_right = None
-        if current_user.is_authenticated:
+        # Assessment-Scope: keine Portal-Mobile-Nav (nur Modul-Sidebar inkl. Logout).
+        if current_user.is_authenticated and session.get('user_scope') != 'assessment':
             from app.utils.navigation import (
                 get_mobile_nav_slots,
                 resolve_nav_link,
@@ -681,39 +833,69 @@ def create_app(config_name='default'):
             current_app.logger.warning(f"Markdown processing failed: {e}, using plain text fallback")
             return text.replace('\n', '<br>')
 
+    def _error_detail(error):
+        """Human-readable detail for error pages (server log / exception text)."""
+        if error is None:
+            return None
+        detail = getattr(error, 'description', None) or str(error)
+        detail = (detail or '').strip()
+        return detail or None
+
     @app.errorhandler(400)
     def bad_request(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Bad request', 'message': str(error)}), 400
-        return render_template('errors/400.html'), 400
+        return render_template('errors/400.html', error_detail=_error_detail(error)), 400
     
     @app.errorhandler(403)
     def forbidden(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Forbidden', 'message': str(error)}), 403
-        return render_template('errors/403.html'), 403
+        return render_template('errors/403.html', error_detail=_error_detail(error)), 403
     
     @app.errorhandler(404)
     def not_found(error):
         app.logger.warning(f"404 Not Found: {request.url}")
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Not found', 'path': request.path}), 404
-        return render_template('errors/404.html'), 404
+        return render_template('errors/404.html', error_detail=_error_detail(error)), 404
     
     @app.errorhandler(429)
     def too_many_requests(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Too many requests', 'message': str(error)}), 429
-        return render_template('errors/429.html'), 429
+        return render_template('errors/429.html', error_detail=_error_detail(error)), 429
     
     @app.errorhandler(413)
     def request_entity_too_large(error):
         """Handle 413 Request Entity Too Large errors."""
         app.logger.warning(f"413 Request Entity Too Large: {request.url}")
-        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-            return jsonify({'error': 'File too large', 'message': 'Die hochgeladene Datei überschreitet das maximale Größenlimit.'}), 413
-        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 524288000) / (1024 * 1024)
-        return render_template('errors/413.html', max_size_mb=max_size_mb), 413
+        wants_json = (
+            request.path.startswith('/api/')
+            or request.path.startswith('/files/api/')
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        msg = 'Die hochgeladene Datei überschreitet das maximale Größenlimit.'
+        if wants_json:
+            return jsonify({
+                'success': False,
+                'error': 'File too large',
+                'message': msg,
+                'messages': [{'category': 'danger', 'text': msg}],
+            }), 413
+        try:
+            from app.utils.file_storage_limits import format_bytes_de, get_max_configured_file_size
+            max_label = format_bytes_de(get_max_configured_file_size())
+            msg = f'Die hochgeladene Datei überschreitet das maximale Größenlimit (max. {max_label} pro Datei).'
+        except Exception:
+            pass
+        max_size_mb = (app.config.get('MAX_CONTENT_LENGTH') or (100 * 1024 * 1024)) / (1024 * 1024)
+        return render_template(
+            'errors/413.html',
+            max_size_mb=max_size_mb,
+            error_detail=_error_detail(error),
+        ), 413
     
     @app.errorhandler(500)
     def internal_error(error):
@@ -721,7 +903,7 @@ def create_app(config_name='default'):
         db.session.rollback()
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(error)}), 500
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', error_detail=_error_detail(error)), 500
     
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -735,7 +917,7 @@ def create_app(config_name='default'):
         
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', error_detail=_error_detail(e)), 500
     
     @app.errorhandler(ValueError)
     def handle_value_error(e):
@@ -743,12 +925,13 @@ def create_app(config_name='default'):
         return render_template('errors/generic.html', 
                              error_code='400',
                              error_title='Ungültige Eingabe',
-                             error_message=str(e)), 400
+                             error_message=str(e),
+                             error_detail=_error_detail(e)), 400
     
     @app.errorhandler(PermissionError)
     def handle_permission_error(e):
         app.logger.warning(f"Permission error: {e}")
-        return render_template('errors/403.html'), 403
+        return render_template('errors/403.html', error_detail=_error_detail(e)), 403
 
     from app.blueprints.setup import setup_bp
     from app.blueprints.auth import auth_bp
@@ -825,6 +1008,17 @@ def create_app(config_name='default'):
             
             manifest_data['name'] = portal_name
             manifest_data['short_name'] = portal_name[:12]  # short_name sollte max 12 Zeichen haben
+
+            # Statusleisten-/PWA-Farbe an Dark/OLED anpassen
+            theme_color = '#f0f2f5'
+            from flask_login import current_user
+            if getattr(current_user, 'is_authenticated', False):
+                if getattr(current_user, 'oled_mode', False) and getattr(current_user, 'dark_mode', False):
+                    theme_color = '#000000'
+                elif getattr(current_user, 'dark_mode', False):
+                    theme_color = '#1a1a1a'
+            manifest_data['theme_color'] = theme_color
+            manifest_data['background_color'] = theme_color
             
             # Logo in allen Icon-Einträgen aktualisieren
             for icon in manifest_data.get('icons', []):
@@ -874,31 +1068,30 @@ def create_app(config_name='default'):
     def service_worker():
         return app.send_static_file('sw.js')
     
-    # Initialisierung nur im Hauptprozess ausführen (verhindert doppelte Ausführung durch Flask Reloader)
-    # WERKZEUG_RUN_MAIN ist nur im Hauptprozess gesetzt (nach "Restarting with stat"), nicht im Reloader-Prozess
-    # Im Debug-Modus: Nur initialisieren wenn WERKZEUG_RUN_MAIN='true' (Hauptprozess)
-    # Ohne Debug-Modus: Immer initialisieren (kein Reloader)
+    # Schema-Init: immer (außer Reloader-Parent / explizitem Skip).
+    # Background-Jobs: nicht im Reloader-Parent und nicht während Migrationen.
     werkzeug_run_main = os.environ.get('WERKZEUG_RUN_MAIN')
     is_debug = app.config.get('DEBUG', False)
-    # Initialisierung nur wenn: (Hauptprozess nach Reload) ODER (kein Debug-Modus)
+    from app.utils.schema_init import should_run_startup_schema, ensure_all_tables
+    run_schema_init = should_run_startup_schema(debug=is_debug)
+    run_startup_migrations = _env_flag('PRISMATEAMS_STARTUP_MIGRATIONS', False)
+    # Legacy-Name: Background-Jobs nur im „Hauptprozess“ (kein Reloader-Parent)
     is_main_process = (werkzeug_run_main == 'true') or (not is_debug)
     
     with app.app_context():
-        if is_main_process:
+        if run_schema_init:
             try:
-                # Stelle sicher, dass alle Modelle importiert sind, bevor db.create_all() aufgerufen wird
-                # Dies ist notwendig, damit SQLAlchemy alle Tabellen erstellt
                 from app.models.user import User
-                from app.models.chat import Chat, ChatMessage, ChatMember
-                from app.models.file import File, FileVersion, Folder
-                from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
+                from app.models.chat import Chat, ChatMessage, ChatMember, ChatPin
+                from app.models.file import File, FileVersion, Folder, FileEditLock
+                from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
-                from app.models.credential import Credential, CredentialFolder
+                from app.models.credential import Credential, CredentialFolder, CredentialFavorite
                 from app.models.manual import Manual
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
-                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
+                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -926,116 +1119,37 @@ def create_app(config_name='default'):
                     AssessmentRoomInspection,
                     AssessmentAppSetting,
                 )
-                
-                # Prüfe welche Tabellen bereits existieren
                 from sqlalchemy import inspect, text
-                inspector = inspect(db.engine)
-                existing_tables = set(inspector.get_table_names())
-                
-                # Erstelle fehlende Tabellen mit Fehlerbehandlung
-                try:
-                    db.create_all()
-                    
-                    # Prüfe ob neue Tabellen erstellt wurden
-                    current_tables = set(inspector.get_table_names())
-                    new_tables = current_tables - existing_tables
-                    if new_tables:
-                        print(f"[OK] {len(new_tables)} neue Tabellen erstellt: {', '.join(sorted(new_tables))}")
-                    else:
-                        print("[OK] Alle Tabellen sind bereits vorhanden")
-                except Exception as create_error:
-                    # Bei Tablespace-Fehlern (MySQL Error 1813) prüfe, ob die Tabellen trotzdem existieren
-                    error_code = None
-                    error_message = str(create_error)
-                    if hasattr(create_error, 'orig'):
-                        if hasattr(create_error.orig, 'args') and len(create_error.orig.args) > 0:
-                            error_code = create_error.orig.args[0]
-                        elif hasattr(create_error.orig, 'msg'):
-                            error_message = str(create_error.orig.msg)
-                    
-                    if error_code == 1813 or 'Tablespace' in error_message or '1813' in error_message:  # MySQL Tablespace-Fehler
-                        print("[WARNUNG] Tablespace-Fehler erkannt. Prüfe vorhandene Tabellen...")
-                        # Prüfe ob Tabellen in INFORMATION_SCHEMA existieren
-                        try:
-                            with db.engine.connect() as connection:
-                                result = connection.execute(text("""
-                                    SELECT TABLE_NAME 
-                                    FROM INFORMATION_SCHEMA.TABLES 
-                                    WHERE TABLE_SCHEMA = DATABASE()
-                                """))
-                                db_tables = {row[0] for row in result}
-                            if db_tables:
-                                print(f"[INFO] {len(db_tables)} Tabellen in Datenbank gefunden")
-                                
-                                # Erstelle nur fehlende Tabellen einzeln
-                                all_models = [
-                                    CalendarEvent, EventParticipant, PublicCalendarFeed,
-                                    BookingRequest, BookingForm, BookingFormField, BookingFormImage,
-                                    BookingRequestField, BookingRequestFile, BookingFormRole,
-                                    BookingFormRoleUser, BookingRequestApproval
-                                ]
-                                
-                                created_count = 0
-                                for model_class in all_models:
-                                    table_name = model_class.__tablename__
-                                    if table_name not in db_tables:
-                                        try:
-                                            model_class.__table__.create(db.engine, checkfirst=True)
-                                            print(f"[OK] Tabelle '{table_name}' erstellt")
-                                            created_count += 1
-                                        except Exception as e:
-                                            # Ignoriere Fehler wenn Tabelle bereits existiert
-                                            if 'already exists' not in str(e).lower() and '1813' not in str(e):
-                                                print(f"[WARNUNG] Konnte Tabelle '{table_name}' nicht erstellen: {e}")
-                                
-                                if created_count == 0:
-                                    print("[OK] Alle benötigten Tabellen sind bereits vorhanden")
-                            else:
-                                print("[WARNUNG] Keine Tabellen in Datenbank gefunden, aber Tablespace-Fehler aufgetreten")
-                        except Exception as check_error:
-                            print(f"[WARNUNG] Fehler beim Prüfen der Tabellen: {check_error}")
-                            print(f"[INFO] Original-Fehler: {create_error}")
-                    else:
-                        # Andere Fehler: prüfe ob Tabellen trotzdem existieren
-                        print(f"[WARNUNG] Fehler beim Erstellen der Tabellen: {create_error}")
-                        current_tables = set(inspector.get_table_names())
-                        if current_tables:
-                            print(f"[INFO] {len(current_tables)} Tabellen sind trotzdem vorhanden")
-                            # Versuche fehlende Tabellen trotzdem zu erstellen
-                            print("[INFO] Versuche fehlende Tabellen zu erstellen...")
-                            try:
-                                db.create_all()
-                                print("[OK] Tabellenerstellung erfolgreich wiederholt")
-                            except:
-                                pass
-                        else:
-                            print("[FEHLER] Keine Tabellen gefunden und Erstellung fehlgeschlagen")
+
+                # Robust: create_all + kritische Tabellen einzeln nachziehen (MySQL-Lock bei Multi-Worker)
+                schema_ok, missing_tables = ensure_all_tables(db)
+                if not schema_ok:
+                    print(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
+
+                auto_migrate_after_update, release_marker = _should_run_migrations_after_update(app)
+                should_run_startup_migrations = run_startup_migrations or auto_migrate_after_update
+
+                # Migrationen laufen automatisch nach Update (Release-Marker-Wechsel)
+                # oder explizit via PRISMATEAMS_STARTUP_MIGRATIONS=true.
+                if should_run_startup_migrations and not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
+                    try:
+                        from app.utils.auto_migrate import run_pending_migrations
+                        run_pending_migrations(db)
+                    except Exception as auto_mig_err:
+                        print(f"[WARNUNG] Auto-Migration fehlgeschlagen: {auto_mig_err}")
+                    # Nach Migrationen nochmals kritische Tabellen sicherstellen
+                    try:
+                        ensure_all_tables(db)
+                    except Exception as schema_again_err:
+                        print(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
+                else:
+                    print("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
                 
                 try:
                     from sqlalchemy import inspect
                     inspector = inspect(db.engine)
                     if 'folders' in inspector.get_table_names():
                         columns = {col['name']: col for col in inspector.get_columns('folders')}
-                        if 'is_dropbox' not in columns or 'dropbox_token' not in columns or 'dropbox_password_hash' not in columns:
-                            print("[INFO] Führe Migration zu Version 1.5.2 aus...")
-                            # Führe Migration direkt aus (ohne Import, da Python-Module mit Punkten nicht importierbar sind)
-                            migrations_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations', 'Migrate_to_1.5.2.py')
-                            if os.path.exists(migrations_path):
-                                try:
-                                    result = subprocess.run([sys.executable, migrations_path], 
-                                                           capture_output=True, text=True, timeout=30)
-                                    if result.returncode == 0:
-                                        print("[OK] Migration erfolgreich ausgeführt")
-                                    else:
-                                        print(f"[WARNUNG] Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                                except subprocess.TimeoutExpired:
-                                    print("[WARNUNG] Migration dauerte zu lange. Bitte manuell ausführen.")
-                                except Exception as e:
-                                    print(f"[WARNUNG] Migration konnte nicht ausgeführt werden: {e}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                            else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/Migrate_to_1.5.2.py")
                         if 'color' not in columns:
                             print("[INFO] Ergänze folders.color ...")
                             with db.engine.begin() as connection:
@@ -1062,74 +1176,65 @@ def create_app(config_name='default'):
                                 connection.execute(text("ALTER TABLE credentials ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
                             print("[OK] credentials.is_favorite hinzugefügt")
 
+                    if 'credential_favorites' not in inspector.get_table_names():
+                        print("[INFO] Erstelle credential_favorites ...")
+                        CredentialFavorite.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] credential_favorites erstellt")
+                        # Legacy-Favoriten auf Ersteller übernehmen
+                        try:
+                            dialect = db.engine.dialect.name
+                            if dialect == "sqlite":
+                                sql = """
+                                    INSERT OR IGNORE INTO credential_favorites (user_id, credential_id, created_at)
+                                    SELECT created_by, id, CURRENT_TIMESTAMP
+                                    FROM credentials
+                                    WHERE is_favorite = 1
+                                """
+                            else:
+                                sql = """
+                                    INSERT IGNORE INTO credential_favorites (user_id, credential_id, created_at)
+                                    SELECT created_by, id, CURRENT_TIMESTAMP
+                                    FROM credentials
+                                    WHERE is_favorite = 1
+                                """
+                            with db.engine.begin() as connection:
+                                connection.execute(text(sql))
+                            print("[OK] Legacy credential favorites migriert")
+                        except Exception as fav_err:
+                            print(f"[WARNUNG] Legacy-Favoriten-Migration: {fav_err}")
+
                     if ('users' in inspector.get_table_names() and
-                            'language' not in {col['name'] for col in inspector.get_columns('users')} and
-                            not os.getenv('RUNNING_LANGUAGE_MIGRATION')):
-                        print("[INFO] Führe Sprachmigration aus...")
-                        migrations_path = os.path.join(
-                            os.path.dirname(os.path.dirname(__file__)),
-                            'migrations',
-                            'migrate_languages.py'
-                        )
-                        if os.path.exists(migrations_path):
-                            env = os.environ.copy()
-                            env.setdefault('RUNNING_LANGUAGE_MIGRATION', '1')
-                            env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
-                            try:
-                                result = subprocess.run(
-                                    [sys.executable, migrations_path],
-                                    capture_output=True,
-                                    text=True,
-                                    timeout=60,
-                                    env=env
-                                )
-                                if result.returncode == 0:
-                                    print("[OK] Sprachmigration erfolgreich ausgeführt")
-                                else:
-                                    print(f"[WARNUNG] Sprachmigration gab Fehler zurück: {result.stderr}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                            except subprocess.TimeoutExpired:
-                                print("[WARNUNG] Sprachmigration dauerte zu lange. Bitte manuell ausführen.")
-                            except Exception as exc:
-                                print(f"[WARNUNG] Sprachmigration konnte nicht ausgeführt werden: {exc}")
-                                print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                        else:
-                            print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
+                            'language' not in {col['name'] for col in inspector.get_columns('users')}):
+                        print("[INFO] Ergänze users.language ...")
+                        with db.engine.begin() as connection:
+                            connection.execute(text(
+                                "ALTER TABLE users ADD COLUMN language VARCHAR(10) NOT NULL DEFAULT 'de'"
+                            ))
+                        print("[OK] users.language hinzugefügt")
                     
                     # Sicherheitsfeatures-Migration (2FA, Rate Limiting, Session-Management)
+                    # Vollständige Migration läuft über Auto-Migration (migrate_to_2_4_3.py).
+                    # Hier nur Notfall-Fallback, falls Spalten noch fehlen.
                     if 'users' in inspector.get_table_names():
                         columns = {col['name'] for col in inspector.get_columns('users')}
-                        security_columns = {'totp_secret', 'totp_enabled', 'password_changed_at', 'failed_login_attempts', 'failed_login_until'}
-                        if not security_columns.issubset(columns) or 'user_sessions' not in inspector.get_table_names():
-                            print("[INFO] Führe Sicherheitsfeatures-Migration aus...")
-                            migrations_path = os.path.join(
-                                os.path.dirname(os.path.dirname(__file__)),
-                                'migrations',
-                                'migrate_to_2_4_1.py'
-                            )
-                            if os.path.exists(migrations_path):
-                                env = os.environ.copy()
-                                env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
-                                try:
-                                    result = subprocess.run(
-                                        [sys.executable, migrations_path, '--security-only'],
-                                        capture_output=True,
-                                        text=True,
-                                        timeout=60,
-                                        env=env
-                                    )
-                                    if result.returncode == 0:
-                                        print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
-                                    else:
-                                        print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
-                                except subprocess.TimeoutExpired:
-                                    print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
-                                except Exception as exc:
-                                    print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
-                            else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2_4_1.py --security-only")
+                        security_columns = {
+                            ('totp_secret', 'VARCHAR(255)'),
+                            ('totp_enabled', 'BOOLEAN DEFAULT 0'),
+                            ('password_changed_at', 'DATETIME'),
+                            ('failed_login_attempts', 'INTEGER DEFAULT 0'),
+                            ('failed_login_until', 'DATETIME'),
+                        }
+                        missing = [(n, d) for n, d in security_columns if n not in columns]
+                        if missing:
+                            print("[INFO] Ergänze fehlende Security-Spalten an users ...")
+                            with db.engine.begin() as connection:
+                                for col_name, col_ddl in missing:
+                                    connection.execute(text(
+                                        f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"
+                                    ))
+                            print("[OK] Security-Spalten ergänzt")
+                        if 'user_sessions' not in inspector.get_table_names():
+                            print("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -1142,6 +1247,43 @@ def create_app(config_name='default'):
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
+                        if 'sync_source_id' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.sync_source_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN sync_source_id INTEGER NULL"
+                                ))
+                            print("[OK] calendar_events.sync_source_id hinzugefügt")
+                        if 'ical_uid' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.ical_uid ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN ical_uid VARCHAR(255) NULL"
+                                ))
+                            print("[OK] calendar_events.ical_uid hinzugefügt")
+
+                    # Kalender Sync-Sources Tabelle
+                    if 'calendar_sync_sources' not in inspector.get_table_names():
+                        print("[INFO] Erstelle calendar_sync_sources ...")
+                        from app.models.calendar import CalendarSyncSource as _CalendarSyncSource
+                        _CalendarSyncSource.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] calendar_sync_sources erstellt")
+
+                    # Multi-Kalender: calendars + calendar_id
+                    if 'calendars' not in inspector.get_table_names():
+                        print("[INFO] Erstelle calendars ...")
+                        from app.models.calendar import Calendar as _Calendar
+                        _Calendar.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] calendars erstellt")
+                    if 'calendar_events' in inspector.get_table_names():
+                        calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}
+                        if 'calendar_id' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.calendar_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN calendar_id INTEGER NULL"
+                                ))
+                            print("[OK] calendar_events.calendar_id hinzugefügt")
 
                     # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
                     table_names = set(inspector.get_table_names())
@@ -1227,15 +1369,14 @@ def create_app(config_name='default'):
                             except Exception as mail_col_error:
                                 print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
-                    print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
+                    print(f"[WARNUNG] Inline-Schema-Nachrüstung fehlgeschlagen: {migration_error}")
+                    print("[INFO] Bitte prüfen: python migrations/run_all.py")
 
                 try:
                     from sqlalchemy import inspect, text
                     from app.models.assessment import (
                         AssessmentAppSetting,
                         AssessmentRole,
-                        AssessmentUser,
                     )
 
                     inspector = inspect(db.engine)
@@ -1252,29 +1393,12 @@ def create_app(config_name='default'):
                             print("[OK] ass_users.theme_mode hinzugefügt")
 
                     default_roles = ['Administrator', 'Bewerter', 'Betrachter', 'Inspektor', 'Verwarner']
-                    role_map = {}
                     for role_name in default_roles:
                         role = AssessmentRole.query.filter_by(name=role_name).first()
                         if not role:
                             role = AssessmentRole(name=role_name)
                             db.session.add(role)
                             db.session.flush()
-                        role_map[role_name] = role
-
-                    admin = AssessmentUser.query.filter_by(username='admin').first()
-                    if not admin:
-                        admin = AssessmentUser(
-                            username='admin',
-                            display_name='Administrator',
-                            is_admin=True,
-                            must_change_password=True,
-                            is_active=True,
-                        )
-                        admin.set_password('password')
-                        db.session.add(admin)
-                        db.session.flush()
-                    if role_map['Administrator'] not in admin.roles:
-                        admin.roles.append(role_map['Administrator'])
 
                     assessment_defaults = {
                         'welcome_title': 'Willkommen im Bewertungstool',
@@ -1287,11 +1411,36 @@ def create_app(config_name='default'):
                             db.session.add(AssessmentAppSetting(setting_key=key, setting_value=value))
                     db.session.commit()
 
-                    from app.blueprints.assessment.migration import run_assessment_migrations
-                    run_assessment_migrations()
+                    if should_run_startup_migrations:
+                        from app.blueprints.assessment.migration import run_assessment_migrations
+                        run_assessment_migrations()
                 except Exception as assessment_error:
                     db.session.rollback()
                     print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
+
+                if should_run_startup_migrations:
+                    try:
+                        from app.models.settings import SystemSettings
+                        marker_setting = SystemSettings.query.filter_by(
+                            key='last_auto_migrated_release'
+                        ).first()
+                        if not marker_setting:
+                            marker_setting = SystemSettings(
+                                key='last_auto_migrated_release',
+                                value=release_marker,
+                                description='Letzter Release-Marker mit erfolgreicher Startup-Auto-Migration'
+                            )
+                            db.session.add(marker_setting)
+                        else:
+                            marker_setting.value = release_marker
+                            if not marker_setting.description:
+                                marker_setting.description = (
+                                    'Letzter Release-Marker mit erfolgreicher Startup-Auto-Migration'
+                                )
+                        db.session.commit()
+                    except Exception as marker_err:
+                        db.session.rollback()
+                        print(f"[WARNUNG] Release-Marker für Auto-Migration konnte nicht gespeichert werden: {marker_err}")
                 
                 from app.models.email import EmailFolder
                 
@@ -1516,6 +1665,13 @@ def create_app(config_name='default'):
                 
             except Exception as e:
                 print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
+
+        try:
+            from app.utils.file_storage_limits import sync_flask_max_content_length
+            synced = sync_flask_max_content_length(app)
+            print(f"[INFO] MAX_CONTENT_LENGTH aus Datei-Einstellungen: {synced} Bytes")
+        except Exception as sync_err:
+            print(f"[WARNUNG] MAX_CONTENT_LENGTH-Sync fehlgeschlagen: {sync_err}")
     
     # Background-Jobs nur im Hauptprozess starten
     if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
@@ -1523,6 +1679,9 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
+
+        from app.tasks.calendar_sync_scheduler import start_calendar_sync_scheduler
+        start_calendar_sync_scheduler(app)
 
         from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
         start_media_downloader_cleanup(app)

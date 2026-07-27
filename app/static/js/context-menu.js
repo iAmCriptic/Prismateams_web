@@ -1,10 +1,13 @@
 /**
- * Desktop custom context menu – mirrors ⋮ dropdowns and page-specific actions.
+ * Desktop: Rechtsklick-Kontextmenü (fine pointer + ≥768px).
+ * Mobile: ⋮-Kebab als Bottom-Sheet (Action Sheet) überall.
  */
 (function () {
     'use strict';
 
     const DESKTOP_MQ = window.matchMedia('(pointer: fine) and (min-width: 768px)');
+    /* Bis lg: Grid hat ≥2 Spalten — Sheet statt In-Card-Dropdown (sonst überdecken Nachbarn) */
+    const MOBILE_MQ = window.matchMedia('(max-width: 991.98px)');
 
     function i18n() {
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
@@ -26,6 +29,7 @@
     }
 
     let activeMenu = null;
+    let activeBackdrop = null;
     let quillInstance = null;
     const dynamicMatchers = [];
 
@@ -33,11 +37,20 @@
         return DESKTOP_MQ.matches;
     }
 
+    function isMobileSheetEnabled() {
+        return MOBILE_MQ.matches;
+    }
+
     function closeMenu() {
         if (activeMenu) {
             activeMenu.remove();
             activeMenu = null;
         }
+        if (activeBackdrop) {
+            activeBackdrop.remove();
+            activeBackdrop = null;
+        }
+        document.body.classList.remove('pt-action-sheet-open');
     }
 
     /** Shift/Ctrl/Cmd + Rechtsklick → natives Browser-Menü (kein Custom-Menü). */
@@ -168,13 +181,14 @@
             const res = await fetch('/api/dashboard/config');
             if (!res.ok) throw new Error('load failed');
             const config = await res.json();
-            const widgets = (config.enabled_widgets || []).filter((w) => w !== widgetId);
             const save = await fetch('/api/dashboard/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    enabled_widgets: widgets,
-                    quick_access_links: config.quick_access_links || []
+                    widgets: config.widgets || [],
+                    remove_widget_id: widgetId,
+                    quick_access_links: config.quick_access_links || [],
+                    mobile_nav_slots: config.mobile_nav_slots || undefined
                 })
             });
             if (!save.ok) throw new Error('save failed');
@@ -190,14 +204,7 @@
     }
 
     function wireMenuInteractions(menu, container) {
-        menu.querySelectorAll('[data-confirm-delete]').forEach((button) => {
-            button.addEventListener('click', function (e) {
-                const message =
-                    this.getAttribute('data-confirm-delete') ||
-                    'Möchten Sie dieses Element wirklich löschen?';
-                if (!confirm(message)) e.preventDefault();
-            });
-        });
+        // data-confirm-delete is handled globally by app.js (ptConfirm modal)
 
         menu.querySelectorAll('[data-pt-trigger-click]').forEach((button) => {
             button.addEventListener('click', (e) => {
@@ -215,12 +222,18 @@
             if (toggle) {
                 e.preventDefault();
                 e.stopPropagation();
-                const sub = toggle.parentElement.querySelector(':scope > .dropdown-menu');
+                const parent = toggle.closest('.dropdown-submenu');
+                const sub = parent && parent.querySelector(':scope > .dropdown-menu');
                 if (sub) {
-                    container.querySelectorAll('.dropdown-submenu > .dropdown-menu.show').forEach((m) => {
-                        if (m !== sub) m.classList.remove('show');
+                    container.querySelectorAll('.dropdown-submenu').forEach((li) => {
+                        if (li === parent) return;
+                        li.classList.remove('is-open');
+                        const m = li.querySelector(':scope > .dropdown-menu.show');
+                        if (m) m.classList.remove('show');
                     });
-                    sub.classList.toggle('show');
+                    const open = !sub.classList.contains('show');
+                    sub.classList.toggle('show', open);
+                    if (parent) parent.classList.toggle('is-open', open);
                 }
                 return;
             }
@@ -231,24 +244,33 @@
                 e.preventDefault();
                 navigator.clipboard.writeText(copyText).catch(() => {});
             }
-            if (!item.hasAttribute('data-pt-trigger-click')) {
-                setTimeout(closeMenu, 0);
+            // Confirm-Dialog braucht den Button noch im DOM (app.js re-click)
+            if (
+                item.hasAttribute('data-confirm-delete') ||
+                item.hasAttribute('data-pt-confirm') ||
+                item.hasAttribute('data-pt-trigger-click')
+            ) {
+                return;
             }
+            setTimeout(closeMenu, 0);
         });
+    }
+
+    function createMenuContainer(menu, extraClass) {
+        const container = document.createElement(String.fromCharCode(100, 105, 118));
+        container.id = 'prismateams-context-menu';
+        container.className = 'pt-context-menu' + (extraClass ? ' ' + extraClass : '');
+        container.setAttribute('role', 'menu');
+        container.appendChild(menu);
+        document.body.appendChild(container);
+        wireMenuInteractions(menu, container);
+        return container;
     }
 
     function showFloatingMenu(clientX, clientY, menu) {
         closeMenu();
 
-        const container = document.createElement(String.fromCharCode(100, 105, 118));
-        container.id = 'prismateams-context-menu';
-        container.className = 'pt-context-menu';
-        container.setAttribute('role', 'menu');
-        container.appendChild(menu);
-        document.body.appendChild(container);
-
-        wireMenuInteractions(menu, container);
-
+        const container = createMenuContainer(menu);
         const maxW = container.offsetWidth;
         const maxH = container.offsetHeight;
         let left = clientX;
@@ -261,6 +283,108 @@
         container.style.top = top + 'px';
 
         activeMenu = container;
+    }
+
+    function showMobileActionSheet(sourceMenu) {
+        closeMenu();
+
+        const backdrop = document.createElement(String.fromCharCode(100, 105, 118));
+        backdrop.className = 'pt-action-sheet-backdrop';
+        backdrop.addEventListener('click', closeMenu);
+        document.body.appendChild(backdrop);
+        activeBackdrop = backdrop;
+
+        const menu = prepareClonedMenu(sourceMenu);
+        const container = createMenuContainer(menu, 'pt-context-menu--sheet');
+        document.body.classList.add('pt-action-sheet-open');
+        activeMenu = container;
+    }
+
+    function isKebabToggle(toggle) {
+        if (!toggle || !toggle.closest) return false;
+        if (toggle.closest('[data-pt-no-action-sheet]')) return false;
+        if (toggle.hasAttribute('data-mobile-modal') || toggle.closest('[data-mobile-modal]')) return false;
+        if (toggle.closest('.dropdown-submenu')) return false;
+        if (toggle.closest('#mobileNav, #desktopSidebar, .navbar')) return false;
+        // Offcanvas-Inhalte: Ordner-⋮ sind Edit-Buttons ohne Dropdown — nicht abfangen
+        if (toggle.closest('.offcanvas') && !toggle.closest('.dropdown')) return false;
+        if (
+            toggle.closest(
+                '#newDropdown, #newButtonDropdownSidebar, #newButtonDropdownMobile, .files-sidebar-new-menu, .files-mobile-new-menu, .mod-sidebar-new-wrap, .credentials-sidebar-new-menu, .manuals-sidebar-new-menu'
+            )
+        ) {
+            return false;
+        }
+        if (toggle.id === 'newButton' || toggle.closest('#newButton')) return false;
+        if (!toggle.querySelector('.bi-three-dots-vertical, .bi-three-dots')) return false;
+        const label = (toggle.textContent || '').replace(/\s+/g, ' ').trim();
+        return label.length <= 2;
+    }
+
+    function findKebabSourceMenu(toggle) {
+        // Template-Quellen (Kontakte / Passwörter / Anleitungen / Inventar) bevorzugen
+        const zone = toggle.closest('[data-context-zone][data-context-menu="template"]');
+        if (zone) {
+            const id = zone.getAttribute('data-context-menu-id');
+            let source = id ? document.getElementById(id) : null;
+            if (!source) source = zone.querySelector('.context-menu-source');
+            if (source) {
+                const tmpl =
+                    source.querySelector('.dropdown-menu') ||
+                    (source.classList.contains('dropdown-menu') ? source : null);
+                if (tmpl && tmpl.children.length) return tmpl;
+            }
+        }
+
+        const dropdown = toggle.closest('.dropdown');
+        if (!dropdown) return null;
+        const menu =
+            dropdown.querySelector(':scope > .dropdown-menu') || dropdown.querySelector('.dropdown-menu');
+        return menu && menu.children.length ? menu : null;
+    }
+
+    function openKebabActionSheet(toggle, e) {
+        const sourceMenu = findKebabSourceMenu(toggle);
+        if (!sourceMenu) return false;
+
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        }
+
+        toggle.setAttribute('aria-expanded', 'false');
+        const dropWrap = toggle.closest('.dropdown');
+        if (dropWrap) {
+            dropWrap.classList.remove('show');
+            const localMenu = dropWrap.querySelector('.dropdown-menu');
+            if (localMenu) localMenu.classList.remove('show');
+        }
+
+        showMobileActionSheet(sourceMenu);
+        return true;
+    }
+
+    function onMobileKebabClick(e) {
+        if (!isMobileSheetEnabled()) return;
+        if (e.button != null && e.button !== 0) return;
+
+        const toggle = e.target.closest(
+            '[data-bs-toggle="dropdown"], button.dropdown-toggle, .dropdown > [data-bs-toggle="dropdown"]'
+        );
+        if (!toggle || !isKebabToggle(toggle)) return;
+
+        openKebabActionSheet(toggle, e);
+    }
+
+    /** Fallback: wenn Bootstrap trotzdem öffnen will → Sheet statt In-Card-Dropdown */
+    function onBootstrapDropdownShow(e) {
+        if (!isMobileSheetEnabled()) return;
+        const toggle = e.relatedTarget || e.target;
+        if (!toggle || !isKebabToggle(toggle)) return;
+        if (!findKebabSourceMenu(toggle)) return;
+        e.preventDefault();
+        openKebabActionSheet(toggle, null);
     }
 
     function buildQuillMenu() {
@@ -332,11 +456,10 @@
         const menuType = zone.getAttribute('data-context-menu');
         if (!menuType || menuType === 'none') return;
 
-        e.preventDefault();
-        e.stopPropagation();
-
         if (menuType === 'quill') {
             if (!quillInstance) return;
+            e.preventDefault();
+            e.stopPropagation();
             showFloatingMenu(e.clientX, e.clientY, buildQuillMenu());
             return;
         }
@@ -344,6 +467,8 @@
         if (menuType === 'dashboard-widget') {
             const widgetId = zone.getAttribute('data-widget-id');
             if (!widgetId) return;
+            e.preventDefault();
+            e.stopPropagation();
             showFloatingMenu(e.clientX, e.clientY, buildDashboardWidgetMenu(widgetId));
             return;
         }
@@ -351,14 +476,23 @@
         const sourceMenu = resolveSourceMenu(zone, menuType);
         if (!sourceMenu || !sourceMenu.children.length) return;
 
+        e.preventDefault();
+        e.stopPropagation();
         const menu = prepareClonedMenu(sourceMenu);
         showFloatingMenu(e.clientX, e.clientY, menu);
     }
 
     document.addEventListener('contextmenu', onContextMenu, true);
+    // Capture: vor Bootstrap, kein touchend+click-Doppel-Toggle
+    document.addEventListener('click', onMobileKebabClick, true);
+    document.addEventListener('show.bs.dropdown', onBootstrapDropdownShow, true);
 
     document.addEventListener('click', (e) => {
-        if (activeMenu && !activeMenu.contains(e.target)) closeMenu();
+        if (!activeMenu) return;
+        if (activeMenu.contains(e.target)) return;
+        if (activeBackdrop && activeBackdrop.contains(e.target)) return;
+        if (activeMenu.classList.contains('pt-context-menu--sheet')) return;
+        closeMenu();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -366,9 +500,17 @@
     });
 
     window.addEventListener('resize', closeMenu);
-    document.addEventListener('scroll', closeMenu, true);
+    document.addEventListener(
+        'scroll',
+        () => {
+            if (activeMenu && activeMenu.classList.contains('pt-context-menu--sheet')) return;
+            closeMenu();
+        },
+        true
+    );
 
     DESKTOP_MQ.addEventListener('change', () => closeMenu());
+    MOBILE_MQ.addEventListener('change', () => closeMenu());
 
     window.PrismateamsContextMenu = {
         setQuill(q) {
@@ -376,6 +518,8 @@
         },
         close: closeMenu,
         isEnabled,
+        isMobileSheetEnabled,
+        showMobileActionSheet,
         registerMatcher(matchFn, buildMenuFn) {
             if (typeof matchFn === 'function' && typeof buildMenuFn === 'function') {
                 dynamicMatchers.push({ match: matchFn, build: buildMenuFn });

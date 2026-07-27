@@ -1,102 +1,174 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.system.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.system_settings.title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.admin.system.breadcrumb_system') }}</li>
-    </ol>
-</nav>
-
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('settings.admin.system.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <h5 class="mb-3">{{ _('settings.admin.system.section_title') }}</h5>
-                    
-                    <div class="mb-3">
-                        <label for="portal_name" class="form-label">{{ _('settings.admin.system.portal_name_label') }}</label>
-                        <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="{{ _('settings.admin.system.portal_name_placeholder') }}">
-                        <div class="form-text">{{ _('settings.admin.system.portal_name_help') }}</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="portal_logo" class="form-label">{{ _('settings.admin.system.portal_logo_label') }}</label>
-                        {% if portal_logo %}
-                        <div class="mb-2">
-                            <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="{{ _('settings.admin.system.portal_logo_label') }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
-                            <p class="text-muted small mt-1">{{ _('settings.admin.system.current_logo') }}</p>
-                        </div>
-                        {% endif %}
-                        <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
-                        <div class="form-text">{{ _('settings.admin.system.portal_logo_help') }}</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="default_accent_color" class="form-label">{{ _('settings.admin.system.default_accent_color_label') }}</label>
-                        <div class="d-flex align-items-center gap-3 mb-2">
-                            <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color }}" title="Wählen Sie eine Farbe">
-                            <span class="badge" id="default-color-preview" style="background-color: {{ default_accent_color }}; padding: 1rem 2rem;">Vorschau</span>
-                        </div>
-                        <div class="form-text">{{ _('settings.admin.system.default_accent_color_help') }}</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="color_gradient" class="form-label">{{ _('settings.admin.system.color_gradient_label') }}</label>
-                        <select class="form-select" id="color_gradient" name="color_gradient">
-                            <option value="" {% if not color_gradient %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_default') }}</option>
-                            <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" {% if color_gradient == 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_purple_blue') }}</option>
-                            <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" {% if color_gradient == 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pink_red') }}</option>
-                            <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" {% if color_gradient == 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_blue_cyan') }}</option>
-                            <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" {% if color_gradient == 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_green_teal') }}</option>
-                            <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" {% if color_gradient == 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pink_yellow') }}</option>
-                            <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" {% if color_gradient == 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pastel') }}</option>
-                            <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" {% if color_gradient == 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_rose_pastel') }}</option>
-                            <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" {% if color_gradient == 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_orange_pastel') }}</option>
-                        </select>
-                        <div class="form-text">{{ _('settings.admin.system.color_gradient_help') }}</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="portal_timezone" class="form-label">{{ _('settings.admin.system.timezone_label') }}</label>
-                        <select class="form-select" id="portal_timezone" name="portal_timezone">
-                            {% for tz_value, tz_label in timezone_choices %}
-                            <option value="{{ tz_value }}" {% if portal_timezone == tz_value %}selected{% endif %}>{{ tz_label }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">{{ _('settings.admin.system.timezone_help') }}</div>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.system.save_button') }}</button>
-                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('settings.admin.system.back_button') }}</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+{% block settings_content %}
+<div class="settings-admin-system">
+    <div class="settings-admin-system-header">
+        <h1 class="settings-admin-system-title">{{ _('settings.admin.system.heading') }}</h1>
+        <p class="settings-admin-system-subtitle">{{ _('settings.admin.system.subtitle') }}</p>
     </div>
+
+    <form method="POST" enctype="multipart/form-data" class="settings-admin-system-form">
+        <div class="settings-admin-system-grid">
+            <section class="settings-admin-system-card" aria-labelledby="system-section-portal">
+                <div class="settings-admin-system-card-head">
+                    <h2 id="system-section-portal" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_portal') }}</h2>
+                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.portal_name_help') }}" aria-label="{{ _('settings.admin.system.portal_name_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="settings-admin-system-field">
+                    <label for="portal_name" class="form-label">{{ _('settings.admin.system.portal_name_label') }}</label>
+                    <input type="text" class="form-control settings-admin-system-input" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="{{ _('settings.admin.system.portal_name_placeholder') }}" autocomplete="organization">
+                </div>
+
+                <div class="settings-admin-system-field">
+                    <div class="settings-admin-system-label-row">
+                        <label for="portal_logo" class="form-label mb-0">{{ _('settings.admin.system.portal_logo_label') }}</label>
+                        <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.portal_logo_help') }}" aria-label="{{ _('settings.admin.system.portal_logo_help') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    {% if portal_logo %}
+                    <div class="settings-admin-system-logo" id="portal-logo-preview">
+                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="{{ _('settings.admin.system.portal_logo_label') }}" class="settings-admin-system-logo-img">
+                        <div class="settings-admin-system-logo-meta">
+                            <span class="settings-admin-system-logo-caption">{{ _('settings.admin.system.current_logo') }}</span>
+                            <button type="submit" name="remove_portal_logo" value="1" class="btn btn-sm btn-outline-danger settings-admin-system-logo-remove" data-confirm-delete="{{ _('settings.admin.system.remove_logo_confirm') }}" title="{{ _('settings.admin.system.remove_logo') }}">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                {{ _('settings.admin.system.remove_logo') }}
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <input type="file" class="form-control settings-admin-system-input settings-admin-system-file" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
+                </div>
+            </section>
+
+            <section class="settings-admin-system-card" aria-labelledby="system-section-branding">
+                <div class="settings-admin-system-card-head">
+                    <h2 id="system-section-branding" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_branding') }}</h2>
+                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.default_accent_color_help') }}" aria-label="{{ _('settings.admin.system.default_accent_color_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="settings-admin-system-field">
+                    <label for="default_accent_color" class="form-label">{{ _('settings.admin.system.default_accent_color_label') }}</label>
+                    <div class="settings-admin-system-color-row">
+                        <input type="color" class="form-control form-control-color settings-admin-system-color-picker" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color }}" title="{{ _('settings.admin.system.default_accent_color_label') }}">
+                        <span id="default-color-preview" class="settings-admin-system-preview" style="background-color: {{ default_accent_color }};">{{ _('settings.admin.system.preview') }}</span>
+                    </div>
+                </div>
+
+                <div class="settings-admin-system-field">
+                    <div class="settings-admin-system-label-row">
+                        <span class="form-label mb-0">{{ _('settings.admin.system.color_gradient_label') }}</span>
+                        <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.color_gradient_help') }}" aria-label="{{ _('settings.admin.system.color_gradient_help') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="settings-admin-system-preset-grid" role="radiogroup" aria-label="{{ _('settings.admin.system.color_gradient_label') }}">
+                        {% set gradients = [
+                            ('', _('settings.admin.system.color_gradient_default'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
+                            ('linear-gradient(135deg, #667eea 0%, #764ba2 100%)', _('settings.admin.system.color_gradient_purple_blue'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
+                            ('linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', _('settings.admin.system.color_gradient_pink_red'), 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'),
+                            ('linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', _('settings.admin.system.color_gradient_blue_cyan'), 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'),
+                            ('linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', _('settings.admin.system.color_gradient_green_teal'), 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'),
+                            ('linear-gradient(135deg, #fa709a 0%, #fee140 100%)', _('settings.admin.system.color_gradient_pink_yellow'), 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'),
+                            ('linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', _('settings.admin.system.color_gradient_pastel'), 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'),
+                            ('linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', _('settings.admin.system.color_gradient_rose_pastel'), 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'),
+                            ('linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', _('settings.admin.system.color_gradient_orange_pastel'), 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
+                        ] %}
+                        {% for value, label, swatch in gradients %}
+                        {% set gid = 'sys_grad_' ~ loop.index0 %}
+                        <div class="settings-admin-system-preset">
+                            <input type="radio" class="btn-check" name="color_gradient" id="{{ gid }}" value="{{ value }}" {% if color_gradient == value or (not color_gradient and value == '') %}checked{% endif %}>
+                            <label class="settings-admin-system-preset-btn" for="{{ gid }}" title="{{ label }}">
+                                <span class="settings-admin-system-preset-swatch" style="background: {{ swatch }};"></span>
+                                <span class="settings-admin-system-preset-label">{{ label }}</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="settings-admin-system-card" aria-labelledby="system-section-timezone">
+            <div class="settings-admin-system-card-head">
+                <h2 id="system-section-timezone" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_timezone') }}</h2>
+                <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.timezone_help') }}" aria-label="{{ _('settings.admin.system.timezone_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="settings-admin-system-field mb-0">
+                <label for="portal_timezone" class="form-label">{{ _('settings.admin.system.timezone_label') }}</label>
+                <select class="form-select settings-admin-system-input" id="portal_timezone" name="portal_timezone">
+                    {% for tz_value, tz_label in timezone_choices %}
+                    <option value="{{ tz_value }}" {% if portal_timezone == tz_value %}selected{% endif %}>{{ tz_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </section>
+
+        <section class="settings-admin-system-card" aria-labelledby="system-section-guest-domain">
+            <div class="settings-admin-system-card-head">
+                <h2 id="system-section-guest-domain" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_guest_domain') }}</h2>
+                <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.guest_email_domain_help') }}" aria-label="{{ _('settings.admin.system.guest_email_domain_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="settings-admin-system-field mb-0">
+                <label for="guest_email_domain" class="form-label">{{ _('settings.admin.system.guest_email_domain_label') }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">@</span>
+                    <input type="text" class="form-control settings-admin-system-input" id="guest_email_domain" name="guest_email_domain"
+                           value="{{ guest_email_domain }}" placeholder="{{ _('settings.admin.system.guest_email_domain_placeholder') }}"
+                           autocomplete="off" spellcheck="false">
+                </div>
+                <p class="form-text mb-0 mt-2" id="guest-email-domain-preview">
+                    {{ _('settings.admin.system.guest_email_domain_preview', domain=guest_email_domain) }}
+                </p>
+            </div>
+        </section>
+
+        <div class="settings-admin-system-actions">
+            <button type="submit" class="btn btn-accent settings-admin-system-submit">{{ _('settings.admin.system.save_button') }}</button>
+        </div>
+    </form>
 </div>
 
 <script>
-// Farbvorschau für Standard-Akzentfarbe
-document.addEventListener('DOMContentLoaded', function() {
-    const defaultAccentColor = document.getElementById('default_accent_color');
-    const colorPreview = document.getElementById('default-color-preview');
-    
+document.addEventListener('DOMContentLoaded', function () {
+    var defaultAccentColor = document.getElementById('default_accent_color');
+    var colorPreview = document.getElementById('default-color-preview');
     if (defaultAccentColor && colorPreview) {
-        defaultAccentColor.addEventListener('input', function() {
+        defaultAccentColor.addEventListener('input', function () {
             colorPreview.style.backgroundColor = this.value;
         });
     }
+
+    var guestDomainInput = document.getElementById('guest_email_domain');
+    var guestDomainPreview = document.getElementById('guest-email-domain-preview');
+    var guestPreviewTpl = {{ _('settings.admin.system.guest_email_domain_preview')|tojson }};
+    if (guestDomainInput && guestDomainPreview) {
+        guestDomainInput.addEventListener('input', function () {
+            var domain = (this.value || '').trim().replace(/^@+/, '').toLowerCase() || '…';
+            guestDomainPreview.textContent = guestPreviewTpl.replace('{domain}', domain);
+        });
+    }
+
+    document.querySelectorAll('.settings-admin-system [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
 });
 </script>
 {% endblock %}
-
-
-

@@ -10,6 +10,15 @@ from app.utils.access_control import check_module_access, get_guest_accessible_i
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat_user_filters
+from app.utils.chat_nav import (
+    CHAT_PINS_MAX,
+    build_chat_nav_items,
+    ensure_user_in_main_chat,
+    get_main_chat,
+    toggle_chat_pin,
+    user_is_chat_member,
+    wants_desktop_chat_layout,
+)
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
@@ -112,22 +121,63 @@ def _build_calendar_message_metadata(event, current_user_status='pending'):
 @login_required
 @check_module_access('module_chat')
 def index():
-    """List all chats for current user."""
-    # Get all chats where user is a member
-    memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
-    chats = [membership.chat for membership in memberships]
-    
-    # Separate main chat, group chats, and direct messages
-    main_chat = next((c for c in chats if c.is_main_chat), None)
-    group_chats = [c for c in chats if not c.is_main_chat and not c.is_direct_message]
-    direct_chats = [c for c in chats if c.is_direct_message]
-    
+    """List chats (mobile) or redirect to main chat (desktop shell)."""
+    # Fresh installs: Haupt-Chat may exist before admin — self-heal membership
+    membership = ensure_user_in_main_chat(current_user)
+    main_chat = get_main_chat()
+
+    # ?list=1 forces the list view and breaks desktop redirect loops
+    force_list = request.args.get('list') == '1'
+    if not force_list and wants_desktop_chat_layout(current_user, request) and main_chat:
+        is_member = bool(membership) or user_is_chat_member(current_user, main_chat.id)
+        if is_member:
+            return redirect(url_for('chat.view_chat', chat_id=1))
+
+    nav_items = build_chat_nav_items(current_user)
+    preferred = (getattr(current_user, 'preferred_layout', None) or 'auto').strip().lower()
+    # Client fallback only when layout is auto/desktop — never override explicit mobile preference
+    desktop_main_chat_url = None
+    if main_chat and preferred != 'mobile':
+        desktop_main_chat_url = url_for('chat.view_chat', chat_id=1)
+
     return render_template(
         'chat/index.html',
-        main_chat=main_chat,
-        group_chats=group_chats,
-        direct_chats=direct_chats
+        nav_items=nav_items,
+        active_chat_id=None,
+        desktop_main_chat_url=desktop_main_chat_url,
     )
+
+
+@chat_bp.route('/api/pin/<int:chat_id>', methods=['POST'])
+@login_required
+@check_module_access('module_chat')
+def pin_chat_api(chat_id):
+    """Toggle a chat pin (max CHAT_PINS_MAX)."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            chat_id = main_chat.id
+
+    ok, pinned, error, count = toggle_chat_pin(current_user, chat_id)
+    if not ok:
+        return jsonify({
+            'success': False,
+            'error': error or 'Pin konnte nicht geändert werden.',
+            'pinned': pinned,
+            'count': count,
+            'max': CHAT_PINS_MAX,
+        }), 400
+
+    return jsonify({
+        'success': True,
+        'pinned': pinned,
+        'count': count,
+        'max': CHAT_PINS_MAX,
+        'chat_id': chat_id,
+    })
 
 
 @chat_bp.route('/<int:chat_id>')
@@ -143,12 +193,15 @@ def view_chat(chat_id):
             # Use the actual main chat ID for all operations, but keep URL as /chat/1
             actual_chat_id = main_chat.id
         else:
-            flash('Haupt-Chat nicht gefunden.', 'danger')
-            return redirect(url_for('chat.index'))
+            flash(translate('chat.flash.main_chat_not_found'), 'danger')
+            return redirect(url_for('chat.index', list=1))
     else:
         actual_chat_id = chat_id
     
     chat = Chat.query.get_or_404(actual_chat_id)
+
+    if chat.is_main_chat:
+        ensure_user_in_main_chat(current_user)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
@@ -157,8 +210,9 @@ def view_chat(chat_id):
     ).first()
     
     if not membership:
-        flash('Sie sind kein Mitglied dieses Chats.', 'danger')
-        return redirect(url_for('chat.index'))
+        flash(translate('chat.flash.not_member'), 'danger')
+        # list=1 prevents /chat/ → /chat/1 redirect loop on desktop
+        return redirect(url_for('chat.index', list=1))
     
     # Get all messages
     messages = ChatMessage.query.filter_by(
@@ -182,12 +236,17 @@ def view_chat(chat_id):
         ).all()
     else:
         members = []
+
+    nav_items = build_chat_nav_items(current_user)
+    active_nav_id = 1 if chat.is_main_chat else chat.id
     
     return render_template(
         'chat/view.html',
         chat=chat,
         messages=messages,
-        members=members
+        members=members,
+        nav_items=nav_items,
+        active_chat_id=active_nav_id,
     )
 
 
@@ -480,25 +539,41 @@ def create_chat():
         else:
             # Gruppen-Chat
             name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip() or None
             member_ids = request.form.getlist('members')
             
             if not name:
                 flash(translate('chat.flash.enter_name'), 'danger')
-                return redirect(url_for('chat.create_chat'))
+                return redirect(url_for('chat.create_chat', step='group'))
             
             if not member_ids:
                 flash(translate('chat.flash.select_member'), 'danger')
-                return redirect(url_for('chat.create_chat'))
+                return redirect(url_for('chat.create_chat', step='group'))
             
             # Create new group chat
             new_chat = Chat(
                 name=name,
+                description=description,
                 is_main_chat=False,
                 is_direct_message=False,
                 created_by=current_user.id
             )
             db.session.add(new_chat)
             db.session.flush()
+
+            # Optional group avatar (same pattern as update_chat)
+            if 'avatar' in request.files:
+                avatar_file = request.files['avatar']
+                if avatar_file and avatar_file.filename and allowed_file(avatar_file.filename):
+                    filename = secure_filename(avatar_file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{filename}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    avatar_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'chat', 'avatars')
+                    os.makedirs(avatar_dir, exist_ok=True)
+                    filepath = os.path.join(avatar_dir, filename)
+                    avatar_file.save(filepath)
+                    new_chat.group_avatar = filename
             
             # Add creator as member
             creator_member = ChatMember(
@@ -527,8 +602,15 @@ def create_chat():
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
     # Get all selectable users for chat creation, including guests.
-    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
-    return render_template('chat/create.html', users=users)
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).order_by(User.first_name, User.last_name).all()
+    group_step = request.args.get('step') == 'group'
+    return render_template(
+        'chat/create.html',
+        users=users,
+        group_step=group_step,
+        nav_items=build_chat_nav_items(current_user),
+        active_chat_id=None,
+    )
 
 
 @chat_bp.route('/direct/<int:user_id>')
@@ -851,13 +933,15 @@ def chat_settings(chat_id):
     else:
         members = []
 
-    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).order_by(User.first_name, User.last_name).all()
     
     return render_template(
         'chat/settings.html',
         chat=chat,
         members=members,
         users=users,
+        nav_items=build_chat_nav_items(current_user),
+        active_chat_id=1 if chat.is_main_chat else chat.id,
     )
 
 

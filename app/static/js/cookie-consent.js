@@ -6,12 +6,13 @@
 
     const banner = document.getElementById('cookieConsentBanner');
     const fab = document.getElementById('cookieConsentFab');
-    const openSettingsButtons = Array.from(document.querySelectorAll('[data-cookie-consent-open]'));
     if (!banner) return;
 
     const details = document.getElementById('cookieConsentDetails');
     const functionalToggle = document.getElementById('cookieConsentFunctional');
     const analyticsToggle = document.getElementById('cookieConsentAnalytics');
+
+    let hideTimer = null;
 
     function readConsent() {
         try {
@@ -48,7 +49,13 @@
     }
 
     function showBanner() {
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
         banner.classList.remove('d-none');
+        // Reflow, damit die CSS-Transition greift
+        void banner.offsetWidth;
         requestAnimationFrame(function () {
             banner.classList.add('is-visible');
         });
@@ -57,8 +64,10 @@
 
     function hideBanner() {
         banner.classList.remove('is-visible');
-        setTimeout(function () {
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
             banner.classList.add('d-none');
+            hideTimer = null;
         }, 350);
     }
 
@@ -114,20 +123,26 @@
     function openConsentSettings() {
         const existing = readConsent();
         loadTogglesFromConsent(existing);
-        toggleDetails(true);
+        // Details nur nach Klick auf „Einstellungen“
+        toggleDetails(false);
         showBanner();
         hideFab();
     }
 
-    openSettingsButtons.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const offcanvasEl = btn.closest('.offcanvas');
-            if (offcanvasEl && window.bootstrap?.Offcanvas) {
-                const instance = window.bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-                instance.hide();
-            }
-            openConsentSettings();
-        });
+    // Event-Delegation: funktioniert auch wenn Buttons später im DOM sind
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-cookie-consent-open]');
+        if (!btn) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const offcanvasEl = btn.closest('.offcanvas');
+        if (offcanvasEl && window.bootstrap?.Offcanvas) {
+            const instance = window.bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+            instance.hide();
+        }
+        openConsentSettings();
     });
 
     window.getCookieConsent = function () {

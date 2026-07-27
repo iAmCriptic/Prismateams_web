@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
@@ -7,8 +7,8 @@ from app.models.settings import SystemSettings
 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
-from app.utils.notifications import get_or_create_notification_settings
-from app.utils.backup import export_backup, import_backup, SUPPORTED_CATEGORIES
+from app.utils.notifications import get_or_create_notification_settings, sync_user_notification_flags
+from app.utils.backup import export_backup, import_backup, SUPPORTED_CATEGORIES, CATEGORY_DEFINITIONS
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
@@ -17,10 +17,48 @@ from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
-from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone
-from datetime import datetime
+from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone, portal_now_naive
+from datetime import datetime, timedelta
+from sqlalchemy import or_
 
 settings_bp = Blueprint('settings', __name__)
+
+
+def _settings_redirect(endpoint, **values):
+    """Redirect unter Beibehaltung von embed=1 (Setup-Modal)."""
+    if request.args.get('embed') or request.form.get('embed'):
+        values.setdefault('embed', 1)
+    return redirect(url_for(endpoint, **values))
+
+
+def _guest_account_form_options():
+    """Module, Freigaben und Chats für Gast-Erstellung/-Bearbeitung."""
+    guest_modules = [
+        ('module_calendar', 'Kalender'),
+        ('module_events', 'Veranstaltungen'),
+        ('module_contacts', 'Kontakte'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_music', 'Musik'),
+        ('module_media_downloader', 'Media Downloader'),
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks'),
+    ]
+    from app.utils.public_share import get_assignable_public_shares
+    assignable_shares = get_assignable_public_shares()
+
+    all_chats_list = Chat.query.order_by(Chat.created_at).all()
+    all_chats = []
+    main_chat_added = False
+    for chat in all_chats_list:
+        if chat.is_main_chat and not main_chat_added:
+            all_chats.append(chat)
+            main_chat_added = True
+        elif not chat.is_main_chat:
+            all_chats.append(chat)
+
+    return guest_modules, assignable_shares, all_chats
 
 
 @settings_bp.route('/')
@@ -85,10 +123,6 @@ def profile():
                 else:
                     flash(translate('settings.profile.flash_picture_invalid_type'), 'danger')
                     return render_template('settings/profile.html', user=current_user)
-        
-        current_user.notifications_enabled = 'notifications_enabled' in request.form
-        current_user.chat_notifications = 'chat_notifications' in request.form
-        current_user.email_notifications = 'email_notifications' in request.form
         
         db.session.commit()
         flash(translate('settings.profile.flash_profile_updated'), 'success')
@@ -181,6 +215,10 @@ def notifications():
         
         # E-Mail-Benachrichtigungen
         settings.email_notifications_enabled = 'email_notifications_enabled' in request.form
+
+        # Buchungsanfragen
+        settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
+        settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
         
         # Kalender-Benachrichtigungen
         settings.calendar_notifications_enabled = 'calendar_notifications_enabled' in request.form
@@ -204,7 +242,9 @@ def notifications():
                     chat_id=membership.chat_id,
                     notifications_enabled=False,
                 ))
-        
+
+        sync_user_notification_flags(current_user, settings)
+
         db.session.commit()
         flash(translate('settings.notifications.flash_saved'), 'success')
         return redirect(url_for('settings.notifications'))
@@ -270,6 +310,14 @@ def appearance():
 
         if color_type == 'gradient' and accent_gradient:
             current_user.accent_gradient = accent_gradient
+            # Keep solid accent_color in sync with first gradient stop for highlights
+            import re
+            matches = re.findall(r'#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b', accent_gradient)
+            if matches:
+                raw = matches[0]
+                if len(raw) == 3:
+                    raw = ''.join(ch * 2 for ch in raw)
+                current_user.accent_color = f'#{raw.lower()}'
         else:
             current_user.accent_gradient = None
 
@@ -301,7 +349,15 @@ def appearance():
         label = translate(key)
         if label == key:
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
-        language_options.append({'code': code, 'label': label})
+        completeness = LANGUAGE_COMPLETENESS.get(code)
+        badge = f'{completeness}%' if completeness is not None else None
+        language_options.append({
+            'code': code,
+            'label': label,
+            'completeness': completeness,
+            'badge': badge,
+            'badge_grade': _language_badge_grade(completeness) if completeness is not None else None,
+        })
 
     mobile_nav_slots = get_mobile_nav_slots(current_user)
     mobile_nav_options = get_available_mobile_nav_options(current_user)
@@ -319,12 +375,11 @@ def appearance():
 @settings_bp.route('/admin')
 @login_required
 def admin():
-    """Admin settings page."""
+    """Admin settings hub — redirects to Start dashboard (sidebar has all admin links)."""
     if not current_user.is_admin:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
-    return render_template('settings/admin.html')
+    return redirect(url_for('settings.index') + '#admin')
 
 
 @settings_bp.route('/admin/users')
@@ -368,9 +423,18 @@ def admin_users():
         User.email != 'anonymous@system.local'
     ).order_by(User.created_at.desc()).all()
     
-    # Get all guest accounts
+    # Get all guest accounts.
+    # Inaktive Gäste bleiben 7 Tage sichtbar (reaktivierbar), danach verschwinden sie aus der Liste.
+    # guest_expires_at mit Portal-Wandzeit vergleichen; Retention an updated_at (UTC).
+    now_portal = portal_now_naive()
+    guest_retention_cutoff = datetime.utcnow() - timedelta(days=7)
     guest_users = User.query.filter(
         User.is_guest == True
+    ).filter(
+        or_(
+            User.is_active == True,
+            User.updated_at >= guest_retention_cutoff
+        )
     ).order_by(User.created_at.desc()).all()
     
     # Erstelle Liste mit Benutzer-Rollen-Informationen für aktive Benutzer
@@ -407,15 +471,41 @@ def admin_users():
             'share_count': len(share_accesses)
         })
     
-    from datetime import datetime
-    now = datetime.utcnow()
-    
+    now = now_portal
+
+    # Ausstehende E-Mail-Bestätigungscodes (nur aktive Konten — Code startet erst nach Freischaltung)
+    pending_code_users = User.query.filter(
+        User.is_email_confirmed == False,
+        User.is_active == True,
+        User.confirmation_code.isnot(None),
+        ~User.is_guest,
+        User.email != 'anonymous@system.local',
+    ).all()
+    confirmation_code_users = []
+    for user in pending_code_users:
+        if user.confirmation_code_expires is None or user.confirmation_code_expires > now:
+            confirmation_code_users.append(user)
+    confirmation_code_users.sort(key=lambda u: u.created_at or now, reverse=True)
+
+    guest_modules, assignable_shares, all_chats = _guest_account_form_options()
+    guest_chats_json = [
+        {'id': c.id, 'name': c.name, 'is_main_chat': bool(c.is_main_chat)}
+        for c in all_chats
+    ]
+    from app.utils.guest_accounts import get_guest_email_domain, get_guest_email_suffix
+
     return render_template('settings/admin_users.html', 
                          active_users=active_users, 
                          pending_users=pending_users,
                          users_with_roles=users_with_roles,
                          guest_users_with_roles=guest_users_with_roles,
+                         confirmation_code_users=confirmation_code_users,
                          all_modules=all_modules,
+                         guest_modules=guest_modules,
+                         assignable_shares=assignable_shares,
+                         guest_chats_json=guest_chats_json,
+                         guest_email_domain=get_guest_email_domain(),
+                         guest_email_suffix=get_guest_email_suffix(),
                          now=now)
 
 
@@ -488,44 +578,8 @@ def create_user():
             db.session.add(new_user)
             db.session.flush()  # Flush um ID zu bekommen
             
-            # Wähle Standardrollen aus SystemSettings
-            default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
-            if default_roles_setting:
-                try:
-                    default_roles = json.loads(default_roles_setting.value)
-                    
-                    if default_roles.get('full_access', False):
-                        new_user.has_full_access = True
-                    else:
-                        # Modulspezifische Rollen zuweisen
-                        all_modules = [
-                            'module_chat',
-                            'module_files',
-                            'module_calendar',
-                            'module_events',
-                            'module_email',
-                            'module_contacts',
-                            'module_credentials',
-                            'module_manuals',
-                            'module_inventory',
-                            'module_wiki',
-                            'module_booking',
-                            'module_music',
-                            'module_media_downloader',
-                            'module_assessment',
-                            'module_shortlinks',
-                        ]
-                        
-                        for module_key in all_modules:
-                            if default_roles.get(module_key, False) and is_module_enabled(module_key):
-                                role = UserModuleRole(
-                                    user_id=new_user.id,
-                                    module_key=module_key,
-                                    has_access=True
-                                )
-                                db.session.add(role)
-                except:
-                    pass  # Bei Fehler: Standard-Rollen verwenden
+            from app.utils.access_control import apply_default_roles_to_user
+            apply_default_roles_to_user(new_user)
             
             # Erstelle E-Mail-Berechtigungen
             email_perm = EmailPermission(
@@ -651,8 +705,9 @@ def create_user():
                     flash(error_msg, 'danger')
                     return redirect(url_for('settings.create_user'))
             
-            # Email-Format: {guest_username}@gast.system.local
-            email = f"{guest_username}@gast.system.local"
+            # Email-Format: {guest_username}@{konfigurierte Domain}
+            from app.utils.guest_accounts import build_guest_email
+            email = build_guest_email(guest_username)
             
             # Prüfe ob Benutzername bereits existiert
             if User.query.filter_by(guest_username=guest_username, is_guest=True).first():
@@ -817,52 +872,81 @@ def create_user():
             flash(error_msg, 'danger')
             return redirect(url_for('settings.create_user'))
     
-    # GET: Zeige Formular
-    # Hole alle verfügbaren Module (ohne E-Mail, Credentials, Chats und Dateien für Gäste)
-    # Chats und Dateien werden über spezifische Zuweisungen gesteuert
-    guest_modules = [
-        ('module_calendar', 'Kalender'),
-        ('module_events', 'Veranstaltungen'),
-        ('module_contacts', 'Kontakte'),
-        ('module_manuals', 'Anleitungen'),
-        ('module_inventory', 'Lagerverwaltung'),
-        ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik'),
-        ('module_media_downloader', 'Media Downloader'),
-        ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
-    ]
-    
-    from app.utils.public_share import get_assignable_public_shares
-    assignable_shares = get_assignable_public_shares()
-
-    # Hole alle verfügbaren Chats (ohne Duplikate)
-    # Nur einen Haupt-Chat zeigen (auch wenn mehrere existieren, zeige nur den ersten/ältesten)
-    # Hole alle Chats und filtere nach is_main_chat
-    all_chats_list = Chat.query.order_by(Chat.created_at).all()
-    
-    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
-    all_chats = []
-    main_chat_added = False
-    main_chat_ids = set()
-    
-    # Zuerst: Füge nur den ersten Haupt-Chat hinzu
-    for chat in all_chats_list:
-        if chat.is_main_chat and not main_chat_added:
-            all_chats.append(chat)
-            main_chat_added = True
-            main_chat_ids.add(chat.id)
-        elif chat.is_main_chat:
-            # Weitere Haupt-Chats: Markiere sie, aber füge sie nicht hinzu
-            main_chat_ids.add(chat.id)
-        elif not chat.is_main_chat:
-            # Normale Chats: Füge sie hinzu
-            all_chats.append(chat)
-    
+    guest_modules, assignable_shares, all_chats = _guest_account_form_options()
+    from app.utils.guest_accounts import get_guest_email_domain, get_guest_email_suffix
     return render_template('settings/admin_create_user.html',
                          guest_modules=guest_modules,
                          assignable_shares=assignable_shares,
-                         all_chats=all_chats)
+                         all_chats=all_chats,
+                         guest_email_domain=get_guest_email_domain(),
+                         guest_email_suffix=get_guest_email_suffix())
+
+
+@settings_bp.route('/admin/users/guest-credentials/pdf', methods=['POST'])
+@login_required
+def guest_credentials_pdf():
+    """PDF mit Gast-Zugangsdaten, QR und Login-Link (Admin only)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    full_name = (data.get('full_name') or '').strip()
+    if not username or not password:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_credentials_missing')}), 400
+
+    from app.utils.pdf_generator import generate_guest_credentials_pdf
+    from io import BytesIO
+
+    login_url = url_for('auth.login', _external=True)
+    pdf_buf = generate_guest_credentials_pdf(
+        full_name=full_name,
+        username=username,
+        password=password,
+        login_url=login_url,
+    )
+    if isinstance(pdf_buf, BytesIO):
+        pdf_buf.seek(0)
+    return send_file(
+        pdf_buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='gast-zugangsdaten.pdf',
+    )
+
+
+@settings_bp.route('/admin/users/guest-credentials/email', methods=['POST'])
+@login_required
+def guest_credentials_email():
+    """Sendet Gast-Zugangsdaten manuell an eine Empfänger-Adresse (Admin only)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    data = request.get_json(silent=True) or {}
+    recipient = (data.get('recipient') or '').strip().lower()
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    full_name = (data.get('full_name') or '').strip()
+
+    if not recipient or '@' not in recipient or '.' not in recipient.split('@')[-1]:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_email_invalid')}), 400
+    if not username or not password:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_credentials_missing')}), 400
+
+    from app.utils.email_sender import send_guest_credentials_email
+    ok = send_guest_credentials_email(
+        recipient=recipient,
+        full_name=full_name,
+        username=username,
+        password=password,
+    )
+    if not ok:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_email_failed')}), 500
+    return jsonify({
+        'success': True,
+        'message': translate('settings.admin.create_user.guest_email_sent', email=recipient),
+    })
 
 
 @settings_bp.route('/admin/users/<int:user_id>/activate', methods=['POST'])
@@ -874,6 +958,11 @@ def activate_user(user_id):
     
     user = User.query.get_or_404(user_id)
     user.is_active = True
+
+    # Fehlende Standardrollen nachziehen (z.B. nach fehlgeschlagener Zuweisung bei Registrierung)
+    from app.utils.access_control import apply_default_roles_to_user, user_lacks_module_access
+    if not user.is_guest and user_lacks_module_access(user):
+        apply_default_roles_to_user(user)
     
     # Ensure user is added to main chat when activated (only for full accounts, not guest accounts)
     from app.models.chat import Chat, ChatMember
@@ -895,8 +984,22 @@ def activate_user(user_id):
                 db.session.add(member)
     
     db.session.commit()
-    
-    flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
+
+    # Bestätigungscode erst nach Freischaltung — Gültigkeit (1 Tag) startet jetzt
+    confirmation_sent = False
+    if (
+        not user.is_guest
+        and not user.is_email_confirmed
+        and user.email
+        and user.email != 'anonymous@system.local'
+    ):
+        from app.utils.email_sender import send_confirmation_email
+        confirmation_sent = send_confirmation_email(user)
+
+    if confirmation_sent:
+        flash(translate('settings.admin.users.flash_user_activated_email', name=user.full_name), 'success')
+    else:
+        flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -918,9 +1021,22 @@ def deactivate_user(user_id):
         flash(translate('settings.admin.users.flash_cannot_deactivate_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
+    # Gäste können mit demselben Button reaktiviert werden.
+    if user.is_guest and not user.is_active:
+        user.is_active = True
+        db.session.commit()
+        flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
+        return redirect(url_for('settings.admin_users'))
+
     user.is_active = False
     db.session.commit()
-    
+    try:
+        from app.utils.session_manager import revoke_all_sessions
+        revoke_all_sessions(user.id, exclude_current=False)
+        db.session.commit()
+    except Exception:
+        pass
+
     flash(translate('settings.admin.users.flash_user_deactivated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
@@ -974,45 +1090,55 @@ def remove_admin(user_id):
 @settings_bp.route('/admin/users/<int:user_id>/edit_guest', methods=['GET', 'POST'])
 @login_required
 def edit_guest_user(user_id):
-    """Edit a guest account (admin only)."""
+    """Edit a guest account (admin only). JSON/AJAX für Modal; HTML-GET → Benutzerliste."""
     if not current_user.is_admin:
+        if request.args.get('format') == 'json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': translate('settings.admin.users.flash_unauthorized')}), 403
         return redirect(url_for('settings.index'))
-    
+
     user = User.query.get_or_404(user_id)
-    
-    # Nur Gast-Accounts können bearbeitet werden
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('format') == 'json'
+
     if not user.is_guest:
-        flash('Dieser Benutzer ist kein Gast-Account.', 'danger')
+        msg = translate('settings.admin.users.flash_guest_not_guest')
+        if is_ajax:
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, 'danger')
         return redirect(url_for('settings.admin_users'))
-    
+
     if request.method == 'POST':
-        # Aktualisiere Name
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
-        
+
         if not first_name or not last_name:
-            flash('Bitte geben Sie Vor- und Nachname ein.', 'danger')
-            return redirect(url_for('settings.edit_guest_user', user_id=user_id))
-        
+            msg = translate('settings.admin.users.flash_guest_name_required')
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
+            return redirect(url_for('settings.admin_users'))
+
         user.first_name = first_name
         user.last_name = last_name
-        
-        # Aktualisiere Ablaufzeit
+
         guest_expires_at_str = request.form.get('guest_expires_at', '').strip()
         if guest_expires_at_str:
             try:
                 user.guest_expires_at = datetime.fromisoformat(guest_expires_at_str.replace('T', ' '))
-            except:
-                flash('Ungültiges Datumsformat für Ablaufzeit.', 'danger')
-                return redirect(url_for('settings.edit_guest_user', user_id=user_id))
+            except Exception:
+                msg = translate('settings.admin.users.flash_guest_invalid_expiry')
+                if is_ajax:
+                    return jsonify({'success': False, 'error': msg}), 400
+                flash(msg, 'danger')
+                return redirect(url_for('settings.admin_users'))
         else:
             user.guest_expires_at = None
-        
-        # Aktualisiere Module
+
         from app.models.role import UserModuleRole
         from app.utils.common import is_module_enabled
-        
-        # Erlaubte Module für Gäste
+        from app.models.guest import GuestShareAccess
+        from app.models.file import File, Folder
+        from app.models.public_share import PublicShare
+
         allowed_modules = [
             'module_calendar',
             'module_events',
@@ -1025,45 +1151,31 @@ def edit_guest_user(user_id):
             'module_assessment',
             'module_shortlinks',
         ]
-        
-        # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
+
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
         for role in existing_roles:
-            # Behalte automatisch gesetzte Module (module_chat, module_files) nur wenn noch Zugriff vorhanden
             if role.module_key in ['module_chat', 'module_files']:
-                # Prüfe ob noch Chat/File-Zugriff vorhanden
                 if role.module_key == 'module_chat':
-                    from app.models.chat import ChatMember
                     has_chat = ChatMember.query.filter_by(user_id=user.id).first() is not None
                     if not has_chat:
                         db.session.delete(role)
                 elif role.module_key == 'module_files':
-                    from app.models.guest import GuestShareAccess
                     has_file_access = GuestShareAccess.query.filter_by(user_id=user.id).first() is not None
                     if not has_file_access:
                         db.session.delete(role)
             elif role.module_key in allowed_modules:
-                # Entferne erlaubte Module - werden neu gesetzt
                 db.session.delete(role)
-        
-        # Füge neue Module hinzu
+
         selected_modules = request.form.getlist('allowed_modules')
         for module_key in selected_modules:
             if module_key in allowed_modules and is_module_enabled(module_key):
-                role = UserModuleRole(
+                db.session.add(UserModuleRole(
                     user_id=user.id,
                     module_key=module_key,
-                    has_access=True
-                )
-                db.session.add(role)
-        
-        # Aktualisiere Chat-Zuweisungen
-        from app.models.chat import Chat, ChatMember
-        
-        # Entferne alle bestehenden Chat-Mitgliedschaften
+                    has_access=True,
+                ))
+
         ChatMember.query.filter_by(user_id=user.id).delete()
-        
-        # Füge neue Chat-Mitgliedschaften hinzu
         chat_ids = request.form.getlist('chat_ids')
         has_chat_access = False
         for chat_id_str in chat_ids:
@@ -1071,160 +1183,81 @@ def edit_guest_user(user_id):
                 chat_id = int(chat_id_str)
                 chat = Chat.query.get(chat_id)
                 if chat:
-                    member = ChatMember(
-                        chat_id=chat_id,
-                        user_id=user.id
-                    )
-                    db.session.add(member)
+                    db.session.add(ChatMember(chat_id=chat_id, user_id=user.id))
                     has_chat_access = True
             except (ValueError, TypeError):
                 pass
-        
-        # Aktualisiere Chat-Modul-Zugriff
+
+        chat_role = UserModuleRole.query.filter_by(user_id=user.id, module_key='module_chat').first()
         if has_chat_access and is_module_enabled('module_chat'):
-            # Prüfe ob Chat-Modul-Rolle bereits existiert
-            chat_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_chat'
-            ).first()
             if not chat_role:
-                chat_role = UserModuleRole(
-                    user_id=user.id,
-                    module_key='module_chat',
-                    has_access=True
-                )
-                db.session.add(chat_role)
-        else:
-            # Entferne Chat-Modul-Rolle wenn keine Chats mehr zugewiesen
-            chat_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_chat'
-            ).first()
-            if chat_role:
-                db.session.delete(chat_role)
-        
-        # Aktualisiere Freigabelink-Zuweisungen
-        from app.models.guest import GuestShareAccess
-        from app.models.file import File, Folder
-        
-        # Entferne alle bestehenden Freigabelink-Zuweisungen
+                db.session.add(UserModuleRole(user_id=user.id, module_key='module_chat', has_access=True))
+        elif chat_role:
+            db.session.delete(chat_role)
+
         GuestShareAccess.query.filter_by(user_id=user.id).delete()
-        
-        # Füge neue Freigabelink-Zuweisungen hinzu
         share_tokens = request.form.getlist('share_tokens')
         has_file_access = False
-        from app.models.public_share import PublicShare
         for share_token in share_tokens:
             share = PublicShare.query.filter_by(token=share_token, enabled=True).first()
             if share:
-                share_access = GuestShareAccess(
+                db.session.add(GuestShareAccess(
                     user_id=user.id,
                     share_token=share_token,
                     share_type=share.resource_type,
-                )
-                db.session.add(share_access)
+                ))
                 has_file_access = True
                 continue
             file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
             folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
             if file_item:
-                share_access = GuestShareAccess(
-                    user_id=user.id,
-                    share_token=share_token,
-                    share_type='file',
-                )
-                db.session.add(share_access)
+                db.session.add(GuestShareAccess(user_id=user.id, share_token=share_token, share_type='file'))
                 has_file_access = True
             elif folder_item:
-                share_access = GuestShareAccess(
-                    user_id=user.id,
-                    share_token=share_token,
-                    share_type='folder',
-                )
-                db.session.add(share_access)
+                db.session.add(GuestShareAccess(user_id=user.id, share_token=share_token, share_type='folder'))
                 has_file_access = True
-        
-        # Aktualisiere Dateien-Modul-Zugriff
-        if has_file_access and is_module_enabled('module_files'):
-            # Prüfe ob Dateien-Modul-Rolle bereits existiert
-            file_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_files'
-            ).first()
-            if not file_role:
-                file_role = UserModuleRole(
-                    user_id=user.id,
-                    module_key='module_files',
-                    has_access=True
-                )
-                db.session.add(file_role)
-        else:
-            # Entferne Dateien-Modul-Rolle wenn keine Freigabelinks mehr zugewiesen
-            file_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_files'
-            ).first()
-            if file_role:
-                db.session.delete(file_role)
-        
-        db.session.commit()
-        
-        flash(f'Gast-Account für {user.full_name} wurde erfolgreich aktualisiert.', 'success')
-        return redirect(url_for('settings.admin_users'))
-    
-    # GET: Zeige Bearbeitungsformular
-    # Hole aktuelle Module des Gastes
-    from app.models.role import UserModuleRole
-    current_modules = [role.module_key for role in UserModuleRole.query.filter_by(user_id=user.id).all()]
-    
-    # Hole aktuelle Chat-Mitgliedschaften
-    from app.models.chat import ChatMember
-    current_chat_ids = [member.chat_id for member in ChatMember.query.filter_by(user_id=user.id).all()]
-    
-    # Hole aktuelle Freigabelink-Zuweisungen
-    from app.models.guest import GuestShareAccess
-    current_share_tokens = [access.share_token for access in GuestShareAccess.query.filter_by(user_id=user.id).all()]
-    
-    # Hole alle verfügbaren Module
-    guest_modules = [
-        ('module_calendar', 'Kalender'),
-        ('module_manuals', 'Anleitungen'),
-        ('module_inventory', 'Lagerverwaltung'),
-        ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
-    ]
-    
-    from app.utils.public_share import get_assignable_public_shares
-    assignable_shares = get_assignable_public_shares()
 
-    from app.models.chat import Chat
-    all_chats_list = Chat.query.order_by(Chat.created_at).all()
-    
-    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
-    all_chats = []
-    main_chat_added = False
-    main_chat_ids = set()
-    
-    for chat in all_chats_list:
-        if chat.is_main_chat and not main_chat_added:
-            all_chats.append(chat)
-            main_chat_added = True
-            main_chat_ids.add(chat.id)
-        elif chat.is_main_chat:
-            main_chat_ids.add(chat.id)
-        elif not chat.is_main_chat:
-            all_chats.append(chat)
-    
-    return render_template('settings/admin_edit_guest.html',
-                         user=user,
-                         guest_modules=guest_modules,
-                         current_modules=current_modules,
-                         assignable_shares=assignable_shares,
-                         current_share_tokens=current_share_tokens,
-                         all_chats=all_chats,
-                         current_chat_ids=current_chat_ids)
+        file_role = UserModuleRole.query.filter_by(user_id=user.id, module_key='module_files').first()
+        if has_file_access and is_module_enabled('module_files'):
+            if not file_role:
+                db.session.add(UserModuleRole(user_id=user.id, module_key='module_files', has_access=True))
+        elif file_role:
+            db.session.delete(file_role)
+
+        db.session.commit()
+        msg = translate('settings.admin.users.flash_guest_updated', name=user.full_name)
+        if is_ajax:
+            return jsonify({'success': True, 'message': msg})
+        flash(msg, 'success')
+        return redirect(url_for('settings.admin_users'))
+
+    # GET
+    from app.models.role import UserModuleRole
+    from app.models.guest import GuestShareAccess
+
+    current_modules = [role.module_key for role in UserModuleRole.query.filter_by(user_id=user.id).all()]
+    current_chat_ids = [member.chat_id for member in ChatMember.query.filter_by(user_id=user.id).all()]
+    current_share_tokens = [access.share_token for access in GuestShareAccess.query.filter_by(user_id=user.id).all()]
+
+    if request.args.get('format') == 'json':
+        expires = ''
+        if user.guest_expires_at:
+            expires = user.guest_expires_at.strftime('%Y-%m-%dT%H:%M')
+        return jsonify({
+            'success': True,
+            'id': user.id,
+            'first_name': user.first_name or '',
+            'last_name': user.last_name or '',
+            'full_name': user.full_name,
+            'email': user.email or '',
+            'guest_username': user.guest_username or '',
+            'guest_expires_at': expires,
+            'current_modules': current_modules,
+            'current_chat_ids': current_chat_ids,
+            'current_share_tokens': current_share_tokens,
+        })
+
+    return redirect(url_for('settings.admin_users'))
 
 
 @settings_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
@@ -1290,6 +1323,10 @@ def delete_user(user_id):
     # Delete wiki favorites before deleting user
     from app.models.wiki import WikiFavorite
     WikiFavorite.query.filter_by(user_id=user_id).delete()
+
+    # Delete credential favorites before deleting user
+    from app.models.credential import CredentialFavorite
+    CredentialFavorite.query.filter_by(user_id=user_id).delete()
     
     # Delete comment mentions before deleting user
     from app.models.comment import CommentMention
@@ -1331,7 +1368,9 @@ def admin_email_footer():
         
         db.session.commit()
         flash(translate('settings.admin.email_footer.flash_saved'), 'success')
-        return redirect(url_for('settings.admin_email_footer'))
+        if request.form.get('return_to') == 'module':
+            return _settings_redirect('settings.admin_email_module')
+        return _settings_redirect('settings.admin_email_footer')
     
     # Get current footer template
     footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
@@ -1430,7 +1469,22 @@ def admin_system():
             portal_name_setting = SystemSettings(key='portal_name', value=portal_name)
             db.session.add(portal_name_setting)
         
-        # Handle portal logo upload
+        # Handle portal logo removal (checkbox / hidden from UI)
+        if request.form.get('remove_portal_logo') == '1':
+            logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+            if logo_setting and logo_setting.value:
+                try:
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    old_path = os.path.join(upload_dir, logo_setting.value)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except OSError:
+                    pass
+                db.session.delete(logo_setting)
+                flash(translate('settings.admin.system.flash_logo_removed'), 'success')
+
+        # Handle portal logo upload (replaces existing; skips if only removal flagged without new file)
         if 'portal_logo' in request.files:
             file = request.files['portal_logo']
             if file and file.filename:
@@ -1529,12 +1583,44 @@ def admin_system():
                 description='Globale Zeitzone für Datums- und Zeitangaben'
             )
             db.session.add(timezone_setting)
+
+        # Gast-E-Mail-Domain (ohne @), gilt für alle Gast-Accounts
+        from app.utils.guest_accounts import (
+            GUEST_EMAIL_DOMAIN_SETTING_KEY,
+            get_guest_email_domain,
+            normalize_guest_email_domain,
+        )
+        old_guest_domain = get_guest_email_domain()
+        guest_domain_raw = request.form.get('guest_email_domain', '').strip()
+        guest_email_domain = normalize_guest_email_domain(guest_domain_raw)
+        if not guest_email_domain:
+            flash(translate('settings.admin.system.flash_guest_domain_invalid'), 'danger')
+            return redirect(url_for('settings.admin_system'))
+
+        guest_domain_setting = SystemSettings.query.filter_by(key=GUEST_EMAIL_DOMAIN_SETTING_KEY).first()
+        if guest_domain_setting:
+            guest_domain_setting.value = guest_email_domain
+        else:
+            guest_domain_setting = SystemSettings(
+                key=GUEST_EMAIL_DOMAIN_SETTING_KEY,
+                value=guest_email_domain,
+                description='Domain-Suffix für Gast-Login-Adressen (ohne @)'
+            )
+            db.session.add(guest_domain_setting)
+
+        if guest_email_domain != old_guest_domain:
+            guests = User.query.filter_by(is_guest=True).all()
+            for guest in guests:
+                if guest.guest_username:
+                    guest.email = f"{guest.guest_username}@{guest_email_domain}"
         
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
         return redirect(url_for('settings.admin_system'))
     
     # Get current settings
+    from app.utils.guest_accounts import get_guest_email_domain
+
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
@@ -1546,6 +1632,7 @@ def admin_system():
     default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
     color_gradient = gradient_setting.value if gradient_setting else ''
     portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
+    guest_email_domain = get_guest_email_domain()
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -1553,6 +1640,7 @@ def admin_system():
                          default_accent_color=default_accent_color,
                          color_gradient=color_gradient,
                          portal_timezone=portal_timezone,
+                         guest_email_domain=guest_email_domain,
                          timezone_choices=get_timezone_choices())
 
 
@@ -1586,6 +1674,7 @@ def admin_registration():
         register_enabled = request.form.get('portal_bot_protection_register') == 'on'
         login_enabled = request.form.get('portal_bot_protection_login') == 'on'
         share_edit_enabled = request.form.get('portal_bot_protection_share_edit') == 'on'
+        mailbox_enabled = request.form.get('portal_bot_protection_mailbox') == 'on'
 
         recaptcha_site_key = request.form.get('portal_recaptcha_site_key', '').strip()
         recaptcha_secret_key = request.form.get('portal_recaptcha_secret_key', '').strip()
@@ -1603,6 +1692,7 @@ def admin_registration():
             'register_enabled': register_enabled,
             'login_enabled': login_enabled,
             'share_edit_enabled': share_edit_enabled,
+            'mailbox_enabled': mailbox_enabled,
             'recaptcha_version': recaptcha_version,
             'recaptcha_site_key': recaptcha_site_key,
             'recaptcha_secret_key': recaptcha_secret_key,
@@ -1619,6 +1709,7 @@ def admin_registration():
         upsert_setting(SETTING_KEYS['register_enabled'], 'true' if register_enabled else 'false')
         upsert_setting(SETTING_KEYS['login_enabled'], 'true' if login_enabled else 'false')
         upsert_setting(SETTING_KEYS['share_edit_enabled'], 'true' if share_edit_enabled else 'false')
+        upsert_setting(SETTING_KEYS['mailbox_enabled'], 'true' if mailbox_enabled else 'false')
         upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
         upsert_setting(SETTING_KEYS['recaptcha_site_key'], recaptcha_site_key)
         upsert_setting(SETTING_KEYS['recaptcha_secret_key'], recaptcha_secret_key)
@@ -1649,38 +1740,301 @@ def admin_file_settings():
     if not current_user.is_admin:
         flash(translate('settings.admin.file_settings.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
+
+    from app.models.file import FileStorageException
+    from app.utils.file_storage_limits import (
+        SETTING_MAX_FILE,
+        SETTING_QUOTA_BYTES,
+        SETTING_QUOTA_ENABLED,
+        bytes_from_value_unit,
+        format_bytes_de,
+        get_default_quota,
+        get_global_max_file_size,
+        is_quota_enabled,
+        split_bytes_for_ui,
+        sync_flask_max_content_length,
+    )
+
+    def _upsert_text(key: str, value: str, description: str | None = None):
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            db.session.add(SystemSettings(key=key, value=value, description=description))
+
     if request.method == 'POST':
+        action = (request.form.get('storage_action') or 'save').strip().lower()
+
+        if action == 'delete_exception':
+            exc_id = request.form.get('exception_id', type=int)
+            row = FileStorageException.query.get(exc_id) if exc_id else None
+            if row:
+                db.session.delete(row)
+                db.session.commit()
+                try:
+                    sync_flask_max_content_length(current_app._get_current_object())
+                except Exception:
+                    pass
+                flash(translate('settings.admin.file_settings.flash_exception_deleted'), 'success')
+            return _settings_redirect('settings.admin_file_settings')
+
+        if action == 'add_exception':
+            user_id = request.form.get('exception_user_id', type=int)
+            user = User.query.filter_by(id=user_id, is_active=True).first() if user_id else None
+            if not user or user.is_guest:
+                flash(translate('settings.admin.file_settings.flash_exception_user_invalid'), 'danger')
+                return _settings_redirect('settings.admin_file_settings')
+            if FileStorageException.query.filter_by(user_id=user.id).first():
+                flash(translate('settings.admin.file_settings.flash_exception_exists'), 'warning')
+                return _settings_redirect('settings.admin_file_settings')
+
+            max_override = None
+            if request.form.get('exception_max_file_custom') == 'on':
+                max_override = bytes_from_value_unit(
+                    request.form.get('exception_max_file_value', '100'),
+                    request.form.get('exception_max_file_unit', 'MB'),
+                )
+                if max_override < 1:
+                    flash(translate('settings.admin.file_settings.flash_invalid_size'), 'danger')
+                    return _settings_redirect('settings.admin_file_settings')
+
+            quota_override = None
+            if request.form.get('exception_quota_custom') == 'on':
+                quota_override = bytes_from_value_unit(
+                    request.form.get('exception_quota_value', '15'),
+                    request.form.get('exception_quota_unit', 'GB'),
+                )
+
+            if max_override is None and quota_override is None:
+                flash(translate('settings.admin.file_settings.flash_exception_empty'), 'warning')
+                return _settings_redirect('settings.admin_file_settings')
+
+            db.session.add(FileStorageException(
+                user_id=user.id,
+                max_file_size_bytes=max_override,
+                quota_bytes=quota_override,
+            ))
+            db.session.commit()
+            try:
+                sync_flask_max_content_length(current_app._get_current_object())
+            except Exception:
+                pass
+            flash(translate('settings.admin.file_settings.flash_exception_added'), 'success')
+            return _settings_redirect('settings.admin_file_settings')
+
         # Feature Flags: Dateien
+        from app.utils.document_formats import (
+            FORMAT_OFFICE,
+            FORMAT_OPENDOCUMENT,
+            SETTING_DOCUMENT_FORMAT,
+        )
+
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
+        private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
+        document_format = (request.form.get('files_document_format') or FORMAT_OFFICE).strip().lower()
+        if document_format not in (FORMAT_OFFICE, FORMAT_OPENDOCUMENT):
+            document_format = FORMAT_OFFICE
+        _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
+        _upsert_text('files_sharing_enabled', str(sharing_enabled))
+        _upsert_text('files_private_folders_enabled', str(private_folders_enabled))
+        _upsert_text(
+            SETTING_DOCUMENT_FORMAT,
+            document_format,
+            'Format für neue Dokumente: office (docx/xlsx/pptx) oder opendocument (odt/ods/odp)',
+        )
 
-        dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
-        if dropbox_setting:
-            dropbox_setting.value = str(dropbox_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_dropbox_enabled', value=str(dropbox_enabled)))
+        max_file_bytes = bytes_from_value_unit(
+            request.form.get('files_max_file_value', '100'),
+            request.form.get('files_max_file_unit', 'MB'),
+        )
+        if max_file_bytes < 1:
+            flash(translate('settings.admin.file_settings.flash_invalid_size'), 'danger')
+            return _settings_redirect('settings.admin_file_settings')
 
-        sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
-        if sharing_setting:
-            sharing_setting.value = str(sharing_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_sharing_enabled', value=str(sharing_enabled)))
+        quota_enabled = request.form.get('files_storage_quota_enabled') == 'on'
+        quota_bytes = bytes_from_value_unit(
+            request.form.get('files_quota_value', '15'),
+            request.form.get('files_quota_unit', 'GB'),
+        )
+
+        _upsert_text(SETTING_MAX_FILE, str(max_file_bytes), 'Maximale Dateigroesse in Bytes (global)')
+        _upsert_text(SETTING_QUOTA_ENABLED, str(quota_enabled).lower(), 'Speicherkontingente aktiv')
+        _upsert_text(SETTING_QUOTA_BYTES, str(max(0, quota_bytes)), 'Standard-Speicherkontingent pro Nutzer')
 
         db.session.commit()
+        try:
+            sync_flask_max_content_length(current_app._get_current_object())
+        except Exception as sync_err:
+            current_app.logger.warning('MAX_CONTENT_LENGTH sync failed: %s', sync_err)
+
         flash(translate('settings.admin.file_settings.flash_updated'), 'success')
-        return redirect(url_for('settings.admin_file_settings'))
-    
-    # Get current settings
+        return _settings_redirect('settings.admin_file_settings')
+
+    # GET
+    from app.utils.document_formats import FORMAT_OFFICE, get_document_format
+
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
-    
+    private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
+
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
-    
-    return render_template('settings/admin_file_settings.html', 
-                           files_dropbox_enabled=files_dropbox_enabled, 
-                           files_sharing_enabled=files_sharing_enabled)
+    files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
+    files_document_format = get_document_format() or FORMAT_OFFICE
+
+    max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
+    quota_value, quota_unit = split_bytes_for_ui(get_default_quota())
+    quota_enabled = is_quota_enabled()
+
+    exceptions = (
+        FileStorageException.query
+        .order_by(FileStorageException.id.desc())
+        .all()
+    )
+    exception_user_ids = {e.user_id for e in exceptions}
+    users_q = User.query.filter(User.is_active.is_(True), User.is_guest.is_(False))
+    if exception_user_ids:
+        users_q = users_q.filter(~User.id.in_(exception_user_ids))
+    users_for_exceptions = users_q.order_by(User.last_name.asc(), User.first_name.asc()).all()
+
+    exception_rows = []
+    for exc in exceptions:
+        u = exc.user
+        name = ''
+        if u:
+            name = f'{u.first_name or ""} {u.last_name or ""}'.strip() or (u.email or f'#{u.id}')
+        else:
+            name = f'#{exc.user_id}'
+        exception_rows.append({
+            'id': exc.id,
+            'user_id': exc.user_id,
+            'name': name,
+            'email': getattr(u, 'email', '') or '',
+            'max_file_label': format_bytes_de(exc.max_file_size_bytes) if exc.max_file_size_bytes else None,
+            'quota_label': format_bytes_de(exc.quota_bytes) if exc.quota_bytes is not None else None,
+        })
+
+    return render_template(
+        'settings/admin_file_settings.html',
+        files_dropbox_enabled=files_dropbox_enabled,
+        files_sharing_enabled=files_sharing_enabled,
+        files_private_folders_enabled=files_private_folders_enabled,
+        files_document_format=files_document_format,
+        max_file_value=max_file_value,
+        max_file_unit=max_file_unit,
+        quota_enabled=quota_enabled,
+        quota_value=quota_value,
+        quota_unit=quota_unit,
+        exception_rows=exception_rows,
+        users_for_exceptions=users_for_exceptions,
+        size_units=('KB', 'MB', 'GB', 'TB'),
+    )
+
+
+def _upsert_bool_setting(key, enabled):
+    setting = SystemSettings.query.filter_by(key=key).first()
+    if setting:
+        setting.value = str(enabled)
+    else:
+        db.session.add(SystemSettings(key=key, value=str(enabled)))
+
+
+@settings_bp.route('/admin/calendar-settings', methods=['GET', 'POST'])
+@login_required
+def admin_calendar_settings():
+    """Calendar module settings (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.calendar_settings.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        multi_enabled = request.form.get('calendar_multi_enabled') == 'on'
+        export_enabled = request.form.get('calendar_export_enabled') == 'on'
+        import_enabled = request.form.get('calendar_import_enabled') == 'on'
+
+        _upsert_bool_setting('calendar_multi_enabled', multi_enabled)
+        _upsert_bool_setting('calendar_export_enabled', export_enabled)
+        _upsert_bool_setting('calendar_import_enabled', import_enabled)
+        db.session.commit()
+
+        if multi_enabled:
+            try:
+                from app.utils.multi_calendars import (
+                    ensure_imported_calendar_for_source,
+                    get_or_create_events_calendar,
+                    get_or_create_personal_calendar,
+                    get_public_calendar,
+                )
+                from app.models.calendar import CalendarEvent, CalendarSyncSource
+                from app.models.user import User as _User
+
+                public = get_public_calendar()
+                events_cal = get_or_create_events_calendar()
+                CalendarEvent.query.filter(CalendarEvent.calendar_id.is_(None)).update(
+                    {CalendarEvent.calendar_id: public.id},
+                    synchronize_session=False,
+                )
+                # Module entries that were on Public while multi was off → Veranstaltungen
+                booking_or_event_ids = set()
+                for row in CalendarEvent.query.filter(
+                    CalendarEvent.calendar_id == public.id,
+                    CalendarEvent.booking_request_id.isnot(None),
+                ).with_entities(CalendarEvent.id).all():
+                    booking_or_event_ids.add(row[0])
+                try:
+                    from app.models.event import EventAppointment
+                    for row in EventAppointment.query.filter(
+                        EventAppointment.calendar_event_id.isnot(None)
+                    ).with_entities(EventAppointment.calendar_event_id).all():
+                        booking_or_event_ids.add(row[0])
+                except Exception:
+                    pass
+                if booking_or_event_ids:
+                    CalendarEvent.query.filter(
+                        CalendarEvent.id.in_(list(booking_or_event_ids)),
+                        CalendarEvent.calendar_id == public.id,
+                    ).update(
+                        {CalendarEvent.calendar_id: events_cal.id},
+                        synchronize_session=False,
+                    )
+                for u in _User.query.filter_by(is_active=True).all():
+                    get_or_create_personal_calendar(u)
+                for source in CalendarSyncSource.query.all():
+                    cal = ensure_imported_calendar_for_source(source)
+                    CalendarEvent.query.filter_by(sync_source_id=source.id).update(
+                        {CalendarEvent.calendar_id: cal.id},
+                        synchronize_session=False,
+                    )
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                import logging
+                logging.error(f'Fehler beim Aktivieren Multi-Kalender: {exc}')
+        else:
+            try:
+                from app.utils.multi_calendars import fold_events_calendar_into_public
+                fold_events_calendar_into_public()
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                import logging
+                logging.error(f'Fehler beim Deaktivieren Multi-Kalender: {exc}')
+
+        flash(translate('settings.admin.calendar_settings.flash_updated'), 'success')
+        return _settings_redirect('settings.admin_calendar_settings')
+
+    from app.utils.multi_calendars import (
+        is_calendar_export_enabled,
+        is_calendar_import_enabled,
+        is_calendar_multi_enabled,
+    )
+    return render_template(
+        'settings/admin_calendar_settings.html',
+        calendar_multi_enabled=is_calendar_multi_enabled(),
+        calendar_export_enabled=is_calendar_export_enabled(),
+        calendar_import_enabled=is_calendar_import_enabled(),
+    )
 
 
 @settings_bp.route('/admin/modules', methods=['GET', 'POST'])
@@ -1692,22 +2046,9 @@ def admin_modules():
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
+        from app.utils.common import AVAILABLE_MODULES
         # Module-Einstellungen speichern
-        modules = {
-            'module_chat': request.form.get('module_chat') == 'on',
-            'module_files': request.form.get('module_files') == 'on',
-            'module_calendar': request.form.get('module_calendar') == 'on',
-            'module_email': request.form.get('module_email') == 'on',
-            'module_credentials': request.form.get('module_credentials') == 'on',
-            'module_manuals': request.form.get('module_manuals') == 'on',
-            'module_inventory': request.form.get('module_inventory') == 'on',
-            'module_wiki': request.form.get('module_wiki') == 'on',
-            'module_booking': request.form.get('module_booking') == 'on',
-            'module_music': request.form.get('module_music') == 'on',
-            'module_media_downloader': request.form.get('module_media_downloader') == 'on',
-            'module_assessment': request.form.get('module_assessment') == 'on',
-            'module_shortlinks': request.form.get('module_shortlinks') == 'on'
-        }
+        modules = {key: request.form.get(key) == 'on' for key in AVAILABLE_MODULES}
         
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
@@ -1717,39 +2058,14 @@ def admin_modules():
                 db.session.add(SystemSettings(key=module_key, value=str(enabled), description=f'Modul {module_key} aktiviert'))
         
         db.session.commit()
-        flash(translate('settings.admin_modules.flash_updated'), 'success')
+        flash(translate('settings.admin.admin_modules.flash_updated'), 'success')
         return redirect(url_for('settings.admin_modules'))
     
     # Get module settings
-    from app.utils.common import is_module_enabled
-    module_chat_enabled = is_module_enabled('module_chat')
-    module_files_enabled = is_module_enabled('module_files')
-    module_calendar_enabled = is_module_enabled('module_calendar')
-    module_email_enabled = is_module_enabled('module_email')
-    module_credentials_enabled = is_module_enabled('module_credentials')
-    module_manuals_enabled = is_module_enabled('module_manuals')
-    module_inventory_enabled = is_module_enabled('module_inventory')
-    module_wiki_enabled = is_module_enabled('module_wiki')
-    module_booking_enabled = is_module_enabled('module_booking')
-    module_music_enabled = is_module_enabled('module_music')
-    module_media_downloader_enabled = is_module_enabled('module_media_downloader')
-    module_assessment_enabled = is_module_enabled('module_assessment')
-    module_shortlinks_enabled = is_module_enabled('module_shortlinks')
+    from app.utils.common import is_module_enabled, AVAILABLE_MODULES
+    module_flags = {f'{key}_enabled': is_module_enabled(key) for key in AVAILABLE_MODULES}
     
-    return render_template('settings/admin_modules.html',
-                           module_chat_enabled=module_chat_enabled,
-                           module_files_enabled=module_files_enabled,
-                           module_calendar_enabled=module_calendar_enabled,
-                           module_email_enabled=module_email_enabled,
-                           module_credentials_enabled=module_credentials_enabled,
-                           module_manuals_enabled=module_manuals_enabled,
-                           module_inventory_enabled=module_inventory_enabled,
-                           module_wiki_enabled=module_wiki_enabled,
-                           module_booking_enabled=module_booking_enabled,
-                           module_music_enabled=module_music_enabled,
-                           module_media_downloader_enabled=module_media_downloader_enabled,
-                           module_assessment_enabled=module_assessment_enabled,
-                           module_shortlinks_enabled=module_shortlinks_enabled)
+    return render_template('settings/admin_modules.html', **module_flags)
 
 
 @settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
@@ -1808,6 +2124,13 @@ def admin_push_subscriptions():
     )
 
 
+def _admin_backup_ctx():
+    return {
+        'categories': SUPPORTED_CATEGORIES,
+        'category_definitions': CATEGORY_DEFINITIONS,
+    }
+
+
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
 @login_required
 def admin_backup():
@@ -1815,27 +2138,26 @@ def admin_backup():
     if not current_user.is_admin:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
+
+    ctx = _admin_backup_ctx()
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'export':
-            # Export-Backup erstellen
             categories = request.form.getlist('export_categories')
             if not categories:
                 flash(translate('settings.admin.backup.flash_no_export_categories'), 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
-            
+                return render_template('settings/admin_backup.html', **ctx)
+
             try:
-                # Temporäre Datei erstellen
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='w', encoding='utf-8')
                 temp_path = temp_file.name
                 temp_file.close()
-                
-                # Backup erstellen
+
                 result = export_backup(categories, temp_path)
-                
+
                 if result['success']:
                     @after_this_request
                     def _cleanup_temp_file(response):
@@ -1844,7 +2166,7 @@ def admin_backup():
                         except OSError as cleanup_error:
                             current_app.logger.warning(f'Temporäre Backup-Datei konnte nicht gelöscht werden: {cleanup_error}')
                         return response
-                    
+
                     return send_file(
                         temp_path,
                         as_attachment=True,
@@ -1862,42 +2184,36 @@ def admin_backup():
                 except OSError as cleanup_error:
                     current_app.logger.warning(f'Temporäre Backup-Datei konnte nach Fehler nicht gelöscht werden: {cleanup_error}')
                 flash(translate('settings.admin.backup.flash_export_error_detail', error=str(e)), 'danger')
-        
+
         elif action == 'import':
-            # Import-Backup hochladen
             if 'backup_file' not in request.files:
                 flash(translate('settings.admin.backup.flash_no_file'), 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
-            
+                return render_template('settings/admin_backup.html', **ctx)
+
             file = request.files['backup_file']
             if file.filename == '':
                 flash(translate('settings.admin.backup.flash_no_file'), 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
-            
+                return render_template('settings/admin_backup.html', **ctx)
+
             if not file.filename.endswith('.prismateams'):
                 flash(translate('settings.admin.backup.flash_invalid_extension'), 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
-            
+                return render_template('settings/admin_backup.html', **ctx)
+
             try:
-                # Temporäre Datei speichern
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='wb')
                 file.save(temp_file.name)
                 temp_path = temp_file.name
                 temp_file.close()
-                
-                # Kategorien auswählen
+
                 import_categories = request.form.getlist('import_categories')
                 if not import_categories:
                     flash(translate('settings.admin.backup.flash_no_import_categories'), 'danger')
                     os.unlink(temp_path)
-                    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
-                
-                # Backup importieren
+                    return render_template('settings/admin_backup.html', **ctx)
+
                 result = import_backup(temp_path, import_categories, current_user.id)
-                
-                # Temporäre Datei löschen
                 os.unlink(temp_path)
-                
+
                 if result['success']:
                     imported = ', '.join(result.get('imported', []))
                     flash(translate('settings.admin.backup.flash_import_success', categories=imported), 'success')
@@ -1909,10 +2225,10 @@ def admin_backup():
                 if 'temp_path' in locals():
                     try:
                         os.unlink(temp_path)
-                    except:
+                    except OSError:
                         pass
-    
-    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
+
+    return render_template('settings/admin_backup.html', **ctx)
 
 
 @settings_bp.route('/admin/whitelist')
@@ -2030,7 +2346,7 @@ def admin_inventory_settings():
         
         db.session.commit()
         flash(translate('settings.admin.inventory.flash_saved'), 'success')
-        return redirect(url_for('settings.admin_inventory_settings'))
+        return _settings_redirect('settings.admin_inventory_settings')
     
     # Lade aktuelle Einstellungen
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
@@ -2128,7 +2444,9 @@ def admin_email_settings():
         
         db.session.commit()
         flash(translate('settings.admin.email_settings.flash_saved'), 'success')
-        return redirect(url_for('settings.admin_email_settings'))
+        if request.form.get('return_to') == 'module':
+            return _settings_redirect('settings.admin_email_module')
+        return _settings_redirect('settings.admin_email_settings')
     
     # Lade aktuelle Einstellungen
     storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
@@ -2140,6 +2458,113 @@ def admin_email_settings():
     return render_template('settings/admin_email_settings.html', 
                          storage_days=storage_days, 
                          sync_interval=sync_interval)
+
+
+@settings_bp.route('/admin/email-module/test-smtp', methods=['POST'])
+@login_required
+def admin_email_test_smtp():
+    """SMTP-Test: sendet eine Test-E-Mail an den Admin (JSON)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    from flask import current_app
+    from app.utils.email_sender import send_smtp_test_email
+    import smtplib
+
+    mail_server = current_app.config.get('MAIL_SERVER')
+    mail_username = current_app.config.get('MAIL_USERNAME')
+    mail_password = current_app.config.get('MAIL_PASSWORD')
+
+    if not mail_server or not mail_username or not mail_password:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.smtp_incomplete'),
+        })
+
+    try:
+        send_smtp_test_email(current_user.email)
+        return jsonify({
+            'success': True,
+            'message': translate('settings.admin.email_module.test.smtp_ok', email=current_user.email),
+        })
+    except smtplib.SMTPAuthenticationError as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.smtp_fail', error=f'Auth: {e}'),
+        })
+    except (smtplib.SMTPConnectError, TimeoutError, OSError) as e:
+        return jsonify({
+            'success': False,
+            'message': translate(
+                'settings.admin.email_module.test.smtp_fail',
+                error=f'Verbindung zu {mail_server}: {e}',
+            ),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.smtp_fail', error=str(e)),
+        })
+
+
+@settings_bp.route('/admin/email-module/test-imap', methods=['POST'])
+@login_required
+def admin_email_test_imap():
+    """IMAP-Test: prüft eingehende Verbindung (JSON)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    from flask import current_app
+    from app.blueprints.email import (
+        _is_placeholder_imap_config,
+        probe_imap_connection,
+    )
+
+    imap_server = current_app.config.get('IMAP_SERVER')
+    imap_port = int(current_app.config.get('IMAP_PORT', 993) or 993)
+    username = current_app.config.get('MAIL_USERNAME')
+    password = current_app.config.get('MAIL_PASSWORD')
+    imap_timeout = int(current_app.config.get('MAIL_TIMEOUT', 20) or 20)
+
+    if not all([imap_server, username, password]):
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.imap_incomplete'),
+        })
+
+    if _is_placeholder_imap_config(imap_server, username, password):
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.imap_placeholder'),
+        })
+
+    try:
+        ok, detail, meta = probe_imap_connection(
+            timeout=imap_timeout,
+            retries=3,
+            wait_for_sync_seconds=10,
+        )
+        if ok:
+            server = (meta or {}).get('server', imap_server)
+            port = (meta or {}).get('port', imap_port)
+            msg = translate(
+                'settings.admin.email_module.test.imap_ok',
+                server=server,
+                port=port,
+            )
+            if (meta or {}).get('sync_was_busy'):
+                msg = f"{msg} (Hinweis: Sync war parallel aktiv)"
+            return jsonify({'success': True, 'message': msg})
+
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.imap_fail', error=detail),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.imap_fail', error=str(e)),
+        })
 
 
 @settings_bp.route('/admin/music', methods=['GET', 'POST'])
@@ -2234,7 +2659,7 @@ def admin_music():
         
         db.session.commit()
         flash(translate('settings.admin.music.flash_saved'), 'success')
-        return redirect(url_for('settings.admin_music'))
+        return _settings_redirect('settings.admin_music')
     
     # GET: Zeige Einstellungsseite
     enabled_providers = MusicSettings.get_enabled_providers()
@@ -2458,7 +2883,6 @@ def admin_roles_default():
         return redirect(url_for('settings.index'))
     
     import json
-    from app.utils.common import is_module_enabled
     
     # Liste aller Module
     all_modules = [
@@ -2479,13 +2903,15 @@ def admin_roles_default():
         ('module_shortlinks', 'Kurzlinks')
     ]
     
+    from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
+
     if request.method == 'POST':
         # Sammle Standardrollen-Einstellungen
         default_roles = {
             'full_access': request.form.get('default_full_access') == 'on'
         }
         
-        # Modulspezifische Rollen
+        # Modulspezifische Rollen (auch bei Vollzugriff mitspeichern, damit Umschalten Werte behält)
         for module_key, _ in all_modules:
             default_roles[module_key] = request.form.get(f'default_{module_key}') == 'on'
         
@@ -2505,15 +2931,13 @@ def admin_roles_default():
         flash(translate('settings.admin.roles.flash_default_saved'), 'success')
         return redirect(url_for('settings.admin_roles_default'))
     
-    # GET: Lade aktuelle Standardrollen
-    default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
-    if default_roles_setting and default_roles_setting.value:
-        try:
-            default_roles = json.loads(default_roles_setting.value)
-        except:
-            default_roles = {}
-    else:
-        default_roles = {}
+    # GET: Lade aktuelle Standardrollen (Fallback: Vollzugriff)
+    raw_roles = load_default_module_roles()
+    default_roles = {
+        'full_access': _roles_flag_enabled(raw_roles.get('full_access', True)),
+    }
+    for module_key, _ in all_modules:
+        default_roles[module_key] = _roles_flag_enabled(raw_roles.get(module_key, False))
     
     return render_template('settings/admin_roles_default.html', 
                          default_roles=default_roles,
@@ -2537,41 +2961,26 @@ def booking_forms():
 @settings_bp.route('/admin/booking-forms/create', methods=['GET', 'POST'])
 @login_required
 def booking_form_create():
-    """Create a new booking form (admin only)."""
+    """Create a new booking form (admin only) — opens full editor in one step."""
     if not current_user.is_admin:
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
+
     from app.models.booking import BookingForm
-    
-    if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        archive_days = int(request.form.get('archive_days', 30))
-        enable_mailbox = request.form.get('enable_mailbox') == 'on'
-        enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
-        
-        if not title:
-            flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
-            return render_template('booking/admin/form_edit.html', form=None, fields=[], all_users=User.query.filter_by(is_active=True).all())
-        
-        form = BookingForm(
-            title=title,
-            description=description or None,
-            archive_days=archive_days,
-            enable_mailbox=enable_mailbox,
-            enable_shared_folder=enable_shared_folder,
-            created_by=current_user.id,
-            is_active=True
-        )
-        
-        db.session.add(form)
-        db.session.commit()
-        
-        flash(translate('settings.admin.booking_forms.flash_form_created', title=title), 'success')
-        return redirect(url_for('settings.booking_form_edit', form_id=form.id))
-    
-    return render_template('booking/admin/form_edit.html', form=None, fields=[], all_users=User.query.filter_by(is_active=True).all())
+
+    # Ein Schritt: Entwurf anlegen und direkt in den vollen Editor.
+    form = BookingForm(
+        title=translate('settings.admin.booking_forms.draft_title'),
+        description=None,
+        archive_days=30,
+        enable_mailbox=False,
+        enable_shared_folder=False,
+        created_by=current_user.id,
+        is_active=True,
+    )
+    db.session.add(form)
+    db.session.commit()
+    return redirect(url_for('settings.booking_form_edit', form_id=form.id, new=1))
 
 
 @settings_bp.route('/admin/booking-forms/<int:form_id>/edit', methods=['GET', 'POST'])
@@ -2581,46 +2990,54 @@ def booking_form_edit(form_id):
     if not current_user.is_admin:
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
+
     from app.models.booking import BookingForm, BookingFormField
-    
+
     form = BookingForm.query.get_or_404(form_id)
-    
+    is_new = request.args.get('new') == '1'
+
     if request.method == 'POST':
-        # Prüfe ob Status-Update oder Formular-Update
-        if 'is_active' in request.form:
-            # Status-Update
-            form.is_active = request.form.get('is_active') == 'on'
-            db.session.commit()
-            flash(translate('settings.admin.booking_forms.flash_status_updated'), 'success')
-            return redirect(url_for('settings.booking_form_edit', form_id=form_id))
-        
-        # Formular-Update
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
         pdf_application_text = request.form.get('pdf_application_text', '').strip()
-        archive_days = int(request.form.get('archive_days', 30))
+        pdf_footer_text = request.form.get('pdf_footer_text', '').strip()
+        archive_days = int(request.form.get('archive_days', 30) or 30)
         enable_mailbox = request.form.get('enable_mailbox') == 'on'
         enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
-        
+        is_active = request.form.get('is_active') == 'on'
+
         if not title:
             flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
             fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
-            return render_template('booking/admin/form_edit.html', form=form, fields=fields, all_users=User.query.filter_by(is_active=True).all())
-        
+            return render_template(
+                'booking/admin/form_edit.html',
+                form=form,
+                fields=fields,
+                all_users=User.query.filter_by(is_active=True).all(),
+                is_new=is_new,
+            )
+
         form.title = title
         form.description = description or None
         form.pdf_application_text = pdf_application_text or None
+        form.pdf_footer_text = pdf_footer_text or None
         form.archive_days = archive_days
         form.enable_mailbox = enable_mailbox
         form.enable_shared_folder = enable_shared_folder
-        
+        form.is_active = is_active
+
         db.session.commit()
         flash(translate('settings.admin.booking_forms.flash_form_updated', title=title), 'success')
         return redirect(url_for('settings.booking_form_edit', form_id=form_id))
-    
+
     fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
-    return render_template('booking/admin/form_edit.html', form=form, fields=fields, all_users=User.query.filter_by(is_active=True).all())
+    return render_template(
+        'booking/admin/form_edit.html',
+        form=form,
+        fields=fields,
+        all_users=User.query.filter_by(is_active=True).all(),
+        is_new=is_new,
+    )
 
 
 @settings_bp.route('/admin/booking-forms/<int:form_id>/delete', methods=['POST'])
@@ -2640,7 +3057,7 @@ def booking_form_delete(form_id):
     db.session.commit()
     
     flash(translate('settings.admin.booking_forms.flash_form_deleted', title=title), 'success')
-    return redirect(url_for('settings.booking_forms'))
+    return _settings_redirect('settings.booking_forms')
 
 
 @settings_bp.route('/admin/booking-forms/<int:form_id>/secondary-logo/upload', methods=['POST'])
@@ -2786,7 +3203,7 @@ def booking_field_add(form_id):
     field_options = request.form.get('field_options', '').strip()
     
     if not field_label:
-        flash('Bezeichnung ist erforderlich.', 'danger')
+        flash(translate('settings.admin.booking_forms.flash_field_label_required'), 'danger')
         return redirect(url_for('settings.booking_form_edit', form_id=form_id))
     
     # Generate field_name if not provided
@@ -2820,7 +3237,55 @@ def booking_field_add(form_id):
     db.session.add(field)
     db.session.commit()
     
-    flash(f'Feld "{field_label}" wurde hinzugefügt.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_field_added', label=field_label), 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/fields/<int:field_id>/edit', methods=['POST'])
+@login_required
+def booking_field_edit(form_id, field_id):
+    """Edit a field on a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingForm, BookingFormField
+    import json
+    import re
+
+    BookingForm.query.get_or_404(form_id)
+    field = BookingFormField.query.filter_by(id=field_id, form_id=form_id).first_or_404()
+
+    field_type = request.form.get('field_type', '').strip() or field.field_type
+    field_label = request.form.get('field_label', '').strip()
+    field_name = request.form.get('field_name', '').strip()
+    placeholder = request.form.get('placeholder', '').strip()
+    is_required = request.form.get('is_required') == 'on'
+    field_options = request.form.get('field_options', '').strip()
+
+    if not field_label:
+        flash(translate('settings.admin.booking_forms.flash_field_label_required'), 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+    if not field_name:
+        field_name = re.sub(r'[^a-zA-Z0-9_]', '_', field_label.lower())
+        field_name = re.sub(r'_+', '_', field_name)
+
+    options_json = None
+    if field_type in ['select', 'checkbox'] and field_options:
+        options = [opt.strip() for opt in field_options.split('\n') if opt.strip()]
+        if options:
+            options_json = json.dumps(options)
+
+    field.field_type = field_type
+    field.field_label = field_label
+    field.field_name = field_name
+    field.placeholder = placeholder or None
+    field.is_required = is_required
+    field.field_options = options_json
+
+    db.session.commit()
+    flash(translate('settings.admin.booking_forms.flash_field_updated', label=field_label), 'success')
     return redirect(url_for('settings.booking_form_edit', form_id=form_id))
 
 
@@ -2841,7 +3306,7 @@ def booking_field_delete(form_id, field_id):
     db.session.delete(field)
     db.session.commit()
     
-    flash(f'Feld "{field_label}" wurde gelöscht.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_field_deleted', label=field_label), 'success')
     return redirect(url_for('settings.booking_form_edit', form_id=form_id))
 
 
@@ -2861,7 +3326,7 @@ def booking_role_create(form_id):
     is_required = request.form.get('is_required') == 'on'
     
     if not role_name:
-        flash('Rollenname ist erforderlich.', 'danger')
+        flash(translate('settings.admin.booking_forms.flash_role_name_required'), 'danger')
         return redirect(url_for('settings.booking_form_edit', form_id=form_id))
     
     # Get max role_order
@@ -2877,7 +3342,7 @@ def booking_role_create(form_id):
     db.session.add(role)
     db.session.commit()
     
-    flash(f'Rolle "{role_name}" wurde erstellt.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_role_added', name=role_name), 'success')
     return redirect(url_for('settings.booking_form_edit', form_id=form_id))
 
 
@@ -2898,7 +3363,7 @@ def booking_role_edit(form_id, role_id):
     is_required = request.form.get('is_required') == 'on'
     
     if not role_name:
-        flash('Rollenname ist erforderlich.', 'danger')
+        flash(translate('settings.admin.booking_forms.flash_role_name_required'), 'danger')
         return redirect(url_for('settings.booking_form_edit', form_id=form_id))
     
     role.role_name = role_name
@@ -2906,7 +3371,7 @@ def booking_role_edit(form_id, role_id):
     
     db.session.commit()
     
-    flash(f'Rolle "{role_name}" wurde aktualisiert.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_role_updated'), 'success')
     return redirect(url_for('settings.booking_form_edit', form_id=form_id))
 
 
@@ -2927,7 +3392,7 @@ def booking_role_delete(form_id, role_id):
     db.session.delete(role)
     db.session.commit()
     
-    flash(f'Rolle "{role_name}" wurde gelöscht.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_role_deleted'), 'success')
     return redirect(url_for('settings.booking_form_edit', form_id=form_id))
 
 
@@ -2995,15 +3460,15 @@ def booking_roles(form_id):
 @login_required
 def security():
     """Sicherheits-Einstellungen Hauptseite."""
-    return _render_security_page(active_tab='passwords')
+    return _render_security_page()
 
 
-def _render_security_page(active_tab='passwords'):
-    """Rendert die Sicherheitsseite mit allen benötigten Daten im Portal-Layout."""
+def _render_security_page(scroll_to_devices=False):
+    """Rendert die Sicherheitsseite (Passwort, 2FA, Geräte) im Pill-Layout."""
     qr_code_data = None
     totp_secret = None
     show_setup = False
-    setup_mode = request.args.get('setup') == '1' and active_tab == 'passwords'
+    setup_mode = request.args.get('setup') == '1'
 
     if not current_user.totp_enabled:
         from flask import session as flask_session
@@ -3025,11 +3490,11 @@ def _render_security_page(active_tab='passwords'):
     return render_template(
         'settings/security.html',
         user=current_user,
-        active_tab=active_tab,
         qr_code_data=qr_code_data,
         totp_secret=totp_secret,
         show_setup=show_setup,
-        sessions=sessions
+        sessions=sessions,
+        scroll_to_devices=scroll_to_devices,
     )
 
 
@@ -3090,9 +3555,9 @@ def security_passwords():
             db.session.commit()
             
             flash(translate('settings.security.password.changed_success'), 'success')
-            return redirect(url_for('settings.security_passwords'))
+            return redirect(url_for('settings.security'))
     
-    return _render_security_page(active_tab='passwords')
+    return _render_security_page()
 
 
 @settings_bp.route('/security/enable-2fa', methods=['POST'])
@@ -3119,9 +3584,10 @@ def enable_2fa():
     
     # Entferne Secret aus Session
     flask_session.pop('2fa_setup_secret', None)
+    flask_session.pop('2fa_setup_started', None)
     
     flash(translate('settings.security.2fa.enabled_success'), 'success')
-    return redirect(url_for('settings.security_passwords'))
+    return redirect(url_for('settings.security'))
 
 
 @settings_bp.route('/security/disable-2fa', methods=['POST'])
@@ -3132,25 +3598,25 @@ def disable_2fa():
     
     if not password:
         flash(translate('settings.security.2fa.enter_password'), 'danger')
-        return redirect(url_for('settings.security_passwords'))
+        return redirect(url_for('settings.security'))
     
     if not current_user.check_password(password):
         flash(translate('settings.security.2fa.wrong_password'), 'danger')
-        return redirect(url_for('settings.security_passwords'))
+        return redirect(url_for('settings.security'))
     
     current_user.totp_secret = None
     current_user.totp_enabled = False
     db.session.commit()
     
     flash(translate('settings.security.2fa.disabled_success'), 'success')
-    return redirect(url_for('settings.security_passwords'))
+    return redirect(url_for('settings.security'))
 
 
 @settings_bp.route('/security/devices')
 @login_required
 def security_devices():
-    """Angemeldete Geräte anzeigen."""
-    return _render_security_page(active_tab='devices')
+    """Angemeldete Geräte anzeigen (gleiche Seite, Scroll zu Geräte)."""
+    return _render_security_page(scroll_to_devices=True)
 
 
 @settings_bp.route('/security/revoke-session', methods=['POST'])
@@ -3191,19 +3657,29 @@ def about():
     """Über PrismaTeams Seite."""
     # Finde den ersten Administrator (ältester Admin-User nach created_at)
     first_admin = User.query.filter_by(is_admin=True).order_by(User.created_at.asc()).first()
-    creator_name = first_admin.full_name if first_admin else "Unbekannt"
-    
+    creator_name = first_admin.full_name if first_admin else translate('settings.about.creator_unknown')
+
+    portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+    portal_name = (portal_name_setting.value or '').strip() if portal_name_setting else ''
+
     # OnlyOffice Status prüfen
-    from app.utils.onlyoffice import is_onlyoffice_enabled
-    from app.utils.media_downloader import is_media_downloader_compatible
+    from app.utils.onlyoffice import is_onlyoffice_enabled, get_onlyoffice_version
+    from app.utils.media_downloader import is_media_downloader_compatible, get_ffmpeg_version
     onlyoffice_enabled = is_onlyoffice_enabled()
+    onlyoffice_version = get_onlyoffice_version() if onlyoffice_enabled else None
     media_downloader_compatible = is_media_downloader_compatible()
-    
+    ffmpeg_version = get_ffmpeg_version() if media_downloader_compatible else None
+
     return render_template(
         'settings/about.html',
         creator_name=creator_name,
+        portal_name=portal_name,
+        release_version=current_app.config.get('ABOUT_RELEASE_VERSION', 'v0.0.0'),
+        build_number=current_app.config.get('ABOUT_BUILD_NUMBER', ''),
         onlyoffice_enabled=onlyoffice_enabled,
+        onlyoffice_version=onlyoffice_version,
         media_downloader_compatible=media_downloader_compatible,
+        ffmpeg_version=ffmpeg_version,
     )
 
 
@@ -3214,4 +3690,26 @@ LANGUAGE_FALLBACK_NAMES = {
     'es': 'Español',
     'ru': 'Русский'
 }
+
+# Übersetzungabdeckung relativ zu Deutsch (alle Keys vorhanden = 100)
+LANGUAGE_COMPLETENESS = {
+    'de': 100,
+    'en': 100,
+    'es': 11,
+    'pt': 11,
+    'ru': 11,
+}
+
+
+def _language_badge_grade(percent):
+    """Farbstufe für Übersetzungs-Badge (low → full)."""
+    if percent is None:
+        return None
+    if percent >= 100:
+        return 'full'
+    if percent >= 70:
+        return 'high'
+    if percent >= 40:
+        return 'mid'
+    return 'low'
 

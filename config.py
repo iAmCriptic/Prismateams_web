@@ -2,11 +2,18 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
+# About-Seite (Release / Build)
+ABOUT_RELEASE_VERSION = 'v3.0.0'
+ABOUT_BUILD_NUMBER = 'B300.202607272355.01'
+
 load_dotenv()
 
 class Config:
     """Base configuration."""
-    
+
+    ABOUT_RELEASE_VERSION = ABOUT_RELEASE_VERSION
+    ABOUT_BUILD_NUMBER = ABOUT_BUILD_NUMBER
+
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or 'sqlite:///teamportal.db'
@@ -37,13 +44,16 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME')
     MAIL_SENDER_NAME = os.environ.get('MAIL_SENDER_NAME', '')
+    # Socket-Timeout für SMTP (vermeidet hängende Worker / Proxy-Timeouts)
+    MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', 20))
     
     IMAP_SERVER = os.environ.get('IMAP_SERVER')
     IMAP_PORT = int(os.environ.get('IMAP_PORT', 993))
     IMAP_USE_SSL = os.environ.get('IMAP_USE_SSL', 'True').lower() == 'true'
     
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 524288000))
+    # Request-Deckel: Start-Default; wird nach DB-Sync aus Datei-Einstellungen gesetzt
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'md', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar'}
     
     APP_NAME = os.environ.get('APP_NAME', 'Prismateams')
@@ -55,6 +65,7 @@ class Config:
     
     VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
     VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY')
+    VAPID_CLAIM_EMAIL = os.environ.get('VAPID_CLAIM_EMAIL') or os.environ.get('MAIL_DEFAULT_SENDER', 'admin@localhost')
     
     EMAIL_HTML_MAX_LENGTH = int(os.environ.get('EMAIL_HTML_MAX_LENGTH', 0))
     EMAIL_TEXT_MAX_LENGTH = int(os.environ.get('EMAIL_TEXT_MAX_LENGTH', 10000))
@@ -77,6 +88,8 @@ class Config:
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
+    # Optional: explizites Limiter-Backend (sonst Redis wenn REDIS_ENABLED, sonst Memory)
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', '').strip() or None
 
 
 class DevelopmentConfig(Config):
@@ -89,7 +102,10 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
-    SESSION_COOKIE_SECURE = False
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    # Default True (HTTPS). Ohne SSL muss .env SESSION_COOKIE_SECURE=False setzen,
+    # sonst speichert der Browser Session-Cookies nicht und Login/Setup brechen.
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
 
 
 class TestingConfig(Config):

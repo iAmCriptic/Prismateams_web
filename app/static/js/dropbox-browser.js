@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const uploadProgress = document.getElementById('uploadProgress');
     const selectionInfo = document.getElementById('selectionInfo');
-    const maxSize = 100 * 1024 * 1024;
+    const maxSize = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
 
     const listViewBtn = document.getElementById('dropboxListViewBtn');
     const gridViewBtn = document.getElementById('dropboxGridViewBtn');
@@ -19,15 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (mode === 'list') {
-            listViewBtn.classList.add('active');
-            gridViewBtn.classList.remove('active');
+            listViewBtn.classList.add('active', 'is-active');
+            gridViewBtn.classList.remove('active', 'is-active');
             listViewContainer.classList.remove('d-none');
             gridViewContainer.classList.add('d-none');
+            listViewContainer.style.display = 'block';
+            gridViewContainer.style.display = 'none';
         } else {
-            gridViewBtn.classList.add('active');
-            listViewBtn.classList.remove('active');
+            gridViewBtn.classList.add('active', 'is-active');
+            listViewBtn.classList.remove('active', 'is-active');
             gridViewContainer.classList.remove('d-none');
             listViewContainer.classList.add('d-none');
+            gridViewContainer.style.display = 'block';
+            listViewContainer.style.display = 'none';
         }
         window.localStorage.setItem(viewStorageKey, mode);
     }
@@ -73,7 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const file of selectedFiles) {
             if (file.size > maxSize) {
-                window.alert(`Die Datei "${file.name}" ist zu groß. Maximale Größe: 100MB pro Datei.`);
+                const maxLabel = (typeof window.FILES_MAX_UPLOAD_LABEL === 'string' && window.FILES_MAX_UPLOAD_LABEL)
+                    ? window.FILES_MAX_UPLOAD_LABEL
+                    : (Math.round(maxSize / (1024 * 1024)) + 'MB');
+                window.alert(`Die Datei "${file.name}" ist zu groß. Maximale Größe: ${maxLabel} pro Datei.`);
                 if (source === 'Dateien' && fileInput) fileInput.value = '';
                 if (source === 'Ordner' && folderInput) folderInput.value = '';
                 updateSelectionInfo('Wählen Sie Dateien oder einen Ordner aus. Upload startet automatisch.');

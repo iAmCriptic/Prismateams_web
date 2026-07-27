@@ -1,114 +1,187 @@
 {% extends "base.html" %}
+{% from "events/_shell.html" import events_shell_open, events_shell_close %}
 
 {% block title %}{{ event.name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>{{ event.name }}</h1>
-    <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" href="{{ url_for('events.event_pdf', event_id=event.id) }}">PDF</a>
-        <a class="btn btn-outline-primary" href="{{ url_for('events.edit_event', event_id=event.id) }}">Bearbeiten</a>
+{{ events_shell_open('overview', event.name, 'bi-calendar2-week', false) }}
+<div class="events-form events-event-view">
+    <div class="events-form-header">
+        <a href="{{ url_for('events.overview') }}" class="events-form-back">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Zurück zur Übersicht</span>
+        </a>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div class="min-width-0">
+                <h1 class="events-form-title">{{ event.name }}</h1>
+                {% if event.description %}
+                <p class="events-form-subtitle">{{ event.description }}</p>
+                {% endif %}
+            </div>
+            <div class="events-form-actions events-form-actions--header">
+                <a class="btn btn-outline-secondary events-form-cancel" href="{{ url_for('events.event_pdf', event_id=event.id) }}">
+                    <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF
+                </a>
+                <a class="btn btn-accent events-form-submit" href="{{ url_for('events.edit_event', event_id=event.id) }}">
+                    <i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten
+                </a>
+            </div>
+        </div>
     </div>
-</div>
 
-<div class="row g-3">
-    <div class="col-lg-8">
-        <div class="card mb-3">
-            <div class="card-body">
-                <div><strong>Beschreibung:</strong> {{ event.description or '-' }}</div>
-                <div><strong>Ort:</strong> {{ event.default_location or '-' }}</div>
-                <div><strong>Dateiordner:</strong>
-                    {% if event.folder %}
-                        <a href="{{ url_for('files.browse_folder', folder_id=event.folder.id) }}">{{ event.folder.path }}</a>
-                    {% else %}
-                        -
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">Termine</div>
-            <div class="table-responsive">
-                <table class="table mb-0">
-                    <thead><tr><th>Typ</th><th>Von</th><th>Bis</th><th>Ort</th><th></th></tr></thead>
-                    <tbody>
-                        {% for a in event.appointments %}
-                        <tr>
-                            <td>{{ a.label }}</td>
-                            <td>{{ a.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
-                            <td>{{ a.end_time.strftime('%d.%m.%Y %H:%M') }}</td>
-                            <td>{{ a.location or event.default_location or '-' }}</td>
-                            <td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">QR Scanner</a></td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-muted">Keine Termine</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">Zeitplan pro Termin</div>
-            <ul class="list-group list-group-flush">
-                {% for a in event.appointments %}
-                    <li class="list-group-item">
-                        <div class="fw-semibold mb-1">{{ a.label }} ({{ a.start_time.strftime('%d.%m.%Y %H:%M') }})</div>
-                        {% set ns = namespace(has_appt_timeline=false) %}
-                        <ul class="mb-0">
-                            {% for item in event.timeline_items if item.appointment_id == a.id %}
-                                {% set ns.has_appt_timeline = true %}
-                                <li>{{ item.title }}</li>
-                            {% endfor %}
-                            {% if not ns.has_appt_timeline %}
-                                <li class="text-muted">Kein Zeitplan für diesen Termin.</li>
+    <div class="events-form-body">
+        <div class="events-view-layout">
+            <div class="events-view-main">
+                <section class="events-form-card" aria-labelledby="events-view-basics">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-basics" class="events-form-section-title">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            Details
+                        </h2>
+                    </div>
+                    <div class="events-form-fields events-form-fields--2">
+                        <div class="events-form-field">
+                            <div class="form-label">Ort</div>
+                            <p class="mb-0">{{ event.default_location or '—' }}</p>
+                        </div>
+                        <div class="events-form-field">
+                            <div class="form-label">Dateiordner</div>
+                            {% if event.folder %}
+                            <p class="mb-0">
+                                <a href="{{ url_for('files.browse_folder', folder_id=event.folder.id) }}">{{ event.folder.path }}</a>
+                            </p>
+                            {% else %}
+                            <p class="mb-0 text-muted">—</p>
                             {% endif %}
-                        </ul>
-                    </li>
-                {% endfor %}
-                {% if not event.appointments %}
-                    <li class="list-group-item text-muted">Kein Zeitplan hinterlegt.</li>
-                {% endif %}
-            </ul>
-        </div>
-    </div>
+                        </div>
+                    </div>
+                </section>
 
-    <div class="col-lg-4">
-        <div class="card mb-3">
-            <div class="card-header">Personen</div>
-            <ul class="list-group list-group-flush">
-                {% for a in event.assignments %}
-                <li class="list-group-item">{{ a.user.full_name if a.user else a.display_name }}</li>
-                {% else %}
-                <li class="list-group-item text-muted">Keine Personen</li>
-                {% endfor %}
-            </ul>
-        </div>
-        <div class="card mb-3">
-            <div class="card-header">Ansprechpartner</div>
-            <ul class="list-group list-group-flush">
-                {% for c in event.contacts %}
-                <li class="list-group-item">
-                    <div><strong>{{ c.name }}</strong> {% if c.role %}<span class="text-muted">({{ c.role }})</span>{% endif %}</div>
-                    {% if c.phone %}<div>{{ c.phone }}</div>{% endif %}
-                    {% if c.email %}<div>{{ c.email }}</div>{% endif %}
-                </li>
-                {% else %}
-                <li class="list-group-item text-muted">Keine Ansprechpartner</li>
-                {% endfor %}
-            </ul>
-        </div>
-        <div class="card">
-            <div class="card-header">Konflikte (Warnung)</div>
-            <div class="card-body">
-                <div class="mb-2"><strong>Personen:</strong> {{ conflicts.person_conflicts|length }}</div>
-                <div><strong>Material:</strong> {{ conflicts.inventory_conflicts|length }}</div>
-                {% if conflicts.person_conflicts or conflicts.inventory_conflicts %}
-                <a class="btn btn-sm btn-outline-danger mt-2" href="{{ url_for('events.event_conflicts', event_id=event.id) }}" target="_blank">Details (JSON)</a>
-                {% endif %}
+                <section class="events-form-card" aria-labelledby="events-view-appointments">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-appointments" class="events-form-section-title">
+                            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                            Termine
+                        </h2>
+                    </div>
+                    {% if event.appointments %}
+                    <div class="events-view-appt-list">
+                        {% for a in event.appointments %}
+                        <div class="events-view-appt">
+                            <div class="events-view-appt-main">
+                                <div class="events-view-appt-title">{{ a.label }}</div>
+                                <div class="events-view-appt-meta">
+                                    <span><i class="bi bi-clock" aria-hidden="true"></i> {{ a.start_time.strftime('%d.%m.%Y %H:%M') }} – {{ a.end_time.strftime('%H:%M') }}</span>
+                                    <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ a.location or event.default_location or '—' }}</span>
+                                </div>
+                            </div>
+                            <a class="btn btn-sm btn-outline-secondary events-form-btn-pill" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">
+                                <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Ausleihe
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="form-text mb-0">Keine Termine</p>
+                    {% endif %}
+                </section>
+
+                <section class="events-form-card" aria-labelledby="events-view-timeline">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-timeline" class="events-form-section-title">
+                            <i class="bi bi-list-check" aria-hidden="true"></i>
+                            Zeitplan pro Termin
+                        </h2>
+                    </div>
+                    {% if event.appointments %}
+                    <div class="events-view-timeline">
+                        {% for a in event.appointments %}
+                        <div class="events-view-timeline-block">
+                            <div class="events-view-timeline-title">{{ a.label }} <span class="text-muted">({{ a.start_time.strftime('%d.%m.%Y %H:%M') }})</span></div>
+                            <ul class="events-view-timeline-items">
+                                {% set ns = namespace(has_appt_timeline=false) %}
+                                {% for item in event.timeline_items if item.appointment_id == a.id %}
+                                    {% set ns.has_appt_timeline = true %}
+                                    <li>{{ item.title }}</li>
+                                {% endfor %}
+                                {% if not ns.has_appt_timeline %}
+                                    <li class="text-muted">Kein Zeitplan für diesen Termin.</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="form-text mb-0">Kein Zeitplan hinterlegt.</p>
+                    {% endif %}
+                </section>
             </div>
+
+            <aside class="events-view-side">
+                <section class="events-form-card" aria-labelledby="events-view-people">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-people" class="events-form-section-title">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            Personen
+                        </h2>
+                    </div>
+                    <ul class="events-view-chip-list">
+                        {% for a in event.assignments %}
+                        <li>{{ a.user.full_name if a.user else a.display_name }}</li>
+                        {% else %}
+                        <li class="text-muted">Keine Personen</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+
+                <section class="events-form-card" aria-labelledby="events-view-contacts">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-contacts" class="events-form-section-title">
+                            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                            Ansprechpartner
+                        </h2>
+                    </div>
+                    {% if event.contacts %}
+                    <div class="events-view-contacts">
+                        {% for c in event.contacts %}
+                        <div class="events-view-contact">
+                            <div class="fw-semibold">{{ c.name }}{% if c.role %} <span class="text-muted">({{ c.role }})</span>{% endif %}</div>
+                            {% if c.phone %}<div class="events-view-contact-meta">{{ c.phone }}</div>{% endif %}
+                            {% if c.email %}<div class="events-view-contact-meta">{{ c.email }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="form-text mb-0">Keine Ansprechpartner</p>
+                    {% endif %}
+                </section>
+
+                <section class="events-form-card" aria-labelledby="events-view-conflicts">
+                    <div class="events-form-card-head">
+                        <h2 id="events-view-conflicts" class="events-form-section-title">
+                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            Konflikte
+                        </h2>
+                    </div>
+                    <div class="events-form-fields events-form-fields--2">
+                        <div class="events-form-field">
+                            <div class="form-label">Personen</div>
+                            <p class="mb-0">{{ conflicts.person_conflicts|length }}</p>
+                        </div>
+                        <div class="events-form-field">
+                            <div class="form-label">Material</div>
+                            <p class="mb-0">{{ conflicts.inventory_conflicts|length }}</p>
+                        </div>
+                    </div>
+                    {% if conflicts.person_conflicts or conflicts.inventory_conflicts %}
+                    <a class="btn btn-sm btn-outline-danger events-form-btn-pill mt-2" href="{{ url_for('events.event_conflicts', event_id=event.id) }}" target="_blank">
+                        Details (JSON)
+                    </a>
+                    {% endif %}
+                </section>
+            </aside>
         </div>
     </div>
 </div>
+{{ events_shell_close('overview') }}
 {% endblock %}

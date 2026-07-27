@@ -3,6 +3,24 @@
 const INVENTORY_API_BASES = ['/inventory/api', '/inventory/vnext/api', '/vnext/api'];
 let activeInventoryApiBase = INVENTORY_API_BASES[0];
 
+/** Portal-Banner statt window.alert (success|info|warning|danger). */
+function inventoryNotify(message, category = 'info') {
+    const cat = category === 'error' ? 'danger' : (category || 'info');
+    if (typeof window.showAppBanner === 'function') {
+        window.showAppBanner(String(message || ''), cat);
+        return;
+    }
+    window.alert(String(message || ''));
+}
+
+/** Portal-Confirm-Modal statt window.confirm. */
+function inventoryConfirm(message, options) {
+    if (typeof window.ptConfirm === 'function') {
+        return window.ptConfirm(String(message || ''), options || {});
+    }
+    return Promise.resolve(window.confirm(String(message || '')));
+}
+
 function normalizeInventoryApiPath(path) {
     if (!path) return '';
     return path.startsWith('/') ? path : `/${path}`;
@@ -57,10 +75,58 @@ class StockManager {
         this.searchTimeout = null;
         this.selectedProducts = new Set(); // Verwaltet ausgewählte Produkt-IDs
         this.currentFolderId = null; // Aktueller Ordner (aus URL)
-        this.viewMode = localStorage.getItem('inventoryViewMode') || 'grid'; // 'grid' oder 'list'
-        this.activeQuickFilter = null; // Aktiver Schnellfilter
+        this.viewMode = localStorage.getItem('inventoryViewMode') || 'list'; // 'grid' oder 'list'
         this.sortField = localStorage.getItem('inventorySortField') || 'name';
         this.sortDirection = localStorage.getItem('inventorySortDirection') || 'asc';
+        this.overdueProductIds = new Set();
+        this.favoriteProductIds = new Set();
+        this.editingFolderId = null;
+    }
+
+    getFilterEls(key) {
+        return Array.from(document.querySelectorAll(`[data-inv-filter="${key}"]`));
+    }
+
+    getFilterValue(key) {
+        const els = this.getFilterEls(key);
+        const filled = els.find((el) => (el.value || '').trim() !== '');
+        return (filled || els[0])?.value || '';
+    }
+
+    setFilterValue(key, value) {
+        this.getFilterEls(key).forEach((el) => {
+            el.value = value;
+        });
+    }
+
+    fillSelectOptions(key, placeholder, values, { sortFn = null, restore = true } = {}) {
+        const selects = this.getFilterEls(key);
+        if (!selects.length) return;
+        const currentValue = restore ? this.getFilterValue(key) : '';
+        let items = Array.from(values).filter((v) => v !== null && v !== undefined && String(v).trim() !== '');
+        items = sortFn ? items.sort(sortFn) : items.sort((a, b) => String(a).localeCompare(String(b), 'de'));
+        selects.forEach((select) => {
+            select.innerHTML = '';
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = placeholder;
+            select.appendChild(empty);
+            items.forEach((val) => {
+                const option = document.createElement('option');
+                option.value = String(val);
+                option.textContent = String(val);
+                select.appendChild(option);
+            });
+            if (currentValue && items.map(String).includes(String(currentValue))) {
+                select.value = String(currentValue);
+            } else {
+                select.value = '';
+            }
+            if (window.InventoryPillSelect) {
+                window.InventoryPillSelect.enhance(select);
+                window.InventoryPillSelect.sync(select);
+            }
+        });
     }
     
     async init() {
@@ -81,12 +147,14 @@ class StockManager {
         await this.loadCategories(); // Lade alle Kategorien
         await this.loadFilterOptions(); // Lade alle Filter-Optionen vom Server
         await this.loadProducts();
-        this.renderFolders(); // Rendere Ordner-Struktur
         // Initiale UI-Aktualisierung
         this.updateSelectionUI();
         this.applyViewMode(); // Wende gespeicherten View-Mode an
         // Wende Filter an nach dem Laden
         this.applyFilters();
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(document);
+        }
     }
     
     async loadFolders() {
@@ -194,13 +262,6 @@ class StockManager {
                 this.updateLengths();
                 this.updatePurchaseYears();
                 
-                console.log(`Filter-Optionen geladen für Ordner: ${this.currentFolderId || 'Root'}`, {
-                    categories: this.categories.size,
-                    conditions: this.conditions.size,
-                    locations: this.locations.size,
-                    lengths: this.lengths.size,
-                    purchaseYears: this.purchaseYears.size
-                });
             } else {
                 console.warn('Fehler beim Laden der Filter-Optionen, verwende nur Optionen aus geladenen Produkten');
             }
@@ -322,17 +383,6 @@ class StockManager {
             }
         });
         
-        // Debug: Prüfe ob Filter-Werte extrahiert wurden (nur in Entwicklung)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('Filter-Werte extrahiert:', {
-                categories: this.categories.size,
-                conditions: this.conditions.size,
-                locations: this.locations.size,
-                lengths: this.lengths.size,
-                purchaseYears: this.purchaseYears.size,
-                products: this.products.length
-            });
-        }
     }
     
     // Öffentliche Methode zum Aktualisieren der Filter (kann von außen aufgerufen werden)
@@ -341,344 +391,191 @@ class StockManager {
         await this.loadFilterOptions();
         // Lade Produkte neu und aktualisiere Filter
         await this.loadProducts();
-        console.log('Filter aktualisiert');
     }
     
     updateCategories() {
-        const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) {
-            console.warn('categoryFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = categoryFilter.value || '';
-        categoryFilter.innerHTML = '<option value="">Alle Kategorien</option>';
-        
-        // Füge alle Kategorien hinzu (auch wenn Set leer ist)
-        const categoriesArray = Array.from(this.categories).filter(cat => cat && cat.trim() !== '');
-        categoriesArray.sort().forEach(cat => {
-            if (cat && cat.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                categoryFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && categoriesArray.includes(currentValue)) {
-            categoryFilter.value = currentValue;
-        } else {
-            categoryFilter.value = '';
-        }
+        this.fillSelectOptions('categoryFilter', 'Alle Kategorien', this.categories);
     }
     
     updateFolders() {
-        // Ordner-Filter wurde entfernt, daher diese Funktion ist nicht mehr nötig
-        // Wird nur noch für interne Zwecke verwendet (falls benötigt)
-        // Keine UI-Aktualisierung mehr
+        // Ordner-Filter entfernt — Navigation über Ordner-Tiles
     }
     
     updateConditions() {
-        const conditionFilter = document.getElementById('conditionFilter');
-        if (!conditionFilter) {
-            console.warn('conditionFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = conditionFilter.value || '';
-        conditionFilter.innerHTML = '<option value="">Alle Zustände</option>';
-        
-        // Füge alle Zustände hinzu (auch wenn Set leer ist)
-        const conditionsArray = Array.from(this.conditions).filter(cond => cond && cond.trim() !== '');
-        conditionsArray.sort().forEach(cond => {
-            if (cond && cond.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = cond;
-                option.textContent = cond;
-                conditionFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && conditionsArray.includes(currentValue)) {
-            conditionFilter.value = currentValue;
-        } else {
-            conditionFilter.value = '';
-        }
+        this.fillSelectOptions('conditionFilter', 'Alle Zustände', this.conditions);
     }
     
     updateLocations() {
-        const locationFilter = document.getElementById('locationFilter');
-        if (!locationFilter) {
-            console.warn('locationFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = locationFilter.value || '';
-        locationFilter.innerHTML = '<option value="">Alle Lagerorte</option>';
-        
-        // Füge alle Lagerorte hinzu (auch wenn Set leer ist)
-        const locationsArray = Array.from(this.locations).filter(loc => loc && loc.trim() !== '');
-        locationsArray.sort().forEach(loc => {
-            if (loc && loc.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = loc;
-                option.textContent = loc;
-                locationFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && locationsArray.includes(currentValue)) {
-            locationFilter.value = currentValue;
-        } else {
-            locationFilter.value = '';
-        }
+        this.fillSelectOptions('locationFilter', 'Alle Lagerorte', this.locations);
     }
     
     updateLengths() {
-        const lengthFilter = document.getElementById('lengthFilter');
-        if (!lengthFilter) {
-            console.warn('lengthFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = lengthFilter.value || '';
-        lengthFilter.innerHTML = '<option value="">Alle Längen</option>';
-        
-        // Füge alle Längen hinzu (auch wenn Set leer ist)
-        const lengthsArray = Array.from(this.lengths).filter(len => len && len.trim() !== '');
-        
-        // Sortiere Längen intelligent (zuerst nach Zahl, dann alphabetisch)
-        const sortedLengths = lengthsArray.sort((a, b) => {
-            // Versuche zuerst numerischen Vergleich mit length_meters (falls verfügbar)
-            // Extrahiere Zahlen aus Strings (z.B. "5m" -> 5)
-            const numA = parseFloat(String(a).replace(/[^0-9.]/g, '')) || 0;
-            const numB = parseFloat(String(b).replace(/[^0-9.]/g, '')) || 0;
-            if (numA !== numB) {
-                return numA - numB;
-            }
-            // Fallback: alphabetisch
-            return String(a).localeCompare(String(b));
+        this.fillSelectOptions('lengthFilter', 'Alle Längen', this.lengths, {
+            sortFn: (a, b) => {
+                const numA = parseFloat(String(a).replace(/[^0-9.]/g, '')) || 0;
+                const numB = parseFloat(String(b).replace(/[^0-9.]/g, '')) || 0;
+                if (numA !== numB) return numA - numB;
+                return String(a).localeCompare(String(b), 'de');
+            },
         });
-        
-        sortedLengths.forEach(len => {
-            if (len && String(len).trim() !== '') {
-                const option = document.createElement('option');
-                option.value = String(len);
-                option.textContent = String(len);
-                lengthFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && sortedLengths.includes(currentValue)) {
-            lengthFilter.value = currentValue;
-        } else {
-            lengthFilter.value = '';
-        }
     }
     
     updatePurchaseYears() {
-        const purchaseYearFilter = document.getElementById('purchaseYearFilter');
-        if (!purchaseYearFilter) {
-            console.warn('purchaseYearFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = purchaseYearFilter.value || '';
-        purchaseYearFilter.innerHTML = '<option value="">Alle Jahre</option>';
-        
-        // Füge alle Jahre hinzu (auch wenn Set leer ist)
-        const yearsArray = Array.from(this.purchaseYears).filter(year => year && String(year).trim() !== '');
-        
-        // Sortiere Jahre absteigend (neueste zuerst)
-        const sortedYears = yearsArray.sort((a, b) => {
-            const yearA = parseInt(String(a)) || 0;
-            const yearB = parseInt(String(b)) || 0;
-            return yearB - yearA; // Absteigend
+        this.fillSelectOptions('purchaseYearFilter', 'Alle Jahre', this.purchaseYears, {
+            sortFn: (a, b) => (parseInt(String(b), 10) || 0) - (parseInt(String(a), 10) || 0),
         });
-        
-        sortedYears.forEach(year => {
-            if (year && String(year).trim() !== '') {
-                const option = document.createElement('option');
-                option.value = String(year);
-                option.textContent = String(year);
-                purchaseYearFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && sortedYears.includes(currentValue)) {
-            purchaseYearFilter.value = currentValue;
-        } else {
-            purchaseYearFilter.value = '';
-        }
     }
     
     setupEventListeners() {
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const statusFilter = document.getElementById('statusFilter');
-        const conditionFilter = document.getElementById('conditionFilter');
-        const locationFilter = document.getElementById('locationFilter');
-        const lengthFilter = document.getElementById('lengthFilter');
-        const purchaseYearFilter = document.getElementById('purchaseYearFilter');
-        const resetFiltersBtn = document.getElementById('resetFiltersBtn');
-        const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
+        const filterKeys = [
+            'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
+            'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
+            'serialPresenceFilter', 'dguvFilter',
+        ];
+
+        filterKeys.forEach((key) => {
+            this.getFilterEls(key).forEach((el) => {
+                const eventName = key === 'searchInput' ? 'input' : 'change';
+                el.addEventListener(eventName, () => {
+                    this.getFilterEls(key).forEach((other) => {
+                        if (other !== el) other.value = el.value;
+                    });
+                    if (key === 'searchInput') {
+                        clearTimeout(this.searchTimeout);
+                        this.searchTimeout = setTimeout(() => this.applyFilters(), 300);
+                        return;
+                    }
+                    this.applyFilters();
+                });
+            });
+        });
+
+        document.querySelectorAll('.inventory-reset-filters-btn').forEach((btn) => {
+            btn.addEventListener('click', () => this.resetFilters());
+        });
+
         const bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
         const bulkDeselectAllBtn = document.getElementById('bulkDeselectAllBtn');
         const bulkEditBtn = document.getElementById('bulkEditBtn');
         const bulkBorrowBtn = document.getElementById('bulkBorrowBtn');
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                clearTimeout(this.searchTimeout);
-                this.searchTimeout = setTimeout(() => {
-                    // Entferne active-Klasse von Schnellfilter-Buttons bei Suche
-                    document.querySelectorAll('.quick-filter').forEach(b => {
-                        b.classList.remove('active');
-                    });
-                    this.activeQuickFilter = null;
-                    this.applyFilters();
-                }, 300);
-            });
-        }
-        
-        // Alle Filter mit Event-Listenern versehen
-        [categoryFilter, statusFilter, conditionFilter, locationFilter, lengthFilter, purchaseYearFilter].forEach(filter => {
-            if (filter) {
-                filter.addEventListener('change', () => this.applyFilters());
-            }
-        });
-        
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', () => this.resetFilters());
-        }
-        
-        if (bulkSelectAllBtn) {
-            bulkSelectAllBtn.addEventListener('click', () => this.selectAllAvailable());
-        }
-        
-        if (bulkDeselectAllBtn) {
-            bulkDeselectAllBtn.addEventListener('click', () => this.deselectAll());
-        }
-        
-        if (bulkEditBtn) {
-            bulkEditBtn.addEventListener('click', () => this.openBulkEditModal());
-        }
-        
-        if (bulkBorrowBtn) {
-            bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
-        }
-        
-        if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
-        }
-        
-        if (borrowSelectedBtn) {
-            borrowSelectedBtn.addEventListener('click', () => this.borrowSelected());
-        }
-        
-        // Checkbox-Events werden direkt in attachCheckboxHandlers() behandelt
+        const bulkQrBtn = document.getElementById('bulkQrBtn');
+        const bulkRepairBtn = document.getElementById('bulkRepairBtn');
+        const bulkAvailableBtn = document.getElementById('bulkAvailableBtn');
+
+        if (bulkSelectAllBtn) bulkSelectAllBtn.addEventListener('click', () => this.selectAllAvailable());
+        if (bulkDeselectAllBtn) bulkDeselectAllBtn.addEventListener('click', () => this.deselectAll());
+        if (bulkEditBtn) bulkEditBtn.addEventListener('click', () => this.openBulkEditModal());
+        if (bulkBorrowBtn) bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
+        if (bulkQrBtn) bulkQrBtn.addEventListener('click', () => this.printSelectedQr());
+        if (bulkRepairBtn) bulkRepairBtn.addEventListener('click', () => this.markSelectedInRepair());
+        if (bulkAvailableBtn) bulkAvailableBtn.addEventListener('click', () => this.markSelectedAvailable());
+        if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
     }
     
     setupSortControls() {
-        const validFields = ['name', 'category', 'condition', 'length'];
+        const validFields = [
+            'name', 'category', 'condition', 'length',
+            'location', 'status', 'purchase_date', 'serial_number',
+        ];
         if (!validFields.includes(this.sortField)) {
             this.sortField = 'name';
         }
         if (!['asc', 'desc'].includes(this.sortDirection)) {
             this.sortDirection = 'asc';
         }
-        
-        const sortFieldSelect = document.getElementById('sortField');
-        const sortDirectionSelect = document.getElementById('sortDirection');
-        const resetSortBtn = document.getElementById('resetSortBtn');
-        
-        if (sortFieldSelect) {
-            sortFieldSelect.value = this.sortField;
+
+        this.setFilterValue('sortField', this.sortField);
+        this.setFilterValue('sortDirection', this.sortDirection);
+
+        this.getFilterEls('sortField').forEach((sortFieldSelect) => {
             sortFieldSelect.addEventListener('change', () => {
                 const selectedValue = sortFieldSelect.value;
                 this.sortField = validFields.includes(selectedValue) ? selectedValue : 'name';
+                this.setFilterValue('sortField', this.sortField);
                 localStorage.setItem('inventorySortField', this.sortField);
                 this.applyFilters();
             });
-        }
-        
-        if (sortDirectionSelect) {
-            sortDirectionSelect.value = this.sortDirection;
+        });
+
+        this.getFilterEls('sortDirection').forEach((sortDirectionSelect) => {
             sortDirectionSelect.addEventListener('change', () => {
                 const selectedValue = sortDirectionSelect.value === 'desc' ? 'desc' : 'asc';
                 this.sortDirection = selectedValue;
+                this.setFilterValue('sortDirection', this.sortDirection);
                 localStorage.setItem('inventorySortDirection', this.sortDirection);
                 this.applyFilters();
             });
-        }
-        
-        if (resetSortBtn) {
-            resetSortBtn.addEventListener('click', () => {
+        });
+
+        document.querySelectorAll('.inventory-reset-sort-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
                 this.sortField = 'name';
                 this.sortDirection = 'asc';
                 localStorage.removeItem('inventorySortField');
                 localStorage.removeItem('inventorySortDirection');
-                if (sortFieldSelect) sortFieldSelect.value = 'name';
-                if (sortDirectionSelect) sortDirectionSelect.value = 'asc';
+                this.setFilterValue('sortField', 'name');
+                this.setFilterValue('sortDirection', 'asc');
                 this.applyFilters();
             });
-        }
+        });
     }
     
     applyFilters() {
-        const search = document.getElementById('searchInput')?.value.trim() || '';
+        const search = (this.getFilterValue('searchInput') || '').trim();
         const searchLower = search.toLowerCase();
-        const category = document.getElementById('categoryFilter')?.value || '';
-        const status = document.getElementById('statusFilter')?.value || '';
-        const condition = document.getElementById('conditionFilter')?.value || '';
-        const location = document.getElementById('locationFilter')?.value || '';
-        const length = document.getElementById('lengthFilter')?.value || '';
-        const purchaseYear = document.getElementById('purchaseYearFilter')?.value || '';
+        const category = this.getFilterValue('categoryFilter') || '';
+        const status = this.getFilterValue('statusFilter') || '';
+        const condition = this.getFilterValue('conditionFilter') || '';
+        const location = this.getFilterValue('locationFilter') || '';
+        const length = this.getFilterValue('lengthFilter') || '';
+        const purchaseYear = this.getFilterValue('purchaseYearFilter') || '';
+        const serialPresence = this.getFilterValue('serialPresenceFilter') || '';
+        const dguv = this.getFilterValue('dguvFilter') || '';
+        const favoritesOnly = this.getFilterValue('favoritesFilter') === 'favorites';
+        const today = new Date().toISOString().slice(0, 10);
         
         this.filteredProducts = this.products.filter(p => {
-            // Erweiterte Suche - durchsucht alle Attribute
             const matchesSearch = !search || this.matchesSearch(p, searchLower);
             
-            // Ordner-Filter:
-            // - Wenn eine Suche aktiv ist: IGNORIERE Ordner-Filterung (durchsuche alle Ordner)
-            // - Wenn keine Suche aktiv ist:
-            //   - Wenn currentFolderId gesetzt ist: zeige nur Produkte aus diesem Ordner
-            //   - Wenn kein currentFolderId (Root): zeige alle Produkte
             let matchesFolder = true;
-            if (!search) {
-                // Nur Ordner-Filterung anwenden, wenn keine Suche aktiv ist
-                if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
-                    // Wir sind in einem Ordner: zeige nur Produkte aus diesem Ordner
-                    matchesFolder = p.folder_id === this.currentFolderId;
-                } else {
-                    // Wir sind im Root: keine Ordner-Einschränkung
-                    matchesFolder = true;
-                }
+            if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
+                matchesFolder = Number(p.folder_id) === Number(this.currentFolderId);
+            } else if (!search) {
+                // Root: nur Produkte ohne Ordner — Ordnerprodukte nur im jeweiligen Ordner
+                matchesFolder = !p.folder_id;
             }
-            // Wenn search aktiv ist, bleibt matchesFolder = true (alle Ordner durchsuchen)
             
-            // Andere Filter - behandeln null/undefined korrekt
             const matchesCategory = !category || (p.category !== null && p.category !== undefined && p.category === category);
-            const matchesStatus = !status || (p.status !== null && p.status !== undefined && p.status === status);
+            let matchesStatus = true;
+            if (status === 'overdue') {
+                matchesStatus = this.overdueProductIds.has(Number(p.id));
+            } else if (status) {
+                matchesStatus = p.status !== null && p.status !== undefined && p.status === status;
+            }
+            const matchesFavorites = !favoritesOnly || this.favoriteProductIds.has(Number(p.id));
             const matchesCondition = !condition || (p.condition !== null && p.condition !== undefined && p.condition === condition);
             const matchesLocation = !location || (p.location !== null && p.location !== undefined && p.location === location);
             const matchesLength = !length || this.matchesLength(p, length);
             const matchesPurchaseYear = !purchaseYear || this.matchesPurchaseYear(p, purchaseYear);
+
+            const hasSerial = !!(p.serial_number && String(p.serial_number).trim());
+            const matchesSerial = !serialPresence
+                || (serialPresence === 'with' && hasSerial)
+                || (serialPresence === 'without' && !hasSerial);
+
+            const dguvDate = p.dguv_next_check ? String(p.dguv_next_check).slice(0, 10) : '';
+            const matchesDguv = !dguv
+                || (dguv === 'due' && dguvDate && dguvDate <= today)
+                || (dguv === 'ok' && dguvDate && dguvDate > today)
+                || (dguv === 'none' && !dguvDate);
             
-            return matchesSearch && matchesFolder && matchesCategory && matchesStatus && 
-                   matchesCondition && matchesLocation && matchesLength && matchesPurchaseYear;
+            return matchesSearch && matchesFolder && matchesCategory && matchesStatus &&
+                   matchesFavorites && matchesCondition && matchesLocation && matchesLength &&
+                   matchesPurchaseYear && matchesSerial && matchesDguv;
         });
         
         this.sortFilteredProducts();
-        
-        // Rendere Ordner neu (werden bei Suche ausgeblendet)
-        this.renderFolders();
         this.renderProducts();
     }
     
@@ -779,13 +676,11 @@ class StockManager {
     }
     
     resetFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('categoryFilter').value = '';
-        document.getElementById('statusFilter').value = '';
-        document.getElementById('conditionFilter').value = '';
-        document.getElementById('locationFilter').value = '';
-        document.getElementById('lengthFilter').value = '';
-        document.getElementById('purchaseYearFilter').value = '';
+        [
+            'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
+            'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
+            'serialPresenceFilter', 'dguvFilter',
+        ].forEach((key) => this.setFilterValue(key, ''));
         this.applyFilters();
     }
     
@@ -819,32 +714,42 @@ class StockManager {
             this.renderProductsList();
         }
     }
+
+    getVisibleFolders() {
+        const hasSearch = (this.getFilterValue('searchInput') || '').trim() !== '';
+        if (hasSearch) return [];
+        // Flat folders: nur im Root anzeigen
+        if (this.currentFolderId !== null && this.currentFolderId !== undefined) return [];
+        return Array.isArray(this.folders) ? this.folders.slice() : [];
+    }
     
     renderProductsGrid() {
         const container = document.getElementById('productsContainer');
         if (!container) return;
-        
-        if (this.filteredProducts.length === 0) {
+
+        const folders = this.getVisibleFolders();
+        if (folders.length === 0 && this.filteredProducts.length === 0) {
             container.innerHTML = `
                 <div class="col-12">
-                    <div class="inventory-empty text-center py-5">
-                        <i class="bi bi-inbox fs-1 mb-3 text-muted"></i>
-                        <p class="text-muted">Keine Produkte gefunden</p>
+                    <div class="mod-empty-state">
+                        <div>
+                            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+                            Keine Produkte gefunden
+                        </div>
                     </div>
                 </div>
             `;
             return;
         }
-        
-        const html = this.filteredProducts.map(product => 
-            `<div class="col-12 col-md-6 col-lg-4 col-xl-3">${this.renderProductCard(product)}</div>`
+
+        const folderHtml = folders.map((folder) => this.renderFolderCard(folder)).join('');
+        const productHtml = this.filteredProducts.map((product) =>
+            `<div class="col-12 col-md-6 col-lg-4">${this.renderProductCard(product)}</div>`
         ).join('');
-        container.innerHTML = html;
+        container.innerHTML = folderHtml + productHtml;
         
-        // Nach dem Rendern Event-Handler für Checkboxen setzen
         this.attachCheckboxHandlers();
         
-        // Favoriten-Buttons aktualisieren, falls Favoriten geladen wurden
         if (typeof updateFavoriteButtons === 'function') {
             setTimeout(() => updateFavoriteButtons(), 100);
         }
@@ -853,137 +758,172 @@ class StockManager {
     renderProductsList() {
         const container = document.getElementById('productsList');
         if (!container) return;
-        
-        if (this.filteredProducts.length === 0) {
+
+        const folders = this.getVisibleFolders();
+        if (folders.length === 0 && this.filteredProducts.length === 0) {
             container.innerHTML = `
-                <div class="list-group-item text-center py-5">
-                    <i class="bi bi-inbox fs-1 mb-3 text-muted"></i>
-                    <p class="text-muted mb-0">Keine Produkte gefunden</p>
-                </div>
+                <tr>
+                    <td colspan="7">
+                        <div class="mod-empty-state">
+                            <div>
+                                <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+                                Keine Produkte gefunden
+                            </div>
+                        </div>
+                    </td>
+                </tr>
             `;
             return;
         }
+
+        const folderHtml = folders.map((folder) => this.renderFolderListItem(folder)).join('');
+        const productHtml = this.filteredProducts.map((product) => this.renderProductListItem(product)).join('');
+        container.innerHTML = folderHtml + productHtml;
         
-        const html = this.filteredProducts.map(product => this.renderProductListItem(product)).join('');
-        container.innerHTML = html;
-        
-        // Nach dem Rendern Event-Handler für Checkboxen setzen
         this.attachCheckboxHandlers();
         
-        // Favoriten-Buttons aktualisieren, falls Favoriten geladen wurden
         if (typeof updateFavoriteButtons === 'function') {
             setTimeout(() => updateFavoriteButtons(), 100);
         }
     }
-    
+
+    /** Checkbox: alles außer ausgemustert. Ausleihen nur bei available. */
+    isProductSelectable(product) {
+        return !!(product && product.status !== 'retired');
+    }
+
+    isProductBorrowable(product) {
+        return !!(product && product.status === 'available');
+    }
+
+    statusBadgeHtml(product) {
+        if (product.status === 'available') {
+            return '<span class="badge bg-success">Verfügbar</span>';
+        }
+        if (product.status === 'borrowed') {
+            return '<span class="badge bg-warning">Ausgeliehen</span>';
+        }
+        if (product.status === 'missing') {
+            return '<span class="badge bg-danger">Fehlend</span>';
+        }
+        if (product.status === 'defective' || product.status === 'in_repair') {
+            return '<span class="badge bg-danger">Defekt</span>';
+        }
+        if (product.status === 'retired') {
+            return '<span class="badge bg-secondary">Ausgemustert</span>';
+        }
+        return `<span class="badge bg-secondary">${this.escapeHtml(product.status || '—')}</span>`;
+    }
+
+    renderProductListItem(product) {
+        const statusBadge = this.statusBadgeHtml(product);
+        const isSelected = this.selectedProducts.has(product.id);
+        const isSelectable = this.isProductSelectable(product);
+        const isBorrowable = this.isProductBorrowable(product);
+        const checkboxTitle = isSelectable ? '' : ' title="Ausgemusterte Produkte lassen sich nicht auswählen"';
+        const selectionModeClass = isSelected ? 'selection-mode' : '';
+        const category = this.isValidValue(product.category) ? this.escapeHtml(product.category) : '—';
+        const location = this.isValidValue(product.location) ? this.escapeHtml(product.location) : '—';
+        const serial = this.isValidValue(product.serial_number) ? this.escapeHtml(product.serial_number) : '—';
+
+        const hoverBorrow = isBorrowable
+            ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
+            : '';
+
+        return `
+            <tr class="mod-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+                <td class="inventory-list-check-col">
+                    <input type="checkbox" class="form-check-input product-checkbox"
+                           value="${product.id}" data-product-id="${product.id}"
+                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
+                           onclick="event.stopPropagation()">
+                    ${this.buildProductContextMenuHtml(product)}
+                </td>
+                <td>
+                    <button type="button" class="mod-list-name inventory-item-name text-decoration-none text-start border-0 bg-transparent p-0"
+                            onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                        <i class="bi bi-box-seam me-2 text-muted"></i><span class="inventory-item-name-text" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</span>
+                    </button>
+                    <div class="d-md-none mt-1">${statusBadge}</div>
+                </td>
+                <td class="d-none d-md-table-cell">${statusBadge}</td>
+                <td class="d-none d-md-table-cell text-muted">${category}</td>
+                <td class="d-none d-lg-table-cell text-muted">${location}</td>
+                <td class="d-none d-xl-table-cell text-muted">${serial}</td>
+                <td class="text-end">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
+                            <button type="button" class="btn btn-sm btn-link" title="Ansehen"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            ${hoverBorrow}
+                            <a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
+                                    title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                <i class="bi bi-star"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" onclick="event.stopPropagation()">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                        <i class="bi bi-eye me-2"></i>Ansehen
+                                    </button>
+                                </li>
+                                ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
+                                <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                        <i class="bi bi-star me-2"></i>Favorit
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
     buildProductContextMenuHtml(product) {
         const id = product.id;
         let items = '';
-        if (product.status === 'available') {
+        items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${id});}"><i class="bi bi-eye me-2"></i>Ansehen</button></li>`;
+        if (this.isProductBorrowable(product)) {
             items += `<li><a class="dropdown-item" href="/inventory/products/${id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>`;
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${id})"><i class="bi bi-star me-2"></i>Favorit</button></li>`;
-        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu">${items}</ul></div>`;
+        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu inventory-actions-menu">${items}</ul></div>`;
     }
 
     buildFolderContextMenuHtml(folder) {
         const id = folder.id;
         const name = this.escapeHtml(folder.name);
         return `<div class="context-menu-source d-none" id="context-menu-folder-${id}">
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu inventory-actions-menu">
                 <li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${id});}"><i class="bi bi-folder2-open me-2"></i>Öffnen</button></li>
+                <li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${id});}"><i class="bi bi-pencil me-2"></i>Umbenennen / Farbe</button></li>
                 <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <form method="POST" action="/inventory/folders/${id}/delete" class="d-inline" onsubmit="return confirm('Ordner &quot;${name}&quot; wirklich löschen? Produkte bleiben erhalten.');">
-                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Löschen</button>
+                    <form method="POST" action="/inventory/folders/${id}/delete" class="d-inline">
+                        <button type="submit" class="dropdown-item text-danger"
+                                data-confirm-delete="Ordner &quot;${name}&quot; wirklich löschen? Produkte bleiben erhalten.">
+                            <i class="bi bi-trash me-2"></i>Löschen
+                        </button>
                     </form>
                 </li>
             </ul>
         </div>`;
     }
 
-    renderProductListItem(product) {
-        let statusBadge = '';
-        if (product.status === 'available') {
-            statusBadge = '<span class="badge bg-success">Verfügbar</span>';
-        } else if (product.status === 'borrowed') {
-            statusBadge = '<span class="badge bg-warning">Ausgeliehen</span>';
-        } else if (product.status === 'missing') {
-            statusBadge = '<span class="badge bg-danger">Fehlend</span>';
-        }
-        
-        const isSelected = this.selectedProducts.has(product.id);
-        const isSelectable = product.status === 'available';
-        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
-        const checkbox = `
-            <input type="checkbox" class="form-check-input me-2 product-checkbox"
-                   value="${product.id}" data-product-id="${product.id}"
-                   ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
-                   style="width: 1.1rem; height: 1.1rem;">
-        `;
-        
-        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
-        
-        const selectionModeClass = isSelected ? 'selection-mode' : '';
-        
-        const folderBadge = product.folder_name 
-            ? `<span class="badge bg-info me-2" 
-                     onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${product.folder_id});}" 
-                     title="Klicken um zu diesem Ordner zu navigieren">
-                  <i class="bi bi-folder"></i> ${this.escapeHtml(product.folder_name)}
-               </span>`
-            : '';
-        
-        const details = [];
-        if (this.isValidValue(product.category)) {
-            details.push(`<span class="text-muted">${this.escapeHtml(product.category)}</span>`);
-        }
-        if (this.isValidValue(product.serial_number)) {
-            details.push(`<small class="text-muted"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</small>`);
-        }
-        if (this.isValidValue(product.location)) {
-            details.push(`<small class="text-muted"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</small>`);
-        }
-        if (this.isValidValue(product.length)) {
-            details.push(`<small class="text-muted"><i class="bi bi-arrows-expand"></i> ${this.escapeHtml(product.length)}</small>`);
-        }
-        
-        return `
-            <div class="list-group-item list-group-item-action ${selectionModeClass}" style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
-                ${this.buildProductContextMenuHtml(product)}
-                <div class="d-flex align-items-center">
-                    <div class="form-check me-2" style="z-index: 10; position: relative;">
-                        ${checkbox}
-                    </div>
-                    <div class="flex-grow-1" ${cardClickHandler}>
-                        <div class="d-flex align-items-center mb-1">
-                            <h6 class="mb-0 me-2">${this.escapeHtml(product.name)}</h6>
-                            ${statusBadge}
-                            ${folderBadge}
-                        </div>
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                            ${details.join('')}
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2 align-items-center">
-                        ${isSelectable 
-                            ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
-                            : ''}
-                        <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
-                        <button type="button" class="btn btn-sm btn-outline-warning favorite-btn" 
-                                data-product-id="${product.id}" 
-                                onclick="event.stopPropagation(); toggleFavorite(${product.id});"
-                                title="Zu Favoriten hinzufügen">
-                            <i class="bi bi-star"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -1058,89 +998,91 @@ class StockManager {
                 listItem.classList.remove('selection-mode');
             }
         }
+        const listRow = checkbox.closest('.mod-list-row');
+        if (listRow) {
+            if (isSelected) {
+                listRow.classList.add('selection-mode');
+            } else {
+                listRow.classList.remove('selection-mode');
+            }
+        }
     }
     
     renderProductCard(product) {
-        let statusBadge = '';
-        if (product.status === 'available') {
-            statusBadge = '<span class="badge bg-success">Verfügbar</span>';
-        } else if (product.status === 'borrowed') {
-            statusBadge = '<span class="badge bg-warning">Ausgeliehen</span>';
-        } else if (product.status === 'missing') {
-            statusBadge = '<span class="badge bg-danger">Fehlend</span>';
-        }
-        
-        const imageHtml = product.image_path 
-            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="product-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-            : '';
-        const imageContainer = product.image_path
-            ? `<div class="position-relative" style="width: 100%; height: 200px; overflow: hidden;">${imageHtml}<div class="product-image-placeholder" style="display: none;"><i class="bi bi-box-seam fs-1 text-muted"></i></div></div>`
-            : '<div class="product-image-placeholder"><i class="bi bi-box-seam fs-1 text-muted"></i></div>';
-        
+        const statusBadge = this.statusBadgeHtml(product);
         const isSelected = this.selectedProducts.has(product.id);
-        const isSelectable = product.status === 'available';
-        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
-        const checkbox = `
-            <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input product-checkbox"
-                           value="${product.id}" data-product-id="${product.id}"
-                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
-                           style="width: 1.2rem; height: 1.2rem; background-color: white; cursor: pointer;">
-                </div>
-            </div>
-        `;
-        
-        // Click-Handler: Wenn Auswahl aktiv, toggle Auswahl; sonst Details anzeigen
-        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
-        
-        // selection-mode Klasse nur hinzufügen, wenn das Produkt tatsächlich ausgewählt ist
+        const isSelectable = this.isProductSelectable(product);
+        const isBorrowable = this.isProductBorrowable(product);
+        const checkboxTitle = isSelectable ? '' : ' title="Ausgemusterte Produkte lassen sich nicht auswählen"';
         const selectionModeClass = isSelected ? 'selection-mode' : '';
-        
+        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
+
+        const preview = product.image_path
+            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="inventory-product-preview-img image-mini-preview img-fluid rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <div class="inventory-product-preview-fallback" style="display: none;"><i class="bi bi-box-seam"></i></div>`
+            : `<div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div>`;
+
+        const hoverBorrow = isBorrowable
+            ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
+            : '';
+
         return `
-            <div class="card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+            <div class="card h-100 inventory-product-card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 ${this.buildProductContextMenuHtml(product)}
-                <div class="position-relative">
-                    ${imageContainer}
-                    ${checkbox}
-                    ${statusBadge ? `<div class="position-absolute top-0 end-0 m-2" style="z-index: 5;">${statusBadge}</div>` : ''}
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">${product.name}</h5>
-                        ${product.folder_name 
-                        ? `<p class="mb-1">
-                            <span class="badge bg-info cursor-pointer" 
-                                  onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.filterByFolder(${product.folder_id});}" 
-                                  title="Klicken um nach diesem Ordner zu filtern">
-                                <i class="bi bi-folder"></i> ${product.folder_name}
-                            </span>
-                          </p>`
-                        : ''}
-                    ${product.category ? `<p class="text-muted mb-1"><small>${product.category}</small></p>` : ''}
-                    <div class="product-details mb-2">
-                        ${this.isValidValue(product.serial_number) 
-                            ? `<p class="text-muted mb-1"><small><i class="bi bi-upc"></i> SN: ${product.serial_number}</small></p>` 
-                            : ''}
-                        ${this.isValidValue(product.location) 
-                            ? `<p class="text-muted mb-1"><small><i class="bi bi-geo-alt"></i> ${product.location}</small></p>` 
-                            : ''}
-                        ${this.isValidValue(product.length) 
-                            ? `<p class="text-muted mb-0"><small><i class="bi bi-arrows-expand"></i> ${product.length}</small></p>` 
-                            : ''}
-                    </div>
-                    <div class="mt-2 d-flex justify-content-between align-items-center">
-                        <div>
-                            ${isSelectable 
-                                ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
-                                : ''}
-                            <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
+                <div class="card-body d-flex flex-column">
+                    <div class="inventory-product-preview text-center mb-3">
+                        ${preview}
+                        <div class="inventory-product-preview-check" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="form-check-input product-checkbox"
+                                   value="${product.id}" data-product-id="${product.id}"
+                                   ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-warning favorite-btn" 
-                                data-product-id="${product.id}" 
-                                onclick="event.stopPropagation(); toggleFavorite(${product.id});"
-                                title="Zu Favoriten hinzufügen">
-                            <i class="bi bi-star"></i>
-                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex align-items-center gap-2 mb-1 min-width-0">
+                                <h6 class="card-title text-truncate mb-0" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</h6>
+                                ${statusBadge}
+                            </div>
+                            ${product.category ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-tag"></i> ${this.escapeHtml(product.category)}</p>` : ''}
+                            ${this.isValidValue(product.serial_number) ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</p>` : ''}
+                            ${this.isValidValue(product.location) ? `<p class="inventory-card-meta mb-0 text-truncate"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</p>` : ''}
+                        </div>
+                        <div class="d-flex align-items-start gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                            <div class="inventory-grid-hover-actions">
+                                <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
+                                        title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link" title="Ansehen"
+                                        onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                ${hoverBorrow}
+                                <a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                            <div class="dropdown inventory-card-menu">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                    <li>
+                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                            <i class="bi bi-eye me-2"></i>Ansehen
+                                        </button>
+                                    </li>
+                                    ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
+                                    <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
+                                    <li>
+                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                            <i class="bi bi-star me-2"></i>Favorit
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1153,57 +1095,154 @@ class StockManager {
             console.warn(`Produkt mit ID ${productId} nicht gefunden`);
             return;
         }
-        
+
         const modalElement = document.getElementById('productDetailModal');
         if (!modalElement) {
             console.error('Modal-Element nicht gefunden');
             return;
         }
-        
-        const modal = new bootstrap.Modal(modalElement);
+
+        if (modalElement.parentElement !== document.body) {
+            document.body.appendChild(modalElement);
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         const content = document.getElementById('productDetailContent');
-        
+        const val = (v) => (this.isValidValue(v) ? this.escapeHtml(String(v)) : '—');
+        const statusBadge = this.statusBadgeHtml(product);
+        const dguvLast = this.formatDateDe(product.dguv_last_check);
+        const dguvNext = this.formatDateDe(product.dguv_next_check);
+        const dguvInterval = product.dguv_interval_months != null ? `${product.dguv_interval_months} Monate` : '—';
+        const dguvDue = product.dguv_next_check && String(product.dguv_next_check).slice(0, 10) <= new Date().toISOString().slice(0, 10);
+        const dims = (product.width_cm || product.height_cm || product.depth_cm)
+            ? `${product.width_cm ?? '—'} × ${product.height_cm ?? '—'} × ${product.depth_cm ?? '—'} cm`
+            : null;
+
         const imageHtml = product.image_path
-            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="product-detail-image mb-3" onerror="this.style.display='none';">`
-            : '';
-        
+            ? `<div class="inventory-product-preview text-center mb-0">
+                    <img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}"
+                         class="inventory-product-preview-img image-mini-preview img-fluid rounded"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="inventory-product-preview-fallback" style="display:none;"><i class="bi bi-box-seam"></i></div>
+               </div>`
+            : `<div class="inventory-product-preview text-center"><div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div></div>`;
+
+        const row = (label, valueHtml) => `
+            <div class="inventory-detail-row">
+                <span class="inventory-detail-label">${label}</span>
+                <span class="inventory-detail-value">${valueHtml}</span>
+            </div>`;
+
         content.innerHTML = `
-            ${imageHtml}
-            <h4>${product.name}</h4>
-            <table class="table">
-                ${product.category ? `<tr><th>Kategorie:</th><td>${product.category}</td></tr>` : ''}
-                ${product.serial_number ? `<tr><th>Seriennummer:</th><td>${product.serial_number}</td></tr>` : ''}
-                ${product.condition ? `<tr><th>Zustand:</th><td>${product.condition}</td></tr>` : ''}
-                ${product.location ? `<tr><th>Lagerort:</th><td>${product.location}</td></tr>` : ''}
-                ${product.length ? `<tr><th>Länge:</th><td>${product.length}</td></tr>` : ''}
-                ${product.purchase_date ? `<tr><th>Anschaffungsdatum:</th><td>${product.purchase_date}</td></tr>` : ''}
-                <tr><th>Status:</th><td>${
-                    product.status === 'available' ? 'Verfügbar' : 
-                    product.status === 'borrowed' ? 'Ausgeliehen' : 
-                    product.status === 'missing' ? 'Fehlend' : product.status
-                }</td></tr>
-            </table>
-            ${product.description ? `<p>${product.description}</p>` : ''}
-            <div class="d-flex gap-2 flex-wrap">
-                ${product.status === 'available' 
-                    ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-primary">Ausleihen</a>`
-                    : ''}
-                <a href="/inventory/products/${product.id}/edit" class="btn btn-outline-secondary">Bearbeiten</a>
-                <a href="/inventory/products/${product.id}/documents" class="btn btn-outline-info">
-                    <i class="bi bi-file-earmark"></i> Dokumente
-                </a>
-                <button type="button" class="btn btn-outline-warning favorite-btn" 
-                        data-product-id="${product.id}" 
-                        onclick="toggleFavorite(${product.id});">
-                    <i class="bi bi-star"></i> Favorit
-                </button>
-                ${product.status === 'missing'
-                    ? `<button class="btn btn-success btn-sm" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
-                    : `<button class="btn btn-outline-danger btn-sm" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
+            <div class="inventory-inventur-edit-form">
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-box-seam"></i> Produkt</h2>
+                    </div>
+                    <div class="d-flex flex-column flex-md-row gap-3 align-items-md-start">
+                        <div class="flex-shrink-0" style="min-width: 8rem; max-width: 11rem;">${imageHtml}</div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <h4 class="mb-0">${this.escapeHtml(product.name)}</h4>
+                                ${statusBadge}
+                                ${dguvDue ? '<span class="badge bg-danger">DGUV fällig</span>' : ''}
+                            </div>
+                            <div class="text-muted small mb-2">${val(product.category)}</div>
+                            ${this.isValidValue(product.description) ? `<p class="mb-0">${this.escapeHtml(product.description)}</p>` : ''}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-info-circle"></i> Stammdaten</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${row('Seriennummer', val(product.serial_number))}
+                        ${row('Lagerort', val(product.location))}
+                        ${row('Zustand', val(product.condition))}
+                        ${row('Länge', val(product.length))}
+                        ${row('Ordner', val(product.folder_name))}
+                    </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> DGUV-Prüfung</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${row('Letzte Prüfung', dguvLast)}
+                        ${row('Intervall', this.escapeHtml(dguvInterval))}
+                        ${row('Nächste Prüfung', dguvDue ? `<span class="text-danger fw-semibold">${dguvNext}</span>` : dguvNext)}
+                    </div>
+                </section>
+
+                ${(product.purchase_date || product.purchase_price != null || product.replacement_value != null || product.weight_kg != null || dims) ? `
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-clipboard-data"></i> Weitere Angaben</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${product.purchase_date ? row('Anschaffung', this.formatDateDe(product.purchase_date)) : ''}
+                        ${product.purchase_price != null ? row('Kaufpreis', this.escapeHtml(String(product.purchase_price))) : ''}
+                        ${product.replacement_value != null ? row('Wiederbeschaffung', this.escapeHtml(String(product.replacement_value))) : ''}
+                        ${product.weight_kg != null ? row('Gewicht', `${this.escapeHtml(String(product.weight_kg))} kg`) : ''}
+                        ${dims ? row('Abmessungen', this.escapeHtml(dims)) : ''}
+                    </div>
+                </section>` : ''}
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-lightning"></i> Aktionen</h2>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        ${product.status === 'available'
+                            ? `<a href="/inventory/products/${product.id}/borrow" class="btn inventory-pill-btn inventory-pill-btn--primary">Ausleihen</a>`
+                            : ''}
+                        <a href="/inventory/products/${product.id}/edit" class="btn inventory-pill-btn inventory-pill-btn--outline">Bearbeiten</a>
+                        <a href="/inventory/products/${product.id}/documents" class="btn inventory-pill-btn inventory-pill-btn--outline">
+                            <i class="bi bi-file-earmark"></i> Dokumente
+                        </a>
+                        <button type="button" class="btn inventory-pill-btn inventory-pill-btn--outline favorite-btn"
+                                data-product-id="${product.id}"
+                                onclick="toggleFavorite(${product.id});">
+                            <i class="bi bi-star"></i> Favorit
+                        </button>
+                        ${product.status === 'missing'
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
+                            : `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
+                    </div>
+                </section>
             </div>
         `;
-        
+
         modal.show();
+        requestAnimationFrame(() => {
+            modalElement.style.zIndex = '1055';
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.style.zIndex = '1050';
+        });
+    }
+
+    formatDateDe(value) {
+        if (!this.isValidValue(value)) return '—';
+        const raw = String(value).slice(0, 10);
+        const d = new Date(`${raw}T00:00:00`);
+        if (Number.isNaN(d.getTime())) return this.escapeHtml(raw);
+        return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    computeDguvNextIso(isoDate, months) {
+        if (!isoDate || !months) return null;
+        const parts = String(isoDate).slice(0, 10).split('-').map(Number);
+        if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+        const [y, m, d] = parts;
+        const totalMonths = (y * 12 + (m - 1)) + Number(months);
+        const year = Math.floor(totalMonths / 12);
+        const month = (totalMonths % 12) + 1;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const day = Math.min(d, daysInMonth);
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
     
     showError(message) {
@@ -1218,39 +1257,7 @@ class StockManager {
     }
     
     showSuccess(message) {
-        // Erstelle Toast-Benachrichtigung
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-white bg-success border-0';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-check-circle me-2"></i>${this.escapeHtml(message)}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        
-        // Füge Toast-Container hinzu falls nicht vorhanden
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1060';
-            document.body.appendChild(toastContainer);
-        }
-        
-        toastContainer.appendChild(toast);
-        
-        // Zeige Toast
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-        
-        // Entferne Toast nach dem Ausblenden
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
+        inventoryNotify(message, 'success');
     }
     
     handleCardClick(productId, isSelectable) {
@@ -1282,7 +1289,7 @@ class StockManager {
             } else {
                 // Prüfe ob Produkt auswählbar ist
                 const product = this.products.find(p => p.id === productId);
-                if (product && product.status === 'available') {
+                if (product && this.isProductSelectable(product)) {
                     this.selectedProducts.add(productId);
                 }
             }
@@ -1292,9 +1299,9 @@ class StockManager {
     }
     
     selectAllAvailable() {
-        // Füge alle verfügbaren Produkte zur Auswahl hinzu
+        // Alle auswählbaren Produkte der aktuellen Filterliste
         this.filteredProducts.forEach(product => {
-            if (product.status === 'available') {
+            if (this.isProductSelectable(product)) {
                 this.selectedProducts.add(product.id);
             }
         });
@@ -1326,18 +1333,8 @@ class StockManager {
     
     updateSelectionUI() {
         const selected = this.getSelectedProducts();
-        const selectedCountEl = document.getElementById('selectedCount');
-        const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
         const bulkToolbar = document.getElementById('bulkSelectionToolbar');
         const bulkSelectionCount = document.getElementById('bulkSelectionCount');
-        
-        if (selectedCountEl) {
-            selectedCountEl.textContent = selected.length;
-        }
-        
-        if (borrowSelectedBtn) {
-            borrowSelectedBtn.style.display = selected.length > 0 ? 'inline-block' : 'none';
-        }
         
         // Toolbar anzeigen/verstecken
         if (bulkToolbar) {
@@ -1363,7 +1360,7 @@ class StockManager {
         const selectedIds = this.getSelectedProducts();
         
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
         
@@ -1373,7 +1370,7 @@ class StockManager {
         );
         
         if (unavailableProducts.length > 0) {
-            alert('Einige ausgewählte Produkte sind nicht verfügbar. Bitte wählen Sie nur verfügbare Produkte aus.');
+            inventoryNotify('Einige ausgewählte Produkte sind nicht verfügbar. Bitte wählen Sie nur verfügbare Produkte aus.', 'warning');
             return;
         }
         
@@ -1381,11 +1378,103 @@ class StockManager {
         const productIdsParam = selectedIds.join(',');
         window.location.href = `/inventory/borrow-multiple?product_ids=${productIdsParam}`;
     }
+
+    async printSelectedQr() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/print-qr-codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'QR-Druck fehlgeschlagen');
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QR-Codes_${new Date().toISOString().slice(0,10)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            inventoryNotify(e.message || 'QR-Druck fehlgeschlagen', 'danger');
+        }
+    }
+
+    async markSelectedInRepair() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm(`${selectedIds.length} Produkt(e) auf „In Reparatur“ setzen?`, {
+            title: 'Status ändern',
+            confirmLabel: 'Ja, setzen',
+            cancelLabel: 'Abbrechen',
+            danger: false,
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds, status: 'in_repair' }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Status-Update fehlgeschlagen');
+            }
+            inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+            await this.loadProducts();
+        } catch (e) {
+            inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
+        }
+    }
+
+    async markSelectedAvailable() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm(`${selectedIds.length} Produkt(e) wieder als einsatzbereit markieren?`, {
+            title: 'Einsatzbereit setzen',
+            confirmLabel: 'Ja, setzen',
+            cancelLabel: 'Abbrechen',
+            danger: false,
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds, status: 'available' }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Status-Update fehlgeschlagen');
+            }
+            inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+            await this.loadProducts();
+        } catch (e) {
+            inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
+        }
+    }
     
     openBulkDeleteModal() {
         const selectedIds = this.getSelectedProducts();
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
         
@@ -1419,7 +1508,7 @@ class StockManager {
     
     async deleteSelectedProducts(productIds, modal) {
         if (!productIds || productIds.length === 0) {
-            alert('Keine Produkte zum Löschen ausgewählt.');
+            inventoryNotify('Keine Produkte zum Löschen ausgewählt.', 'warning');
             return;
         }
         
@@ -1511,12 +1600,16 @@ class StockManager {
     
     async deleteProduct(productId) {
         if (!productId) {
-            alert('Keine Produkt-ID angegeben.');
+            inventoryNotify('Keine Produkt-ID angegeben.', 'warning');
             return;
         }
         
         // Bestätigung
-        if (!confirm(`Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+        if (!(await inventoryConfirm('Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.', {
+            title: 'Produkt löschen',
+            confirmLabel: 'Löschen',
+            danger: true,
+        }))) {
             return;
         }
         
@@ -1561,398 +1654,222 @@ class StockManager {
     }
     
     openBulkEditModal() {
-        // Hole aktuelle Auswahl und speichere in lokaler Variable (Snapshot)
         const selectedIds = [...this.getSelectedProducts()];
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
-        
+
         const modalEl = document.getElementById('bulkEditModal');
         if (!modalEl) {
             console.error('Bulk-Edit-Modal nicht gefunden');
             return;
         }
-        
-        const modal = new bootstrap.Modal(modalEl);
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         const productCountEl = document.getElementById('bulkEditProductCount');
-        const attributeSelect = document.getElementById('bulkEditAttribute');
-        const fieldsContainer = document.getElementById('bulkEditFields');
         const form = document.getElementById('bulkEditForm');
         let submitBtn = document.getElementById('bulkEditSubmitBtn');
-        
-        if (productCountEl) {
-            productCountEl.textContent = selectedIds.length;
+
+        if (productCountEl) productCountEl.textContent = selectedIds.length;
+        if (form) form.reset();
+
+        const categorySelect = document.getElementById('bulkEditCategory');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">— nicht ändern —</option>' +
+                (this.categories ? Array.from(this.categories).sort().map((cat) =>
+                    `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`
+                ).join('') : '');
         }
-        
-        // Reset Formular
-        if (form) {
-            form.reset();
+        const folderSelect = document.getElementById('bulkEditFolder');
+        if (folderSelect) {
+            folderSelect.innerHTML = '<option value="">— nicht ändern —</option>' +
+                (this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map((folder) =>
+                    `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
+                ).join('') : '');
         }
-        if (fieldsContainer) {
-            fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
-        }
+
+        const lastEl = document.getElementById('bulkEditDguvLast');
+        const intervalEl = document.getElementById('bulkEditDguvInterval');
+        const nextEl = document.getElementById('bulkEditDguvNextDisplay');
+        const refreshDguv = () => {
+            if (!nextEl) return;
+            if (lastEl?.value) {
+                const nextIso = this.computeDguvNextIso(lastEl.value, intervalEl?.value || 12);
+                nextEl.value = nextIso ? this.formatDateDe(nextIso) : '';
+            } else if (intervalEl?.value) {
+                nextEl.value = this.formatDateDe(new Date().toISOString().slice(0, 10));
+            } else {
+                nextEl.value = '';
+            }
+        };
+        lastEl?.addEventListener('change', refreshDguv);
+        lastEl?.addEventListener('input', refreshDguv);
+        intervalEl?.addEventListener('change', refreshDguv);
+        intervalEl?.addEventListener('input', refreshDguv);
+        refreshDguv();
+
         if (submitBtn) {
-            submitBtn.disabled = true;
-        }
-        
-        // Entferne alle alten Event-Handler durch Klonen des Elements
-        // Dies stellt sicher, dass keine alten Handler mehr aktiv sind
-        if (attributeSelect) {
-            const newAttributeSelect = attributeSelect.cloneNode(true);
-            attributeSelect.parentNode.replaceChild(newAttributeSelect, attributeSelect);
-            // Aktualisiere Referenz
-            const attributeSelectRef = newAttributeSelect;
-            
-            const handleAttributeChange = () => {
-                const attribute = attributeSelectRef.value;
-                if (!fieldsContainer) return;
-                
-                // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
-                const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
-                
-                fieldsContainer.innerHTML = '';
-                
-                // Aktiviere Button sofort, wenn ein Attribut ausgewählt ist
-                // (auch leere Werte sind gültig, um Werte zu entfernen)
-                if (currentSubmitBtn) {
-                    currentSubmitBtn.disabled = !attribute;
-                }
-                
-                if (!attribute) {
-                    fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
-                    if (currentSubmitBtn) {
-                        currentSubmitBtn.disabled = true;
-                    }
-                    return;
-                }
-                
-                let fieldHtml = '';
-                
-                switch (attribute) {
-                    case 'location':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditLocation" class="form-label">Neuer Lagerort</label>
-                                <input type="text" class="form-control" id="bulkEditLocation" 
-                                       placeholder="z.B. Regal A, Kiste 3">
-                                <small class="form-text text-muted">Leer lassen um Lagerort zu entfernen.</small>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'length':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditLength" class="form-label">Neue Länge (in Metern)</label>
-                                <input type="number" class="form-control" id="bulkEditLength" 
-                                       step="0.01" min="0" placeholder="z.B. 5.5">
-                                <small class="form-text text-muted">Leer lassen um Länge zu entfernen.</small>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'condition':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditCondition" class="form-label">Neuer Zustand</label>
-                                <select class="form-select" id="bulkEditCondition">
-                                    <option value="">Kein Zustand (entfernen)</option>
-                                    <option value="Neu">Neu</option>
-                                    <option value="Gut">Gut</option>
-                                    <option value="Gebraucht">Gebraucht</option>
-                                    <option value="Beschädigt">Beschädigt</option>
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'category':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditCategory" class="form-label">Neue Kategorie</label>
-                                <select class="form-select" id="bulkEditCategory">
-                                    <option value="">Keine Kategorie (entfernen)</option>
-                                    ${this.categories ? Array.from(this.categories).sort().map(cat => 
-                                        `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`
-                                    ).join('') : ''}
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'folder_id':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditFolder" class="form-label">Neuer Ordner</label>
-                                <select class="form-select" id="bulkEditFolder">
-                                    <option value="">Kein Ordner (entfernen)</option>
-                                    ${this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map(folder => 
-                                        `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
-                                    ).join('') : ''}
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'remove_image':
-                        fieldHtml = `
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> 
-                                Die Produktbilder aller ausgewählten Produkte werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.
-                            </div>
-                        `;
-                        break;
-                }
-                
-                fieldsContainer.innerHTML = fieldHtml;
-                
-                // Füge Event-Handler für Eingabefelder hinzu, um Button zu aktivieren
-                // Warte kurz, damit das DOM aktualisiert ist
-                setTimeout(() => {
-                    // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
-                    const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
-                    if (!currentSubmitBtn) return;
-                    
-                    const updateSubmitButton = () => {
-                        const attribute = attributeSelectRef.value;
-                        if (!attribute) {
-                            currentSubmitBtn.disabled = true;
-                            return;
-                        }
-                        
-                        // Für alle Attribute: Button ist aktiviert, sobald ein Attribut ausgewählt ist
-                        // (auch leere Werte sind gültig, um Werte zu entfernen)
-                        // Ausnahme: Dropdowns müssen eine Auswahl haben (auch wenn es "entfernen" ist)
-                        let isEnabled = true;
-                        
-                        switch (attribute) {
-                            case 'location':
-                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
-                                isEnabled = true;
-                                break;
-                            
-                            case 'length':
-                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
-                                isEnabled = true;
-                                break;
-                            
-                            case 'condition':
-                                const conditionSelect = document.getElementById('bulkEditCondition');
-                                // Dropdown: muss existieren (wird automatisch aktiviert wenn Feld erstellt wird)
-                                isEnabled = conditionSelect !== null;
-                                break;
-                            
-                            case 'category':
-                                const categorySelect = document.getElementById('bulkEditCategory');
-                                // Dropdown: muss existieren
-                                isEnabled = categorySelect !== null;
-                                break;
-                            
-                            case 'folder_id':
-                                const folderSelect = document.getElementById('bulkEditFolder');
-                                // Dropdown: muss existieren
-                                isEnabled = folderSelect !== null;
-                                break;
-                            
-                            case 'remove_image':
-                                // Für remove_image ist immer aktiviert (die Aktion selbst)
-                                isEnabled = true;
-                                break;
-                        }
-                        
-                        currentSubmitBtn.disabled = !isEnabled;
-                    };
-                    
-                    // Event-Handler für verschiedene Feldtypen hinzufügen
-                    const locationInput = document.getElementById('bulkEditLocation');
-                    if (locationInput) {
-                        locationInput.addEventListener('input', updateSubmitButton);
-                        locationInput.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const lengthInput = document.getElementById('bulkEditLength');
-                    if (lengthInput) {
-                        lengthInput.addEventListener('input', updateSubmitButton);
-                        lengthInput.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const conditionSelect = document.getElementById('bulkEditCondition');
-                    if (conditionSelect) {
-                        conditionSelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const categorySelect = document.getElementById('bulkEditCategory');
-                    if (categorySelect) {
-                        categorySelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const folderSelect = document.getElementById('bulkEditFolder');
-                    if (folderSelect) {
-                        folderSelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    // Initiale Prüfung
-                    updateSubmitButton();
-                }, 10);
-            };
-            
-            attributeSelectRef.addEventListener('change', handleAttributeChange);
-        }
-        
-        // Submit-Handler - verwende lokale selectedIds (Snapshot)
-        // WICHTIG: submitBtn wird NICHT geklont, damit die Referenz konsistent bleibt
-        if (submitBtn) {
-            // Entferne alte Event-Handler (falls vorhanden)
             const newSubmitBtn = submitBtn.cloneNode(true);
             submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
-            // Aktualisiere Referenz für alle nachfolgenden Verwendungen
             submitBtn = newSubmitBtn;
-            
-            const handleSubmit = async () => {
-                const attribute = attributeSelect ? (document.getElementById('bulkEditAttribute')?.value || '') : '';
-                if (!attribute) {
-                    alert('Bitte wählen Sie ein Attribut aus.');
-                    return;
+            submitBtn.disabled = false;
+
+            submitBtn.addEventListener('click', async () => {
+                const updateData = { product_ids: selectedIds };
+                let hasUpdate = false;
+
+                const location = document.getElementById('bulkEditLocation')?.value.trim();
+                if (location) {
+                    updateData.location = location;
+                    hasUpdate = true;
                 }
-                
-                // Verwende die lokale selectedIds-Variable (Snapshot beim Öffnen)
-                const updateData = {
-                    product_ids: selectedIds,
-                };
-                
-                let value = null;
-                
-                switch (attribute) {
-                    case 'location':
-                        const locationInput = document.getElementById('bulkEditLocation');
-                        value = locationInput ? locationInput.value.trim() || null : null;
-                        updateData.location = value;
-                        break;
-                    
-                    case 'length':
-                        const lengthInput = document.getElementById('bulkEditLength');
-                        if (lengthInput && lengthInput.value) {
-                            value = parseFloat(lengthInput.value);
-                            if (isNaN(value) || value < 0) {
-                                alert('Bitte geben Sie eine gültige Länge ein (Zahl >= 0).');
-                                return;
-                            }
-                            updateData.length = value;
-                        } else {
-                            updateData.length = null;
-                        }
-                        break;
-                    
-                    case 'condition':
-                        const conditionSelect = document.getElementById('bulkEditCondition');
-                        value = conditionSelect ? conditionSelect.value || null : null;
-                        updateData.condition = value;
-                        break;
-                    
-                    case 'category':
-                        const categorySelect = document.getElementById('bulkEditCategory');
-                        value = categorySelect ? categorySelect.value || null : null;
-                        updateData.category = value;
-                        break;
-                    
-                    case 'folder_id':
-                        const folderSelect = document.getElementById('bulkEditFolder');
-                        value = folderSelect ? folderSelect.value || null : null;
-                        updateData.folder_id = value;
-                        break;
-                    
-                    case 'remove_image':
-                        if (!confirm(`Möchten Sie wirklich die Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`)) {
+                const lengthRaw = document.getElementById('bulkEditLength')?.value;
+                if (lengthRaw !== undefined && lengthRaw !== '') {
+                    const length = parseFloat(lengthRaw);
+                    if (Number.isNaN(length) || length < 0) {
+                        inventoryNotify('Bitte eine gültige Länge eingeben.', 'warning');
+                        return;
+                    }
+                    updateData.length = length;
+                    hasUpdate = true;
+                }
+                const condition = document.getElementById('bulkEditCondition')?.value;
+                if (condition) {
+                    updateData.condition = condition;
+                    hasUpdate = true;
+                }
+                const status = document.getElementById('bulkEditStatus')?.value;
+                if (status) {
+                    updateData.status = status;
+                    hasUpdate = true;
+                }
+                const category = document.getElementById('bulkEditCategory')?.value;
+                if (category) {
+                    updateData.category = category;
+                    hasUpdate = true;
+                }
+                const folderId = document.getElementById('bulkEditFolder')?.value;
+                if (folderId) {
+                    updateData.folder_id = folderId;
+                    hasUpdate = true;
+                }
+                const dguvLast = document.getElementById('bulkEditDguvLast')?.value;
+                const dguvIntervalRaw = document.getElementById('bulkEditDguvInterval')?.value;
+                if (dguvLast || dguvIntervalRaw) {
+                    if (dguvIntervalRaw) {
+                        const interval = parseInt(dguvIntervalRaw, 10);
+                        if (!Number.isFinite(interval) || interval < 1) {
+                            inventoryNotify('Bitte ein gültiges DGUV-Intervall (>= 1) angeben.', 'warning');
                             return;
                         }
-                        updateData.remove_image = true;
-                        break;
+                        updateData.dguv_interval_months = interval;
+                    }
+                    if (dguvLast) {
+                        updateData.dguv_last_check = dguvLast;
+                    }
+                    hasUpdate = true;
                 }
-                
-                // Loading-State
+                if (document.getElementById('bulkEditRemoveImage')?.checked) {
+                    if (!(await inventoryConfirm(`Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`, {
+                        title: 'Bilder entfernen',
+                        confirmLabel: 'Entfernen',
+                        danger: true,
+                    }))) {
+                        return;
+                    }
+                    updateData.remove_image = true;
+                    hasUpdate = true;
+                }
+
+                if (!hasUpdate) {
+                    inventoryNotify('Bitte mindestens ein Feld ausfüllen.', 'warning');
+                    return;
+                }
+
                 submitBtn.disabled = true;
                 const originalText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Aktualisiere...';
-                
                 try {
                     const response = await fetchInventoryApi('/products/bulk-update', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData),
                     });
-                    
                     const result = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(result.error || 'Fehler beim Aktualisieren');
-                    }
-                    
-                    // Erfolg
+                    if (!response.ok) throw new Error(result.error || 'Fehler beim Aktualisieren');
                     modal.hide();
-                    alert(result.message || `${result.updated_count || selectedIds.length} Produkt(e) erfolgreich aktualisiert.`);
-                    
-                    // Produktliste neu laden
+                    inventoryNotify(result.message || `${result.updated_count || selectedIds.length} Produkt(e) aktualisiert.`, 'success');
                     await this.loadProducts();
                     this.applyFilters();
-                    
-                    // Auswahl zurücksetzen - WICHTIG: Leere die Auswahl nach erfolgreicher Bearbeitung
                     this.selectedProducts.clear();
                     this.updateSelectionUI();
-                    
                 } catch (error) {
                     console.error('Bulk-Update Fehler:', error);
-                    alert('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'));
+                    inventoryNotify('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'), 'danger');
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
                 }
-            };
-            
-            submitBtn.addEventListener('click', handleSubmit);
+            });
         }
-        
+
         modal.show();
     }
-    
+
     // View Toggle Funktionen
     setupViewToggle() {
-        const listViewBtn = document.getElementById('listViewBtn');
-        const gridViewBtn = document.getElementById('gridViewBtn');
-        
-        if (listViewBtn && gridViewBtn) {
-            listViewBtn.addEventListener('click', () => {
+        const bindToggle = (listBtn, gridBtn) => {
+            if (!listBtn || !gridBtn) return;
+            listBtn.addEventListener('click', () => {
                 this.viewMode = 'list';
                 localStorage.setItem('inventoryViewMode', 'list');
                 this.applyViewMode();
             });
-            
-            gridViewBtn.addEventListener('click', () => {
+            gridBtn.addEventListener('click', () => {
                 this.viewMode = 'grid';
                 localStorage.setItem('inventoryViewMode', 'grid');
                 this.applyViewMode();
             });
-        }
+        };
+
+        bindToggle(document.getElementById('listViewBtn'), document.getElementById('gridViewBtn'));
+        bindToggle(document.getElementById('listViewBtnMobile'), document.getElementById('gridViewBtnMobile'));
     }
     
     applyViewMode() {
-        const listViewBtn = document.getElementById('listViewBtn');
-        const gridViewBtn = document.getElementById('gridViewBtn');
+        const listBtns = [
+            document.getElementById('listViewBtn'),
+            document.getElementById('listViewBtnMobile'),
+        ].filter(Boolean);
+        const gridBtns = [
+            document.getElementById('gridViewBtn'),
+            document.getElementById('gridViewBtnMobile'),
+        ].filter(Boolean);
         const gridViewContainer = document.getElementById('gridViewContainer');
         const listViewContainer = document.getElementById('listViewContainer');
         
         if (this.viewMode === 'list') {
             if (listViewContainer) listViewContainer.style.display = 'block';
             if (gridViewContainer) gridViewContainer.style.display = 'none';
-            if (listViewBtn) listViewBtn.classList.add('active');
-            if (gridViewBtn) gridViewBtn.classList.remove('active');
+            listBtns.forEach((btn) => {
+                btn.classList.add('active', 'is-active');
+            });
+            gridBtns.forEach((btn) => {
+                btn.classList.remove('active', 'is-active');
+            });
         } else {
             if (gridViewContainer) gridViewContainer.style.display = 'block';
             if (listViewContainer) listViewContainer.style.display = 'none';
-            if (gridViewBtn) gridViewBtn.classList.add('active');
-            if (listViewBtn) listViewBtn.classList.remove('active');
+            gridBtns.forEach((btn) => {
+                btn.classList.add('active', 'is-active');
+            });
+            listBtns.forEach((btn) => {
+                btn.classList.remove('active', 'is-active');
+            });
         }
         
         // Rendere Produkte neu mit aktuellem View-Mode
@@ -1961,64 +1878,71 @@ class StockManager {
     
     // Ordner-Funktionen
     renderFolders() {
-        // Zeige Ordner nur wenn keine Suche aktiv ist
-        const searchInput = document.getElementById('searchInput');
-        const hasSearch = searchInput && searchInput.value.trim() !== '';
-        
-        if (hasSearch) {
-            // Verstecke Ordner bei Suche
-            const foldersGrid = document.getElementById('foldersGridView');
-            const foldersList = document.getElementById('foldersListView');
-            if (foldersGrid) foldersGrid.style.display = 'none';
-            if (foldersList) foldersList.style.display = 'none';
-            return;
-        }
-        
-        // Zeige Ordner nur im Root (nicht wenn wir in einem Ordner sind)
-        // Im Root: zeige alle Ordner
-        // In einem Ordner: zeige keine Ordner (da Unterordner noch nicht implementiert sind)
-        let foldersToShow = [];
-        if (this.currentFolderId === null) {
-            // Wir sind im Root: zeige alle Ordner
-            foldersToShow = this.folders;
-        }
-        // Wenn wir in einem Ordner sind: zeige keine Ordner (Unterordner-Funktion noch nicht implementiert)
-        
-        if (foldersToShow.length === 0) {
-            const foldersGrid = document.getElementById('foldersGridView');
-            const foldersList = document.getElementById('foldersListView');
-            if (foldersGrid) foldersGrid.style.display = 'none';
-            if (foldersList) foldersList.style.display = 'none';
-            return;
-        }
-        
-        // Rendere Ordner in Grid-View
-        const foldersGrid = document.getElementById('foldersGridView');
-        if (foldersGrid) {
-            const html = foldersToShow.map(folder => this.renderFolderCard(folder)).join('');
-            foldersGrid.innerHTML = html;
-            foldersGrid.style.display = 'flex';
-        }
-        
-        // Rendere Ordner in List-View
-        const foldersList = document.getElementById('foldersListView');
-        if (foldersList) {
-            const html = foldersToShow.map(folder => this.renderFolderListItem(folder)).join('');
-            foldersList.innerHTML = html;
-            foldersList.style.display = 'block';
-        }
+        // Ordner werden zusammen mit Produkten in renderProducts* gerendert
+        this.renderProducts();
     }
     
     renderFolderCard(folder) {
         const productCount = folder.product_count || 0;
+        const colorValue = folder.color || '#ffc107';
+        const colorStyle = folder.color ? `style="color: ${this.escapeHtml(folder.color)};"` : '';
+        const colorClass = folder.color ? '' : 'text-warning';
+        const isEditing = Number(this.editingFolderId) === Number(folder.id);
+
+        if (isEditing) {
+            return `
+                <div class="col-12 col-md-6 col-lg-3" data-folder-edit-wrap="${folder.id}">
+                    <div class="card folder-item inventory-folder-card h-100 inventory-folder-card--editing" onclick="event.stopPropagation()">
+                        <div class="card-body">
+                            ${this.renderFolderInlineEditForm(folder, colorValue)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         return `
-            <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-                <div class="card folder-item h-100" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+            <div class="col-12 col-md-6 col-lg-3" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}">
+                <div class="card folder-item inventory-folder-card h-100" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
                     ${this.buildFolderContextMenuHtml(folder)}
-                    <div class="card-body text-center">
-                        <i class="bi bi-folder-fill text-warning fs-1 mb-2"></i>
-                        <h6 class="mb-1">${this.escapeHtml(folder.name)}</h6>
-                        <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="min-width-0">
+                                <i class="bi bi-folder-fill fs-1 folder-color-icon ${colorClass}" ${colorStyle}></i>
+                                <h6 class="mt-2 mb-0 text-truncate" title="${this.escapeHtml(folder.name)}">${this.escapeHtml(folder.name)}</h6>
+                                <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
+                            </div>
+                            <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
+                                <div class="inventory-grid-hover-actions">
+                                    <button type="button" class="btn btn-sm btn-link" title="Umbenennen / Farbe"
+                                            onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" title="Öffnen"
+                                            onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                        <i class="bi bi-folder2-open"></i>
+                                    </button>
+                                </div>
+                                <div class="dropdown inventory-card-menu">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                        <li>
+                                            <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                                <i class="bi bi-folder2-open me-2"></i>Öffnen
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                                <i class="bi bi-pencil me-2"></i>Umbenennen / Farbe
+                                            </button>
+                                        </li>
+                                        <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2027,22 +1951,145 @@ class StockManager {
     
     renderFolderListItem(folder) {
         const productCount = folder.product_count || 0;
+        const colorValue = folder.color || '#ffc107';
+        const colorStyle = folder.color ? `style="color: ${this.escapeHtml(folder.color)};"` : '';
+        const colorClass = folder.color ? '' : 'text-warning';
+        const isEditing = Number(this.editingFolderId) === Number(folder.id);
+
+        if (isEditing) {
+            return `
+                <tr class="mod-list-row inventory-folder-row inventory-folder-row--editing" data-folder-edit-wrap="${folder.id}" onclick="event.stopPropagation()">
+                    <td colspan="7">
+                        ${this.renderFolderInlineEditForm(folder, colorValue)}
+                    </td>
+                </tr>
+            `;
+        }
+
         return `
-            <div class="list-group-item list-group-item-action" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
-                ${this.buildFolderContextMenuHtml(folder)}
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0">${this.escapeHtml(folder.name)}</h6>
-                        <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
+            <tr class="mod-list-row inventory-folder-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                <td class="inventory-list-check-col">
+                    ${this.buildFolderContextMenuHtml(folder)}
+                </td>
+                <td>
+                    <span class="mod-list-name inventory-item-name">
+                        <i class="bi bi-folder-fill me-2 folder-color-icon ${colorClass}" ${colorStyle}></i>
+                        <span class="inventory-item-name-text" title="${this.escapeHtml(folder.name)}">${this.escapeHtml(folder.name)}</span>
+                    </span>
+                </td>
+                <td class="d-none d-md-table-cell text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</td>
+                <td class="d-none d-md-table-cell text-muted">—</td>
+                <td class="d-none d-lg-table-cell text-muted">—</td>
+                <td class="d-none d-xl-table-cell text-muted">—</td>
+                <td class="text-end">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
+                            <button type="button" class="btn btn-sm btn-link" title="Umbenennen / Farbe"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" title="Öffnen"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                <i class="bi bi-folder2-open"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown d-inline-block" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                        <i class="bi bi-folder2-open me-2"></i>Öffnen
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                        <i class="bi bi-pencil me-2"></i>Umbenennen / Farbe
+                                    </button>
+                                </li>
+                                <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
+    }
+
+    renderFolderInlineEditForm(folder, colorValue) {
+        return `
+            <form class="inventory-folder-inline" onsubmit="event.preventDefault(); if(window.stockManager){window.stockManager.saveFolderInlineEdit(${folder.id});}">
+                <label class="form-label" for="inventoryFolderEditName${folder.id}">Name</label>
+                <input type="text" class="form-control form-control-sm inventory-folder-inline-input" id="inventoryFolderEditName${folder.id}"
+                       value="${this.escapeHtml(folder.name)}" maxlength="100" required autocomplete="off">
+                <label class="form-label mt-2" for="inventoryFolderEditColor${folder.id}">Farbe</label>
+                <input type="color" class="form-control form-control-color inventory-folder-inline-color" id="inventoryFolderEditColor${folder.id}"
+                       value="${this.escapeHtml(colorValue)}" title="Ordnerfarbe">
+                <div class="inventory-folder-inline-actions">
+                    <button type="submit" class="btn btn-sm btn-accent inventory-folder-inline-submit">
+                        <i class="bi bi-check2 me-1"></i>Speichern
+                    </button>
+                    <button type="button" class="btn btn-sm inventory-folder-inline-cancel"
+                            onclick="event.preventDefault(); if(window.stockManager){window.stockManager.cancelFolderInlineEdit();}">
+                        Abbrechen
+                    </button>
+                </div>
+            </form>
+        `;
+    }
+
+    startFolderInlineEdit(folderId) {
+        this.editingFolderId = Number(folderId);
+        this.renderProducts();
+        const nameInput = document.getElementById(`inventoryFolderEditName${folderId}`);
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.select();
+        }
+    }
+
+    cancelFolderInlineEdit() {
+        this.editingFolderId = null;
+        this.renderProducts();
+    }
+
+    async saveFolderInlineEdit(folderId) {
+        const nameInput = document.getElementById(`inventoryFolderEditName${folderId}`);
+        const colorInput = document.getElementById(`inventoryFolderEditColor${folderId}`);
+        const name = (nameInput?.value || '').trim();
+        const color = (colorInput?.value || '').trim() || null;
+        if (!name) {
+            inventoryNotify('Ordnername ist erforderlich.', 'warning');
+            nameInput?.focus();
+            return;
+        }
+
+        try {
+            const response = await fetchInventoryApi(`/folders/${folderId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color }),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || 'Ordner konnte nicht gespeichert werden.');
+            }
+            const updated = await response.json();
+            const idx = this.folders.findIndex((f) => Number(f.id) === Number(folderId));
+            if (idx >= 0) {
+                this.folders[idx] = { ...this.folders[idx], ...updated };
+            }
+            this.editingFolderId = null;
+            this.renderProducts();
+            inventoryNotify('Ordner gespeichert.', 'success');
+        } catch (error) {
+            console.error(error);
+            inventoryNotify(error.message || 'Ordner konnte nicht gespeichert werden.', 'danger');
+        }
     }
     
     navigateToFolder(folderId) {
-        // Navigiere zu Ordner-Ansicht
         window.location.href = `/inventory/stock/${folderId}`;
     }
     
@@ -2110,8 +2157,15 @@ class StockManager {
             switch (field) {
                 case 'category':
                 case 'condition':
+                case 'location':
+                case 'status':
+                case 'serial_number':
                     valueA = getString(a[field]);
                     valueB = getString(b[field]);
+                    break;
+                case 'purchase_date':
+                    valueA = getString(a.purchase_date);
+                    valueB = getString(b.purchase_date);
                     break;
                 case 'name':
                 default:
@@ -2143,23 +2197,74 @@ class BorrowsManager {
         this.borrows = [];
         this.filteredBorrows = [];
     }
+
+    getFilterEls(key) {
+        return Array.from(document.querySelectorAll(`[data-inv-filter="${key}"]`));
+    }
+
+    getFilterValue(key) {
+        const els = this.getFilterEls(key);
+        if (!els.length) return '';
+        if (els[0].type === 'checkbox') {
+            return els.some((el) => el.checked);
+        }
+        return els[0]?.value || '';
+    }
+
+    setFilterValue(key, value) {
+        this.getFilterEls(key).forEach((el) => {
+            if (el.type === 'checkbox') {
+                el.checked = !!value;
+            } else {
+                el.value = value;
+                if (window.InventoryPillSelect) {
+                    window.InventoryPillSelect.sync(el);
+                }
+            }
+        });
+    }
     
     async init() {
+        this.setupFilterListeners();
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(document);
+        }
         await this.loadBorrows();
         this.renderBorrows();
-        
-        // Auto-Refresh alle 30 Sekunden
         setInterval(() => this.loadBorrows(), 30000);
+    }
+
+    setupFilterListeners() {
+        const textKeys = ['filterBorrower', 'filterEvent', 'filterProduct', 'filterDateFrom', 'filterDateTo'];
+        textKeys.forEach((key) => {
+            this.getFilterEls(key).forEach((el) => {
+                el.addEventListener('input', () => {
+                    this.getFilterEls(key).forEach((other) => {
+                        if (other !== el) other.value = el.value;
+                    });
+                    this.applyFilters();
+                });
+            });
+        });
+
+        this.getFilterEls('filterStatus').forEach((el) => {
+            el.addEventListener('change', () => {
+                this.setFilterValue('filterStatus', el.value || 'all');
+                this.applyFilters();
+            });
+        });
+
+        this.getFilterEls('filterMine').forEach((el) => {
+            el.addEventListener('change', () => {
+                this.setFilterValue('filterMine', el.checked);
+                this.applyFilters();
+            });
+        });
     }
     
     async loadBorrows() {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const filterMy = urlParams.get('filter') === 'my';
-            
-            const endpoint = filterMy ? '/borrows/my' : '/borrows';
-            const response = await fetchInventoryApi(endpoint);
-            
+            const response = await fetchInventoryApi('/borrows?status=all');
             if (response.ok) {
                 this.borrows = await response.json();
                 this.applyFilters();
@@ -2172,20 +2277,43 @@ class BorrowsManager {
     }
     
     applyFilters() {
-        const borrowerFilter = document.getElementById('filterBorrower')?.value.toLowerCase() || '';
-        const productFilter = document.getElementById('filterProduct')?.value.toLowerCase() || '';
-        const statusFilter = document.getElementById('filterStatus')?.value || '';
+        const borrowerFilter = (this.getFilterValue('filterBorrower') || '').toLowerCase();
+        const eventFilter = (this.getFilterValue('filterEvent') || '').toLowerCase();
+        const productFilter = (this.getFilterValue('filterProduct') || '').toLowerCase();
+        const statusFilter = this.getFilterValue('filterStatus') || 'all';
+        const mineOnly = !!this.getFilterValue('filterMine');
+        const dateFrom = this.getFilterValue('filterDateFrom') || '';
+        const dateTo = this.getFilterValue('filterDateTo') || '';
+        const uid = window.currentUserId;
         
         this.filteredBorrows = this.borrows.filter(b => {
-            const matchesBorrower = !borrowerFilter || 
-                (b.borrower_name && b.borrower_name.toLowerCase().includes(borrowerFilter));
-            const matchesProduct = !productFilter || 
+            const matchesBorrower = !borrowerFilter ||
+                (b.borrower_name && b.borrower_name.toLowerCase().includes(borrowerFilter)) ||
+                (b.contact_email && b.contact_email.toLowerCase().includes(borrowerFilter));
+            const matchesEvent = !eventFilter ||
+                (b.event_name && b.event_name.toLowerCase().includes(eventFilter));
+            const matchesProduct = !productFilter ||
                 (b.product_name && b.product_name.toLowerCase().includes(productFilter));
-            const matchesStatus = statusFilter === 'all' || !statusFilter ||
-                (statusFilter === 'active' && !b.is_overdue) ||
-                (statusFilter === 'overdue' && b.is_overdue);
-            
-            return matchesBorrower && matchesProduct && matchesStatus;
+
+            let matchesStatus = true;
+            if (statusFilter === 'active') {
+                matchesStatus = b.status !== 'returned' && !b.is_overdue;
+            } else if (statusFilter === 'overdue') {
+                matchesStatus = !!b.is_overdue;
+            } else if (statusFilter === 'returned') {
+                matchesStatus = b.status === 'returned';
+            }
+
+            const matchesMine = !mineOnly || b.borrower_id === uid || b.created_by === uid;
+
+            let matchesDate = true;
+            if (dateFrom || dateTo) {
+                const d = b.borrow_date ? b.borrow_date.substring(0, 10) : '';
+                if (dateFrom && d && d < dateFrom) matchesDate = false;
+                if (dateTo && d && d > dateTo) matchesDate = false;
+            }
+
+            return matchesBorrower && matchesEvent && matchesProduct && matchesStatus && matchesMine && matchesDate;
         });
         
         this.renderBorrows();
@@ -2204,46 +2332,153 @@ class BorrowsManager {
         if (this.filteredBorrows.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-5">
-                        <p class="text-muted">Keine Ausleihen gefunden</p>
+                    <td colspan="8">
+                        <div class="mod-empty-state py-5 text-center">
+                            <i class="bi bi-clock-history d-block mb-2 fs-3 text-muted" aria-hidden="true"></i>
+                            <p class="text-muted mb-0">Keine Ausleihen gefunden</p>
+                        </div>
                     </td>
                 </tr>
             `;
             return;
         }
         
-        tbody.innerHTML = this.filteredBorrows.map(borrow => `
-            <tr class="${borrow.is_overdue ? 'table-danger' : ''}">
-                <td><code>${borrow.transaction_number}</code></td>
-                <td><strong>${borrow.product_name}</strong></td>
-                <td>${borrow.borrower_name || 'Unbekannt'}</td>
-                <td>${new Date(borrow.borrow_date).toLocaleDateString('de-DE')}</td>
+        tbody.innerHTML = this.filteredBorrows.map(borrow => {
+            let statusBadge = '<span class="badge bg-warning text-dark">Aktiv</span>';
+            if (borrow.status === 'returned') {
+                statusBadge = '<span class="badge bg-secondary">Zurückgegeben</span>';
+            } else if (borrow.is_overdue) {
+                statusBadge = '<span class="badge bg-danger">Überfällig</span>';
+            }
+            const checkoutId = borrow.checkout_id || borrow.id;
+            const isReturned = borrow.status === 'returned';
+            const borrowPdf = resolveInventoryApiUrl(`/borrow/${checkoutId}/pdf`);
+            const returnPdf = resolveInventoryApiUrl(`/borrow/${borrow.id}/return-pdf`);
+            const returnHref = `/inventory/checkout?transaction_number=${encodeURIComponent(borrow.transaction_number)}`;
+
+            const hoverReturn = isReturned
+                ? `<a class="btn btn-sm btn-link" href="${returnPdf}" title="Rückgabeschein" onclick="event.stopPropagation()">
+                        <i class="bi bi-file-earmark-check"></i>
+                   </a>`
+                : `<a class="btn btn-sm btn-link" href="${returnHref}" title="Zurückgeben" onclick="event.stopPropagation()">
+                        <i class="bi bi-arrow-return-left"></i>
+                   </a>`;
+
+            const menuReturn = isReturned
+                ? `<li><a class="dropdown-item" href="${returnPdf}"><i class="bi bi-file-earmark-check me-2"></i>Rückgabeschein</a></li>`
+                : `<li><a class="dropdown-item" href="${returnHref}"><i class="bi bi-arrow-return-left me-2"></i>Zurückgeben</a></li>`;
+
+            const setBadge = borrow.source_set_name
+                ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
+                : '';
+            const setDropdown = this.buildBorrowSetDropdown(borrow);
+            const isExternal = !borrow.borrower_id;
+            const contactEmail = (borrow.contact_email || '').trim();
+            let externalBadge = '';
+            if (isExternal) {
+                const emailEscaped = this.escapeHtml(contactEmail);
+                const composeHref = contactEmail
+                    ? `/email/compose?to=${encodeURIComponent(contactEmail)}`
+                    : '';
+                const menuWidthStyle = contactEmail
+                    ? `style="min-width: ${Math.max(contactEmail.length + 4, 18)}ch"`
+                    : '';
+                const dropdownBody = contactEmail
+                    ? `<li class="px-3 py-2">
+                            <div class="small text-muted mb-1">Kontakt-E-Mail</div>
+                            <div class="fw-semibold text-nowrap">${emailEscaped}</div>
+                       </li>
+                       <li><hr class="dropdown-divider"></li>
+                       <li>
+                            <a class="dropdown-item" href="${composeHref}">
+                                <i class="bi bi-envelope me-2" aria-hidden="true"></i>E-Mail schreiben
+                            </a>
+                       </li>`
+                    : `<li class="px-3 py-2 small text-muted text-nowrap">Keine E-Mail hinterlegt</li>`;
+                externalBadge = `
+                    <div class="dropdown d-inline-block">
+                        <button type="button"
+                                class="badge inventory-extern-badge border-0"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                title="Externe Person"
+                                onclick="event.stopPropagation()">
+                            Extern
+                        </button>
+                        <ul class="dropdown-menu inventory-actions-menu" ${menuWidthStyle} onclick="event.stopPropagation()">
+                            ${dropdownBody}
+                        </ul>
+                    </div>`;
+            }
+
+            return `
+            <tr class="mod-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
+                <td><code>${this.escapeHtml(borrow.transaction_number || '')}</code></td>
+                <td class="d-none d-md-table-cell">${this.escapeHtml(borrow.event_name || '—')}</td>
                 <td>
-                    ${new Date(borrow.expected_return_date).toLocaleDateString('de-DE')}
-                    ${borrow.is_overdue ? '<br><span class="badge bg-danger">Überfällig</span>' : ''}
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <strong>${this.escapeHtml(borrow.product_name || '')}</strong>
+                        ${setBadge}
+                    </div>
+                    ${setDropdown}
                 </td>
-                <td>
-                    <span class="badge bg-warning">Aktiv</span>
-                </td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <a href="/inventory/return?transaction_number=${borrow.transaction_number}" 
-                           class="btn btn-sm btn-success" 
-                           title="Zurückgeben">
-                            <i class="bi bi-arrow-return-left"></i> Rückgabe
-                        </a>
-                        <a href="${resolveInventoryApiUrl(`/borrow/${borrow.id}/pdf`)}"
-                           class="btn btn-sm btn-outline-secondary" 
-                           title="Ausleihschein herunterladen">
-                            <i class="bi bi-file-pdf"></i>
-                        </a>
+                <td class="d-none d-md-table-cell">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span>${this.escapeHtml(borrow.borrower_name || 'Unbekannt')}</span>
+                        ${externalBadge}
                     </div>
                 </td>
-            </tr>
-        `).join('');
+                <td class="d-none d-lg-table-cell">${borrow.borrow_date ? new Date(borrow.borrow_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td class="d-none d-md-table-cell">${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td>${statusBadge}</td>
+                <td class="text-end">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
+                            ${hoverReturn}
+                            <a class="btn btn-sm btn-link" href="${borrowPdf}" title="Ausleihschein" onclick="event.stopPropagation()">
+                                <i class="bi bi-file-pdf"></i>
+                            </a>
+                        </div>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation()">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                ${menuReturn}
+                                <li><a class="dropdown-item" href="${borrowPdf}"><i class="bi bi-file-pdf me-2"></i>Ausleihschein</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    buildBorrowSetDropdown(borrow) {
+        const members = Array.isArray(borrow.source_set_members) ? borrow.source_set_members : [];
+        if (!borrow.source_set_name || !members.length) return '';
+        const setName = this.escapeHtml(borrow.source_set_name);
+        const memberHtml = members.map((member) => {
+            const qty = member.quantity && member.quantity > 1
+                ? ` <span class="badge bg-secondary">×${this.escapeHtml(String(member.quantity))}</span>`
+                : '';
+            return `<li><i class="bi bi-box-seam text-muted" aria-hidden="true"></i><span>${this.escapeHtml(member.name || '—')}</span>${qty}</li>`;
+        }).join('');
+        return `
+            <details class="inventory-set-members mt-1">
+                <summary class="inventory-set-members-summary">${setName} · Bestandteile</summary>
+                <ul class="inventory-set-members-list">${memberHtml}</ul>
+            </details>
+        `;
+    }
+
+    escapeHtml(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
     }
 }
-
 // Return Manager - Verwaltet die Rückgabe mit QR-Scanner
 class ReturnManager {
     constructor() {
@@ -2330,7 +2565,6 @@ class ReturnManager {
                         clearTimeout(timeout);
                         video.play()
                             .then(() => {
-                                console.log('Video gestartet, Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
                                 // Stelle sicher, dass Video sichtbar ist
                                 video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
                                 // Stelle sicher, dass Container auch sichtbar ist
@@ -2653,6 +2887,165 @@ class ReturnManager {
 }
 
 // Borrow Scanner Manager - Verwaltet die "Ausleihen geben" Seite mit Scanner und Warenkorb
+class InventoryScanLookup {
+    /**
+     * Klartext-Vorschläge für Produkte/Sets (eigenes Suchfeld).
+     * @param {{input: HTMLInputElement, dropdown: HTMLElement, onPick: (code: string, item: object) => void, includeSets?: boolean}} opts
+     */
+    constructor(opts) {
+        this.input = opts.input;
+        this.dropdown = opts.dropdown;
+        this.onPick = opts.onPick;
+        this.includeSets = opts.includeSets !== false;
+        this.searchUrl = opts.searchUrl || '/inventory/api/search';
+        this.minChars = opts.minChars || 2;
+        this.timer = null;
+        this.activeIndex = -1;
+        this.items = [];
+        if (this.input && this.dropdown) this.bind();
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    bind() {
+        this.input.addEventListener('input', () => {
+            clearTimeout(this.timer);
+            this.timer = setTimeout(() => this.search(this.input.value), 220);
+        });
+        this.input.addEventListener('keydown', (e) => this.onKeydown(e));
+        this.input.addEventListener('blur', () => {
+            setTimeout(() => this.hide(), 180);
+        });
+        this.input.addEventListener('focus', () => {
+            if (this.items.length) this.show();
+        });
+    }
+
+    async search(raw) {
+        const q = String(raw || '').trim();
+        if (q.length < this.minChars) {
+            this.hide();
+            return;
+        }
+        try {
+            const url = `${this.searchUrl}?q=${encodeURIComponent(q)}${this.includeSets ? '&include_sets=1' : ''}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                this.hide();
+                return;
+            }
+            const data = await res.json();
+            let products = [];
+            let sets = [];
+            if (Array.isArray(data)) {
+                products = data;
+            } else {
+                products = Array.isArray(data.products) ? data.products : [];
+                sets = Array.isArray(data.sets) ? data.sets : [];
+            }
+            this.items = [
+                ...sets.map((s) => ({
+                    type: 'set',
+                    id: s.id,
+                    name: s.name,
+                    meta: s.product_count != null ? `${s.product_count} Produkte` : 'Set',
+                    code: `SET-${s.id}`,
+                })),
+                ...products.slice(0, 8).map((p) => ({
+                    type: 'product',
+                    id: p.id,
+                    name: p.name,
+                    meta: [p.category, p.serial_number, p.status].filter(Boolean).join(' · '),
+                    code: `PROD-${p.id}`,
+                    status: p.status,
+                })),
+            ].slice(0, 10);
+            this.activeIndex = -1;
+            this.render();
+        } catch (err) {
+            console.error('Produkt-Suche fehlgeschlagen:', err);
+            this.hide();
+        }
+    }
+
+    render() {
+        if (!this.items.length) {
+            this.hide();
+            return;
+        }
+        this.dropdown.innerHTML = this.items.map((item, idx) => {
+            const badge = item.type === 'set'
+                ? '<span class="badge bg-primary ms-1">SET</span>'
+                : '<span class="badge bg-secondary ms-1">PROD</span>';
+            const meta = item.meta
+                ? `<small class="text-muted d-block">${this.escapeHtml(item.meta)}</small>`
+                : '';
+            return `<button type="button" class="list-group-item list-group-item-action" role="option" data-idx="${idx}" aria-selected="${idx === this.activeIndex}">
+                <span class="fw-semibold">${this.escapeHtml(item.name)}</span>${badge}
+                ${meta}
+            </button>`;
+        }).join('');
+        this.dropdown.querySelectorAll('button').forEach((btn) => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.dataset.idx);
+                this.pick(idx);
+            });
+        });
+        this.show();
+    }
+
+    onKeydown(e) {
+        if (!this.items.length || this.dropdown.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.activeIndex = Math.min(this.activeIndex + 1, this.items.length - 1);
+            this.highlight();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.activeIndex = Math.max(this.activeIndex - 1, 0);
+            this.highlight();
+        } else if (e.key === 'Enter' && this.activeIndex >= 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.pick(this.activeIndex);
+        } else if (e.key === 'Escape') {
+            this.hide();
+        }
+    }
+
+    highlight() {
+        this.dropdown.querySelectorAll('button').forEach((btn, idx) => {
+            btn.classList.toggle('active', idx === this.activeIndex);
+            btn.setAttribute('aria-selected', idx === this.activeIndex ? 'true' : 'false');
+        });
+    }
+
+    pick(idx) {
+        const item = this.items[idx];
+        if (!item) return;
+        this.input.value = item.code;
+        this.hide();
+        if (typeof this.onPick === 'function') this.onPick(item.code, item);
+    }
+
+    show() {
+        this.dropdown.style.display = 'block';
+    }
+
+    hide() {
+        this.dropdown.style.display = 'none';
+        this.activeIndex = -1;
+    }
+}
+
 class BorrowScannerManager {
     constructor() {
         this.stream = null;
@@ -2666,40 +3059,106 @@ class BorrowScannerManager {
         const stopBtn = document.getElementById('stopScannerBtn');
         const addBtn = document.getElementById('addToCartBtn');
         const manualInput = document.getElementById('manualQrInput');
-        const undoBtn = document.getElementById('undoLastCartActionBtn');
-        const retryBtn = document.getElementById('retryLastCartActionBtn');
         
-        if (startBtn) {
+        if (startBtn && !startBtn.dataset.scannerBound) {
+            startBtn.dataset.scannerBound = '1';
             startBtn.addEventListener('click', () => this.startScanner());
         }
         
-        if (stopBtn) {
+        if (stopBtn && !stopBtn.dataset.scannerBound) {
+            stopBtn.dataset.scannerBound = '1';
             stopBtn.addEventListener('click', () => this.stopScanner());
         }
         
-        if (addBtn && manualInput) {
+        // Single owner for manual add — templates must not re-bind these controls
+        if (addBtn && manualInput && !addBtn.dataset.cartBound) {
+            addBtn.dataset.cartBound = '1';
+            manualInput.dataset.cartBound = '1';
             addBtn.addEventListener('click', () => this.addFromInput());
             manualInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     this.addFromInput();
                 }
             });
         }
 
-        if (undoBtn) {
-            undoBtn.addEventListener('click', () => this.undoLastAction());
-        }
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => this.retryLastAction());
+        const suggestEl = document.getElementById('productSuggest');
+        const searchInput = document.getElementById('productSearchInput');
+        if (searchInput && suggestEl && !searchInput.dataset.lookupBound) {
+            searchInput.dataset.lookupBound = '1';
+            this.productLookup = new InventoryScanLookup({
+                input: searchInput,
+                dropdown: suggestEl,
+                includeSets: true,
+                onPick: (code) => {
+                    this.addToCart(code).then(() => {
+                        searchInput.value = '';
+                    }).catch(() => {});
+                },
+            });
         }
         
-        // Remove from cart buttons
+        // Remove from cart (SSR list). Dynamic rows get listeners in updateCartFromJSON.
         document.querySelectorAll('.remove-from-cart').forEach(btn => {
+            if (btn.dataset.removeBound) return;
+            btn.dataset.removeBound = '1';
             btn.addEventListener('click', (e) => {
-                const productId = e.target.closest('.remove-from-cart').dataset.productId;
-                this.removeFromCart(productId);
+                const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
+                if (productId) this.removeFromCart(productId);
             });
         });
+
+        this.setupCheckoutForm();
+    }
+
+    buildSetMembersDropdownHtml(sourceSet, productId) {
+        if (!sourceSet || !sourceSet.name) return '';
+        const members = Array.isArray(sourceSet.members) ? sourceSet.members : [];
+        const setName = this.escapeHtml(sourceSet.name);
+        const memberHtml = members.length
+            ? members.map((member) => {
+                const qty = member.quantity && member.quantity > 1
+                    ? ` <span class="badge bg-secondary">×${this.escapeHtml(String(member.quantity))}</span>`
+                    : '';
+                return `<li><i class="bi bi-box-seam text-muted" aria-hidden="true"></i><span>${this.escapeHtml(member.name || '—')}</span>${qty}</li>`;
+            }).join('')
+            : '<li class="text-muted">Keine Produkte</li>';
+
+        return `
+            <details class="inventory-set-members">
+                <summary class="inventory-set-members-summary">${setName} · Bestandteile</summary>
+                <ul class="inventory-set-members-list">${memberHtml}</ul>
+            </details>
+        `;
+    }
+
+    buildCartItemElement(product) {
+        const newItem = document.createElement('div');
+        const sourceSet = product.source_set || null;
+        newItem.className = `inventory-cart-item cart-item${sourceSet ? ' inventory-cart-item--set' : ''}`;
+        newItem.setAttribute('data-product-id', product.id);
+        if (sourceSet && sourceSet.id) {
+            newItem.setAttribute('data-set-id', sourceSet.id);
+        }
+        const categoryHtml = product.category
+            ? `<p class="inventory-cart-item-meta">${this.escapeHtml(product.category)}</p>`
+            : '';
+        const setBadge = sourceSet
+            ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
+            : '';
+        const setDropdown = sourceSet ? this.buildSetMembersDropdownHtml(sourceSet, product.id) : '';
+        newItem.innerHTML = `
+            <div class="inventory-cart-item-body">
+                <p class="inventory-cart-item-title">${this.escapeHtml(product.name)} ${setBadge}</p>
+                ${categoryHtml}
+                ${setDropdown}
+            </div>
+            <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        return newItem;
     }
     
     async startScanner() {
@@ -2737,14 +3196,12 @@ class BorrowScannerManager {
             // Zeige Scanner-Container SOFORT, bevor Video geladen wird
             const scannerContainer = document.getElementById('scannerContainer');
             if (scannerContainer) {
-                scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
-                // Force reflow
+                scannerContainer.style.display = 'block';
                 scannerContainer.offsetHeight;
             }
             
             if (video) {
-                // Stelle sicher, dass Video-Element sichtbar ist - mit !important
-                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important;';
                 
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', 'true');
@@ -2764,12 +3221,11 @@ class BorrowScannerManager {
                         clearTimeout(timeout);
                         video.play()
                             .then(() => {
-                                console.log('Video gestartet (BorrowScanner), Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
                                 // Stelle sicher, dass Video sichtbar ist
-                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important;';
                                 // Stelle sicher, dass Container auch sichtbar ist
                                 if (scannerContainer) {
-                                    scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                                    scannerContainer.style.display = 'block';
                                 }
                                 // Force reflow um sicherzustellen, dass Browser rendert
                                 video.offsetHeight;
@@ -2952,7 +3408,6 @@ class BorrowScannerManager {
             
             if (code) {
                 // QR-Code gefunden!
-                console.log('QR-Code erkannt (BorrowScanner):', code.data);
                 // Kamera NICHT stoppen - für mehrere Scans offen lassen
                 // Pausiere kurz das Scannen, um doppelte Scans zu vermeiden
                 this.scanning = false;
@@ -2966,9 +3421,7 @@ class BorrowScannerManager {
                     this.showScanSuccess();
                     
                     // Direktes Hinzufügen zum Warenkorb
-                    console.log('Starte addToCart für:', qrCodeData);
                     this.addToCart(qrCodeData).then(() => {
-                        console.log('addToCart erfolgreich abgeschlossen');
                         // Nach erfolgreichem Hinzufügen, Scannen nach kurzer Pause fortsetzen
                         setTimeout(() => {
                             if (this.stream && !this.scanning) {
@@ -3004,26 +3457,77 @@ class BorrowScannerManager {
     
     async addFromInput() {
         const input = document.getElementById('manualQrInput');
-        if (input && input.value) {
-            await this.addToCart(input.value);
+        if (!input || !input.value.trim()) {
+            this.showError('Bitte ID eingeben.');
+            return;
+        }
+        const value = input.value.trim();
+        try {
+            await this.addToCart(value);
             input.value = '';
+        } catch (_err) {
+            // Input kept so user can correct / retry; errors already shown in addToCart
         }
     }
     
     async addToCart(qrCode) {
-        console.log('=== addToCart START ===', qrCode);
+        if (window.inventoryScanMode === 'return') {
+            try {
+                const response = await fetch('/inventory/api/return', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ checkout_number: qrCode, transaction_number: qrCode }),
+                });
+                let result = await response.json().catch(() => ({}));
+                if (!response.ok || result.error) {
+                    let productId = null;
+                    const m = String(qrCode).match(/PROD-?(\d+)/i);
+                    if (m) productId = parseInt(m[1], 10);
+                    else if (/^\d+$/.test(String(qrCode).trim())) productId = parseInt(qrCode, 10);
+                    if (productId) {
+                        const r2 = await fetch('/inventory/api/return', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ product_id: productId }),
+                        });
+                        result = await r2.json().catch(() => ({}));
+                        if (!r2.ok || result.error) throw new Error(result.error || 'Rückgabe fehlgeschlagen');
+                    } else {
+                        throw new Error(result.error || 'Rückgabe fehlgeschlagen');
+                    }
+                }
+                const resultEl = document.getElementById('returnScanResult');
+                const emailOk = result.return_email_sent !== false;
+                if (resultEl) {
+                    const count = result.returned_count ? ` (${Number(result.returned_count) || result.returned_count})` : '';
+                    if (emailOk) {
+                        this.setReturnScanResult(`Rückgabe OK${count}.`, 'success');
+                    } else {
+                        this.setReturnScanResult(`Rückgabe OK${count}, E-Mail fehlgeschlagen.`, 'warning');
+                    }
+                }
+                if (emailOk) {
+                    this.showSuccess('Rückgabe erfolgreich.');
+                } else {
+                    this.showError('Rückgabe registriert, Bestätigungs-E-Mail konnte nicht gesendet werden.');
+                }
+                return result;
+            } catch (error) {
+                this.setReturnScanResult(error.message || 'Fehler', 'danger');
+                this.showError(error.message || 'Rückgabe fehlgeschlagen');
+                throw error;
+            }
+        }
         try {
             const formData = new FormData();
             formData.append('action', 'add_to_cart');
             formData.append('qr_code', qrCode);
             
-            console.log('Sende Request an Server...');
             const response = await fetch('/inventory/borrow-scanner', {
                 method: 'POST',
                 body: formData
             });
             
-            console.log('Response erhalten, Status:', response.status);
             
             let result;
             try {
@@ -3041,19 +3545,28 @@ class BorrowScannerManager {
                 console.error('Server-Fehler:', errorMessage);
                 throw new Error(errorMessage);
             }
-            console.log('JSON Response:', result);
             
             if (result.success) {
-                console.log('=== SERVER ERFOLGREICH ===');
+
+                if (result.is_return) {
+                    const count = result.returned_count ? ` (${Number(result.returned_count) || result.returned_count})` : '';
+                    const checkoutNo = result.checkout_number ? `: ${result.checkout_number}` : '';
+                    const emailOk = result.return_email_sent !== false;
+                    if (emailOk) {
+                        this.setReturnScanResult(`Rückgabe OK${count}${checkoutNo}.`, 'success');
+                        this.showSuccess('Rückgabe erfolgreich.');
+                    } else {
+                        this.setReturnScanResult(`Rückgabe OK${count}${checkoutNo}, E-Mail fehlgeschlagen.`, 'warning');
+                        this.showError('Rückgabe registriert, Bestätigungs-E-Mail konnte nicht gesendet werden.');
+                    }
+                    return Promise.resolve(result);
+                }
                 
-                // Zeige Modal für Sets
+                // Alert für Sets (kein Modal)
                 if (result.is_set) {
                     this.showSetScannedModal(result);
                 }
                 
-                console.log('Produkt:', result.product);
-                console.log('Set:', result.set);
-                console.log('Cart Count:', result.cart_count);
                 
                 // Prüfe ob result.product vorhanden ist (für einzelne Produkte)
                 if (!result.is_set && !result.product) {
@@ -3066,10 +3579,11 @@ class BorrowScannerManager {
                 
                 // SOFORTIGE Aktualisierung - keine Verzögerung
                 this.updateCartFromJSON(result);
-                
+                this.registerAddAction(result);
+
                 // ensureCheckoutForm wird jetzt in updateCartFromJSON aufgerufen
                 
-                return Promise.resolve();
+                return Promise.resolve(result);
             } else {
                 // Zeige Fehlermeldung im UI
                 const errorMessage = result.error || 'QR Code Nicht erkannt';
@@ -3088,14 +3602,12 @@ class BorrowScannerManager {
     
     updateCartFromJSON(result) {
         // Schnelles Update mit JSON-Daten aus der addToCart-Response
-        console.log('=== updateCartFromJSON START ===', result);
         
         // Aktualisiere Cart-Count SOFORT
         const cartCount = document.getElementById('cartCount');
         if (cartCount) {
             if (result.cart_count !== undefined) {
                 cartCount.textContent = result.cart_count;
-                console.log('✓ Cart-Count aktualisiert:', result.cart_count);
             } else {
                 console.warn('⚠ cart_count nicht vorhanden');
             }
@@ -3113,7 +3625,6 @@ class BorrowScannerManager {
         
         // Wenn ein Set gescannt wurde, füge alle Produkte hinzu
         if (result.is_set && result.added_products && result.added_products.length > 0) {
-            console.log('Füge Set-Produkte hinzu:', result.added_products);
             
             // Verhindere, dass loadCheckoutForm den Warenkorb überschreibt
             cartItems.setAttribute('data-updating', 'true');
@@ -3122,43 +3633,28 @@ class BorrowScannerManager {
             const emptyMessage = cartItems.querySelector('p.text-muted');
             if (emptyMessage) {
                 emptyMessage.remove();
-                console.log('✓ Leere Nachricht entfernt');
             }
             
             // Füge alle Produkte des Sets hinzu
             result.added_products.forEach(product => {
+                if (!product.source_set && result.set) {
+                    product.source_set = {
+                        id: result.set.id,
+                        name: result.set.name,
+                        members: result.set.members || [],
+                    };
+                }
                 // Prüfe ob Produkt bereits vorhanden ist
                 const existingItem = cartItems.querySelector(`[data-product-id="${product.id}"]`);
                 if (existingItem) {
-                    console.log(`⚠ Produkt ${product.id} bereits vorhanden, überspringe`);
+                    // Ersetze durch Version mit Set-Badge
+                    const refreshed = this.buildCartItemElement(product);
+                    existingItem.replaceWith(refreshed);
                     return;
                 }
                 
-                // Erstelle neues Cart-Item
-                const newItem = document.createElement('div');
-                newItem.className = 'card mb-2 cart-item';
-                newItem.setAttribute('data-product-id', product.id);
-                
-                const categoryHtml = product.category 
-                    ? `<br><small class="text-muted">${this.escapeHtml(product.category)}</small>` 
-                    : '';
-                
-                newItem.innerHTML = `
-                    <div class="card-body p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${this.escapeHtml(product.name)}</strong>
-                                ${categoryHtml}
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="${product.id}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
+                const newItem = this.buildCartItemElement(product);
                 cartItems.appendChild(newItem);
-                console.log(`✓ Produkt ${product.id} zum DOM hinzugefügt`);
             });
             
             // Entferne Update-Markierung
@@ -3195,12 +3691,10 @@ class BorrowScannerManager {
             return;
         }
         
-        console.log('Füge Produkt hinzu:', result.product);
         
         // Prüfe ob Produkt bereits vorhanden ist
         const existingItem = cartItems.querySelector(`[data-product-id="${result.product.id}"]`);
         if (existingItem) {
-            console.log('⚠ Produkt bereits vorhanden, überspringe Hinzufügen');
             return;
         }
         
@@ -3212,34 +3706,10 @@ class BorrowScannerManager {
         const emptyMessage = cartItems.querySelector('p.text-muted');
         if (emptyMessage) {
             emptyMessage.remove();
-            console.log('✓ Leere Nachricht entfernt');
         }
         
-        // Erstelle neues Cart-Item
-        const newItem = document.createElement('div');
-        newItem.className = 'card mb-2 cart-item';
-        newItem.setAttribute('data-product-id', result.product.id);
-        
-        const categoryHtml = result.product.category 
-            ? `<br><small class="text-muted">${this.escapeHtml(result.product.category)}</small>` 
-            : '';
-        
-        newItem.innerHTML = `
-            <div class="card-body p-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${this.escapeHtml(result.product.name)}</strong>
-                        ${categoryHtml}
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="${result.product.id}">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        
+        const newItem = this.buildCartItemElement(result.product);
         cartItems.appendChild(newItem);
-        console.log('✓ Produkt zum DOM hinzugefügt');
         
         // Entferne Update-Markierung
         cartItems.removeAttribute('data-updating');
@@ -3260,25 +3730,14 @@ class BorrowScannerManager {
         // Prüfe ob Checkout-Formular benötigt wird
         this.ensureCheckoutForm(result.cart_count);
         
-        console.log('=== updateCartFromJSON FERTIG ===');
     }
     
     ensureCheckoutForm(cartCount) {
-        // Stelle sicher, dass das Checkout-Formular vorhanden ist, wenn Produkte im Warenkorb sind
         const checkoutForm = document.getElementById('checkoutForm');
-        if (!checkoutForm && cartCount > 0) {
-            // Warte bis updateCartFromJSON vollständig fertig ist
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const checkoutFormNow = document.getElementById('checkoutForm');
-                    if (!checkoutFormNow) {
-                        console.log('Lade Checkout-Formular für', cartCount, 'Produkte...');
-                        this.loadCheckoutForm().catch(err => {
-                            console.error('Checkout-Formular konnte nicht geladen werden:', err);
-                        });
-                    }
-                });
-            });
+        if (!checkoutForm) return;
+        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = !(cartCount > 0);
         }
     }
     
@@ -3288,14 +3747,12 @@ class BorrowScannerManager {
             // Prüfe ob Checkout-Formular bereits existiert
             const existingCheckoutForm = document.getElementById('checkoutForm');
             if (existingCheckoutForm) {
-                console.log('Checkout-Formular existiert bereits, überspringe Laden');
                 return;
             }
             
             // Prüfe ob gerade ein Update läuft - warte bis es fertig ist
             const cartItemsContainer = document.getElementById('cartItems');
             if (cartItemsContainer && cartItemsContainer.getAttribute('data-updating') === 'true') {
-                console.log('Warenkorb wird gerade aktualisiert, warte...');
                 // Warte länger und prüfe mehrfach
                 let attempts = 0;
                 const checkInterval = setInterval(() => {
@@ -3314,7 +3771,8 @@ class BorrowScannerManager {
             
             // WICHTIG: Erstelle das Checkout-Formular manuell statt die gesamte Seite zu laden
             // Das verhindert, dass der Warenkorb überschrieben wird
-            const cartCardBody = cartItemsContainer?.closest('.card-body');
+            const cartCardBody = cartItemsContainer?.closest('.inventory-panel-body')
+                || cartItemsContainer?.closest('.card-body');
             if (!cartCardBody) {
                 console.warn('cartCardBody nicht gefunden');
                 return;
@@ -3354,7 +3812,6 @@ class BorrowScannerManager {
                     const newOpt = opt.cloneNode(true);
                     borrowerSelect.appendChild(newOpt);
                 });
-                console.log('✓ Benutzer-Liste kopiert:', borrowerSelect.options.length, 'Optionen');
             } else {
                 // Fallback: Nur aktueller Benutzer
                 const opt = document.createElement('option');
@@ -3405,7 +3862,6 @@ class BorrowScannerManager {
             // Initialisiere Event-Listener für das neue Formular
             this.initCheckoutForm();
             this.setupCheckoutForm();
-            console.log('✓ Checkout-Formular erfolgreich hinzugefügt');
         } catch (error) {
             console.error('Fehler beim Laden des Checkout-Formulars:', error);
             // KEIN automatisches Reload - das würde den Warenkorb zurücksetzen
@@ -3426,117 +3882,95 @@ class BorrowScannerManager {
     }
     
     showSetScannedModal(result) {
-        // Zeige Modal mit Set-Informationen
-        const modal = document.getElementById('setScannedModal');
-        if (!modal) {
-            console.warn('Set-Modal nicht gefunden, zeige Inline-Feedback');
-            this.showSuccess(`Set "${result.set.name}" verarbeitet: ${result.added_products.length} Produkt(e) hinzugefuegt.`);
+        // Alert statt Modal — Workflow nicht unterbrechen
+        const setName = result?.set?.name || 'Set';
+        const added = Array.isArray(result.added_products) ? result.added_products : [];
+        const unavailable = Array.isArray(result.unavailable_products) ? result.unavailable_products : [];
+
+        const details = added.map((product) => {
+            if (product.was_in_cart) {
+                return `${product.name}: bereits im Warenkorb`;
+            }
+            if (product.added > 0) {
+                return `${product.name}: ${product.added} hinzugefügt`;
+            }
+            return `${product.name}: nicht verfügbar`;
+        });
+
+        let message = `Set "${setName}" gescannt`;
+        if (details.length > 0) {
+            message += ` — ${details.join('; ')}`;
+        } else {
+            message += ' — keine Produkte hinzugefügt';
+        }
+
+        if (unavailable.length > 0) {
+            const names = unavailable.map((p) => {
+                const status = p.status === 'borrowed' ? 'ausgeliehen' : 'fehlend';
+                return `${p.name} (${status})`;
+            }).join(', ');
+            message += `. Nicht hinzugefügt: ${names}`;
+            this.showSetScanAlert(message, 'warning');
             return;
         }
-        
-        // Setze Set-Namen
-        const setNameEl = document.getElementById('setScannedName');
-        if (setNameEl) {
-            setNameEl.textContent = result.set.name;
+
+        this.showSetScanAlert(message, 'success');
+    }
+
+    showSetScanAlert(message, level) {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.className = `alert alert-${level} mt-2`;
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => this.hideError(), 5000);
         }
-        
-        // Fülle Produkt-Liste
-        const productsList = document.getElementById('setScannedProducts');
-        if (productsList) {
-            productsList.innerHTML = '';
-            
-            if (result.added_products && result.added_products.length > 0) {
-                result.added_products.forEach(product => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    
-                    const productInfo = document.createElement('div');
-                    let productText = `<strong>${this.escapeHtml(product.name)}</strong>`;
-                    if (product.category) {
-                        productText += ` <span class="text-muted">(${this.escapeHtml(product.category)})</span>`;
-                    }
-                    // Zeige Menge wenn vorhanden und > 1
-                    if (product.quantity && product.quantity > 1) {
-                        productText += ` <span class="badge bg-info">x${product.quantity}</span>`;
-                    }
-                    productInfo.innerHTML = productText;
-                    
-                    const badge = document.createElement('span');
-                    if (product.was_in_cart) {
-                        badge.className = 'badge bg-info';
-                        badge.innerHTML = `<i class="bi bi-info-circle"></i> Bereits im Warenkorb`;
-                    } else if (product.added > 0) {
-                        badge.className = 'badge bg-success';
-                        badge.innerHTML = `<i class="bi bi-check-circle"></i> ${product.added} hinzugefügt`;
-                    } else {
-                        badge.className = 'badge bg-secondary';
-                        badge.innerHTML = `<i class="bi bi-dash-circle"></i> Nicht verfügbar`;
-                    }
-                    
-                    listItem.appendChild(productInfo);
-                    listItem.appendChild(badge);
-                    productsList.appendChild(listItem);
-                });
-            } else {
-                const emptyItem = document.createElement('li');
-                emptyItem.className = 'list-group-item text-muted';
-                emptyItem.textContent = 'Keine Produkte hinzugefügt';
-                productsList.appendChild(emptyItem);
-            }
+        const feedback = document.getElementById('scannerFeedback');
+        if (feedback) {
+            feedback.className = `alert alert-${level} mt-2`;
+            feedback.textContent = message;
+            feedback.classList.remove('d-none');
+            setTimeout(() => feedback.classList.add('d-none'), 5000);
         }
-        
-        // Zeige nicht verfügbare Produkte
-        const unavailableDiv = document.getElementById('setScannedUnavailable');
-        const unavailableList = document.getElementById('setScannedUnavailableList');
-        if (unavailableDiv && unavailableList) {
-            if (result.unavailable_products && result.unavailable_products.length > 0) {
-                unavailableList.innerHTML = '';
-                result.unavailable_products.forEach(product => {
-                    const listItem = document.createElement('li');
-                    listItem.innerHTML = `<strong>${this.escapeHtml(product.name)}</strong> <span class="text-muted">(${product.status === 'borrowed' ? 'Ausgeliehen' : 'Fehlend'})</span>`;
-                    unavailableList.appendChild(listItem);
-                });
-                unavailableDiv.style.display = 'block';
-            } else {
-                unavailableDiv.style.display = 'none';
-            }
-        }
-        
-        // Zeige Modal
-        const bsModal = new bootstrap.Modal(modal);
-        bsModal.show();
     }
     
     escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    setReturnScanResult(message, level = 'success') {
+        const resultEl = document.getElementById('returnScanResult');
+        if (!resultEl) return;
+        resultEl.replaceChildren();
+        const alert = document.createElement('div');
+        const tone = level === 'danger' ? 'danger' : (level === 'warning' ? 'warning' : 'success');
+        alert.className = `alert alert-${tone} mb-0`;
+        alert.textContent = message == null ? '' : String(message);
+        resultEl.appendChild(alert);
     }
     
     async updateCartDisplay() {
         // Lade Warenkorb-Daten und aktualisiere die Anzeige
         // WICHTIG: Diese Funktion sollte NUR verwendet werden wenn der Warenkorb leer ist
         // oder wenn explizit eine vollständige Aktualisierung benötigt wird
-        console.log('updateCartDisplay() aufgerufen');
         
         // Prüfe ob bereits Produkte im Warenkorb sind - wenn ja, überspringe
         const currentCartItems = document.getElementById('cartItems');
         if (currentCartItems) {
             const existingProducts = currentCartItems.querySelectorAll('.cart-item[data-product-id]');
             if (existingProducts.length > 0) {
-                console.log('⚠ updateCartDisplay() übersprungen - Warenkorb enthält bereits Produkte');
                 return;
             }
         }
         try {
-            console.log('Lade Warenkorb-Daten...');
             const response = await fetch('/inventory/borrow-scanner');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
             const html = await response.text();
-            console.log('HTML geladen, Länge:', html.length);
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
@@ -3545,12 +3979,6 @@ class BorrowScannerManager {
             const newCartCount = doc.querySelector('#cartCount');
             const newCheckoutForm = doc.querySelector('#checkoutForm');
             
-            console.log('Gefundene Elemente:', {
-                newCartItems: !!newCartItems,
-                newCartCount: !!newCartCount,
-                newCheckoutForm: !!newCheckoutForm
-            });
-            
             // Aktualisiere cartItems NUR wenn keine Produkte vorhanden sind
             // Verhindere Überschreibung wenn bereits Produkte im Warenkorb sind
             const currentCartItems = document.getElementById('cartItems');
@@ -3558,13 +3986,10 @@ class BorrowScannerManager {
                 // Prüfe ob bereits Produkte im Warenkorb sind
                 const existingProducts = currentCartItems.querySelectorAll('.cart-item[data-product-id]');
                 if (existingProducts.length > 0) {
-                    console.log('⚠ Warenkorb enthält bereits Produkte, überspringe Überschreibung');
                     // Aktualisiere nur den Cart-Count, nicht die Items
                 } else {
-                    console.log('Aktualisiere cartItems...');
                     const oldContent = currentCartItems.innerHTML;
                     currentCartItems.innerHTML = newCartItems.innerHTML;
-                    console.log('cartItems aktualisiert. Alt:', oldContent.substring(0, 50), 'Neu:', currentCartItems.innerHTML.substring(0, 50));
                 }
             } else {
                 console.warn('cartItems nicht gefunden:', { newCartItems: !!newCartItems, currentCartItems: !!currentCartItems });
@@ -3578,9 +4003,7 @@ class BorrowScannerManager {
                 if (existingProducts > 0) {
                     // Verwende die Anzahl der vorhandenen Produkte
                     currentCartCount.textContent = existingProducts;
-                    console.log('⚠ Cart-Count basiert auf vorhandenen Produkten:', existingProducts);
                 } else if (newCartCount) {
-                    console.log('Aktualisiere cartCount von', currentCartCount.textContent, 'zu', newCartCount.textContent);
                     currentCartCount.textContent = newCartCount.textContent;
                 }
             } else {
@@ -3625,7 +4048,6 @@ class BorrowScannerManager {
             // Remove-from-cart Buttons neu setzen (alte Event-Listener entfernen und neue hinzufügen)
             // Entferne alle alten Event-Listener durch Klonen der Elemente
             const removeButtons = document.querySelectorAll('.remove-from-cart');
-            console.log('Gefundene remove-from-cart Buttons:', removeButtons.length);
             removeButtons.forEach(btn => {
                 const newBtn = btn.cloneNode(true);
                 btn.parentNode.replaceChild(newBtn, btn);
@@ -3641,7 +4063,6 @@ class BorrowScannerManager {
                 });
             });
             
-            console.log('Warenkorb erfolgreich aktualisiert');
         } catch (error) {
             console.error('Fehler beim Aktualisieren des Warenkorbs:', error);
             console.error('Error Details:', error.message, error.stack);
@@ -3652,49 +4073,96 @@ class BorrowScannerManager {
     
     setupCheckoutForm() {
         const checkoutForm = document.getElementById('checkoutForm');
-        if (checkoutForm) {
-            const dateInput = document.getElementById('expected_return_date');
-            if (dateInput) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                dateInput.min = tomorrow.toISOString().split('T')[0];
+        if (!checkoutForm) return;
+
+        const dateInput = document.getElementById('expected_return_date');
+        if (dateInput) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.min = tomorrow.toISOString().split('T')[0];
+        }
+
+        // Avoid stacking submit handlers on repeated cart updates / init
+        if (checkoutForm.dataset.checkoutBound === '1') return;
+        checkoutForm.dataset.checkoutBound = '1';
+
+        checkoutForm.addEventListener('submit', (e) => this.handleCheckoutSubmit(e, checkoutForm));
+    }
+
+    async handleCheckoutSubmit(e, checkoutForm) {
+        e.preventDefault();
+        if (!checkoutForm || checkoutForm.dataset.checkoutSubmitting === '1') return;
+
+        const borrowerInput = document.getElementById('borrower_name');
+        const borrowerIdInput = document.getElementById('borrower_id');
+        const emailInput = document.getElementById('contact_email');
+        const eventNameInput = document.getElementById('event_name');
+        const endInput = document.getElementById('end_date');
+
+        if (borrowerInput && !borrowerInput.value.trim()) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Verantwortlichen angeben.', 'warning');
+            else this.showError?.('Bitte Verantwortlichen angeben.');
+            return;
+        }
+        if (borrowerIdInput && emailInput && !borrowerIdInput.value && !emailInput.value.trim()) {
+            if (window.showAppBanner) {
+                window.showAppBanner('Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).', 'warning');
+            } else {
+                this.showError?.('Bitte Kontakt-E-Mail angeben.');
             }
-            
-            checkoutForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const formData = new FormData(checkoutForm);
-                
-                // Deaktiviere Button während des Requests
-                const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-                const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
-                }
-                
-                try {
-                    const response = await fetch(checkoutForm.action, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    // Die Checkout-Route gibt immer einen Redirect zurück (302)
-                    // Daher ist response.ok möglicherweise false, aber die Ausleihe war erfolgreich
-                    // Wir leiten zum Dashboard weiter - die Flash-Messages werden serverseitig gesetzt
-                    window.location.href = '/inventory/';
-                    
-                } catch (error) {
-                    console.error('Fehler beim Checkout:', error);
-                    // Bei Netzwerkfehlern Button wieder aktivieren
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                    }
-                    // Trotzdem weiterleiten - könnte erfolgreich gewesen sein
-                    // Die Flash-Message wird serverseitig gesetzt
-                    window.location.href = '/inventory/borrow-scanner';
-                }
+            emailInput.focus();
+            return;
+        }
+        // Quick Scan: Projekt + Rückgabe-bis sind optional (kein required-Attribut).
+        // Standard-Checkout: Felder mit required bleiben Pflicht.
+        if (eventNameInput && eventNameInput.required && !eventNameInput.value.trim()) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Projekt / Veranstaltung angeben.', 'warning');
+            else this.showError?.('Bitte Projekt / Veranstaltung angeben.');
+            return;
+        }
+        if (endInput && endInput.required && !endInput.value) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Rückgabe-Zeitraum (Bis) angeben.', 'warning');
+            else this.showError?.('Bitte Rückgabe-Zeitraum (Bis) angeben.');
+            return;
+        }
+
+        const formData = new FormData(checkoutForm);
+        ['event_name', 'borrower_name', 'borrower_id', 'contact_email', 'start_date', 'end_date', 'event_id', 'event_appointment_id'].forEach((name) => {
+            const el = document.getElementById(name);
+            if (!el) return;
+            if (name === 'contact_email' && el.disabled) {
+                formData.delete('contact_email');
+                return;
+            }
+            if (!formData.has(name)) formData.set(name, el.value);
+        });
+
+        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+        checkoutForm.dataset.checkoutSubmitting = '1';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
+        }
+
+        try {
+            const response = await fetch(checkoutForm.action, {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow',
             });
+            if (!response.ok) throw new Error('Checkout fehlgeschlagen');
+            this.showSuccess?.('Ausleihe erstellt. Weiterleitung...');
+            window.setTimeout(() => { window.location.href = '/inventory/borrows'; }, 600);
+        } catch (error) {
+            console.error('Fehler beim Checkout:', error);
+            if (window.showAppBanner) window.showAppBanner('Fehler beim Erstellen der Ausleihe.', 'danger');
+            else this.showError?.('Fehler beim Erstellen der Ausleihe.');
+            delete checkoutForm.dataset.checkoutSubmitting;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
         }
     }
     
@@ -3802,7 +4270,6 @@ class BorrowScannerManager {
                     const productItem = cartItems.querySelector(`[data-product-id="${productId}"]`);
                     if (productItem) {
                         productItem.remove();
-                        console.log('✓ Produkt aus DOM entfernt');
                     }
                 }
                 
@@ -3826,7 +4293,7 @@ class BorrowScannerManager {
                     // Zeige "Keine Produkte" Nachricht
                     const cartItems = document.getElementById('cartItems');
                     if (cartItems && cartItems.querySelectorAll('.cart-item').length === 0) {
-                        cartItems.innerHTML = '<p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>';
+                        cartItems.innerHTML = '<p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>';
                     }
                 }
                 if (removedSnapshot) {
@@ -3960,7 +4427,11 @@ let borrowScannerManager;
 
 // Markiere Produkt als gefunden (Status: available)
 async function markAsFound(productId) {
-    if (!confirm('Möchten Sie dieses Produkt als gefunden markieren?')) {
+    if (!(await inventoryConfirm('Möchten Sie dieses Produkt als gefunden markieren?', {
+        title: 'Als gefunden markieren',
+        confirmLabel: 'Markieren',
+        danger: false,
+    }))) {
         return;
     }
     
@@ -3975,20 +4446,24 @@ async function markAsFound(productId) {
         
         const result = await response.json();
         if (response.ok) {
-            alert('Produkt wurde als gefunden markiert.');
+            inventoryNotify('Produkt wurde als gefunden markiert.', 'success');
             window.location.reload();
         } else {
-            alert('Fehler beim Aktualisieren des Status.');
+            inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
         }
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Aktualisieren des Status.');
+        inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
     }
 }
 
 // Markiere Produkt als fehlend (Status: missing)
 async function markAsMissing(productId) {
-    if (!confirm('Möchten Sie dieses Produkt als fehlend markieren?')) {
+    if (!(await inventoryConfirm('Möchten Sie dieses Produkt als fehlend markieren?', {
+        title: 'Als fehlend markieren',
+        confirmLabel: 'Markieren',
+        danger: true,
+    }))) {
         return;
     }
     
@@ -4003,14 +4478,14 @@ async function markAsMissing(productId) {
         
         const result = await response.json();
         if (response.ok) {
-            alert('Produkt wurde als fehlend markiert.');
+            inventoryNotify('Produkt wurde als fehlend markiert.', 'success');
             window.location.reload();
         } else {
-            alert('Fehler beim Aktualisieren des Status.');
+            inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
         }
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Aktualisieren des Status.');
+        inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
     }
 }
 

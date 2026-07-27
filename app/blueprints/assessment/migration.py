@@ -1,5 +1,7 @@
 """Idempotente Schema- und Datenmigration für das Bewertungsmodul."""
 
+import re
+
 from sqlalchemy import inspect, text
 
 from app import db
@@ -21,12 +23,15 @@ def _column_names(inspector, table):
 
 
 def _add_column(connection, dialect, table, column, col_type_mysql, col_type_sqlite=None):
-    sqlite_type = col_type_sqlite or col_type_mysql
+    _validate_sql_identifier(table)
+    _validate_sql_identifier(column)
     col_def = col_type_sqlite if dialect == "sqlite" else col_type_mysql
     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
 
 
 def _drop_index_if_exists(connection, dialect, table, index_name):
+    _validate_sql_identifier(table)
+    _validate_sql_identifier(index_name)
     try:
         if dialect == "sqlite":
             connection.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
@@ -38,12 +43,23 @@ def _drop_index_if_exists(connection, dialect, table, index_name):
 
 def _drop_legacy_floor_plan_tables(connection, inspector):
     for table in ("ass_floor_plan_objects", "ass_floor_plans"):
+        _validate_sql_identifier(table)
         if table in inspector.get_table_names():
             try:
                 connection.execute(text(f"DROP TABLE {table}"))
                 print(f"[OK] Legacy-Tabelle {table} entfernt")
             except Exception as exc:
                 print(f"[WARNUNG] {table} konnte nicht gelöscht werden: {exc}")
+
+
+def _validate_sql_identifier(identifier):
+    """
+    Enforce safe SQL identifiers for dynamic DDL snippets.
+    Allows only [A-Za-z0-9_] and leading letter/underscore.
+    """
+    value = (identifier or "").strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        raise ValueError(f"Unsafe SQL identifier: {identifier!r}")
 
 
 def run_assessment_migrations():
@@ -97,6 +113,54 @@ def run_assessment_migrations():
         with db.engine.begin() as connection:
             _drop_index_if_exists(connection, dialect, "ass_visitor_evaluations", "uq_ass_visitor_stand")
 
+    # Verwarnungen sind listenunabhängig → list_id darf NULL sein
+    if "ass_warnings" in tables:
+        with db.engine.begin() as connection:
+            if dialect == "mysql":
+                try:
+                    connection.execute(text("ALTER TABLE ass_warnings MODIFY list_id INT NULL"))
+                except Exception:
+                    pass
+            elif dialect == "sqlite":
+                # SQLite: bestehende NOT-NULL-Constraint bleibt oft; neue Inserts mit NULL funktionieren
+                # wenn Spalte schon NULL angelegt wurde. Kein Table-Rebuild nötig für den Normalfall.
+                pass
+
+    # User ↔ Listen-Zuordnung
+    inspector = inspect(db.engine)
+    tables = set(inspector.get_table_names())
+    if "ass_user_lists" not in tables and "ass_users" in tables and "ass_lists" in tables:
+        with db.engine.begin() as connection:
+            if dialect == "sqlite":
+                connection.execute(text(
+                    """
+                    CREATE TABLE ass_user_lists (
+                        user_id INTEGER NOT NULL,
+                        list_id INTEGER NOT NULL,
+                        created_at DATETIME,
+                        PRIMARY KEY (user_id, list_id),
+                        FOREIGN KEY(user_id) REFERENCES ass_users (id) ON DELETE CASCADE,
+                        FOREIGN KEY(list_id) REFERENCES ass_lists (id) ON DELETE CASCADE
+                    )
+                    """
+                ))
+            else:
+                connection.execute(text(
+                    """
+                    CREATE TABLE ass_user_lists (
+                        user_id INT NOT NULL,
+                        list_id INT NOT NULL,
+                        created_at DATETIME NULL,
+                        PRIMARY KEY (user_id, list_id),
+                        CONSTRAINT fk_ass_user_lists_user
+                            FOREIGN KEY (user_id) REFERENCES ass_users (id) ON DELETE CASCADE,
+                        CONSTRAINT fk_ass_user_lists_list
+                            FOREIGN KEY (list_id) REFERENCES ass_lists (id) ON DELETE CASCADE
+                    )
+                    """
+                ))
+            print("[OK] Tabelle ass_user_lists angelegt")
+
     _migrate_default_data()
 
 
@@ -147,7 +211,6 @@ def _migrate_default_data():
     for visitor in AssessmentVisitorEvaluation.query.filter(AssessmentVisitorEvaluation.list_id.is_(None)).all():
         visitor.list_id = default_list.id
 
-    for warning in AssessmentWarning.query.filter(AssessmentWarning.list_id.is_(None)).all():
-        warning.list_id = default_list.id
+    # Verwarnungen bewusst listenunabhängig — fehlende list_id nicht mehr befüllen
 
     db.session.commit()

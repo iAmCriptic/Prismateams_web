@@ -1,14 +1,17 @@
+{% set force_light_theme = true %}
 {% extends "base.html" %}
 
 {% block title %}{{ _('auth.confirm_email.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
+<div class="auth-container auth-login auth-confirm-email">
     <div class="auth-card">
-        <div class="card">
-            <div class="card-body p-4">
+        <div class="auth-panel">
+            <div class="auth-panel-body">
                 <h1 class="text-center mb-4">
-                    {% if app_logo %}
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% elif app_logo %}
                     <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
                     {% else %}
                     <i class="bi bi-envelope-check text-primary"></i>
@@ -16,91 +19,84 @@
                     {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-2">{{ _('auth.confirm_email.title') }}</h5>
-                <p class="text-center text-muted mb-4">{{ _('auth.confirm_email.subtitle') }}</p>
-                
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>{{ _('auth.confirm_email.info_title') }}:</strong> {{ _('auth.confirm_email.info_message') }}
+                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.confirm_email.subtitle') }}</p>
+
+                <div class="alert portal-msg portal-msg--info alert-permanent mb-4" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-info-circle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.info_title') }}</h6>
+                            <p class="portal-msg__text">{{ _('auth.confirm_email.info_message') }}</p>
+                        </div>
+                    </div>
                 </div>
-                
-                <form method="POST">
+
+                <form method="POST" id="confirmEmailForm">
                     <div class="mb-3">
                         <label for="confirmation_code" class="form-label">{{ _('auth.confirm_email.code') }}</label>
-                        <input type="text" class="form-control text-center" id="confirmation_code" name="confirmation_code" 
-                               placeholder="123456" maxlength="6" pattern="[0-9]{6}" required autofocus>
+                        <input type="text"
+                               class="form-control text-center auth-code-input"
+                               id="confirmation_code"
+                               name="confirmation_code"
+                               inputmode="numeric"
+                               autocomplete="one-time-code"
+                               placeholder="••••••"
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               required
+                               autofocus>
                         <div class="form-text">{{ _('auth.confirm_email.code_help') }}</div>
                     </div>
-                    
-                    <button type="submit" class="btn btn-accent w-100 mb-3">
-                        <i class="bi bi-check-circle me-2"></i>
+
+                    <button type="submit" class="btn btn-accent w-100 mb-3" id="confirmEmailSubmit">
+                        <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
                         {{ _('auth.confirm_email.submit') }}
                     </button>
                 </form>
-                
-                <div class="text-center">
-                    <p class="mb-2">{{ _('auth.confirm_email.no_email') }}</p>
-                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-arrow-clockwise me-2"></i>
+
+                <div class="text-center mb-3">
+                    <p class="mb-2 text-muted">{{ _('auth.confirm_email.no_email') }}</p>
+                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise me-2" aria-hidden="true"></i>
                         {{ _('auth.confirm_email.resend_button') }}
                     </a>
                 </div>
-                
+
                 <hr class="my-4">
-                
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>{{ _('auth.confirm_email.warning_title') }}:</strong> {{ _('auth.confirm_email.warning_message') }}
+
+                <div class="alert portal-msg portal-msg--warning alert-permanent mb-0" role="note">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.warning_title') }}</h6>
+                            <p class="portal-msg__text">{{ _('auth.confirm_email.warning_message') }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+{% include 'auth/_auth_bg.html' %}
+
 <script>
-// Auto-format input to show only numbers
-document.getElementById('confirmation_code').addEventListener('input', function(e) {
-    // Remove any non-numeric characters
-    this.value = this.value.replace(/[^0-9]/g, '');
-    
-    // Limit to 6 digits
-    if (this.value.length > 6) {
-        this.value = this.value.slice(0, 6);
-    }
-});
+(function () {
+    var input = document.getElementById('confirmation_code');
+    if (!input) return;
 
-// Auto-submit when 6 digits are entered
-document.getElementById('confirmation_code').addEventListener('input', function(e) {
-    if (this.value.length === 6) {
-        // Small delay to show the complete code
-        setTimeout(() => {
-            this.form.submit();
-        }, 500);
-    }
-});
-
-// Farbverlauf-Vorschau für Auth-Seiten
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    const container = document.querySelector('.auth-container');
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = '{{ color_gradient }}';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% endif %}
-});
+    input.addEventListener('input', function () {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        if (this.value.length === 6) {
+            setTimeout(function () {
+                input.form.submit();
+            }, 350);
+        }
+    });
+})();
 </script>
 {% endblock %}
-

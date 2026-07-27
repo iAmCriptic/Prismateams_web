@@ -1,0 +1,117 @@
+{% macro wiki_sidebar_tools(id_suffix='') %}
+{% set has_filter_state = selected_category or selected_tag %}
+<div class="mod-sidebar-tools">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-sort-alpha-down me-1"></i>{{ _('wiki.index.sort.menu_button') }}
+        </div>
+        <form method="GET" action="{{ url_for('wiki.index') }}" class="mod-sidebar-form d-grid gap-2">
+            {% if favorites_only or active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+            <input type="hidden" name="q" value="{{ search_query }}">
+            {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+            {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
+            <div>
+                <label for="wiki-sort-field{{ id_suffix }}" class="form-label mb-1">{{ _('wiki.index.sort.field') }}</label>
+                <select id="wiki-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort">
+                    <option value="updated" {% if sort_by == 'updated' %}selected{% endif %}>{{ _('wiki.index.search.sort.updated') }}</option>
+                    <option value="created" {% if sort_by == 'created' %}selected{% endif %}>{{ _('wiki.index.search.sort.created') }}</option>
+                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>{{ _('wiki.index.search.sort.title') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="wiki-sort-dir{{ id_suffix }}" class="form-label mb-1">{{ _('wiki.index.sort.direction') }}</label>
+                <select id="wiki-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir">
+                    <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>{{ _('wiki.index.sort.directions.asc') }}</option>
+                    <option value="desc" {% if sort_dir == 'desc' %}selected{% endif %}>{{ _('wiki.index.sort.directions.desc') }}</option>
+                </select>
+            </div>
+            <button type="submit" class="btn mod-sidebar-action w-100">
+                <i class="bi bi-check2"></i>
+                <span>{{ _('wiki.index.sort.apply') }}</span>
+            </button>
+        </form>
+    </div>
+
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-funnel me-1"></i>{{ _('wiki.index.filters.menu_button') }}
+        </div>
+        <form method="GET" action="{{ url_for('wiki.index') }}" class="mod-sidebar-form d-grid gap-2">
+            {% if favorites_only or active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+            <input type="hidden" name="q" value="{{ search_query }}">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            <div>
+                <label for="wiki-filter-category{{ id_suffix }}" class="form-label mb-1">{{ _('wiki.index.filters.category') }}</label>
+                <select id="wiki-filter-category{{ id_suffix }}" class="form-select form-select-sm" name="category">
+                    <option value="">{{ _('wiki.index.search.category_all') }}</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="wiki-filter-tag{{ id_suffix }}" class="form-label mb-1">{{ _('wiki.index.filters.tag') }}</label>
+                <select id="wiki-filter-tag{{ id_suffix }}" class="form-select form-select-sm" name="tag">
+                    <option value="">{{ _('wiki.index.search.tag_all') }}</option>
+                    {% for tag in tags %}
+                    <option value="{{ tag.id }}" {% if selected_tag == tag.id %}selected{% endif %}>
+                        {{ tag.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="submit" class="btn mod-sidebar-action flex-grow-1">
+                    <i class="bi bi-check2"></i>
+                    <span>{{ _('wiki.index.filters.apply') }}</span>
+                </button>
+                {% if has_filter_state %}
+                {% if favorites_only or active_favorites %}
+                <a href="{{ url_for('wiki.index', q=search_query or none, sort=sort_by, dir=sort_dir, view='favorites') }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
+                {% else %}
+                <a href="{{ url_for('wiki.index', q=search_query or none, sort=sort_by, dir=sort_dir) }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
+                {% endif %}
+                    <i class="bi bi-x-lg"></i>
+                    <span>{{ _('wiki.index.search.reset') }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro wiki_folder_nav(dismiss_offcanvas=false) %}
+{% set active_favorites = active_favorites|default(favorites_only|default(false)) %}
+{% set show_favorites_nav = show_favorites_nav|default(false) %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if not active_favorites %}active{% endif %}"
+       href="{{ url_for('wiki.index', q=search_query or none, sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none) }}"
+       {% if dismiss_offcanvas %}data-wiki-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-journal-text me-2"></i>{{ _('wiki.index.folders.all') }}
+    </a>
+    {% if show_favorites_nav %}
+    <a class="nav-link mod-nav-link {% if active_favorites %}active{% endif %}"
+       href="{{ url_for('wiki.index', view='favorites', q=search_query or none, sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none) }}"
+       data-wiki-favorites-nav
+       {% if dismiss_offcanvas %}data-wiki-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-star-fill me-2"></i>{{ _('wiki.index.folders.favorites') }}
+    </a>
+    {% endif %}
+</nav>
+{% endmacro %}
+
+{% macro wiki_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
+{% if include_new %}
+<div class="mod-sidebar-new-wrap w-100">
+    <a href="{{ url_for('wiki.create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-wiki-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-lg me-2"></i>{{ _('wiki.index.new_button') }}
+    </a>
+</div>
+{% endif %}
+{{ wiki_folder_nav(dismiss_offcanvas) }}
+{{ wiki_sidebar_tools(id_suffix) }}
+{% endmacro %}

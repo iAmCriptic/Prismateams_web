@@ -3,159 +3,291 @@
 {% block title %}{{ _('chat.create.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">{{ _('chat.create.breadcrumb.index') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('chat.create.breadcrumb.current') }}</li>
-            </ol>
-        </nav>
-        
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('chat.create.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" id="chat-create-form">
-                    <div class="mb-3">
-                        <label class="form-label">{{ _('chat.create.form.chat_type.label') }}</label>
-                        <div class="btn-group w-100" role="group" aria-label="{{ _('chat.create.form.chat_type.label') }}">
-                            <input type="radio" class="btn-check" name="chat_type" id="chat_type_group" value="group" checked>
-                            <label class="btn btn-outline-primary" for="chat_type_group">
-                                <i class="bi bi-people-fill me-2"></i>{{ _('chat.create.form.chat_type.group') }}
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="chat_type" id="chat_type_private" value="private">
-                            <label class="btn btn-outline-primary" for="chat_type_private">
-                                <i class="bi bi-person-fill me-2"></i>{{ _('chat.create.form.chat_type.private') }}
-                            </label>
+{% set nav_items = nav_items|default([]) %}
+{% set active_chat_id = active_chat_id|default(none) %}
+
+<div class="chat-shell mod-shell--nav chat-shell--create{% if group_step %} chat-shell--create-group{% endif %}">
+<aside class="mod-sidebar chat-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+        <span>{{ _('chat.index.heading') }}</span>
+    </div>
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ url_for('chat.create_chat') }}" class="btn mod-sidebar-new w-100 text-start{% if not group_step %} active{% endif %}">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
+        </a>
+    </div>
+    <div class="mod-sidebar-nav chat-sidebar-nav flex-grow-1 min-width-0">
+    {% include 'chat/_chat_nav.html' %}
+    </div>
+</aside>
+
+<div class="mod-main chat-main chat-create-main flex-grow-1 min-width-0">
+<div class="chat-create{% if group_step %} chat-create--group{% endif %}">
+    {% if group_step %}
+    <div class="chat-create-header">
+        <a href="{{ url_for('chat.create_chat') }}" class="chat-create-back">
+            <i class="bi bi-arrow-left"></i>
+            <span>{{ _('chat.create.back_to_members') }}</span>
+        </a>
+        <h1 class="chat-create-title">{{ _('chat.create.group_step_heading') }}</h1>
+        <p class="chat-create-subtitle">{{ _('chat.create.group_step_hint') }}</p>
+    </div>
+
+    <form method="POST" id="chat-create-form" class="chat-create-form chat-create-form--group" enctype="multipart/form-data">
+        <input type="hidden" name="chat_type" value="group">
+
+        <div class="chat-create-group-layout">
+            <aside class="chat-create-group-meta" aria-label="{{ _('chat.create.group_step_heading') }}">
+                <div class="chat-create-group-meta-card">
+                    <div class="chat-create-avatar-block">
+                        <div class="chat-create-avatar-preview" id="avatar-preview" aria-hidden="true">
+                            <i class="bi bi-people-fill" id="avatar-preview-icon"></i>
+                            <img id="avatar-preview-img" src="" alt="" class="d-none">
+                        </div>
+                        <div class="chat-create-avatar-fields">
+                            <label for="avatar" class="form-label">{{ _('chat.create.avatar.label') }}</label>
+                            <input type="file" class="form-control chat-create-input" id="avatar" name="avatar" accept="image/*">
+                            <small class="text-muted">{{ _('chat.create.avatar.help') }}</small>
                         </div>
                     </div>
-                    
-                    <div class="mb-3" id="chat-name-group">
-                        <label for="name" class="form-label">{{ _('chat.create.form.chat_name.label') }}</label>
-                        <input type="text" class="form-control" id="name" name="name" placeholder="{{ _('chat.create.form.chat_name.placeholder') }}">
-                    </div>
-                    
+
                     <div class="mb-3">
-                        <label class="form-label" id="members-label">{{ _('chat.create.form.members.label') }}</label>
-                        <div class="list-group" style="max-height: 300px; overflow-y: auto;" id="members-list">
-                            {% for user in users %}
-                            {% if user.id != current_user.id %}
-                            <label class="list-group-item">
-                                <input class="form-check-input me-2 member-checkbox" type="checkbox" name="members" value="{{ user.id }}">
+                        <label for="name" class="form-label">{{ _('chat.create.form.chat_name.label') }}</label>
+                        <input type="text" class="form-control chat-create-input" id="name" name="name" required
+                               placeholder="{{ _('chat.create.form.chat_name.placeholder') }}" autocomplete="off">
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="description" class="form-label">{{ _('chat.create.form.description.label') }}</label>
+                        <textarea class="form-control chat-create-input chat-create-textarea" id="description" name="description"
+                                  rows="4" maxlength="1500"
+                                  placeholder="{{ _('chat.create.form.description.placeholder') }}"></textarea>
+                        <small class="text-muted">{{ _('chat.create.form.description.help') }}</small>
+                    </div>
+
+                    <div class="chat-create-actions chat-create-actions--meta">
+                        <button type="submit" class="btn btn-accent chat-create-submit" id="submit-btn">
+                            {{ _('chat.create.form.buttons.create_group') }}
+                        </button>
+                        <a href="{{ url_for('chat.create_chat') }}" class="btn chat-create-cancel">
+                            {{ _('chat.create.form.buttons.cancel') }}
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="chat-create-group-members" aria-label="{{ _('chat.create.form.members.label') }}">
+                <h2 class="chat-create-section-title">{{ _('chat.create.form.members.label') }}</h2>
+                <p class="chat-create-section-hint">{{ _('chat.create.form.members.help') }}</p>
+                <div class="chat-create-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" class="form-control chat-create-input" id="member-search"
+                           placeholder="{{ _('chat.create.search.placeholder') }}"
+                           autocomplete="off" enterkeyhint="search">
+                </div>
+                <div class="chat-create-member-list" id="members-list" data-member-filter-list>
+                    {% for user in users %}
+                    {% if user.id != current_user.id %}
+                    <label class="chat-create-member chat-create-member--selectable"
+                           data-member-filter
+                           data-search="{{ (user.full_name ~ ' ' ~ user.email)|lower }}">
+                        <input class="form-check-input member-checkbox" type="checkbox" name="members" value="{{ user.id }}">
+                        <span class="chat-create-member-avatar">
+                            {% if user.profile_picture %}
+                            <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" alt="">
+                            {% else %}
+                            <span class="chat-create-member-initial">{{ user.full_name[0].upper() }}</span>
+                            {% endif %}
+                        </span>
+                        <span class="chat-create-member-meta">
+                            <span class="chat-create-member-name">
                                 {{ user.full_name }}
                                 {% if user.is_guest %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1">Gast</span>
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Gast</span>
                                 {% endif %}
-                                <small class="text-muted">({{ user.email }})</small>
-                            </label>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        <small class="text-muted" id="members-help">{{ _('chat.create.form.members.help') }}</small>
+                            </span>
+                            <span class="chat-create-member-email">{{ user.email }}</span>
+                        </span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                    <div class="chat-create-empty text-muted d-none" data-member-filter-empty>
+                        {{ _('chat.create.search.empty') }}
                     </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent" id="submit-btn">{{ _('chat.create.form.buttons.submit') }}</button>
-                        <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary">{{ _('chat.create.form.buttons.cancel') }}</a>
-                    </div>
-                </form>
+                </div>
+            </section>
+        </div>
+
+        <div class="chat-create-actions chat-create-actions--floating" aria-hidden="false">
+            <button type="submit" class="btn btn-accent chat-create-submit" form="chat-create-form">
+                {{ _('chat.create.form.buttons.create_group') }}
+            </button>
+            <a href="{{ url_for('chat.create_chat') }}" class="btn chat-create-cancel">
+                {{ _('chat.create.form.buttons.cancel') }}
+            </a>
+        </div>
+    </form>
+
+    {% else %}
+    <div class="chat-create-header">
+        <a href="{{ url_for('chat.index') }}" class="chat-create-back d-lg-none">
+            <i class="bi bi-arrow-left"></i>
+            <span>{{ _('chat.create.breadcrumb.index') }}</span>
+        </a>
+        <h1 class="chat-create-title">{{ _('chat.create.heading') }}</h1>
+        <p class="chat-create-subtitle">{{ _('chat.create.pick_member_hint') }}</p>
+    </div>
+
+    <a href="{{ url_for('chat.create_chat', step='group') }}" class="btn chat-create-new-group">
+        <i class="bi bi-people-fill"></i>
+        <span>{{ _('chat.create.new_group') }}</span>
+    </a>
+
+    <div class="chat-create-section chat-create-section--fill">
+        <h2 class="chat-create-section-title">{{ _('chat.create.members_heading') }}</h2>
+        <div class="chat-create-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" class="form-control chat-create-input" id="dm-member-search"
+                   placeholder="{{ _('chat.create.search.placeholder') }}"
+                   autocomplete="off" enterkeyhint="search">
+        </div>
+        <div class="chat-create-member-list" data-member-filter-list>
+            {% set ns = namespace(shown=false) %}
+            {% for user in users %}
+            {% if user.id != current_user.id %}
+            {% set ns.shown = true %}
+            <a href="{{ url_for('chat.direct_message', user_id=user.id) }}" class="chat-create-member"
+               data-member-filter
+               data-search="{{ (user.full_name ~ ' ' ~ user.email)|lower }}">
+                <span class="chat-create-member-avatar">
+                    {% if user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" alt="">
+                    {% else %}
+                    <span class="chat-create-member-initial">{{ user.full_name[0].upper() }}</span>
+                    {% endif %}
+                </span>
+                <span class="chat-create-member-meta">
+                    <span class="chat-create-member-name">
+                        {{ user.full_name }}
+                        {% if user.is_guest %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Gast</span>
+                        {% endif %}
+                    </span>
+                    <span class="chat-create-member-email">{{ user.email }}</span>
+                </span>
+                <i class="bi bi-chat-dots chat-create-member-action" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+            {% endfor %}
+            {% if not ns.shown %}
+            <div class="chat-create-empty text-muted">{{ _('chat.create.members_empty') }}</div>
+            {% else %}
+            <div class="chat-create-empty text-muted d-none" data-member-filter-empty>
+                {{ _('chat.create.search.empty') }}
             </div>
+            {% endif %}
         </div>
     </div>
+    {% endif %}
 </div>
+</div><!-- /chat-main -->
+</div><!-- /chat-shell -->
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const CHAT_CREATE_I18N = {{ current_translations.get('chat', {}).get('create', {})|tojson }};
-    const FORM_I18N = CHAT_CREATE_I18N.form || {};
-    const MEMBERS_I18N = FORM_I18N.members || {};
-    const ALERT_I18N = FORM_I18N.alerts || {};
-    const MEMBERS_FALLBACK = {{ {
-        "label": _('chat.create.form.members.label'),
-        "single_label": _('chat.create.form.members.single_label'),
-        "help": _('chat.create.form.members.help'),
-        "help_private": _('chat.create.form.members.help_private')
-    }|tojson }};
-    const ALERT_FALLBACKS = {{ {
-        "select_private": _('chat.create.form.alerts.select_private'),
+    window.ChatNavConfig = {
+        pinUrlTemplate: {{ url_for('chat.pin_chat_api', chat_id=0)|tojson }},
+        i18n: {
+            pin: {{ _('chat.index.pin')|tojson }},
+            unpin: {{ _('chat.index.unpin')|tojson }},
+            pinLimit: {{ _('chat.index.pin_limit')|tojson }},
+            pinError: {{ _('chat.index.pin_error')|tojson }},
+            mute: {{ _('chat.view.dropdown.mute')|tojson }},
+            unmute: {{ _('chat.view.js.unmute')|tojson }},
+            deleteConfirm: {{ _('chat.settings.delete.confirm')|tojson }}
+        }
+    };
+
+    function bindMemberSearch(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const panel = input.closest('.chat-create-group-members, .chat-create-section');
+        if (!panel) return;
+        const items = panel.querySelectorAll('[data-member-filter]');
+        const empty = panel.querySelector('[data-member-filter-empty]');
+
+        const apply = () => {
+            const q = (input.value || '').trim().toLowerCase();
+            let visible = 0;
+            items.forEach((el) => {
+                const hay = el.getAttribute('data-search') || '';
+                const show = !q || hay.indexOf(q) !== -1;
+                el.classList.toggle('d-none', !show);
+                if (show) visible += 1;
+            });
+            if (empty) empty.classList.toggle('d-none', visible > 0 || items.length === 0);
+        };
+        input.addEventListener('input', apply);
+        input.addEventListener('search', apply);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindMemberSearch('member-search');
+        bindMemberSearch('dm-member-search');
+    });
+</script>
+<script src="{{ url_for('static', filename='js/chat-nav.js') }}"></script>
+{% if group_step %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const ALERTS = {{ {
         "enter_name": _('chat.create.form.alerts.enter_name'),
         "select_members": _('chat.create.form.alerts.select_members')
     }|tojson }};
 
-    const chatTypeGroup = document.getElementById('chat_type_group');
-    const chatTypePrivate = document.getElementById('chat_type_private');
-    const chatNameGroup = document.getElementById('chat-name-group');
-    const nameInput = document.getElementById('name');
-    const membersLabel = document.getElementById('members-label');
-    const membersHelp = document.getElementById('members-help');
-    const memberCheckboxes = document.querySelectorAll('.member-checkbox');
     const form = document.getElementById('chat-create-form');
-    
-    function updateFormForChatType() {
-        const isPrivate = chatTypePrivate.checked;
-        
-        if (isPrivate) {
-            chatNameGroup.style.display = 'none';
-            nameInput.removeAttribute('required');
-            membersLabel.textContent = MEMBERS_I18N.single_label || MEMBERS_FALLBACK.single_label;
-            membersHelp.textContent = MEMBERS_I18N.help_private || MEMBERS_FALLBACK.help_private;
-            
-            memberCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-                checkbox.type = 'radio';
-                checkbox.name = 'member';
-            });
-        } else {
-            chatNameGroup.style.display = 'block';
-            nameInput.setAttribute('required', 'required');
-            membersLabel.textContent = MEMBERS_I18N.label || MEMBERS_FALLBACK.label;
-            membersHelp.textContent = MEMBERS_I18N.help || MEMBERS_FALLBACK.help;
-            
-            memberCheckboxes.forEach(checkbox => {
-                checkbox.type = 'checkbox';
-                checkbox.name = 'members';
-            });
-        }
-    }
-    
-    chatTypeGroup.addEventListener('change', updateFormForChatType);
-    chatTypePrivate.addEventListener('change', updateFormForChatType);
-    
-    form.addEventListener('submit', function(e) {
-        const isPrivate = chatTypePrivate.checked;
-        
-        if (isPrivate) {
-            const selectedMember = document.querySelector('input[name="member"]:checked');
-            if (!selectedMember) {
-                e.preventDefault();
-                alert(ALERT_I18N.select_private || ALERT_FALLBACKS.select_private);
-                return false;
+    const nameInput = document.getElementById('name');
+    const avatarInput = document.getElementById('avatar');
+    const previewImg = document.getElementById('avatar-preview-img');
+    const previewIcon = document.getElementById('avatar-preview-icon');
+
+    if (avatarInput) {
+        avatarInput.addEventListener('change', function () {
+            const file = avatarInput.files && avatarInput.files[0];
+            if (!file) {
+                previewImg.classList.add('d-none');
+                previewImg.removeAttribute('src');
+                previewIcon.classList.remove('d-none');
+                return;
             }
-        } else {
+            const url = URL.createObjectURL(file);
+            previewImg.src = url;
+            previewImg.classList.remove('d-none');
+            previewIcon.classList.add('d-none');
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
             if (!nameInput.value.trim()) {
                 e.preventDefault();
-                alert(ALERT_I18N.enter_name || ALERT_FALLBACKS.enter_name);
-                return false;
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(ALERTS.enter_name, 'danger');
+                }
+                return;
             }
-            
-            const selectedMembers = document.querySelectorAll('input[name="members"]:checked');
-            if (selectedMembers.length === 0) {
+            const checked = form.querySelectorAll('.member-checkbox:checked');
+            if (!checked.length) {
                 e.preventDefault();
-                alert(ALERT_I18N.select_members || ALERT_FALLBACKS.select_members);
-                return false;
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(ALERTS.select_members, 'danger');
+                }
             }
-        }
-    });
-    
-    updateFormForChatType();
+        });
+    }
 });
 </script>
+{% endif %}
 {% endblock %}
-
-
-

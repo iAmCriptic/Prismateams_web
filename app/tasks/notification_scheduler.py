@@ -21,6 +21,7 @@ class NotificationScheduler:
         self.app = app
         self.running = False
         self.thread = None
+        self._last_guest_cleanup = None
         
         if app:
             self.init_app(app)
@@ -62,9 +63,13 @@ class NotificationScheduler:
                     if now.hour == 2 and now.minute < 5:  # Zwischen 2:00 und 2:05
                         cleanup_inactive_subscriptions()
                     
-                    # Bereinige abgelaufene Gast-Accounts (einmal täglich, z.B. um 3:00)
-                    if now.hour == 3 and now.minute < 5:  # Zwischen 3:00 und 3:05
+                    # Abgelaufene Gast-Accounts maximal einmal pro Stunde bereinigen.
+                    if (
+                        self._last_guest_cleanup is None
+                        or (now - self._last_guest_cleanup) >= timedelta(hours=1)
+                    ):
                         cleanup_expired_guests()
+                        self._last_guest_cleanup = now
                 
                 # Warte 5 Minuten bis zur nächsten Ausführung
                 time.sleep(300)

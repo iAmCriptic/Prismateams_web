@@ -2,627 +2,135 @@
 
 {% block title %}{{ _('dashboard.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
-{% block content %}
-{% if setup_completed %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    <div class="d-flex align-items-center">
-        <i class="bi bi-check-circle-fill me-3 fs-4"></i>
-        <div>
-            <h5 class="alert-heading mb-1">{{ _('dashboard.setup.success_title') }}</h5>
-            <p class="mb-0">{{ _('dashboard.setup.success_body') }}</p>
-        </div>
-    </div>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('common.close') }}"></button>
-</div>
-{% endif %}
-
+{% block portal_alerts %}
 {% if update_info and update_info.update_available %}
-<div class="alert alert-info alert-dismissible fade show" role="alert" id="update-banner">
-    <div class="d-flex align-items-start">
-        <i class="bi bi-arrow-down-circle-fill me-3 fs-4"></i>
-        <div class="flex-grow-1">
-            <h5 class="alert-heading mb-2">
-                <i class="bi bi-download me-2"></i>{{ _('dashboard.update.title') }}
-            </h5>
-            <p class="mb-2">
+<div class="alert portal-msg portal-msg--info fade show" role="alert" id="update-banner">
+    <div class="portal-msg__body">
+        <div class="portal-msg__icon" aria-hidden="true">
+            <i class="bi bi-info-circle-fill"></i>
+        </div>
+        <div class="portal-msg__content">
+            <h6 class="portal-msg__title">{{ _('dashboard.update.title') }}</h6>
+            <p class="portal-msg__text">
                 {{ _('dashboard.update.description') }}
                 {% if update_info.latest_commit %}
-                <br><small class="text-muted">{{ _('dashboard.update.latest_commit') }} <code>{{ update_info.latest_commit }}</code></small>
+                <br>{{ _('dashboard.update.latest_commit') }} <code>{{ update_info.latest_commit }}</code>
                 {% endif %}
             </p>
-            <div class="d-flex gap-2 flex-wrap">
-                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+            <div class="portal-msg__actions">
+                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-sm portal-msg__btn portal-msg__btn--primary">
                     <i class="bi bi-github me-1"></i>{{ _('dashboard.update.actions.open_github') }}
                 </a>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissUpdateBanner()">
-                    <i class="bi bi-x-circle me-1"></i>{{ _('dashboard.update.actions.dismiss') }}
+                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__btn--ghost" onclick="disableUpdateNotifications()">
+                    {{ _('dashboard.update.actions.disable') }}
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="disableUpdateNotifications()">
-                    <i class="bi bi-bell-slash me-1"></i>{{ _('dashboard.update.actions.disable') }}
+                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" onclick="dismissUpdateBanner()">
+                    {{ _('dashboard.update.actions.dismiss') }}
                 </button>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
+{% endblock %}
 
-<div class="row mb-4 page-toolbar-row align-items-start">
-    <div class="col min-width-0">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="d-flex align-items-center">
-                <!-- Mobile Logo (neben Text) -->
-                <div class="d-lg-none me-3">
-                    <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center text-decoration-none">
-                        {% if portal_logo_filename %}
-                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
-                        {% elif app_logo %}
-                        <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
-                        {% endif %}
-                    </a>
-                </div>
-                <div>
-                    <h1>{{ _('dashboard.welcome', name=current_user.first_name) }}</h1>
-                    <p class="text-muted">{{ _('dashboard.overview_subtitle') }}</p>
-                </div>
-            </div>
-            <!-- Desktop Uhrzeit (oben rechts) -->
-            <div class="d-none d-lg-block">
-                <div class="text-end">
-                    <div id="current-time" class="fs-5 fw-bold text-muted"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
-    {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
-    
-    <!-- Widgets werden für Gast-Accounts nicht angezeigt -->
-    {% if not current_user.is_guest %}
-    <!-- Upcoming Events Widget -->
-    {% if 'termine' in enabled_widgets and is_module_enabled('module_calendar') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="termine">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('calendar.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-calendar-event widget-icon text-primary"></i>
-                        {{ _('dashboard.widgets.calendar.title') }}
-                    </h5>
-                    <span class="badge bg-primary calendar-badge">{{ upcoming_events|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if upcoming_events %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for event in upcoming_events %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('calendar.view_event', event_id=event.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ event.title }}</h6>
-                                <small class="text-muted">{{ event.start_time.strftime('%d.%m.') }}</small>
-                            </div>
-                                <small class="text-muted">{{ event.start_time.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.calendar.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Unread Messages Widget -->
-    {% if 'nachrichten' in enabled_widgets and is_module_enabled('module_chat') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="nachrichten">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('chat.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-chat-dots widget-icon text-success"></i>
-                        {{ _('dashboard.widgets.chat.title') }}
-                    </h5>
-                    <span class="badge bg-primary notification-badge" id="chat-count-badge">0</span>
-                </div>
-                
-                {% if unread_messages %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for message in unread_messages[:3] %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ message.sender.full_name }}</h6>
-                                <small class="text-muted">{{ message.created_at.strftime('%H:%M') }}</small>
-                            </div>
-                            <p class="mb-0 text-truncate">{{ message.content or _('dashboard.widgets.chat.fallback_file') }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.chat.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Emails Widget -->
-    {% if 'emails' in enabled_widgets and is_module_enabled('module_email') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="emails">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('email.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-envelope widget-icon text-info"></i>
-                        {{ _('dashboard.widgets.email.title') }}
-                    </h5>
-                    <span class="badge bg-primary email-badge">{{ recent_emails|length }}</span>
-                </div>
-                
-                {% if recent_emails %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for email in recent_emails[:3] %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('email.view_email', email_id=email.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ email.subject|decode_email_header }}</h6>
-                                {% if not email.is_read %}
-                                <span class="badge bg-danger">{{ _('dashboard.widgets.email.unread_badge') }}</span>
-                                {% endif %}
-                            </div>
-                            <small class="text-muted">{{ email.sender|decode_email_header }}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.email.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Files Widget -->
-    {% if 'dateien' in enabled_widgets and is_module_enabled('module_files') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="dateien">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('files.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-folder widget-icon text-warning"></i>
-                        {{ _('dashboard.widgets.files.title') }}
-                    </h5>
-                    <span class="badge bg-primary files-badge">{{ recent_files|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if recent_files %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for file in recent_files %}
-                        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                        {% set is_onlyoffice_type = file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                        {% if onlyoffice_available and is_onlyoffice_type %}
-                            {% set file_url = url_for('files.edit_onlyoffice', file_id=file.id) %}
-                        {% elif file.folder_id %}
-                            {% set file_url = url_for('files.browse_folder', folder_id=file.folder_id) %}
-                        {% elif file.name.endswith(('.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log')) %}
-                            {% set file_url = url_for('files.view_file', file_id=file.id) %}
-                        {% else %}
-                            {% set file_url = url_for('files.download_file', file_id=file.id) %}
-                        {% endif %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); {% if onlyoffice_available and is_onlyoffice_type %}window.open('{{ file_url }}', '_blank');{% else %}location.href='{{ file_url }}';{% endif %}">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ file.original_name }}</h6>
-                                <small class="text-muted">{{ file.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ file.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.files.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Passwort-Favoriten Widget -->
-    {% if 'passwoerter' in enabled_widgets and is_module_enabled('module_credentials') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="passwoerter">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('credentials.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-key widget-icon text-danger"></i>
-                        {{ _('dashboard.widgets.passwords.title') }}
-                    </h5>
-                    <span class="badge bg-primary">{{ favorite_credentials|length }}</span>
-                </div>
-
-                {% if favorite_credentials %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for credential in favorite_credentials %}
-                        <div class="list-group-item px-0">
-                            <div class="d-flex w-100 justify-content-between align-items-start gap-2">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1 text-truncate">{{ credential.website_name }}</h6>
-                                    <button
-                                        type="button"
-                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
-                                        id="dashboard-user-{{ credential.id }}"
-                                        onclick='event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, "username", {{ credential.username|tojson }})'
-                                        title="{{ _('dashboard.widgets.passwords.copy_username') }}"
-                                    >
-                                        ••••••••
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
-                                        id="dashboard-pwd-{{ credential.id }}"
-                                        onclick="event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, 'password')"
-                                        title="{{ _('dashboard.widgets.passwords.copy_password') }}"
-                                    >
-                                        ••••••••
-                                    </button>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-outline-secondary"
-                                    onclick='event.stopPropagation(); revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})'
-                                    title="{{ _('dashboard.widgets.passwords.reveal') }}"
-                                >
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.passwords.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Neue Wikieinträge Widget -->
-    {% if 'neue_wikieintraege' in enabled_widgets and is_module_enabled('module_wiki') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="neue_wikieintraege">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('wiki.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-journal-text widget-icon text-info"></i>
-                        {{ _('dashboard.widgets.wiki_new.title') }}
-                    </h5>
-                    <span class="badge bg-primary wiki-badge">{{ recent_wiki_pages|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if recent_wiki_pages %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for page in recent_wiki_pages %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('wiki.view', slug=page.slug) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ page.title }}</h6>
-                                <small class="text-muted">{{ page.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ page.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.wiki_new.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Meine Wikis Widget -->
-    {% if 'meine_wikis' in enabled_widgets and is_module_enabled('module_wiki') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="meine_wikis">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('wiki.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-star-fill widget-icon text-warning"></i>
-                        {{ _('dashboard.widgets.wiki_favorites.title') }}
-                    </h5>
-                    <span class="badge bg-primary favorites-badge">{{ my_wiki_favorites|length }}</span>
-                </div>
-                
-                {% if my_wiki_favorites %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for page in my_wiki_favorites %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('wiki.view', slug=page.slug) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">
-                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ page.title }}
-                                </h6>
-                                <small class="text-muted">{{ page.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ page.updated_at.strftime('%H:%M') }} Uhr</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.wiki_favorites.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Meine Ausleihen Widget -->
-    {% if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="meine_ausleihen">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('inventory.dashboard') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-box-arrow-right widget-icon text-success"></i>
-                        {{ _('dashboard.widgets.borrows.title') }}
-                    </h5>
-                    <span class="badge bg-primary borrows-badge">{{ my_borrow_groups|length }}</span>
-                </div>
-                
-                {% if my_borrow_groups %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for group in my_borrow_groups %}
-                        <div class="list-group-item px-0 {% if group.is_overdue %}border-danger{% endif %}">
-                            <div class="d-flex w-100 justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date.strftime('%d.%m.%Y')) }}
-                                    </h6>
-                                    <small class="text-muted">
-                                        {{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }}
-                                    </small>
-                                </div>
-                                <div class="text-end">
-                                    {% if group.is_overdue %}
-                                    <span class="badge bg-danger mb-1">{{ _('dashboard.widgets.borrows.overdue') }}</span><br>
-                                    {% endif %}
-                                    <small class="text-muted">
-                                        {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date.strftime('%d.%m.%Y')) }}
-                                    </small>
-                                    <br>
-                                    <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" 
-                                       class="btn btn-sm btn-success mt-2" 
-                                       onclick="event.stopPropagation();"
-                                       title="{{ _('dashboard.widgets.borrows.return_button') }}">
-                                        <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.borrows.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Buchungen Widget -->
-    {% if 'buchungen' in enabled_widgets and is_module_enabled('module_booking') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="buchungen">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('booking.requests') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-calendar-check widget-icon text-primary"></i>
-                        {{ _('dashboard.widgets.bookings.title') }}
-                    </h5>
-                    <span class="badge bg-primary bookings-badge">{{ total_pending_bookings }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if new_booking_requests %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for request in new_booking_requests %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('booking.request_detail', request_id=request.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ request.event_name }}</h6>
-                                <small class="text-muted">{{ request.created_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ request.created_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                            {% if request.email %}
-                            <br><small class="text-muted">{{ request.email }}</small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                        {% if total_pending_bookings > 3 %}
-                        <div class="list-group-item px-0 text-center">
-                            <small class="text-muted">
-                                {{ _('dashboard.widgets.bookings.more_indicator', count=total_pending_bookings - 3) }}
-                            </small>
-                        </div>
-                        {% endif %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.bookings.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-speedometer2"></i>
-                    {{ _('dashboard.quick_access.title') }}
-                </h5>
-                <div class="row g-3 mt-2">
-                    {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
-                    {% set link_map = {
-                        'files': {'url': url_for('files.index'), 'icon': 'bi-folder', 'label_key': 'layout.nav.files', 'module': 'module_files'},
-                        'credentials': {'url': url_for('credentials.index'), 'icon': 'bi-key', 'label_key': 'layout.nav.credentials', 'module': 'module_credentials'},
-                        'manuals': {'url': url_for('manuals.index'), 'icon': 'bi-book', 'label_key': 'layout.nav.manuals', 'module': 'module_manuals'},
-                        'chat': {'url': url_for('chat.index'), 'icon': 'bi-chat-dots', 'label_key': 'layout.nav.chats', 'module': 'module_chat'},
-                        'calendar': {'url': url_for('calendar.index'), 'icon': 'bi-calendar-event', 'label_key': 'layout.nav.calendar', 'module': 'module_calendar'},
-                        'events': {'url': url_for('events.index'), 'icon': 'bi-calendar2-week', 'label_key': None, 'fallback_label': 'Veranstaltungen', 'module': 'module_events'},
-                        'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
-                        'contacts': {'url': url_for('contacts.index'), 'icon': 'bi-person-lines-fill', 'label_key': 'layout.nav.contacts', 'module': 'module_contacts'},
-                        'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
-                        'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
-                        'shortlinks': {'url': url_for('shortlinks.index'), 'icon': 'bi-link-45deg', 'label_key': None, 'fallback_label': 'Kurzlinks', 'module': 'module_shortlinks'},
-                        'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
-                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'},
-                        'media_downloader': {'url': url_for('media_downloader.index'), 'icon': 'bi-download', 'label_key': 'layout.nav.media_downloader', 'module': 'module_media_downloader'},
-                        'assessment': {'url': url_for('assessment.general.home'), 'icon': 'bi-clipboard2-check', 'label_key': None, 'fallback_label': 'Bewertung', 'module': 'module_assessment'},
-                        'settings': {'url': url_for('settings.index'), 'icon': 'bi-gear', 'label_key': 'layout.nav.settings', 'module': None},
-                        'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
-                        'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
-                    } %}
-                    {% if current_user.is_guest %}
-                        {# Für Gäste: Zeige ALLE zugänglichen Module, nicht nur konfigurierte #}
-                        {# Erstelle Mapping von Modul-Schlüssel zu Link-Key #}
-                        {% set module_to_link_key = {
-                            'module_chat': 'chat',
-                            'module_files': 'files',
-                            'module_calendar': 'calendar',
-                            'module_events': 'events',
-                            'module_contacts': 'contacts',
-                            'module_manuals': 'manuals',
-                            'module_inventory': 'inventory',
-                            'module_wiki': 'wiki',
-                            'module_music': 'music',
-                            'module_shortlinks': 'shortlinks',
-                            'module_media_downloader': 'media_downloader',
-                            'module_assessment': 'assessment',
-                            'module_booking': 'booking'
-                        } %}
-                        {# Definiere Reihenfolge für Module (entspricht Navigation) #}
-                        {% set module_order = [
-                            'module_chat',
-                            'module_files',
-                            'module_calendar',
-                            'module_events',
-                            'module_contacts',
-                            'module_manuals',
-                            'module_inventory',
-                            'module_wiki',
-                            'module_music',
-                            'module_shortlinks',
-                            'module_media_downloader',
-                            'module_assessment',
-                            'module_booking'
-                        ] %}
-                        {# Sortiere zugängliche Module nach definierter Reihenfolge #}
-                        {% set sorted_modules = [] %}
-                        {% for module_key in module_order %}
-                            {% if module_key in guest_accessible_modules %}
-                                {% set _ = sorted_modules.append(module_key) %}
-                            {% endif %}
-                        {% endfor %}
-                        {# Zeige alle zugänglichen Module in der richtigen Reihenfolge #}
-                        {% for module_key in sorted_modules %}
-                            {% set link_key = module_to_link_key.get(module_key) %}
-                            {% if link_key and link_key in link_map %}
-                                {% set link = link_map[link_key] %}
-                                {% set should_show = false %}
-                                {# Prüfe spezielle Bedingungen für Chats und Dateien #}
-                                {% if module_key == 'module_chat' %}
-                                    {% if guest_has_chat_access %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% elif module_key == 'module_files' %}
-                                    {% if guest_has_file_access %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% else %}
-                                    {# Andere Module: Zeige wenn Modul aktiviert ist #}
-                                    {% if is_module_enabled(module_key) %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% endif %}
-                                {% if should_show %}
-                                <div class="col-6 col-md-3">
-                                    <a href="{{ link.url }}" class="btn btn-outline-primary w-100">
-                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
-                                    </a>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        {# Settings und Logout immer anzeigen #}
-                        {% if 'settings' in link_map %}
-                        <div class="col-6 col-md-3">
-                            <a href="{{ link_map['settings'].url }}" class="btn btn-outline-primary w-100">
-                                <i class="bi {{ link_map['settings'].icon }} d-block fs-3 mb-2"></i>
-                                {{ _(link_map['settings'].label_key) }}
-                            </a>
-                        </div>
-                        {% endif %}
-                        {% if 'logout' in link_map %}
-                        <div class="col-6 col-md-3">
-                            <a href="{{ link_map['logout'].url }}" class="btn btn-outline-danger w-100">
-                                <i class="bi {{ link_map['logout'].icon }} d-block fs-3 mb-2"></i>
-                                {{ _(link_map['logout'].label_key) }}
-                            </a>
-                        </div>
-                        {% endif %}
-                    {% else %}
-                        {# Normale Benutzer: Standard-Logik #}
-                        {% for link_key in quick_access_links %}
-                            {% if link_key in link_map %}
-                                {% set link = link_map[link_key] %}
-                                {% if link.module is none or is_module_enabled(link.module) %}
-                                <div class="col-6 col-md-3">
-                                    <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
-                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
-                                    </a>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block content %}
 {% if not current_user.is_guest %}
-<div class="row mt-4">
-    <div class="col-12 text-center">
-        <a href="{{ url_for('dashboard.edit') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-pencil-square me-2"></i>
-            {{ _('dashboard.quick_access.edit_dashboard') }}
-        </a>
+{% include 'dashboard/_whats_new_modal.html' %}
+{% endif %}
+
+<div class="dashboard-shell dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
+    <aside class="mod-sidebar">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-house-door" aria-hidden="true"></i>
+            <span>{{ _('dashboard.page_title') }}</span>
+        </div>
+        <nav class="mod-sidebar-nav" aria-label="{{ _('dashboard.quick_access.title') }}">
+            <div class="mod-sidebar-heading">{{ _('dashboard.quick_access.title') }}</div>
+            {% set qa_variant = 'sidebar' %}
+            {% include 'dashboard/_quick_access.html' %}
+        </nav>
+        <div class="mod-sidebar-footer">
+            {% if not current_user.is_guest %}
+            <button type="button"
+                    class="dashboard-sidebar-whats-new position-relative"
+                    id="whatsNewBtn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#whatsNewModal"
+                    aria-label="{{ _('dashboard.whats_new.button_aria') }}">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>{{ _('dashboard.whats_new.button_label') }}</span>
+                <span class="position-absolute badge rounded-pill bg-danger dashboard-whats-new-badge{% if not (show_whats_new|default(false)) %} d-none{% endif %}" id="whatsNewBadge">
+                    {{ _('dashboard.whats_new.badge') }}
+                    <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
+                </span>
+            </button>
+            <a href="{{ url_for('dashboard.edit') }}" class="mod-nav-link dashboard-sidebar-edit-link">
+                <i class="bi bi-pencil-square"></i>
+                <span>{{ _('dashboard.quick_access.edit_dashboard') }}</span>
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="mod-main">
+        <div class="mod-mobile-topbar d-lg-none">
+            <a href="{{ url_for('dashboard.index') }}" class="dashboard-mobile-logo">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <i class="bi bi-house-door fs-2 text-muted"></i>
+                {% endif %}
+            </a>
+            <div class="dashboard-mobile-welcome min-width-0">
+                <p class="dash-hello">{{ _(greeting_key, name=current_user.first_name) }}</p>
+                <p class="dash-sub">{{ _('dashboard.overview_subtitle') }}</p>
+            </div>
+        </div>
+
+        <div class="dashboard-main-toolbar d-none d-lg-flex">
+            <div class="dashboard-main-greeting">
+                <p class="dash-hello mb-0">{{ _(greeting_key, name=current_user.first_name) }}</p>
+                <p class="dash-sub mb-0">{{ _('dashboard.overview_subtitle') }}</p>
+            </div>
+            <div class="dashboard-main-clock" id="current-time" aria-live="polite"></div>
+        </div>
+
+        {% if not current_user.is_guest %}
+        <div class="dashboard-widget-grid">
+            {% include 'dashboard/_widgets.html' %}
+        </div>
+        {% endif %}
+
+        <div class="dashboard-mobile-qa">
+            <div class="dashboard-mobile-qa-heading">{{ _('dashboard.quick_access.title') }}</div>
+            <div class="dashboard-mobile-qa-grid">
+                {% set qa_variant = 'mobile' %}
+                {% include 'dashboard/_quick_access.html' %}
+                {% if not current_user.is_guest %}
+                <button type="button"
+                        class="dashboard-qa-tile dashboard-qa-tile--neu"
+                        data-bs-toggle="modal"
+                        data-bs-target="#whatsNewModal"
+                        aria-label="{{ _('dashboard.whats_new.button_aria') }}">
+                    <i class="bi bi-stars"></i>
+                    <span>{{ _('dashboard.whats_new.button_label') }}</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if not current_user.is_guest %}
+        <div class="dashboard-main-edit">
+            <a href="{{ url_for('dashboard.edit') }}" class="btn dashboard-edit-pill-btn dashboard-edit-pill-btn--outline">
+                <i class="bi bi-pencil-square me-1"></i>{{ _('dashboard.quick_access.edit_dashboard') }}
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -667,6 +175,9 @@ class DashboardUpdater {
             this.eventSource.addEventListener('dashboard:email_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('.email-badge', data.count);
+                if (typeof window.updateEmailNavBadge === 'function') {
+                    window.updateEmailNavBadge(data.count);
+                }
             });
             
             this.eventSource.addEventListener('dashboard:calendar_update', (e) => {
@@ -725,6 +236,174 @@ function updateClock() {
 // Uhrzeit sofort aktualisieren und dann jede Sekunde
 updateClock();
 setInterval(updateClock, 1000);
+
+// What's New (v3.0.0)
+(function initWhatsNew() {
+    const VERSION = {{ (whats_new_version|default('3.0.0'))|tojson }};
+    const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
+    const panelsOrder = [
+        'welcome', 'overview', 'general', 'dashboard', 'security', 'chat', 'files',
+        'calendar', 'events', 'email', 'contacts', 'credentials', 'manuals',
+        'inventory', 'booking', 'music', 'assessment', 'shortlinks', 'media_downloader', 'wiki'
+    ];
+    const titleEl = document.querySelector('[data-whats-new-title]');
+    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.0.0'), current='{current}', total='{total}')|tojson }};
+    const moduleTitles = {
+        welcome: {{ _('dashboard.whats_new.welcome.title')|tojson }},
+        overview: {{ _('dashboard.whats_new.overview_label')|tojson }},
+        general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
+        dashboard: {{ _('dashboard.whats_new.modules.dashboard.title')|tojson }},
+        security: {{ _('dashboard.whats_new.modules.security.title')|tojson }},
+        chat: {{ _('dashboard.whats_new.modules.chat.title')|tojson }},
+        files: {{ _('dashboard.whats_new.modules.files.title')|tojson }},
+        calendar: {{ _('dashboard.whats_new.modules.calendar.title')|tojson }},
+        events: {{ _('dashboard.whats_new.modules.events.title')|tojson }},
+        email: {{ _('dashboard.whats_new.modules.email.title')|tojson }},
+        contacts: {{ _('dashboard.whats_new.modules.contacts.title')|tojson }},
+        credentials: {{ _('dashboard.whats_new.modules.credentials.title')|tojson }},
+        manuals: {{ _('dashboard.whats_new.modules.manuals.title')|tojson }},
+        inventory: {{ _('dashboard.whats_new.modules.inventory.title')|tojson }},
+        booking: {{ _('dashboard.whats_new.modules.booking.title')|tojson }},
+        music: {{ _('dashboard.whats_new.modules.music.title')|tojson }},
+        assessment: {{ _('dashboard.whats_new.modules.assessment.title')|tojson }},
+        shortlinks: {{ _('dashboard.whats_new.modules.shortlinks.title')|tojson }},
+        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }},
+        wiki: {{ _('dashboard.whats_new.modules.wiki.title')|tojson }}
+    };
+    let currentPanel = 'welcome';
+    let seenMarked = !AUTO_OPEN;
+
+    const badge = document.getElementById('whatsNewBadge');
+    const modalEl = document.getElementById('whatsNewModal');
+    if (!modalEl) return;
+    const seenUrl = modalEl.dataset.whatsNewSeenUrl || '';
+
+    function markSeen() {
+        if (seenMarked || !seenUrl) return;
+        seenMarked = true;
+        if (badge) badge.classList.add('d-none');
+        const payload = JSON.stringify({ version: VERSION });
+        try {
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                if (navigator.sendBeacon(seenUrl, blob)) return;
+            }
+        } catch (e) { /* fallback unten */ }
+        fetch(seenUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: payload
+        }).catch(() => {
+            seenMarked = false;
+        });
+    }
+
+    function updateTitle(idx) {
+        if (!titleEl) return;
+        titleEl.textContent = titleTemplate
+            .replace('{current}', String(idx + 1))
+            .replace('{total}', String(panelsOrder.length));
+    }
+
+    function showPanel(name) {
+        currentPanel = name;
+        document.querySelectorAll('.whats-new-panel').forEach(panel => {
+            panel.classList.toggle('is-active', panel.dataset.panel === name);
+        });
+
+        const isHub = name === 'welcome' || name === 'overview';
+        const idx = panelsOrder.indexOf(name);
+        updateTitle(idx);
+
+        const backBtn = document.getElementById('whatsNewBackBtn');
+        const prevBtn = document.getElementById('whatsNewPrevBtn');
+        const nextBtn = document.getElementById('whatsNewNextBtn');
+        const closeBtn = document.getElementById('whatsNewCloseBtn');
+
+        if (backBtn) backBtn.classList.toggle('d-none', isHub);
+        if (prevBtn) prevBtn.classList.toggle('d-none', idx <= 0);
+        if (nextBtn) nextBtn.classList.toggle('d-none', idx >= panelsOrder.length - 1);
+        if (closeBtn) closeBtn.classList.toggle('d-none', idx !== panelsOrder.length - 1);
+
+        const dots = document.getElementById('whatsNewDots');
+        if (dots) {
+            const progressMeta = dots.querySelector('.whats-new-progress-meta');
+            const dotsHtml = panelsOrder.map((p) =>
+                `<button type="button" class="whats-new-dot${p === name ? ' active' : ''}" data-goto="${p}" title="${moduleTitles[p] || ''}" aria-label="${moduleTitles[p] || ''}"></button>`
+            ).join('');
+            dots.innerHTML = `<div class="whats-new-dots">${dotsHtml}</div>`;
+            if (progressMeta) {
+                dots.appendChild(progressMeta);
+            } else {
+                const meta = document.createElement('div');
+                meta.className = 'whats-new-progress-meta';
+                meta.innerHTML = '<div class="whats-new-progress-bar" aria-hidden="true"><span id="whatsNewProgressFill"></span></div><span class="whats-new-progress-count" id="whatsNewProgressCount"></span>';
+                dots.appendChild(meta);
+            }
+            const fill = dots.querySelector('#whatsNewProgressFill') || document.getElementById('whatsNewProgressFill');
+            const count = dots.querySelector('#whatsNewProgressCount') || document.getElementById('whatsNewProgressCount');
+            const step = Math.max(idx, 0) + 1;
+            const total = panelsOrder.length;
+            if (fill) fill.style.setProperty('--whats-new-progress', `${(step / total) * 100}%`);
+            if (count) count.textContent = `${step}/${total}`;
+        }
+    }
+
+    document.querySelectorAll('.whats-new-module-btn').forEach(btn => {
+        btn.addEventListener('click', () => showPanel(btn.dataset.goto));
+    });
+
+    const backBtn = document.getElementById('whatsNewBackBtn');
+    if (backBtn) backBtn.addEventListener('click', () => showPanel('overview'));
+
+    const prevBtn = document.getElementById('whatsNewPrevBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            const idx = panelsOrder.indexOf(currentPanel);
+            if (idx > 0) showPanel(panelsOrder[idx - 1]);
+        });
+    }
+
+    const nextBtn = document.getElementById('whatsNewNextBtn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const idx = panelsOrder.indexOf(currentPanel);
+            if (idx < panelsOrder.length - 1) showPanel(panelsOrder[idx + 1]);
+        });
+    }
+
+    const dots = document.getElementById('whatsNewDots');
+    if (dots) {
+        dots.addEventListener('click', (e) => {
+            const dot = e.target.closest('[data-goto]');
+            if (dot) showPanel(dot.dataset.goto);
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener('show.bs.modal', () => {
+            showPanel('welcome');
+            // Sofort als gesehen markieren – auch wenn danach nur das X geklickt wird
+            markSeen();
+        });
+        modalEl.addEventListener('hide.bs.modal', markSeen);
+        modalEl.addEventListener('hidden.bs.modal', markSeen);
+
+        const closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+        if (closeBtn) closeBtn.addEventListener('click', markSeen);
+
+        if (AUTO_OPEN && typeof bootstrap !== 'undefined') {
+            requestAnimationFrame(() => {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            });
+        }
+    }
+})();
 
 function revealDashboardCredential(id, username) {
     const usernameElement = document.getElementById(`dashboard-user-${id}`);

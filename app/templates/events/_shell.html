@@ -1,0 +1,438 @@
+{# Shared macros for Veranstaltungen shell (sidebar, toggle, cards/rows) #}
+
+{% macro events_nav_links(active_nav, dismiss_offcanvas=false) %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if active_nav == 'standard' %}active{% endif %}"
+       href="{{ url_for('events.index') }}"
+       {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar3 me-2"></i>Standardübersicht
+    </a>
+    <a class="nav-link mod-nav-link {% if active_nav == 'overview' %}active{% endif %}"
+       href="{{ url_for('events.overview') }}"
+       {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar2-week me-2"></i>Veranstaltungsübersicht
+    </a>
+    <a class="nav-link mod-nav-link {% if active_nav == 'people' %}active{% endif %}"
+       href="{{ url_for('events.people_overview') }}"
+       {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-people me-2"></i>Personenübersicht
+    </a>
+    <a class="nav-link mod-nav-link {% if active_nav == 'mine' %}active{% endif %}"
+       href="{{ url_for('events.my_events') }}"
+       {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-person-check me-2"></i>Meine Veranstaltungen
+    </a>
+    <a class="nav-link mod-nav-link {% if active_nav == 'archive' %}active{% endif %}"
+       href="{{ url_for('events.archive') }}"
+       {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-archive me-2"></i>Archiv
+    </a>
+</nav>
+{% endmacro %}
+
+{% macro events_view_toggle(suffix='', extra_class='') %}
+<div class="events-view-toggle {{ extra_class }}" role="group" aria-label="Ansicht umschalten">
+    <button type="button" class="events-view-toggle__btn" id="listViewBtn{{ suffix }}" title="Listenansicht">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="events-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="Kachelansicht">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro events_shell_open(active_nav, page_title, page_icon='bi-calendar2-week', show_toggle=true, minimal_sidebar=false) %}
+{% set _active = active_nav|default('standard') %}
+{% set pdf_url = url_for('events.overview_pdf', view=_active) %}
+<div class="events-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-calendar2-week" aria-hidden="true"></i>
+        <span>Veranstaltungen</span>
+    </div>
+    <div class="mod-sidebar-new-wrap w-100">
+        <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}">
+            <i class="bi bi-plus-lg me-2"></i>Neu
+        </a>
+    </div>
+    {% if not minimal_sidebar %}
+    <div class="mod-sidebar-actions">
+        <a class="btn mod-sidebar-action w-100" href="{{ pdf_url }}" title="PDF Übersicht">
+            <i class="bi bi-file-earmark-pdf"></i>
+            <span class="mod-sidebar-action-label">PDF Übersicht</span>
+        </a>
+    </div>
+    {{ events_nav_links(_active, false) }}
+    {% endif %}
+</aside>
+
+<div class="mod-main events-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#eventsMobileNav" aria-controls="eventsMobileNav" aria-label="Menü">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi {{ page_icon }}" aria-hidden="true"></i>
+                    <span>{{ page_title }}</span>
+                </h1>
+            </div>
+            {% if not minimal_sidebar %}
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                <a class="btn btn-link btn-sm events-mobile-pdf-btn" href="{{ pdf_url }}" title="PDF Übersicht">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                </a>
+                <a class="btn mod-new-btn btn-sm" href="{{ url_for('events.create_event') }}">
+                    <i class="bi bi-plus-lg"></i> Neu
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% if show_toggle %}
+        <div class="events-mobile-view-toggle mt-2">
+            {{ events_view_toggle('Mobile') }}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if show_toggle %}
+    <div class="d-none d-lg-flex justify-content-end mb-3 page-toolbar-row">
+        {{ events_view_toggle('') }}
+    </div>
+    {% endif %}
+{% endmacro %}
+
+{% macro events_shell_close(active_nav='standard', minimal_sidebar=false) %}
+</div>
+</div>
+
+{# Offcanvas außerhalb der Shell — sonst klemmen Klicks/Backdrop #}
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="eventsMobileNav" aria-labelledby="eventsMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="eventsMobileNavLabel">
+            <i class="bi bi-calendar2-week" aria-hidden="true"></i>
+            <span>Veranstaltungen</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {% if not minimal_sidebar %}
+        {{ events_nav_links(active_nav|default('standard'), true) }}
+        {% endif %}
+    </div>
+</div>
+<script>
+/* Bootstrap data-bs-dismiss auf <a> blockiert Navigation — manuell schließen wie Dateien/Credentials */
+document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').forEach((link) => {
+    link.addEventListener('click', () => {
+        setTimeout(() => {
+            const el = document.getElementById('eventsMobileNav');
+            if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+            const oc = bootstrap.Offcanvas.getInstance(el);
+            if (oc) oc.hide();
+        }, 50);
+    });
+});
+</script>
+{% endmacro %}
+
+{% macro render_appointment_card(appointment) %}
+<div class="col-12 col-md-6 col-xl-4">
+    <a href="{{ url_for('events.view_event', event_id=appointment.event_id) }}" class="text-decoration-none text-reset">
+        <div class="card h-100 event-appointment-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="bi bi-calendar-event text-primary events-card-icon"></i>
+                </div>
+                <h5 class="card-title text-truncate" title="{{ appointment.label }}">{{ appointment.label }}</h5>
+                <p class="card-text events-appointment-meta mb-2 text-truncate" title="{{ appointment.event.name if appointment.event else '' }}">
+                    <i class="bi bi-calendar2-week"></i> {{ appointment.event.name if appointment.event else '-' }}
+                </p>
+                <p class="card-text events-appointment-meta mb-2">
+                    <i class="bi bi-clock"></i>
+                    {{ appointment.start_time.strftime('%d.%m.%Y %H:%M') }}
+                    – {{ appointment.end_time.strftime('%H:%M') }}
+                </p>
+                <p class="card-text events-appointment-meta mb-0 mt-auto">
+                    <i class="bi bi-geo-alt"></i>
+                    {{ appointment.location or (appointment.event.default_location if appointment.event else None) or '-' }}
+                </p>
+            </div>
+        </div>
+    </a>
+</div>
+{% endmacro %}
+
+{% macro render_appointment_list_row(appointment) %}
+<tr class="events-list-row">
+    <td>
+        <a class="events-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
+           href="{{ url_for('events.view_event', event_id=appointment.event_id) }}">
+            <i class="bi bi-calendar-event text-primary flex-shrink-0"></i>
+            <span class="text-truncate">{{ appointment.label }}</span>
+        </a>
+    </td>
+    <td class="d-none d-md-table-cell text-muted text-truncate">
+        {{ appointment.event.name if appointment.event else '-' }}
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        {{ appointment.start_time.strftime('%d.%m.%Y %H:%M') }}
+        – {{ appointment.end_time.strftime('%H:%M') }}
+    </td>
+    <td class="d-none d-xl-table-cell text-muted text-truncate">
+        {{ appointment.location or (appointment.event.default_location if appointment.event else None) or '-' }}
+    </td>
+    <td class="text-end">
+        <div class="events-list-actions">
+            <div class="events-list-hover-actions">
+                <a class="btn btn-sm btn-link" href="{{ url_for('events.view_event', event_id=appointment.event_id) }}" title="Öffnen">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a class="btn btn-sm btn-link" href="{{ url_for('events.edit_event', event_id=appointment.event_id) }}" title="Bearbeiten">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button type="button" class="btn btn-sm btn-link" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('events.view_event', event_id=appointment.event_id) }}">
+                            <i class="bi bi-eye me-2"></i>Öffnen
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('events.edit_event', event_id=appointment.event_id) }}">
+                            <i class="bi bi-pencil me-2"></i>Bearbeiten
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro render_event_card(event) %}
+<div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+            <div class="text-center mb-3">
+                <i class="bi bi-calendar2-week text-primary events-card-icon"></i>
+            </div>
+            <h5 class="card-title text-truncate" title="{{ event.name }}">{{ event.name }}</h5>
+            <p class="card-text text-muted small mb-2">{{ event.description or 'Keine Beschreibung' }}</p>
+            <p class="events-appointment-meta mb-1">
+                <i class="bi bi-geo-alt"></i> {{ event.default_location or '-' }}
+            </p>
+            <p class="events-appointment-meta mb-3">
+                <i class="bi bi-calendar-event"></i> {{ event.appointments|length }} Termine
+                · <i class="bi bi-people"></i> {{ event.assignments|length }} Personen
+            </p>
+            <div class="d-flex gap-2 mt-auto">
+                <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                    <i class="bi bi-eye"></i> Öffnen
+                </a>
+                <a href="{{ url_for('events.edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_event_list_row(event) %}
+<tr class="events-list-row">
+    <td>
+        <a class="events-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
+           href="{{ url_for('events.view_event', event_id=event.id) }}">
+            <i class="bi bi-calendar2-week text-primary flex-shrink-0"></i>
+            <span class="text-truncate">{{ event.name }}</span>
+        </a>
+    </td>
+    <td class="d-none d-md-table-cell text-muted text-truncate">
+        {{ event.default_location or '-' }}
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        {{ event.appointments|length }} Termine
+    </td>
+    <td class="d-none d-xl-table-cell text-muted">
+        {{ event.assignments|length }} Personen
+    </td>
+    <td class="text-end">
+        <div class="events-list-actions">
+            <div class="events-list-hover-actions">
+                <a class="btn btn-sm btn-link" href="{{ url_for('events.view_event', event_id=event.id) }}" title="Öffnen">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a class="btn btn-sm btn-link" href="{{ url_for('events.edit_event', event_id=event.id) }}" title="Bearbeiten">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button type="button" class="btn btn-sm btn-link" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('events.view_event', event_id=event.id) }}">
+                            <i class="bi bi-eye me-2"></i>Öffnen
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('events.edit_event', event_id=event.id) }}">
+                            <i class="bi bi-pencil me-2"></i>Bearbeiten
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro appointments_grid_list(appointments, empty_message) %}
+<div id="gridViewContainer" style="display: none;">
+    {% if appointments %}
+    <div class="row g-3">
+        {% for appointment in appointments %}
+            {{ render_appointment_card(appointment) }}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mod-empty-state">
+        <div>
+            <i class="bi bi-calendar3 display-6 d-block mb-2 opacity-50"></i>
+            {{ empty_message }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="listViewContainer" style="display: none;">
+    {% if appointments %}
+    <div class="events-list-table-wrap">
+        <table class="table events-list-table align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Termin</th>
+                    <th scope="col" class="d-none d-md-table-cell">Veranstaltung</th>
+                    <th scope="col" class="d-none d-lg-table-cell">Zeit</th>
+                    <th scope="col" class="d-none d-xl-table-cell">Ort</th>
+                    <th scope="col" class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for appointment in appointments %}
+                    {{ render_appointment_list_row(appointment) }}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="mod-empty-state">
+        <div>
+            <i class="bi bi-calendar3 display-6 d-block mb-2 opacity-50"></i>
+            {{ empty_message }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro events_grid_list(events, empty_message) %}
+<div id="gridViewContainer" style="display: none;">
+    {% if events %}
+    <div class="row g-3">
+        {% for event in events %}
+            {{ render_event_card(event) }}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mod-empty-state">
+        <div>
+            <i class="bi bi-calendar2-week display-6 d-block mb-2 opacity-50"></i>
+            {{ empty_message }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="listViewContainer" style="display: none;">
+    {% if events %}
+    <div class="events-list-table-wrap">
+        <table class="table events-list-table align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="d-none d-md-table-cell">Ort</th>
+                    <th scope="col" class="d-none d-lg-table-cell">Termine</th>
+                    <th scope="col" class="d-none d-xl-table-cell">Personen</th>
+                    <th scope="col" class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in events %}
+                    {{ render_event_list_row(event) }}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="mod-empty-state">
+        <div>
+            <i class="bi bi-calendar2-week display-6 d-block mb-2 opacity-50"></i>
+            {{ empty_message }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro events_view_mode_js() %}
+<script>
+function setEventsViewMode(mode) {
+    const grid = document.getElementById('gridViewContainer');
+    const list = document.getElementById('listViewContainer');
+    const listBtns = [
+        document.getElementById('listViewBtn'),
+        document.getElementById('listViewBtnMobile')
+    ].filter(Boolean);
+    const gridBtns = [
+        document.getElementById('gridViewBtn'),
+        document.getElementById('gridViewBtnMobile')
+    ].filter(Boolean);
+
+    const isList = mode === 'list';
+    if (grid) grid.style.display = isList ? 'none' : '';
+    if (list) list.style.display = isList ? '' : 'none';
+
+    listBtns.forEach((btn) => {
+        btn.classList.toggle('active', isList);
+        btn.classList.toggle('is-active', isList);
+    });
+    gridBtns.forEach((btn) => {
+        btn.classList.toggle('active', !isList);
+        btn.classList.toggle('is-active', !isList);
+    });
+    localStorage.setItem('eventsViewMode', isList ? 'list' : 'grid');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('eventsViewMode') || 'grid';
+    setEventsViewMode(saved);
+
+    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setEventsViewMode('list'));
+    });
+    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setEventsViewMode('grid'));
+    });
+});
+</script>
+{% endmacro %}

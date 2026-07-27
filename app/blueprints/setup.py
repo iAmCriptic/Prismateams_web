@@ -1,180 +1,481 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
-from flask_login import login_user
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from flask_login import login_user, current_user, login_required
 from app import db
 from app.models.user import User
-from app.models.email import EmailPermission
 from app.models.chat import Chat, ChatMember
 from app.models.settings import SystemSettings
 from app.models.whitelist import WhitelistEntry
-from app.utils.backup import import_backup, SUPPORTED_CATEGORIES
+from app.utils.backup import import_backup, SUPPORTED_CATEGORIES, CATEGORY_DEFINITIONS
+from app.utils.common import AVAILABLE_MODULES
 from app.utils.i18n import translate, available_languages
 from datetime import datetime
+import json
 import logging
 import os
 import tempfile
 
 setup_bp = Blueprint('setup', __name__)
 
+SETUP_COMPLETED_KEY = 'setup_completed'
+
+MODULE_META = [
+    {'key': 'module_chat', 'icon': 'bi-chat-dots', 'label': 'Chat', 'settings_endpoint': None},
+    {'key': 'module_files', 'icon': 'bi-folder', 'label': 'Dateien', 'settings_endpoint': 'settings.admin_file_settings'},
+    {'key': 'module_calendar', 'icon': 'bi-calendar-event', 'label': 'Kalender', 'settings_endpoint': 'settings.admin_calendar_settings'},
+    {'key': 'module_events', 'icon': 'bi-calendar2-week', 'label': 'Veranstaltungen', 'settings_endpoint': None},
+    {'key': 'module_email', 'icon': 'bi-envelope', 'label': 'E-Mail', 'settings_endpoint': 'settings.admin_email_module'},
+    {'key': 'module_contacts', 'icon': 'bi-person-lines-fill', 'label': 'Kontakte', 'settings_endpoint': None},
+    {'key': 'module_credentials', 'icon': 'bi-key', 'label': 'Zugangsdaten', 'settings_endpoint': None},
+    {'key': 'module_manuals', 'icon': 'bi-book', 'label': 'Anleitungen', 'settings_endpoint': None},
+    {'key': 'module_inventory', 'icon': 'bi-box-seam', 'label': 'Lagerverwaltung', 'settings_endpoint': 'settings.admin_inventory_settings'},
+    {'key': 'module_wiki', 'icon': 'bi-journal-text', 'label': 'Wiki', 'settings_endpoint': None},
+    {'key': 'module_booking', 'icon': 'bi-calendar-check', 'label': 'Buchungen', 'settings_endpoint': 'settings.booking_forms'},
+    {'key': 'module_music', 'icon': 'bi-music-note-beamed', 'label': 'Musik', 'settings_endpoint': 'settings.admin_music'},
+    {'key': 'module_media_downloader', 'icon': 'bi-download', 'label': 'Media Downloader', 'settings_endpoint': None},
+    {'key': 'module_assessment', 'icon': 'bi-clipboard-check', 'label': 'Bewertungen', 'settings_endpoint': 'assessment.admin_settings.admin_settings_page'},
+    {'key': 'module_shortlinks', 'icon': 'bi-link-45deg', 'label': 'Kurzlinks', 'settings_endpoint': None},
+]
+
+LANGUAGE_NAMES = {
+    'de': 'Deutsch',
+    'en': 'English',
+    'pt': 'Português',
+    'es': 'Español',
+    'ru': 'Русский',
+}
+
+
+def mark_setup_completed():
+    """Markiert das Portal-Setup als abgeschlossen."""
+    from app.utils.bot_protection import upsert_setting
+    upsert_setting(SETUP_COMPLETED_KEY, 'true', 'Portal-Setup abgeschlossen')
+    db.session.commit()
+
+
+def mark_setup_incomplete():
+    """Markiert Setup als laufend (Flag vorhanden, aber nicht abgeschlossen)."""
+    from app.utils.bot_protection import upsert_setting
+    upsert_setting(SETUP_COMPLETED_KEY, 'false', 'Portal-Setup abgeschlossen')
+
+
+def ensure_setup_flag_started(commit=True):
+    """Setzt setup_completed=false sobald der Wizard läuft.
+
+    Muss VOR dem ersten Admin-User greifen. Sonst sieht bei Multi-Worker
+    (Gunicorn) ein anderer Worker kurz „User vorhanden, kein Flag“ und
+    markiert Setup fälschlich als abgeschlossen → Redirect zum Login.
+    """
+    setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+    if setting is not None:
+        return setting
+    mark_setup_incomplete()
+    if commit:
+        db.session.commit()
+    return SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+
 
 def is_setup_needed():
-    """Prüft ob das Setup noch durchgeführt werden muss."""
-    return User.query.count() == 0
+    """Prüft ob das Setup noch durchgeführt werden muss.
+
+    Neue Logik: SystemSettings.setup_completed.
+    Legacy: vorhandene User ohne Flag gelten als abgeschlossen (einmalig nachziehen).
+    Während des Wizards muss das Flag bereits auf false stehen (vor Admin-Anlage).
+    """
+    try:
+        setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+        if setting is not None:
+            return str(setting.value).lower() not in ('true', '1', 'yes')
+
+        user_count = User.query.count()
+        if user_count > 0:
+            # Race-Schutz: während Setup-Routen niemals als fertig markieren.
+            # Anderer Worker kann User schon sehen, Flag aber noch nicht.
+            try:
+                endpoint = getattr(request, 'endpoint', None) or ''
+            except RuntimeError:
+                endpoint = ''
+            if str(endpoint).startswith('setup.'):
+                return True
+
+            # Nochmal lesen – paralleler Worker kann Flag inzwischen gesetzt haben
+            setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+            if setting is not None:
+                return str(setting.value).lower() not in ('true', '1', 'yes')
+
+            # Bestehende Installation ohne Flag → als erledigt behandeln
+            try:
+                mark_setup_completed()
+            except Exception:
+                logging.exception('Could not persist legacy setup_completed flag')
+            return False
+
+        return True
+    except Exception:
+        logging.exception('is_setup_needed failed')
+        try:
+            return User.query.count() == 0
+        except Exception:
+            return True
+
+
+def _has_portal_org():
+    if session.get('setup_portal_name'):
+        return True
+    row = SystemSettings.query.filter_by(key='portal_name').first()
+    return bool(row and row.value)
+
+
+def _has_admin_user():
+    return User.query.count() > 0
+
+
+def _setup_unlocked_steps():
+    """Welche Steps per Icon erreichbar sind (1–4). Bis Abschluss alle erreichten Steps editierbar."""
+    unlocked = {1}
+    if _has_portal_org():
+        unlocked.add(2)
+    if _has_admin_user():
+        unlocked.update({1, 2, 3, 4})
+    elif session.get('setup_reg_completed'):
+        unlocked.add(4)
+    return unlocked
+
+
+def _default_roles_dict():
+    roles = {'full_access': True}
+    for key in AVAILABLE_MODULES:
+        roles[key] = True
+    return roles
+
+
+def _apply_setup_gradient_style(gradient):
+    """CSS-Wert für Setup-Hintergrund (leerer Wert = Standard-Gradient)."""
+    return gradient or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+
+
+def _require_setup():
+    if not is_setup_needed():
+        return redirect(url_for('auth.login'))
+    return None
+
+
+def _require_step_access(step_num):
+    """Redirect falls Step noch gesperrt."""
+    blocked = _require_setup()
+    if blocked:
+        return blocked
+    if step_num not in _setup_unlocked_steps():
+        if step_num >= 3 and not _has_admin_user():
+            return redirect(url_for('setup.setup_step2'))
+        if step_num >= 2 and not _has_portal_org():
+            return redirect(url_for('setup.setup_step1'))
+        return redirect(url_for('setup.setup_step1'))
+    if step_num >= 3 and _has_admin_user() and not current_user.is_authenticated:
+        return redirect(url_for('auth.login', next=url_for(f'setup.setup_step{step_num}')))
+    return None
+
+
+def _current_gradient():
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    if gradient_setting and gradient_setting.value:
+        return gradient_setting.value
+    return session.get('setup_color_gradient') or ''
+
+
+def _languages_context():
+    available_langs = list(available_languages())
+    languages = [(lang, LANGUAGE_NAMES.get(lang, lang.upper())) for lang in available_langs]
+    current_language = session.get('setup_default_language', 'de')
+    return languages, current_language
+
+
+def _setup_template_kwargs(step, **extra):
+    languages, current_language = _languages_context()
+    gradient = _current_gradient()
+    return {
+        'color_gradient': gradient,
+        'setup_bg': _apply_setup_gradient_style(gradient),
+        'setup_step': step,
+        'setup_unlocked': sorted(_setup_unlocked_steps()),
+        'languages': languages,
+        'current_language': current_language,
+        **extra,
+    }
+
 
 
 def get_color_gradient():
     """Holt den Farbverlauf aus den System-Einstellungen."""
     try:
-        # SystemSettings ist bereits global importiert
         gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
         return gradient_setting.value if gradient_setting else None
     except Exception:
-        # Fallback auf Session-Daten bei Fehlern
         return session.get('setup_color_gradient')
+
+
+def _default_modules_dict():
+    return {key: True for key in AVAILABLE_MODULES}
 
 
 @setup_bp.route('/setup')
 def setup():
     """Setup-Seite für die Ersteinrichtung."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
-    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
-    return render_template('setup/index.html', color_gradient=current_gradient)
+    blocked = _require_setup()
+    if blocked:
+        return blocked
+
+    # Flag früh setzen, bevor Admin-User existiert (Multi-Worker-sicher)
+    ensure_setup_flag_started()
+
+    # Expliziter Step-Parameter: freie Navigation bis Abschluss
+    step = request.args.get('step', type=int)
+    if step in (1, 2, 3, 4) and step in _setup_unlocked_steps():
+        return redirect(url_for(f'setup.setup_step{step}'))
+
+    if _has_admin_user() and current_user.is_authenticated:
+        if session.get('setup_reg_completed'):
+            return redirect(url_for('setup.setup_step4'))
+        return redirect(url_for('setup.setup_step3'))
+    if _has_portal_org():
+        return redirect(url_for('setup.setup_step2'))
+    if request.args.get('welcome'):
+        return render_template('setup/index.html', **_setup_template_kwargs(1))
+    return redirect(url_for('setup.setup_step1'))
 
 
 @setup_bp.route('/setup/import-backup', methods=['GET', 'POST'])
 def setup_import_backup():
     """Backup-Import im Setup-Prozess (Schritt 0)."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
-    # Hole aktuellen Farbverlauf für Template
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
+    blocked = _require_setup()
+    if blocked:
+        return blocked
+
+    ensure_setup_flag_started()
+
+    current_gradient = _current_gradient()
+    backup_ctx = {
+        'categories': SUPPORTED_CATEGORIES,
+        'category_definitions': CATEGORY_DEFINITIONS,
+        'color_gradient': current_gradient,
+    }
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'skip':
-            # Backup-Import überspringen
             return redirect(url_for('setup.setup_step1'))
-        
-        elif action == 'import':
-            # Backup importieren
+
+        if action == 'import':
             if 'backup_file' not in request.files:
                 flash(translate('setup.flash.select_backup_file'), 'danger')
-                return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
-            
+                return render_template('setup/import_backup.html', **backup_ctx)
+
             file = request.files['backup_file']
             if file.filename == '':
                 flash(translate('setup.flash.select_backup_file'), 'danger')
-                return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
-            
+                return render_template('setup/import_backup.html', **backup_ctx)
+
             if not file.filename.endswith('.prismateams'):
                 flash(translate('setup.flash.invalid_file_extension'), 'danger')
-                return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
-            
+                return render_template('setup/import_backup.html', **backup_ctx)
+
             try:
-                # Temporäre Datei speichern
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='wb')
                 file.save(temp_file.name)
                 temp_path = temp_file.name
                 temp_file.close()
-                
-                # Kategorien auswählen (alle wenn nicht angegeben)
+
                 import_categories = request.form.getlist('import_categories')
                 if not import_categories:
-                    # Wenn keine Kategorien ausgewählt, importiere alle verfügbaren
                     import_categories = ['all']
-                
-                # Backup importieren (im Setup gibt es noch keinen current_user, daher None)
+
                 result = import_backup(temp_path, import_categories, None)
-                
-                # Temporäre Datei löschen
                 os.unlink(temp_path)
-                
+
                 if result['success']:
                     imported = ', '.join(result.get('imported', []))
                     flash(f'Backup erfolgreich importiert! Importierte Kategorien: {imported}', 'success')
-                    # Weiter zum nächsten Schritt
                     return redirect(url_for('setup.setup_step1'))
-                else:
-                    flash(f'Fehler beim Importieren des Backups: {result.get("error", "Unbekannter Fehler")}', 'danger')
+                flash(f'Fehler beim Importieren des Backups: {result.get("error", "Unbekannter Fehler")}', 'danger')
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Import im Setup: {str(e)}")
                 flash(f'Fehler beim Importieren des Backups: {str(e)}', 'danger')
                 if 'temp_path' in locals():
                     try:
                         os.unlink(temp_path)
-                    except:
+                    except Exception:
                         pass
-    
-    return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
+
+    return render_template('setup/import_backup.html', **backup_ctx)
 
 
 @setup_bp.route('/setup/complete', methods=['GET', 'POST'])
 def setup_complete():
-    """Komplettes Setup in einem Schritt."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
+    """Komplettes Setup in einem Schritt (Legacy)."""
+    blocked = _require_setup()
+    if blocked:
+        return blocked
+    return redirect(url_for('setup.setup_step1'))
+
+
+@setup_bp.route('/setup/step1', methods=['GET', 'POST'])
+def setup_step1():
+    """Schritt 1: Organisation."""
+    blocked = _require_step_access(1)
+    if blocked:
+        return blocked
+
+    ensure_setup_flag_started()
+
     if request.method == 'POST':
-        # Alle Formulardaten abrufen
         portal_name = request.form.get('portal_name', '').strip()
         default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
         color_gradient = request.form.get('color_gradient', '').strip()
         default_language = request.form.get('default_language', 'de').strip()
-        
-        # Handle portal logo upload
-        portal_logo_filename = None
+
+        if not portal_name:
+            flash(translate('setup.flash.enter_portal_name'), 'danger')
+            return render_template('setup/step1.html', **_setup_template_kwargs(1))
+
+        portal_logo_filename = session.get('setup_portal_logo')
         if 'portal_logo' in request.files:
             file = request.files['portal_logo']
             if file and file.filename:
-                # Validate file type
                 allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
                 if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Validate file size (5MB limit)
-                    file.seek(0, 2)  # Seek to end
+                    file.seek(0, 2)
                     file_size = file.tell()
-                    file.seek(0)  # Reset to beginning
-                    
-                    max_size = 5 * 1024 * 1024  # 5MB in bytes
+                    file.seek(0)
+                    max_size = 5 * 1024 * 1024
                     if file_size > max_size:
                         flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
-                        return render_template('setup/complete.html')
-                    
-                    # Create filename with timestamp
+                        return render_template('setup/step1.html', **_setup_template_kwargs(1))
+
                     from werkzeug.utils import secure_filename
                     filename = secure_filename(file.filename)
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     filename = f"portal_logo_{timestamp}_{filename}"
-                    
-                    # Ensure upload directory exists
-                    from flask import current_app
-                    import os
                     project_root = os.path.dirname(current_app.root_path)
                     upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
                     os.makedirs(upload_dir, exist_ok=True)
-                    
-                    # Save file
                     filepath = os.path.join(upload_dir, filename)
                     file.save(filepath)
                     portal_logo_filename = filename
                 else:
                     flash(translate('setup.flash.invalid_file_type'), 'danger')
-                    return render_template('setup/complete.html')
-        
-        # Whitelist-Einträge
-        whitelist_emails = []
-        for i in range(1, 6):
-            email = request.form.get(f'whitelist_email_{i}', '').strip().lower()
-            if email:
-                whitelist_emails.append(email)
-        
-        # Administrator-Daten
+                    return render_template('setup/step1.html', **_setup_template_kwargs(1))
+
+        session['setup_portal_name'] = portal_name
+        session['setup_portal_logo'] = portal_logo_filename
+        session['setup_default_accent_color'] = default_accent_color
+        session['setup_color_gradient'] = color_gradient or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        session['setup_default_language'] = default_language
+
+        try:
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            if portal_name_setting:
+                portal_name_setting.value = portal_name
+            else:
+                db.session.add(SystemSettings(key='portal_name', value=portal_name, description='Name des Portals'))
+
+            if portal_logo_filename:
+                portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+                if portal_logo_setting:
+                    old_logo = portal_logo_setting.value
+                    if old_logo and old_logo != portal_logo_filename:
+                        try:
+                            project_root = os.path.dirname(current_app.root_path)
+                            upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                            old_path = os.path.join(upload_dir, old_logo)
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except Exception:
+                            pass
+                    portal_logo_setting.value = portal_logo_filename
+                else:
+                    db.session.add(SystemSettings(key='portal_logo', value=portal_logo_filename, description='Portalslogo'))
+
+            accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+            if accent_color_setting:
+                accent_color_setting.value = default_accent_color
+            else:
+                db.session.add(SystemSettings(
+                    key='default_accent_color',
+                    value=default_accent_color,
+                    description='Standard-Akzentfarbe für neue Benutzer',
+                ))
+
+            language_setting = SystemSettings.query.filter_by(key='default_language').first()
+            if language_setting:
+                language_setting.value = default_language
+            else:
+                db.session.add(SystemSettings(
+                    key='default_language',
+                    value=default_language,
+                    description='Standardsprache der Benutzeroberfläche für neue Benutzer.',
+                ))
+
+            # Immer konkreten CSS-Wert speichern, damit Setup-Hintergrund auf allen Steps stimmt
+            gradient_value = color_gradient or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            session['setup_color_gradient'] = gradient_value
+            gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+            if gradient_setting:
+                gradient_setting.value = gradient_value
+            else:
+                db.session.add(SystemSettings(
+                    key='color_gradient',
+                    value=gradient_value,
+                    description='Farbverlauf für Login/Register-Seiten',
+                ))
+
+            db.session.commit()
+        except Exception as e:
+            logging.error(f"Error saving system settings in step 1: {e}")
+            db.session.rollback()
+
+        return redirect(url_for('setup.setup_step2'))
+
+    portal_name = session.get('setup_portal_name', '')
+    if not portal_name:
+        row = SystemSettings.query.filter_by(key='portal_name').first()
+        portal_name = row.value if row else ''
+    default_accent = session.get('setup_default_accent_color')
+    if not default_accent:
+        row = SystemSettings.query.filter_by(key='default_accent_color').first()
+        default_accent = row.value if row else '#0d6efd'
+    selected_gradient = session.get('setup_color_gradient')
+    if selected_gradient is None:
+        row = SystemSettings.query.filter_by(key='color_gradient').first()
+        selected_gradient = row.value if row else ''
+
+    return render_template(
+        'setup/step1.html',
+        **_setup_template_kwargs(
+            1,
+            portal_name=portal_name,
+            default_accent_color=default_accent,
+            selected_gradient=selected_gradient or '',
+        ),
+    )
+
+
+@setup_bp.route('/setup/step2', methods=['GET', 'POST'])
+def setup_step2():
+    """Schritt 2: Administrator-Account anlegen oder bearbeiten."""
+    blocked = _require_step_access(2)
+    if blocked:
+        return blocked
+
+    ensure_setup_flag_started()
+
+    existing_admin = User.query.filter_by(is_super_admin=True).order_by(User.id.asc()).first()
+    if not existing_admin:
+        existing_admin = User.query.filter_by(is_admin=True).order_by(User.id.asc()).first()
+
+    if existing_admin and not current_user.is_authenticated:
+        return redirect(url_for('auth.login', next=url_for('setup.setup_step2')))
+
+    if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
@@ -182,31 +483,70 @@ def setup_complete():
         last_name = request.form.get('last_name', '').strip()
         phone = request.form.get('phone', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
-        
-        # Validierung
-        if not all([portal_name, email, password, first_name, last_name]):
+        editing = existing_admin is not None
+
+        if not all([email, first_name, last_name]):
             flash(translate('setup.flash.fill_all_fields'), 'danger')
-            return render_template('setup/complete.html')
-        
-        if password != password_confirm:
-            flash(translate('setup.flash.passwords_dont_match'), 'danger')
-            return render_template('setup/complete.html')
-        
-        if len(password) < 8:
-            flash(translate('setup.flash.password_too_short'), 'danger')
-            return render_template('setup/complete.html')
-        
+            return render_template(
+                'setup/step2.html',
+                **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
+            )
+
+        if not editing and not password:
+            flash(translate('setup.flash.fill_all_fields'), 'danger')
+            return render_template('setup/step2.html', **_setup_template_kwargs(2, editing=False))
+
+        if password or password_confirm:
+            if password != password_confirm:
+                flash(translate('setup.flash.passwords_dont_match'), 'danger')
+                return render_template(
+                    'setup/step2.html',
+                    **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
+                )
+            from app.utils.password_policy import validate_password
+            is_valid, _ = validate_password(password, min_length=8, require_complexity=False)
+            if not is_valid:
+                flash(translate('setup.flash.password_too_short'), 'danger')
+                return render_template(
+                    'setup/step2.html',
+                    **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
+                )
+
         try:
-            logging.info("Starting complete setup")
-            
-            # Get values from session (set in step1) or form
-            portal_name = session.get('setup_portal_name', portal_name if 'portal_name' in locals() else '')
-            portal_logo_filename = session.get('setup_portal_logo', portal_logo_filename if 'portal_logo_filename' in locals() else None)
             default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
-            color_gradient = session.get('setup_color_gradient', None)
-            default_language = session.get('setup_default_language', 'de')
-            
-            # Ersten Administrator erstellen
+            if editing:
+                admin_user = existing_admin
+                old_email = (admin_user.email or '').lower()
+                admin_user.email = email
+                admin_user.first_name = first_name
+                admin_user.last_name = last_name
+                admin_user.phone = phone
+                admin_user.dark_mode = dark_mode
+                if password:
+                    admin_user.set_password(password)
+                if old_email != email:
+                    old_wl = WhitelistEntry.query.filter_by(entry=old_email).first()
+                    if old_wl:
+                        existing_new = WhitelistEntry.query.filter_by(entry=email).first()
+                        if existing_new:
+                            db.session.delete(old_wl)
+                        else:
+                            old_wl.entry = email
+                    elif not WhitelistEntry.query.filter_by(entry=email).first():
+                        db.session.add(WhitelistEntry(
+                            entry=email,
+                            entry_type='email',
+                            description='Automatisch hinzugefügt beim Setup',
+                            created_by=admin_user.id,
+                        ))
+                db.session.commit()
+                session['setup_admin_email'] = email
+                return redirect(url_for('setup.setup_step3'))
+
+            # Flag ZUERST (vor sichtbarem User) – sonst Multi-Worker-Race:
+            # anderer Worker sieht User ohne Flag → mark_setup_completed() → Login.
+            mark_setup_incomplete()
+
             admin_user = User(
                 email=email,
                 first_name=first_name,
@@ -214,375 +554,97 @@ def setup_complete():
                 phone=phone,
                 is_active=True,
                 is_admin=True,
-                is_super_admin=True,  # Erster Admin ist Hauptadministrator
+                is_super_admin=True,
+                is_email_confirmed=True,
                 dark_mode=dark_mode,
-                accent_color=default_accent_color
+                accent_color=default_accent_color,
             )
             admin_user.set_password(password)
-            
             db.session.add(admin_user)
-            db.session.commit()
-            logging.info(f"Admin user created with ID: {admin_user.id}")
-            
-            # E-Mail-Berechtigungen für Admin erstellen
-            email_perm = EmailPermission.query.filter_by(user_id=admin_user.id).first()
-            if not email_perm:
-                email_perm = EmailPermission(
+            db.session.flush()
+
+            # Kein ensure_email_permissions(): das commitet früh und öffnet die Race erneut.
+            from app.models.email import EmailPermission
+            if not EmailPermission.query.filter_by(user_id=admin_user.id).first():
+                db.session.add(EmailPermission(
                     user_id=admin_user.id,
                     can_read=True,
-                    can_send=True
-                )
-                db.session.add(email_perm)
-                logging.info("EmailPermission created for admin")
-            else:
-                # Falls bereits vorhanden, Berechtigungen aktualisieren
-                email_perm.can_read = True
-                email_perm.can_send = True
-                logging.info("EmailPermission updated for admin")
-            
-            # Haupt-Chat erstellen
-            main_chat = Chat(
-                name="Haupt-Chat",
-                is_main_chat=True,
-                created_by=admin_user.id
-            )
-            db.session.add(main_chat)
-            db.session.flush()
-            
-            # Admin zum Haupt-Chat hinzufügen
-            chat_member = ChatMember(
-                chat_id=main_chat.id,
-                user_id=admin_user.id
-            )
-            db.session.add(chat_member)
-            
-            # System-Einstellungen erstellen
-            if portal_name:
-                portal_name_setting = SystemSettings(
-                    key='portal_name',
-                    value=portal_name,
-                    description='Name des Portals'
-                )
-                db.session.add(portal_name_setting)
-                logging.info(f"Portal name setting created: {portal_name}")
-            
-            # Portal logo speichern
-            if portal_logo_filename:
-                logo_setting = SystemSettings(
-                    key='portal_logo',
-                    value=portal_logo_filename,
-                    description='Portalslogo'
-                )
-                db.session.add(logo_setting)
-                logging.info(f"Portal logo setting created: {portal_logo_filename}")
-            
-            # Default-Akzentfarbe speichern
-            accent_color_setting = SystemSettings(
-                key='default_accent_color',
-                value=default_accent_color,
-                description='Standard-Akzentfarbe für neue Benutzer'
-            )
-            db.session.add(accent_color_setting)
-            logging.info(f"Default accent color setting created: {default_accent_color}")
-            
-            # Standardsprache speichern
-            default_language = session.get('setup_default_language', 'de')
-            language_setting = SystemSettings(
-                key='default_language',
-                value=default_language,
-                description='Standardsprache der Benutzeroberfläche für neue Benutzer.'
-            )
-            db.session.add(language_setting)
-            logging.info(f"Default language setting created: {default_language}")
-            
-            # Farbverlauf speichern
-            if color_gradient:
-                gradient_setting = SystemSettings(
-                    key='color_gradient',
-                    value=color_gradient,
-                    description='Farbverlauf für Login/Register-Seiten'
-                )
-                db.session.add(gradient_setting)
-                logging.info("Color gradient setting created")
-            
-            # Whitelist-Einträge hinzufügen
-            for email_addr in whitelist_emails:
-                whitelist_entry = WhitelistEntry(
-                    email=email_addr,
-                    added_by=admin_user.id,
-                    reason="Hinzugefügt beim Setup"
-                )
-                db.session.add(whitelist_entry)
-            
-            # Admin-E-Mail zur Whitelist hinzufügen
-            admin_whitelist_entry = WhitelistEntry(
-                email=email,
-                added_by=admin_user.id,
-                reason="Automatisch hinzugefügt beim Setup"
-            )
-            db.session.add(admin_whitelist_entry)
-            
-            # Module-Einstellungen speichern
-            modules = {
-                'module_chat': request.form.get('module_chat') == 'on',
-                'module_files': request.form.get('module_files') == 'on',
-                'module_calendar': request.form.get('module_calendar') == 'on',
-                'module_email': request.form.get('module_email') == 'on',
-                'module_credentials': request.form.get('module_credentials') == 'on',
-                'module_manuals': request.form.get('module_manuals') == 'on',
-                'module_inventory': request.form.get('module_inventory') == 'on',
-                'module_wiki': request.form.get('module_wiki') == 'on',
-                'module_booking': request.form.get('module_booking') == 'on',
-                'module_music': request.form.get('module_music') == 'on',
-                'module_media_downloader': request.form.get('module_media_downloader') == 'on',
-                'module_assessment': request.form.get('module_assessment') == 'on',
-                'module_shortlinks': request.form.get('module_shortlinks') == 'on'
-            }
-            
-            from app.utils.bot_protection import upsert_setting
-            for module_key, enabled in modules.items():
-                upsert_setting(module_key, str(enabled), f'Modul {module_key} aktiviert')
-                logging.info(f"Module setting saved: {module_key}={enabled}")
+                    can_send=True,
+                ))
 
+            main_chat = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+            if not main_chat:
+                main_chat = Chat(name='Haupt-Chat', is_main_chat=True, created_by=admin_user.id)
+                db.session.add(main_chat)
+                db.session.flush()
+            elif (main_chat.name or '').strip().lower() in {'team chat', 'team-chat', ''}:
+                main_chat.name = 'Haupt-Chat'
+                if not main_chat.created_by:
+                    main_chat.created_by = admin_user.id
+
+            chat_member = ChatMember.query.filter_by(chat_id=main_chat.id, user_id=admin_user.id).first()
+            if not chat_member:
+                db.session.add(ChatMember(chat_id=main_chat.id, user_id=admin_user.id))
+
+            if not WhitelistEntry.query.filter_by(entry=email).first():
+                db.session.add(WhitelistEntry(
+                    entry=email,
+                    entry_type='email',
+                    description='Automatisch hinzugefügt beim Setup',
+                    created_by=admin_user.id,
+                ))
+
+            # Ein Commit: setup_completed=false + Admin + Nebenobjekte
             db.session.commit()
-            logging.info("All data committed successfully")
-            
-            # Admin automatisch einloggen
+            # Wie beim normalen Login: Flask-Login + Portal-Session (session_id).
+            # Ohne create_session wirft ensure_portal_session_tracking den User
+            # beim Redirect auf Step 3 sofort wieder zum Login.
+            from app.utils.session_manager import create_session
             login_user(admin_user)
-            logging.info("Admin user logged in")
-            
-            flash(translate('setup.flash.completed'), 'success')
-            return redirect(url_for('dashboard.index'))
-            
+            session['user_scope'] = 'portal'
+            create_session(admin_user.id)
+            session['setup_in_progress'] = True
+            session['setup_admin_email'] = email
+            return redirect(url_for('setup.setup_step3'))
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error during setup: {str(e)}")
+            logging.error(f'Error in setup step2: {e}', exc_info=True)
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
-            return render_template('setup/complete.html')
-    # Verfügbare Sprachen und deren Namen
-    language_names = {
-        'de': 'Deutsch',
-        'en': 'English',
-        'pt': 'Português',
-        'es': 'Español',
-        'ru': 'Русский'
-    }
-    available_langs = list(available_languages())
-    languages = [(lang, language_names.get(lang, lang.upper())) for lang in available_langs]
-    current_language = session.get('setup_default_language', 'de')
-    
-    return render_template('setup/complete.html', languages=languages, current_language=current_language)
+            return render_template(
+                'setup/step2.html',
+                **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
+            )
+
+    return render_template(
+        'setup/step2.html',
+        **_setup_template_kwargs(2, admin_user=existing_admin, editing=bool(existing_admin)),
+    )
 
 
-@setup_bp.route('/setup/step1', methods=['GET', 'POST'])
-def setup_step1():
-    """Schritt 1: Organisationsname und Farbverlauf."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
+@setup_bp.route('/setup/step3', methods=['GET', 'POST'])
+@login_required
+def setup_step3():
+    """Schritt 3: Registrierung, Whitelist, Standardrollen, Bot-Schutz."""
+    blocked = _require_step_access(3)
+    if blocked:
+        return blocked
+
     if request.method == 'POST':
-        portal_name = request.form.get('portal_name', '').strip()
-        default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
-        color_gradient = request.form.get('color_gradient', '').strip()
-        
-        if not portal_name:
-            flash(translate('setup.flash.enter_portal_name'), 'danger')
-            return render_template('setup/step1.html')
-        
-        # Handle portal logo upload
-        portal_logo_filename = None
-        if 'portal_logo' in request.files:
-            file = request.files['portal_logo']
-            if file and file.filename:
-                # Validate file type
-                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
-                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Validate file size (5MB limit)
-                    file.seek(0, 2)  # Seek to end
-                    file_size = file.tell()
-                    file.seek(0)  # Reset to beginning
-                    
-                    max_size = 5 * 1024 * 1024  # 5MB in bytes
-                    if file_size > max_size:
-                        flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
-                        return render_template('setup/step1.html')
-                    
-                    # Create filename with timestamp
-                    from werkzeug.utils import secure_filename
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                    filename = f"portal_logo_{timestamp}_{filename}"
-                    
-                    # Ensure upload directory exists
-                    from flask import current_app
-                    import os
-                    project_root = os.path.dirname(current_app.root_path)
-                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    
-                    # Save file
-                    filepath = os.path.join(upload_dir, filename)
-                    file.save(filepath)
-                    portal_logo_filename = filename
-                else:
-                    flash(translate('setup.flash.invalid_file_type'), 'danger')
-                    return render_template('setup/step1.html')
-        
-        # Standardsprache lesen
-        default_language = request.form.get('default_language', 'de').strip()
-        
-        # Speichere in Session für später
-        session['setup_portal_name'] = portal_name
-        session['setup_portal_logo'] = portal_logo_filename
-        session['setup_default_accent_color'] = default_accent_color
-        session['setup_color_gradient'] = color_gradient
-        session['setup_default_language'] = default_language
-        
-        # Speichere direkt in die Datenbank, damit die Werte sofort verfügbar sind
-        try:
-            
-            # Portal name speichern/aktualisieren
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            if portal_name_setting:
-                portal_name_setting.value = portal_name
-            else:
-                portal_name_setting = SystemSettings(
-                    key='portal_name',
-                    value=portal_name,
-                    description='Name des Portals'
-                )
-                db.session.add(portal_name_setting)
-            logging.info(f"Portal name saved to database: {portal_name}")
-            
-            # Portal logo speichern/aktualisieren
-            if portal_logo_filename:
-                portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-                if portal_logo_setting:
-                    # Altes Logo löschen wenn vorhanden
-                    old_logo = portal_logo_setting.value
-                    if old_logo and old_logo != portal_logo_filename:
-                        try:
-                            from flask import current_app
-                            import os
-                            project_root = os.path.dirname(current_app.root_path)
-                            upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
-                            old_path = os.path.join(upload_dir, old_logo)
-                            if os.path.exists(old_path):
-                                os.remove(old_path)
-                        except:
-                            pass
-                    portal_logo_setting.value = portal_logo_filename
-                else:
-                    portal_logo_setting = SystemSettings(
-                        key='portal_logo',
-                        value=portal_logo_filename,
-                        description='Portalslogo'
-                    )
-                    db.session.add(portal_logo_setting)
-                logging.info(f"Portal logo saved to database: {portal_logo_filename}")
-            
-            # Default accent color speichern/aktualisieren
-            accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
-            if accent_color_setting:
-                accent_color_setting.value = default_accent_color
-            else:
-                accent_color_setting = SystemSettings(
-                    key='default_accent_color',
-                    value=default_accent_color,
-                    description='Standard-Akzentfarbe für neue Benutzer'
-                )
-                db.session.add(accent_color_setting)
-            logging.info(f"Default accent color saved to database: {default_accent_color}")
-            
-            # Color gradient speichern/aktualisieren
-            if color_gradient:
-                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-                if gradient_setting:
-                    gradient_setting.value = color_gradient
-                else:
-                    gradient_setting = SystemSettings(
-                        key='color_gradient',
-                        value=color_gradient,
-                        description='Farbverlauf für Login/Register-Seiten'
-                    )
-                    db.session.add(gradient_setting)
-                logging.info("Color gradient saved to database")
-            else:
-                # Wenn kein Farbverlauf gesetzt, entferne vorhandenen
-                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-                if gradient_setting:
-                    db.session.delete(gradient_setting)
-            
-            db.session.commit()
-            logging.info("System settings committed to database in step 1")
-        except Exception as e:
-            logging.error(f"Error saving system settings in step 1: {e}")
-            db.session.rollback()
-        
-        return redirect(url_for('setup.setup_step2'))
-    
-    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
-    # Verfügbare Sprachen und deren Namen
-    language_names = {
-        'de': 'Deutsch',
-        'en': 'English',
-        'pt': 'Português',
-        'es': 'Español',
-        'ru': 'Русский'
-    }
-    available_langs = list(available_languages())
-    languages = [(lang, language_names.get(lang, lang.upper())) for lang in available_langs]
-    current_language = session.get('setup_default_language', 'de')
-    
-    return render_template('setup/step1.html', color_gradient=current_gradient, languages=languages, current_language=current_language)
-
-
-@setup_bp.route('/setup/step2', methods=['GET', 'POST'])
-def setup_step2():
-    """Schritt 2: Einstellungen und Whitelist."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
-    if 'setup_portal_name' not in session:
-        return redirect(url_for('setup.setup_step1'))
-    
-    if request.method == 'POST':
-        # Whitelist-Einträge verarbeiten
         whitelist_entries = []
-        for i in range(1, 6):  # Bis zu 5 Einträge
+        for i in range(1, 6):
             entry = request.form.get(f'whitelist_entry_{i}', '').strip().lower()
             entry_type = request.form.get(f'whitelist_type_{i}', 'email')
             if entry:
-                whitelist_entries.append({
-                    'entry': entry,
-                    'type': entry_type
-                })
-        
-        # Speichere in Session
+                whitelist_entries.append({'entry': entry, 'type': entry_type})
+
         session['setup_whitelist_entries'] = whitelist_entries
-        
-        # Standardrollen verarbeiten
-        all_modules = [
-            'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals', 'module_inventory',
-            'module_wiki', 'module_booking', 'module_music', 'module_media_downloader', 'module_contacts', 'module_assessment', 'module_shortlinks',
-        ]
-        
-        default_roles = {
-            'full_access': request.form.get('default_full_access') == 'on'
-        }
-        
-        # Modulspezifische Rollen
-        for module_key in all_modules:
+
+        default_roles = {'full_access': request.form.get('default_full_access') == 'on'}
+        for module_key in AVAILABLE_MODULES:
             default_roles[module_key] = request.form.get(f'default_{module_key}') == 'on'
-        
-        # Speichere in Session
         session['setup_default_roles'] = default_roles
 
-        from app.utils.bot_protection import VALID_PROVIDERS, VALID_RECAPTCHA_VERSIONS
+        from app.utils.bot_protection import VALID_PROVIDERS, VALID_RECAPTCHA_VERSIONS, apply_bot_protection_settings, upsert_setting
 
         bot_provider = request.form.get('portal_bot_protection', 'none').strip()
         if bot_provider not in VALID_PROVIDERS:
@@ -591,355 +653,127 @@ def setup_step2():
         if recaptcha_version not in VALID_RECAPTCHA_VERSIONS:
             recaptcha_version = 'v2'
 
-        session['setup_bot_protection'] = {
+        bot_data = {
             'provider': bot_provider,
             'register_enabled': request.form.get('portal_bot_protection_register') == 'on',
             'login_enabled': request.form.get('portal_bot_protection_login') == 'on',
+            'mailbox_enabled': request.form.get('portal_bot_protection_mailbox') == 'on',
+            'share_edit_enabled': request.form.get('portal_bot_protection_share_edit') == 'on',
             'recaptcha_version': recaptcha_version,
             'recaptcha_site_key': request.form.get('portal_recaptcha_site_key', '').strip(),
             'recaptcha_secret_key': request.form.get('portal_recaptcha_secret_key', '').strip(),
             'turnstile_site_key': request.form.get('portal_turnstile_site_key', '').strip(),
             'turnstile_secret_key': request.form.get('portal_turnstile_secret_key', '').strip(),
         }
-        
-        return redirect(url_for('setup.setup_step3'))
-    
-    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
-    setup_bot = session.get('setup_bot_protection', {})
-    return render_template(
-        'setup/step2.html',
-        color_gradient=current_gradient,
-        setup_bot=setup_bot,
-    )
+        session['setup_bot_protection'] = bot_data
 
-
-@setup_bp.route('/setup/step3', methods=['GET', 'POST'])
-def setup_step3():
-    """Schritt 3: Module aktivieren."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
-    if 'setup_portal_name' not in session:
-        return redirect(url_for('setup.setup_step1'))
-    
-    if request.method == 'POST':
-        # Module-Einstellungen in Session speichern
-        modules = {
-            'module_chat': request.form.get('module_chat') == 'on',
-            'module_files': request.form.get('module_files') == 'on',
-            'module_calendar': request.form.get('module_calendar') == 'on',
-            'module_email': request.form.get('module_email') == 'on',
-            'module_credentials': request.form.get('module_credentials') == 'on',
-            'module_manuals': request.form.get('module_manuals') == 'on',
-            'module_inventory': request.form.get('module_inventory') == 'on',
-            'module_wiki': request.form.get('module_wiki') == 'on',
-            'module_booking': request.form.get('module_booking') == 'on',
-            'module_music': request.form.get('module_music') == 'on',
-            'module_media_downloader': request.form.get('module_media_downloader') == 'on',
-            'module_contacts': request.form.get('module_contacts') == 'on',
-            'module_assessment': request.form.get('module_assessment') == 'on',
-            'module_shortlinks': request.form.get('module_shortlinks') == 'on',
-        }
-
-        session['setup_modules'] = modules
-        return redirect(url_for('setup.setup_step4'))
-    
-    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
-    return render_template('setup/step3.html', color_gradient=current_gradient)
-
-
-@setup_bp.route('/setup/step4', methods=['GET', 'POST'])
-def setup_step4():
-    """Schritt 4: Administrator-Account erstellen."""
-    if not is_setup_needed():
-        return redirect(url_for('auth.login'))
-    
-    if 'setup_portal_name' not in session:
-        return redirect(url_for('setup.setup_step1'))
-    
-    if request.method == 'POST':
-        # Formulardaten abrufen
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        password_confirm = request.form.get('password_confirm', '')
-        first_name = request.form.get('first_name', '').strip()
-        last_name = request.form.get('last_name', '').strip()
-        phone = request.form.get('phone', '').strip()
-        dark_mode = request.form.get('dark_mode') == 'on'
-        
-        # Validierung
-        if not all([email, password, first_name, last_name]):
-            flash(translate('setup.flash.fill_all_fields'), 'danger')
-            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
-
-        if password != password_confirm:
-            flash(translate('setup.flash.passwords_dont_match'), 'danger')
-            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
-
-        if len(password) < 8:
-            flash(translate('setup.flash.password_too_short'), 'danger')
-            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
-        
         try:
-            logging.info(f"Creating admin user with email: {email}")
-            # Get default accent color from session
-            default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
-            
-            # Ersten Administrator erstellen
-            admin_user = User(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                is_active=True,
-                is_admin=True,
-                is_super_admin=True,  # Erster Admin ist Hauptadministrator
-                is_email_confirmed=True,  # Admin ist automatisch bestätigt
-                dark_mode=dark_mode,
-                accent_color=default_accent_color
-            )
-            admin_user.set_password(password)
-            
-            db.session.add(admin_user)
-            db.session.commit()
-            logging.info(f"Admin user created successfully with ID: {admin_user.id}")
-            
-            # E-Mail-Berechtigungen für Admin erstellen
-            logging.info(f"Creating email permissions for admin user {admin_user.id}")
-            email_perm = admin_user.ensure_email_permissions()
-            logging.info(f"Email permissions created for admin user - can_read: {email_perm.can_read}, can_send: {email_perm.can_send}")
-            
-            # Haupt-Chat erstellen
-            main_chat = Chat(
-                name="Haupt-Chat",
-                is_main_chat=True,
-                created_by=admin_user.id
-            )
-            db.session.add(main_chat)
-            db.session.flush()  # Um die ID zu erhalten
-            
-            # Admin zum Haupt-Chat hinzufügen
-            chat_member = ChatMember(
-                chat_id=main_chat.id,
-                user_id=admin_user.id
-            )
-            db.session.add(chat_member)
-            
-            # System-Einstellungen erstellen oder aktualisieren
-            logging.info("Creating/updating system settings")
-            portal_name = session.get('setup_portal_name', '')
-            portal_logo_filename = session.get('setup_portal_logo', None)
-            
-            if portal_name:
-                portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-                if portal_name_setting:
-                    portal_name_setting.value = portal_name
-                    logging.info(f"Portal name setting updated: {portal_name}")
-                else:
-                    portal_name_setting = SystemSettings(
-                        key='portal_name',
-                        value=portal_name,
-                        description='Name des Portals'
-                    )
-                    db.session.add(portal_name_setting)
-                    logging.info(f"Portal name setting created: {portal_name}")
-            else:
-                logging.warning("Portal name is empty, skipping creation")
-            
-            # Portal logo speichern
-            if portal_logo_filename:
-                logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-                if logo_setting:
-                    logo_setting.value = portal_logo_filename
-                    logging.info(f"Portal logo setting updated: {portal_logo_filename}")
-                else:
-                    logo_setting = SystemSettings(
-                        key='portal_logo',
-                        value=portal_logo_filename,
-                        description='Portalslogo'
-                    )
-                    db.session.add(logo_setting)
-                    logging.info(f"Portal logo setting created: {portal_logo_filename}")
-            else:
-                logging.info("No portal logo provided, skipping logo creation")
-            
-            # Default-Akzentfarbe speichern
-            default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
-            accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
-            if accent_color_setting:
-                accent_color_setting.value = default_accent_color
-                logging.info("Default accent color setting updated")
-            else:
-                accent_color_setting = SystemSettings(
-                    key='default_accent_color',
-                    value=default_accent_color,
-                    description='Standard-Akzentfarbe für neue Benutzer'
-                )
-                db.session.add(accent_color_setting)
-                logging.info("Default accent color setting created")
-            
-            # Farbverlauf speichern
-            if session.get('setup_color_gradient'):
-                logging.info("Creating/updating color gradient setting")
-                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-                if gradient_setting:
-                    gradient_setting.value = session.get('setup_color_gradient', '')
-                    logging.info("Color gradient setting updated")
-                else:
-                    gradient_setting = SystemSettings(
-                        key='color_gradient',
-                        value=session.get('setup_color_gradient', ''),
-                        description='Farbverlauf für Login/Register-Seiten'
-                    )
-                    db.session.add(gradient_setting)
-                    logging.info("Color gradient setting created")
-            
-            # Standardsprache speichern
-            default_language = session.get('setup_default_language', 'de')
-            language_setting = SystemSettings.query.filter_by(key='default_language').first()
-            if language_setting:
-                language_setting.value = default_language
-                logging.info(f"Default language setting updated: {default_language}")
-            else:
-                language_setting = SystemSettings(
-                    key='default_language',
-                    value=default_language,
-                    description='Standardsprache der Benutzeroberfläche für neue Benutzer.'
-                )
-                db.session.add(language_setting)
-                logging.info(f"Default language setting created: {default_language}")
-            
-            # Whitelist-Einträge hinzufügen
-            whitelist_entries = session.get('setup_whitelist_entries', [])
+            admin_id = current_user.id
             for entry_data in whitelist_entries:
                 entry = entry_data['entry']
                 entry_type = entry_data['type']
-                
-                # Domain-Format korrigieren
                 if entry_type == 'domain' and not entry.startswith('@'):
                     entry = '@' + entry
-                
-                whitelist_entry = WhitelistEntry(
-                    entry=entry,
-                    entry_type=entry_type,
-                    description="Hinzugefügt beim Setup",
-                    created_by=admin_user.id
-                )
-                db.session.add(whitelist_entry)
-            
-            # Admin-E-Mail zur Whitelist hinzufügen
-            admin_whitelist_entry = WhitelistEntry(
-                entry=email,
-                entry_type='email',
-                description="Automatisch hinzugefügt beim Setup",
-                created_by=admin_user.id
-            )
-            db.session.add(admin_whitelist_entry)
-            
-            # Standardrollen speichern (aus Session)
-            import json
-            default_roles = session.get('setup_default_roles', {})
-            from app.utils.bot_protection import apply_bot_protection_settings, upsert_setting
+                if not WhitelistEntry.query.filter_by(entry=entry).first():
+                    db.session.add(WhitelistEntry(
+                        entry=entry,
+                        entry_type=entry_type,
+                        description='Hinzugefügt beim Setup',
+                        created_by=admin_id,
+                    ))
 
-            if default_roles:
-                upsert_setting(
-                    'default_module_roles',
-                    json.dumps(default_roles),
-                    'Standardrollen für neue Benutzer',
-                )
-                logging.info("Default module roles setting saved")
-
-            # Module-Einstellungen speichern (aus Session)
-            modules = session.get('setup_modules', {
-                'module_chat': True,
-                'module_files': True,
-                'module_calendar': True,
-                'module_email': True,
-                'module_credentials': True,
-                'module_manuals': True,
-                'module_inventory': True,
-                'module_wiki': True,
-                'module_booking': True,
-                'module_music': True,
-                'module_media_downloader': False,
-                'module_contacts': True,
-                'module_assessment': True,
-                'module_shortlinks': True,
-            })
-            
-            for module_key, enabled in modules.items():
-                upsert_setting(module_key, str(enabled), f'Modul {module_key} aktiviert')
-                logging.info(f"Module setting saved: {module_key}={enabled}")
-
-            bot_data = session.get('setup_bot_protection')
-            if bot_data:
-                apply_bot_protection_settings(bot_data)
-                logging.info("Bot protection settings created from setup")
-            
-            logging.info("Committing all changes to database")
+            upsert_setting('default_module_roles', json.dumps(default_roles), 'Standardrollen für neue Benutzer')
+            apply_bot_protection_settings(bot_data)
             db.session.commit()
-            logging.info("Database commit successful")
-            
-            # Überprüfe E-Mail-Berechtigungen für Admin
-            admin_email_perm = EmailPermission.query.filter_by(user_id=admin_user.id).first()
-            if admin_email_perm:
-                logging.info(f"Admin email permissions verified - can_read: {admin_email_perm.can_read}, can_send: {admin_email_perm.can_send}")
-            else:
-                logging.error("Admin email permissions not found!")
-                # E-Mail-Berechtigungen erneut erstellen falls sie fehlen
-                email_perm = EmailPermission(
-                    user_id=admin_user.id,
-                    can_read=True,
-                    can_send=True
-                )
-                db.session.add(email_perm)
-                db.session.commit()
-                logging.info("Admin email permissions recreated")
-            
-            # Session-Daten löschen
-            session.pop('setup_portal_name', None)
-            session.pop('setup_portal_logo', None)
-            session.pop('setup_default_accent_color', None)
-            session.pop('setup_color_gradient', None)
-            session.pop('setup_whitelist_entries', None)
-            session.pop('setup_modules', None)
-            session.pop('setup_bot_protection', None)
-            logging.info("Session data cleared")
-            
-            # Admin automatisch einloggen
-            logging.info("Logging in admin user")
-            login_user(admin_user)
-            logging.info("Admin user logged in successfully")
-            
-            # Setup-Abschluss-Markierung für Dashboard
-            session['setup_completed'] = True
-            
-            # Erfolgreiche Setup-Abschluss-Meldung
-            flash(translate('setup.flash.completed_emoji'), 'success')
-            flash(translate('setup.flash.add_users_info'), 'info')
-            flash(translate('setup.flash.admin_account_created'), 'info')
-            logging.info("Redirecting to dashboard")
-            return redirect(url_for('dashboard.index'))
-            
+            session['setup_reg_completed'] = True
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error during setup: {str(e)}", exc_info=True)
+            logging.error(f'Error saving setup step3: {e}', exc_info=True)
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+            return render_template(
+                'setup/step3.html',
+                **_setup_template_kwargs(
+                    3,
+                    setup_bot=bot_data,
+                    setup_modules=AVAILABLE_MODULES,
+                    module_meta=MODULE_META,
+                    default_roles=default_roles,
+                ),
+            )
+
+        return redirect(url_for('setup.setup_step4'))
+
+    setup_bot = session.get('setup_bot_protection', {})
+    default_roles = session.get('setup_default_roles') or _default_roles_dict()
+    return render_template(
+        'setup/step3.html',
+        **_setup_template_kwargs(
+            3,
+            setup_bot=setup_bot,
+            setup_modules=AVAILABLE_MODULES,
+            module_meta=MODULE_META,
+            default_roles=default_roles,
+            whitelist_entries=session.get('setup_whitelist_entries', []),
+        ),
+    )
+
+
+@setup_bp.route('/setup/step4', methods=['GET', 'POST'])
+@login_required
+def setup_step4():
+    """Schritt 4: Module aktivieren + Setup abschließen."""
+    blocked = _require_step_access(4)
+    if blocked:
+        return blocked
+
+    if request.method == 'POST':
+        modules = {}
+        for key in AVAILABLE_MODULES:
+            modules[key] = request.form.get(key) == 'on'
+        session['setup_modules'] = modules
+
+        try:
+            from app.utils.bot_protection import upsert_setting
+
+            for module_key, enabled in modules.items():
+                upsert_setting(module_key, str(enabled), f'Modul {module_key} aktiviert')
+
+            mark_setup_completed()
+
+            for key in (
+                'setup_portal_name', 'setup_portal_logo', 'setup_default_accent_color',
+                'setup_color_gradient', 'setup_whitelist_entries', 'setup_modules',
+                'setup_bot_protection', 'setup_default_roles', 'setup_in_progress',
+                'setup_reg_completed', 'setup_admin_email', 'setup_default_language',
+            ):
+                session.pop(key, None)
+
+            flash(translate('setup.flash.completed_summary'), 'success')
+            return redirect(url_for('dashboard.index'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f'Error finishing setup step4: {e}', exc_info=True)
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
-            # Verwende Session-Daten statt Datenbank-Abfrage nach Rollback
-            current_gradient = session.get('setup_color_gradient')
-            return render_template('setup/step4.html', color_gradient=current_gradient)
-    
-    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
-    
-    return render_template('setup/step4.html', color_gradient=current_gradient)
+
+    saved = session.get('setup_modules') or _default_modules_dict()
+    modules_for_ui = []
+    for meta in MODULE_META:
+        if meta['key'] not in AVAILABLE_MODULES:
+            continue
+        item = dict(meta)
+        item['enabled'] = saved.get(meta['key'], True)
+        item['settings_url'] = None
+        if meta.get('settings_endpoint'):
+            try:
+                item['settings_url'] = url_for(meta['settings_endpoint'], embed=1)
+            except Exception:
+                item['settings_url'] = None
+        modules_for_ui.append(item)
+
+    return render_template(
+        'setup/step4.html',
+        **_setup_template_kwargs(4, modules=modules_for_ui),
+    )
 
 
 @setup_bp.route('/setup/check')

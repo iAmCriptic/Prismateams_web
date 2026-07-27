@@ -1,18 +1,172 @@
 from reportlab.lib.pagesizes import A4, A5, letter
 from reportlab.lib.units import cm, mm
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, Flowable
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, Flowable, KeepTogether,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas as pdf_canvas
 from flask import current_app
 from io import BytesIO
 from datetime import datetime
 import os
 from PIL import Image as PILImage
-from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code
+from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code
 from app.utils.lengths import format_length_from_meters, parse_length_to_meters
 from app.utils.color_mapping import get_color_for_length, initialize_color_mappings
+
+
+# ---------------------------------------------------------------------------
+# Design tokens — einheitliches Portal-PDF-System
+# ---------------------------------------------------------------------------
+
+PDF_COLORS = {
+    'text': colors.HexColor('#1a1d21'),
+    'text_muted': colors.HexColor('#6c757d'),
+    'text_secondary': colors.HexColor('#495057'),
+    'header_bg': colors.HexColor('#f0f2f5'),
+    'zebra': colors.HexColor('#f8f9fa'),
+    'line': colors.HexColor('#dee2e6'),
+    'line_soft': colors.HexColor('#e9ecef'),
+    'footer': colors.HexColor('#868e96'),
+    'white': colors.white,
+    'card_bg': colors.white,
+    'default_accent': colors.HexColor('#0d6efd'),
+}
+
+
+def get_pdf_accent_color():
+    """Portal-Akzentfarbe aus SystemSettings (dezent nutzen, nie als Tabellen-Vollfläche)."""
+    try:
+        from app.models.settings import SystemSettings
+        setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        if setting and setting.value and setting.value.strip():
+            return colors.HexColor(setting.value.strip())
+    except Exception:
+        pass
+    return PDF_COLORS['default_accent']
+
+
+def pdf_paragraph_styles():
+    """Gemeinsame Paragraph-Styles für alle Portal-PDFs."""
+    base = getSampleStyleSheet()
+    return {
+        'title': ParagraphStyle(
+            'PdfSysTitle',
+            parent=base['Heading1'],
+            fontSize=17,
+            leading=21,
+            textColor=PDF_COLORS['text'],
+            fontName='Helvetica-Bold',
+            spaceAfter=2,
+        ),
+        'subtitle': ParagraphStyle(
+            'PdfSysSubtitle',
+            parent=base['Normal'],
+            fontSize=10,
+            leading=12,
+            textColor=PDF_COLORS['text_muted'],
+        ),
+        'section': ParagraphStyle(
+            'PdfSysSection',
+            parent=base['Normal'],
+            fontSize=11,
+            leading=14,
+            fontName='Helvetica-Bold',
+            textColor=PDF_COLORS['text'],
+            spaceBefore=0.15 * cm,
+            spaceAfter=0.2 * cm,
+        ),
+        'body': ParagraphStyle(
+            'PdfSysBody',
+            parent=base['Normal'],
+            fontSize=10,
+            leading=13,
+            textColor=PDF_COLORS['text'],
+        ),
+        'muted': ParagraphStyle(
+            'PdfSysMuted',
+            parent=base['Normal'],
+            fontSize=9,
+            leading=12,
+            textColor=PDF_COLORS['text_muted'],
+        ),
+        'caption': ParagraphStyle(
+            'PdfSysCaption',
+            parent=base['Normal'],
+            fontSize=8,
+            leading=10,
+            textColor=PDF_COLORS['text_muted'],
+            alignment=TA_CENTER,
+        ),
+    }
+
+
+class AccentLine(Flowable):
+    """Dünne Akzentlinie unter dem Dokumentkopf."""
+
+    def __init__(self, width, height=1.5, color=None):
+        Flowable.__init__(self)
+        self.width = width
+        self.height = height
+        self.color = color or get_pdf_accent_color()
+
+    def wrap(self, availWidth, availHeight):
+        self.width = min(self.width, availWidth)
+        return self.width, self.height
+
+    def draw(self):
+        self.canv.saveState()
+        self.canv.setStrokeColor(self.color)
+        self.canv.setFillColor(self.color)
+        self.canv.setLineWidth(0)
+        self.canv.roundRect(0, 0, self.width, self.height, min(self.height / 2, 1), fill=1, stroke=0)
+        self.canv.restoreState()
+
+
+class RoundedBox(Flowable):
+    """Inhalt in weich abgerundeter Karte (Portal-Pill-Look)."""
+
+    def __init__(
+        self,
+        inner,
+        width,
+        padding=7,
+        radius=8,
+        fill_color=None,
+        stroke_color=None,
+        stroke_width=0.6,
+    ):
+        Flowable.__init__(self)
+        self.inner = inner
+        self.box_width = width
+        self.padding = padding
+        self.radius = radius
+        self.fill_color = fill_color if fill_color is not None else PDF_COLORS['card_bg']
+        self.stroke_color = stroke_color if stroke_color is not None else PDF_COLORS['line']
+        self.stroke_width = stroke_width
+
+    def wrap(self, availWidth, availHeight):
+        w = min(self.box_width, availWidth)
+        inner_w = max(w - 2 * self.padding, 1)
+        iw, ih = self.inner.wrap(inner_w, availHeight - 2 * self.padding)
+        self._inner_w = iw
+        self._inner_h = ih
+        self.width = w
+        self.height = ih + 2 * self.padding
+        return self.width, self.height
+
+    def draw(self):
+        c = self.canv
+        c.saveState()
+        c.setFillColor(self.fill_color)
+        c.setStrokeColor(self.stroke_color)
+        c.setLineWidth(self.stroke_width)
+        c.roundRect(0, 0, self.width, self.height, self.radius, fill=1, stroke=1)
+        c.restoreState()
+        self.inner.drawOn(c, self.padding, self.padding)
 
 
 class DashedLine(Flowable):
@@ -159,79 +313,297 @@ def get_logo_path():
     return None
 
 
+def get_portal_name():
+    """Portalname aus SystemSettings, sonst APP_NAME."""
+    try:
+        from app.models.settings import SystemSettings
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
+            return portal_name_setting.value.strip()
+    except Exception:
+        pass
+    return current_app.config.get('APP_NAME', 'Prismateams')
+
+
+def build_standard_header(title, subtitle=None, pagesize=A4, logo_size=2.0 * cm,
+                          content_width=None, show_logo=True, show_accent=True):
+    """
+    Einheitlicher PDF-Kopf: Portal-Logo links, Titel (und optional Untertitel) daneben,
+    darunter dezente Akzentlinie. show_logo=False für QR-Bögen.
+    """
+    ps = pdf_paragraph_styles()
+    usable_width = content_width if content_width is not None else (pagesize[0] - 4 * cm)
+
+    text_block = [Paragraph(title, ps['title'])]
+    if subtitle:
+        text_block.append(Paragraph(subtitle, ps['subtitle']))
+
+    logo_cell = ''
+    if show_logo:
+        logo_path = get_logo_path()
+        if logo_path:
+            try:
+                logo_cell = Image(logo_path, width=logo_size, height=logo_size, kind='proportional')
+            except Exception:
+                logo_cell = ''
+
+    if show_logo and logo_cell != '':
+        logo_col = logo_size + 0.6 * cm
+        text_col = max(usable_width - logo_col, 8 * cm)
+        header = Table([[logo_cell, text_block]], colWidths=[logo_col, text_col])
+    else:
+        header = Table([[text_block]], colWidths=[usable_width])
+
+    header.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    if not show_accent:
+        return header
+
+    parts = [header, Spacer(1, 0.22 * cm), AccentLine(usable_width)]
+    return KeepTogether(parts)
+
+
+def standard_table_style(header=True):
+    """
+    Moderner Portal-Tabellenstil: weicher Header, LINEBELOW statt hartem Grid,
+    pill-ähnliches Padding — kein vollflächiges Blau.
+    """
+    style = [
+        ('BOX', (0, 0), (-1, -1), 0.6, PDF_COLORS['line']),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.4, PDF_COLORS['line_soft']),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('LEADING', (0, 0), (-1, -1), 12),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('TEXTCOLOR', (0, 0), (-1, -1), PDF_COLORS['text']),
+        ('BACKGROUND', (0, 1), (-1, -1), PDF_COLORS['white']),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [PDF_COLORS['white'], PDF_COLORS['zebra']]),
+    ]
+    if header:
+        style.extend([
+            ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['header_bg']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['text']),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('LINEBELOW', (0, 0), (-1, 0), 1.0, PDF_COLORS['line']),
+        ])
+    return TableStyle(style)
+
+
+def inventory_table_style(header=True):
+    """Alias für Abwärtskompatibilität — nutzt standard_table_style."""
+    return standard_table_style(header=header)
+
+
+def meta_kv_table_style():
+    """Key/Value-Metadaten (Ausleihe, Rückgabe, Inventur)."""
+    return TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), PDF_COLORS['text_secondary']),
+        ('TEXTCOLOR', (1, 0), (1, -1), PDF_COLORS['text']),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.3, PDF_COLORS['line_soft']),
+    ])
+
+
+def _qr_block(qr_payload, label='QR-Code', size=4.0 * cm):
+    """Zentrierter QR in weicher Karte für Inventar-Belege."""
+    ps = pdf_paragraph_styles()
+    label_style = ParagraphStyle(
+        'InvQrLabel',
+        parent=ps['section'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        spaceAfter=0.15 * cm,
+        spaceBefore=0,
+    )
+    caption_style = ParagraphStyle(
+        'InvQrCaption',
+        parent=ps['caption'],
+        fontSize=7,
+        leading=9,
+    )
+    qr_bytes = generate_qr_code_bytes(qr_payload, box_size=8, border=2)
+    qr_image = Image(BytesIO(qr_bytes), width=size, height=size)
+    inner = Table(
+        [[Paragraph(label, label_style)], [qr_image], [Paragraph(str(qr_payload), caption_style)]],
+        colWidths=[size + 0.6 * cm],
+    )
+    inner.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    return RoundedBox(
+        inner,
+        width=size + 1.4 * cm,
+        padding=8,
+        radius=10,
+        fill_color=PDF_COLORS['zebra'],
+        stroke_color=PDF_COLORS['line'],
+    )
+
+
+class StandardFooterCanvas(pdf_canvas.Canvas):
+    """Canvas mit Fußzeile und Seitenzahl im Format X/Y."""
+
+    def __init__(self, *args, **kwargs):
+        pdf_canvas.Canvas.__init__(self, *args, **kwargs)
+        self._saved_page_states = []
+        self.pdf_created_at = datetime.now().strftime('%d.%m.%Y %H:%M')
+        self.pdf_portal_name = 'Prismateams'
+        self.pdf_left_margin = 2 * cm
+        self.pdf_right_margin = 2 * cm
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        page_count = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self._draw_footer(page_count)
+            pdf_canvas.Canvas.showPage(self)
+        pdf_canvas.Canvas.save(self)
+
+    def _draw_footer(self, page_count):
+        page_width, _ = self._pagesize
+        left = self.pdf_left_margin
+        right = page_width - self.pdf_right_margin
+        y = 1.15 * cm
+        line_y = y + 0.4 * cm
+
+        self.saveState()
+        self.setStrokeColor(PDF_COLORS['line'])
+        self.setLineWidth(0.5)
+        self.line(left, line_y, right, line_y)
+
+        self.setFillColor(PDF_COLORS['footer'])
+        self.setFont('Helvetica', 8)
+        self.drawString(left, y, f"Erstellt am {self.pdf_created_at}")
+        self.drawCentredString(page_width / 2.0, y, f"© {self.pdf_portal_name}")
+        self.drawRightString(right, y, f"{self._pageNumber}/{page_count}")
+        self.restoreState()
+
+
+def draw_standard_footer(canvas, doc):
+    """
+    Einheitlicher PDF-Fuß (Fallback ohne Gesamtseitenzahl).
+    Bevorzugt StandardFooterCanvas über build_standard_pdf nutzen.
+    """
+    canvas.saveState()
+    page_width, _ = doc.pagesize
+    left = doc.leftMargin
+    right = page_width - doc.rightMargin
+    y = 1.15 * cm
+    line_y = y + 0.4 * cm
+
+    canvas.setStrokeColor(PDF_COLORS['line'])
+    canvas.setLineWidth(0.5)
+    canvas.line(left, line_y, right, line_y)
+
+    canvas.setFillColor(PDF_COLORS['footer'])
+    canvas.setFont('Helvetica', 8)
+
+    created_at = getattr(doc, 'pdf_created_at', None) or datetime.now().strftime('%d.%m.%Y %H:%M')
+    portal_name = getattr(doc, 'pdf_portal_name', None) or 'Prismateams'
+    page_count = getattr(doc, 'pdf_page_count', None)
+
+    canvas.drawString(left, y, f"Erstellt am {created_at}")
+    canvas.drawCentredString(page_width / 2.0, y, f"© {portal_name}")
+    page_label = (
+        f"{canvas.getPageNumber()}/{page_count}"
+        if page_count
+        else str(canvas.getPageNumber())
+    )
+    canvas.drawRightString(right, y, page_label)
+    canvas.restoreState()
+
+
+def build_standard_pdf(story, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
+                       topMargin=1.5 * cm, bottomMargin=2 * cm, output=None):
+    """Baut PDF mit Standard-Footer und Seitenzahl X/Y auf jeder Seite."""
+    if output is None:
+        output = BytesIO()
+
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=pagesize,
+        leftMargin=leftMargin,
+        rightMargin=rightMargin,
+        topMargin=topMargin,
+        bottomMargin=bottomMargin,
+    )
+    created_at = datetime.now().strftime('%d.%m.%Y %H:%M')
+    try:
+        portal_name = get_portal_name()
+    except Exception:
+        portal_name = 'Prismateams'
+
+    doc.pdf_created_at = created_at
+    doc.pdf_portal_name = portal_name
+
+    def _canvas_maker(filename, **kwargs):
+        canvas_obj = StandardFooterCanvas(filename, **kwargs)
+        canvas_obj.pdf_created_at = created_at
+        canvas_obj.pdf_portal_name = portal_name
+        canvas_obj.pdf_left_margin = leftMargin
+        canvas_obj.pdf_right_margin = rightMargin
+        return canvas_obj
+
+    doc.build(story, canvasmaker=_canvas_maker)
+
+    if isinstance(output, BytesIO):
+        output.seek(0)
+    return output
+
+
 def generate_music_wish_pdf(public_url, output=None):
     """
     Generiert eine A5-PDF für Musikwünsche mit QR-Code und Link.
-    
-    Args:
-        public_url: Die öffentliche URL zur Wunschliste
-        output: BytesIO Objekt oder Dateipfad (optional)
-    
-    Returns:
-        BytesIO Objekt mit PDF-Daten (falls output=None)
+    Einheitliches Layout: Standard-Kopf, Footer, Portal-Look.
     """
     if output is None:
         output = BytesIO()
-    
-    # A5-Seitengröße: 148 x 210 mm
-    doc = SimpleDocTemplate(output, pagesize=A5, 
-                           leftMargin=1.5*cm, rightMargin=1.5*cm,
-                           topMargin=1.5*cm, bottomMargin=1.5*cm)
-    story = []
-    
-    styles = getSampleStyleSheet()
-    
-    # Logo oben links
-    logo_path = get_logo_path()
-    if logo_path:
-        try:
-            logo = Image(logo_path, width=2.5*cm, height=2.5*cm, kind='proportional')
-            # Logo linksbündig positionieren
-            logo_table = Table([[logo]], colWidths=[2.5*cm], rowHeights=[2.5*cm])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(logo_table)
-            story.append(Spacer(1, 0.5*cm))
-        except Exception as e:
-            current_app.logger.warning(f"Konnte Logo nicht laden: {e}")
-    
-    # Überschrift "Musikwünsche?"
-    title_style = ParagraphStyle(
-        'MusicWishTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#0d6efd'),
-        alignment=TA_CENTER,
-        spaceAfter=0.8*cm,
-        fontName='Helvetica-Bold'
-    )
-    story.append(Paragraph("Musikwünsche?", title_style))
-    
-    # Untertitel "Hier Scannen und Suchen"
-    subtitle_style = ParagraphStyle(
-        'MusicWishSubtitle',
-        parent=styles['Normal'],
-        fontSize=14,
-        textColor=colors.black,
-        alignment=TA_CENTER,
-        spaceAfter=1.2*cm,
-        fontName='Helvetica'
-    )
-    story.append(Paragraph("Hier Scannen und Suchen", subtitle_style))
-    
-    # QR-Code generieren
-    qr_bytes = generate_qr_code_bytes(public_url, box_size=8, border=4)
-    qr_image = Image(BytesIO(qr_bytes), width=6*cm, height=6*cm)
-    
-    # QR-Code zentriert
-    qr_table = Table([[qr_image]], colWidths=[6*cm], rowHeights=[6*cm])
-    qr_table.setStyle(TableStyle([
+
+    usable = A5[0] - 3 * cm
+    ps = pdf_paragraph_styles()
+    story = [
+        build_standard_header(
+            "Musikwünsche?",
+            subtitle="Hier scannen und suchen",
+            pagesize=A5,
+            logo_size=2.0 * cm,
+            content_width=usable,
+        ),
+        Spacer(1, 0.7 * cm),
+    ]
+
+    qr_bytes = generate_qr_code_bytes(public_url, box_size=8, border=3)
+    qr_size = 5.5 * cm
+    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+    qr_inner = Table([[qr_image]], colWidths=[qr_size])
+    qr_inner.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -239,299 +611,470 @@ def generate_music_wish_pdf(public_url, output=None):
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
-    story.append(qr_table)
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Link in Klartext
+    story.append(RoundedBox(
+        qr_inner,
+        width=usable,
+        padding=14,
+        radius=12,
+        fill_color=PDF_COLORS['zebra'],
+        stroke_color=PDF_COLORS['line'],
+    ))
+    story.append(Spacer(1, 0.55 * cm))
+
     link_style = ParagraphStyle(
         'MusicWishLink',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#0d6efd'),
+        parent=ps['muted'],
+        fontSize=9,
         alignment=TA_CENTER,
-        spaceAfter=0,
-        fontName='Helvetica',
-        wordWrap='CJK'
+        leading=12,
+        wordWrap='CJK',
     )
-    # Link auf mehrere Zeilen aufteilen falls zu lang
-    link_text = public_url
-    story.append(Paragraph(link_text, link_style))
-    
-    doc.build(story)
-    if isinstance(output, BytesIO):
-        output.seek(0)
-    return output
+    story.append(Paragraph(public_url, link_style))
+
+    return build_standard_pdf(
+        story,
+        pagesize=A5,
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=1.3 * cm,
+        bottomMargin=1.8 * cm,
+        output=output,
+    )
+
+
+def generate_guest_credentials_pdf(full_name, username, password, login_url, output=None):
+    """
+    A5-PDF mit Gast-Zugangsdaten: Portal-Kopf, Credentials-Karte, QR + Login-Link.
+    """
+    if output is None:
+        output = BytesIO()
+
+    usable = A5[0] - 3 * cm
+    ps = pdf_paragraph_styles()
+    portal = get_portal_name()
+    display_name = (full_name or '').strip() or 'Gast'
+
+    story = [
+        build_standard_header(
+            "Gast-Zugang",
+            subtitle=portal,
+            pagesize=A5,
+            logo_size=2.0 * cm,
+            content_width=usable,
+        ),
+        Spacer(1, 0.45 * cm),
+        Paragraph(
+            f"Zugangsdaten für <b>{display_name}</b>",
+            ParagraphStyle(
+                'GuestCredIntro',
+                parent=ps['body'],
+                fontSize=11,
+                leading=14,
+                alignment=TA_CENTER,
+            ),
+        ),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    label_style = ParagraphStyle(
+        'GuestCredLabel',
+        parent=ps['caption'],
+        fontSize=8,
+        textColor=PDF_COLORS['text_muted'],
+        spaceAfter=1,
+    )
+    value_style = ParagraphStyle(
+        'GuestCredValue',
+        parent=ps['body'],
+        fontName='Courier',
+        fontSize=11,
+        leading=14,
+        spaceAfter=8,
+    )
+    password_style = ParagraphStyle(
+        'GuestCredPassword',
+        parent=value_style,
+        fontName='Courier-Bold',
+        fontSize=14,
+        leading=17,
+        spaceAfter=0,
+    )
+
+    cred_inner = Table(
+        [
+            [Paragraph('Benutzername / E-Mail', label_style)],
+            [Paragraph(str(username or ''), value_style)],
+            [Paragraph('Passwort', label_style)],
+            [Paragraph(str(password or ''), password_style)],
+        ],
+        colWidths=[usable - 1.2 * cm],
+    )
+    cred_inner.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(RoundedBox(
+        cred_inner,
+        width=usable,
+        padding=14,
+        radius=12,
+        fill_color=PDF_COLORS['zebra'],
+        stroke_color=PDF_COLORS['line'],
+    ))
+    story.append(Spacer(1, 0.45 * cm))
+
+    qr_bytes = generate_qr_code_bytes(login_url, box_size=8, border=2)
+    qr_size = 4.2 * cm
+    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+    qr_label = ParagraphStyle(
+        'GuestQrLabel',
+        parent=ps['section'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        spaceAfter=0.15 * cm,
+    )
+    qr_caption = ParagraphStyle(
+        'GuestQrCaption',
+        parent=ps['caption'],
+        fontSize=7,
+        leading=9,
+        alignment=TA_CENTER,
+        wordWrap='CJK',
+    )
+    qr_inner = Table(
+        [
+            [Paragraph('Zur Website / Login', qr_label)],
+            [qr_image],
+            [Paragraph(str(login_url or ''), qr_caption)],
+        ],
+        colWidths=[usable - 1.2 * cm],
+    )
+    qr_inner.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(RoundedBox(
+        qr_inner,
+        width=usable,
+        padding=12,
+        radius=12,
+        fill_color=PDF_COLORS['card_bg'],
+        stroke_color=PDF_COLORS['line'],
+    ))
+    story.append(Spacer(1, 0.35 * cm))
+    story.append(Paragraph(
+        'Zugangsdaten sicher aufbewahren und nicht weitergeben.',
+        ParagraphStyle(
+            'GuestCredNote',
+            parent=ps['muted'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            leading=10,
+        ),
+    ))
+
+    return build_standard_pdf(
+        story,
+        pagesize=A5,
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=1.3 * cm,
+        bottomMargin=1.8 * cm,
+        output=output,
+    )
 
 
 def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     """
-    Generiert einen Ausleihschein-PDF für eine oder mehrere Ausleihen.
-    
-    Args:
-        borrow_transactions: Einzelne BorrowTransaction oder Liste von BorrowTransaction-Objekten
-        output: BytesIO Objekt oder Dateipfad (optional)
-    
-    Returns:
-        BytesIO Objekt mit PDF-Daten (falls output=None)
+    Generiert einen Ausleihschein-PDF für Checkout oder Legacy-BorrowTransactions.
+    Einheitliches Layout: Logo, Titel, Tabelle, QR, Standard-Footer.
     """
-    if output is None:
-        output = BytesIO()
-    
-    # Normalisiere zu Liste
+    from app.models.inventory import Checkout
+
+    styles = getSampleStyleSheet()
+    ps = pdf_paragraph_styles()
+    stand = datetime.now().strftime('%d.%m.%Y')
+
+    # --- Checkout path ---
+    if isinstance(borrow_transactions, Checkout):
+        checkout = borrow_transactions
+        story = [
+            build_standard_header(
+                "Ausleihschein / Packliste",
+                subtitle=f"Stand: {stand}",
+                pagesize=A4,
+                logo_size=2.0 * cm,
+            ),
+            Spacer(1, 0.4 * cm),
+        ]
+
+        details_data = [
+            ['Ausleihdatum', checkout.start_date.strftime('%d.%m.%Y %H:%M') if checkout.start_date else '—'],
+            ['Vorgangsnummer', checkout.checkout_number],
+            ['Projekt / Veranstaltung', checkout.event_name or '—'],
+            ['Verantwortlicher', checkout.borrower_name or '—'],
+            ['Kontakt-E-Mail', checkout.contact_email or '—'],
+            ['Rückgabe bis', checkout.end_date.strftime('%d.%m.%Y %H:%M') if checkout.end_date else '—'],
+            ['Status', checkout.status or '—'],
+        ]
+        details_table = Table(details_data, colWidths=[5.2 * cm, 6.3 * cm])
+        details_table.setStyle(meta_kv_table_style())
+
+        qr_payload = checkout.qr_code_data or generate_borrow_qr_code(checkout.checkout_number)
+        top = Table([[details_table, _qr_block(qr_payload, 'Rückgabe-QR')]], colWidths=[11.8 * cm, 5.4 * cm])
+        top.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(top)
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Ausgeliehene Artikel", ps['section']))
+
+        items_data = [['Nr.', 'Produktname', 'ID', 'Länge', 'Zurück']]
+        for idx, item in enumerate(checkout.items, 1):
+            product = item.product
+            length_str = _format_length(product.length) if product and product.length else '—'
+            items_data.append([
+                str(idx),
+                Paragraph(product.name if product else '—', styles['Normal']),
+                str(product.id) if product else '—',
+                length_str,
+                item.returned_at.strftime('%d.%m.%Y') if item.returned_at else 'unterwegs',
+            ])
+        items_table = Table(items_data, colWidths=[1.1 * cm, 7.2 * cm, 2.2 * cm, 2.5 * cm, 3.2 * cm], repeatRows=1)
+        items_table.setStyle(standard_table_style())
+        story.append(items_table)
+        story.append(Spacer(1, 0.35 * cm))
+        end_txt = checkout.end_date.strftime('%d.%m.%Y %H:%M') if checkout.end_date else '—'
+        story.append(Paragraph(
+            f"Bitte beachten Sie das Rückgabedatum: <b>{end_txt}</b>. "
+            f"Der QR-Code dient zur schnellen Rückgabe am Scanner.",
+            ps['muted'],
+        ))
+        return build_standard_pdf(story, pagesize=A4, output=output)
+
+    # --- Legacy BorrowTransaction list ---
     if not isinstance(borrow_transactions, list):
         borrow_transactions = [borrow_transactions]
-    
     if not borrow_transactions:
         raise ValueError("Keine Ausleihvorgänge zum Generieren des PDFs vorhanden.")
-    
-    doc = SimpleDocTemplate(output, pagesize=A4, 
-                           leftMargin=2*cm, rightMargin=2*cm,
-                           topMargin=2*cm, bottomMargin=2*cm)
-    story = []
-    
-    styles = getSampleStyleSheet()
-    
-    # Header: Logo und Titel
-    logo_path = get_logo_path()
-    header_data = []
-    
-    if logo_path:
-        try:
-            logo = Image(logo_path, width=2.5*cm, height=2.5*cm, kind='proportional')
-            header_data.append([logo])
-        except Exception as e:
-            current_app.logger.warning(f"Konnte Logo nicht laden: {e}")
-            header_data.append([''])
-    else:
-        header_data.append([''])
-    
-    # Get portal name from SystemSettings
-    try:
-        from app.models.settings import SystemSettings
-        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-        app_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-    except:
-        app_name = current_app.config.get('APP_NAME', 'Prismateams')
-    
-    title_style = ParagraphStyle(
-        'BorrowReceiptTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.black,
-        alignment=TA_LEFT,
-        fontName='Helvetica-Bold',
-        leftIndent=0.5*cm
-    )
-    header_data[0].append(Paragraph("Ausleihschein", title_style))
-    
-    header_table = Table(header_data, colWidths=[3*cm, 15*cm])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-        ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-    ]))
-    story.append(header_table)
-    story.append(Spacer(1, 0.5*cm))
-    
-    # Ausleihdetails
+
     first_transaction = borrow_transactions[0]
     borrower = first_transaction.borrower
-    
-    normal_style = ParagraphStyle(
-        'Normal',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=colors.black,
-        alignment=TA_LEFT,
-        fontName='Helvetica'
-    )
-    
     display_ref = first_transaction.borrow_group_id or first_transaction.transaction_number
-    details_data = [
-        ['Ausleihdatum:', first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')],
-        ['Vorgangsnummer:', display_ref],
-        ['Voraussichtliche Rückgabe:', first_transaction.expected_return_date.strftime('%d.%m.%Y')],
-        ['Ausleiher:', f"{borrower.first_name} {borrower.last_name}"],
+
+    story = [
+        build_standard_header("Ausleihschein", subtitle=f"Stand: {stand}", pagesize=A4, logo_size=2.0 * cm),
+        Spacer(1, 0.4 * cm),
     ]
-    
-    if borrower.email:
-        details_data.append(['E-Mail:', borrower.email])
-    
-    details_table = Table(details_data, colWidths=[6*cm, 10*cm])
-    details_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
-    story.append(details_table)
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Produktliste
-    items_header_style = ParagraphStyle(
-        'ItemsHeader',
-        parent=styles['Normal'],
-        fontSize=14,
-        textColor=colors.black,
-        alignment=TA_LEFT,
-        fontName='Helvetica-Bold',
-        spaceAfter=0.3*cm
-    )
-    story.append(Paragraph("Ausgeliehene Artikel:", items_header_style))
-    
-    items_data = [['Nr.', 'Produktname', 'Produkt-ID', 'Länge']]
-    
-    for idx, transaction in enumerate(borrow_transactions, 1):
-        product = transaction.product
-        length_str = _format_length(product.length) if product.length else '-'
-        items_data.append([
-            str(idx),
-            product.name or '-',
-            str(product.id),
-            length_str
-        ])
-    
-    items_table = Table(items_data, colWidths=[1.5*cm, 8*cm, 3*cm, 3.5*cm], repeatRows=1)
-    items_table.setStyle(TableStyle([
-        # Header
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        
-        # Body
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        
-        # Grid
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
-        # Padding
-        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-        ('TOPPADDING', (0, 1), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
-    ]))
-    story.append(items_table)
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Hinweis
-    # Verwende Helvetica statt Helvetica-Italic, da Helvetica-Italic Unicode-Zeichen 
-    # (z.B. "ü" in "Rückgabedatum") nicht korrekt darstellen kann.
-    # Die Hervorhebung erfolgt bereits über Farbe und Einrückung.
-    note_style = ParagraphStyle(
-        'Note',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#666666'),
-        alignment=TA_LEFT,
-        fontName='Helvetica',
-        leftIndent=0.5*cm,
-        rightIndent=0.5*cm
-    )
-    story.append(Paragraph(
-        f"Bitte beachten Sie das voraussichtliche Rückgabedatum: {first_transaction.expected_return_date.strftime('%d.%m.%Y')}",
-        note_style
-    ))
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Rückgabe-QR-Code
+
+    details_data = [
+        ['Ausleihdatum', first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')],
+        ['Vorgangsnummer', display_ref],
+        ['Voraussichtliche Rückgabe', first_transaction.expected_return_date.strftime('%d.%m.%Y')],
+        ['Ausleiher', f"{borrower.first_name} {borrower.last_name}" if borrower else '—'],
+    ]
+    if borrower and borrower.email:
+        details_data.append(['E-Mail', borrower.email])
+
+    details_table = Table(details_data, colWidths=[5.2 * cm, 6.3 * cm])
+    details_table.setStyle(meta_kv_table_style())
+
     qr_data = generate_borrow_qr_code(first_transaction.transaction_number)
-    qr_bytes = generate_qr_code_bytes(qr_data, box_size=8, border=4)
-    qr_image = Image(BytesIO(qr_bytes), width=5*cm, height=5*cm)
-    
-    # QR-Code-Beschriftung
-    qr_label_style = ParagraphStyle(
-        'QRCodeLabel',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=colors.black,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
-        spaceAfter=0.3*cm
-    )
-    story.append(Paragraph("Rückgabe-QR-Code:", qr_label_style))
-    
-    # QR-Code zentriert
-    qr_table = Table([[qr_image]], colWidths=[5*cm], rowHeights=[5*cm])
-    qr_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    top = Table([[details_table, _qr_block(qr_data, 'Rückgabe-QR')]], colWidths=[11.8 * cm, 5.4 * cm])
+    top.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
-    story.append(qr_table)
-    story.append(Spacer(1, 0.8*cm))
-    
-    # Footer
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=TA_CENTER,
+    story.append(top)
+    story.append(Spacer(1, 0.5 * cm))
+    story.append(Paragraph("Ausgeliehene Artikel", ps['section']))
+
+    items_data = [['Nr.', 'Produktname', 'Produkt-ID', 'Länge']]
+    for idx, transaction in enumerate(borrow_transactions, 1):
+        product = transaction.product
+        length_str = _format_length(product.length) if product and product.length else '—'
+        items_data.append([
+            str(idx),
+            Paragraph(product.name if product else '—', styles['Normal']),
+            str(product.id) if product else '—',
+            length_str,
+        ])
+    items_table = Table(items_data, colWidths=[1.5 * cm, 8.5 * cm, 3 * cm, 3.2 * cm], repeatRows=1)
+    items_table.setStyle(standard_table_style())
+    story.append(items_table)
+    story.append(Spacer(1, 0.35 * cm))
+    story.append(Paragraph(
+        f"Bitte beachten Sie das voraussichtliche Rückgabedatum: "
+        f"<b>{first_transaction.expected_return_date.strftime('%d.%m.%Y')}</b>.",
+        ps['muted'],
+    ))
+    return build_standard_pdf(story, pagesize=A4, output=output)
+
+
+def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload, get_name, get_id_label, continuation_title):
+    """Geräte-Raster: quadratischer QR, Logo links vom Text, weiche Karten."""
+    from reportlab.platypus import PageBreak
+
+    qr_size = 2.7 * cm
+    items_per_row = 3
+    items_per_col = 4
+    items_per_page = items_per_row * items_per_col
+    cell_w = 5.5 * cm
+    name_style = ParagraphStyle(
+        'DeviceQrName', parent=styles['Normal'], fontSize=8, leading=10,
+        alignment=TA_LEFT, fontName='Helvetica-Bold', textColor=PDF_COLORS['text'],
     )
-    footer_text = f"Erstellt am {datetime.now().strftime('%d.%m.%Y %H:%M')} - {app_name}"
-    story.append(Spacer(1, 1*cm))
-    story.append(Paragraph(footer_text, footer_style))
-    
-    doc.build(story)
-    
-    if isinstance(output, BytesIO):
-        output.seek(0)
-        return output
-    
-    return output
+    id_style = ParagraphStyle(
+        'DeviceQrId', parent=styles['Normal'], fontSize=7, leading=9,
+        alignment=TA_LEFT, textColor=PDF_COLORS['text_muted'],
+    )
+
+    logo_path = get_logo_path()
+
+    for page_start in range(0, len(items), items_per_page):
+        if page_start > 0:
+            story.append(PageBreak())
+            story.append(build_standard_header(
+                continuation_title,
+                subtitle=f"Stand: {stand} · Fortsetzung",
+                pagesize=A4,
+                show_logo=False,
+                content_width=A4[0] - 2.4 * cm,
+            ))
+            story.append(Spacer(1, 0.25 * cm))
+
+        page_items = items[page_start:page_start + items_per_page]
+        qr_data = []
+        for row in range(items_per_col):
+            row_cells = []
+            for col in range(items_per_row):
+                idx = row * items_per_row + col
+                if idx < len(page_items):
+                    item = page_items[idx]
+                    qr_payload = get_qr_payload(item)
+                    qr_bytes = generate_qr_code_bytes(qr_payload, box_size=6, border=2)
+                    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+                    item_name = (get_name(item) or '—')[:28]
+                    text_block = [
+                        Paragraph(item_name, name_style),
+                        Paragraph(get_id_label(item), id_style),
+                    ]
+                    logo_cell = ''
+                    if logo_path:
+                        try:
+                            logo_cell = Image(
+                                logo_path, width=0.85 * cm, height=0.85 * cm, kind='proportional'
+                            )
+                        except Exception:
+                            logo_cell = ''
+                    text_table = Table(
+                        [[logo_cell, text_block]],
+                        colWidths=[1.0 * cm, cell_w - 1.6 * cm],
+                    )
+                    text_table.setStyle(TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                        ('TOPPADDING', (0, 0), (-1, -1), 0),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                    ]))
+                    cell_inner = Table(
+                        [[qr_image], [Spacer(1, 0.12 * cm)], [text_table]],
+                        colWidths=[cell_w - 0.4 * cm],
+                    )
+                    cell_inner.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                        ('TOPPADDING', (0, 0), (-1, -1), 0),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                    ]))
+                    row_cells.append(RoundedBox(
+                        cell_inner,
+                        width=cell_w,
+                        padding=6,
+                        radius=9,
+                        fill_color=PDF_COLORS['white'],
+                        stroke_color=PDF_COLORS['line'],
+                    ))
+                else:
+                    row_cells.append('')
+            qr_data.append(row_cells)
+
+        qr_table = Table(qr_data, colWidths=[5.7 * cm] * items_per_row, rowHeights=[4.8 * cm] * items_per_col)
+        qr_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(qr_table)
 
 
-def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
+def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', sets=None):
     """
-    Generiert einen QR-Code-Druckbogen für Produkte.
-    
-    Args:
-        products: Liste von Product-Objekten
-        output: BytesIO Objekt oder Dateipfad (optional)
-        label_type: 'cable' oder 'device' - bestimmt das Layout
-    
-    Returns:
-        BytesIO Objekt mit PDF-Daten (falls output=None)
+    Generiert einen QR-Code-Druckbogen für Produkte und/oder Sets.
+    Footer Pflicht; Seitenkopf ohne Logo; Etiketten darunter.
     """
-    if output is None:
-        output = BytesIO()
-    
-    if not products:
-        raise ValueError("Keine Produkte zum Generieren des QR-Code-Druckbogens vorhanden.")
-    
-    # A4-Seitengröße
-    doc = SimpleDocTemplate(output, pagesize=A4,
-                           leftMargin=1*cm, rightMargin=1*cm,
-                           topMargin=1*cm, bottomMargin=1*cm)
-    story = []
+    products = list(products or [])
+    sets = list(sets or [])
+    if not products and not sets:
+        raise ValueError("Keine Produkte oder Sets zum Generieren des QR-Code-Druckbogens vorhanden.")
+
     styles = getSampleStyleSheet()
+    stand = datetime.now().strftime('%d.%m.%Y')
+    parts = []
+    if products:
+        parts.append(f"{len(products)} Artikel")
+    if sets:
+        parts.append(f"{len(sets)} Sets")
+    if label_type == 'cable' and products:
+        title = "QR-Codes (Kabel)"
+    elif products and not sets:
+        title = "QR-Codes (Geräte)"
+    elif sets and not products:
+        title = "QR-Codes (Sets)"
+    else:
+        title = "QR-Codes"
+    content_w = A4[0] - 2.4 * cm
+    story = [
+        build_standard_header(
+            title,
+            subtitle=f"Stand: {stand} · {' · '.join(parts)}",
+            pagesize=A4,
+            show_logo=False,
+            content_width=content_w,
+        ),
+        Spacer(1, 0.3 * cm),
+    ]
 
-    if label_type == 'cable':
-        # Wickeletiketten: [STREIFEN][QR][TEXT][STREIFEN]
+    if products and label_type == 'cable':
         try:
             initialize_color_mappings()
         except Exception:
             pass
 
-        LABEL_W = 9.0 * cm
-        LABEL_H = 3.2 * cm
+        LABEL_W = 8.6 * cm
+        LABEL_H = 3.0 * cm
         LABELS_PER_ROW = 2
-        GAP = 0.35 * cm
+        GAP = 0.3 * cm
 
         rows = []
         row_data = []
@@ -562,216 +1105,264 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
 
         col_widths = [LABEL_W + GAP] * LABELS_PER_ROW
         row_heights = [LABEL_H + GAP] * len(rows)
-
         table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
         table.setStyle(TableStyle([
-            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
-            ('TOPPADDING',    (0, 0), (-1, -1), 0),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         story.append(table)
+    elif products:
+        _append_device_style_qr_grid(
+            story,
+            products,
+            stand=stand,
+            styles=styles,
+            get_qr_payload=lambda p: generate_product_qr_code(p.id),
+            get_name=lambda p: p.name or f"ID {p.id}",
+            get_id_label=lambda p: f"ID: {p.id}",
+            continuation_title=title,
+        )
 
-    else:  # device
-        qr_size = 3 * cm
-        items_per_row = 2
-        items_per_col = 6
-        items_per_page = items_per_row * items_per_col
+    if sets:
+        if products:
+            from reportlab.platypus import PageBreak
+            story.append(PageBreak())
+            story.append(build_standard_header(
+                "QR-Codes (Sets)",
+                subtitle=f"Stand: {stand} · {len(sets)} Sets",
+                pagesize=A4,
+                show_logo=False,
+                content_width=content_w,
+            ))
+            story.append(Spacer(1, 0.25 * cm))
+        _append_device_style_qr_grid(
+            story,
+            sets,
+            stand=stand,
+            styles=styles,
+            get_qr_payload=lambda s: generate_set_qr_code(s.id),
+            get_name=lambda s: s.name or f"Set {s.id}",
+            get_id_label=lambda s: f"SET-{s.id}",
+            continuation_title="QR-Codes (Sets)",
+        )
 
-        for page_start in range(0, len(products), items_per_page):
-            page_products = products[page_start:page_start + items_per_page]
-
-            qr_data = []
-            for row in range(items_per_col):
-                row_cells = []
-                for col in range(items_per_row):
-                    idx = row * items_per_row + col
-                    if idx < len(page_products):
-                        product = page_products[idx]
-                        qr_url = generate_product_qr_code(product.id)
-                        qr_bytes = generate_qr_code_bytes(qr_url, box_size=6, border=2)
-                        qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
-
-                        product_name = product.name[:20] if product.name else f"ID: {product.id}"
-                        name_style = ParagraphStyle(
-                            'ProductName',
-                            parent=styles['Normal'],
-                            fontSize=8,
-                            textColor=colors.black,
-                            alignment=TA_CENTER,
-                            fontName='Helvetica',
-                            spaceAfter=0.1 * cm
-                        )
-                        id_style = ParagraphStyle(
-                            'ProductID',
-                            parent=styles['Normal'],
-                            fontSize=7,
-                            textColor=colors.grey,
-                            alignment=TA_CENTER,
-                            fontName='Helvetica'
-                        )
-                        cell_content = [
-                            qr_image,
-                            Spacer(1, 0.1 * cm),
-                            Paragraph(product_name, name_style),
-                            Paragraph(f"ID: {product.id}", id_style)
-                        ]
-                        row_cells.append(cell_content)
-                    else:
-                        row_cells.append('')
-                qr_data.append(row_cells)
-
-            col_widths = [A4[0] / items_per_row - 0.5 * cm] * items_per_row
-            row_heights = [qr_size + 1.5 * cm] * items_per_col
-
-            qr_table = Table(qr_data, colWidths=col_widths, rowHeights=row_heights)
-            qr_table.setStyle(TableStyle([
-                ('ALIGN',   (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN',  (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING',   (0, 0), (-1, -1), 5),
-                ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
-                ('TOPPADDING',    (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ]))
-            story.append(qr_table)
-
-            if page_start + items_per_page < len(products):
-                story.append(Spacer(1, 0.5 * cm))
-    
-    doc.build(story)
-    
-    if isinstance(output, BytesIO):
-        output.seek(0)
-        return output
-    
-    return output
+    return build_standard_pdf(
+        story,
+        pagesize=A4,
+        leftMargin=1.2 * cm,
+        rightMargin=1.2 * cm,
+        topMargin=1.2 * cm,
+        bottomMargin=2.0 * cm,
+        output=output,
+    )
 
 
 def generate_inventory_list_pdf(products, output=None):
-    """Legacy-Inventurliste als PDF."""
-    if output is None:
-        output = BytesIO()
-    products = products or []
-    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+    """Inventurliste als PDF im Standard-Layout."""
     styles = getSampleStyleSheet()
-    story = [Paragraph("Inventurliste", styles["Heading1"]), Spacer(1, 0.5 * cm)]
+    products = products or []
+    stand = datetime.now().strftime('%d.%m.%Y')
+    story = [
+        build_standard_header(
+            "Inventurliste",
+            subtitle=f"Stand: {stand} · {len(products)} Produkte",
+            pagesize=A4,
+            logo_size=2.0 * cm,
+        ),
+        Spacer(1, 0.35 * cm),
+    ]
 
-    table_data = [["#", "Name", "ID", "Kategorie", "Standort", "Zustand"]]
+    if not products:
+        story.append(Paragraph("Keine Produkte vorhanden.", styles['Normal']))
+        return build_standard_pdf(story, pagesize=A4, output=output)
+
+    table_data = [["#", "Name", "ID", "Kategorie", "Standort", "Status"]]
     for idx, product in enumerate(products, 1):
         table_data.append([
             str(idx),
-            getattr(product, "name", "-") or "-",
-            str(getattr(product, "id", "-")),
-            getattr(product, "category", "-") or "-",
-            getattr(product, "location", "-") or "-",
-            getattr(product, "condition", "-") or "-",
+            Paragraph(getattr(product, "name", None) or "—", styles['Normal']),
+            str(getattr(product, "id", "—")),
+            getattr(product, "category", None) or "—",
+            Paragraph(getattr(product, "location", None) or "—", styles['Normal']),
+            getattr(product, "status", None) or "—",
         ])
 
-    table = Table(table_data, colWidths=[1 * cm, 6 * cm, 2 * cm, 3.5 * cm, 4 * cm, 2.5 * cm], repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
+    table = Table(table_data, colWidths=[1 * cm, 5.5 * cm, 1.8 * cm, 3.2 * cm, 3.5 * cm, 2.2 * cm], repeatRows=1)
+    table.setStyle(standard_table_style())
     story.append(table)
-    doc.build(story)
-    if isinstance(output, BytesIO):
-        output.seek(0)
-    return output
+    return build_standard_pdf(story, pagesize=A4, output=output)
 
 
 def generate_inventory_tool_pdf(inventory, items, output=None):
-    """Legacy-Inventur-Export als PDF."""
-    if output is None:
-        output = BytesIO()
-    items = items or []
-    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+    """Inventur-Export als PDF im Standard-Layout."""
     styles = getSampleStyleSheet()
+    items = items or []
+    stand = datetime.now().strftime('%d.%m.%Y')
     title = f"Inventur: {getattr(inventory, 'name', 'Unbenannt')}"
-    story = [Paragraph(title, styles["Heading1"]), Spacer(1, 0.2 * cm)]
-
-    meta_rows = [
-        ["Status", getattr(inventory, "status", "-") or "-"],
-        ["Gestartet", getattr(getattr(inventory, "started_at", None), "strftime", lambda _fmt: "-")("%d.%m.%Y %H:%M")],
-        ["Abgeschlossen", getattr(getattr(inventory, "completed_at", None), "strftime", lambda _fmt: "-")("%d.%m.%Y %H:%M") if getattr(inventory, "completed_at", None) else "-"],
+    story = [
+        build_standard_header(title, subtitle=f"Stand: {stand}", pagesize=A4, logo_size=2.0 * cm),
+        Spacer(1, 0.3 * cm),
     ]
-    meta = Table(meta_rows, colWidths=[4 * cm, 10 * cm])
-    meta.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    story.extend([meta, Spacer(1, 0.5 * cm)])
 
-    table_data = [["Produkt", "Gezählt", "Neuer Standort", "Neuer Zustand", "Geprüft von"]]
+    started = getattr(inventory, "started_at", None)
+    completed = getattr(inventory, "completed_at", None)
+    meta_rows = [
+        ["Status", getattr(inventory, "status", None) or "—"],
+        ["Gestartet", started.strftime("%d.%m.%Y %H:%M") if started else "—"],
+        ["Abgeschlossen", completed.strftime("%d.%m.%Y %H:%M") if completed else "—"],
+        ["Positionen", str(len(items))],
+    ]
+    meta = Table(meta_rows, colWidths=[4 * cm, 12 * cm])
+    meta.setStyle(meta_kv_table_style())
+    story.extend([meta, Spacer(1, 0.35 * cm)])
+
+    table_data = [["Produkt", "Geprüft", "Neuer Standort", "Neuer Zustand", "Geprüft von"]]
     for item in items:
         product = getattr(item, "product", None)
         checker = getattr(item, "checker", None)
-        checker_name = "-"
+        checker_name = "—"
         if checker:
-            checker_name = getattr(checker, "full_name", None) or getattr(checker, "username", "-")
+            checker_name = getattr(checker, "full_name", None) or getattr(checker, "username", "—")
+        checked = getattr(item, "checked", None)
+        if checked is None:
+            checked = getattr(item, "is_counted", False)
         table_data.append([
-            getattr(product, "name", "-") if product else "-",
-            "Ja" if getattr(item, "is_counted", False) else "Nein",
-            getattr(item, "new_location", None) or (getattr(product, "location", "-") if product else "-"),
-            getattr(item, "new_condition", None) or (getattr(product, "condition", "-") if product else "-"),
+            Paragraph(getattr(product, "name", None) or "—", styles['Normal']),
+            "Ja" if checked else "Nein",
+            Paragraph(
+                getattr(item, "new_location", None)
+                or (getattr(product, "location", None) if product else None)
+                or "—",
+                styles['Normal'],
+            ),
+            getattr(item, "new_condition", None)
+            or (getattr(product, "condition", None) if product else None)
+            or "—",
             checker_name,
         ])
 
-    table = Table(table_data, colWidths=[4.5 * cm, 2 * cm, 3.5 * cm, 3 * cm, 3 * cm], repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
+    table = Table(table_data, colWidths=[4.5 * cm, 1.8 * cm, 3.8 * cm, 3 * cm, 3.1 * cm], repeatRows=1)
+    table.setStyle(standard_table_style())
     story.append(table)
-    doc.build(story)
-    if isinstance(output, BytesIO):
-        output.seek(0)
-    return output
+    return build_standard_pdf(story, pagesize=A4, output=output)
 
 
-def generate_return_confirmation_pdf(borrow_transaction, output=None):
-    """Erstellt ein kompaktes Rückgabe-Bestätigungs-PDF für E-Mail-Anhänge."""
-    if output is None:
-        output = BytesIO()
-    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+def generate_return_confirmation_pdf(borrow_transaction, output=None, returned_items=None):
+    """Kompakte Rückgabe-Bestätigung im Standard-Layout (optional mit QR + Artikelliste)."""
+    from app.utils.common import portal_now_naive
+
     styles = getSampleStyleSheet()
-    story = [Paragraph("Rückgabe-Bestätigung", styles["Heading1"]), Spacer(1, 0.5 * cm)]
-
-    borrower = getattr(borrow_transaction, "borrower", None)
-    product = getattr(borrow_transaction, "product", None)
-    borrower_name = getattr(borrower, "full_name", "-") if borrower else "-"
-    product_name = getattr(product, "name", "-") if product else "-"
-    return_date = getattr(borrow_transaction, "actual_return_date", None) or datetime.utcnow()
-
-    rows = [
-        ["Vorgangsnummer", getattr(borrow_transaction, "transaction_number", "-")],
-        ["Ausleiher", borrower_name],
-        ["Produkt", product_name],
-        ["Rückgabedatum", return_date.strftime("%d.%m.%Y %H:%M")],
+    ps = pdf_paragraph_styles()
+    stand = datetime.now().strftime('%d.%m.%Y')
+    story = [
+        build_standard_header("Rückgabeschein", subtitle=f"Stand: {stand}", pagesize=A4, logo_size=2.0 * cm),
+        Spacer(1, 0.35 * cm),
     ]
-    table = Table(rows, colWidths=[5 * cm, 10 * cm])
-    table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 11),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
-    story.append(table)
-    doc.build(story)
-    if isinstance(output, BytesIO):
-        output.seek(0)
-    return output
+
+    # CheckoutItem / Checkout compat
+    from app.models.inventory import Checkout, CheckoutItem
+    items_for_table = None
+    if isinstance(borrow_transaction, Checkout):
+        checkout = borrow_transaction
+        items_for_table = (
+            list(returned_items) if returned_items is not None else list(checkout.returned_items or [])
+        )
+        return_date = portal_now_naive()
+        if items_for_table:
+            first_returned = getattr(items_for_table[0], 'returned_at', None)
+            if first_returned:
+                return_date = first_returned
+        rows = [
+            ["Vorgangsnummer", checkout.checkout_number],
+            ["Projekt", checkout.event_name or "—"],
+            ["Verantwortlicher", checkout.borrower_name or "—"],
+            ["Status", checkout.status or "—"],
+            ["Bestätigt am", return_date.strftime("%d.%m.%Y %H:%M")],
+            ["Artikel", str(len(items_for_table))],
+        ]
+        qr_payload = checkout.qr_code_data or generate_borrow_qr_code(checkout.checkout_number)
+    elif isinstance(borrow_transaction, CheckoutItem):
+        item = borrow_transaction
+        checkout = item.checkout
+        product = item.product
+        return_date = item.returned_at or portal_now_naive()
+        items_for_table = list(returned_items) if returned_items is not None else [item]
+        rows = [
+            ["Vorgangsnummer", checkout.checkout_number if checkout else "—"],
+            ["Produkt", getattr(product, "name", None) or "—"],
+            ["Verantwortlicher", checkout.borrower_name if checkout else "—"],
+            ["Rückgabedatum", return_date.strftime("%d.%m.%Y %H:%M")],
+        ]
+        qr_payload = (checkout.qr_code_data if checkout else None) or (
+            generate_product_qr_code(product.id) if product else None
+        )
+    else:
+        borrower = getattr(borrow_transaction, "borrower", None)
+        product = getattr(borrow_transaction, "product", None)
+        borrower_name = getattr(borrower, "full_name", "—") if borrower else "—"
+        product_name = getattr(product, "name", "—") if product else "—"
+        return_date = getattr(borrow_transaction, "actual_return_date", None) or portal_now_naive()
+        txn = getattr(borrow_transaction, "transaction_number", "—")
+        rows = [
+            ["Vorgangsnummer", txn],
+            ["Ausleiher", borrower_name],
+            ["Produkt", product_name],
+            ["Rückgabedatum", return_date.strftime("%d.%m.%Y %H:%M")],
+        ]
+        qr_payload = generate_borrow_qr_code(txn) if txn and txn != "—" else None
+        if returned_items is not None:
+            items_for_table = list(returned_items)
+
+    details = Table(rows, colWidths=[5 * cm, 6.5 * cm])
+    details.setStyle(meta_kv_table_style())
+
+    if qr_payload:
+        layout = Table([[details, _qr_block(qr_payload, 'Beleg-QR', size=3.6 * cm)]], colWidths=[11.8 * cm, 5.4 * cm])
+        layout.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(layout)
+    else:
+        story.append(details)
+
+    if items_for_table:
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Zurückgegebene Artikel", ps['section']))
+        items_data = [['Nr.', 'Produktname', 'ID', 'Länge', 'Rückgabe']]
+        for idx, item in enumerate(items_for_table, 1):
+            product = getattr(item, 'product', None)
+            length_str = (
+                _format_length(product.length)
+                if product and getattr(product, 'length', None)
+                else '—'
+            )
+            returned_at = getattr(item, 'returned_at', None)
+            items_data.append([
+                str(idx),
+                Paragraph(getattr(product, 'name', None) or '—', styles['Normal']),
+                str(getattr(product, 'id', None) or getattr(item, 'product_id', '—')),
+                length_str,
+                returned_at.strftime('%d.%m.%Y %H:%M') if returned_at else '—',
+            ])
+        items_table = Table(
+            items_data,
+            colWidths=[1.1 * cm, 7.2 * cm, 2.2 * cm, 2.5 * cm, 3.2 * cm],
+            repeatRows=1,
+        )
+        items_table.setStyle(standard_table_style())
+        story.append(items_table)
+        story.append(Spacer(1, 0.35 * cm))
+        story.append(Paragraph(
+            "Diese Liste enthält die bei diesem Vorgang zurückgegebenen Artikel "
+            "(auch bei Teilerückgabe).",
+            ps['muted'],
+        ))
+
+    return build_standard_pdf(story, pagesize=A4, output=output)

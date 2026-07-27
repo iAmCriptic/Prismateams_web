@@ -1,60 +1,206 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Verwarnungen{% endblock %}
-{% block content %}
-{{ assessment_page_header('Verwarnungen', icon='exclamation-triangle') }}
-    <div class="mb-3">
-        <label class="form-label">Bewertungsliste</label>
-        <select class="form-select" id="listSelect">
-            {% for lst in evaluation_lists %}
-            <option value="{{ lst.id }}">{{ lst.name }}</option>
-            {% endfor %}
-        </select>
+{% block title %}{{ _('assessment.warnings.page_title') }}{% endblock %}
+{% block assessment_heading_icon %}bi-exclamation-octagon{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.warnings') }}{% endblock %}
+{% block assessment_content %}
+{{ assessment_page_header(_('assessment.nav.warnings'), icon='exclamation-triangle') }}
+    <div class="assessment-panel mb-3">
+        <h2 class="assessment-panel-title mb-3" id="formTitle">{{ _('assessment.warnings.create') }}</h2>
+        <form id="form" class="row g-3 mb-0 align-items-end">
+            <input type="hidden" id="warningId" value="">
+            <div class="col-md-4">
+                <label class="form-label" for="targetSelect">{{ _('assessment.evaluate.stand') }}</label>
+                <select class="form-select" name="target_id" id="targetSelect" data-inv-pill-select required></select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="commentInput">{{ _('assessment.warnings.comment') }}</label>
+                <input class="form-control assessment-pill-input" id="commentInput" name="comment" placeholder="{{ _('assessment.warnings.comment') }}" required>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>{{ _('assessment.common.cancel') }}</button>
+                <button class="btn btn-accent flex-grow-1" type="submit" id="saveBtn">{{ _('assessment.common.save') }}</button>
+            </div>
+        </form>
     </div>
-    <form id="form" class="row g-2 mb-3">
-        <div class="col-md-4"><select class="form-select" name="target_id" id="targetSelect"></select></div>
-        <div class="col-md-6"><input class="form-control" name="comment" placeholder="Kommentar" required></div>
-        <div class="col-md-2"><button class="btn btn-accent w-100">Speichern</button></div>
-    </form>
-    <div class="table-responsive">
-        <table class="table table-striped mb-0">
-            <thead><tr><th>Ziel</th><th>Kommentar</th><th>Status</th></tr></thead>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('assessment.evaluate.stand') }}</th>
+                    <th scope="col">{{ _('assessment.warnings.comment') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('assessment.warnings.status') }}</th>
+                    <th scope="col" class="text-end assessment-col-actions">{{ _('assessment.common.actions') }}</th>
+                </tr>
+            </thead>
             <tbody id="rows"></tbody>
         </table>
     </div>
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-let currentMode = 'stand';
+(function () {
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+    const form = document.getElementById('form');
+    const resetBtn = document.getElementById('resetFormBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const formTitle = document.getElementById('formTitle');
+    let warningsById = {};
 
-async function loadData() {
-    const listId = document.getElementById('listSelect').value;
-    const res = await fetch(`/assessment/warnings/api/items?list_id=${listId}`);
-    const data = await res.json();
-    currentMode = data.subject_mode || 'stand';
-
-    document.getElementById('targetSelect').innerHTML = (data.targets || []).map(s =>
-        `<option value="${s.id}">${s.name}</option>`).join('');
-    document.getElementById('rows').innerHTML = (data.warnings || []).map(w => `
-        <tr><td>${w.target_name || ''}</td><td>${w.comment}</td><td>${w.is_invalidated ? 'Invalidiert' : 'Aktiv'}</td></tr>
-    `).join('');
-}
-
-document.getElementById('listSelect').addEventListener('change', loadData);
-
-document.getElementById('form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const listId = Number(document.getElementById('listSelect').value);
-    const targetId = Number(document.getElementById('targetSelect').value);
-    const payload = {
-        list_id: listId,
-        comment: e.target.comment.value,
+    const labels = {
+        create: '{{ _("assessment.warnings.create") }}',
+        edit: '{{ _("assessment.warnings.edit_title") }}',
+        save: '{{ _("assessment.common.save") }}',
+        active: '{{ _("assessment.warnings.active") }}',
+        lifted: '{{ _("assessment.warnings.invalidated") }}',
+        editAction: '{{ _("assessment.warnings.action_edit") }}',
+        lift: '{{ _("assessment.warnings.action_lift") }}',
+        reinstate: '{{ _("assessment.warnings.action_reinstate") }}',
+        del: '{{ _("assessment.warnings.action_delete") }}',
+        deleteConfirm: '{{ _("assessment.warnings.delete_confirm") }}',
+        liftConfirm: '{{ _("assessment.warnings.lift_confirm") }}',
+        reinstateConfirm: '{{ _("assessment.warnings.reinstate_confirm") }}',
     };
-    if (currentMode === 'stand') payload.stand_id = targetId;
-    else payload.subject_id = targetId;
-    await fetch('/assessment/warnings/api/items', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    e.target.reset();
-    loadData();
-});
 
-loadData();
+    function resetForm() {
+        form.reset();
+        document.getElementById('warningId').value = '';
+        resetBtn.hidden = true;
+        formTitle.textContent = labels.create;
+        saveBtn.textContent = labels.save;
+        if (window.AssessmentUI) window.AssessmentUI.enhancePills(form);
+    }
+
+    function editWarning(w) {
+        document.getElementById('warningId').value = w.id;
+        document.getElementById('targetSelect').value = w.stand_id || '';
+        document.getElementById('commentInput').value = w.comment || '';
+        resetBtn.hidden = false;
+        formTitle.textContent = labels.edit;
+        saveBtn.textContent = labels.save;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (window.AssessmentUI) window.AssessmentUI.enhancePills(form);
+    }
+
+    function rowActions(w) {
+        const items = [
+            { icon: 'bi-pencil', label: labels.editAction, title: labels.editAction, attrs: `data-edit-id="${w.id}"`, hover: true },
+        ];
+        if (w.is_invalidated) {
+            items.push({ icon: 'bi-arrow-counterclockwise', label: labels.reinstate, title: labels.reinstate, attrs: `data-reinstate="${w.id}"`, hover: true });
+        } else {
+            items.push({ icon: 'bi-slash-circle', label: labels.lift, title: labels.lift, attrs: `data-lift="${w.id}"`, hover: true });
+        }
+        items.push({ icon: 'bi-trash', label: labels.del, title: labels.del, attrs: `data-delete="${w.id}"`, danger: true });
+        return buildRowActions(items);
+    }
+
+    async function loadData() {
+        const res = await fetch('/assessment/warnings/api/items');
+        const data = await res.json();
+        const prevStand = document.getElementById('targetSelect').value;
+        document.getElementById('targetSelect').innerHTML = (data.targets || []).map(s =>
+            `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        if (prevStand && [...document.getElementById('targetSelect').options].some(o => o.value === prevStand)) {
+            document.getElementById('targetSelect').value = prevStand;
+        }
+        const warnings = data.warnings || [];
+        warningsById = Object.fromEntries(warnings.map(w => [String(w.id), w]));
+        document.getElementById('rows').innerHTML = warnings.map(w => {
+            const status = w.is_invalidated
+                ? `<span class="text-muted">${labels.lifted}</span>`
+                : `<span class="text-success">${labels.active}</span>`;
+            const iconColor = w.is_invalidated ? 'text-muted' : 'text-warning';
+            return `
+            <tr class="mod-list-row${w.is_invalidated ? ' opacity-75' : ''}">
+                <td>${buildNameCell('bi-exclamation-triangle-fill', w.target_name || '', { iconColor })}</td>
+                <td class="text-muted">${escapeHtml(w.comment)}</td>
+                <td class="d-none d-md-table-cell">${status}</td>
+                <td class="text-end assessment-col-actions">${rowActions(w)}</td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="4" class="text-muted text-center py-4">{{ _('assessment.warnings.empty') }}</td></tr>`;
+        window.AssessmentUI.enhancePills(form);
+    }
+
+    async function apiPut(payload) {
+        const res = await fetch('/assessment/warnings/api/items', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        return res.json();
+    }
+
+    resetBtn.addEventListener('click', resetForm);
+
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const w = warningsById[editBtn.getAttribute('data-edit-id')];
+            if (w) editWarning(w);
+            return;
+        }
+        const liftBtn = e.target.closest('[data-lift]');
+        if (liftBtn) {
+            const ok = window.ptConfirm
+                ? await window.ptConfirm(labels.liftConfirm, { danger: false })
+                : confirm(labels.liftConfirm);
+            if (!ok) return;
+            await apiPut({ id: Number(liftBtn.dataset.lift), action: 'invalidate' });
+            loadData();
+            return;
+        }
+        const reinstateBtn = e.target.closest('[data-reinstate]');
+        if (reinstateBtn) {
+            const ok = window.ptConfirm
+                ? await window.ptConfirm(labels.reinstateConfirm, { danger: false })
+                : confirm(labels.reinstateConfirm);
+            if (!ok) return;
+            await apiPut({ id: Number(reinstateBtn.dataset.reinstate), action: 'reinstate' });
+            loadData();
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm
+                ? await window.ptConfirm(labels.deleteConfirm, { danger: true })
+                : confirm(labels.deleteConfirm);
+            if (!ok) return;
+            await fetch('/assessment/warnings/api/items', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: Number(delBtn.dataset.delete) }),
+            });
+            if (document.getElementById('warningId').value === delBtn.dataset.delete) resetForm();
+            loadData();
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('warningId').value;
+        const payload = {
+            stand_id: Number(document.getElementById('targetSelect').value),
+            comment: document.getElementById('commentInput').value,
+        };
+        if (id) {
+            payload.id = Number(id);
+            payload.action = 'update';
+            await apiPut(payload);
+        } else {
+            await fetch('/assessment/warnings/api/items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+        }
+        resetForm();
+        loadData();
+    });
+
+    loadData();
+})();
 </script>
 {% endblock %}

@@ -1,0 +1,19 @@
+{% macro media_downloader_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% set active_count = active_jobs_count|default(0) %}
+<nav class="mod-sidebar-nav nav flex-column gap-1 mb-3" aria-label="{{ _('media_downloader.nav.label') }}">
+    <button type="button" class="nav-link mod-nav-link media-nav-link active" data-media-tab="download" id="media-tab-download{{ id_suffix }}"{% if dismiss_offcanvas %} data-media-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-circle me-2"></i>{{ _('media_downloader.nav.download') }}
+    </button>
+    <button type="button" class="nav-link mod-nav-link media-nav-link" data-media-tab="jobs" id="media-tab-jobs{{ id_suffix }}"{% if dismiss_offcanvas %} data-media-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-list-ul me-2"></i>{{ _('media_downloader.nav.jobs') }}
+        <span class="badge mod-nav-badge media-nav-badge ms-auto" data-media-jobs-badge data-count="{{ active_count }}">{% if active_count %}{{ active_count }}{% endif %}</span>
+    </button>
+</nav>
+
+<div class="media-sidebar-actions">
+    <button type="button" class="btn media-clear-link media-clear-all-btn"{% if dismiss_offcanvas %} data-media-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-trash3"></i>
+        <span>{{ _('media_downloader.nav.clear_all') }}</span>
+    </button>
+</div>
+{% endmacro %}

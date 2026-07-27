@@ -1,50 +1,364 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.file_settings.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.file_settings.title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.admin.file_settings.breadcrumb_file_settings') }}</li>
-    </ol>
-</nav>
+{% block settings_content %}
+<div class="settings-admin-files">
+    <div class="settings-admin-files-header">
+        <h1 class="settings-admin-files-title">{{ _('settings.admin.file_settings.heading') }}</h1>
+        <p class="settings-admin-files-subtitle">{{ _('settings.admin.file_settings.subtitle') }}</p>
+    </div>
 
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('settings.admin.file_settings.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <h5 class="mb-3">{{ _('settings.admin.file_settings.section_title') }}</h5>
-                    
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_dropbox_enabled">
-                            <strong>{{ _('settings.admin.file_settings.dropbox_label') }}</strong>
-                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.dropbox_help') }}</p>
+    <div class="settings-admin-files-layout">
+        <div class="settings-admin-files-col settings-admin-files-col--main">
+            <form method="POST" class="settings-admin-files-form">
+                <input type="hidden" name="storage_action" value="save">
+
+                <section class="settings-admin-files-card" aria-labelledby="files-features-title">
+                    <div class="settings-admin-files-card-head">
+                        <h2 id="files-features-title" class="settings-admin-files-section-title mb-0">
+                            <i class="bi bi-folder" aria-hidden="true"></i>
+                            {{ _('settings.admin.file_settings.section_title') }}
+                        </h2>
+                    </div>
+
+                    <div class="settings-admin-files-list">
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <div class="form-check form-switch settings-admin-files-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="files_dropbox_enabled">
+                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.dropbox_label') }}</span>
+                                    </label>
+                                </div>
+                                <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.dropbox_help') }}</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <div class="form-check form-switch settings-admin-files-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="files_sharing_enabled">
+                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.sharing_label') }}</span>
+                                    </label>
+                                </div>
+                                <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <div class="form-check form-switch settings-admin-files-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="files_private_folders_enabled" name="files_private_folders_enabled" {% if files_private_folders_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="files_private_folders_enabled">
+                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.private_folders_label') }}</span>
+                                    </label>
+                                </div>
+                                <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.document_format_label') }}</span>
+                                <p class="settings-admin-files-meta mb-2">{{ _('settings.admin.file_settings.document_format_help') }}</p>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="files_document_format" id="files_document_format_office" value="office" {% if files_document_format != 'opendocument' %}checked{% endif %}>
+                                        <label class="form-check-label" for="files_document_format_office">
+                                            {{ _('settings.admin.file_settings.document_format_office') }}
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="files_document_format" id="files_document_format_opendocument" value="opendocument" {% if files_document_format == 'opendocument' %}checked{% endif %}>
+                                        <label class="form-check-label" for="files_document_format_opendocument">
+                                            {{ _('settings.admin.file_settings.document_format_opendocument') }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-admin-files-card" aria-labelledby="files-storage-title">
+                    <div class="settings-admin-files-card-head">
+                        <h2 id="files-storage-title" class="settings-admin-files-section-title mb-0">
+                            <i class="bi bi-hdd" aria-hidden="true"></i>
+                            {{ _('settings.admin.file_settings.storage_section_title') }}
+                        </h2>
+                    </div>
+
+                    <div class="settings-admin-files-list">
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <label class="settings-admin-files-name" for="files_max_file_value">
+                                    {{ _('settings.admin.file_settings.max_file_label') }}
+                                </label>
+                                <p class="settings-admin-files-meta settings-admin-files-meta--flush mb-2">{{ _('settings.admin.file_settings.max_file_help') }}</p>
+                                <div class="settings-admin-files-size-row">
+                                    <input type="number" class="form-control settings-admin-files-size-input" id="files_max_file_value" name="files_max_file_value" min="0.001" step="any" value="{{ max_file_value }}" required>
+                                    <select class="form-select" name="files_max_file_unit" id="files_max_file_unit" data-inv-pill-select>
+                                        {% for unit in size_units %}
+                                        <option value="{{ unit }}" {% if max_file_unit == unit %}selected{% endif %}>{{ unit }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <div class="form-check form-switch settings-admin-files-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="files_storage_quota_enabled" name="files_storage_quota_enabled" {% if quota_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="files_storage_quota_enabled">
+                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.quota_enabled_label') }}</span>
+                                    </label>
+                                </div>
+                                <p class="settings-admin-files-meta mb-2">{{ _('settings.admin.file_settings.quota_enabled_help') }}</p>
+                                <label class="settings-admin-files-name" for="files_quota_value">
+                                    {{ _('settings.admin.file_settings.quota_label') }}
+                                </label>
+                                <div class="settings-admin-files-size-row mt-1">
+                                    <input type="number" class="form-control settings-admin-files-size-input" id="files_quota_value" name="files_quota_value" min="0" step="any" value="{{ quota_value }}">
+                                    <select class="form-select" name="files_quota_unit" id="files_quota_unit" data-inv-pill-select>
+                                        {% for unit in size_units %}
+                                        <option value="{{ unit }}" {% if quota_unit == unit %}selected{% endif %}>{{ unit }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="settings-admin-files-actions">
+                    <button type="submit" class="btn btn-accent settings-admin-files-submit">
+                        <i class="bi bi-save" aria-hidden="true"></i>
+                        {{ _('settings.admin.file_settings.save_button') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="settings-admin-files-col settings-admin-files-col--side">
+            <section class="settings-admin-files-card settings-admin-files-card--exceptions" aria-labelledby="files-exceptions-title">
+                <div class="settings-admin-files-card-head">
+                    <h2 id="files-exceptions-title" class="settings-admin-files-section-title mb-0">
+                        <i class="bi bi-person-gear" aria-hidden="true"></i>
+                        {{ _('settings.admin.file_settings.exceptions_section_title') }}
+                    </h2>
+                </div>
+                <p class="settings-admin-files-meta settings-admin-files-meta--flush mb-0">{{ _('settings.admin.file_settings.exceptions_help') }}</p>
+
+                {% if exception_rows %}
+                <div class="settings-admin-files-exceptions-list">
+                    {% for row in exception_rows %}
+                    <div class="settings-admin-files-exception-row">
+                        <div class="settings-admin-files-exception-main">
+                            <div class="settings-admin-files-name">{{ row.name }}</div>
+                            <div class="settings-admin-files-meta settings-admin-files-meta--flush mb-0">
+                                {% if row.email %}<span>{{ row.email }}</span> · {% endif %}
+                                {% if row.max_file_label %}
+                                {{ _('settings.admin.file_settings.exception_max_file') }}: {{ row.max_file_label }}
+                                {% else %}
+                                {{ _('settings.admin.file_settings.exception_max_file_default') }}
+                                {% endif %}
+                                ·
+                                {% if row.quota_label %}
+                                {{ _('settings.admin.file_settings.exception_quota') }}: {{ row.quota_label }}
+                                {% else %}
+                                {{ _('settings.admin.file_settings.exception_quota_default') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <form method="POST" class="settings-admin-files-exception-delete">
+                            <input type="hidden" name="storage_action" value="delete_exception">
+                            <input type="hidden" name="exception_id" value="{{ row.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" title="{{ _('settings.admin.file_settings.exception_delete') }}">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="settings-admin-files-meta settings-admin-files-meta--flush py-3 mb-0">{{ _('settings.admin.file_settings.exceptions_empty') }}</p>
+                {% endif %}
+
+                <form method="POST" class="settings-admin-files-exception-add">
+                    <input type="hidden" name="storage_action" value="add_exception">
+                    <h3 class="settings-admin-files-subsection-title">{{ _('settings.admin.file_settings.exception_add_title') }}</h3>
+
+                    <div class="mb-3">
+                        <label class="form-label settings-admin-files-name" for="exceptionUserSearch">{{ _('settings.admin.file_settings.exception_user') }}</label>
+                        <input type="hidden" name="exception_user_id" id="exception_user_id" value="">
+                        <div class="settings-admin-files-user-picker" data-exception-user-picker>
+                            <div class="settings-admin-files-user-search">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <input type="search" class="form-control" id="exceptionUserSearch"
+                                       placeholder="{{ _('settings.admin.file_settings.exception_user_search') }}"
+                                       autocomplete="off" enterkeyhint="search">
+                            </div>
+                            <div class="settings-admin-files-user-selected" data-user-selected hidden>
+                                <span data-user-selected-label></span>
+                                <button type="button" class="btn btn-sm btn-link settings-admin-files-user-clear" data-user-clear aria-label="{{ _('common.close') }}">
+                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="settings-admin-files-user-list" data-user-list role="listbox" aria-label="{{ _('settings.admin.file_settings.exception_user') }}">
+                                {% for u in users_for_exceptions %}
+                                <button type="button" class="settings-admin-files-user-option"
+                                        role="option"
+                                        data-user-option
+                                        data-user-id="{{ u.id }}"
+                                        data-search="{{ ((u.first_name or '') ~ ' ' ~ (u.last_name or '') ~ ' ' ~ (u.email or ''))|lower|e }}">
+                                    <span class="settings-admin-files-user-option-name">{{ u.first_name }} {{ u.last_name }}</span>
+                                    <span class="settings-admin-files-user-option-email">{{ u.email }}</span>
+                                </button>
+                                {% else %}
+                                <p class="settings-admin-files-meta settings-admin-files-meta--flush mb-0 px-2 py-2">{{ _('settings.admin.file_settings.exception_users_none') }}</p>
+                                {% endfor %}
+                                <p class="settings-admin-files-meta settings-admin-files-meta--flush mb-0 px-2 py-2 d-none" data-user-empty>
+                                    {{ _('settings.admin.file_settings.exception_user_empty') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch settings-admin-files-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="exception_max_file_custom" name="exception_max_file_custom">
+                        <label class="form-check-label" for="exception_max_file_custom">
+                            <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.exception_custom_max_file') }}</span>
                         </label>
                     </div>
-                    
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_sharing_enabled">
-                            <strong>{{ _('settings.admin.file_settings.sharing_label') }}</strong>
-                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
+                    <div class="settings-admin-files-size-row mb-3" id="exceptionMaxFileFields" hidden>
+                        <input type="number" class="form-control settings-admin-files-size-input" name="exception_max_file_value" min="0.001" step="any" value="100">
+                        <select class="form-select" name="exception_max_file_unit" data-inv-pill-select>
+                            {% for unit in size_units %}
+                            <option value="{{ unit }}" {% if unit == 'MB' %}selected{% endif %}>{{ unit }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-check form-switch settings-admin-files-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="exception_quota_custom" name="exception_quota_custom">
+                        <label class="form-check-label" for="exception_quota_custom">
+                            <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.exception_custom_quota') }}</span>
                         </label>
                     </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.file_settings.save_button') }}</button>
-                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
+                    <div class="settings-admin-files-size-row mb-3" id="exceptionQuotaFields" hidden>
+                        <input type="number" class="form-control settings-admin-files-size-input" name="exception_quota_value" min="0" step="any" value="15">
+                        <select class="form-select" name="exception_quota_unit" data-inv-pill-select>
+                            {% for unit in size_units %}
+                            <option value="{{ unit }}" {% if unit == 'GB' %}selected{% endif %}>{{ unit }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
+
+                    <button type="submit" class="btn btn-outline-secondary rounded-pill">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        {{ _('settings.admin.file_settings.exception_add_button') }}
+                    </button>
                 </form>
-            </div>
+            </section>
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+(function () {
+    function bindToggle(checkboxId, fieldsId) {
+        var cb = document.getElementById(checkboxId);
+        var fields = document.getElementById(fieldsId);
+        if (!cb || !fields) return;
+        function sync() {
+            fields.hidden = !cb.checked;
+        }
+        cb.addEventListener('change', sync);
+        sync();
+    }
+
+    function initUserPicker(root) {
+        if (!root) return;
+        var search = root.querySelector('#exceptionUserSearch');
+        var hidden = document.getElementById('exception_user_id');
+        var list = root.querySelector('[data-user-list]');
+        var empty = root.querySelector('[data-user-empty]');
+        var selectedWrap = root.querySelector('[data-user-selected]');
+        var selectedLabel = root.querySelector('[data-user-selected-label]');
+        var clearBtn = root.querySelector('[data-user-clear]');
+        var options = Array.prototype.slice.call(root.querySelectorAll('[data-user-option]'));
+        var form = root.closest('form');
+
+        function setSelected(opt) {
+            options.forEach(function (o) { o.classList.toggle('is-selected', o === opt); });
+            if (opt) {
+                hidden.value = opt.getAttribute('data-user-id') || '';
+                if (selectedLabel) {
+                    var name = (opt.querySelector('.settings-admin-files-user-option-name') || {}).textContent || '';
+                    var email = (opt.querySelector('.settings-admin-files-user-option-email') || {}).textContent || '';
+                    selectedLabel.textContent = (name.trim() + (email ? ' (' + email.trim() + ')' : '')).trim();
+                }
+                if (selectedWrap) selectedWrap.hidden = false;
+                if (search) search.value = '';
+                filter('');
+            } else {
+                hidden.value = '';
+                if (selectedWrap) selectedWrap.hidden = true;
+                if (selectedLabel) selectedLabel.textContent = '';
+            }
+        }
+
+        function filter(q) {
+            var query = (q || '').trim().toLowerCase();
+            var visible = 0;
+            options.forEach(function (opt) {
+                var hay = opt.getAttribute('data-search') || '';
+                var show = !query || hay.indexOf(query) !== -1;
+                opt.hidden = !show;
+                if (show) visible += 1;
+            });
+            if (empty) empty.classList.toggle('d-none', visible > 0 || options.length === 0);
+        }
+
+        options.forEach(function (opt) {
+            opt.addEventListener('click', function () { setSelected(opt); });
+        });
+        if (search) {
+            search.addEventListener('input', function () { filter(search.value); });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                setSelected(null);
+                if (search) search.focus();
+            });
+        }
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                if (!hidden.value) {
+                    e.preventDefault();
+                    if (search) search.focus();
+                }
+            });
+        }
+        filter('');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(document);
+        }
+        bindToggle('exception_max_file_custom', 'exceptionMaxFileFields');
+        bindToggle('exception_quota_custom', 'exceptionQuotaFields');
+        initUserPicker(document.querySelector('[data-exception-user-picker]'));
+    });
+})();
+</script>
+{% endblock %}

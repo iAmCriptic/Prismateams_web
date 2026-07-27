@@ -2,8 +2,10 @@
 {% block title %}Bewertung: {{ stand_name or '—' }}{% endblock %}
 
 {% block document_title %}Bewertungsbogen{% endblock %}
-{% block document_subtitle %}<small>{{ stand_name or 'Ziel unbekannt' }}</small>{% endblock %}
-{% block document_meta %}{% if evaluation.timestamp %}<div>Zeitpunkt: {{ evaluation.timestamp.strftime('%d.%m.%Y %H:%M') }}</div>{% endif %}{% endblock %}
+{% block document_subtitle %}<p class="subtitle">{{ stand_name or 'Ziel unbekannt' }}</p>{% endblock %}
+{% block document_meta %}
+{% if evaluation.timestamp %}Zeitpunkt: {{ evaluation.timestamp|localdatetime('%d.%m.%Y %H:%M') }} · {% endif %}Bewertungs-Nr.: {{ evaluation.id }}
+{% endblock %}
 
 {% block print_content %}
 <div class="print-section-title">Bewertung nach Kriterien</div>
@@ -34,5 +36,3 @@
     </tfoot>
 </table>
 {% endblock %}
-
-{% block footer_left %}Bewertungs-Nr.: {{ evaluation.id }}{% endblock %}

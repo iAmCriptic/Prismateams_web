@@ -107,18 +107,19 @@ def get_user_sessions(user_id, include_current=True):
     current_session_id = session.get('session_id')
 
     # Defensive Reparatur:
-    # Wenn die aktuelle Browser-Session noch keinen DB-Eintrag hat (oder der Eintrag
-    # inaktiv/gelöscht wurde), legen wir eine neue aktive Session an, damit die
-    # Geräteübersicht nie fälschlich "keine Sitzungen" zeigt.
+    # Nur wenn noch KEINE session_id existiert, darf eine neue Session angelegt werden.
+    # Bei vorhandener, aber nicht mehr aktiver session_id (z.B. widerrufen) wird
+    # bewusst NICHT automatisch neu erzeugt.
     if include_current:
         current_exists = bool(current_session_id) and any(
             sess.session_id == current_session_id for sess in sessions
         )
 
         if not current_exists:
-            created_session = create_session(user_id)
-            current_session_id = created_session.session_id
-            sessions = query.all()
+            if not current_session_id:
+                created_session = create_session(user_id)
+                current_session_id = created_session.session_id
+                sessions = query.all()
 
     for sess in sessions:
         sess.is_current = (sess.session_id == current_session_id) if include_current else False

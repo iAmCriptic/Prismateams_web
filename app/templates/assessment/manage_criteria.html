@@ -1,37 +1,36 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Kriterienverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-list-check{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.criteria') }}{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Kriterienverwaltung', icon='ui-checks-grid') }}
 
-    <div class="card mb-3">
-        <div class="card-body">
+    <div class="assessment-panel mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
             <label class="form-label">Bewertungsliste</label>
             <select class="form-select" id="listSelect">
                 {% for lst in evaluation_lists %}
                 <option value="{{ lst.id }}">{{ lst.name }}</option>
                 {% endfor %}
             </select>
-        </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Kriterium anlegen</h2>
+    <div class="assessment-panel mb-4">
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Kriterium anlegen</h2>
             <form id="criterionForm">
                 <input type="hidden" name="id" id="criterionId">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Kriterienname</label>
-                        <input class="form-control" name="name" id="criterionName" required>
+                        <input class="form-control assessment-pill-input" name="name" id="criterionName" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Max. Punktzahl</label>
-                        <input type="number" min="1" class="form-control" name="max_score" id="criterionMax" required>
+                        <input type="number" min="1" class="form-control assessment-pill-input" name="max_score" id="criterionMax" required>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Beschreibung <small class="text-muted">(HTML erlaubt: &lt;b&gt;, &lt;i&gt;, &lt;u&gt;)</small></label>
-                        <textarea class="form-control" name="description" id="criterionDescription" rows="3" placeholder="Verwenden Sie HTML-Tags wie <b>, <i>, <u> für Formatierung."></textarea>
+                        <textarea class="form-control assessment-pill-input" name="description" id="criterionDescription" rows="3" placeholder="Verwenden Sie HTML-Tags wie <b>, <i>, <u> für Formatierung."></textarea>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-3">
@@ -39,7 +38,6 @@
                     <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>Kriterium anlegen</button>
                 </div>
             </form>
-        </div>
     </div>
 
     {{ assessment_excel_upload(
@@ -50,95 +48,114 @@
         'Import gilt für die oben gewählte Bewertungsliste.'
     ) }}
 
-    <div class="card">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Kriterien</h2>
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead><tr><th>Name</th><th class="text-center">Max</th><th>Beschreibung</th><th class="text-end">Aktion</th></tr></thead>
-                    <tbody id="rows"></tbody>
-                </table>
-            </div>
-        </div>
+    <h2 class="assessment-panel-title mb-2"><i class="bi bi-list-check me-2"></i>Vorhandene Kriterien</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="text-end">Max</th>
+                    <th scope="col" class="d-none d-md-table-cell">Beschreibung</th>
+                    <th scope="col" class="text-end assessment-col-actions">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
-
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-const form = document.getElementById('criterionForm');
-const resetBtn = document.getElementById('resetFormBtn');
-const saveBtn = document.getElementById('saveBtn');
+(function () {
+    const form = document.getElementById('criterionForm');
+    const resetBtn = document.getElementById('resetFormBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    let criteriaById = {};
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
 
-async function loadCriteria() {
-    const listId = document.getElementById('listSelect').value;
-    const res = await fetch(`/assessment/api/criteria?list_id=${listId}`);
-    const data = await res.json();
-    document.getElementById('rows').innerHTML = (data.criteria || []).map(c => `
-        <tr>
-            <td>${escapeHtml(c.name)}</td>
-            <td class="text-center">${c.max_score}</td>
-            <td>${c.description ? c.description : ''}</td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick='editCriterion(${JSON.stringify(c)})'><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteCriterion(${c.id})"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-}
+    async function loadCriteria() {
+        const listId = document.getElementById('listSelect').value;
+        const res = await fetch(`/assessment/api/criteria?list_id=${listId}`);
+        const data = await res.json();
+        const criteria = data.criteria || [];
+        criteriaById = Object.fromEntries(criteria.map(c => [String(c.id), c]));
+        document.getElementById('rows').innerHTML = criteria.map(c => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-ui-checks', c.name)}</td>
+                <td class="text-end text-muted">${c.max_score}</td>
+                <td class="d-none d-md-table-cell text-muted">${c.description ? escapeHtml(c.description) : ''}</td>
+                <td class="text-end assessment-col-actions">${buildRowActions([
+                    { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${c.id}"`, hover: true },
+                    { icon: 'bi-trash', label: 'Löschen', attrs: `data-delete="${c.id}"`, danger: true },
+                ])}</td>
+            </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted py-4">—</td></tr>`;
+    }
 
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function editCriterion(c) {
+        document.getElementById('criterionId').value = c.id;
+        document.getElementById('criterionName').value = c.name;
+        document.getElementById('criterionMax').value = c.max_score;
+        document.getElementById('criterionDescription').value = c.description || '';
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
+        resetBtn.hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-function editCriterion(c) {
-    document.getElementById('criterionId').value = c.id;
-    document.getElementById('criterionName').value = c.name;
-    document.getElementById('criterionMax').value = c.max_score;
-    document.getElementById('criterionDescription').value = c.description || '';
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
-    resetBtn.hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    function resetForm() {
+        form.reset();
+        document.getElementById('criterionId').value = '';
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Kriterium anlegen';
+        resetBtn.hidden = true;
+    }
 
-function resetForm() {
-    form.reset();
-    document.getElementById('criterionId').value = '';
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Kriterium anlegen';
-    resetBtn.hidden = true;
-}
+    resetBtn.addEventListener('click', resetForm);
 
-resetBtn.addEventListener('click', resetForm);
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const c = criteriaById[editBtn.getAttribute('data-edit-id')];
+            if (c) editCriterion(c);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm ? await window.ptConfirm('Kriterium wirklich löschen?', { danger: true }) : confirm('Kriterium wirklich löschen?');
+            if (!ok) return;
+            await fetch(`/assessment/api/criteria/${delBtn.dataset.delete}`, { method: 'DELETE' });
+            loadCriteria();
+        }
+    });
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    payload.max_score = Number(payload.max_score);
-    payload.list_id = Number(document.getElementById('listSelect').value);
-    const id = payload.id;
-    delete payload.id;
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `/assessment/api/criteria/${id}` : '/assessment/api/criteria';
-    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-    resetForm();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        payload.max_score = Number(payload.max_score);
+        payload.list_id = Number(document.getElementById('listSelect').value);
+        const id = payload.id;
+        delete payload.id;
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/assessment/api/criteria/${id}` : '/assessment/api/criteria';
+        await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        resetForm();
+        loadCriteria();
+    });
+
+    document.getElementById('listSelect').addEventListener('change', loadCriteria);
+
+    document.getElementById('excelForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        fd.append('list_id', document.getElementById('listSelect').value);
+        const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        if (!data.success) return;
+        e.target.reset();
+        loadCriteria();
+    });
+
     loadCriteria();
-});
-
-async function deleteCriterion(id) {
-    if (!confirm('Kriterium wirklich löschen?')) return;
-    await fetch(`/assessment/api/criteria/${id}`, { method: 'DELETE' });
-    loadCriteria();
-}
-
-document.getElementById('listSelect').addEventListener('change', loadCriteria);
-
-document.getElementById('excelForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    fd.append('list_id', document.getElementById('listSelect').value);
-    const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
-    const data = await res.json();
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-    if (!data.success) return;
-    e.target.reset();
-    loadCriteria();
-});
-
-loadCriteria();
+})();
 </script>
 {% endblock %}

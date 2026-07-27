@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% set ep = request.endpoint or '' %}
+{% set inv_nav = {
+  'overview': ep == 'inventory.dashboard',
+  'stock': ep.startswith('inventory.stock') or ep in (
+    'inventory.product_new', 'inventory.product_edit', 'inventory.product_documents',
+    'inventory.folders', 'inventory.product_borrow', 'inventory.borrow_multiple'
+  ),
+  'quick_scan': ep == 'inventory.borrow_scanner',
+  'checkout': ep in ('inventory.inventory_checkout', 'inventory.inventory_checkout_confirm'),
+  'borrows': ep == 'inventory.borrows',
+  'sets': ep.startswith('inventory.set'),
+  'inventory_tool': ep in (
+    'inventory.inventory_tool', 'inventory.inventory_session',
+    'inventory.inventory_history', 'inventory.inventory_list',
+    'inventory.inventory_complete', 'inventory.inventory_tool_pdf'
+  ),
+  'print_qr': ep.startswith('inventory.print_qr') or ep == 'inventory.print_color_codes',
+  'statistics': ep == 'inventory.statistics'
+} %}
+{% set show_new = not (current_user.is_authenticated and current_user.is_guest) %}
+{% set show_view_toggle = inventory_show_view_toggle|default(false) %}
+{% set show_stock_tools = inventory_show_stock_tools|default(false) %}
+{% set show_toolbar_center = inventory_show_toolbar_center|default(false) or show_stock_tools %}
+{% set show_filter_nav = inventory_show_filter_nav|default(false) or show_stock_tools %}
+
+{% macro inventory_new_menu(menu_id) %}
+<ul class="dropdown-menu inventory-sidebar-new-menu inventory-new-menu" id="{{ menu_id }}" style="display: none;">
+    <li>
+        <a class="dropdown-item" href="{{ url_for('inventory.product_new') }}">
+            <i class="bi bi-box-seam me-2"></i>{{ _('inventory.shell.new.product') }}
+        </a>
+    </li>
+    <li>
+        <a class="dropdown-item" href="{{ url_for('inventory.set_new') }}">
+            <i class="bi bi-collection me-2"></i>{{ _('inventory.shell.new.set') }}
+        </a>
+    </li>
+</ul>
+{% endmacro %}
+
+{% macro inventory_nav_links(dismiss_offcanvas=false) %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if inv_nav.overview %}active{% endif %}"
+       href="{{ url_for('inventory.dashboard') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-speedometer2 me-2"></i>{{ _('inventory.shell.nav.overview') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.stock %}active{% endif %}"
+       href="{{ url_for('inventory.stock') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-box-seam me-2"></i>{{ _('inventory.shell.nav.stock') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
+       href="{{ url_for('inventory.borrow_scanner') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-qr-code-scan me-2"></i>{{ _('inventory.shell.nav.quick_scan') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.checkout %}active{% endif %}"
+       href="{{ url_for('inventory.inventory_checkout') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-box-arrow-right me-2"></i>{{ _('inventory.shell.nav.checkout') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.borrows %}active{% endif %}"
+       href="{{ url_for('inventory.borrows') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-clock-history me-2"></i>{{ _('inventory.shell.nav.borrows') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.sets %}active{% endif %}"
+       href="{{ url_for('inventory.sets') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-collection me-2"></i>{{ _('inventory.shell.nav.sets') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.inventory_tool %}active{% endif %}"
+       href="{{ url_for('inventory.inventory_tool') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-clipboard2-check me-2"></i>{{ _('inventory.shell.nav.inventory_tool') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.print_qr %}active{% endif %}"
+       href="{{ url_for('inventory.print_qr') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-printer me-2"></i>{{ _('inventory.shell.nav.print_qr') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.statistics %}active{% endif %}"
+       href="{{ url_for('inventory.statistics') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-graph-up me-2"></i>{{ _('inventory.shell.nav.statistics') }}
+    </a>
+</nav>
+{% endmacro %}
+
+{% macro inventory_view_toggle(suffix='', extra_class='') %}
+<div class="inventory-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+    <button type="button" class="inventory-view-toggle__btn active" id="listViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="inventory-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="inventory-shell mod-shell--nav {% if show_filter_nav %}inventory-shell--filters{% endif %}">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
+            <span>{{ _('inventory.shell.brand') }}</span>
+        </div>
+        {% if show_new %}
+        <div class="dropdown mod-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
+            <button class="btn mod-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
+                <i class="bi bi-plus-lg me-2"></i>{{ _('inventory.shell.new_button') }}
+            </button>
+            {{ inventory_new_menu('newDropdownMenuSidebar') }}
+        </div>
+        {% endif %}
+        {{ inventory_nav_links(false) }}
+    </aside>
+
+    {% if show_filter_nav %}
+    <aside class="inventory-filter-nav d-none d-lg-flex flex-column" aria-label="{{ _('inventory.stock.filters_sort_button') }}">
+        <div class="inventory-filter-nav-brand">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
+            <span>{{ _('inventory.stock.filters_sort_button') }}</span>
+        </div>
+        {% block inventory_filter_nav %}{% endblock %}
+    </aside>
+    {% endif %}
+
+    <div class="mod-main">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn"
+                            data-bs-toggle="offcanvas" data-bs-target="#inventoryMobileNav"
+                            aria-controls="inventoryMobileNav"
+                            aria-label="{{ _('inventory.shell.nav.menu') }}">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                        <i class="bi {% block inventory_heading_icon %}bi-box-seam{% endblock %}" aria-hidden="true"></i>
+                        <span>{% block inventory_heading %}{{ _('inventory.shell.brand') }}{% endblock %}</span>
+                    </h1>
+                </div>
+                <div class="flex-shrink-0 inventory-mobile-actions">
+                    {% if show_filter_nav %}
+                    <button type="button" class="btn btn-outline-secondary inventory-filter-mobile-btn"
+                            data-bs-toggle="offcanvas" data-bs-target="#inventoryStockFiltersNav"
+                            aria-controls="inventoryStockFiltersNav">
+                        <i class="bi bi-funnel"></i>
+                        <span class="d-none d-sm-inline">{{ _('inventory.stock.filters_sort_button') }}</span>
+                    </button>
+                    {% endif %}
+                    {% block inventory_mobile_actions %}{% endblock %}
+                </div>
+            </div>
+            {% if show_view_toggle %}
+            <div class="inventory-mobile-view-toggle mt-2">
+                {{ inventory_view_toggle('Mobile') }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="page-toolbar-row d-none d-lg-flex align-items-center justify-content-between gap-2 mb-3">
+            <div class="min-width-0 flex-shrink-1">
+                <h1 class="mb-0 text-break mod-view-heading">
+                    <i class="bi {{ self.inventory_heading_icon() }}" aria-hidden="true"></i>
+                    <span>{{ self.inventory_heading() }}</span>
+                </h1>
+                {% block inventory_toolbar_extra %}{% endblock %}
+            </div>
+            {% if show_toolbar_center %}
+            <div class="inventory-toolbar-center flex-grow-1 d-flex justify-content-center min-width-0 px-2">
+                {% block inventory_toolbar_center %}{% endblock %}
+            </div>
+            {% endif %}
+            <div class="flex-shrink-0">
+                {% if show_view_toggle %}
+                {{ inventory_view_toggle('') }}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if show_toolbar_center %}
+        <div class="d-lg-none mb-3">
+            {% block inventory_mobile_toolbar_center %}{% endblock %}
+        </div>
+        {% endif %}
+
+        {% block inventory_content %}{% endblock %}
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="inventoryMobileNav" aria-labelledby="inventoryMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="inventoryMobileNavLabel">
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
+            <span>{{ _('inventory.shell.brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ inventory_nav_links(true) }}
+    </div>
+</div>
+
+{% if show_filter_nav %}
+<div class="offcanvas offcanvas-end mod-offcanvas" tabindex="-1" id="inventoryStockFiltersNav" aria-labelledby="inventoryStockFiltersNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="inventoryStockFiltersNavLabel">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
+            <span>{{ _('inventory.stock.filters_sort_button') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {% block inventory_mobile_stock_tools %}{% endblock %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function wireInventoryNewDropdown(buttonId, menuId) {
+    const button = document.getElementById(buttonId);
+    const menu = document.getElementById(menuId);
+    if (!button || !menu) return;
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const isOpen = menu.style.display === 'block';
+        document.querySelectorAll('.inventory-sidebar-new-menu, .inventory-new-menu').forEach((el) => {
+            el.style.display = 'none';
+        });
+        menu.style.display = isOpen ? 'none' : 'block';
+    });
+}
+
+wireInventoryNewDropdown('newButtonSidebar', 'newDropdownMenuSidebar');
+
+document.addEventListener('click', (event) => {
+    if (event.target.closest('.mod-sidebar-new-wrap, .inventory-new-wrap')) return;
+    document.querySelectorAll('.inventory-sidebar-new-menu, .inventory-new-menu').forEach((el) => {
+        el.style.display = 'none';
+    });
+});
+
+document.querySelectorAll('#inventoryMobileNav a[data-inventory-dismiss-offcanvas]').forEach((link) => {
+    link.addEventListener('click', () => {
+        setTimeout(() => {
+            const el = document.getElementById('inventoryMobileNav');
+            if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+            const oc = bootstrap.Offcanvas.getInstance(el);
+            if (oc) oc.hide();
+        }, 50);
+    });
+});
+</script>
+{% block inventory_extra_js %}{% endblock %}
+{% endblock %}

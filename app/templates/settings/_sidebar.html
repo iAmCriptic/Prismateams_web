@@ -1,0 +1,142 @@
+{% macro settings_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% set ep = request.endpoint or '' %}
+
+{# Active groups #}
+{% set start_active = ep == 'settings.index' %}
+{% set profile_active = ep in ['settings.profile', 'settings.remove_profile_picture'] %}
+{% set appearance_active = ep == 'settings.appearance' %}
+{% set notifications_active = ep == 'settings.notifications' %}
+{% set security_active = ep.startswith('settings.security') %}
+{% set about_active = ep == 'settings.about' %}
+
+{% set users_active = ep in [
+    'settings.admin_users',
+    'settings.create_user',
+    'settings.edit_guest_user',
+    'settings.admin_roles',
+    'settings.admin_roles_user',
+    'settings.admin_roles_default',
+    'settings.activate_user',
+    'settings.deactivate_user',
+    'settings.make_admin',
+    'settings.remove_admin',
+    'settings.delete_user',
+    'auth.show_confirmation_codes'
+] %}
+{% set codes_active = false %}
+{% set whitelist_active = ep in [
+    'settings.admin_whitelist',
+    'settings.add_whitelist_entry',
+    'settings.toggle_whitelist_entry',
+    'settings.delete_whitelist_entry'
+] %}
+{% set system_active = ep == 'settings.admin_system' %}
+{% set modules_active = ep == 'settings.admin_modules' %}
+{% set push_active = ep == 'settings.admin_push_subscriptions' %}
+{% set backup_active = ep == 'settings.admin_backup' %}
+{% set registration_active = ep == 'settings.admin_registration' %}
+{% set booking_active = ep.startswith('settings.booking_') %}
+{% set music_active = ep == 'settings.admin_music' %}
+{% set email_active = ep in [
+    'settings.admin_email_module',
+    'settings.admin_email_footer',
+    'settings.admin_email_settings',
+    'settings.admin_email_permissions',
+    'auth.test_email'
+] %}
+{% set inventory_active = ep == 'settings.admin_inventory_settings' %}
+{% set calendar_active = ep == 'settings.admin_calendar_settings' %}
+{% set files_active = ep == 'settings.admin_file_settings' %}
+
+<nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
+    <a href="{{ url_for('settings.index') }}" class="nav-link mod-nav-link{% if start_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-house me-2"></i>{{ _('settings.sidebar.start') }}
+    </a>
+
+    <div class="settings-nav-section">
+        <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.account') }}</div>
+    </div>
+
+    <a href="{{ url_for('settings.profile') }}" class="nav-link mod-nav-link{% if profile_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-person-circle me-2"></i>{{ _('settings.index.cards.profile.title') }}
+    </a>
+    <a href="{{ url_for('settings.appearance') }}" class="nav-link mod-nav-link{% if appearance_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-palette me-2"></i>{{ _('settings.index.cards.appearance.title') }}
+    </a>
+    <a href="{{ url_for('settings.notifications') }}" class="nav-link mod-nav-link{% if notifications_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-bell me-2"></i>{{ _('settings.index.cards.notifications.title') }}
+    </a>
+    <a href="{{ url_for('settings.security') }}" class="nav-link mod-nav-link{% if security_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-shield-lock me-2"></i>{{ _('settings.index.cards.security.title') }}
+    </a>
+    <a href="{{ url_for('settings.about') }}" class="nav-link mod-nav-link{% if about_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-info-circle me-2"></i>{{ _('settings.index.cards.about.title') }}
+    </a>
+
+    {% if current_user.is_admin %}
+    <hr class="settings-nav-divider">
+    <div class="settings-nav-admin-heading">{{ _('settings.sidebar.admin_heading') }}</div>
+
+    <div class="settings-nav-section">
+        <div class="settings-nav-section-title">{{ _('settings.admin.sections.users.title') }}</div>
+    </div>
+    <a href="{{ url_for('settings.admin_users') }}" class="nav-link mod-nav-link{% if users_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-people me-2"></i>{{ _('settings.admin.cards.user_management.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_whitelist') }}" class="nav-link mod-nav-link{% if whitelist_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-shield-check me-2"></i>{{ _('settings.admin.cards.whitelist.title') }}
+    </a>
+
+    <div class="settings-nav-section">
+        <div class="settings-nav-section-title">{{ _('settings.admin.sections.system.title') }}</div>
+    </div>
+    <a href="{{ url_for('settings.admin_system') }}" class="nav-link mod-nav-link{% if system_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-gear me-2"></i>{{ _('settings.admin.cards.system_settings.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_modules') }}" class="nav-link mod-nav-link{% if modules_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-grid-3x3-gap me-2"></i>{{ _('settings.admin.cards.modules.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="nav-link mod-nav-link{% if push_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-bell me-2"></i>{{ _('settings.sidebar.push_subscriptions') }}
+    </a>
+    <a href="{{ url_for('settings.admin_backup') }}" class="nav-link mod-nav-link{% if backup_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-archive me-2"></i>{{ _('settings.admin.cards.backup.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_registration') }}" class="nav-link mod-nav-link{% if registration_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-shield-lock me-2"></i>{{ _('settings.admin.cards.registration_options.title') }}
+    </a>
+
+    <div class="settings-nav-section">
+        <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
+    </div>
+    {% if is_module_enabled('module_booking') %}
+    <a href="{{ url_for('settings.booking_forms') }}" class="nav-link mod-nav-link{% if booking_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar-check me-2"></i>{{ _('booking.admin.cards.booking_forms.title') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_music') %}
+    <a href="{{ url_for('settings.admin_music') }}" class="nav-link mod-nav-link{% if music_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-music-note-beamed me-2"></i>{{ _('booking.admin.cards.music_module.title') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_email') %}
+    <a href="{{ url_for('settings.admin_email_module') }}" class="nav-link mod-nav-link{% if email_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-envelope me-2"></i>{{ _('settings.sidebar.email_module') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_inventory') %}
+    <a href="{{ url_for('settings.admin_inventory_settings') }}" class="nav-link mod-nav-link{% if inventory_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-box-seam me-2"></i>{{ _('settings.sidebar.inventory') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_calendar') %}
+    <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}
+    </a>
+    {% endif %}
+    <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-folder me-2"></i>{{ _('settings.admin.cards.file_settings.title') }}
+    </a>
+    {% endif %}
+</nav>
+{% endmacro %}

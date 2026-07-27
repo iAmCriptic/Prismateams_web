@@ -1,22 +1,23 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Standverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-shop{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.stands') }}{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Standverwaltung', icon='shop') }}
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Stand anlegen</h2>
+    <div class="assessment-panel mb-4">
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Stand anlegen</h2>
             <form id="standForm">
                 <input type="hidden" id="standId">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Standname</label>
-                        <input class="form-control" name="name" id="standName" required>
+                        <input class="form-control assessment-pill-input" name="name" id="standName" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Beschreibung</label>
-                        <input class="form-control" name="description" id="standDescription">
+                        <input class="form-control assessment-pill-input" name="description" id="standDescription">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Stand-Typ</label>
@@ -34,7 +35,6 @@
                     <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>Stand anlegen</button>
                 </div>
             </form>
-        </div>
     </div>
 
     {{ assessment_excel_upload(
@@ -44,100 +44,120 @@
         'Spalten: <code>Standname</code>, <code>Beschreibung</code>, <code>Raum</code>, <code>Stand-Typ</code>'
     ) }}
 
-    <div class="card">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Stände</h2>
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead><tr><th>Name</th><th>Typ</th><th>Beschreibung</th><th>Raum</th><th class="text-end">Aktion</th></tr></thead>
-                    <tbody id="rows"></tbody>
-                </table>
-            </div>
-        </div>
+    <h2 class="assessment-panel-title mb-2"><i class="bi bi-list-check me-2"></i>Vorhandene Stände</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Typ</th>
+                    <th scope="col" class="d-none d-md-table-cell">Beschreibung</th>
+                    <th scope="col" class="d-none d-md-table-cell">Raum</th>
+                    <th scope="col" class="text-end assessment-col-actions">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
-
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-let rooms = [];
-let standTypes = [];
-const form = document.getElementById('standForm');
-const resetBtn = document.getElementById('resetFormBtn');
-const saveBtn = document.getElementById('saveBtn');
+(function () {
+    let rooms = [];
+    let standTypes = [];
+    let standsById = {};
+    const form = document.getElementById('standForm');
+    const resetBtn = document.getElementById('resetFormBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
 
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    async function loadData() {
+        const res = await fetch('/assessment/api/stands');
+        const data = await res.json();
+        rooms = data.rooms || [];
+        standTypes = data.stand_types || [];
+        const stands = data.stands || [];
+        standsById = Object.fromEntries(stands.map(s => [String(s.id), s]));
+        document.getElementById('roomSelect').innerHTML = '<option value="">(Kein Raum)</option>' +
+            rooms.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+        document.getElementById('standTypeSelect').innerHTML = standTypes.map(t =>
+            `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+        document.getElementById('rows').innerHTML = stands.map(s => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-shop', s.name)}</td>
+                <td class="text-muted">${escapeHtml(s.stand_type_name || '—')}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(s.description || '')}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(s.room_name || '—')}</td>
+                <td class="text-end assessment-col-actions">${buildRowActions([
+                    { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${s.id}"`, hover: true },
+                    { icon: 'bi-trash', label: 'Löschen', attrs: `data-delete="${s.id}"`, danger: true },
+                ])}</td>
+            </tr>`).join('') || `<tr><td colspan="5" class="text-center text-muted py-4">—</td></tr>`;
+    }
 
-async function loadData() {
-    const res = await fetch('/assessment/api/stands');
-    const data = await res.json();
-    rooms = data.rooms || [];
-    standTypes = data.stand_types || [];
-    document.getElementById('roomSelect').innerHTML = '<option value="">(Kein Raum)</option>' +
-        rooms.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
-    document.getElementById('standTypeSelect').innerHTML = standTypes.map(t =>
-        `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
-    document.getElementById('rows').innerHTML = (data.stands || []).map(s => `
-        <tr>
-            <td>${escapeHtml(s.name)}</td>
-            <td>${escapeHtml(s.stand_type_name || '—')}</td>
-            <td>${escapeHtml(s.description || '')}</td>
-            <td>${escapeHtml(s.room_name || '—')}</td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick='editStand(${JSON.stringify(s)})'><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteStand(${s.id})"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-}
+    function editStand(s) {
+        document.getElementById('standId').value = s.id;
+        document.getElementById('standName').value = s.name;
+        document.getElementById('standDescription').value = s.description || '';
+        document.getElementById('roomSelect').value = s.room_id || '';
+        document.getElementById('standTypeSelect').value = s.stand_type_id || '';
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
+        resetBtn.hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-function editStand(s) {
-    document.getElementById('standId').value = s.id;
-    document.getElementById('standName').value = s.name;
-    document.getElementById('standDescription').value = s.description || '';
-    document.getElementById('roomSelect').value = s.room_id || '';
-    document.getElementById('standTypeSelect').value = s.stand_type_id || '';
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
-    resetBtn.hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    function resetForm() {
+        form.reset();
+        document.getElementById('standId').value = '';
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Stand anlegen';
+        resetBtn.hidden = true;
+    }
 
-function resetForm() {
-    form.reset();
-    document.getElementById('standId').value = '';
-    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Stand anlegen';
-    resetBtn.hidden = true;
-}
+    resetBtn.addEventListener('click', resetForm);
 
-resetBtn.addEventListener('click', resetForm);
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const s = standsById[editBtn.getAttribute('data-edit-id')];
+            if (s) editStand(s);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm ? await window.ptConfirm('Stand wirklich löschen?', { danger: true }) : confirm('Stand wirklich löschen?');
+            if (!ok) return;
+            await fetch(`/assessment/api/stands/${delBtn.dataset.delete}`, { method: 'DELETE' });
+            loadData();
+        }
+    });
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    payload.room_id = payload.room_id ? Number(payload.room_id) : null;
-    payload.stand_type_id = payload.stand_type_id ? Number(payload.stand_type_id) : null;
-    const id = document.getElementById('standId').value;
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `/assessment/api/stands/${id}` : '/assessment/api/stands';
-    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-    resetForm();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        payload.room_id = payload.room_id ? Number(payload.room_id) : null;
+        payload.stand_type_id = payload.stand_type_id ? Number(payload.stand_type_id) : null;
+        const id = document.getElementById('standId').value;
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/assessment/api/stands/${id}` : '/assessment/api/stands';
+        await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        resetForm();
+        loadData();
+    });
+
+    document.getElementById('excelForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const res = await fetch('/assessment/api/import/stands', { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        if (!data.success) return;
+        e.target.reset();
+        loadData();
+    });
+
     loadData();
-});
-
-async function deleteStand(id) {
-    if (!confirm('Stand wirklich löschen?')) return;
-    await fetch(`/assessment/api/stands/${id}`, { method: 'DELETE' });
-    loadData();
-}
-
-document.getElementById('excelForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const res = await fetch('/assessment/api/import/stands', { method: 'POST', body: fd });
-    const data = await res.json();
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-    if (!data.success) return;
-    e.target.reset();
-    loadData();
-});
-
-loadData();
+})();
 </script>
 {% endblock %}

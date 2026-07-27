@@ -1,14 +1,39 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from app import db
 from app.models.assessment import AssessmentRoom, AssessmentRoomInspection
 from app.utils.assessment_auth import assessment_role_required
+from app.utils.assessment_pdf import generate_inspections_pdf
 
 from .helpers import current_actor
 
 inspections_bp = Blueprint("inspections", __name__)
+
+
+def _rooms_payload():
+    rooms = AssessmentRoom.query.order_by(AssessmentRoom.name.asc()).all()
+    inspections = AssessmentRoomInspection.query.all()
+    inspection_map = {item.room_id: item for item in inspections}
+    return [
+        {
+            "id": room.id,
+            "name": room.name,
+            "inspection": (
+                {
+                    "is_clean": inspection_map[room.id].is_clean,
+                    "comment": inspection_map[room.id].comment,
+                    "inspection_timestamp": inspection_map[room.id].inspection_timestamp.isoformat()
+                    if inspection_map[room.id].inspection_timestamp
+                    else None,
+                }
+                if room.id in inspection_map
+                else None
+            ),
+        }
+        for room in rooms
+    ]
 
 
 @inspections_bp.route("/room_inspections")
@@ -17,37 +42,24 @@ def room_inspections_page():
     return render_template("assessment/room_inspections.html")
 
 
+@inspections_bp.route("/pdf/inspections")
+@assessment_role_required(["Administrator", "Inspektor"])
+def pdf_inspections():
+    pdf = generate_inspections_pdf(_rooms_payload())
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="rauminspektionen.pdf",
+    )
+
+
 @inspections_bp.route("/api/room_inspections", methods=["GET", "POST"])
 @assessment_role_required(["Administrator", "Inspektor"])
 def room_inspections_api():
     actor = current_actor()
     if request.method == "GET":
-        rooms = AssessmentRoom.query.order_by(AssessmentRoom.name.asc()).all()
-        inspections = AssessmentRoomInspection.query.all()
-        inspection_map = {item.room_id: item for item in inspections}
-        return jsonify(
-            {
-                "success": True,
-                "rooms": [
-                    {
-                        "id": room.id,
-                        "name": room.name,
-                        "inspection": (
-                            {
-                                "is_clean": inspection_map[room.id].is_clean,
-                                "comment": inspection_map[room.id].comment,
-                                "inspection_timestamp": inspection_map[room.id].inspection_timestamp.isoformat()
-                                if inspection_map[room.id].inspection_timestamp
-                                else None,
-                            }
-                            if room.id in inspection_map
-                            else None
-                        ),
-                    }
-                    for room in rooms
-                ],
-            }
-        )
+        return jsonify({"success": True, "rooms": _rooms_payload()})
 
     data = request.get_json(silent=True) or {}
     room_id = data.get("room_id")

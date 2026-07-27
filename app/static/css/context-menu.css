@@ -1,9 +1,8 @@
-/* Desktop custom context menu */
 .pt-context-menu {
     position: fixed;
-    z-index: 1080;
+    z-index: 20050;
     min-width: 12rem;
-    max-width: min(22rem, calc(100vw - 1rem));
+    max-width: min(22rem, calc(100% - 1rem));
     padding: 0;
     margin: 0;
     pointer-events: auto;
@@ -14,10 +13,33 @@
     display: block !important;
     float: none;
     margin: 0;
+    padding: 0.35rem;
     border: 1px solid var(--bs-border-color);
-    box-shadow: var(--bs-box-shadow-lg);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    box-shadow: none;
+    background: var(--bs-body-bg, #fff);
     max-height: min(70vh, 32rem);
     overflow-y: auto;
+}
+
+.pt-context-menu .dropdown-item {
+    border-radius: calc(var(--mod-radius-pill, 1.5rem) - 0.35rem);
+    padding: 0.55rem 0.9rem;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.pt-context-menu .dropdown-item:hover,
+.pt-context-menu .dropdown-item:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg, #fff));
+}
+
+.pt-context-menu .dropdown-divider {
+    margin: 0.35rem 0.5rem;
+    opacity: 0.35;
 }
 
 .pt-context-menu .dropdown-submenu {
@@ -31,17 +53,189 @@
     margin-top: 0;
     margin-left: 0.125rem;
     display: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.35rem;
 }
 
-.pt-context-menu .dropdown-submenu:hover > .dropdown-menu,
-.pt-context-menu .dropdown-submenu > .dropdown-menu.show {
+@media (hover: hover) and (pointer: fine) {
+    .pt-context-menu .dropdown-submenu:hover > .dropdown-menu {
+        display: block;
+    }
+}
+
+.pt-context-menu .dropdown-submenu > .dropdown-menu.show,
+.pt-context-menu .dropdown-submenu.is-open > .dropdown-menu {
     display: block;
 }
 
-.pt-context-menu .dropdown-item {
-    cursor: pointer;
+/* Prefer inline expand when flyout would be awkward (narrow desktop / touch hybrid) */
+@media (max-width: 991.98px) {
+    .pt-context-menu .dropdown-submenu > .dropdown-menu {
+        position: static;
+        left: auto;
+        margin: 0.2rem 0 0.35rem 0.5rem;
+        box-shadow: none;
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+        border-radius: var(--mod-radius-pill, 1rem);
+        min-width: 0;
+        width: calc(100% - 0.5rem);
+    }
+
+    .pt-context-menu .dropdown-submenu:hover > .dropdown-menu {
+        display: none;
+    }
+
+    .pt-context-menu .dropdown-submenu > .dropdown-menu.show,
+    .pt-context-menu .dropdown-submenu.is-open > .dropdown-menu {
+        display: block;
+    }
 }
 
 .pt-context-menu .email-color-picker {
     padding: 0.25rem 0.75rem;
+}
+
+/* ——— Mobile ⋮ Action Sheet (global) ——— */
+.pt-action-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20040;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-tap-highlight-color: transparent;
+}
+
+body.pt-action-sheet-open {
+    overflow: hidden;
+}
+
+/* ID-Selektor: schlägt Modul-CSS (#prismateams-context-menu .xxx-actions-menu) */
+#prismateams-context-menu.pt-context-menu--sheet {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 80px !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    z-index: 20050 !important;
+    animation: ptSheetSlideUp 0.28s ease-out;
+}
+
+#prismateams-context-menu.pt-context-menu--sheet > .dropdown-menu,
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-menu {
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    inset: auto !important;
+    transform: none !important;
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    max-height: calc(100vh - 160px) !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 6px 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bs-dropdown-bg, var(--bs-body-bg, #fff)) !important;
+}
+
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-radius: 0 !important;
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    font-weight: 500;
+}
+
+#prismateams-context-menu.pt-context-menu--sheet li:last-child > .dropdown-item,
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item:last-child {
+    border-bottom: none !important;
+}
+
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item i {
+    margin-right: 12px !important;
+    width: 20px !important;
+    font-size: 18px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+}
+
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-divider {
+    margin: 0.25rem 0 !important;
+    opacity: 0.35;
+}
+
+[data-bs-theme="dark"] #prismateams-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+@keyframes ptSheetSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Größere Touch-Targets für ⋮-Buttons auf Mobile/Tablet */
+@media (max-width: 991.98px) {
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical),
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots),
+    .dropdown > .dropdown-toggle:has(.bi-three-dots-vertical),
+    .dropdown > .dropdown-toggle:has(.bi-three-dots),
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"],
+    .wiki-card-menu > [data-bs-toggle="dropdown"],
+    .contacts-card-menu > [data-bs-toggle="dropdown"],
+    .credentials-card-menu > [data-bs-toggle="dropdown"],
+    .manuals-card-menu > [data-bs-toggle="dropdown"],
+    .file-item .dropdown > [data-bs-toggle="dropdown"],
+    .folder-item .dropdown > [data-bs-toggle="dropdown"] {
+        width: 2.75rem;
+        height: 2.75rem;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical) i,
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
+    .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    .contacts-card-menu > [data-bs-toggle="dropdown"] i,
+    .credentials-card-menu > [data-bs-toggle="dropdown"] i,
+    .manuals-card-menu > [data-bs-toggle="dropdown"] i,
+    .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
+        font-size: 1.25rem;
+        color: #6c757d;
+        pointer-events: none;
+    }
+
+    [data-bs-theme="dark"] .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical) i,
+    [data-bs-theme="dark"] .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
+    [data-bs-theme="dark"] .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .contacts-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .credentials-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .manuals-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
+        color: #adb5bd;
+    }
 }

@@ -49,6 +49,13 @@
       "category_functional_desc": "Speichert lokale Einstellungen und ermöglicht PWA-Funktionen.",
       "category_analytics_title": "Statistik",
       "category_analytics_desc": "Anonyme Nutzungsstatistiken zur Verbesserung des Portals (derzeit nicht aktiv)."
+    },
+    "pwa_install": {
+      "title": "App installieren",
+      "description": "Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.",
+      "install": "Installieren",
+      "later": "Später",
+      "never": "Nicht mehr anzeigen"
     }
   },
   "common": {
@@ -63,6 +70,8 @@
     "no": "Nein",
     "close": "Schließen",
     "confirm": "Bestätigen",
+    "confirm_delete_title": "Löschen bestätigen",
+    "confirm_delete_default": "Möchten Sie dieses Element wirklich löschen?",
     "loading": "Laden...",
     "actions": "Aktionen",
     "status": "Status",
@@ -97,6 +106,9 @@
       "forgot_password": "Passwort vergessen?",
       "register_link_prefix": "Neu bei Prismateams?",
       "register_link_cta": "Jetzt registrieren",
+      "switch_title": "Neu hier?",
+      "switch_text": "Noch kein Konto? Registriere dich und starte direkt mit Prismateams.",
+      "switch_cta": "Registrieren",
       "2fa_code": "2FA-Code",
       "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein."
     },
@@ -114,15 +126,18 @@
       "dark_mode_help": "Du kannst diese Einstellung jederzeit in deinem Profil ändern.",
       "submit": "Konto erstellen",
       "login_link_prefix": "Schon registriert?",
-      "login_link_cta": "Hier anmelden"
+      "login_link_cta": "Hier anmelden",
+      "switch_title": "Schon dabei?",
+      "switch_text": "Du hast bereits ein Konto? Melde dich an und weiter geht’s.",
+      "switch_cta": "Anmelden"
     },
     "confirm_email": {
       "title": "E-Mail bestätigen",
       "subtitle": "Gib den Bestätigungscode ein, den wir dir gesendet haben.",
       "info_title": "Hinweis",
-      "info_message": "Der Code ist 15 Minuten gültig. Prüfe bitte auch deinen Spam-Ordner.",
+      "info_message": "Der Code ist 24 Stunden gültig. Prüfe bitte auch deinen Spam-Ordner.",
       "code": "Bestätigungscode",
-      "code_help": "Den Code findest du in der E-Mail mit dem Betreff \"E-Mail bestätigen\".",
+      "code_help": "Den 6-stelligen Code findest du in der E-Mail mit dem Betreff „E-Mail-Bestätigung“.",
       "submit": "Code bestätigen",
       "no_email": "Keine E-Mail erhalten?",
       "resend_button": "Code erneut senden",
@@ -166,14 +181,16 @@
       "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
       "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
       "password_too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+      "password_requirements": "Das Passwort muss mindestens 12 Zeichen lang sein und Groß- und Kleinbuchstaben, Zahlen sowie Sonderzeichen enthalten.",
       "email_already_registered": "Diese E-Mail-Adresse ist bereits registriert.",
       "register_success_whitelisted": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.",
       "register_success_whitelisted_no_email": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.",
-      "register_pending_admin": "Dein Konto muss vom Administrator aktiviert werden. Eine Bestätigungs-E-Mail wurde an Sie gesendet.",
-      "register_pending_admin_no_email": "Dein Konto muss vom Administrator aktiviert werden. E-Mail-Bestätigung konnte nicht gesendet werden.",
+      "register_pending_admin": "Dein Konto muss vom Administrator freigeschaltet werden. Nach der Freischaltung erhältst du einen Bestätigungscode per E-Mail.",
+      "register_pending_admin_no_email": "Dein Konto muss vom Administrator freigeschaltet werden. Nach der Freischaltung erhältst du einen Bestätigungscode per E-Mail.",
       "enter_email_password": "Bitte geben Sie E-Mail und Passwort ein.",
       "invalid_credentials": "Ungültige E-Mail oder Passwort.",
       "guest_account_expired": "Ihr Gast-Account ist abgelaufen und wurde entfernt.",
+      "guest_access_expired_contact_admin": "Ihr Gastzugang ist abgelaufen. Sollten Sie noch Bedarf haben, wenden Sie sich an den Administrator.",
       "account_not_activated": "Ihr Konto wurde noch nicht aktiviert. Bitte warten Sie auf die Freischaltung durch einen Administrator.",
       "confirm_email_required": "Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.",
       "email_already_confirmed": "Ihre E-Mail-Adresse wurde bereits bestätigt.",
@@ -223,7 +240,8 @@
         "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
         "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
         "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
-        "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+        "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.",
+        "completed_summary": "Setup abgeschlossen. Ihr Admin-Account ist bereit — Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
       },
       "success_title": "🎉 Setup erfolgreich abgeschlossen!",
       "success_body": "Willkommen in Ihrem Team-Portal! Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
@@ -240,6 +258,251 @@
     },
     "welcome": "Willkommen, {name}!",
     "overview_subtitle": "Hier ist Ihre Übersicht",
+    "whats_new": {
+      "button_label": "Neues",
+      "button_aria": "Neuigkeiten der Version anzeigen",
+      "badge": "!",
+      "badge_sr": "ungelesene Neuigkeiten",
+      "overview_title": "So neu in v{version}",
+      "overview_label": "Übersicht",
+      "persistent_title": "Neu in Version {version} - ({current}/{total})",
+      "overview_subtitle": "Tippe ein Modul an, um alle Neuigkeiten zu sehen.",
+      "version_label": "Neu in v{version}",
+      "back_overview": "Übersicht",
+      "prev": "Zurück",
+      "next": "Weiter",
+      "welcome": {
+        "title": "Willkommen zu Version 3",
+        "text": "PrismaTeams 3.0.0 ist da – neues Design, neue Module und viele Verbesserungen für den Alltag im Team.",
+        "highlights": {
+          "design": "Frischere Oberfläche, klarere Navigation und einheitliche Designsprache.",
+          "modules": "Neue und stark erweiterte Module: Bewertung, Musik, Shortlinks, Booking, Events und mehr.",
+          "security": "Mehr Sicherheit mit 2FA, Bot-Schutz, Gast-Accounts und Session-Verwaltung."
+        }
+      },
+      "modules": {
+        "general": {
+          "title": "Allgemein",
+          "teaser": "Design, Nav & System",
+          "items": {
+            "design": "Neue Designsprache über das gesamte Portal – klarer, ruhiger und konsistenter.",
+            "accent": "Akzentfarben werden zuverlässiger und an mehr Stellen angewendet.",
+            "alerts": "Alert-Bubbles angepasst, damit Layout weniger springt.",
+            "navigation": "Desktop-Sidebar und Mobile-Navigation überarbeitet.",
+            "context_menus": "Kontextmenüs in vielen Modulen für schnellere Aktionen.",
+            "setup": "Setup-Assistent und Erstkonfiguration verbessert.",
+            "push": "Web-Push-Subscriptions und Benachrichtigungen erweitert (inkl. Admin-Verwaltung).",
+            "email_templates": "Einheitliches E-Mail-Template-System für alle Systemmails.",
+            "pdf": "PDF-Generator überarbeitet (Inventar, Events, Booking, QR).",
+            "i18n": "Übersetzungen und Mehrsprachigkeit weiter ausgebaut."
+          }
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "teaser": "Neues & Widgets",
+          "items": {
+            "whats_new": "„Neues“ zeigt die Highlights jeder Version.",
+            "widgets": "Widgets und Schnellzugriff um neue Module ergänzt.",
+            "quick_access": "Dashboard-Bearbeitung unterstützt Events, Assessment, Musik, Media Download und mehr.",
+            "design": "Design- und Layout-Anpassungen für die Startseite."
+          }
+        },
+        "security": {
+          "title": "Sicherheit",
+          "teaser": "2FA, Gäste & Schutz",
+          "items": {
+            "twofa": "Zwei-Faktor-Authentifizierung (TOTP) für den Login.",
+            "rate_limit": "Rate-Limiting gegen Brute-Force bei Anmeldeversuchen.",
+            "bot": "Bot-Schutz mit Google reCAPTCHA oder Cloudflare Turnstile (Login/Registrierung).",
+            "password_reset": "Passwort-Reset per E-Mail.",
+            "sessions": "Session-Tracking und Geräteübersicht.",
+            "guests": "Gast-Accounts mit modulbasierter Zugriffskontrolle.",
+            "api_2fa": "API-Login mit optionaler 2FA-Unterstützung."
+          }
+        },
+        "chat": {
+          "title": "Chats",
+          "teaser": "Design, Pins & Stabilität",
+          "items": {
+            "design": "Designupdate für Desktop und Mobile.",
+            "pins": "Chats anpinnen (bis zu 6 pro Benutzer).",
+            "settings": "Chat-Einstellungen und Navigation verbessert.",
+            "socket": "Socket.IO / Redis-Stabilität für Echtzeitnachrichten.",
+            "fixes": "Bugfixes und UI-Verbesserungen."
+          }
+        },
+        "files": {
+          "title": "Dateien",
+          "teaser": "Privat, Limits & Freigaben",
+          "items": {
+            "design": "Design-Erneuerung für eine klarere Dateiübersicht.",
+            "private": "Private Ordner, Bereiche, Papierkorb und ACL.",
+            "upload": "Upload-Anzeige und Konfliktbehandlung (neue Version).",
+            "favorites": "Bis zu 10 Ordner als Favoriten speichern.",
+            "shares": "Freigaben überarbeitet (Labels, Dropbox-Mode, Briefkästen).",
+            "locks": "Exklusive Soft-Locks für Text-/Markdown-Editor.",
+            "dropbox": "Dropbox-Upload und -Integration verbessert.",
+            "admin_settings": "Neue Admin-Einstellungen für das Dateimodul.",
+            "upload_limit": "Größere Uploads möglich – je nach Admin-Einstellung.",
+            "user_quota": "Speicherlimit pro Benutzer einstellbar.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
+          }
+        },
+        "calendar": {
+          "title": "Kalender",
+          "teaser": "Multi-Kalender & Sync",
+          "items": {
+            "day_view": "Tagesansicht für den schnellen Überblick.",
+            "external_sync": "Externe Kalender können synchronisiert werden.",
+            "embed": "Einbinden und Export/Import einfacher gemacht.",
+            "multi_mode": "Multi-Kalender-Modus für Personen und Teams.",
+            "context": "Kontextmenü: Termin direkt aus der Ansicht anlegen.",
+            "design": "Design- und OLED-Anpassungen.",
+            "fixes": "Fehlerbehebungen und Verbesserungen."
+          }
+        },
+        "events": {
+          "title": "Veranstaltungen",
+          "teaser": "Neues Modul & Scanner",
+          "items": {
+            "new_module": "Eigenes Veranstaltungsmodul mit Terminen, Zuweisungen und Bedarf.",
+            "design": "Designupdate der Event-Oberflächen.",
+            "scanner": "Appointment-Scanner für schnellere Erfassung.",
+            "inventory_link": "Checkouts können mit Event und Termin verknüpft werden.",
+            "pdf": "PDF-Generierung für Events überarbeitet.",
+            "fixes": "Anpassungen und Fehlerbehebungen."
+          }
+        },
+        "email": {
+          "title": "E-Mail",
+          "teaser": "Design, Mobile & Rechte",
+          "items": {
+            "design": "Designanpassungen für eine klarere Oberfläche.",
+            "mobile_layout": "Mobile Layout Fixes.",
+            "mobile_nav": "Mobile Navigation Fixes.",
+            "permissions": "Berechtigungen zum Lesen und Senden pro Benutzer.",
+            "sent_folder": "Gesendete Mails können im IMAP-Sent-Ordner landen.",
+            "templates": "Systemmails nutzen das neue einheitliche Template.",
+            "fixes": "Weitere Stabilitäts- und UI-Fixes."
+          }
+        },
+        "contacts": {
+          "title": "Kontakte",
+          "teaser": "Design & Favoriten",
+          "items": {
+            "design": "Designupdate der Kontaktübersicht.",
+            "favorites": "Persönliche Favoriten pro Benutzer.",
+            "context": "Kontextmenüs für schnelle Aktionen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
+          }
+        },
+        "credentials": {
+          "title": "Zugangsdaten",
+          "teaser": "Design & Favoriten",
+          "items": {
+            "design": "Designupdate.",
+            "favorites": "Persönliche Favoriten pro Benutzer.",
+            "badges": "Provider-Badges und verbesserte Suche.",
+            "context": "Kontextmenüs für schnelle Aktionen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
+          }
+        },
+        "manuals": {
+          "title": "Handbücher",
+          "teaser": "Ordner & Design",
+          "items": {
+            "design": "Designanpassungen.",
+            "folders": "Ordnerstruktur für Handbücher/Anleitungen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
+          }
+        },
+        "inventory": {
+          "title": "Inventar",
+          "teaser": "Checkout & Scanner",
+          "items": {
+            "design": "Designanpassungen und klarere Abläufe.",
+            "checkout": "Neues Checkout-System (Ausleihe/Rückgabe) inkl. Kontaktdaten.",
+            "product_fields": "Mehr Produktfelder: Gewicht, Maße, Preise, DGUV, Barcode, Schadenfoto.",
+            "event_link": "Checkout mit Veranstaltung und Termin verknüpfbar.",
+            "stocktake": "Inventur mit gezählter Menge.",
+            "scanner": "Scanner- und Checkout-UX verbessert.",
+            "colors": "Farbcodes besser lesbar bei kleinen Unterschieden.",
+            "pdf": "Belege und PDFs überarbeitet.",
+            "fixes": "API-Kompatibilität und weitere Bugfixes."
+          }
+        },
+        "booking": {
+          "title": "Buchungen",
+          "teaser": "Formulare & Nachrichten",
+          "items": {
+            "module": "Buchungsmodul mit öffentlichen Formularen und Genehmigung.",
+            "forms": "Anpassbare Formulare, Uploads und Antragsteller-Felder.",
+            "roles": "Rollenbasierte Freigabe und Secondary Logo.",
+            "messages": "Nachrichten-Thread zwischen Staff und Antragsteller.",
+            "notifications": "Benachrichtigungen für Buchungen und Nachrichten.",
+            "pdf_mail": "PDF-Export und neue Mail-Templates inkl. Staff-Nachricht.",
+            "design": "Design- und Navigationsverbesserungen."
+          }
+        },
+        "music": {
+          "title": "Musik",
+          "teaser": "Wünsche & Public Links",
+          "items": {
+            "module": "Musikmodul für Wünsche und Team-Playlists.",
+            "design": "Designupdate der Musik-Oberfläche.",
+            "wishlist": "Wunschliste und Wunschverwaltung verbessert.",
+            "public": "Öffentliche URLs / Wishlist-Seiten.",
+            "oauth": "Admin-Einstellungen und OAuth-Anbindung.",
+            "fixes": "Bugfixes und Stabilitätsverbesserungen."
+          }
+        },
+        "assessment": {
+          "title": "Bewertung",
+          "teaser": "Neues Modul & Jury",
+          "items": {
+            "module": "Neues Bewertungsmodul für Jury und Wettbewerbe.",
+            "design": "Eigenes Design und isolierte Jury-Ansicht.",
+            "jury": "Jury-Accounts ohne volles Portal-Konto.",
+            "plans": "Bewertungspläne, Kriterien und Stände.",
+            "ranking": "Rankings und Auswertungen.",
+            "excel": "Excel-Uploads und Datenübernahme.",
+            "fixes": "Bugfixes und Admin-/Settings-Verbesserungen."
+          }
+        },
+        "shortlinks": {
+          "title": "Shortlinks",
+          "teaser": "Neues Modul",
+          "items": {
+            "module": "Neues Shortlinks-Modul für kurze, teilbare Links.",
+            "design": "Design und Sidebar-Navigation.",
+            "sharing": "Anbindung an Datei-Freigaben und Teilen.",
+            "fixes": "Bugfixes und UX-Verbesserungen."
+          }
+        },
+        "media_downloader": {
+          "title": "Media Download",
+          "teaser": "Playlists & Stabilität",
+          "items": {
+            "design": "Design- und UI-Update der Download-Oberfläche.",
+            "playlists": "Playlist-Support und Vorschau.",
+            "cancel": "Jobs abbrechen und aufräumen.",
+            "errors": "Klarere Fehlerantworten und Feedback.",
+            "config": "Konfiguration und Kompatibilitätsanzeige.",
+            "fixes": "Zahlreiche Stabilitäts- und Bugfixes."
+          }
+        },
+        "wiki": {
+          "title": "Wiki",
+          "teaser": "Versionen & Favoriten",
+          "items": {
+            "design": "Design- und Navigationsanpassungen.",
+            "versions": "Versionsverwaltung und Verlauf.",
+            "favorites": "Favoriten für schnellen Zugriff.",
+            "fixes": "Bugfixes und Verbesserungen."
+          }
+        }
+      }
+    },
     "widgets": {
       "common": {
         "time_suffix": "Uhr"
@@ -301,6 +564,12 @@
           "password": "Passwort"
         },
         "error": "Passwort konnte nicht geladen werden."
+      },
+      "contacts": {
+        "title": "Kontakte",
+        "empty": "Keine Kontakte",
+        "call": "Anrufen",
+        "mail": "E-Mail"
       }
     },
     "quick_access": {
@@ -354,12 +623,27 @@
           "buchungen": {
             "label": "Buchungen",
             "description": "Zeigt ausstehende Buchungsanfragen."
+          },
+          "kontakte": {
+            "label": "Kontakte",
+            "description": "Zeigt ausgewählte Kontakte mit Schnellaktionen."
           }
-        }
+        },
+        "add": "Widget hinzufügen",
+        "empty": "Noch keine Widgets. Fügen Sie welche hinzu.",
+        "calendars_label": "Kalender",
+        "contacts_label": "Kontakte auswählen",
+        "contacts_hint": "Wählen Sie bis zu fünf Kontakte für das Widget.",
+        "contacts_search": "Kontakt suchen…",
+        "contacts_max": "Maximal 5 Kontakte"
       },
       "quick_access": {
         "title": "Schnellzugriff",
-        "description": "Wählen Sie aus, welche Links im Schnellzugriff angezeigt werden sollen.",
+        "description": "Wählen Sie aus, welche Module und Unterseiten im Schnellzugriff angezeigt werden sollen.",
+        "groups": {
+          "inventory": "Inventar",
+          "assessment": "Bewertungstool"
+        },
         "items": {
           "files": "Dateien",
           "chat": "Chats",
@@ -372,11 +656,22 @@
           "wiki": "Wiki",
           "booking": "Buchungen",
           "music": "Musik",
+          "assessment": "Bewertung",
+          "assessment_evaluate": "Bewerten",
+          "assessment_my_evaluations": "Meine Bewertungen",
+          "assessment_ranking": "Rangliste",
+          "assessment_inspections": "Rauminspektionen",
+          "assessment_warnings": "Verwarnungen",
           "settings": "Einstellungen",
           "profile": "Profil",
           "logout": "Abmelden"
         }
       }
+    },
+    "greeting": {
+      "morning": "Guten Morgen, {name}!",
+      "afternoon": "Guten Tag, {name}!",
+      "evening": "Guten Abend, {name}!"
     }
   },
   "languages": {
@@ -387,11 +682,33 @@
     "ru": "Русский"
   },
   "settings": {
+    "sidebar": {
+      "brand": "Einstellungen",
+      "nav_label": "Einstellungen Navigation",
+      "menu": "Menü",
+      "start": "Start",
+      "admin_heading": "Admineinstellungen",
+      "push_subscriptions": "Web-Push-Abonnements",
+      "push_subscriptions_desc": "Aktive Browser-Push-Registrierungen aller Nutzer einsehen und verwalten.",
+      "email_module": "E-Mail-Einstellungen",
+      "email_module_desc": "E-Mail-Test, Footer und System-Einstellungen für das E-Mail-Modul konfigurieren.",
+      "inventory": "Lagerverwaltung",
+      "inventory_desc": "Einstellungen für öffentliche Produktseiten und QR-Codes",
+      "sections": {
+        "account": "Konto",
+        "modules": "Moduleinstellungen"
+      }
+    },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_appearance": "Darstellung",
       "heading": "Darstellung anpassen",
+      "subtitle": "Sprache, Farbe, Design-Modus und Layout",
+      "section_language": "Sprache",
+      "section_color": "Farbe",
+      "section_theme": "Design-Modus",
+      "section_layout": "Layout und Navigation",
       "language_label": "Sprache",
       "language_help": "Wähle die Sprache für Oberfläche und Systemmeldungen.",
       "accent_section_title": "Akzentfarbe & Farbverlauf",
@@ -440,10 +757,12 @@
     "index": {
       "page_title": "Einstellungen - Team Portal",
       "heading": "Einstellungen",
+      "lead": "Persönliche Einstellungen und, als Administrator, Schnellzugriff auf Systembereiche.",
+      "admin_hint": "Alle Module auch in der Navigation links. Hier nur der Überblick.",
       "cards": {
         "profile": {
           "title": "Profil",
-          "description": "Persönliche Daten und Passwort ändern",
+          "description": "Persönliche Daten und Profilbild",
           "button": "Bearbeiten"
         },
         "appearance": {
@@ -479,7 +798,11 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_profile": "Profil",
       "heading": "Profil bearbeiten",
+      "subtitle": "Persönliche Daten und Profilbild verwalten",
+      "exists_since": "Benutzer existiert seit {date}",
       "picture": {
+        "heading": "Profilbild",
+        "help": "JPG, PNG oder GIF · max. 5 MB",
         "alt": "Profilbild",
         "alt_preview": "Profilbild Vorschau",
         "change_button": "Profilbild ändern",
@@ -490,6 +813,7 @@
         "error_size": "Die Datei ist zu groß. Maximale Größe: 5MB."
       },
       "fields": {
+        "section_title": "Persönliche Daten",
         "first_name": "Vorname",
         "last_name": "Nachname",
         "email": "E-Mail",
@@ -509,7 +833,7 @@
         "label": "Neues Passwort (optional)",
         "help": "Leer lassen, um Passwort nicht zu ändern"
       },
-      "save_button": "Änderungen speichern",
+      "save_button": "Speichern",
       "flash_password_length": "Das Passwort muss mindestens 8 Zeichen lang sein.",
       "flash_picture_too_large": "Profilbild ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
       "flash_picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF Dateien sind erlaubt.",
@@ -522,7 +846,8 @@
       "page_title": "Sicherheit - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_security": "Sicherheit",
-      "heading": "Sicherheitseinstellungen",
+      "heading": "Sicherheit",
+      "subtitle": "Passwort, 2FA und angemeldete Geräte",
       "flash_guests_cannot_edit": "Gast-Accounts können Sicherheitseinstellungen nicht ändern.",
       "tabs": {
         "passwords": "Passwörter & 2FA",
@@ -544,13 +869,20 @@
       },
       "2fa": {
         "heading": "Zwei-Faktor-Authentifizierung (2FA)",
+        "heading_short": "Zwei-Faktor (2FA)",
+        "help": "Zusätzlicher Schutz beim Login mit Authenticator-App",
+        "status_on": "Aktiv",
+        "status_off": "Nicht aktiviert",
         "enabled": "2FA ist aktiviert.",
         "not_enabled": "2FA ist nicht aktiviert. Aktivieren Sie 2FA für zusätzliche Sicherheit.",
+        "not_enabled_short": "Noch nicht eingerichtet.",
         "setup_button": "2FA aktivieren",
-        "start_setup_button": "2FA-Einrichtung starten",
+        "start_setup_button": "2FA einrichten",
         "start_setup_description": "Klicken Sie auf den Button, um die 2FA-Einrichtung zu starten. Sie erhalten dann einen QR-Code zum Scannen.",
-        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) und geben Sie dann den 6-stelligen Code ein.",
-        "setup_warning": "Wichtig: Speichern Sie den Secret-Code an einem sicheren Ort. Falls Sie Ihr Gerät verlieren, benötigen Sie diesen Code, um 2FA wiederherzustellen.",
+        "step1_title": "Schritt 1: QR-Code scannen",
+        "step2_title": "Schritt 2: Code eingeben",
+        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App und geben Sie den 6-stelligen Code ein.",
+        "setup_warning": "Secret-Code sicher aufbewahren – bei Geräteverlust zur Wiederherstellung nötig.",
         "enter_code_label": "2FA-Code",
         "enter_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
         "secret_label": "Secret-Code",
@@ -572,14 +904,14 @@
       },
       "devices": {
         "heading": "Angemeldete Geräte",
-        "description": "Verwalten Sie Ihre aktiven Sitzungen und melden Sie sich von anderen Geräten ab.",
+        "description": "Aktive Sitzungen verwalten und andere Geräte abmelden.",
         "table": {
           "device": "Gerät",
           "ip_address": "IP-Adresse",
           "last_activity": "Letzte Aktivität",
           "status": "Status"
         },
-        "current_session": "Aktuelle Sitzung",
+        "current_session": "Dieses Gerät",
         "active": "Aktiv",
         "inactive": "Inaktiv",
         "unknown_device": "Unbekanntes Gerät",
@@ -597,12 +929,18 @@
       }
     },
     "notifications": {
-      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."
-    },
-    "notifications": {
       "page_title": "Benachrichtigungen - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_notifications": "Benachrichtigungen",
+      "heading": "Benachrichtigungen",
+      "subtitle": "Push, Module und Erinnerungen verwalten",
+      "save_button": "Änderungen speichern",
+      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert.",
+      "push_status": {
+        "checking": "Status wird geprüft…",
+        "supported": "Dieser Browser unterstützt Push-Benachrichtigungen mit dieser Seite",
+        "unsupported": "Dieser Browser unterstützt Push-Benachrichtigungen nicht"
+      },
       "permissions": {
         "title": "Browser-Berechtigungen",
         "description": "Diese Berechtigungen sind erforderlich, damit die Anwendung alle Funktionen nutzen kann.",
@@ -645,6 +983,7 @@
         "toggle": "Chat-Benachrichtigungen aktivieren",
         "help": "Erhalten Sie Benachrichtigungen für neue Chat-Nachrichten",
         "table_title": "Chat-spezifische Einstellungen",
+        "empty": "Keine Chats vorhanden.",
         "table": {
           "chat": "Chat",
           "notifications": "Benachrichtigungen"
@@ -658,6 +997,12 @@
         "new_help": "Benachrichtigungen für neu hochgeladene Dateien",
         "modified": "Geänderte Dateien",
         "modified_help": "Benachrichtigungen für geänderte Dateien"
+      },
+      "booking": {
+        "title": "Buchungsanfragen",
+        "toggle": "Bei neuen Buchungsanfragen",
+        "toggle_messages": "Bei neuen Nachrichten",
+        "help": "Glocke und Push, wenn eine neue Buchungsanfrage eingeht oder der Antragsteller antwortet (je nach Schalter)"
       },
       "email": {
         "title": "E-Mail-Benachrichtigungen",
@@ -684,7 +1029,6 @@
         "reminder_1d": "1 Tag vorher",
         "reminder_2d": "2 Tage vorher"
       },
-      "save_button": "Einstellungen speichern",
       "js": {
         "checking": "Prüfe...",
         "permission_granted": "Erteilt",
@@ -709,26 +1053,32 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_about": "Über PrismaTeams",
       "heading": "Über PrismaTeams",
+      "subtitle": "Produkt, System und Open Source",
       "logo_alt": "PrismaTeams Logo",
       "section_product_title": "PrismaTeams",
-      "section_product_description": "PrismaTeams ist eine umfassende Team-Kollaborationsplattform, die Ihnen hilft, effizient mit Ihrem Team zu kommunizieren, zu organisieren und zusammenzuarbeiten. Die Plattform bietet Funktionen für Chat, Dateiverwaltung, Kalender, E-Mail-Verwaltung und vieles mehr.",
+      "section_product_description": "Team-Portal für Chat, Dateien, Kalender, E-Mail und weitere Module – alles an einem Ort.",
       "author_label": "Autor:",
-      "copyright": "Copyright © Enrico R. Matzke 2025. Alle Rechte vorbehalten.",
-      "section_repository_title": "GitHub Repository",
-      "section_repository_description": "Das Quellcode-Repository finden Sie auf GitHub:",
-      "section_repository_button": "GitHub Repository öffnen",
-      "section_repository_improvement_note": "Die Software wird kontinuierlich weiterentwickelt und verbessert. Sollten Sie einen Fehler entdecken, melden Sie diesen bitte gerne mit einem Screenshot und/oder einer ausführlichen Beschreibung über die Issues-Seite auf GitHub.",
+      "copyright": "Copyright © Enrico R. Matzke 2025 - 2026. Alle Rechte vorbehalten.",
+      "section_repository_title": "Open Source",
+      "section_repository_description": "Quellcode und Issues auf GitHub.",
+      "section_repository_button": "Repository öffnen",
+      "section_repository_improvement_note": "Die Software wird kontinuierlich weiterentwickelt. Fehler gerne mit Screenshot oder Beschreibung über GitHub Issues melden.",
       "section_repository_issues_button": "Fehler melden",
-      "section_system_title": "Über Dieses System",
+      "section_system_title": "Dieses System",
       "version_label": "Version:",
       "version_value": "",
-      "creator_label": "Ersteller:",
-      "onlyoffice_label": "OnlyOffice Integration:",
+      "release_label": "Release",
+      "build_label": "Build",
+      "portal_label": "Portalname",
+      "portal_unset": "Nicht gesetzt",
+      "creator_label": "Verwaltet von",
+      "creator_unknown": "Unbekannt",
+      "onlyoffice_label": "OnlyOffice",
       "onlyoffice_active": "Aktiv",
       "onlyoffice_inactive": "Nicht aktiv",
-      "media_downloader_label": "Media Downloader (Systemkompatibilität):",
-      "media_downloader_compatible": "Kompatibel (FFmpeg verfügbar)",
-      "media_downloader_not_compatible": "Nicht kompatibel (FFmpeg fehlt)",
+      "media_downloader_label": "Media Downloader",
+      "media_downloader_compatible": "FFmpeg ok",
+      "media_downloader_not_compatible": "FFmpeg fehlt",
       "excalidraw_label": "Excalidraw Integration:",
       "excalidraw_active": "Aktiv",
       "excalidraw_inactive": "Nicht aktiv",
@@ -745,11 +1095,25 @@
         "breadcrumb_settings": "Einstellungen",
         "breadcrumb_admin": "Administration",
         "breadcrumb_modules": "Module",
-        "heading": "Module verwalten",
+        "heading": "Module",
+        "subtitle": "Module für alle Benutzer ein- oder ausschalten. Aus = in Navigation ausgeblendet.",
+        "section_modules": "Verfügbare Module",
         "description": "Aktivieren oder deaktivieren Sie Module für alle Benutzer. Deaktivierte Module werden in der Navigation ausgeblendet.",
+        "module_chat": "Chat",
+        "module_files": "Dateien",
+        "module_calendar": "Kalender",
+        "module_events": "Veranstaltungen",
+        "module_email": "E-Mail",
+        "module_contacts": "Kontakte",
+        "module_credentials": "Zugangsdaten",
+        "module_manuals": "Anleitungen",
+        "module_inventory": "Lagerverwaltung",
+        "module_wiki": "Wiki",
         "module_booking": "Buchungen",
         "module_music": "Musik",
         "module_media_downloader": "Media Downloader",
+        "module_assessment": "Bewertung",
+        "module_shortlinks": "Kurzlinks",
         "save": "Änderungen speichern",
         "cancel": "Zurück",
         "flash_updated": "Module-Einstellungen wurden aktualisiert."
@@ -760,16 +1124,65 @@
         "breadcrumb_admin": "Administration",
         "breadcrumb_users": "Benutzerverwaltung",
         "heading": "Benutzerverwaltung",
-        "configure_default_roles": "Standardrollen konfigurieren",
-        "create_user": "Neuen Benutzer erstellen",
+        "subtitle": "Benutzer, Gäste und ausstehende Bestätigungscodes",
+        "configure_default_roles": "Standardrollen",
+        "create_user": "Neuen Benutzer",
         "guest_account": "Gast-Account",
         "guest_expires_at": "Läuft ab",
         "guest_no_expiry": "Kein Ablaufdatum",
+        "pending_title": "Ausstehende Registrierungen",
+        "codes_title": "Bestätigungscodes",
+        "codes_help": "Codes für Nutzer, die ihre E-Mail noch nicht bestätigt haben.",
+        "active_title": "Aktive Benutzer",
+        "guests_title": "Gast-Accounts",
+        "registered": "Registriert",
+        "code_expires": "Gültig bis",
+        "code_unlimited": "Unbegrenzt",
+        "copy_code": "Code kopieren",
+        "last_login": "Login",
+        "never": "Nie",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "reject": "Ablehnen",
+        "reject_confirm": "Registrierung ablehnen und löschen?",
+        "delete": "Löschen",
+        "delete_confirm": "Benutzer wirklich löschen?",
+        "delete_guest_confirm": "Gast-Account wirklich löschen?",
+        "edit": "Bearbeiten",
+        "edit_guest": "Gast bearbeiten",
+        "manage_roles": "Rollen verwalten",
+        "make_admin": "Zum Admin machen",
+        "remove_admin": "Admin-Rechte entziehen",
+        "badge_super_admin": "Hauptadmin",
+        "badge_admin": "Admin",
+        "badge_user": "Benutzer",
+        "badge_full_admin": "Vollzugriff (Admin)",
+        "badge_full": "Vollzugriff",
+        "badge_modules": "Module",
+        "badge_guest": "Gast",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
+        "badge_expired": "Abgelaufen",
+        "shares_count": "{count} Freigabe(n)",
+        "expires": "Bis",
+        "no_active": "Keine aktiven Benutzer.",
+        "no_guests": "Keine Gast-Accounts.",
+        "full_access_help": "Bei Vollzugriff greifen modulspezifische Rollen nicht.",
+        "module_roles_title": "Modulspezifische Rollen",
+        "module_roles_help": "Module auswählen, auf die dieser Benutzer Zugriff haben soll.",
+        "email_perms_title": "E-Mail-Berechtigungen",
+        "email_read": "E-Mails lesen",
+        "email_send": "E-Mails senden",
+        "borrow_title": "Leihrechte",
+        "borrow_toggle": "Artikel ausleihen können",
+        "booking_roles_title": "Buchungsrollen",
+        "booking_roles_help": "Rollen zuweisen, damit der Benutzer Anfragen freigeben oder ablehnen kann.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_user_created": "Account für {name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.",
         "flash_guest_created": "Gast-Account für {name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
         "flash_email_failed": "Account für {name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
         "flash_user_activated": "Benutzer {name} wurde aktiviert.",
+        "flash_user_activated_email": "Benutzer {name} wurde freigeschaltet. Bestätigungscode wurde per E-Mail gesendet.",
         "flash_user_deactivated": "Benutzer {name} wurde deaktiviert.",
         "flash_cannot_deactivate_self": "Sie können sich nicht selbst deaktivieren.",
         "flash_cannot_deactivate_super_admin": "Der Hauptadministrator kann nicht deaktiviert werden.",
@@ -780,7 +1193,64 @@
         "flash_guest_cannot_be_admin": "Gast-Accounts können keine Administratoren werden.",
         "flash_user_deleted": "Benutzer {name} wurde gelöscht.",
         "flash_cannot_delete_self": "Sie können sich nicht selbst löschen.",
-        "flash_cannot_delete_super_admin": "Der Hauptadministrator kann nicht gelöscht werden."
+        "flash_cannot_delete_super_admin": "Der Hauptadministrator kann nicht gelöscht werden.",
+        "flash_guest_updated": "Gast-Account für {name} wurde aktualisiert.",
+        "flash_guest_not_guest": "Dieser Benutzer ist kein Gast-Account.",
+        "flash_guest_name_required": "Bitte Vor- und Nachname eingeben.",
+        "flash_guest_invalid_expiry": "Ungültiges Datumsformat für Ablaufzeit.",
+        "flash_guest_load_error": "Gast-Account konnte nicht geladen werden.",
+        "flash_guest_save_error": "Gast-Account konnte nicht gespeichert werden."
+      },
+      "create_user": {
+        "page_title": "Benutzer erstellen - Administration",
+        "heading": "Neuen Benutzer anlegen",
+        "subtitle": "Vollwertiger Account oder Gast",
+        "account_type": "Account-Typ",
+        "tab_full": "Vollwertig",
+        "tab_guest": "Gast",
+        "section_details": "Stammdaten",
+        "first_name": "Vorname",
+        "last_name": "Nachname",
+        "email": "E-Mail-Adresse",
+        "email_help": "Der Benutzer erhält eine E-Mail mit Zugangsdaten.",
+        "phone": "Telefonnummer (optional)",
+        "full_hint": "Erhält automatisch die Standardrollen und ein zufälliges 8-stelliges Passwort per E-Mail.",
+        "submit_full": "Account erstellen und E-Mail senden",
+        "guest_username": "Gast-Benutzername",
+        "guest_username_help": "Anmeldung als Benutzername@{domain}",
+        "expires": "Ablaufzeit (optional)",
+        "expires_help": "Account wird danach automatisch gelöscht.",
+        "shares_title": "Freigabelinks",
+        "shares_help": "Bei Freigabeordnern wird das Dateien-Modul freigeschaltet.",
+        "shares_empty": "Keine Freigabelinks verfügbar.",
+        "chats_title": "Chats",
+        "chats_help": "Bei Chat-Zuweisung wird das Chat-Modul freigeschaltet.",
+        "chats_empty": "Keine Chats verfügbar.",
+        "main_chat": "Haupt-Chat",
+        "modules_title": "Weitere Module",
+        "modules_help": "Zusätzliche Module für den Gast.",
+        "guest_hint": "Kein E-Mail-/Passwort-Modul. Inventar nur Ansicht.",
+        "submit_guest": "Gast-Account erstellen",
+        "validation_error": "Bitte Pflichtfelder korrekt ausfüllen.",
+        "guest_modal_title": "Gast-Account erstellt",
+        "guest_modal_note": "Zugangsdaten jetzt notieren — später nicht mehr abrufbar.",
+        "guest_modal_username": "Benutzername / E-Mail",
+        "guest_modal_password": "Passwort",
+        "guest_modal_done": "Zur Benutzerverwaltung",
+        "guest_modal_print": "Drucken",
+        "guest_modal_email": "E-Mail senden",
+        "guest_email_modal_title": "Zugangsdaten per E-Mail senden",
+        "guest_email_modal_label": "Empfänger-E-Mail",
+        "guest_email_modal_placeholder": "name@beispiel.de",
+        "guest_email_modal_send": "Senden",
+        "guest_email_modal_cancel": "Abbrechen",
+        "guest_email_invalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+        "guest_email_sent": "Zugangsdaten wurden an {email} gesendet.",
+        "guest_email_failed": "E-Mail konnte nicht gesendet werden. SMTP-Einstellungen prüfen.",
+        "guest_credentials_missing": "Zugangsdaten fehlen.",
+        "guest_pdf_failed": "PDF konnte nicht erstellt werden.",
+        "guest_login_hint": "Login mit {username}@{domain}",
+        "copy": "Kopieren"
       },
       "email_footer": {
         "flash_saved": "E-Mail-Footer wurde erfolgreich gespeichert."
@@ -791,23 +1261,157 @@
         "flash_send_toggled": "E-Mail-Sendeberechtigung für {name} wurde {status}."
       },
       "system": {
-        "flash_logo_too_large": "Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
-        "flash_logo_uploaded": "Portalslogo wurde erfolgreich hochgeladen.",
-        "flash_logo_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt."
+        "page_title": "System-Einstellungen - Administration",
+        "breadcrumb_system": "System-Einstellungen",
+        "heading": "System-Einstellungen",
+        "subtitle": "Globale Portal-Defaults für Name, Logo, Branding, Zeitzone und Gast-Domain.",
+        "section_title": "Portal-Einstellungen",
+        "section_portal": "Portal",
+        "section_branding": "Branding",
+        "section_timezone": "Zeitzone",
+        "section_guest_domain": "Gast-Accounts",
+        "portal_name_label": "Portalsname",
+        "portal_name_placeholder": "z.B. Prismateams",
+        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
+        "portal_logo_label": "Portalslogo",
+        "current_logo": "Aktuelles Logo",
+        "remove_logo": "Logo entfernen",
+        "remove_logo_confirm": "Portalslogo wirklich entfernen?",
+        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
+        "default_accent_color_label": "Standard-Akzentfarbe",
+        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
+        "preview": "Vorschau",
+        "color_gradient_label": "Farbverlauf für Login/Register",
+        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
+        "color_gradient_default": "Standard (Blau-Violett)",
+        "color_gradient_purple_blue": "Blau-Violett",
+        "color_gradient_pink_red": "Pink-Rot",
+        "color_gradient_blue_cyan": "Blau-Cyan",
+        "color_gradient_green_teal": "Grün-Türkis",
+        "color_gradient_pink_yellow": "Pink-Gelb",
+        "color_gradient_pastel": "Pastell",
+        "color_gradient_rose_pastel": "Rosa-Pastell",
+        "color_gradient_orange_pastel": "Orange-Pastell",
+        "timezone_label": "Zeitzone",
+        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
+        "guest_email_domain_label": "Gast-E-Mail-Domain",
+        "guest_email_domain_placeholder": "gast.system.local",
+        "guest_email_domain_help": "Gilt für alle Gast-Accounts. Empfohlen: Prefix „gast.“ – über diese Adressen werden keine E-Mails versendet.",
+        "guest_email_domain_preview": "Beispiel-Login: beispiel@{domain}",
+        "save_button": "Änderungen speichern",
+        "back_button": "Zurück",
+        "flash_updated": "System-Einstellungen wurden aktualisiert.",
+        "flash_guest_domain_invalid": "Ungültige Gast-E-Mail-Domain. Bitte nur Kleinbuchstaben, Zahlen, Punkte und Bindestriche verwenden (ohne @).",
+        "flash_logo_uploaded": "Portalslogo wurde hochgeladen.",
+        "flash_logo_removed": "Portalslogo wurde entfernt.",
+        "flash_logo_too_large": "Logo zu groß ({size:.1f} MB). Maximal 5 MB erlaubt.",
+        "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG."
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
       },
       "roles": {
+        "page_title": "Standardrollen - Administration",
+        "heading": "Standardrollen",
+        "subtitle": "Zugriffe für neu angelegte Benutzer",
+        "full_access_title": "Vollzugriff",
+        "full_access_toggle": "Vollzugriff als Standard",
+        "full_access_help": "Neue Benutzer erhalten automatisch Zugriff auf alle Module.",
+        "modules_title": "Modulspezifische Standardrollen",
+        "modules_help": "Nur relevant, wenn Vollzugriff aus ist. Module als Pillen auswählen.",
+        "full_access_active_hint": "Vollzugriff aktiv — alle Module sind freigeschaltet.",
         "flash_default_saved": "Standardrollen wurden erfolgreich gespeichert."
       },
       "inventory": {
-        "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert."
+        "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert.",
+        "page_title": "Lagerverwaltung-Einstellungen - Administration",
+        "heading": "Lagerverwaltung-Einstellungen",
+        "subtitle": "Texte für öffentliche Produktseiten und QR-Code-Scans.",
+        "public_title": "Öffentliche Produktseiten",
+        "public_lead": "Wird bei QR-Scans auf der öffentlichen Produktseite angezeigt.",
+        "ownership_label": "Eigentumstext",
+        "ownership_placeholder": "z.B. Eigentum der Technik",
+        "ownership_help": "Dieser Text erscheint prominent auf öffentlichen Produktseiten.",
+        "save": "Speichern"
       },
       "email_settings": {
         "flash_saved": "E-Mail-Einstellungen wurden gespeichert."
       },
+      "email_module": {
+        "page_title": "E-Mail-Moduleinstellungen - Administration",
+        "heading": "E-Mail-Moduleinstellungen",
+        "subtitle": "Verbindungen testen, Speicherung steuern und Footer festlegen.",
+        "save": "Speichern",
+        "test": {
+          "title": "Verbindungstest",
+          "hint": "SMTP sendet eine Test-E-Mail. IMAP prüft nur die eingehende Verbindung.",
+          "lead": "SMTP-Test geht an {email}. Ergebnis erscheint direkt mit Haken oder X.",
+          "smtp_label": "SMTP (Ausgehend)",
+          "smtp_help": "Test-E-Mail senden",
+          "imap_label": "IMAP (Eingehend)",
+          "imap_help": "Posteingang-Verbindung prüfen",
+          "run": "Testen",
+          "run_both": "Beide testen",
+          "status_idle": "Noch nicht getestet",
+          "status_running": "Test läuft…",
+          "status_ok": "Erfolgreich",
+          "status_fail": "Fehlgeschlagen",
+          "error_generic": "Test fehlgeschlagen. Bitte erneut versuchen.",
+          "smtp_subject": "Test-E-Mail - Prismateams",
+          "smtp_body": "Dies ist eine Test-E-Mail von Prismateams.",
+          "smtp_incomplete": "SMTP-Konfiguration unvollständig (Server, Benutzer oder Passwort fehlen).",
+          "smtp_ok": "SMTP ok — Test-E-Mail an {email} gesendet.",
+          "smtp_fail": "SMTP fehlgeschlagen: {error}",
+          "imap_incomplete": "IMAP-Konfiguration unvollständig (Server, Benutzer oder Passwort fehlen).",
+          "imap_placeholder": "IMAP enthält noch Platzhalterwerte (z. B. example.com).",
+          "imap_inbox_fail": "Anmeldung ok, aber INBOX konnte nicht geöffnet werden.",
+          "imap_ok": "IMAP ok — Verbindung zu {server}:{port} erfolgreich.",
+          "imap_fail": "IMAP fehlgeschlagen: {error}"
+        },
+        "system": {
+          "title": "System",
+          "storage_label": "Speicherdauer (Tage)",
+          "storage_help": "0 = unbegrenzt. Ältere E-Mails werden automatisch gelöscht.",
+          "sync_label": "Sync-Intervall",
+          "sync_help": "Automatische IMAP-Synchronisation.",
+          "sync_15": "15 Minuten",
+          "sync_30": "30 Minuten",
+          "sync_60": "60 Minuten"
+        },
+        "footer": {
+          "title": "E-Mail-Footer",
+          "vars_label": "Variablen",
+          "vars_help": "Platzhalter werden beim Senden ersetzt. Klick auf einen Chip fügt ihn ein.",
+          "ph_user": "Nutzername",
+          "ph_email": "E-Mail-Adresse",
+          "ph_app_name": "App-Name",
+          "ph_date": "Datum",
+          "ph_time": "Uhrzeit",
+          "template_label": "Footer-Template",
+          "template_placeholder": "Footer-Text mit optionalen Variablen…",
+          "preview_label": "Vorschau"
+        }
+      },
       "backup": {
+        "page_title": "Import/Export - Administration",
+        "heading": "Import / Export",
+        "subtitle": "Backups als .prismateams erstellen und wiederherstellen. Merge/Upsert — bestehende Daten werden ergänzt oder aktualisiert.",
+        "export_title": "Export",
+        "export_lead": "Kategorien wählen und Backup herunterladen.",
+        "import_title": "Import",
+        "import_lead": "Backup-Datei hochladen und Kategorien wählen.",
+        "categories_label": "Kategorien",
+        "select_all": "Alle",
+        "select_none": "Keine",
+        "file_label": "Backup-Datei",
+        "file_help": "Nur .prismateams-Dateien.",
+        "export_hint": "Format .prismateams (JSON). Benutzer-Passwörter als Hashes. Version 1.1 (1.0 wird beim Import akzeptiert).",
+        "credentials_warn": "Zugangsdaten werden im Klartext in der Backup-Datei gespeichert. Datei sicher aufbewahren.",
+        "import_warn": "Import ergänzt oder aktualisiert Daten. IDs werden neu gemappt. Vorher aktuelles Backup anlegen.",
+        "import_confirm": "Backup wirklich importieren? Bestehende Daten können überschrieben oder ergänzt werden.",
+        "import_confirm_title": "Import bestätigen",
+        "export_submit": "Backup erstellen",
+        "import_submit": "Backup importieren",
         "flash_no_export_categories": "Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.",
         "flash_export_error": "Fehler beim Erstellen des Backups.",
         "flash_export_error_detail": "Fehler beim Erstellen des Backups: {error}",
@@ -815,9 +1419,73 @@
         "flash_invalid_extension": "Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.",
         "flash_no_import_categories": "Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.",
         "flash_import_success": "Backup erfolgreich importiert! Importierte Kategorien: {categories}",
-        "flash_import_error": "Fehler beim Importieren des Backups: {error}"
+        "flash_import_error": "Fehler beim Importieren des Backups: {error}",
+        "categories": {
+          "settings": "Einstellungen",
+          "users": "Benutzer",
+          "emails": "E-Mails",
+          "appointments": "Termine",
+          "credentials": "Zugangsdaten",
+          "files": "Dateien",
+          "wiki": "Wiki",
+          "comments": "Kommentare",
+          "inventory": "Inventar",
+          "manuals": "Handbücher",
+          "chats": "Chats",
+          "contacts": "Kontakte",
+          "events": "Veranstaltungen",
+          "booking": "Buchungen",
+          "music": "Musik",
+          "media_downloader": "Media Downloader",
+          "assessment": "Bewertung",
+          "shortlinks": "Kurzlinks"
+        },
+        "helps": {
+          "settings": "Systemeinstellungen, Modul-Flags und Whitelist.",
+          "users": "Benutzer inkl. Gäste, Modulrollen, Layout/Sprache. Passwort-Hashes. Keine 2FA-Secrets.",
+          "emails": "Nachrichten, Anhänge und E-Mail-Berechtigungen.",
+          "appointments": "Kalender, Termine, Teilnehmer, Sync-Quellen und öffentliche Feeds.",
+          "credentials": "Website-Zugangsdaten — Passwörter im Klartext im Backup.",
+          "files": "Ordner, Dateien, Versionen, Freigaben, ACL und Favoriten.",
+          "wiki": "Seiten, Kategorien, Tags und Versionen.",
+          "comments": "Kommentare, Mentions und Threads.",
+          "inventory": "Produkte, Ordner, Sets, Ausleihen und Inventuren.",
+          "manuals": "Handbücher und zugehörige Dateien.",
+          "chats": "Chats, Mitglieder, Nachrichten und Pins. Hauptchat wird gemerged.",
+          "contacts": "Kontakte.",
+          "events": "Veranstaltungen inkl. Termine, Zuweisungen, Bedarfe und Timeline.",
+          "booking": "Buchungsformulare, Felder, Rollen und Anfragen.",
+          "music": "Musik-Einstellungen, Wünsche und Queue (ohne Provider-Secrets wo möglich).",
+          "media_downloader": "Download-Job-Metadaten.",
+          "assessment": "Bewertung: Listen, Kriterien, Evaluationen und zugehörige Daten.",
+          "shortlinks": "Kurzlinks."
+        }
       },
       "whitelist": {
+        "page_title": "Whitelist - Administration",
+        "heading": "Whitelist",
+        "subtitle": "E-Mail-Adressen und Domains auf der Whitelist werden bei der Registrierung automatisch aktiviert.",
+        "list_title": "Einträge",
+        "add_title": "Hinzufügen",
+        "type_label": "Typ",
+        "type_email": "E-Mail",
+        "type_domain": "Domain",
+        "entry_label": "Eintrag",
+        "entry_placeholder": "z.B. user@example.com oder @example.com",
+        "description_label": "Beschreibung (optional)",
+        "description_placeholder": "z.B. Lehrer der Schule",
+        "add_submit": "Hinzufügen",
+        "badge_email": "E-Mail",
+        "badge_domain": "Domain",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "delete": "Löschen",
+        "delete_confirm": "Whitelist-Eintrag wirklich löschen?",
+        "empty": "Keine Whitelist-Einträge vorhanden.",
+        "tooltip_system": "Whitelist-Einträge werden bei der Registrierung automatisch freigeschaltet.",
+        "tooltip_entry": "E-Mail: exakte Adresse. Domain: mit @, z.B. @merian.schule — alle Adressen dieser Domain.",
         "flash_invalid_entry": "Bitte geben Sie einen gültigen Eintrag und Typ an.",
         "flash_invalid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
         "flash_entry_added": "Whitelist-Eintrag \"{entry}\" wurde hinzugefügt.",
@@ -829,11 +1497,98 @@
         "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
       },
       "booking_forms": {
+        "page_title": "Buchungsformulare - Administration",
+        "heading": "Buchungsformulare",
+        "subtitle": "Formulare erstellen, Felder und Zustimmungsrollen verwalten, PDF-Antragstext konfigurieren.",
+        "list_title": "Formulare",
+        "create": "Neues Formular",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "delete_confirm": "Dieses Formular wirklich löschen? Alle zugehörigen Anfragen werden entfernt.",
+        "empty": "Noch keine Buchungsformulare erstellt.",
+        "status_active": "Aktiv",
+        "status_inactive": "Inaktiv",
+        "requests_count": "{count} Anfragen",
+        "created": "Erstellt",
+        "create_heading": "Neues Formular",
+        "create_subtitle": "Titel, PDF-Text, Felder und Rollen auf einer Seite.",
+        "edit_heading": "Formular bearbeiten",
+        "edit_subtitle": "Grunddaten, PDF, Integration, Felder und Zustimmungsrollen.",
+        "draft_title": "Neues Formular",
+        "section_basics": "Grunddaten",
+        "section_pdf": "PDF",
+        "section_integration": "Integration",
+        "section_logo": "Optionales 2. Logo",
+        "section_fields": "Zusätzliche Felder",
+        "section_roles": "Zustimmungsrollen",
+        "title_label": "Titel",
+        "description_label": "Beschreibung",
+        "archive_days_label": "Archivierung (Tage)",
+        "archive_days_help": "Nach wie vielen Tagen vergangene Events archiviert werden.",
+        "enable_mailbox": "Briefkasten aktivieren",
+        "enable_shared_folder": "Geteilter Ordner aktivieren",
+        "is_active": "Formular ist aktiv",
+        "pdf_text_label": "PDF-Antragstext",
+        "pdf_footer_label": "PDF-Zusatztext (optional)",
+        "pdf_footer_help": "Erscheint vor der Standard-Fußzeile des Portals.",
+        "pdf_placeholders_hint": "Klicken zum Einfügen. Zeilenumbrüche bleiben erhalten.",
+        "pdf_ph_name": "Name",
+        "pdf_ph_email": "E-Mail",
+        "pdf_ph_applicant": "Antragsteller (Name)",
+        "pdf_ph_event": "Event-Name",
+        "pdf_ph_time": "Zeitraum",
+        "pdf_ph_status": "Status",
+        "pdf_ph_role": "Rolle {n}",
+        "logo_upload": "Logo hochladen",
+        "logo_delete": "Logo löschen",
+        "logo_delete_confirm": "Optionales 2. Logo wirklich löschen?",
+        "fields_empty": "Noch keine zusätzlichen Felder.",
+        "field_add": "Feld hinzufügen",
+        "field_edit": "Feld bearbeiten",
+        "field_type": "Feldtyp",
+        "field_label": "Bezeichnung",
+        "field_name": "Interner Name",
+        "field_name_help": "Leer = automatisch aus Bezeichnung",
+        "field_placeholder": "Platzhalter",
+        "field_options": "Optionen (eine pro Zeile)",
+        "field_required": "Pflichtfeld",
+        "field_required_badge": "Pflicht",
+        "field_delete_confirm": "Feld wirklich löschen?",
+        "field_type_text": "Text",
+        "field_type_textarea": "Mehrzeiliger Text",
+        "field_type_date": "Datum",
+        "field_type_number": "Zahl",
+        "field_type_select": "Auswahl (Dropdown)",
+        "field_type_checkbox": "Checkbox",
+        "roles_empty": "Noch keine Zustimmungsrollen.",
+        "role_add": "Rolle hinzufügen",
+        "role_edit": "Rolle bearbeiten",
+        "role_name": "Rollenname",
+        "role_required": "Zustimmung erforderlich",
+        "role_required_badge": "Erforderlich",
+        "role_optional_badge": "Optional",
+        "role_users_badge": "{count} Benutzer",
+        "role_users": "Benutzer für Rolle",
+        "role_users_select": "Benutzer auswählen",
+        "role_users_help": "Mehrfachauswahl mit Strg/Cmd",
+        "role_delete_confirm": "Rolle wirklich löschen?",
+        "save": "Speichern",
+        "add": "Hinzufügen",
+        "cancel": "Abbrechen",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_title_required": "Bitte geben Sie einen Titel ein.",
         "flash_form_created": "Formular \"{title}\" wurde erstellt.",
         "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
         "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
-        "flash_status_updated": "Status wurde aktualisiert."
+        "flash_status_updated": "Status wurde aktualisiert.",
+        "flash_field_label_required": "Bezeichnung ist erforderlich.",
+        "flash_field_added": "Feld \"{label}\" wurde hinzugefügt.",
+        "flash_field_updated": "Feld \"{label}\" wurde aktualisiert.",
+        "flash_field_deleted": "Feld \"{label}\" wurde gelöscht.",
+        "flash_role_name_required": "Rollenname ist erforderlich.",
+        "flash_role_added": "Rolle \"{name}\" wurde hinzugefügt.",
+        "flash_role_updated": "Rolle wurde aktualisiert.",
+        "flash_role_deleted": "Rolle wurde gelöscht."
       },
       "sections": {
         "users": {
@@ -853,9 +1608,13 @@
         "page_title": "Web-Push-Abonnements - Administration",
         "breadcrumb": "Web-Push",
         "heading": "Web-Push-Abonnements",
+        "subtitle": "Browser-Push-Endpoints aller Nutzer verwalten.",
+        "list_title": "Abonnements",
         "description": "Alle registrierten Browser-Push-Endpoints mit zugehörigen Nutzern.",
         "stats": "{active} aktiv von {total} Einträgen gesamt.",
         "empty": "Keine Push-Abonnements vorhanden.",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
         "confirm_delete": "Dieses Abonnement wirklich löschen?",
         "confirm_deactivate_user": "Alle aktiven Abonnements dieses Nutzers deaktivieren?",
         "flash_deactivated": "Abonnement deaktiviert.",
@@ -880,7 +1639,7 @@
         "configure_button": "Konfigurieren",
         "user_management": {
           "title": "Benutzerverwaltung",
-          "description": "Benutzer aktivieren, bearbeiten und verwalten"
+          "description": "Benutzer, Gäste und Bestätigungscodes verwalten"
         },
         "confirmation_codes": {
           "title": "Bestätigungscodes",
@@ -924,29 +1683,36 @@
         },
         "file_settings": {
           "title": "Datei-Einstellungen",
-          "description": "Briefkästen und Freigaben aktivieren oder deaktivieren"
+          "description": "Briefkästen, Freigaben, private Ordner, Dokumentformate und Speicherlimits"
+        },
+        "calendar_settings": {
+          "title": "Kalender-Einstellungen",
+          "description": "Mehrere Kalender, Import und Export konfigurieren"
         },
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
-          "description": "Bot-Schutz für Registrierung, Login und Freigabe-Bearbeitung konfigurieren"
+          "description": "Bot-Schutz für Login, Registrierung, Briefkästen und Freigaben"
         }
       },
       "registration": {
         "page_title": "Bot-Schutz-Funktionen - Administration",
         "breadcrumb": "Bot-Schutz-Funktionen",
-        "heading": "Bot-Schutz-Funktionen",
-        "recommendation_alert": "Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen, Login-Angriffe und Missbrauch von Bearbeiten-Links zu reduzieren.",
+        "heading": "Bot-Schutz",
+        "subtitle": "Schutzmethode wählen und festlegen, wo sie greift: Login, Registrierung, Briefkästen und Freigaben.",
+        "recommendation_alert": "Wir empfehlen Google reCAPTCHA oder Cloudflare Turnstile gegen automatisierte Zugriffe.",
         "provider_label": "Schutzmethode",
-        "provider_help": "Wählen Sie die Methode zum Schutz vor automatisierten Zugriffen.",
+        "provider_help": "Methode zum Schutz vor automatisierten Zugriffen.",
         "provider_none": "Keine menschliche Verifizierung",
-        "provider_honeypot": "Honeypot (einfach, für Eigenentwicklungen)",
+        "provider_honeypot": "Honeypot (einfach)",
         "provider_recaptcha": "Google reCAPTCHA (empfohlen)",
         "provider_turnstile": "Cloudflare Turnstile (empfohlen)",
         "scope_label": "Anwenden auf",
-        "scope_register": "Bei Registrierung verwenden",
-        "scope_login": "Bei Login verwenden",
-        "scope_share_edit": "Bei Freigabe (Bearbeiten) verwenden",
-        "scope_login_help": "Für Login und Bearbeiten-Links werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist möglich, aber weniger verbreitet.",
+        "scope_help": "Nur aktivierte Bereiche verlangen den Bot-Schutz.",
+        "scope_register": "Registrierung",
+        "scope_login": "Login",
+        "scope_mailbox": "Briefkästen",
+        "scope_share_edit": "Freigaben (Bearbeiten)",
+        "scope_login_help": "Für Login, Freigaben und Briefkästen werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist schwächer.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA-Version",
         "recaptcha_v2": "v2 (Checkbox „Ich bin kein Roboter“)",
@@ -968,52 +1734,66 @@
         "page_title": "Datei-Einstellungen - Administration",
         "breadcrumb_file_settings": "Datei-Einstellungen",
         "heading": "Datei-Einstellungen",
+        "subtitle": "Briefkästen, Freigaben, private Ordner, Dokumentformate sowie Speicherlimits und Kontingente steuern.",
         "section_title": "Datei-Funktionen",
         "dropbox_label": "Briefkästen aktivieren",
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
         "sharing_label": "Freigaben aktivieren",
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
-        "save_button": "Änderungen speichern",
+        "private_folders_label": "Private Ordner aktivieren",
+        "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
+        "document_format_label": "Standardformat für neue Dokumente",
+        "document_format_help": "Legt fest, welche Dateitypen beim Erstellen über „Neu“ angelegt werden. Bestehende Dateien bleiben unverändert.",
+        "document_format_office": "Office-Formate (DOCX, XLSX, PPTX)",
+        "document_format_opendocument": "OpenDocument-Formate (ODT, ODS, ODP)",
+        "storage_section_title": "Speicher & Limits",
+        "max_file_label": "Maximale Dateigröße",
+        "max_file_help": "Gilt für alle Uploads. Ausnahme-Regeln können einzelne Nutzer überschreiben.",
+        "quota_enabled_label": "Speicherkontingente aktivieren",
+        "quota_enabled_help": "Wenn aktiv, erhält jeder Nutzer ein Speicherkontingent (öffentliche und private Ordner). In der Dateien-Sidebar wird der Verbrauch angezeigt.",
+        "quota_label": "Standard-Kontingent pro Nutzer",
+        "exceptions_section_title": "Ausnahmen",
+        "exceptions_help": "Einzelnen Nutzern andere Dateigrößenlimits oder Kontingente zuweisen.",
+        "exceptions_empty": "Keine Ausnahmen hinterlegt.",
+        "exception_add_title": "Ausnahme hinzufügen",
+        "exception_user": "Nutzer",
+        "exception_user_placeholder": "Nutzer wählen…",
+        "exception_user_search": "Nutzer suchen (Name oder E-Mail)…",
+        "exception_user_empty": "Keine Nutzer gefunden.",
+        "exception_users_none": "Keine weiteren Nutzer verfügbar.",
+        "exception_custom_max_file": "Eigenes Dateigrößenlimit",
+        "exception_custom_quota": "Eigenes Speicherkontingent",
+        "exception_add_button": "Ausnahme hinzufügen",
+        "exception_delete": "Ausnahme entfernen",
+        "exception_max_file": "Dateilimit",
+        "exception_max_file_default": "Dateilimit: Standard",
+        "exception_quota": "Kontingent",
+        "exception_quota_default": "Kontingent: Standard",
+        "save_button": "Speichern",
         "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
-      },
-      "system": {
-        "page_title": "System-Einstellungen - Administration",
-        "breadcrumb_system": "System-Einstellungen",
-        "heading": "System-Einstellungen",
-        "section_title": "Portal-Einstellungen",
-        "portal_name_label": "Portalsname",
-        "portal_name_placeholder": "z.B. Prismateams",
-        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
-        "portal_logo_label": "Portalslogo",
-        "current_logo": "Aktuelles Logo",
-        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
-        "default_accent_color_label": "Standard-Akzentfarbe",
-        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
-        "color_gradient_label": "Farbverlauf für Login/Register",
-        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
-        "color_gradient_default": "Standard (Blau-Violett)",
-        "color_gradient_purple_blue": "Blau-Violett",
-        "color_gradient_pink_red": "Pink-Rot",
-        "color_gradient_blue_cyan": "Blau-Cyan",
-        "color_gradient_green_teal": "Grün-Türkis",
-        "color_gradient_pink_yellow": "Pink-Gelb",
-        "color_gradient_pastel": "Pastell",
-        "color_gradient_rose_pastel": "Rosa-Pastell",
-        "color_gradient_orange_pastel": "Orange-Pastell",
-        "timezone_label": "Zeitzone",
-        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
-        "save_button": "Änderungen speichern",
-        "back_button": "Zurück",
-        "flash_updated": "System-Einstellungen wurden aktualisiert."
-      },
-      "booking_forms": {
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
-        "flash_title_required": "Bitte geben Sie einen Titel ein.",
-        "flash_form_created": "Formular \"{title}\" wurde erstellt.",
-        "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
-        "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
-        "flash_status_updated": "Status wurde aktualisiert."
+        "flash_invalid_size": "Bitte eine gültige Größe angeben.",
+        "flash_exception_added": "Ausnahme wurde hinzugefügt.",
+        "flash_exception_deleted": "Ausnahme wurde entfernt.",
+        "flash_exception_exists": "Für diesen Nutzer existiert bereits eine Ausnahme.",
+        "flash_exception_user_invalid": "Bitte einen gültigen Nutzer wählen.",
+        "flash_exception_empty": "Bitte mindestens Dateilimit oder Kontingent für die Ausnahme setzen."
+      },
+      "calendar_settings": {
+        "page_title": "Kalender-Einstellungen - Administration",
+        "breadcrumb": "Kalender-Einstellungen",
+        "heading": "Kalender-Einstellungen",
+        "subtitle": "Multi-Kalender, Import und Export für das Kalender-Modul steuern.",
+        "section_title": "Kalender-Funktionen",
+        "multi_label": "Mehrere Kalender nutzen",
+        "multi_help": "Jeder Benutzer erhält einen eigenen Kalender. Es gibt einen Public-Kalender für alle. Andere Kalender können angesehen, aber Termine nur im eigenen und im Public-Kalender erstellt werden.",
+        "export_label": "Kalender-Export erlauben",
+        "export_help": "Wenn deaktiviert, können Kalender weder als ICS exportiert noch in externe Apps eingebunden werden.",
+        "import_label": "Kalender-Import erlauben",
+        "import_help": "Wenn deaktiviert, können keine ICS-Dateien importiert und keine Sync-Links angelegt werden.",
+        "save_button": "Speichern",
+        "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
       }
     }
   },
@@ -1058,7 +1838,14 @@
       "direct_title": "Direktnachrichten",
       "direct_label": "Direktnachricht",
       "empty": "Sie haben noch keine Gruppen-Chats oder Direktnachrichten.",
-      "empty_cta": "Erstellen Sie einen neuen Chat!"
+      "empty_cta": "Erstellen Sie einen neuen Chat!",
+      "pin": "Anpinnen",
+      "unpin": "Loslösen",
+      "pinned": "Angepinnt",
+      "pin_limit": "Maximal 6 Chats anpinnen.",
+      "pin_error": "Pin konnte nicht geändert werden.",
+      "pin_main_unavailable": "Der Haupt-Chat ist immer oben.",
+      "unread_count": "{count} ungelesen"
     },
     "view": {
       "page_title_suffix": "Chats",
@@ -1117,9 +1904,34 @@
       }
     },
     "settings": {
+      "page_title": "Chat-Einstellungen - {name}",
+      "heading": "Chat-Einstellungen",
+      "subtitle": "Gruppe „{name}“ bearbeiten",
+      "back_to_chat": "Zurück zum Chat",
       "members": {
         "label": "Mitglieder",
         "help": "Wählen Sie die Teilnehmer dieses Gruppen-Chats. Sie selbst bleiben immer Mitglied."
+      },
+      "avatar": {
+        "label": "Gruppenbild",
+        "help": "Optional — Bild für diesen Chat hochladen",
+        "remove": "Aktuelles Bild entfernen",
+        "alt": "Gruppenbild"
+      },
+      "form": {
+        "chat_name": {
+          "label": "Gruppenname",
+          "placeholder": "z.B. Projekt Team"
+        },
+        "description": {
+          "label": "Beschreibung",
+          "placeholder": "Optional: Worum geht es in der Gruppe?",
+          "help": "Optionale Beschreibung für diesen Chat"
+        },
+        "buttons": {
+          "save": "Speichern",
+          "cancel": "Abbrechen"
+        }
       },
       "delete": {
         "title": "Gefährliche Aktion",
@@ -1133,7 +1945,18 @@
         "index": "Chats",
         "current": "Neuer Chat"
       },
-      "heading": "Neuen Chat erstellen",
+      "heading": "Neuer Chat",
+      "pick_member_hint": "Tippe auf eine Person, um direkt zu schreiben.",
+      "new_group": "Neue Gruppe",
+      "members_heading": "Portalmitglieder",
+      "members_empty": "Keine weiteren Mitglieder verfügbar.",
+      "back_to_members": "Zurück",
+      "group_step_heading": "Neue Gruppe",
+      "group_step_hint": "Mitglieder links wählen, Infos rechts festlegen.",
+      "avatar": {
+        "label": "Gruppenbild",
+        "help": "Optional — kannst du auch später setzen."
+      },
       "form": {
         "chat_type": {
           "label": "Chat-Typ",
@@ -1141,24 +1964,34 @@
           "private": "Privater Chat"
         },
         "chat_name": {
-          "label": "Chat-Name",
+          "label": "Gruppenname",
           "placeholder": "z.B. Projekt Team"
         },
         "members": {
           "label": "Mitglieder hinzufügen",
           "single_label": "Person auswählen",
-          "help": "Wählen Sie mindestens ein Mitglied aus",
+          "help": "Wähle mindestens ein Mitglied aus",
           "help_private": "Wählen Sie eine Person für den privaten Chat aus"
         },
         "buttons": {
           "submit": "Chat erstellen",
+          "create_group": "Gruppe erstellen",
           "cancel": "Abbrechen"
         },
         "alerts": {
           "select_private": "Bitte wählen Sie eine Person für den privaten Chat aus.",
           "enter_name": "Bitte geben Sie einen Chat-Namen ein.",
           "select_members": "Bitte wählen Sie mindestens ein Mitglied aus."
+        },
+        "description": {
+          "label": "Beschreibung",
+          "placeholder": "Optional: Worum geht es in der Gruppe?",
+          "help": "Optional"
         }
+      },
+      "search": {
+        "placeholder": "Personen suchen...",
+        "empty": "Keine Personen gefunden."
       }
     }
   },
@@ -1170,6 +2003,49 @@
       "page_title": "Dateien - Team Portal",
       "heading": "Dateien",
       "breadcrumb_root": "Root",
+      "nav": {
+        "ablage": "Meine Ablage",
+        "freigaben": "Freigaben",
+        "public": "Public",
+        "trash": "Papierkorb",
+        "menu": "Menü öffnen"
+      },
+      "favorites": {
+        "title": "Favoriten",
+        "empty": "Keine Favoriten",
+        "add": "Zu Favoriten",
+        "remove": "Aus Favoriten entfernen",
+        "limit": "Maximal 10 Favoriten."
+      },
+      "storage": {
+        "title": "Speicherplatz",
+        "usage": "{used} / {quota} ({percent}%)",
+        "file_limit": "Dateigrößenlimit: {limit}",
+        "warning": "Speicher fast voll",
+        "file_too_large": "Die Datei ist zu groß (max. {limit}).",
+        "quota_exceeded": "Speicherkontingent voll ({used} von {quota} belegt, noch {free} frei)."
+      },
+      "list": {
+        "name": "Name",
+        "owner": "Ersteller",
+        "version": "Version",
+        "modified": "Änderungsdatum",
+        "size": "Größe",
+        "actions": "Aktionen"
+      },
+      "acl": {
+        "title": "Intern freigeben",
+        "share_all": "Mit allen teilen",
+        "share_user": "Mit Person teilen",
+        "permission_view": "Betrachten",
+        "permission_edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "empty": "Keine internen Freigaben."
+      },
+      "trash_actions": {
+        "restore": "Wiederherstellen",
+        "purge": "Endgültig löschen"
+      },
       "view_toggle": {
         "list": "Listenansicht",
         "grid": "Rasteransicht"
@@ -1179,9 +2055,9 @@
         "upload_files": "Dateien hochladen",
         "upload_folder": "Ordner hochladen",
         "create_folder": "Ordner erstellen",
-        "create_word": "Word-Dokument erstellen (.docx)",
-        "create_excel": "Excel-Tabelle erstellen (.xlsx)",
-        "create_powerpoint": "PowerPoint-Präsentation erstellen (.pptx)",
+        "create_document": "Textdokument erstellen",
+        "create_spreadsheet": "Tabelle erstellen",
+        "create_presentation": "Präsentation erstellen",
         "create_markdown": "Markdown-Datei erstellen (.md)"
       },
       "sections": {
@@ -1191,9 +2067,9 @@
       "inline": {
         "folder_name_placeholder": "Ordnername",
         "file_name_placeholder": "Dateiname",
-        "word_name_placeholder": "Word-Dokument Name",
-        "excel_name_placeholder": "Excel-Tabelle Name",
-        "powerpoint_name_placeholder": "PowerPoint-Präsentation Name",
+        "document_name_placeholder": "Textdokument Name",
+        "spreadsheet_name_placeholder": "Tabelle Name",
+        "presentation_name_placeholder": "Präsentation Name",
         "markdown_name_placeholder": "Markdown-Datei Name"
       },
       "buttons": {
@@ -1223,7 +2099,8 @@
       "labels": {
         "text_file": "Text-Datei",
         "uploaded_by": "Von {name}",
-        "empty_folder": "Dieser Ordner ist leer. Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner."
+        "empty_folder": "Dieser Ordner ist leer. Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner.",
+        "nothing_present": "Nichts vorhanden"
       },
       "modals": {
         "create_entry": {
@@ -1313,6 +2190,9 @@
           "choose_modes": "Wählen Sie mindestens einen Link-Typ.",
           "mode_view": "Betrachten-Link",
           "mode_edit": "Bearbeiten-Link",
+          "mode_dropbox": "Briefkasten",
+          "manage_title": "Freigaben",
+          "dropbox_hint": "Als Art „Briefkasten“ kannst du einen Upload-Link für diesen Ordner anlegen.",
           "link_inactive": "inaktiv",
           "create_link_button": "Link anlegen",
           "disable_link_button": "Link deaktivieren",
@@ -1370,7 +2250,25 @@
         "drag_to_move": "Zum Verschieben ziehen",
         "move_success": "Element wurde verschoben.",
         "move_error": "Element konnte nicht verschoben werden."
-      }
+      },
+      "search_placeholder": "In Dateien suchen",
+      "search_empty": "Keine Treffer in diesem Ordner."
+    },
+    "view": {
+      "download": "Herunterladen",
+      "close": "Schließen",
+      "edit": "Bearbeiten",
+      "media_unsupported": "Dieser Browser kann das Format nicht abspielen. Bitte Datei herunterladen.",
+      "image_preview_alt": "Bildvorschau",
+      "image_fullscreen_hint": "Klicken für Vollbild",
+      "video_label": "Video",
+      "audio_label": "Audio",
+      "history": "Historie",
+      "history_loading": "Lade Versionen…",
+      "history_empty": "Keine älteren Versionen.",
+      "history_current": "aktuell",
+      "more": "Mehr",
+      "version_label": "Version {number}"
     },
     "onlyoffice": {
       "back_button_label": "Zurück"
@@ -1402,10 +2300,16 @@
         "cancel": "Abbrechen"
       },
       "folder_default": "Posteingang",
+      "search": {
+        "placeholder": "Betreff suchen…",
+        "aria": "E-Mails nach Betreff suchen",
+        "clear": "Suche zurücksetzen"
+      },
       "labels": {
         "new_badge": "Neu",
         "move_to_folder": "In Ordner verschieben",
         "empty": "Keine E-Mails vorhanden",
+        "empty_search": "Keine E-Mails mit diesem Betreff gefunden",
         "options_title": "Optionen",
         "has_attachments": "Enthält Anhänge"
       },
@@ -1424,13 +2328,17 @@
       "confirm": {
         "delete_email": "E-Mail wirklich löschen?",
         "delete_folder": "Ordner '{folder}' wirklich löschen?",
-        "delete_folder_force": "Der Ordner ist nicht leer. Soll er inklusive aller Inhalte gelöscht werden?"
+        "delete_folder_force": "Der Ordner ist nicht leer. Soll er inklusive aller Inhalte gelöscht werden?",
+        "title": "Löschen bestätigen",
+        "ok": "Löschen",
+        "force_title": "Ordner nicht leer",
+        "force_ok": "Trotzdem löschen"
       },
       "folder_create": {
         "title": "Neuen Ordner erstellen",
         "name_label": "Ordnername",
         "parent_label": "Übergeordneter Ordner",
-        "parent_none": "Kein übergeordneter Ordner (oberste Ebene)",
+        "parent_none": "Kein übergeordneter Ordner",
         "submit": "Ordner erstellen",
         "hint": "Unterordner werden über den gewählten übergeordneten Ordner verschachtelt.",
         "error_name_required": "Bitte geben Sie einen Ordnernamen ein."
@@ -1514,11 +2422,15 @@
       },
       "buttons": {
         "send": "Senden",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "save_draft": "Entwurf speichern"
       },
       "messages": {
         "server_error": "Serverfehler {status}",
-        "validation_error": "Bitte geben Sie eine Nachricht ein."
+        "validation_error": "Bitte geben Sie eine Nachricht ein.",
+        "draft_saved": "Entwurf gespeichert.",
+        "draft_empty": "Nichts zum Speichern.",
+        "draft_error": "Entwurf konnte nicht gespeichert werden."
       }
     },
     "view": {
@@ -1576,7 +2488,9 @@
       "updated": "Zugangsdaten für \"{website_name}\" wurden aktualisiert.",
       "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht.",
       "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
-      "folder_created": "Ordner \"{folder_name}\" wurde erstellt."
+      "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
+      "folder_updated": "Ordner \"{folder_name}\" wurde aktualisiert.",
+      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Einträge liegen wieder im Root."
     },
     "errors": {
       "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
@@ -1584,8 +2498,22 @@
     "index": {
       "page_title": "Zugangsdaten - Team Portal",
       "heading": "Zugangsdaten",
-      "new_button": "Neu hinzufügen",
+      "new_button": "Neu",
       "password_placeholder": "********",
+      "nav": {
+        "menu": "Ordner-Menü"
+      },
+      "dropdown": {
+        "new_entry": "Neuer Eintrag"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "list": {
+        "name": "Name"
+      },
       "labels": {
         "username": "Benutzername",
         "password": "Passwort",
@@ -1611,10 +2539,23 @@
         "color": "Farbe",
         "create": "Ordner erstellen",
         "root": "Root",
-        "drop_hint": "Karten hierhin ziehen",
+        "drop_hint": "Karten auf Ordner ziehen",
         "root_empty": "Keine Einträge im Root-Bereich.",
         "empty": "Dieser Ordner ist leer.",
-        "move_up": "Ordner nach oben"
+        "move_up": "Ordner nach oben",
+        "hint": "Name und Farbe für den neuen Ordner.",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt.",
+        "edit": "Ordner bearbeiten",
+        "menu": "Ordner-Optionen",
+        "save": "Speichern",
+        "delete_confirm": "Ordner wirklich löschen? Einträge landen wieder im Root.",
+        "move_down": "Ordner nach unten"
+      },
+      "search": {
+        "placeholder": "Suche in Name, Benutzername, URL oder Notiz...",
+        "button": "Suchen",
+        "empty": "Keine Zugangsdaten gefunden."
       }
     },
     "form": {
@@ -1643,7 +2584,8 @@
           "index": "Zugangsdaten",
           "current": "Neu hinzufügen"
         },
-        "card_title": "Neue Zugangsdaten hinzufügen"
+        "card_title": "Neue Zugangsdaten hinzufügen",
+        "subtitle": "Website, Login und Ordner in einem Durchgang."
       },
       "edit": {
         "page_title_suffix": "Zugangsdaten",
@@ -1652,7 +2594,14 @@
           "current": "Bearbeiten"
         },
         "card_title": "Zugangsdaten bearbeiten",
-        "password_help": "Leer lassen, um Passwort nicht zu ändern"
+        "password_help": "Leer lassen, um Passwort nicht zu ändern",
+        "subtitle": "Eintrag aktualisieren oder Ordner wechseln."
+      },
+      "back": "Zurück",
+      "sections": {
+        "site": "Website",
+        "access": "Zugangsdaten",
+        "options": "Optionen"
       }
     }
   },
@@ -1672,7 +2621,15 @@
     "index": {
       "page_title": "Kontakte - Team Portal",
       "heading": "Kontakte",
-      "new_button": "Neuer Kontakt",
+      "new_button": "Neu",
+      "nav": {
+        "menu": "Kontakte-Menü"
+      },
+      "folders": {
+        "all": "Alle",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt."
+      },
       "filters": {
         "menu_button": "Filtern",
         "name": "Name filtern",
@@ -1720,11 +2677,21 @@
       "actions": {
         "edit": "Bearbeiten",
         "column": "Aktionen",
-        "delete_confirm": "Kontakt wirklich löschen?"
+        "delete_confirm": "Kontakt wirklich löschen?",
+        "copy_name": "Name kopieren",
+        "copy_email": "Mail kopieren",
+        "copy_phone": "Telefonnummer kopieren",
+        "write_mail": "Mail schreiben",
+        "favorite": "Zu Favoriten",
+        "unfavorite": "Aus Favoriten entfernen"
       },
       "empty_message": "Keine Kontakte vorhanden."
     },
     "form": {
+      "back": "Zurück",
+      "sections": {
+        "basics": "Kontaktdaten"
+      },
       "fields": {
         "salutation": "Anrede",
         "name": "Name",
@@ -1746,6 +2713,7 @@
       },
       "buttons": {
         "save": "Speichern",
+        "update": "Aktualisieren",
         "cancel": "Abbrechen"
       },
       "create": {
@@ -1754,7 +2722,8 @@
           "index": "Kontakte",
           "current": "Neuer Kontakt"
         },
-        "card_title": "Neuen Kontakt erstellen"
+        "card_title": "Neuen Kontakt erstellen",
+        "subtitle": "Name, Erreichbarkeit und Notizen in einem Durchgang."
       },
       "edit": {
         "page_title": "Kontakt bearbeiten - Team Portal",
@@ -1887,7 +2856,49 @@
         "filtered": "Keine Seiten gefunden. Versuchen Sie andere Suchkriterien."
       },
       "js": {
-        "favorite_error": "Fehler beim Aktualisieren der Favoriten."
+        "favorite_error": "Fehler beim Aktualisieren der Favoriten.",
+        "history_loading": "Lade Versionshistorie…",
+        "history_error": "Versionshistorie konnte nicht geladen werden."
+      },
+      "new_button": "Neu",
+      "nav": {
+        "menu": "Menü"
+      },
+      "sort": {
+        "menu_button": "Sortierung",
+        "field": "Feld",
+        "direction": "Richtung",
+        "apply": "Anwenden",
+        "directions": {
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
+      },
+      "filters": {
+        "menu_button": "Filter",
+        "category": "Kategorie",
+        "tag": "Tag",
+        "apply": "Anwenden"
+      },
+      "favorites": {
+        "title": "Favoriten",
+        "empty": "Keine Favoriten"
+      },
+      "folders": {
+        "all": "Alle",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt."
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Rasteransicht"
+      },
+      "list": {
+        "title": "Titel",
+        "category": "Kategorie",
+        "author": "Autor",
+        "updated": "Aktualisiert"
       }
     },
     "create": {
@@ -1900,7 +2911,7 @@
         "category": {
           "label": "Kategorie",
           "none": "Keine Kategorie",
-          "new_option": "➕ Neue Kategorie",
+          "new_option": "Neue Kategorie",
           "new_placeholder": "Kategoriename eingeben"
         },
         "tags": {
@@ -1974,8 +2985,10 @@
       "meta": {
         "by_author": "Von {name}",
         "updated_at": "{date}",
-        "version": "Version {number}"
+        "version": "Version {number}",
+        "readonly": "Nur Ansicht"
       },
+      "historical_banner": "Dies ist Version {number} — nur Ansicht, nicht bearbeitbar.",
       "buttons": {
         "edit": "Bearbeiten",
         "history": "Historie",
@@ -1987,12 +3000,24 @@
     "history": {
       "page_title": "Versionshistorie - {title}",
       "heading": "Versionshistorie",
+      "side_title": "Details & Versionen",
+      "info_title": "Seiteninfos",
+      "info_labels": {
+        "title": "Titel",
+        "author": "Autor",
+        "updated": "Aktualisiert",
+        "version": "Version"
+      },
       "badge_current": "Aktuell",
+      "keep_hint": "Es werden die letzten 3 Versionen gespeichert. Alte Versionen sind nur lesbar.",
       "buttons": {
         "back": "Zurück",
+        "view": "Ansehen",
         "view_current": "Aktuelle Version ansehen"
       },
-      "empty": "Keine Versionshistorie vorhanden."
+      "empty": "Keine Versionshistorie vorhanden.",
+      "loading": "Lade Versionshistorie…",
+      "error": "Versionshistorie konnte nicht geladen werden."
     },
     "api": {
       "errors": {
@@ -2106,7 +3131,92 @@
       "no_permission_delete_feed": "Sie haben keine Berechtigung, diesen Feed zu löschen.",
       "feed_deleted": "Feed wurde gelöscht.",
       "select_file": "Bitte wählen Sie eine Datei aus.",
-      "select_ics_file": "Bitte wählen Sie eine .ics-Datei aus."
+      "select_ics_file": "Bitte wählen Sie eine .ics-Datei aus.",
+      "sync_missing_fields": "Bitte Name und URL für die Synchronisation angeben.",
+      "sync_invalid_url": "Ungültige Sync-URL. Erlaubt sind http(s):// oder webcal://.",
+      "sync_added": "Kalender-Sync hinzugefügt.",
+      "sync_added_with_error": "Kalender-Sync angelegt, aber erster Abruf fehlgeschlagen:",
+      "sync_deleted": "Kalender-Sync und zugehörige Termine wurden gelöscht.",
+      "sync_updated": "Importierter Kalender wurde aktualisiert.",
+      "sync_edit_denied": "Keine Berechtigung, diesen Sync zu bearbeiten.",
+      "no_create_permission": "In diesem Kalender dürfen keine Termine erstellt werden.",
+      "no_edit_permission": "Keine Berechtigung, diesen Termin zu bearbeiten.",
+      "export_disabled": "Kalender-Export ist deaktiviert.",
+      "import_disabled": "Kalender-Import ist deaktiviert.",
+      "cannot_delete_calendar": "Dieser Kalender kann nicht gelöscht werden.",
+      "participation_status": "Teilnahme an \"{event_title}\": {status}",
+      "accepted": "zugesagt",
+      "declined": "abgesagt"
+    },
+    "notifications": {
+      "invite_title": "Einladung zu Termin erhalten",
+      "invite_body": "Du wurdest zu \"{title}\" eingeladen."
+    },
+    "sidebar": {
+      "brand": "Kalender",
+      "new_event": "Neuer Termin",
+      "reset": "Zurücksetzen",
+      "my_calendar": "Mein Kalender",
+      "public": "Public",
+      "events": "Veranstaltungen",
+      "search": "Personen suchen…",
+      "others": "Andere Kalender",
+      "delete_import": "Löschen",
+      "delete_confirm": "Importierten Kalender und alle Termine löschen?",
+      "pick_calendars": "Kalender",
+      "menu": "Kalender-Menü öffnen"
+    },
+    "feed": {
+      "page_title": "In eigenen Kalender integrieren",
+      "heading": "In eigenen Kalender integrieren",
+      "intro": "Mit diesem Link abonnieren Sie den Team-Kalender in Ihrer Kalender-App. Jeder Nutzer hat genau einen Link.",
+      "your_link": "Ihr Kalender-Link",
+      "link_label": "Abonnement-URL",
+      "copy": "Kopieren",
+      "copy_error": "Kopieren fehlgeschlagen. Bitte Link manuell kopieren.",
+      "open_in_app": "In Kalender-App öffnen",
+      "one_link_hint": "Der Link wird automatisch bereitgestellt. Es können keine zusätzlichen Links angelegt werden.",
+      "howto_title": "Kurzanleitung",
+      "howto_google_1": "Google Calendar öffnen → „Andere Kalender“ → „Von URL“.",
+      "howto_google_2": "Den Link einfügen und Kalender hinzufügen.",
+      "howto_google_3": "Am Handy: Button „In Kalender-App öffnen“ nutzen.",
+      "howto_outlook_1": "Outlook → Kalender hinzufügen → Aus Internet.",
+      "howto_outlook_2": "Den Link einfügen und bestätigen.",
+      "howto_apple_1": "Am iPhone/Mac: „In Kalender-App öffnen“ tippen oder Ablage → Neuer Kalender-Abonnement.",
+      "howto_apple_2": "Link einfügen und abonnieren."
+    },
+    "import": {
+      "page_title": "Kalender importieren",
+      "heading": "Kalender importieren & synchronisieren",
+      "file_title": "iCal-Datei importieren",
+      "file_intro": "Importieren Sie Termine einmalig aus einer .ics-Datei (Google Calendar, Outlook usw.).",
+      "file_label": "iCal-Datei (.ics)",
+      "file_hint": "Nur .ics-Dateien werden unterstützt.",
+      "file_dup_hint": "Duplikate werden automatisch erkannt und nicht importiert.",
+      "file_submit": "Importieren",
+      "cancel": "Abbrechen",
+      "sync_title": "Kalender synchronisieren",
+      "sync_intro": "Abonnieren Sie externe Kalender per URL. Alle synchronisierten Links und Termine sind für jeden Benutzer sichtbar. Der Datei-Import bleibt unabhängig davon erhalten.",
+      "sync_name": "Name",
+      "sync_name_placeholder": "z.B. Schulferien",
+      "sync_url": "iCal-URL",
+      "sync_add": "Hinzufügen",
+      "sync_col_name": "Name",
+      "sync_col_url": "URL",
+      "sync_col_last": "Zuletzt sync",
+      "sync_col_status": "Status",
+      "sync_col_actions": "Aktionen",
+      "sync_by": "von",
+      "sync_error": "Fehler",
+      "sync_ok": "OK",
+      "sync_pending": "Ausstehend",
+      "sync_now": "Jetzt synchronisieren",
+      "sync_delete": "Löschen",
+      "sync_delete_confirm": "Sync und alle zugehörigen Termine wirklich löschen?",
+      "sync_edit": "Bearbeiten",
+      "sync_save": "Speichern",
+      "sync_color": "Farbe",
+      "sync_empty": "Noch keine Sync-Links. Jeder Benutzer kann einen hinzufügen — sichtbar für alle."
     },
     "index": {
       "page_title": "Termine - Team Portal",
@@ -2115,7 +3225,11 @@
         "month": "Monatsansicht",
         "week": "Wochenansicht",
         "day": "Tagesansicht",
-        "list": "Terminübersicht"
+        "list": "Terminübersicht",
+        "month_short": "Monat",
+        "week_short": "Woche",
+        "day_short": "Tag",
+        "list_short": "Liste"
       },
       "new_event": "Neuer Termin",
       "context_create_event": "Termin anlegen",
@@ -2123,14 +3237,40 @@
         "toggle": "Menü öffnen",
         "export": "Kalender exportieren",
         "import": "Kalender importieren",
-        "feeds": "Öffentliche Kalender verwalten"
+        "feeds": "In eigenen Kalender integrieren"
       },
       "month_names": [
-        "Januar", "Februar", "März", "April", "Mai", "Juni",
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember"
       ],
-      "weekday_short": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
-      "weekday_long": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+      "weekday_short": [
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa",
+        "So"
+      ],
+      "weekday_long": [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag"
+      ],
       "list": {
         "details": "Details",
         "time_suffix": "Uhr",
@@ -2151,6 +3291,9 @@
         "today": "Heute",
         "range_separator": " - "
       },
+      "month": {
+        "today": "Heute"
+      },
       "day": {
         "title": "Tag",
         "today": "Heute"
@@ -2162,6 +3305,13 @@
       "js": {
         "no_events": "Keine Termine gefunden.",
         "error_loading": "Fehler beim Laden der Termine."
+      },
+      "search": {
+        "placeholder": "Termine suchen",
+        "aria": "Termine suchen",
+        "results": "Suchergebnisse",
+        "empty": "Keine Termine gefunden.",
+        "hint": "Mindestens 2 Zeichen eingeben."
       }
     },
     "create": {
@@ -2196,14 +3346,35 @@
             "yearly": "z.B. alle 2 Jahre"
           },
           "days_label": "Wochentage",
-          "weekday_names": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+          "weekday_names": [
+            "Montag",
+            "Dienstag",
+            "Mittwoch",
+            "Donnerstag",
+            "Freitag",
+            "Samstag",
+            "Sonntag"
+          ],
           "end_label": "Wiederholung endet am (optional)",
           "end_help": "Wenn leer, wird unbegrenzt wiederholt"
-        }
+        },
+        "calendar_label": "Kalender",
+        "invitees_label": "Personen einladen",
+        "invitees_help": "Personen suchen und anklicken. Eingeladene erhalten eine Benachrichtigung und können zusagen oder absagen.",
+        "invitees_search": "Person suchen…"
       },
       "buttons": {
         "submit": "Termin erstellen",
         "cancel": "Abbrechen"
+      },
+      "subtitle": "Titel, Zeit und Details festlegen.",
+      "sections": {
+        "basics": "Details",
+        "time": "Zeit",
+        "appearance": "Darstellung",
+        "recurrence": "Wiederholung",
+        "calendar": "Kalender & Einladungen",
+        "invitees": "Einladungen"
       }
     },
     "view": {
@@ -2215,6 +3386,7 @@
       "time_label": "Uhrzeit",
       "time_suffix": "Uhr",
       "location_label": "Ort",
+      "calendar_label": "Kalender",
       "recurrence_label": "Wiederkehrender Termin:",
       "recurrence_types": {
         "daily": "Täglich",
@@ -2264,8 +3436,10 @@
       "buttons": {
         "submit": "Änderungen speichern",
         "cancel": "Abbrechen"
-      }
-    }
+      },
+      "subtitle": "Termin bearbeiten und speichern."
+    },
+    "back_to_calendar": "Zurück"
   },
   "manuals": {
     "flash": {
@@ -2275,19 +3449,66 @@
       "uploaded": "Anleitung \"{title}\" wurde hochgeladen.",
       "file_not_found": "Die Anleitung-Datei konnte nicht gefunden werden.",
       "delete_admin_only": "Nur Administratoren können Anleitungen löschen.",
-      "deleted": "Anleitung \"{title}\" wurde gelöscht."
+      "deleted": "Anleitung \"{title}\" wurde gelöscht.",
+      "folder_admin_only": "Nur Administratoren können Ordner verwalten.",
+      "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
+      "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
+      "folder_renamed": "Ordner \"{folder_name}\" wurde umbenannt.",
+      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Anleitungen liegen wieder unter Alle Anleitungen."
     },
     "index": {
-      "page_title": "Bedienungsanleitungen - Team Portal",
-      "heading": "Bedienungsanleitungen",
+      "page_title": "Anleitungen - Team Portal",
+      "heading": "Anleitungen",
+      "new_button": "Neu",
       "upload_button": "Anleitung hochladen",
+      "nav": {
+        "menu": "Ordner-Menü"
+      },
+      "dropdown": {
+        "upload": "PDF hochladen"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "list": {
+        "name": "Name",
+        "size": "Größe",
+        "date": "Datum"
+      },
       "actions": {
         "view": "Ansehen",
+        "download": "Herunterladen",
         "delete_confirm": "Anleitung wirklich löschen?"
       },
       "empty": {
         "message": "Keine Anleitungen vorhanden.",
         "hint": "Laden Sie die erste Anleitung hoch!"
+      },
+      "messages": {
+        "move_error": "Anleitung konnte nicht verschoben werden."
+      },
+      "folders": {
+        "modal_title": "Neuen Ordner anlegen",
+        "rename_modal_title": "Ordner bearbeiten",
+        "name": "Ordnername",
+        "color": "Farbe",
+        "create": "Ordner erstellen",
+        "rename": "Umbenennen",
+        "delete": "Löschen",
+        "delete_confirm": "Ordner löschen? Anleitungen werden nach Alle Anleitungen verschoben.",
+        "root": "Alle Anleitungen",
+        "drop_hint": "Karten auf Ordner ziehen",
+        "root_empty": "Keine Anleitungen ohne Ordner.",
+        "empty": "Dieser Ordner ist leer.",
+        "move_up": "Ordner nach oben",
+        "move_down": "Ordner nach unten"
+      },
+      "search": {
+        "placeholder": "Anleitungen suchen...",
+        "button": "Suchen",
+        "empty": "Keine Anleitungen gefunden."
       }
     },
     "upload": {
@@ -2297,9 +3518,16 @@
         "current": "Hochladen"
       },
       "card_title": "Anleitung hochladen",
+      "back": "Zurück",
+      "subtitle": "PDF hochladen und einem Ordner zuordnen.",
+      "sections": {
+        "file": "Datei"
+      },
       "form": {
         "title": "Titel",
         "title_placeholder": "z.B. Benutzerhandbuch",
+        "folder": "Ordner",
+        "root_folder": "Alle Anleitungen (ohne Ordner)",
         "file": "PDF-Datei",
         "file_help": "Nur PDF-Dateien sind erlaubt"
       },
@@ -2307,13 +3535,46 @@
         "submit": "Hochladen",
         "cancel": "Abbrechen"
       }
+    },
+    "view": {
+      "page_title_suffix": "Anleitungen",
+      "download": "Herunterladen",
+      "close": "Schließen",
+      "iframe_title": "PDF-Viewer"
     }
   },
   "inventory": {
+    "shell": {
+      "brand": "Inventar",
+      "new_button": "Neu",
+      "new": {
+        "product": "Neues Produkt",
+        "set": "Neues Set"
+      },
+      "nav": {
+        "menu": "Menü",
+        "overview": "Übersicht",
+        "stock": "Bestand & Geräte",
+        "quick_scan": "Quick Scan",
+        "checkout": "Ausleihe / Rückgabe",
+        "borrows": "Ausleih-Historie",
+        "return": "Rückgabe",
+        "sets": "Produktsets",
+        "inventory_tool": "Inventur",
+        "print_qr": "QR / Etiketten",
+        "statistics": "Statistik"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      }
+    },
     "errors": {
       "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_action_specified": "Keine Aktion angegeben.",
       "product_or_set_not_found": "Produkt oder Set nicht gefunden.",
+      "invalid_set_ids": "Ungültige Set-IDs.",
       "inventory_not_active": "Inventur ist nicht aktiv.",
       "product_not_in_inventory": "Produkt nicht in dieser Inventur gefunden.",
       "qr_data_required": "QR-Code-Daten erforderlich.",
@@ -2362,40 +3623,94 @@
       "new_category_name_required": "Der neue Kategoriename ist verpflichtend."
     },
     "flash": {
-      "guests_cannot_create": "Gast-Accounts können keine Produkte erstellen.",
+      "folder_not_found": "Ordner nicht gefunden.",
       "product_name_required": "Der Produktname ist verpflichtend.",
-      "guests_cannot_edit": "Gast-Accounts können keine Produkte bearbeiten.",
       "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "guests_cannot_delete": "Gast-Accounts können keine Produkte löschen.",
+      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
+      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
+      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
+      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
+      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
+      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
+      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
+      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_products_selected": "Keine Produkte ausgewählt.",
       "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "enter_set_name": "Bitte geben Sie einen Namen für das Set ein.",
-      "select_at_least_one_product": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "no_permission_delete_set": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "invalid_request": "Ungültige Anfrage."
+      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
+      "no_valid_products": "Keine gültigen Produkte gefunden.",
+      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
+      "invalid_date_format": "Ungültiges Datumsformat.",
+      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
+      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
+      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
+      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
+      "product_unavailable": "Das Produkt ist nicht verfügbar.",
+      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
+      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
+      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
+      "return_registered_no_email": "Die Rückgabe wurde registriert, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
+      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
+      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
+      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
+      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
+      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
+      "folder_name_required": "Der Ordnername ist verpflichtend.",
+      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
+      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
+      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
+      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "generate_error": "Fehler beim Generieren des Druckbogens.",
+      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
+      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
+      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
+      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
+      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
+      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
+      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
+      "sets_bulk_borrow_success": "{count} Produkt(e) aus den ausgewählten Sets in den Warenkorb gelegt.",
+      "sets_bulk_deleted": "{count} Produktset(s) wurden gelöscht.",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
+      "invalid_request": "Ungültige Anfrage.",
+      "event_name_required": "Bitte Projekt / Veranstaltung angeben.",
+      "borrower_name_required": "Bitte Verantwortlichen / Techniker angeben.",
+      "contact_email_required": "Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).",
+      "contact_email_invalid": "Ungültige Kontakt-E-Mail.",
+      "end_date_required": "Bitte Rückgabedatum angeben.",
+      "product_added_to_cart": "Produkt wurde dem Ausleih-Warenkorb hinzugefügt.",
+      "borrow_failed": "Ausleihe fehlgeschlagen.",
+      "no_available_products": "Keine verfügbaren Produkte im Warenkorb.",
+      "end_before_start": "Das Enddatum liegt vor dem Startdatum.",
+      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
+      "file_not_found": "Die Datei konnte nicht gefunden werden.",
+      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
+      "invalid_date": "Ungültiges Datum."
+    },
+    "cart": {
+      "set_badge": "Set",
+      "set_badge_title": "Aus Produktset",
+      "set_contents": "Bestandteile",
+      "set_members_heading": "Set „{name}“",
+      "set_members_empty": "Keine Produkte"
     },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
-      "heading": "Lagerverwaltung",
-      "subtitle": "Verwalten Sie Ihr Inventar und Ausleihen",
-      "cards": {
-        "stock": {
-          "title": "Bestand",
-          "description": "Übersicht aller Produkte"
-        },
-        "borrow": {
-          "title": "Ausleihen",
-          "description": "Produkte scannen und ausleihen"
-        },
-        "return": {
-          "title": "Rückgabe",
-          "description": "Ausgeliehene Artikel zurückgeben"
-        }
+      "heading": "Übersicht",
+      "subtitle": "Schnellstatistiken und aktuelle Ausleihen",
+      "stats": {
+        "total": "Bestand gesamt",
+        "available": "Verfügbar",
+        "borrowed": "Unterwegs",
+        "defective": "Defekt / Reparatur",
+        "overdue": "Überfällig"
       },
       "my_borrows": {
         "title": "Meine aktuellen Ausleihen",
         "show_all": "Alle anzeigen",
+        "empty": "Keine aktiven Ausleihen",
         "table": {
           "product": "Produkt",
           "borrow_date": "Ausleihdatum",
@@ -2408,15 +3723,6 @@
           "return_button": "Rückgabe",
           "download_receipt": "Ausleihschein herunterladen"
         }
-      },
-      "more_functions": {
-        "title": "Weitere Funktionen",
-        "my_borrows": "Meine Ausleihen",
-        "all_borrows": "Alle Ausleihen",
-        "print_qr": "QR-Codes drucken",
-        "inventory_tool": "Inventurtool",
-        "statistics": "Statistiken",
-        "sets": "Produktsets"
       }
     },
     "stock": {
@@ -2429,13 +3735,6 @@
         "label": "Suchen",
         "placeholder": "Name, Seriennummer, Länge (z.B. 5 m), Beschreibung, Lagerort, Kategorie...",
         "help": "Durchsucht alle Produktattribute"
-      },
-      "quick_filters": {
-        "label": "Schnellfilter",
-        "all": "Alle anzeigen",
-        "favorites": "Meine Favoriten",
-        "available": "Verfügbar",
-        "borrowed": "Ausgeliehen"
       },
       "filters": {
         "title": "Filter",
@@ -2454,7 +3753,23 @@
         "all_lengths": "Alle Längen",
         "purchase_year": "Anschaffungsjahr",
         "all_years": "Alle Jahre",
-        "reset": "Filter zurücksetzen"
+        "reset": "Filter zurücksetzen",
+        "defective": "Defekt",
+        "in_repair": "In Reparatur",
+        "retired": "Ausgemustert",
+        "serial_presence": "Seriennummer",
+        "serial_any": "Alle",
+        "serial_with": "Mit Seriennummer",
+        "serial_without": "Ohne Seriennummer",
+        "dguv": "DGUV",
+        "dguv_any": "Alle",
+        "dguv_due": "Prüfung fällig",
+        "dguv_ok": "Prüfung ok",
+        "dguv_none": "Keine DGUV-Daten",
+        "overdue": "Überfällig",
+        "favorites": "Favoriten",
+        "favorites_any": "Alle",
+        "favorites_only": "Nur Favoriten"
       },
       "sort": {
         "title": "Sortieren",
@@ -2466,7 +3781,11 @@
         "direction": "Richtung",
         "asc": "Aufsteigend (A–Z / kurz → lang)",
         "desc": "Absteigend (Z–A / lang → kurz)",
-        "reset": "Sortierung zurücksetzen"
+        "reset": "Sortierung zurücksetzen",
+        "location": "Lagerort",
+        "status": "Status",
+        "purchase_date": "Anschaffungsdatum",
+        "serial_number": "Seriennummer"
       },
       "bulk_selection": {
         "selected": "Produkt(e) ausgewählt",
@@ -2474,11 +3793,22 @@
         "deselect_all": "Alle abwählen",
         "edit": "Bearbeiten",
         "borrow": "Ausleihen",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "print_qr": "QR drucken",
+        "repair": "Reparatur",
+        "available": "Einsatzbereit"
       },
       "views": {
         "list": "Listenansicht",
         "grid": "Rasteransicht"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Kategorie",
+        "location": "Lagerort",
+        "serial": "Seriennummer",
+        "actions": "Aktionen"
       },
       "modals": {
         "product_details": {
@@ -2496,6 +3826,14 @@
         "bulk_edit": {
           "title": "Mehrere Produkte bearbeiten",
           "info": "{count} Produkt(e) werden bearbeitet.",
+          "info_suffix": "Produkt(e) ausgewählt",
+          "selection": "Auswahl",
+          "fill_hint": "Nur ausgefüllte Felder werden übernommen. Leere Felder bleiben unverändert.",
+          "no_change": "— nicht ändern —",
+          "section_location": "Ort & Zustand",
+          "section_org": "Organisation",
+          "section_dguv": "DGUV-Prüfung",
+          "section_media": "Medien",
           "attribute_label": "Zu bearbeitendes Attribut",
           "select_attribute": "Bitte wählen...",
           "location": "Lagerort",
@@ -2503,8 +3841,12 @@
           "condition": "Zustand",
           "category": "Kategorie",
           "folder": "Ordner",
+          "dguv": "DGUV-Prüfung (Datum + Intervall)",
+          "dguv_interval": "DGUV-Intervall (Monate)",
+          "dguv_last": "DGUV letzte Prüfung",
+          "dguv_next": "DGUV nächste Prüfung",
           "remove_image": "Produktbild entfernen",
-          "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit dem neuen Wert aktualisiert.",
+          "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit den ausgefüllten Werten aktualisiert.",
           "cancel": "Abbrechen",
           "update": "Aktualisieren"
         }
@@ -2514,7 +3856,8 @@
         "init_error": "Fehler bei der Initialisierung:",
         "load_products_error": "Fehler beim Laden der Produkte:",
         "critical_error": "Kritischer Fehler:"
-      }
+      },
+      "filters_sort_button": "Filter & Sortierung"
     },
     "product": {
       "form": {
@@ -2548,7 +3891,43 @@
         "image": "Produktbild",
         "image_help": "Nur JPG, PNG und GIF Dateien sind erlaubt. Maximale Größe: 5MB.",
         "save": "Speichern",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "sections": {
+          "basics": "Stammdaten",
+          "classification": "Einordnung",
+          "identity": "Identifikation & Lager",
+          "values": "Kauf & Werte",
+          "dimensions": "Maße & Gewicht",
+          "dguv": "DGUV",
+          "media": "Status & Medien"
+        },
+        "folder_name": "Ordnername",
+        "category_name": "Kategoriename",
+        "create_folder": "Ordner anlegen",
+        "create_category": "Kategorie anlegen",
+        "folders_empty": "Noch keine Ordner vorhanden.",
+        "categories_empty": "Noch keine Kategorien vorhanden.",
+        "folder_delete_confirm": "Soll der Ordner \"{name}\" wirklich gelöscht werden?",
+        "category_delete_confirm": "Soll die Kategorie \"{name}\" wirklich gelöscht werden?",
+        "purchase_price": "Kaufpreis",
+        "replacement_value": "Wiederbeschaffungswert",
+        "weight_kg": "Gewicht (kg)",
+        "width_cm": "Breite (cm)",
+        "height_cm": "Höhe (cm)",
+        "depth_cm": "Tiefe (cm)",
+        "dguv_last_check": "DGUV letzte Prüfung",
+        "dguv_next_check": "DGUV nächste Prüfung",
+        "dguv_interval_months": "DGUV Intervall (Monate)",
+        "dguv_required": "DGUV-Prüfung erforderlich",
+        "dguv_last_help": "Optional. Leer lassen: nächste Prüfung = Anlagedatum. Mit Datum: nächste Prüfung = letzte + Intervall.",
+        "dguv_interval_help": "Prüfintervall in Monaten (beim Anlegen/Bearbeiten einstellbar).",
+        "dguv_interval_readonly_help": "Festes Prüfintervall (nicht änderbar).",
+        "dguv_next_auto_help": "Automatisch berechnet (oder Anlagedatum, wenn keine letzte Prüfung).",
+        "external_barcode": "Externer Barcode / QR-ID",
+        "external_barcode_placeholder": "Eigene Barcode-ID",
+        "current_image": "Aktuelles Bild:",
+        "remove_image": "Bild entfernen",
+        "remove_image_confirm": "Möchten Sie das Produktbild wirklich entfernen?"
       },
       "list": {
         "page_title": "Inventurliste - Team Portal",
@@ -2606,10 +3985,12 @@
         "success": "QR-Code erkannt"
       },
       "manual": {
-        "title": "QR-Code oder Ausleihvorgangsnummer eingeben",
-        "qr_code": "QR-Code",
-        "qr_placeholder": "QR-Code eingeben (z.B. BORROW-INV-... oder PROD-...)",
-        "qr_help": "Geben Sie den QR-Code des Produkts oder der Ausleihe ein.",
+        "title": "ID oder Ausleihvorgangsnummer eingeben",
+        "qr_code": "ID",
+        "qr_placeholder": "PROD, SET, BORROW",
+        "qr_help": "",
+        "search_label": "Produkt suchen",
+        "search_placeholder": "Name, Seriennummer, Kategorie…",
         "transaction_number": "oder Ausleihvorgangsnummer",
         "transaction_placeholder": "z.B. INV-20251103-123456-ABCD",
         "transaction_help": "Alternativ können Sie die Ausleihvorgangsnummer direkt eingeben.",
@@ -2647,15 +4028,112 @@
     "sets": {
       "page_title": "Produktsets - Team Portal",
       "heading": "Produktsets",
-      "subtitle": "Verwalten Sie Sets von Produkten",
+      "subtitle": "Mehrere Produkte zu einem Set zusammenfassen",
       "new_set": "Neues Set",
+      "loading": "Lädt...",
+      "load_error": "Fehler beim Laden der Produktsets. Bitte Seite neu laden.",
+      "products_count": "{count} Produkte",
+      "available_count": "{available} von {total} verfügbar",
+      "search": {
+        "placeholder": "Sets suchen…",
+        "label": "Produktsets durchsuchen"
+      },
+      "filters": {
+        "title": "Filter",
+        "availability": "Verfügbarkeit",
+        "availability_any": "Alle",
+        "availability_full": "Voll verfügbar",
+        "availability_partial": "Teilweise verfügbar",
+        "availability_none": "Nichts verfügbar",
+        "availability_empty": "Ohne Produkte",
+        "ownership": "Besitz",
+        "ownership_any": "Alle Sets",
+        "ownership_mine": "Nur meine Sets",
+        "ownership_editable": "Von mir bearbeitbar",
+        "description": "Beschreibung",
+        "description_any": "Egal",
+        "description_with": "Mit Beschreibung",
+        "description_without": "Ohne Beschreibung",
+        "reset": "Filter zurücksetzen"
+      },
+      "sort": {
+        "title": "Sortierung",
+        "field": "Sortieren nach",
+        "direction": "Richtung",
+        "name": "Name",
+        "product_count": "Anzahl Produkte",
+        "available_count": "Verfügbare Produkte",
+        "created_at": "Erstelldatum",
+        "creator": "Ersteller",
+        "asc": "Aufsteigend",
+        "desc": "Absteigend",
+        "reset": "Sortierung zurücksetzen"
+      },
+      "list": {
+        "name": "Name",
+        "products": "Produkte",
+        "availability": "Verfügbar",
+        "description": "Beschreibung",
+        "actions": "Aktionen"
+      },
+      "actions": {
+        "view": "Anzeigen",
+        "borrow": "Ausleihen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen"
+      },
+      "bulk_selection": {
+        "selected": "ausgewählt",
+        "select_all": "Alle",
+        "deselect_all": "Keine",
+        "borrow": "Ausleihen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "none_selected": "Bitte mindestens ein Set auswählen.",
+        "edit_single_only": "Zum Bearbeiten bitte genau ein Set auswählen.",
+        "no_edit_permission": "Keine Berechtigung zum Bearbeiten.",
+        "no_delete_permission": "Keine Berechtigung zum Löschen aller ausgewählten Sets.",
+        "no_borrow_permission": "Keine Berechtigung zum Ausleihen.",
+        "borrow_none_available": "In den ausgewählten Sets sind keine verfügbaren Produkte."
+      },
+      "modals": {
+        "bulk_delete": {
+          "title": "Sets löschen",
+          "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+          "message": "Möchten Sie wirklich {count} Set(s) löschen?",
+          "note": "Die Produkte selbst bleiben erhalten.",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen",
+          "deleting": "Löschen..."
+        }
+      },
       "table": {
         "name": "Name",
         "products": "Produkte",
         "actions": "Aktionen"
       },
       "empty": "Keine Sets vorhanden",
-      "create_hint": "Erstellen Sie Ihr erstes Set!"
+      "create_hint": "Erstellen Sie Ihr erstes Set!",
+      "detail": {
+        "borrow": "Set ausleihen",
+        "delete_confirm": "Möchten Sie dieses Set wirklich löschen?",
+        "info_title": "Details",
+        "name": "Name",
+        "products": "Produkte",
+        "availability": "Verfügbarkeit",
+        "created_by": "Erstellt von",
+        "created_at": "Erstellt am",
+        "updated_at": "Aktualisiert am",
+        "description": "Beschreibung",
+        "no_description": "Keine Beschreibung hinterlegt.",
+        "products_title": "Produkte im Set ({count})",
+        "col_product": "Produkt",
+        "col_category": "Kategorie",
+        "col_status": "Status",
+        "col_qty": "Menge",
+        "col_actions": "Aktionen",
+        "no_products": "Dieses Set enthält noch keine Produkte."
+      }
     },
     "folders": {
       "page_title": "Ordner - Team Portal",
@@ -2668,66 +4146,80 @@
     },
     "statistics": {
       "page_title": "Statistiken - Team Portal",
-      "heading": "Statistiken"
+      "heading": "Statistik",
+      "subtitle": "Kennzahlen, Verteilungen und Ausleihtrends",
+      "loading": "Statistiken werden geladen…",
+      "load_error": "Fehler beim Laden der Statistiken",
+      "no_data": "Keine Daten verfügbar",
+      "no_borrows": "Noch keine Ausleihen vorhanden",
+      "no_trends": "Noch keine Trend-Daten verfügbar",
+      "chart_error": "Fehler beim Laden der Daten",
+      "apex_error": "Chart-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden.",
+      "kpi": {
+        "total": "Gesamtbestand",
+        "available": "Verfügbar",
+        "borrowed": "Ausgeliehen",
+        "overdue": "Überfällig",
+        "availability_rate": "Verfügbarkeitsquote"
+      },
+      "charts": {
+        "categories": "Kategorienverteilung",
+        "status": "Status-Verteilung",
+        "top_borrowed": "Meist ausgeliehene Produkte (Top 10)",
+        "trends": "Ausleihtrends (letzte 12 Monate)"
+      },
+      "series": {
+        "count": "Anzahl",
+        "borrows": "Ausleihen"
+      }
     },
     "print_qr": {
-      "page_title": "QR-Codes drucken - Team Portal",
-      "heading": "QR-Codes drucken"
-    },
-    "flash": {
-      "folder_not_found": "Ordner nicht gefunden.",
-      "product_name_required": "Der Produktname ist verpflichtend.",
-      "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
-      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
-      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
-      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
-      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
-      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
-      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
-      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "no_products_selected": "Keine Produkte ausgewählt.",
-      "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
-      "no_valid_products": "Keine gültigen Produkte gefunden.",
-      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
-      "invalid_date_format": "Ungültiges Datumsformat.",
-      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
-      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
-      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
-      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
-      "product_unavailable": "Das Produkt ist nicht verfügbar.",
-      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
-      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
-      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
-      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
-      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
-      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
-      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
-      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
-      "folder_name_required": "Der Ordnername ist verpflichtend.",
-      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
-      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
-      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
-      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "generate_error": "Fehler beim Generieren des Druckbogens.",
-      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
-      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
-      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
-      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
-      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
-      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
-      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
-      "invalid_request": "Ungültige Anfrage.",
-      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
-      "file_not_found": "Die Datei konnte nicht gefunden werden.",
-      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
-      "invalid_date": "Ungültiges Datum."
+      "page_title": "QR / Etiketten - Team Portal",
+      "heading": "QR / Etiketten",
+      "hint": "Ordner öffnen oder Produkte auswählen, dann PDF erzeugen.",
+      "empty": "Keine Produkte vorhanden.",
+      "empty_folder": "Dieser Ordner enthält keine Produkte.",
+      "empty_search": "Keine Treffer für die Suche.",
+      "empty_sets": "Keine Sets vorhanden.",
+      "add_product": "Produkt hinzufügen",
+      "set_badge": "Set",
+      "search": {
+        "label": "Produkte suchen",
+        "placeholder": "Name, Seriennummer, Kategorie…"
+      },
+      "selection": {
+        "selected": "Produkt(e) ausgewählt",
+        "select_all": "Alle auswählen",
+        "deselect_all": "Alle abwählen",
+        "select_visible": "Sichtbare auswählen",
+        "deselect_visible": "Sichtbare abwählen"
+      },
+      "actions": {
+        "color_codes": "Farbcodes",
+        "generate_pdf": "PDF generieren"
+      },
+      "label_types": {
+        "cable": "Kabel (Farbstreifen)",
+        "device": "Geräte"
+      },
+      "folder": {
+        "open": "Öffnen",
+        "select": "Ordner auswählen",
+        "unfiled": "Ohne Ordner",
+        "sets": "Sets",
+        "products_count": "{count} Produkte",
+        "sets_count": "{count} Sets"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Kategorie",
+        "serial": "Seriennummer",
+        "length": "Länge"
+      },
+      "errors": {
+        "no_selection": "Bitte wählen Sie mindestens ein Produkt aus."
+      }
     }
   },
   "music": {
@@ -2764,7 +4256,8 @@
         "title": "Bereits Gespielt",
         "empty": "Noch keine Lieder gespielt",
         "played_at": "Gespielt:",
-        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden"
+        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden",
+        "clear": "Gespielte leeren"
       },
       "confirmations": {
         "mark_as_played": "Möchten Sie dieses Lied als bereits gespielt markieren?",
@@ -2772,21 +4265,43 @@
         "clear_queue": "Möchten Sie die Warteschlange wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "clear_wishlist": "Möchten Sie die Wunschliste wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "reset_all": "Möchten Sie wirklich ALLES zurücksetzen?\n\nDies löscht:\n- Die gesamte Wunschliste\n- Die gesamte Warteschlange\n- Alle bereits gespielten Lieder\n\nDiese Aktion kann nicht rückgängig gemacht werden!",
-        "reset_all_confirm": "Sind Sie sich wirklich sicher? Alle Daten werden unwiderruflich gelöscht!"
+        "reset_all_confirm": "Sind Sie sich wirklich sicher? Alle Daten werden unwiderruflich gelöscht!",
+        "title": "Bestätigen",
+        "reset_title": "Alles zurücksetzen?",
+        "clear_played": "Möchten Sie die Liste der bereits gespielten Lieder wirklich leeren?"
       },
       "errors": {
         "generic": "Fehler: {error}",
         "unknown": "Unbekannter Fehler"
+      },
+      "nav": {
+        "label": "Musik-Navigation",
+        "menu": "Menü"
+      },
+      "sort": {
+        "heading": "Sortierung",
+        "field": "Feld",
+        "direction": "Richtung",
+        "apply": "Anwenden",
+        "reset": "Zurücksetzen",
+        "options": {
+          "created": "Erstellt",
+          "wish_count": "Wünsche"
+        },
+        "directions": {
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
       }
     },
     "public_wishlist": {
       "page_title": "Musikwunschliste",
       "title": "Dein Musikwunsch",
-      "subtitle": "Teile uns hier deinen Musikwunsch mit",
+      "subtitle": "Suche ein Lied und füge es hinzu",
       "no_providers": "Keine Musik-Provider aktiviert. Bitte aktivieren Sie mindestens einen Provider in den Einstellungen.",
       "provider_select": "Musikdienst auswählen",
       "search_label": "Lied suchen",
-      "search_placeholder": "\"Titel\" \"Künstler\" oder frei",
+      "search_placeholder": "Titel oder Künstler…",
       "search_button": "Suchen",
       "search_help_format": "Format",
       "search_help_text": "Mit Anführungszeichen: <code>\"Titel\" \"Künstler\"</code> oder frei: <code>Titel Künstler</code>",
@@ -2806,12 +4321,26 @@
       "unknown_artist": "Unbekannter Künstler",
       "search_error": "Fehler bei der Suche: {error}"
     },
+    "public_url": {
+      "page_title": "Musikwünsche – QR-Code",
+      "heading": "Musikwünsche",
+      "subtitle": "Einfach online einreichen – per QR-Code scannen oder Link öffnen",
+      "link_label": "Öffentlicher Link",
+      "short_link_label": "Kurzlink",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "print": "Drucken",
+      "print_title": "Musikwunsch?",
+      "print_subtitle": "Scanne den QR-Code"
+    },
     "admin": {
       "page_title": "Musikmodul-Einstellungen - Administration",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Musikmodul-Einstellungen",
       "heading": "Musikmodul-Einstellungen",
+      "subtitle": "Provider aktivieren, Reihenfolge festlegen und Zugangsdaten verwalten.",
+      "copy_uri": "URI kopieren",
       "provider_activation": {
         "title": "Provider-Aktivierung und Reihenfolge",
         "description": "Aktivieren Sie die gewünschten Musik-Provider und legen Sie die Suchreihenfolge fest.",
@@ -2822,7 +4351,7 @@
       "spotify": {
         "title": "Spotify",
         "hint_title": "Hinweis",
-        "hint": "Spotify verwendet einfache OAuth-Anmeldung. Benutzer können sich mit ihrem Spotify-Konto anmelden.",
+        "hint": "Benötigt Client ID und Client Secret aus dem Spotify Developer Dashboard (App anlegen). OAuth-Anmeldung über Spotify-Konto. Redirect URI unten eintragen.",
         "client_id": "Client ID",
         "client_id_placeholder": "Spotify Client ID",
         "client_id_help": "Erhalten Sie Ihre Credentials im <a href=\"{link}\" target=\"_blank\">Spotify Developer Dashboard</a>",
@@ -2838,10 +4367,10 @@
       "youtube": {
         "title": "YouTube",
         "hint_title": "Hinweis",
-        "hint": "YouTube kann jetzt mit einem einfachen API-Key verwendet werden. OAuth ist optional.",
+        "hint": "Benötigt die YouTube Data API v3. In der Google Cloud Console diese API aktivieren, API-Schlüssel erstellen und bei API-Einschränkungen „YouTube Data API v3“ auswählen. OAuth (Client ID/Secret) ist optional.",
         "api_key_label": "API-Key (empfohlen)",
         "api_key_placeholder": "YouTube API-Key",
-        "api_key_help": "Erhalten Sie einen API-Key in der <a href=\"{link}\" target=\"_blank\">Google Cloud Console</a>",
+        "api_key_help": "Google Cloud Console: YouTube Data API v3 aktivieren → API-Schlüssel anlegen → bei Einschränkungen nur „YouTube Data API v3“ erlauben. <a href=\"{link}\" target=\"_blank\">Zur Google Cloud Console</a>",
         "client_id": "OAuth Client ID (optional)",
         "client_id_placeholder": "YouTube OAuth Client ID",
         "client_secret": "OAuth Client Secret (optional)",
@@ -2857,7 +4386,7 @@
       "deezer": {
         "title": "Deezer",
         "hint_title": "Hinweis",
-        "hint": "Deezer verwendet eine öffentliche API. Eine App-ID ist optional, aber empfohlen für höhere Rate Limits.",
+        "hint": "Öffentliche API – App-ID optional (empfohlen für höhere Rate Limits). App im Deezer Developer Portal anlegen und App-ID hier eintragen.",
         "app_id_label": "App-ID (optional)",
         "app_id_placeholder": "Deezer App-ID",
         "app_id_help": "Erhalten Sie eine App-ID im <a href=\"{link}\" target=\"_blank\">Deezer Developer Portal</a> (optional, aber empfohlen für höhere Rate Limits)"
@@ -2894,29 +4423,21 @@
   },
   "booking": {
     "flash": {
-      "form_not_active": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "enter_name": "Bitte geben Sie Ihren Namen ein.",
-      "enter_event_name": "Bitte geben Sie einen Namen für die Veranstaltung ein.",
-      "enter_valid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-      "field_required": "Das Feld \"{field_label}\" ist ein Pflichtfeld.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt.",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "no_files_uploaded": "Keine Dateien wurden hochgeladen.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "enter_event_date": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "enter_rejection_reason": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "rejected": "Buchung wurde abgelehnt.",
-      "fill_subject_message": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
+      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
+      "request_rejected": "Buchung wurde abgelehnt.",
       "email_sent": "E-Mail wurde gesendet.",
       "email_error": "Fehler beim Senden der E-Mail.",
-      "not_assigned_to_role": "Sie sind dieser Rolle nicht zugewiesen.",
-      "file_too_large": "Datei \"{filename}\" ist zu groß (max. 50MB).",
-      "files_uploaded": "{count} Datei(en) wurden erfolgreich hochgeladen.",
+      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
+      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
+      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
+      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
+      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
       "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert."
+      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
+      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
+      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     },
     "requests": {
       "page_title": "Buchungsanfragen - Team Portal",
@@ -2945,7 +4466,33 @@
         "rejected": "Abgelehnt",
         "archived": "Archiviert"
       },
-      "empty": "Keine Buchungsanfragen vorhanden"
+      "empty": "Keine Buchungsanfragen vorhanden",
+      "sidebar_brand": "Buchungen",
+      "nav": {
+        "overview": "Übersicht",
+        "neu": "Neu",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert",
+        "no_forms": "Keine Formulare vorhanden",
+        "public_link": "Öffentlicher Link"
+      },
+      "stats": {
+        "pending": "Ausstehend",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert",
+        "total": "Gesamt",
+        "acceptance_rate": "Annahmequote",
+        "upcoming": "Bevorstehend",
+        "busy_days": "Belegte Tage",
+        "this_month": "Diesen Monat"
+      },
+      "dashboard": {
+        "upcoming_title": "Nächste Termine",
+        "upcoming_empty": "Keine kommenden Buchungen",
+        "recent_title": "Zuletzt eingegangen"
+      }
     },
     "request_detail": {
       "page_title": "{event_name} - Buchungsanfrage",
@@ -3000,7 +4547,9 @@
         "email_body_required": "*",
         "send": "Senden"
       },
-      "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt."
+      "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt.",
+      "confirm_accept_title": "Annahme bestätigen",
+      "actions_heading": "Aktionen"
     },
     "public_form": {
       "page_title": "{form_title} - Buchung",
@@ -3074,23 +4623,6 @@
           "description": "Spotify und YouTube Music verbinden und konfigurieren"
         }
       }
-    },
-    "flash": {
-      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "request_rejected": "Buchung wurde abgelehnt.",
-      "email_sent": "E-Mail wurde gesendet.",
-      "email_error": "Fehler beim Senden der E-Mail.",
-      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
-      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
-      "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     }
   },
   "setup": {
@@ -3105,10 +4637,175 @@
       "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
       "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
       "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
-      "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+      "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.",
+      "completed_summary": "Setup abgeschlossen. Ihr Admin-Account ist bereit — Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
+    },
+    "import_backup": {
+      "page_title": "Backup importieren - Setup",
+      "heading": "Backup importieren",
+      "hint": "Falls Sie bereits ein Backup haben, können Sie es jetzt importieren. Fehlende Daten legen Sie im Setup neu an. Sie können diesen Schritt auch überspringen.",
+      "skip": "Überspringen",
+      "back": "Zurück zum Setup"
     }
   },
   "assessment": {
+    "brand": "Bewertungstool",
+    "nav": {
+      "label": "Bewertungstool Navigation",
+      "menu": "Menü",
+      "dashboard": "Dashboard",
+      "evaluate": "Bewerten",
+      "my_evaluations": "Meine Bewertungen",
+      "ranking": "Rangliste",
+      "inspections": "Rauminspektionen",
+      "warnings": "Verwarnungen",
+      "admin": "Administration",
+      "lists": "Listen",
+      "stand_types": "Stand-Typen",
+      "stands": "Stände",
+      "criteria": "Kriterien",
+      "users": "Benutzer",
+      "rooms": "Räume",
+      "reset": "Reset",
+      "settings": "Einstellungen",
+      "print": "Drucken"
+    },
+    "common": {
+      "save": "Speichern",
+      "saved": "Gespeichert",
+      "cancel": "Abbrechen",
+      "done": "Erledigt.",
+      "error": "Fehler",
+      "load_error": "Fehler beim Laden",
+      "actions": "Aktion",
+      "selected": "ausgewählt",
+      "clear_selection": "Auswahl aufheben",
+      "view_toggle": "Ansicht umschalten",
+      "view_list": "Listenansicht",
+      "view_grid": "Kachelansicht",
+      "list_label": "Bewertungsliste",
+      "list_filter": "Bewertungsliste (optional)",
+      "all_lists": "Alle Listen",
+      "excel_file": "Excel-Datei auswählen (.xlsx)",
+      "excel_upload": "Excel hochladen",
+      "excel_sample": "Beispiel-Excel herunterladen"
+    },
+    "dashboard": {
+      "welcome_default": "Willkommen im Bewertungstool",
+      "subtitle_default": "Bewerten, Ranglisten und Verwaltung.",
+      "stat_stands": "Aktive Stände",
+      "stat_lists": "Aktive Listen",
+      "stat_evals": "Bewertungen gesamt",
+      "stat_my_evals": "Meine Bewertungen",
+      "stat_avg": "Ø Punkte ({sort_label})",
+      "points_abbr": "Pkt.",
+      "full_ranking": "Volle Rangliste",
+      "ranking_empty": "Noch keine Ranglisten-Daten.",
+      "quick_access": "Schnellzugriff",
+      "cta_evaluate": "Bewertung abgeben",
+      "cta_lists": "Listen verwalten"
+    },
+    "evaluate": {
+      "page_title": "Bewertung abgeben",
+      "heading": "Bewertung abgeben",
+      "subtitle": "Liste wählen, Ziel bewerten, Speichern.",
+      "target": "Bewertungsziel",
+      "stand": "Stand"
+    },
+    "my_evaluations": {
+      "page_title": "Meine Bewertungen",
+      "col_list": "Liste",
+      "col_target": "Ziel",
+      "col_points": "Punkte",
+      "col_time": "Zeit",
+      "empty": "Keine Bewertungen"
+    },
+    "ranking": {
+      "page_title": "Rangliste - Bewertung",
+      "subtitle": "Auswertung der Jury-Bewertungen",
+      "sort_label": "Sortierung",
+      "sort_total": "Gesamtpunktzahl",
+      "sort_avg": "Ø-Punktzahl",
+      "col_rank": "Rang",
+      "col_name": "Name",
+      "col_room_type": "Raum / Typ",
+      "col_total": "Gesamtpunkte",
+      "col_avg": "Ø Punkte",
+      "col_votes": "Anzahl Bewertungen",
+      "empty": "Es liegen noch keine Bewertungen vor."
+    },
+    "warnings": {
+      "page_title": "Verwarnungen",
+      "comment": "Kommentar",
+      "status": "Status",
+      "active": "Aktiv",
+      "invalidated": "Aufgehoben",
+      "empty": "Keine Verwarnungen",
+      "create": "Neue Verwarnung",
+      "edit_title": "Verwarnung bearbeiten",
+      "action_edit": "Bearbeiten",
+      "action_lift": "Aufheben",
+      "action_reinstate": "Wieder einsetzen",
+      "action_delete": "Löschen",
+      "delete_confirm": "Verwarnung wirklich endgültig löschen?",
+      "lift_confirm": "Verwarnung aufheben? (bleibt erhalten, Status „Aufgehoben“)",
+      "reinstate_confirm": "Verwarnung wieder einsetzen?",
+      "saved": "Verwarnung gespeichert.",
+      "updated": "Verwarnung aktualisiert.",
+      "lifted": "Verwarnung aufgehoben.",
+      "reinstated": "Verwarnung wieder eingesetzt.",
+      "deleted": "Verwarnung gelöscht.",
+      "err_stand": "Stand ist erforderlich.",
+      "err_comment": "Kommentar ist erforderlich.",
+      "err_not_found": "Eintrag nicht gefunden.",
+      "err_action": "Unbekannte Aktion."
+    },
+    "inspections": {
+      "page_title": "Rauminspektionen",
+      "clean": "Sauber",
+      "empty": "Keine Räume vorhanden."
+    },
+    "reset": {
+      "page_title": "Daten zurücksetzen - Bewertung",
+      "heading": "Daten zurücksetzen",
+      "subtitle": "Bewertungen, Verwarnungen oder Inspektionen gezielt leeren",
+      "global": "— Global —",
+      "btn_ranking": "Bewertungen zurücksetzen",
+      "btn_warnings": "Alle Verwarnungen zurücksetzen",
+      "btn_inspections": "Alle Rauminspektionen zurücksetzen",
+      "confirm_ranking": "Alle Bewertungen dieser Liste wirklich löschen?",
+      "confirm_warnings": "Alle Verwarnungen wirklich löschen?",
+      "confirm_inspections": "Alle Rauminspektionen wirklich löschen?",
+      "confirm_final": "Wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "confirm_ok": "Ja, fortfahren",
+      "confirm_ok2": "Ja, endgültig löschen",
+      "need_list": "Bitte zuerst eine Bewertungsliste wählen."
+    },
+    "users": {
+      "page_title": "Benutzerverwaltung - Bewertung",
+      "heading": "Benutzerverwaltung",
+      "create": "Neuen Benutzer anlegen",
+      "create_btn": "Benutzer anlegen",
+      "save_btn": "Änderungen speichern",
+      "username": "Benutzername",
+      "display_name": "Anzeigename",
+      "password": "Passwort",
+      "password_hint": "(leer lassen = unverändert)",
+      "roles": "Rollen",
+      "lists": "Bewertungslisten",
+      "lists_hint": "Keine Auswahl = Zugriff auf alle aktiven Listen. Administratoren haben immer Zugriff auf alle Listen.",
+      "lists_all": "Alle Listen",
+      "existing": "Vorhandene Benutzer",
+      "excel_title": "Benutzer per Excel hochladen",
+      "excel_hint": "Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).",
+      "delete_confirm": "Benutzer wirklich löschen?"
+    },
+    "settings": {
+      "content": "Inhalte",
+      "welcome_title": "Titel der Startseite",
+      "welcome_subtitle": "Untertitel der Startseite",
+      "ranking_sort": "Standard-Sortierung der Rangliste"
+    },
     "appearance": {
       "title": "Darstellung",
       "dark_mode": "Dark Mode",
@@ -3128,19 +4825,44 @@
     "heading": "Media Downloader",
     "description": "Laden Sie Inhalte von YouTube und YouTube Music als MP3 oder MP4 herunter.",
     "legal_notice": "Sie sind für die Einhaltung von Urheberrecht und Nutzungsbedingungen der Plattformen verantwortlich. Heruntergeladene Dateien werden nach einer Stunde automatisch gelöscht.",
+    "nav": {
+      "label": "Media Downloader Navigation",
+      "menu": "Menü",
+      "download": "Neuer Download",
+      "jobs": "Meine Downloads",
+      "clear_all": "Alles löschen"
+    },
     "form": {
       "title": "Neuer Download",
+      "link_box_title": "Link / Suche",
+      "single_label": "Einzelnes Lied / Video",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Nur einzelne Videos oder Songs — keine Playlists.",
+      "playlist_label": "Playlist",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Playlist-Link einfügen. Einstellungen erscheinen im Kasten Zeitabschnitt.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Unterstützt: YouTube, YouTube Music und Playlists",
       "format_label": "Format",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
+      "segment_heading": "Zeitabschnitt",
       "start_label": "Start (optional)",
       "end_label": "Ende (optional)",
       "time_placeholder": "M:SS",
       "segment_hint": "Optional: Nur einen Abschnitt herunterladen (Start und Ende angeben, z. B. 1:30 und 3:45).",
       "submit": "Download starten"
+    },
+    "search": {
+      "label": "YouTube Suche",
+      "placeholder": "Song oder Künstler suchen…",
+      "hint": "Vorschläge von der YouTube Data API — Treffer wählen, URL wird übernommen.",
+      "loading": "Suche…",
+      "empty": "Keine Treffer gefunden.",
+      "error": "Suche fehlgeschlagen.",
+      "unavailable": "YouTube-Suche ist nicht verfügbar.",
+      "unavailable_hint": "YouTube-API-Key fehlt. Unter Einstellungen → Musik den YouTube-API-Key eintragen."
     },
     "jobs": {
       "title": "Meine Downloads",
@@ -3152,7 +4874,13 @@
       "download": "Herunterladen",
       "empty": "Noch keine Downloads vorhanden.",
       "clear_all": "Alles löschen",
-      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?"
+      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?",
+      "delete_confirm": "Diesen Download wirklich löschen?",
+      "open_source": "Quelle öffnen",
+      "actions": "Aktionen",
+      "view_toggle": "Ansicht umschalten",
+      "view_list": "Listenansicht",
+      "view_grid": "Kachelansicht"
     },
     "format": {
       "audio": "MP3",
@@ -3162,17 +4890,19 @@
       "pending": "Wartend",
       "processing": "In Bearbeitung",
       "completed": "Fertig",
-      "failed": "Fehlgeschlagen",
+      "failed": "Wegen Fehler abgebrochen",
       "cancelled": "Abgebrochen",
       "cancelling": "Wird abgebrochen"
     },
     "playlist": {
       "modal_title": "Playlist herunterladen",
+      "segment_heading": "Playlist-Einstellungen",
+      "inline_hint": "Alle Songs komplett oder Zeitstempel pro Song — dann Download starten.",
       "loading": "Playlist wird geladen…",
       "song_count": "%(count)s Songs in dieser Playlist",
       "mode_complete": "Alle Songs komplett herunterladen",
       "mode_timestamps": "Zeitstempel pro Song angeben",
-      "download_all": "Alle runterladen",
+      "download_all": "Playlist herunterladen",
       "preview_error": "Playlist konnte nicht geladen werden."
     },
     "flash": {
@@ -3202,6 +4932,45 @@
       "invalid_batch_item": "Ungültiger Eintrag in der Download-Liste.",
       "cancelled": "Download wurde abgebrochen.",
       "cancelling": "Download wird abgebrochen…"
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Team-Chat",
+      "body_one": "1 neue Nachricht",
+      "body_many": "{count} neue Nachrichten"
+    },
+    "file": {
+      "new_title": "Neue Datei",
+      "new_body": "{name} wurde hochgeladen",
+      "modified_title": "Datei geändert",
+      "modified_body": "{name} wurde aktualisiert"
+    },
+    "email": {
+      "title": "Neue E-Mail",
+      "body_one": "1 ungelesene E-Mail",
+      "body_many": "{count} ungelesene E-Mails"
+    },
+    "calendar": {
+      "reminder_title": "Termin-Erinnerung",
+      "reminder_body": "{title} beginnt {time_text} ({date} um {time})",
+      "in_minutes": "in {count} Minuten",
+      "in_hour_one": "in 1 Stunde",
+      "in_hours": "in {count} Stunden",
+      "in_day_one": "in 1 Tag",
+      "in_days": "in {count} Tagen"
+    },
+    "booking": {
+      "request_title": "Neue Buchungsanfrage",
+      "request_body": "{event} – {applicant}",
+      "message_title": "Neue Nachricht zur Buchung",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "push": {
+      "test_title": "Test-Benachrichtigung",
+      "test_body": "Test vom {portal_name}. Push funktioniert."
     }
   }
 }

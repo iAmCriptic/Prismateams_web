@@ -1,18 +1,19 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Bewertungslisten - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-list-ul{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.lists') }}{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Bewertungslisten', icon='list-check') }}
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3">Neue Bewertungsliste</h2>
+    <div class="assessment-panel mb-4">
+            <h2 class="assessment-panel-title mb-3">Neue Bewertungsliste</h2>
             <form id="listForm">
                 <input type="hidden" id="listId">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Name</label>
-                        <input class="form-control" id="listName" required>
+                        <input class="form-control assessment-pill-input" id="listName" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Modus</label>
@@ -34,7 +35,7 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label">Beschreibung</label>
-                        <textarea class="form-control" id="listDescription" rows="2"></textarea>
+                        <textarea class="form-control assessment-pill-input" id="listDescription" rows="2"></textarea>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-3">
@@ -42,15 +43,12 @@
                     <button type="submit" class="btn btn-accent" id="saveBtn">Liste anlegen</button>
                 </div>
             </form>
-        </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Excel-Import pro Bewertungsliste</h2>
+    <div class="assessment-panel mb-4" id="excelListPickerWrap">
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Excel-Import pro Bewertungsliste</h2>
             <label class="form-label" for="excelListSelect">Bewertungsliste</label>
             <select class="form-select mb-0" id="excelListSelect"></select>
-        </div>
     </div>
 
     {{ assessment_excel_upload(
@@ -71,150 +69,185 @@
         ) }}
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <h2 class="h5 mb-3">Vorhandene Listen</h2>
-            <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
-                    <thead><tr><th>Name</th><th>Modus</th><th>Aktiv</th><th class="text-end">Aktion</th></tr></thead>
-                    <tbody id="rows"></tbody>
-                </table>
-            </div>
-        </div>
+    <h2 class="assessment-panel-title mb-2">Vorhandene Listen</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="d-none d-md-table-cell">Modus</th>
+                    <th scope="col" class="d-none d-md-table-cell">Aktiv</th>
+                    <th scope="col" class="text-end assessment-col-actions">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-let standTypes = [];
-let loadedLists = [];
-const form = document.getElementById('listForm');
+(function () {
+    let standTypes = [];
+    let loadedLists = [];
+    let listsById = {};
+    const form = document.getElementById('listForm');
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
 
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function toggleStandFilter() {
+        document.getElementById('standTypeFilterWrap').hidden = document.getElementById('subjectMode').value !== 'stand';
+    }
 
-function toggleStandFilter() {
-    document.getElementById('standTypeFilterWrap').hidden = document.getElementById('subjectMode').value !== 'stand';
-}
+    async function loadStandTypes() {
+        const res = await fetch('/assessment/api/stand_types');
+        const data = await res.json();
+        standTypes = data.stand_types || [];
+        document.getElementById('standTypeIds').innerHTML = standTypes.map(t =>
+            `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    }
 
-async function loadStandTypes() {
-    const res = await fetch('/assessment/api/stand_types');
-    const data = await res.json();
-    standTypes = data.stand_types || [];
-    document.getElementById('standTypeIds').innerHTML = standTypes.map(t =>
-        `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
-}
+    function syncExcelListSelect() {
+        const sel = document.getElementById('excelListSelect');
+        const wrap = document.getElementById('excelListPickerWrap');
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = (loadedLists || []).map(l =>
+            `<option value="${l.id}" data-mode="${l.subject_mode}">${escapeHtml(l.name)}</option>`
+        ).join('');
+        if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+        if (wrap) wrap.hidden = (loadedLists || []).length <= 1;
+        toggleSubjectsExcel();
+    }
 
-function syncExcelListSelect() {
-    const sel = document.getElementById('excelListSelect');
-    if (!sel) return;
-    const prev = sel.value;
-    sel.innerHTML = (loadedLists || []).map(l =>
-        `<option value="${l.id}" data-mode="${l.subject_mode}">${escapeHtml(l.name)}</option>`
-    ).join('');
-    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
-    toggleSubjectsExcel();
-}
+    function toggleSubjectsExcel() {
+        const sel = document.getElementById('excelListSelect');
+        const wrap = document.getElementById('listsSubjectsExcelWrap');
+        if (!sel || !wrap) return;
+        const opt = sel.selectedOptions[0];
+        wrap.hidden = !opt || opt.dataset.mode !== 'custom';
+    }
 
-function toggleSubjectsExcel() {
-    const sel = document.getElementById('excelListSelect');
-    const wrap = document.getElementById('listsSubjectsExcelWrap');
-    if (!sel || !wrap) return;
-    const opt = sel.selectedOptions[0];
-    wrap.hidden = !opt || opt.dataset.mode !== 'custom';
-}
+    async function loadLists() {
+        const res = await fetch('/assessment/api/lists');
+        const data = await res.json();
+        loadedLists = data.lists || [];
+        listsById = Object.fromEntries(loadedLists.map(l => [String(l.id), l]));
+        syncExcelListSelect();
+        document.getElementById('rows').innerHTML = loadedLists.map(l => {
+            const actions = [
+                { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${l.id}"`, hover: true },
+                { icon: 'bi-trash', label: 'Löschen', attrs: `data-delete="${l.id}"`, danger: true },
+            ];
+            if (l.subject_mode === 'custom') {
+                actions.unshift({
+                    icon: 'bi-stars',
+                    label: 'Ziele',
+                    title: 'Bewertungsziele',
+                    href: `/assessment/manage_lists/${l.id}/subjects`,
+                    hover: true,
+                });
+            }
+            return `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-list-check', l.name, { sub: l.slug || '' })}</td>
+                <td class="d-none d-md-table-cell text-muted">${l.subject_mode === 'stand' ? 'Stände' : 'Eigene Ziele'}</td>
+                <td class="d-none d-md-table-cell text-muted">${l.is_active ? 'Ja' : 'Nein'}</td>
+                <td class="text-end assessment-col-actions">${buildRowActions(actions)}</td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="4" class="text-center text-muted py-4">—</td></tr>`;
+    }
 
-async function loadLists() {
-    const res = await fetch('/assessment/api/lists');
-    const data = await res.json();
-    loadedLists = data.lists || [];
-    syncExcelListSelect();
-    document.getElementById('rows').innerHTML = loadedLists.map(l => `
-        <tr>
-            <td>${escapeHtml(l.name)}<br><small class="text-muted">${escapeHtml(l.slug)}</small></td>
-            <td>${l.subject_mode === 'stand' ? 'Stände' : 'Eigene Ziele'}</td>
-            <td>${l.is_active ? 'Ja' : 'Nein'}</td>
-            <td class="text-end">
-                ${l.subject_mode === 'custom' ? `<a class="btn btn-sm btn-outline-primary" href="/assessment/manage_lists/${l.id}/subjects"><i class="bi bi-stars"></i></a>` : ''}
-                <button class="btn btn-sm btn-outline-primary" onclick='editList(${JSON.stringify(l)})'><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteList(${l.id})"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-}
+    function editList(l) {
+        document.getElementById('listId').value = l.id;
+        document.getElementById('listName').value = l.name;
+        document.getElementById('subjectMode').value = l.subject_mode;
+        document.getElementById('rankingSort').value = l.ranking_sort || 'total';
+        document.getElementById('listDescription').value = l.description || '';
+        const ids = l.stand_type_ids || [];
+        [...document.getElementById('standTypeIds').options].forEach(o => o.selected = ids.includes(Number(o.value)));
+        toggleStandFilter();
+        document.getElementById('resetFormBtn').hidden = false;
+        document.getElementById('saveBtn').textContent = 'Änderungen speichern';
+    }
 
-function editList(l) {
-    document.getElementById('listId').value = l.id;
-    document.getElementById('listName').value = l.name;
-    document.getElementById('subjectMode').value = l.subject_mode;
-    document.getElementById('rankingSort').value = l.ranking_sort || 'total';
-    document.getElementById('listDescription').value = l.description || '';
-    const ids = l.stand_type_ids || [];
-    [...document.getElementById('standTypeIds').options].forEach(o => o.selected = ids.includes(Number(o.value)));
-    toggleStandFilter();
-    document.getElementById('resetFormBtn').hidden = false;
-    document.getElementById('saveBtn').textContent = 'Änderungen speichern';
-}
+    function resetForm() {
+        form.reset();
+        document.getElementById('listId').value = '';
+        document.getElementById('resetFormBtn').hidden = true;
+        document.getElementById('saveBtn').textContent = 'Liste anlegen';
+        toggleStandFilter();
+    }
 
-function resetForm() {
-    form.reset();
-    document.getElementById('listId').value = '';
-    document.getElementById('resetFormBtn').hidden = true;
-    document.getElementById('saveBtn').textContent = 'Liste anlegen';
-    toggleStandFilter();
-}
+    document.getElementById('subjectMode').addEventListener('change', toggleStandFilter);
+    document.getElementById('resetFormBtn').addEventListener('click', resetForm);
 
-document.getElementById('subjectMode').addEventListener('change', toggleStandFilter);
-document.getElementById('resetFormBtn').addEventListener('click', resetForm);
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('listId').value;
+        const stand_type_ids = [...document.getElementById('standTypeIds').selectedOptions].map(o => Number(o.value));
+        const payload = {
+            name: document.getElementById('listName').value,
+            subject_mode: document.getElementById('subjectMode').value,
+            stand_type_ids,
+            ranking_sort: document.getElementById('rankingSort').value,
+            description: document.getElementById('listDescription').value,
+            is_active: true,
+        };
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/assessment/api/lists/${id}` : '/assessment/api/lists';
+        await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        resetForm();
+        loadLists();
+    });
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('listId').value;
-    const stand_type_ids = [...document.getElementById('standTypeIds').selectedOptions].map(o => Number(o.value));
-    const payload = {
-        name: document.getElementById('listName').value,
-        subject_mode: document.getElementById('subjectMode').value,
-        stand_type_ids,
-        ranking_sort: document.getElementById('rankingSort').value,
-        description: document.getElementById('listDescription').value,
-        is_active: true,
-    };
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `/assessment/api/lists/${id}` : '/assessment/api/lists';
-    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-    resetForm();
+    async function deleteList(id) {
+        const msg = 'Liste wirklich löschen? Alle Kriterien und Bewertungen dieser Liste werden entfernt.';
+        const ok = window.ptConfirm ? await window.ptConfirm(msg, { danger: true }) : confirm(msg);
+        if (!ok) return;
+        await fetch(`/assessment/api/lists/${id}`, { method: 'DELETE' });
+        loadLists();
+    }
+
+    document.getElementById('rows').addEventListener('click', (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const l = listsById[editBtn.getAttribute('data-edit-id')];
+            if (l) editList(l);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) deleteList(Number(delBtn.dataset.delete));
+    });
+
+    document.getElementById('excelListSelect')?.addEventListener('change', toggleSubjectsExcel);
+
+    document.getElementById('listsCriteriaExcelForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const listId = document.getElementById('excelListSelect')?.value;
+        if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
+        const fd = new FormData(e.target);
+        fd.append('list_id', listId);
+        const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        if (data.success) e.target.reset();
+    });
+
+    document.getElementById('listsSubjectsExcelForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const listId = document.getElementById('excelListSelect')?.value;
+        if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
+        const fd = new FormData(e.target);
+        const res = await fetch(`/assessment/api/import/subjects?list_id=${listId}`, { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        if (data.success) e.target.reset();
+    });
+
+    loadStandTypes();
     loadLists();
-});
-
-async function deleteList(id) {
-    if (!confirm('Liste wirklich löschen? Alle Kriterien und Bewertungen dieser Liste werden entfernt.')) return;
-    await fetch(`/assessment/api/lists/${id}`, { method: 'DELETE' });
-    loadLists();
-}
-
-document.getElementById('excelListSelect')?.addEventListener('change', toggleSubjectsExcel);
-
-document.getElementById('listsCriteriaExcelForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const listId = document.getElementById('excelListSelect')?.value;
-    if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
-    const fd = new FormData(e.target);
-    fd.append('list_id', listId);
-    const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
-    const data = await res.json();
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-    if (data.success) e.target.reset();
-});
-
-document.getElementById('listsSubjectsExcelForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const listId = document.getElementById('excelListSelect')?.value;
-    if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
-    const fd = new FormData(e.target);
-    const res = await fetch(`/assessment/api/import/subjects?list_id=${listId}`, { method: 'POST', body: fd });
-    const data = await res.json();
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-    if (data.success) e.target.reset();
-});
-
-loadStandTypes();
-loadLists();
-toggleStandFilter();
+    toggleStandFilter();
+})();
 </script>
 {% endblock %}

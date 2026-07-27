@@ -1,16 +1,40 @@
 from flask import Blueprint, jsonify, render_template, request
 
 from app import db
-from app.models.assessment import AssessmentRole, AssessmentUser
+from app.models.assessment import AssessmentList, AssessmentRole, AssessmentUser
 from app.utils.assessment_auth import assessment_role_required
 
 users_bp = Blueprint("users", __name__)
 
 
+def _apply_list_ids(user, list_ids):
+    if not isinstance(list_ids, list):
+        return
+    if not list_ids:
+        user.evaluation_lists = []
+        return
+    lists = AssessmentList.query.filter(AssessmentList.id.in_(list_ids)).all()
+    user.evaluation_lists = lists
+
+
+def _user_payload(user):
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "is_admin": user.is_admin,
+        "role_names": user.role_names,
+        "role_ids": [r.id for r in user.roles],
+        "list_ids": [lst.id for lst in (user.evaluation_lists or [])],
+        "list_names": [lst.name for lst in (user.evaluation_lists or [])],
+    }
+
+
 @users_bp.route("/manage_users")
 @assessment_role_required(["Administrator"])
 def manage_users_page():
-    return render_template("assessment/manage_users.html")
+    lists = AssessmentList.query.order_by(AssessmentList.sort_order.asc(), AssessmentList.name.asc()).all()
+    return render_template("assessment/manage_users.html", evaluation_lists=lists)
 
 
 @users_bp.route("/api/roles")
@@ -25,22 +49,7 @@ def api_roles():
 def api_users():
     if request.method == "GET":
         users = AssessmentUser.query.order_by(AssessmentUser.username.asc()).all()
-        return jsonify(
-            {
-                "success": True,
-                "users": [
-                    {
-                        "id": u.id,
-                        "username": u.username,
-                        "display_name": u.display_name,
-                        "is_admin": u.is_admin,
-                        "role_names": u.role_names,
-                        "role_ids": [r.id for r in u.roles],
-                    }
-                    for u in users
-                ],
-            }
-        )
+        return jsonify({"success": True, "users": [_user_payload(u) for u in users]})
 
     data = request.get_json(silent=True) or {}
     if request.method == "POST":
@@ -48,9 +57,13 @@ def api_users():
         password = (data.get("password") or "").strip()
         display_name = (data.get("display_name") or "").strip()
         role_ids = data.get("role_ids") or []
+        list_ids = data.get("list_ids") if "list_ids" in data else []
 
         if not username or not password or not display_name or not isinstance(role_ids, list) or not role_ids:
-            return jsonify({"success": False, "message": "Bitte Benutzername, Passwort, Anzeigename und mindestens eine Rolle angeben."}), 400
+            return jsonify({
+                "success": False,
+                "message": "Bitte Benutzername, Passwort, Anzeigename und mindestens eine Rolle angeben.",
+            }), 400
         if AssessmentUser.query.filter_by(username=username).first():
             return jsonify({"success": False, "message": "Benutzername existiert bereits."}), 409
 
@@ -65,6 +78,7 @@ def api_users():
         roles = AssessmentRole.query.filter(AssessmentRole.id.in_(role_ids)).all()
         user.roles = roles
         user.is_admin = any(role.name == "Administrator" for role in roles)
+        _apply_list_ids(user, list_ids)
         db.session.add(user)
         db.session.commit()
         return jsonify({"success": True, "message": "Benutzer erfolgreich erstellt."})
@@ -85,6 +99,9 @@ def api_users():
             roles = AssessmentRole.query.filter(AssessmentRole.id.in_(role_ids)).all()
             user.roles = roles
             user.is_admin = any(role.name == "Administrator" for role in roles)
+
+        if "list_ids" in data:
+            _apply_list_ids(user, data.get("list_ids") or [])
 
         db.session.commit()
         return jsonify({"success": True, "message": "Benutzer aktualisiert."})

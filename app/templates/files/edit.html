@@ -4,120 +4,157 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="markdown-editor-fullscreen">
+{% set locker_name = (lock_info.display_name if lock_info else None) %}
+<div class="markdown-editor-fullscreen{% if edit_locked %} is-locked{% endif %}">
     <div class="markdown-editor-toolbar">
-        <button type="button" class="btn btn-outline-secondary" onclick="goBack()" id="backBtn">
+        <div class="markdown-editor-brand">
+            {% if portal_logo_filename %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% elif app_logo %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% else %}
+            <span class="markdown-editor-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+            {% endif %}
+            <div class="markdown-editor-brand-text">
+                <span class="markdown-editor-filename" title="{{ file.name }}">{{ file.name }}</span>
+                <span class="markdown-editor-brand-kind">
+                    {% if is_markdown %}Markdown{% else %}Text{% endif %}
+                    {% if edit_locked %}
+                    · gesperrt
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="markdown-editor-toolbar-divider" aria-hidden="true"></div>
+
+        <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" id="backBtn">
             <i class="bi bi-arrow-left"></i> Zurück
         </button>
-        <button type="button" class="btn btn-accent" onclick="saveFile()" id="saveBtn">
+        <button type="button" class="btn btn-accent files-pill-btn" onclick="saveFile()" id="saveBtn"{% if edit_locked %} disabled{% endif %}>
             <i class="bi bi-check-lg"></i> Speichern
         </button>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('bold')" title="Fett">
+
+        {% if not edit_locked %}
+        <div class="markdown-editor-toolbar-divider d-none d-md-block" aria-hidden="true"></div>
+
+        <div class="btn-group markdown-editor-toolgroup" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('bold')" title="Fett">
                 <i class="bi bi-type-bold"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('italic')" title="Kursiv">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('italic')" title="Kursiv">
                 <i class="bi bi-type-italic"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('strikethrough')" title="Durchgestrichen">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('strikethrough')" title="Durchgestrichen">
                 <i class="bi bi-type-strikethrough"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading1')" title="Überschrift 1">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-lg-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading1')" title="Überschrift 1">
                 <i class="bi bi-type-h1"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading2')" title="Überschrift 2">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading2')" title="Überschrift 2">
                 <i class="bi bi-type-h2"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading3')" title="Überschrift 3">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('heading3')" title="Überschrift 3">
                 <i class="bi bi-type-h3"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('link')" title="Link">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-xl-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('link')" title="Link">
                 <i class="bi bi-link-45deg"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('image')" title="Bild">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('image')" title="Bild">
                 <i class="bi bi-image"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('code')" title="Inline Code">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('code')" title="Inline Code">
                 <i class="bi bi-code"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('codeBlock')" title="Code-Block">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('codeBlock')" title="Code-Block">
                 <i class="bi bi-code-square"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('list')" title="Unsortierte Liste">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-xl-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('list')" title="Unsortierte Liste">
                 <i class="bi bi-list-ul"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('orderedList')" title="Nummerierte Liste">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('orderedList')" title="Nummerierte Liste">
                 <i class="bi bi-list-ol"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('blockquote')" title="Zitat">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('blockquote')" title="Zitat">
                 <i class="bi bi-quote"></i>
             </button>
         </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('superscript')" title="Hochgestellt">
+
+        <div class="btn-group markdown-editor-toolgroup d-none d-xxl-inline-flex" role="group">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('superscript')" title="Hochgestellt">
                 <i class="bi bi-superscript"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('subscript')" title="Tiefgestellt">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('subscript')" title="Tiefgestellt">
                 <i class="bi bi-subscript"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('footnote')" title="Fußnote">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="formatText('footnote')" title="Fußnote">
                 <i class="bi bi-asterisk"></i>
             </button>
-        </div>
-        
-        <div class="vr"></div>
-        
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="insertTable()" title="Tabelle">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="insertTable()" title="Tabelle">
                 <i class="bi bi-table"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="insertHorizontalRule()" title="Horizontale Linie">
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="insertHorizontalRule()" title="Horizontale Linie">
                 <i class="bi bi-hr"></i>
             </button>
         </div>
-        
-        <div class="ms-auto">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-secondary" onclick="openViewer()" id="previewBtn">
-                    <i class="bi bi-eye"></i> Vorschau
-                </button>
-            </div>
+        {% endif %}
+
+        <div class="markdown-editor-toolbar-end">
+            {% if is_markdown %}
+            {% if edit_locked %}
+            <span class="markdown-editor-lock-badge" title="Exklusiver Bearbeitungs-Lock">
+                <i class="bi bi-lock-fill"></i>
+                {{ locker_name or 'Anderer Nutzer' }}
+            </span>
+            {% else %}
+            <span class="markdown-editor-lock-badge markdown-editor-lock-badge--mine" title="Du hältst den Bearbeitungs-Lock">
+                <i class="bi bi-unlock-fill"></i>
+                Bearbeiten
+            </span>
+            {% endif %}
+            {% endif %}
+            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="openViewer()" id="previewBtn">
+                <i class="bi bi-eye"></i> Vorschau
+            </button>
         </div>
     </div>
-    
+
+    {% if edit_locked %}
+    <div class="markdown-editor-lock-banner" role="status">
+        <i class="bi bi-lock-fill"></i>
+        <span>
+            Diese Datei wird gerade von <strong>{{ locker_name or 'einem anderen Nutzer' }}</strong> bearbeitet.
+            Speichern ist gesperrt, bis der Lock freigegeben wird.
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary files-pill-btn" id="retryLockBtn">
+            Erneut prüfen
+        </button>
+    </div>
+    {% endif %}
+
     <div class="markdown-editor-content">
         <div class="row g-0 h-100">
             <div class="col-12" id="editorColumn">
-                <form method="POST" id="editForm">
-                    <textarea 
-                        class="markdown-editor-textarea" 
-                        name="content" 
+                <form method="POST" id="editForm" action="{{ url_for('files.edit_file', file_id=file.id) }}">
+                    <textarea
+                        class="markdown-editor-textarea"
+                        name="content"
                         id="markdownEditor"
-                        placeholder="Beginnen Sie mit dem Schreiben...">{{ content }}</textarea>
+                        placeholder="Beginnen Sie mit dem Schreiben..."
+                        {% if edit_locked %}readonly{% endif %}>{{ content }}</textarea>
                 </form>
             </div>
             <div class="col-12" id="previewColumn" style="display: none;">
@@ -130,57 +167,113 @@
 <script>
 let isPreviewMode = false;
 let hasUnsavedChanges = false;
+const EDIT_LOCKED = {{ 'true' if edit_locked else 'false' }};
+const EDIT_FILE_ID = {{ file.id }};
+const EDIT_LOCK_API = '{{ url_for("files.api_file_edit_lock") }}';
+const EDIT_LOCK_ENABLED = {{ 'true' if is_markdown else 'false' }};
+let editSessionKey = {{ (edit_session_key or '')|tojson }};
+let editLockTimer = null;
+
+function editLockSend(action, extra) {
+    if (!EDIT_LOCK_ENABLED) return Promise.resolve(null);
+    const body = Object.assign({
+        action: action,
+        file_id: EDIT_FILE_ID,
+        session_key: editSessionKey || ''
+    }, extra || {});
+    return fetch(EDIT_LOCK_API, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(body),
+        keepalive: action === 'leave'
+    }).then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })).catch(() => ({ ok: r.ok, status: r.status, data: null })))
+    .catch(() => null);
+}
+
+function releaseEditLock() {
+    if (!EDIT_LOCK_ENABLED || !editSessionKey || EDIT_LOCKED) return;
+    try {
+        navigator.sendBeacon(EDIT_LOCK_API, new Blob([JSON.stringify({
+            action: 'leave',
+            session_key: editSessionKey,
+            file_id: EDIT_FILE_ID
+        })], { type: 'application/json' }));
+    } catch (e) {
+        editLockSend('leave');
+    }
+}
+
+function startEditLockHeartbeat() {
+    if (EDIT_LOCKED || !editSessionKey) return;
+    editLockTimer = setInterval(() => {
+        editLockSend('heartbeat').then(res => {
+            if (!res || !res.ok) {
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner('Bearbeitungs-Lock abgelaufen. Bitte Seite neu laden.', 'warning');
+                }
+            } else if (res.data && res.data.lock && res.data.lock.session_key) {
+                editSessionKey = res.data.lock.session_key;
+            }
+        });
+    }, 25000);
+    window.addEventListener('beforeunload', releaseEditLock);
+    window.addEventListener('pagehide', releaseEditLock);
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const editor = document.getElementById('markdownEditor');
-    const form = document.getElementById('editForm');
-    
-    // Auto-save functionality
+    startEditLockHeartbeat();
+
+    const retryBtn = document.getElementById('retryLockBtn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', function() {
+            window.location.reload();
+        });
+    }
+
+    if (EDIT_LOCKED) {
+        return;
+    }
+
     let autoSaveTimeout;
     editor.addEventListener('input', function() {
         hasUnsavedChanges = true;
-        
-        // Auto-save nach 30 Sekunden Inaktivität
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = setTimeout(() => {
             if (hasUnsavedChanges) {
-                saveFile(true); // Silent save
+                saveFile(true);
             }
         }, 30000);
     });
-    
-    // Warnung vor Verlassen bei ungespeicherten Änderungen
+
     window.addEventListener('beforeunload', function(e) {
         if (hasUnsavedChanges) {
             e.preventDefault();
             e.returnValue = '';
         }
     });
-    
-    // Keyboard shortcuts
+
     editor.addEventListener('keydown', function(e) {
-        // Ctrl+S oder Cmd+S zum Speichern
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             saveFile();
         }
-        
-        // Ctrl+Z oder Cmd+Z für Undo (Browser default)
-        // Ctrl+Y oder Cmd+Y für Redo (Browser default)
     });
-    
-    // Focus auf Editor
+
     editor.focus();
 });
 
 function goBack() {
     if (hasUnsavedChanges) {
-        if (confirm('Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?')) {
-            window.location.href = '{{ back_url }}';
+        if (!confirm('Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?')) {
+            return;
         }
-    } else {
-        window.location.href = '{{ back_url }}';
     }
+    releaseEditLock();
+    window.location.href = '{{ back_url }}';
 }
 
 function openViewer() {
@@ -188,20 +281,31 @@ function openViewer() {
 }
 
 function saveFile(silent = false) {
+    if (EDIT_LOCKED) return;
+
     const form = document.getElementById('editForm');
     const saveBtn = document.getElementById('saveBtn');
-    
+
     if (!silent) {
         saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
         saveBtn.disabled = true;
     }
-    
-    // Submit form
+
     fetch(form.action, {
         method: 'POST',
-        body: new FormData(form)
+        body: new FormData(form),
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
     })
-    .then(response => {
+    .then(async response => {
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = null;
+        }
         if (response.ok) {
             hasUnsavedChanges = false;
             if (!silent) {
@@ -210,24 +314,36 @@ function saveFile(silent = false) {
                     saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Speichern';
                 }, 2000);
             }
-        } else {
-            throw new Error('Fehler beim Speichern');
+            return;
         }
+        const msg = (data && data.error) || 'Fehler beim Speichern der Datei. Bitte versuchen Sie es erneut.';
+        if (response.status === 409) {
+            if (typeof window.showAppBanner === 'function') {
+                window.showAppBanner(msg, 'warning');
+            }
+            setTimeout(() => window.location.reload(), 1200);
+            return;
+        }
+        throw new Error(msg);
     })
     .catch(error => {
         console.error('Error:', error);
-        if (!silent) {
-            alert('Fehler beim Speichern der Datei. Bitte versuchen Sie es erneut.');
+        if (!silent && typeof window.showAppBanner === 'function') {
+            window.showAppBanner(error.message || 'Fehler beim Speichern der Datei. Bitte versuchen Sie es erneut.', 'danger');
         }
     })
     .finally(() => {
         if (!silent) {
             saveBtn.disabled = false;
+            if (!saveBtn.innerHTML.includes('Gespeichert')) {
+                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Speichern';
+            }
         }
     });
 }
 
 function formatText(type) {
+    if (EDIT_LOCKED) return;
     const editor = document.getElementById('markdownEditor');
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
@@ -236,10 +352,10 @@ function formatText(type) {
     const textAfter = editor.value.substring(end);
     const lineStart = textBefore.lastIndexOf('\n') + 1;
     const currentLine = editor.value.substring(lineStart, end);
-    
+
     let replacement = '';
     let newCursorPos = start;
-    
+
     switch(type) {
         case 'bold':
             replacement = `**${selectedText || 'Text'}**`;
@@ -267,7 +383,7 @@ function formatText(type) {
             break;
         case 'link':
             replacement = `[${selectedText || 'Link-Text'}](URL)`;
-            newCursorPos = start + replacement.length - 4; // Cursor vor "URL"
+            newCursorPos = start + replacement.length - 4;
             break;
         case 'code':
             replacement = `\`${selectedText || 'Code'}\``;
@@ -275,10 +391,9 @@ function formatText(type) {
             break;
         case 'codeBlock':
             replacement = `\`\`\`\n${selectedText || 'Code'}\n\`\`\``;
-            newCursorPos = start + replacement.length - 4; // Cursor vor schließenden ```
+            newCursorPos = start + replacement.length - 4;
             break;
         case 'list':
-            // Prüfe ob bereits eine Liste vorhanden ist
             if (currentLine.trim().startsWith('- ') || currentLine.trim().startsWith('* ')) {
                 replacement = selectedText || 'Listenpunkt';
             } else {
@@ -287,7 +402,6 @@ function formatText(type) {
             newCursorPos = start + replacement.length;
             break;
         case 'orderedList':
-            // Prüfe ob bereits eine nummerierte Liste vorhanden ist
             if (/^\d+\.\s/.test(currentLine.trim())) {
                 replacement = selectedText || 'Listenpunkt';
             } else {
@@ -296,7 +410,6 @@ function formatText(type) {
             newCursorPos = start + replacement.length;
             break;
         case 'blockquote':
-            // Prüfe ob bereits ein Blockquote vorhanden ist
             if (currentLine.trim().startsWith('> ')) {
                 replacement = selectedText || 'Zitat';
             } else {
@@ -317,78 +430,57 @@ function formatText(type) {
             newCursorPos = start + replacement.length;
             break;
         case 'image':
-            replacement = `![${selectedText || 'Alt-Text'}](${selectedText ? 'URL' : 'URL'})`;
-            newCursorPos = start + replacement.length - 4; // Cursor vor "URL"
+            replacement = `![${selectedText || 'Alt-Text'}](URL)`;
+            newCursorPos = start + replacement.length - 4;
             break;
     }
-    
-    // Ersetze den ausgewählten Text
+
     editor.value = textBefore + replacement + textAfter;
-    
-    // Setze Cursor
     editor.setSelectionRange(newCursorPos, newCursorPos);
     editor.focus();
-    
-    // Trigger input event für Auto-save
     editor.dispatchEvent(new Event('input'));
 }
 
 function insertTable() {
+    if (EDIT_LOCKED) return;
     const editor = document.getElementById('markdownEditor');
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
-    
-    // Standard-Tabelle mit 2 Spalten und 2 Zeilen
     const tableTemplate = `| Spalte 1 | Spalte 2 |
 |----------|----------|
 | Zeile 1  | Zeile 1  |
 | Zeile 2  | Zeile 2  |
 `;
-    
-    // Füge Tabelle ein
     editor.value = editor.value.substring(0, start) + tableTemplate + editor.value.substring(end);
-    
-    // Setze Cursor nach der Tabelle
     const newCursorPos = start + tableTemplate.length;
     editor.setSelectionRange(newCursorPos, newCursorPos);
     editor.focus();
-    
-    // Trigger input event
     editor.dispatchEvent(new Event('input'));
 }
 
 function insertHorizontalRule() {
+    if (EDIT_LOCKED) return;
     const editor = document.getElementById('markdownEditor');
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     const textBefore = editor.value.substring(0, start);
     const textAfter = editor.value.substring(end);
-    
-    // Füge horizontale Linie ein (mit Leerzeilen davor und danach)
+
     let hr = '\n---\n';
-    
-    // Prüfe ob bereits eine Leerzeile davor ist
     if (textBefore.length > 0 && textBefore[textBefore.length - 1] !== '\n') {
         hr = '\n' + hr;
     }
-    
-    // Prüfe ob bereits eine Leerzeile danach ist
     if (textAfter.length > 0 && textAfter[0] !== '\n') {
         hr = hr + '\n';
     }
-    
+
     editor.value = textBefore + hr + textAfter;
-    
-    // Setze Cursor nach der Linie
     const newCursorPos = start + hr.length;
     editor.setSelectionRange(newCursorPos, newCursorPos);
     editor.focus();
-    
-    // Trigger input event
     editor.dispatchEvent(new Event('input'));
 }
 
-// Escape key zum Schließen
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         if (isPreviewMode) {
@@ -435,6 +527,9 @@ function updatePreview() {
             throw new Error(data.error);
         }
         preview.innerHTML = data.html;
+        if (window.FilesMarkdownEnhance) {
+            window.FilesMarkdownEnhance.enhance(preview);
+        }
     })
     .catch(error => {
         console.error('Error:', error);
@@ -444,5 +539,6 @@ function updatePreview() {
 </script>
 {% endblock %}
 
-
-
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+{% endblock %}

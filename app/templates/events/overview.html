@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "events/_shell.html" import events_shell_open, events_shell_close, events_grid_list, events_view_mode_js %}
+
+{% block title %}Veranstaltungsübersicht{% endblock %}
+
+{% block content %}
+{{ events_shell_open(active_nav|default('overview'), 'Veranstaltungsübersicht', 'bi-calendar2-week', true) }}
+{{ events_grid_list(events, 'Noch keine Veranstaltungen vorhanden.') }}
+{{ events_shell_close(active_nav|default('overview')) }}
+{% endblock %}
+
+{% block extra_js %}
+{{ events_view_mode_js() }}
+{% endblock %}

@@ -1,29 +1,31 @@
 {% extends "base.html" %}
+{% from "events/_shell.html" import events_shell_open, events_shell_close %}
 
 {% block title %}Personenübersicht Veranstaltungen{% endblock %}
 
 {% block content %}
-<h1 class="mb-3"><i class="bi bi-people"></i> Personenübersicht</h1>
-<div class="card">
-    <div class="table-responsive">
-        <table class="table mb-0">
-            <thead>
-                <tr>
-                    <th>Person</th>
-                    <th>Anzahl Veranstaltungen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in rows %}
-                <tr>
-                    <td>{{ row.user.full_name }}</td>
-                    <td>{{ row.event_count }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="2" class="text-muted">Noch keine Zuordnungen vorhanden.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+{{ events_shell_open(active_nav|default('people'), 'Personenübersicht', 'bi-people', false) }}
+<div class="events-list-table-wrap">
+    <table class="table events-list-table align-middle mb-0">
+        <thead>
+            <tr>
+                <th scope="col">Person</th>
+                <th scope="col">Anzahl Veranstaltungen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.user.full_name }}</td>
+                <td>{{ row.event_count }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2" class="text-muted">Noch keine Zuordnungen vorhanden.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+{{ events_shell_close(active_nav|default('people')) }}
 {% endblock %}

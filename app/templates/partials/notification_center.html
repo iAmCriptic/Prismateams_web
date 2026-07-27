@@ -4,15 +4,15 @@
 <div class="notification-center-panel d-none" id="notificationCenterPanel" role="dialog" aria-modal="true" aria-labelledby="notificationCenterTitle">
     <div class="notification-center-header">
         <h5 class="mb-0" id="notificationCenterTitle">
-            <i class="bi bi-bell me-2"></i>{{ _('layout.notification_center.title') }}
+            <i class="bi bi-bell" aria-hidden="true"></i>{{ _('layout.notification_center.title') }}
         </h5>
         <button type="button" class="btn-close" id="notificationCenterClose" aria-label="{{ _('common.close') }}"></button>
     </div>
-    <div class="notification-center-actions border-bottom">
-        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="notificationMarkAllRead">
+    <div class="notification-center-actions">
+        <button type="button" class="btn notification-center-action notification-center-action--read" id="notificationMarkAllRead">
             {{ _('layout.notification_center.mark_all_read') }}
         </button>
-        <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none" id="notificationDeleteAll">
+        <button type="button" class="btn notification-center-action notification-center-action--delete" id="notificationDeleteAll">
             {{ _('layout.notification_center.delete_all') }}
         </button>
     </div>
