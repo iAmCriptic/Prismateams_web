@@ -3,13 +3,17 @@ import secrets
 import string
 import logging
 import base64
+import threading
 from datetime import datetime, timedelta
 from flask import render_template, current_app, url_for
 from flask_mail import Message
 from app import mail
 from app.models.user import User
-from app.utils.lock_manager import acquire_email_send_lock
 from app.utils.common import portal_now_naive
+
+# Flask-Mail ist nicht thread-sicher innerhalb eines Workers; Worker untereinander
+# dürfen parallel SMTP nutzen (kein Cross-Process-File-Lock mit 60s-Wartezeit).
+_smtp_send_lock = threading.Lock()
 
 def _msg_has_nested_related(msg):
     """True if msg.msg is mixed with an inner multipart/related (CID + attachments)."""
@@ -68,31 +72,29 @@ def _mark_logo_inline(msg):
 
 def send_email_with_lock(msg, timeout=60):
     """
-    Sendet eine E-Mail mit Lock-Schutz, um sicherzustellen, dass nur ein Worker gleichzeitig sendet.
-    
+    Sendet eine E-Mail mit prozesslokalem Thread-Lock (Flask-Mail-Sicherheit).
+
     Args:
         msg: Flask-Mail Message-Objekt
-        timeout: Maximale Wartezeit für Lock in Sekunden (Standard: 60)
-    
+        timeout: Ungenutzt (API-Kompatibilität); kein Cross-Process-Warten mehr.
+
     Returns:
         True wenn erfolgreich gesendet, False sonst
-    
+
     Raises:
         Exception: Wenn E-Mail-Versand fehlschlägt
     """
+    del timeout  # API-Kompatibilität; absichtlich kein File-Lock-Warten
     try:
         # Flask-Mail Message-Struktur vorab erstellen, damit Inline-CID sauber gesetzt werden kann.
-        if hasattr(msg, '_message'):
+        if hasattr(msg, '_message') and getattr(msg, 'msg', None) is None:
             msg.msg = msg._message()
     except Exception as e:
         logging.warning("Fehler beim Erstellen von msg.msg: %s", e)
 
     _mark_logo_inline(msg)
 
-    with acquire_email_send_lock(timeout=timeout) as acquired:
-        if not acquired:
-            # Kein direkter SMTP-Bypass mehr: ein Versandpfad reduziert Regressionen.
-            logging.warning("E-Mail-Versand-Lock nicht erworben; sende dennoch über Flask-Mail.")
+    with _smtp_send_lock:
         try:
             mail.send(msg)
             return True

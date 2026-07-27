@@ -29,7 +29,11 @@ from sqlalchemy import func, cast, Integer
 import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
-from app.utils.lock_manager import acquire_email_sync_lock
+from app.utils.lock_manager import (
+    acquire_email_sync_lock,
+    try_acquire_email_sync_leader,
+    heartbeat_email_sync_lock,
+)
 from app.utils.common import format_datetime
 
 email_bp = Blueprint('email', __name__)
@@ -816,6 +820,20 @@ def _is_placeholder_imap_config(imap_server, username, password):
     return any(any(marker in value for marker in placeholder_markers) for value in values)
 
 
+def _imap_logout(mail_conn):
+    """Schließt und loggt eine IMAP-Verbindung aus (best effort)."""
+    if not mail_conn:
+        return
+    try:
+        mail_conn.close()
+    except Exception:
+        pass
+    try:
+        mail_conn.logout()
+    except Exception:
+        pass
+
+
 def connect_imap(folder='INBOX'):
     """Connect to IMAP server with robust error handling.
     
@@ -864,7 +882,7 @@ def connect_imap(folder='INBOX'):
             # Versuche mit Anführungszeichen
             try:
                 status, messages = mail.select(f'"{folder}"')
-            except:
+            except Exception:
                 pass
             if status != 'OK':
                 logging.warning(f"Could not select folder '{folder}', status: {status}")
@@ -883,6 +901,17 @@ def connect_imap(folder='INBOX'):
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
         return None
+
+
+def _select_imap_folder(mail_conn, folder_name):
+    """Select IMAP folder; returns (ok: bool, messages/error payload)."""
+    status, messages = mail_conn.select(folder_name)
+    if status != 'OK':
+        try:
+            status, messages = mail_conn.select(f'"{folder_name}"')
+        except Exception:
+            pass
+    return status == 'OK', messages
 
 
 def is_sent_folder(folder_name):
@@ -1216,16 +1245,52 @@ def sync_imap_folders():
         return False, f"Ordner-Sync-Fehler: {str(e)}"
 
 
-def sync_emails_from_folder(folder_name):
-    """Sync emails from a specific IMAP folder with bidirectional support."""
-    mail_conn = None
+def sync_emails_from_folder(folder_name, mail_conn=None):
+    """Sync emails from a specific IMAP folder with bidirectional support.
+
+    Args:
+        folder_name: IMAP-Ordnername
+        mail_conn: Optionale bestehende IMAP-Verbindung (wird nicht geschlossen).
+                   Wenn None, wird eine neue Verbindung geöffnet und am Ende geschlossen.
+    """
+    owns_connection = mail_conn is None
     try:
-        mail_conn = connect_imap(folder_name)
-        if not mail_conn:
-            logging.error(f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'")
-            return False, f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'"
+        if owns_connection:
+            mail_conn = connect_imap(folder_name)
+            if not mail_conn:
+                logging.error(f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'")
+                return False, f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'"
+        else:
+            ok, messages = _select_imap_folder(mail_conn, folder_name)
+            if not ok:
+                error_msg = ''
+                try:
+                    if messages and len(messages) > 0:
+                        if isinstance(messages[0], bytes):
+                            error_msg = messages[0].decode('utf-8', errors='ignore')
+                        else:
+                            error_msg = str(messages[0])
+                except Exception:
+                    error_msg = 'Unbekannter Fehler'
+                is_archive_folder = folder_name in ['Archive', 'Archives']
+                if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg or "NONEXISTENT" in error_msg:
+                    if is_archive_folder:
+                        logging.debug(
+                            "IMAP folder '%s' does not exist on server, skipping sync: %s",
+                            folder_name, error_msg,
+                        )
+                    else:
+                        logging.info(
+                            "IMAP folder '%s' does not exist on server, skipping sync: %s",
+                            folder_name, error_msg,
+                        )
+                    return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
+                logging.warning("IMAP folder selection failed for '%s': %s", folder_name, error_msg)
+                return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
     except Exception as conn_error:
         logging.error(f"Fehler beim Verbinden mit IMAP für Ordner '{folder_name}': {conn_error}")
+        if owns_connection:
+            _imap_logout(mail_conn)
         return False, f"IMAP-Verbindungsfehler: {str(conn_error)}"
     
     stats = {
@@ -1239,7 +1304,7 @@ def sync_emails_from_folder(folder_name):
     
     try:
         # Haupt-Synchronisations-Logik
-        # Versuche Ordner zu öffnen
+        # Versuche Ordner zu öffnen (bei owns_connection bereits selected; nochmals absichern)
         status, messages = mail_conn.select(folder_name)
         if status != 'OK':
             # Versuche mit Anführungszeichen (für Ordner mit Leerzeichen)
@@ -1257,7 +1322,7 @@ def sync_emails_from_folder(folder_name):
                             error_msg = messages[0].decode('utf-8', errors='ignore')
                         else:
                             error_msg = str(messages[0])
-                except:
+                except Exception:
                     error_msg = 'Unbekannter Fehler'
                 
                 # Prüfe ob es sich um einen Archiv-Ordner handelt (Archive oder Archives)
@@ -1267,38 +1332,20 @@ def sync_emails_from_folder(folder_name):
                         logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
                     else:
                         logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
-                    try:
-                        mail_conn.close()
-                    except:
-                        pass
-                    try:
-                        mail_conn.logout()
-                    except:
-                        pass
+                    if owns_connection:
+                        _imap_logout(mail_conn)
                     return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
                 else:
                     logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
-                    try:
-                        mail_conn.close()
-                    except:
-                        pass
-                    try:
-                        mail_conn.logout()
-                    except:
-                        pass
+                    if owns_connection:
+                        _imap_logout(mail_conn)
                     return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
     except Exception as e:
         logging.error(f"Exception while selecting folder '{folder_name}': {e}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
-        try:
-            mail_conn.close()
-        except:
-            pass
-        try:
-            mail_conn.logout()
-        except:
-            pass
+        if owns_connection:
+            _imap_logout(mail_conn)
         return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
     
     # Haupt-Synchronisations-Logik
@@ -1323,6 +1370,8 @@ def sync_emails_from_folder(folder_name):
         status, messages = mail_conn.search(None, 'ALL')
         if status != 'OK':
             logging.error(f"IMAP search failed for folder '{folder_name}': {messages}")
+            if owns_connection:
+                _imap_logout(mail_conn)
             return False, f"E-Mail-Suche in Ordner '{folder_name}' fehlgeschlagen: {messages[0].decode() if messages else 'Unbekannter Fehler'}"
         
         all_seq_numbers = messages[0].split() if messages[0] else []
@@ -1330,14 +1379,8 @@ def sync_emails_from_folder(folder_name):
         
         if len(all_seq_numbers) == 0:
             logging.info(f"No emails found in folder '{folder_name}' on server")
-            try:
-                mail_conn.close()
-            except:
-                pass
-            try:
-                mail_conn.logout()
-            except:
-                pass
+            if owns_connection:
+                _imap_logout(mail_conn)
             return True, f"Ordner '{folder_name}': Keine E-Mails vorhanden"
         
         # Hole UIDs für alle E-Mails
@@ -2097,13 +2140,10 @@ def sync_emails_from_folder(folder_name):
         
         # Schließe IMAP-Verbindung sicher
         try:
-            mail_conn.close()
+            if owns_connection:
+                _imap_logout(mail_conn)
         except Exception as close_error:
             logging.debug(f"Fehler beim Schließen der IMAP-Verbindung: {close_error}")
-        try:
-            mail_conn.logout()
-        except Exception as logout_error:
-            logging.debug(f"Fehler beim Logout von IMAP: {logout_error}")
         
         # Navbar-/Dashboard-Badge: immer aktuellen Unread-Stand pushen
         try:
@@ -2142,16 +2182,9 @@ def sync_emails_from_folder(folder_name):
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
         
-        # Stelle sicher, dass IMAP-Verbindung geschlossen wird
-        if mail_conn:
-            try:
-                mail_conn.close()
-            except:
-                pass
-            try:
-                mail_conn.logout()
-            except:
-                pass
+        # Stelle sicher, dass IMAP-Verbindung geschlossen wird (nur eigene)
+        if owns_connection:
+            _imap_logout(mail_conn)
         
         return False, f"E-Mail-Sync-Fehler für Ordner '{folder_name}': {str(e)}"
 
@@ -2210,6 +2243,7 @@ def sync_emails_from_server():
     print("E-Mail-Synchronisation wird gestartet")
     logging.info("E-Mail-Synchronisation wird gestartet")
     
+    shared_conn = None
     try:
         # Frühzeitiger Abbruch bei fehlender/platzhalterhafter IMAP-Konfiguration,
         # um wiederholte Fehler pro Ordner zu vermeiden.
@@ -2238,6 +2272,13 @@ def sync_emails_from_server():
         
         logging.info(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
         
+        # Eine IMAP-Session für alle Ordner (weniger Logins, schneller, Provider-freundlicher)
+        shared_conn = connect_imap('INBOX')
+        if not shared_conn:
+            message = "IMAP-Verbindung fehlgeschlagen - Synchronisation abgebrochen"
+            logging.error(message)
+            return False, message
+
         total_synced = 0
         total_new = 0
         folder_results = []
@@ -2246,8 +2287,9 @@ def sync_emails_from_server():
         
         for (folder_name, display_name) in folder_rows:
             try:
+                heartbeat_email_sync_lock()
                 logging.info(f"Syncing folder: '{folder_name}' ({display_name})")
-                success, message = sync_emails_from_folder(folder_name)
+                success, message = sync_emails_from_folder(folder_name, mail_conn=shared_conn)
                 if success:
                     successful_folders += 1
                     import re
@@ -2298,6 +2340,9 @@ def sync_emails_from_server():
         logging.error(f"Traceback: {traceback.format_exc()}")
         print(f"E-Mail-Synchronisation Fehler: {e}")
         return False, f"Kritischer Fehler: {str(e)}"
+    finally:
+        if shared_conn is not None:
+            _imap_logout(shared_conn)
 
 
 def check_email_permission(permission_type='read'):
@@ -3763,8 +3808,8 @@ def sync_emails():
     
     if not is_async_request:
         try:
-            # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
-            with acquire_email_sync_lock(timeout=60) as acquired:
+            # Non-blocking: nicht hinter anderem Worker/Sync warten
+            with acquire_email_sync_lock(timeout=0) as acquired:
                 if acquired:
                     if current_folder:
                         success, message = sync_emails_from_folder(current_folder)
@@ -3811,8 +3856,8 @@ def sync_emails():
             emit_status('started', start_msg, 'info', shouldRefresh=False)
             
             try:
-                # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
-                with acquire_email_sync_lock(timeout=60) as acquired:
+                # Non-blocking Lock — sofort „läuft bereits“ statt 60s warten
+                with acquire_email_sync_lock(timeout=0) as acquired:
                     if acquired:
                         if current_folder:
                             print(f"E-Mail-Synchronisation wird gestartet (Ordner: {folder_label or current_folder})")
@@ -4611,12 +4656,10 @@ def email_sync_scheduler(app):
         lock_acquired = False
         try:
             with app.app_context():
-                # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
-                from app.utils.lock_manager import acquire_email_sync_lock
-                with acquire_email_sync_lock(timeout=10) as acquired:  # Reduziertes Timeout, damit nicht so lange gewartet wird
+                # Non-blocking: Leader-Thread wartet nicht hinter manuellem Sync
+                with acquire_email_sync_lock(timeout=0) as acquired:
                     lock_acquired = acquired
                     if acquired:
-                        # sync_emails_from_server() gibt bereits die Start/End-Meldungen aus
                         try:
                             success, message = sync_emails_from_server()
                             if success:
@@ -4647,10 +4690,25 @@ def email_sync_scheduler(app):
 sync_thread = None
 _sync_started = False
 _sync_lock = threading.Lock()
+_email_sync_leader = None
+_leader_heartbeat_stop = threading.Event()
+
+
+def _leader_heartbeat_loop():
+    """Hält email_sync_leader-Lock frisch (Stale-Detection)."""
+    while not _leader_heartbeat_stop.wait(30):
+        held = _email_sync_leader
+        if held is None:
+            break
+        try:
+            held.heartbeat()
+        except Exception as e:
+            logging.debug("Leader-Heartbeat fehlgeschlagen: %s", e)
+
 
 def start_email_sync(app):
-    """Start the background email synchronization thread."""
-    global sync_thread, _sync_started
+    """Start the background email synchronization thread (nur ein Worker = Leader)."""
+    global sync_thread, _sync_started, _email_sync_leader
     
     # Prüfe zuerst, ob bereits ein Thread mit diesem Namen läuft (auch nach Reload)
     existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
@@ -4659,20 +4717,8 @@ def start_email_sync(app):
         logging.debug(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
         return
     
-    # Prüfe auch, ob bereits eine Lock-Datei existiert (zusätzliche Sicherheit)
-    try:
-        from pathlib import Path
-        instance_path = app.instance_path
-        lock_file_path = Path(instance_path) / 'locks' / 'email_sync.lock'
-        if lock_file_path.exists():
-            # Prüfe, ob Lock-Datei noch aktiv ist (jünger als 5 Minuten)
-            file_age = time.time() - lock_file_path.stat().st_mtime
-            if file_age < 300:  # 5 Minuten
-                print("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
-                logging.debug("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
-                return
-    except Exception as e:
-        logging.debug(f"Konnte Lock-Datei nicht prüfen: {e}")
+    from pathlib import Path
+    lock_dir = str(Path(app.instance_path) / 'locks')
     
     # Verwende Lock, um Thread-Erstellung zu synchronisieren
     with _sync_lock:
@@ -4683,14 +4729,29 @@ def start_email_sync(app):
             logging.debug(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
             return
         
-        # Prüfe auch das Flag (für den Fall, dass Thread noch nicht vollständig gestartet ist)
         if _sync_started:
             print("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
             logging.debug("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
             return
+
+        # Leader-Election über Worker-Grenzen: nur ein Gunicorn-Worker startet den Scheduler
+        leader = try_acquire_email_sync_leader(lock_dir=lock_dir)
+        if leader is None:
+            print("E-Mail-Sync-Leader bereits von anderem Worker gehalten — kein Sync-Thread in diesem Worker")
+            logging.info("E-Mail-Sync-Leader bereits aktiv — dieser Worker startet keinen Scheduler")
+            return
+
+        _email_sync_leader = leader
+        _leader_heartbeat_stop.clear()
+        hb_thread = threading.Thread(
+            target=_leader_heartbeat_loop,
+            daemon=True,
+            name="email-sync-leader-hb",
+        )
+        hb_thread.start()
         
         _sync_started = True
         sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True, name="email-sync-scheduler")
         sync_thread.start()
-        print("E-Mail Auto-Sync Thread gestartet")
-        logging.debug("E-Mail Auto-Sync gestartet (alle 15 Minuten)")
+        print("E-Mail Auto-Sync Thread gestartet (dieser Worker ist Sync-Leader)")
+        logging.info("E-Mail Auto-Sync gestartet (Leader, alle 15 Minuten)")
