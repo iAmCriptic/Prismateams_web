@@ -188,18 +188,24 @@ check_ubuntu() {
         exit 1
     fi
 
-    if [ "$VERSION_ID" != "24.04" ]; then
-        log_warning "Dieses Skript wurde für Ubuntu 24.04 entwickelt. Aktuelle Version: $VERSION_ID"
-        if is_yes "$NON_INTERACTIVE"; then
-            log_warning "Non-interactive: fahre trotzdem fort"
-        else
-            read -r -p "Fortfahren? (j/n): " -n 1 REPLY
-            echo
-            if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
-                exit 1
+    # Unterstützte LTS-Batches: 24.04 (Noble) und 26.04 (Resolute)
+    case "$VERSION_ID" in
+        24.04|26.04)
+            log_info "Ubuntu $VERSION_ID erkannt (unterstützt)"
+            ;;
+        *)
+            log_warning "Dieses Skript ist für Ubuntu 24.04 / 26.04 LTS freigegeben. Aktuelle Version: $VERSION_ID"
+            if is_yes "$NON_INTERACTIVE"; then
+                log_warning "Non-interactive: fahre trotzdem fort"
+            else
+                read -r -p "Fortfahren? (j/n): " -n 1 REPLY
+                echo
+                if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
+                    exit 1
+                fi
             fi
-        fi
-    fi
+            ;;
+    esac
 }
 
 validate_gunicorn_port() {

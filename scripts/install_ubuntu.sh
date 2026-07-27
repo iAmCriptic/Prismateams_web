@@ -79,7 +79,7 @@ main() {
 
     echo "=========================================="
     echo "Team Portal - Automatische Installation"
-    echo "Ubuntu 24.04 (modular)"
+    echo "Ubuntu 24.04 / 26.04 LTS (modular)"
     echo "=========================================="
     echo
 

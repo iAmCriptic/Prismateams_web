@@ -1,7 +1,7 @@
 #!/bin/bash
 # Step-Registry: Status ok | skipped | failed | aborted
 
-# Parallel arrays (bash 4+ / Ubuntu 24.04)
+# Parallel arrays (bash 4+ / Ubuntu 24.04 & 26.04)
 STEP_IDS=()
 STEP_TITLES=()
 STEP_STATUSES=()

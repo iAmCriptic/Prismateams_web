@@ -7,7 +7,8 @@
 <p align="center">
   <strong>Dokumentation · Version 3.0.0</strong><br>
   <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
-  <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu">
+  <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 24.04">
+  <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 26.04">
   <img src="https://img.shields.io/badge/Installer-ready-22c55e?style=flat-square" alt="Installer ready">
 </p>
 
@@ -21,16 +22,29 @@
 ---
 
 > **Einsatzbereit**  
-> Der modulare Ubuntu-Installer (`scripts/install_ubuntu.sh` + `scripts/install_ubuntu/*.sh`) ist für **Produktion freigegeben**. Empfohlener Weg auf Ubuntu Server 24.04. Manuelle Schritte nur bei Sonderfällen: [INSTALLATION.md](INSTALLATION.md).
+> Der modulare Ubuntu-Installer (`scripts/install_ubuntu.sh` + `scripts/install_ubuntu/*.sh`) ist für **Produktion freigegeben**. Empfohlener Weg auf Ubuntu Server **24.04** und **26.04** LTS. Manuelle Schritte nur bei Sonderfällen: [INSTALLATION.md](INSTALLATION.md).
 
-Für Ubuntu Server 24.04:
+Skript-Pfad (beide Batches gleich):
 
 - Entry: [`scripts/install_ubuntu.sh`](../scripts/install_ubuntu.sh)
 - Module: [`scripts/install_ubuntu/`](../scripts/install_ubuntu/)
 
+## Unterstützte Ubuntu-Batches
+
+Der Installer erkennt `/etc/os-release` und akzeptiert beide LTS-Batches ohne Extra-Prompt:
+
+| Batch | Version | Codename | Status |
+|-------|---------|----------|--------|
+| **Batch 1** | Ubuntu **24.04** LTS | Noble Numbat | freigegeben |
+| **Batch 2** | Ubuntu **26.04** LTS | Resolute Raccoon | freigegeben |
+
+Andere Ubuntu-Versionen: Warnung + Nachfrage (im Non-Interactive-Modus: Warnung, dann weiter). Nicht-Ubuntu: Abbruch.
+
+Beide Batches nutzen denselben modularen Ablauf (Pakete, MySQL, Redis, Docker/OnlyOffice, venv, Nginx/Apache, Gunicorn). Kein separates Skript nötig.
+
 ## Voraussetzungen
 
-- Ubuntu 24.04 LTS (oder kompatibel)
+- Ubuntu **24.04** LTS oder **26.04** LTS
 - Root-Zugriff (`sudo`)
 - Internet-Verbindung
 - Mindestens 4 GB RAM empfohlen (für OnlyOffice)
@@ -174,5 +188,5 @@ Weitere Schritte: [WARTUNG.md](WARTUNG.md) · Probleme: [ERROR_HANDLING.md](ERRO
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0 · Modularer Ubuntu-Installer · einsatzbereit</sub>
+  <sub>Prismateams 3.0.0 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
 </p>
