@@ -572,9 +572,10 @@
 }
 
 .contacts-card:has(.dropdown.show),
-.mod-list-row:has(.dropdown.show) {
+.mod-list-row:has(.dropdown.show),
+#gridViewContainer > .row > [class*="col-"]:has(.dropdown.show) {
     position: relative;
-    z-index: 40;
+    z-index: 1100;
 }
 
 .contacts-avatar-main {

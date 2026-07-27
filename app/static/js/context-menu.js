@@ -6,7 +6,8 @@
     'use strict';
 
     const DESKTOP_MQ = window.matchMedia('(pointer: fine) and (min-width: 768px)');
-    const MOBILE_MQ = window.matchMedia('(max-width: 767.98px)');
+    /* Bis lg: Grid hat ≥2 Spalten — Sheet statt In-Card-Dropdown (sonst überdecken Nachbarn) */
+    const MOBILE_MQ = window.matchMedia('(max-width: 991.98px)');
 
     function i18n() {
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
@@ -304,8 +305,16 @@
         if (toggle.closest('[data-pt-no-action-sheet]')) return false;
         if (toggle.hasAttribute('data-mobile-modal') || toggle.closest('[data-mobile-modal]')) return false;
         if (toggle.closest('.dropdown-submenu')) return false;
-        if (toggle.closest('#mobileNav, #desktopSidebar, .navbar, .offcanvas')) return false;
-        if (toggle.closest('#newDropdown, .files-sidebar-new-menu, .files-mobile-new-menu')) return false;
+        if (toggle.closest('#mobileNav, #desktopSidebar, .navbar')) return false;
+        // Offcanvas-Inhalte: Ordner-⋮ sind Edit-Buttons ohne Dropdown — nicht abfangen
+        if (toggle.closest('.offcanvas') && !toggle.closest('.dropdown')) return false;
+        if (
+            toggle.closest(
+                '#newDropdown, #newButtonDropdownSidebar, #newButtonDropdownMobile, .files-sidebar-new-menu, .files-mobile-new-menu, .mod-sidebar-new-wrap, .credentials-sidebar-new-menu, .manuals-sidebar-new-menu'
+            )
+        ) {
+            return false;
+        }
         if (toggle.id === 'newButton' || toggle.closest('#newButton')) return false;
         if (!toggle.querySelector('.bi-three-dots-vertical, .bi-three-dots')) return false;
         const label = (toggle.textContent || '').replace(/\s+/g, ' ').trim();
@@ -313,35 +322,69 @@
     }
 
     function findKebabSourceMenu(toggle) {
+        // Template-Quellen (Kontakte / Passwörter / Anleitungen / Inventar) bevorzugen
+        const zone = toggle.closest('[data-context-zone][data-context-menu="template"]');
+        if (zone) {
+            const id = zone.getAttribute('data-context-menu-id');
+            let source = id ? document.getElementById(id) : null;
+            if (!source) source = zone.querySelector('.context-menu-source');
+            if (source) {
+                const tmpl =
+                    source.querySelector('.dropdown-menu') ||
+                    (source.classList.contains('dropdown-menu') ? source : null);
+                if (tmpl && tmpl.children.length) return tmpl;
+            }
+        }
+
         const dropdown = toggle.closest('.dropdown');
         if (!dropdown) return null;
-        return (
-            dropdown.querySelector(':scope > .dropdown-menu') ||
-            dropdown.querySelector('.dropdown-menu')
-        );
+        const menu =
+            dropdown.querySelector(':scope > .dropdown-menu') || dropdown.querySelector('.dropdown-menu');
+        return menu && menu.children.length ? menu : null;
+    }
+
+    function openKebabActionSheet(toggle, e) {
+        const sourceMenu = findKebabSourceMenu(toggle);
+        if (!sourceMenu) return false;
+
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        }
+
+        toggle.setAttribute('aria-expanded', 'false');
+        const dropWrap = toggle.closest('.dropdown');
+        if (dropWrap) {
+            dropWrap.classList.remove('show');
+            const localMenu = dropWrap.querySelector('.dropdown-menu');
+            if (localMenu) localMenu.classList.remove('show');
+        }
+
+        showMobileActionSheet(sourceMenu);
+        return true;
     }
 
     function onMobileKebabClick(e) {
         if (!isMobileSheetEnabled()) return;
         if (e.button != null && e.button !== 0) return;
 
-        const toggle = e.target.closest('[data-bs-toggle="dropdown"], button.dropdown-toggle, .dropdown > [data-bs-toggle="dropdown"]');
+        const toggle = e.target.closest(
+            '[data-bs-toggle="dropdown"], button.dropdown-toggle, .dropdown > [data-bs-toggle="dropdown"]'
+        );
         if (!toggle || !isKebabToggle(toggle)) return;
 
-        const sourceMenu = findKebabSourceMenu(toggle);
-        if (!sourceMenu || !sourceMenu.children.length) return;
+        openKebabActionSheet(toggle, e);
+    }
 
+    /** Fallback: wenn Bootstrap trotzdem öffnen will → Sheet statt In-Card-Dropdown */
+    function onBootstrapDropdownShow(e) {
+        if (!isMobileSheetEnabled()) return;
+        const toggle = e.relatedTarget || e.target;
+        if (!toggle || !isKebabToggle(toggle)) return;
+        if (!findKebabSourceMenu(toggle)) return;
         e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        // Bootstrap-Zustand am Original nicht offen lassen
-        toggle.setAttribute('aria-expanded', 'false');
-        sourceMenu.classList.remove('show');
-        const dropWrap = toggle.closest('.dropdown');
-        if (dropWrap) dropWrap.classList.remove('show');
-
-        showMobileActionSheet(sourceMenu);
+        openKebabActionSheet(toggle, null);
     }
 
     function buildQuillMenu() {
@@ -442,6 +485,7 @@
     document.addEventListener('contextmenu', onContextMenu, true);
     // Capture: vor Bootstrap, kein touchend+click-Doppel-Toggle
     document.addEventListener('click', onMobileKebabClick, true);
+    document.addEventListener('show.bs.dropdown', onBootstrapDropdownShow, true);
 
     document.addEventListener('click', (e) => {
         if (!activeMenu) return;

@@ -229,13 +229,27 @@ body.files-dnd-dragging .folder-item {
     transform: translateY(0);
 }
 
-/* Mobile: Sicherstellen dass Cards keinen hohen z-index haben */
-@media (max-width: 767.98px) {
-    .card.file-item, .card.folder-item {
-        z-index: 1 !important;
+/* Mobile: Cards flach halten — außer wenn ⋮ offen (sonst deckt nächste Grid-Zelle das Menü) */
+@media (max-width: 991.98px) {
+    .card.file-item,
+    .card.folder-item {
+        z-index: 1;
         transform: none !important;
         opacity: 1 !important;
         will-change: auto !important;
+    }
+
+    #gridView > [data-item-wrapper]:has(.dropdown.show),
+    #foldersGridView > [data-item-wrapper]:has(.dropdown.show),
+    #gridView > [class*="col-"]:has(.dropdown.show),
+    #foldersGridView > [class*="col-"]:has(.dropdown.show) {
+        position: relative;
+        z-index: 1100 !important;
+    }
+
+    .card.file-item:has(.dropdown.show),
+    .card.folder-item:has(.dropdown.show) {
+        z-index: 1100 !important;
     }
 }
 
@@ -1866,20 +1880,28 @@ body:has(.files-shell) {
     z-index: 5;
 }
 
-/* Offenes Menü deckt 3-Punkte der nächsten Zeilen/Karten ab */
+/* Offenes Menü über Nachbar-Karten/Zeilen (Grid-Spalte + Card anheben) */
+#gridView > [data-item-wrapper]:has(.dropdown.show),
+#foldersGridView > [data-item-wrapper]:has(.dropdown.show),
+#gridView > [class*="col-"]:has(.dropdown.show),
+#foldersGridView > [class*="col-"]:has(.dropdown.show) {
+    position: relative;
+    z-index: 1100;
+}
+
 .card.folder-item:has(.dropdown.show),
 .card.file-item:has(.dropdown.show),
 .card.folder-item .dropdown.show,
 .card.file-item .dropdown.show,
 .mod-list-actions .dropdown.show {
-    z-index: 40;
+    z-index: 1100;
 }
 
 .card.folder-item .dropdown-menu.show,
 .card.file-item .dropdown-menu.show,
 .mod-list-actions .dropdown-menu.show,
 .files-dropdown-menu.show {
-    z-index: 1080;
+    z-index: 1110;
     background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
 }
 

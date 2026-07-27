@@ -515,17 +515,26 @@ a.mod-nav-link.active,
 .mod-list-row:has(.dropdown.show),
 .mod-list-row:has(.dropdown-menu.show) {
     position: relative;
-    z-index: 40;
+    z-index: 1100;
 }
 
 .mod-list-actions:has(.dropdown.show),
 .mod-list-actions > .dropdown.show {
-    z-index: 40;
+    z-index: 1100;
 }
 
 .mod-list-actions > .dropdown .btn-link {
     opacity: 1;
     visibility: visible;
+}
+
+/* Offenes ⋮-Menü über Nachbar-Karten (alle Module) */
+[class*="col-"]:has(> .card .dropdown.show),
+[class*="col-"]:has(.dropdown.show),
+.card:has(> .card-body .dropdown.show),
+.card:has(.dropdown.show) {
+    position: relative;
+    z-index: 1100;
 }
 
 .mod-list-hover-actions .btn-link:hover,

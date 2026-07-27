@@ -1,6 +1,6 @@
 .pt-context-menu {
     position: fixed;
-    z-index: 1080;
+    z-index: 20050;
     min-width: 12rem;
     max-width: min(22rem, calc(100% - 1rem));
     padding: 0;
@@ -99,7 +99,7 @@
 .pt-action-sheet-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1075;
+    z-index: 20040;
     background: rgba(0, 0, 0, 0.45);
     -webkit-tap-highlight-color: transparent;
 }
@@ -108,55 +108,72 @@ body.pt-action-sheet-open {
     overflow: hidden;
 }
 
-.pt-context-menu.pt-context-menu--sheet {
-    left: 10px;
-    right: 10px;
-    bottom: 80px;
-    top: auto;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    z-index: 1080;
+/* ID-Selektor: schlägt Modul-CSS (#prismateams-context-menu .xxx-actions-menu) */
+#prismateams-context-menu.pt-context-menu--sheet {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 80px !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    z-index: 20050 !important;
     animation: ptSheetSlideUp 0.28s ease-out;
 }
 
-.pt-context-menu.pt-context-menu--sheet .dropdown-menu {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    max-height: calc(100vh - 160px);
-    padding: 6px 0;
-    overflow-y: auto;
+#prismateams-context-menu.pt-context-menu--sheet > .dropdown-menu,
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-menu {
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    inset: auto !important;
+    transform: none !important;
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    max-height: calc(100vh - 160px) !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 6px 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
+    background: var(--bs-dropdown-bg, var(--bs-body-bg, #fff)) !important;
 }
 
-.pt-context-menu.pt-context-menu--sheet .dropdown-item {
-    border-radius: 0;
-    padding: 12px 16px;
-    font-size: 15px;
-    min-height: 48px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-radius: 0 !important;
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    font-weight: 500;
 }
 
-.pt-context-menu.pt-context-menu--sheet .dropdown-item:last-child {
-    border-bottom: none;
+#prismateams-context-menu.pt-context-menu--sheet li:last-child > .dropdown-item,
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item:last-child {
+    border-bottom: none !important;
 }
 
-.pt-context-menu.pt-context-menu--sheet .dropdown-item i {
-    margin-right: 12px;
-    width: 20px;
-    font-size: 18px;
-    text-align: center;
-    flex-shrink: 0;
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-item i {
+    margin-right: 12px !important;
+    width: 20px !important;
+    font-size: 18px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
 }
 
-.pt-context-menu.pt-context-menu--sheet .dropdown-divider {
-    margin: 0.25rem 0;
+#prismateams-context-menu.pt-context-menu--sheet .dropdown-divider {
+    margin: 0.25rem 0 !important;
     opacity: 0.35;
 }
 
-[data-bs-theme="dark"] .pt-context-menu.pt-context-menu--sheet .dropdown-item {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
+[data-bs-theme="dark"] #prismateams-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 @keyframes ptSheetSlideUp {
@@ -170,14 +187,17 @@ body.pt-action-sheet-open {
     }
 }
 
-/* Größere Touch-Targets für ⋮-Buttons auf Mobile */
-@media (max-width: 767.98px) {
+/* Größere Touch-Targets für ⋮-Buttons auf Mobile/Tablet */
+@media (max-width: 991.98px) {
     .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical),
     .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots),
     .dropdown > .dropdown-toggle:has(.bi-three-dots-vertical),
     .dropdown > .dropdown-toggle:has(.bi-three-dots),
     .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"],
     .wiki-card-menu > [data-bs-toggle="dropdown"],
+    .contacts-card-menu > [data-bs-toggle="dropdown"],
+    .credentials-card-menu > [data-bs-toggle="dropdown"],
+    .manuals-card-menu > [data-bs-toggle="dropdown"],
     .file-item .dropdown > [data-bs-toggle="dropdown"],
     .folder-item .dropdown > [data-bs-toggle="dropdown"] {
         width: 2.75rem;
@@ -197,6 +217,9 @@ body.pt-action-sheet-open {
     .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
     .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
     .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    .contacts-card-menu > [data-bs-toggle="dropdown"] i,
+    .credentials-card-menu > [data-bs-toggle="dropdown"] i,
+    .manuals-card-menu > [data-bs-toggle="dropdown"] i,
     .file-item .dropdown > [data-bs-toggle="dropdown"] i,
     .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
         font-size: 1.25rem;
@@ -208,6 +231,9 @@ body.pt-action-sheet-open {
     [data-bs-theme="dark"] .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
     [data-bs-theme="dark"] .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
     [data-bs-theme="dark"] .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .contacts-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .credentials-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .manuals-card-menu > [data-bs-toggle="dropdown"] i,
     [data-bs-theme="dark"] .file-item .dropdown > [data-bs-toggle="dropdown"] i,
     [data-bs-theme="dark"] .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
         color: #adb5bd;
