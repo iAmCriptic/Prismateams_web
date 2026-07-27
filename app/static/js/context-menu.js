@@ -1,11 +1,12 @@
 /**
- * Desktop custom context menu – mirrors always-visible ⋮ dropdowns.
- * Enabled only for fine pointer + ≥768px; touch/mobile uses the ⋮ menus instead.
+ * Desktop: Rechtsklick-Kontextmenü (fine pointer + ≥768px).
+ * Mobile: ⋮-Kebab als Bottom-Sheet (Action Sheet) überall.
  */
 (function () {
     'use strict';
 
     const DESKTOP_MQ = window.matchMedia('(pointer: fine) and (min-width: 768px)');
+    const MOBILE_MQ = window.matchMedia('(max-width: 767.98px)');
 
     function i18n() {
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
@@ -27,6 +28,7 @@
     }
 
     let activeMenu = null;
+    let activeBackdrop = null;
     let quillInstance = null;
     const dynamicMatchers = [];
 
@@ -34,11 +36,20 @@
         return DESKTOP_MQ.matches;
     }
 
+    function isMobileSheetEnabled() {
+        return MOBILE_MQ.matches;
+    }
+
     function closeMenu() {
         if (activeMenu) {
             activeMenu.remove();
             activeMenu = null;
         }
+        if (activeBackdrop) {
+            activeBackdrop.remove();
+            activeBackdrop = null;
+        }
+        document.body.classList.remove('pt-action-sheet-open');
     }
 
     /** Shift/Ctrl/Cmd + Rechtsklick → natives Browser-Menü (kein Custom-Menü). */
@@ -232,24 +243,33 @@
                 e.preventDefault();
                 navigator.clipboard.writeText(copyText).catch(() => {});
             }
-            if (!item.hasAttribute('data-pt-trigger-click')) {
-                setTimeout(closeMenu, 0);
+            // Confirm-Dialog braucht den Button noch im DOM (app.js re-click)
+            if (
+                item.hasAttribute('data-confirm-delete') ||
+                item.hasAttribute('data-pt-confirm') ||
+                item.hasAttribute('data-pt-trigger-click')
+            ) {
+                return;
             }
+            setTimeout(closeMenu, 0);
         });
+    }
+
+    function createMenuContainer(menu, extraClass) {
+        const container = document.createElement(String.fromCharCode(100, 105, 118));
+        container.id = 'prismateams-context-menu';
+        container.className = 'pt-context-menu' + (extraClass ? ' ' + extraClass : '');
+        container.setAttribute('role', 'menu');
+        container.appendChild(menu);
+        document.body.appendChild(container);
+        wireMenuInteractions(menu, container);
+        return container;
     }
 
     function showFloatingMenu(clientX, clientY, menu) {
         closeMenu();
 
-        const container = document.createElement(String.fromCharCode(100, 105, 118));
-        container.id = 'prismateams-context-menu';
-        container.className = 'pt-context-menu';
-        container.setAttribute('role', 'menu');
-        container.appendChild(menu);
-        document.body.appendChild(container);
-
-        wireMenuInteractions(menu, container);
-
+        const container = createMenuContainer(menu);
         const maxW = container.offsetWidth;
         const maxH = container.offsetHeight;
         let left = clientX;
@@ -262,6 +282,66 @@
         container.style.top = top + 'px';
 
         activeMenu = container;
+    }
+
+    function showMobileActionSheet(sourceMenu) {
+        closeMenu();
+
+        const backdrop = document.createElement(String.fromCharCode(100, 105, 118));
+        backdrop.className = 'pt-action-sheet-backdrop';
+        backdrop.addEventListener('click', closeMenu);
+        document.body.appendChild(backdrop);
+        activeBackdrop = backdrop;
+
+        const menu = prepareClonedMenu(sourceMenu);
+        const container = createMenuContainer(menu, 'pt-context-menu--sheet');
+        document.body.classList.add('pt-action-sheet-open');
+        activeMenu = container;
+    }
+
+    function isKebabToggle(toggle) {
+        if (!toggle || !toggle.closest) return false;
+        if (toggle.closest('[data-pt-no-action-sheet]')) return false;
+        if (toggle.hasAttribute('data-mobile-modal') || toggle.closest('[data-mobile-modal]')) return false;
+        if (toggle.closest('.dropdown-submenu')) return false;
+        if (toggle.closest('#mobileNav, #desktopSidebar, .navbar, .offcanvas')) return false;
+        if (toggle.closest('#newDropdown, .files-sidebar-new-menu, .files-mobile-new-menu')) return false;
+        if (toggle.id === 'newButton' || toggle.closest('#newButton')) return false;
+        if (!toggle.querySelector('.bi-three-dots-vertical, .bi-three-dots')) return false;
+        const label = (toggle.textContent || '').replace(/\s+/g, ' ').trim();
+        return label.length <= 2;
+    }
+
+    function findKebabSourceMenu(toggle) {
+        const dropdown = toggle.closest('.dropdown');
+        if (!dropdown) return null;
+        return (
+            dropdown.querySelector(':scope > .dropdown-menu') ||
+            dropdown.querySelector('.dropdown-menu')
+        );
+    }
+
+    function onMobileKebabClick(e) {
+        if (!isMobileSheetEnabled()) return;
+        if (e.button != null && e.button !== 0) return;
+
+        const toggle = e.target.closest('[data-bs-toggle="dropdown"], button.dropdown-toggle, .dropdown > [data-bs-toggle="dropdown"]');
+        if (!toggle || !isKebabToggle(toggle)) return;
+
+        const sourceMenu = findKebabSourceMenu(toggle);
+        if (!sourceMenu || !sourceMenu.children.length) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // Bootstrap-Zustand am Original nicht offen lassen
+        toggle.setAttribute('aria-expanded', 'false');
+        sourceMenu.classList.remove('show');
+        const dropWrap = toggle.closest('.dropdown');
+        if (dropWrap) dropWrap.classList.remove('show');
+
+        showMobileActionSheet(sourceMenu);
     }
 
     function buildQuillMenu() {
@@ -360,9 +440,15 @@
     }
 
     document.addEventListener('contextmenu', onContextMenu, true);
+    // Capture: vor Bootstrap, kein touchend+click-Doppel-Toggle
+    document.addEventListener('click', onMobileKebabClick, true);
 
     document.addEventListener('click', (e) => {
-        if (activeMenu && !activeMenu.contains(e.target)) closeMenu();
+        if (!activeMenu) return;
+        if (activeMenu.contains(e.target)) return;
+        if (activeBackdrop && activeBackdrop.contains(e.target)) return;
+        if (activeMenu.classList.contains('pt-context-menu--sheet')) return;
+        closeMenu();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -370,9 +456,17 @@
     });
 
     window.addEventListener('resize', closeMenu);
-    document.addEventListener('scroll', closeMenu, true);
+    document.addEventListener(
+        'scroll',
+        () => {
+            if (activeMenu && activeMenu.classList.contains('pt-context-menu--sheet')) return;
+            closeMenu();
+        },
+        true
+    );
 
     DESKTOP_MQ.addEventListener('change', () => closeMenu());
+    MOBILE_MQ.addEventListener('change', () => closeMenu());
 
     window.PrismateamsContextMenu = {
         setQuill(q) {
@@ -380,6 +474,8 @@
         },
         close: closeMenu,
         isEnabled,
+        isMobileSheetEnabled,
+        showMobileActionSheet,
         registerMatcher(matchFn, buildMenuFn) {
             if (typeof matchFn === 'function' && typeof buildMenuFn === 'function') {
                 dynamicMatchers.push({ match: matchFn, build: buildMenuFn });

@@ -29,6 +29,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    cursor: pointer;
 }
 
 .pt-context-menu .dropdown-item:hover,
@@ -90,10 +91,125 @@
     }
 }
 
-.pt-context-menu .dropdown-item {
-    cursor: pointer;
-}
-
 .pt-context-menu .email-color-picker {
     padding: 0.25rem 0.75rem;
+}
+
+/* ——— Mobile ⋮ Action Sheet (global) ——— */
+.pt-action-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1075;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-tap-highlight-color: transparent;
+}
+
+body.pt-action-sheet-open {
+    overflow: hidden;
+}
+
+.pt-context-menu.pt-context-menu--sheet {
+    left: 10px;
+    right: 10px;
+    bottom: 80px;
+    top: auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    z-index: 1080;
+    animation: ptSheetSlideUp 0.28s ease-out;
+}
+
+.pt-context-menu.pt-context-menu--sheet .dropdown-menu {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-height: calc(100vh - 160px);
+    padding: 6px 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pt-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-radius: 0;
+    padding: 12px 16px;
+    font-size: 15px;
+    min-height: 48px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.pt-context-menu.pt-context-menu--sheet .dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.pt-context-menu.pt-context-menu--sheet .dropdown-item i {
+    margin-right: 12px;
+    width: 20px;
+    font-size: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pt-context-menu.pt-context-menu--sheet .dropdown-divider {
+    margin: 0.25rem 0;
+    opacity: 0.35;
+}
+
+[data-bs-theme="dark"] .pt-context-menu.pt-context-menu--sheet .dropdown-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes ptSheetSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Größere Touch-Targets für ⋮-Buttons auf Mobile */
+@media (max-width: 767.98px) {
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical),
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots),
+    .dropdown > .dropdown-toggle:has(.bi-three-dots-vertical),
+    .dropdown > .dropdown-toggle:has(.bi-three-dots),
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"],
+    .wiki-card-menu > [data-bs-toggle="dropdown"],
+    .file-item .dropdown > [data-bs-toggle="dropdown"],
+    .folder-item .dropdown > [data-bs-toggle="dropdown"] {
+        width: 2.75rem;
+        height: 2.75rem;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical) i,
+    .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
+    .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
+        font-size: 1.25rem;
+        color: #6c757d;
+        pointer-events: none;
+    }
+
+    [data-bs-theme="dark"] .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots-vertical) i,
+    [data-bs-theme="dark"] .dropdown > [data-bs-toggle="dropdown"]:has(.bi-three-dots) i,
+    [data-bs-theme="dark"] .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .folder-item .dropdown > [data-bs-toggle="dropdown"] i {
+        color: #adb5bd;
+    }
 }
