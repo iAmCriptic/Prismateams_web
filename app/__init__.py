@@ -385,6 +385,11 @@ def create_app(config_name='default'):
         if request.endpoint and request.endpoint.startswith('static'):
             return
 
+        # Setup-Wizard: Session-Tracking erst nach Abschluss erzwingen.
+        # Sonst landet man nach Admin-Anlage (login_user ohne session_id) sofort auf /login.
+        if request.endpoint and request.endpoint.startswith('setup.'):
+            return
+
         from datetime import datetime, timedelta
         from app.utils.session_manager import get_current_session, revoke_all_sessions
         from app.utils.common import portal_now_naive

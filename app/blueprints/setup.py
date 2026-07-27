@@ -546,7 +546,13 @@ def setup_step2():
 
             mark_setup_incomplete()
             db.session.commit()
+            # Wie beim normalen Login: Flask-Login + Portal-Session (session_id).
+            # Ohne create_session wirft ensure_portal_session_tracking den User
+            # beim Redirect auf Step 3 sofort wieder zum Login.
+            from app.utils.session_manager import create_session
             login_user(admin_user)
+            session['user_scope'] = 'portal'
+            create_session(admin_user.id)
             session['setup_in_progress'] = True
             session['setup_admin_email'] = email
             return redirect(url_for('setup.setup_step3'))
