@@ -302,6 +302,8 @@ REDIS_URL=redis://localhost:6379/0
 - **Uploads:** `UPLOAD_FOLDER` (Dateigrößenlimits werden in den Datei-Einstellungen verwaltet)
 - **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
+  - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
+  - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
 
 ### Schritt 8: Berechtigungen setzen
 

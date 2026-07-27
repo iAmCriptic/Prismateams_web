@@ -110,6 +110,13 @@ step_env() {
     [ -n "${FLASK_SECRET:-}" ] && set_env_var "SECRET_KEY" "$FLASK_SECRET" .env
     set_env_var "FLASK_ENV" "production" .env
     set_env_var "TIMEZONE" "${TIMEZONE:-Europe/Berlin}" .env
+    # Secure-Cookies nur bei HTTPS; sonst speichert der Browser die Session nicht
+    # und Setup/Login brechen nach Account-Erstellung ab.
+    if is_yes "${SETUP_SSL:-n}"; then
+        set_env_var "SESSION_COOKIE_SECURE" "True" .env
+    else
+        set_env_var "SESSION_COOKIE_SECURE" "False" .env
+    fi
 
     if [ -n "${DB_USER:-}" ] && [ -n "${DB_PASS:-}" ] && [ -n "${DB_NAME:-}" ]; then
         DB_PASS_URI=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")

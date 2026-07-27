@@ -39,6 +39,11 @@ write_install_report() {
         echo "Webserver: ${WEBSERVER_TYPE:-manuell} (Setup=${SETUP_WEBSERVER:-})"
         echo "Domain: ${DOMAIN:-}"
         echo "SSL: ${SETUP_SSL:-}"
+        if is_yes "${SETUP_SSL:-n}"; then
+            echo "SESSION_COOKIE_SECURE: True"
+        else
+            echo "SESSION_COOKIE_SECURE: False (HTTP – bei späteren HTTPS auf True setzen)"
+        fi
         echo "MySQL: ${SETUP_MYSQL:-}"
         echo "Redis: ${SETUP_REDIS:-}"
         echo "OnlyOffice: ${INSTALL_ONLYOFFICE:-}"
@@ -97,6 +102,13 @@ print_summary() {
         echo "Webserver: ${WEBSERVER_TYPE} (${DOMAIN})"
     else
         echo "Webserver: manuell"
+    fi
+    if is_yes "${SETUP_SSL:-n}"; then
+        echo "SSL / Cookies: HTTPS aktiv, SESSION_COOKIE_SECURE=True"
+    else
+        echo "SSL / Cookies: kein SSL → SESSION_COOKIE_SECURE=False in .env"
+        echo "  (Wichtig: bei HTTP muss das Flag False bleiben, sonst Login/Setup kaputt)"
+        echo "  Nach Let's Encrypt: SESSION_COOKIE_SECURE=True setzen und Service neu starten"
     fi
     echo
 

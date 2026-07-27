@@ -260,6 +260,26 @@ sudo docker stats excalidraw excalidraw-room
 - Mindestens 2 GB RAM
 - WebSocket-Support in Nginx (siehe [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren))
 
+## Session-Cookies (HTTP vs HTTPS)
+
+In Production steuert `SESSION_COOKIE_SECURE` in `.env`, ob der Browser Session-Cookies nur über HTTPS annimmt.
+
+| Zugriff | Empfohlener Wert |
+|---------|------------------|
+| `https://…` (Let's Encrypt / SSL) | `SESSION_COOKIE_SECURE=True` |
+| `http://…` (IP, Domain ohne SSL) | `SESSION_COOKIE_SECURE=False` |
+
+```bash
+# Wert prüfen / setzen
+grep SESSION_COOKIE_SECURE /var/www/teamportal/.env
+sudo nano /var/www/teamportal/.env
+sudo systemctl restart teamportal
+```
+
+Nach nachträglichem SSL (Certbot): Flag auf `True` setzen und Service neu starten. Sonst bleiben Cookies unsicher über HTTP nutzbar.
+
+**Stuck-Setup:** Wenn nach Admin-Anlage nur noch der Login erscheint — siehe [ERROR_HANDLING.md – Setup hängt](ERROR_HANDLING.md#setup-hängt-nach-account-erstellung-login-schleife).
+
 ## Bei Problemen
 
 1. Logs prüfen (siehe oben)

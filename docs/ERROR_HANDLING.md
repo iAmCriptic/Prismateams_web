@@ -242,6 +242,35 @@ sudo systemctl restart nginx
 
 4. **Firewall/Proxy:** WebSocket-Upgrades dürfen nicht blockiert werden (Cloudflare, Reverse-Proxy-Einstellungen prüfen).
 
+## Setup hängt nach Account-Erstellung (Login-Schleife)
+
+Symptom: Nach Setup-Schritt 2 (Admin-Account) landet man dauerhaft auf `/login` und kann sich nicht anmelden.
+
+**Ursache:** In Production ist `SESSION_COOKIE_SECURE=True`, der Server wird aber über HTTP erreicht. Der Browser verwirft den Session-Cookie.
+
+**Sofortmaßnahme (HTTP ohne SSL):**
+
+```bash
+cd /var/www/teamportal   # oder Ihr INSTALL_DIR
+# In .env setzen bzw. ergänzen:
+# SESSION_COOKIE_SECURE=False
+sudo nano .env
+sudo systemctl restart teamportal
+```
+
+**Wenn inzwischen HTTPS aktiv ist:** `SESSION_COOKIE_SECURE=True` belassen bzw. setzen und Service neu starten.
+
+**Setup-Flag prüfen** (falls Setup fälschlich als abgeschlossen gilt):
+
+```bash
+# MySQL-Beispiel – Key setup_completed in system_settings
+mysql -u ROOT_USER -p -e "SELECT * FROM teamportal.system_settings WHERE \`key\`='setup_completed';"
+# Bei value=true und unvollständigem Wizard:
+# UPDATE teamportal.system_settings SET value='false' WHERE \`key\`='setup_completed';
+```
+
+Danach `/setup` erneut öffnen bzw. mit dem angelegten Admin einloggen. Details: [WARTUNG.md – Session-Cookies](WARTUNG.md#session-cookies-http-vs-https).
+
 ## Support
 
 Bei anhaltenden Problemen:

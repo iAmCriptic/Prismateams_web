@@ -101,7 +101,9 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SECRET_KEY = os.environ.get('SECRET_KEY')
-    SESSION_COOKIE_SECURE = True
+    # Default True (HTTPS). Ohne SSL muss .env SESSION_COOKIE_SECURE=False setzen,
+    # sonst speichert der Browser Session-Cookies nicht und Login/Setup brechen.
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
 
 
 class TestingConfig(Config):
