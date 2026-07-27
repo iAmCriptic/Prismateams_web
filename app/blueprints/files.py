@@ -4938,109 +4938,107 @@ def share_onlyoffice_save(token, file_id):
     return jsonify({'success': True, 'message': 'File saved successfully'})
 
 
+def _onlyoffice_cors_response(payload, status_code=200):
+    """Return JSON response with ONLYOFFICE CORS headers."""
+    response = jsonify(payload)
+    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
+    if onlyoffice_url.startswith('http'):
+        from urllib.parse import urlparse
+        parsed = urlparse(onlyoffice_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response, status_code
+
+
+def _onlyoffice_validate_callback_payload():
+    """Validate ONLYOFFICE callback JWT and return signed payload."""
+    from app.utils.onlyoffice import verify_onlyoffice_callback_token
+
+    data = request.get_json()
+    if not data:
+        return None, _onlyoffice_cors_response({'error': 'No data received'}, 400)
+
+    ok, signed_payload, reason = verify_onlyoffice_callback_token(
+        data,
+        request.headers.get('Authorization', '')
+    )
+    if not ok:
+        logging.warning("ONLYOFFICE callback rejected: %s", reason)
+        return None, _onlyoffice_cors_response({'error': 'Unauthorized callback'}, 403)
+
+    payload = signed_payload if isinstance(signed_payload, dict) else data
+    return payload, None
+
+
+def _download_onlyoffice_saved_content(saved_file_url):
+    """Download saved content from ONLYOFFICE with SSRF safeguards."""
+    from app.utils.onlyoffice import is_onlyoffice_callback_download_url_allowed
+
+    is_allowed, reason = is_onlyoffice_callback_download_url_allowed(saved_file_url)
+    if not is_allowed:
+        logging.warning("ONLYOFFICE callback URL blocked (%s): %s", reason, saved_file_url)
+        return None
+
+    try:
+        response = requests.get(saved_file_url, timeout=15, allow_redirects=False)
+        if response.status_code != 200:
+            logging.warning("ONLYOFFICE callback download failed: status=%s", response.status_code)
+            return None
+        return response.content
+    except Exception as exc:
+        logging.error("ONLYOFFICE callback download error: %s", exc)
+        return None
+
+
 @files_bp.route('/onlyoffice-callback', methods=['POST', 'OPTIONS'])
 def onlyoffice_callback():
     """Handle callbacks from ONLYOFFICE Document Server."""
-    # Handle CORS preflight
     if request.method == 'OPTIONS':
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        response = jsonify({})
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
-    
-    # Check if ONLYOFFICE is enabled
+        return _onlyoffice_cors_response({})[0]
+
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
-    
+
     try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data received'}), 400
-        
+        data, error_response = _onlyoffice_validate_callback_payload()
+        if error_response:
+            return error_response
+
         status = data.get('status')
         key = data.get('key')
-        
         logging.info(f"ONLYOFFICE callback received - status: {status}, key: {key}")
-        
-        # Status values:
-        # 0 - document is being edited
-        # 1 - document is ready for saving (informational, don't save yet)
-        # 2 - document saving error has occurred
-        # 3 - document is closed with no changes
-        # 4 - document is being edited, but the current document state is saved (auto-save) - SAVE THIS for collaborative editing
-        # 6 - document is being edited, but the current document state is saved (force save) - SAVE THIS
-        # 7 - error has occurred while force saving the document
-        
-        # IMPORTANT: Save on status 6 (force save) and status 4 (auto-save)
-        # Status 4 enables collaborative editing without manual saving
-        # Status 1 is informational and should NOT trigger a save (would cause version conflicts)
-        # We save both status 4 and 6 to enable real-time collaborative editing
+
         if status in [4, 6]:
-            # Get file_id from callback URL parameter
             file_id = request.args.get('file_id')
-            
             if file_id:
                 try:
                     file_id = int(file_id)
                     file = File.query.get(file_id)
-                    
                     if file:
-                        # IMPORTANT: Prevent saving during initial load to avoid "Version wurde geändert" messages
-                        # Check if file was recently opened (within last 10 seconds)
-                        # This prevents callbacks during initial document load from causing version conflicts
                         time_since_update = (datetime.utcnow() - file.updated_at).total_seconds() if file.updated_at else 999
-                        
-                        # If file was updated very recently (less than 10 seconds ago), it might be from initial load
-                        # Only skip auto-save (status 4), but always allow force save (status 6)
+
                         if status == 4 and time_since_update < 10:
                             logging.info(f"ONLYOFFICE: Skipping auto-save for file {file_id} (recently updated, likely initial load)")
-                            # Still return success to OnlyOffice
-                            response = jsonify({'error': 0})
-                            onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-                            if onlyoffice_url.startswith('http'):
-                                from urllib.parse import urlparse
-                                parsed = urlparse(onlyoffice_url)
-                                origin = f"{parsed.scheme}://{parsed.netloc}"
-                                response.headers['Access-Control-Allow-Origin'] = origin
-                                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-                                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-                                response.headers['Access-Control-Allow-Credentials'] = 'true'
-                            return response
-                        
+                            return _onlyoffice_cors_response({'error': 0})[0]
+
                         saved_file_url = data.get('url')
-                        
                         if saved_file_url:
-                            # Download the saved file from ONLYOFFICE
-                            response = requests.get(saved_file_url)
-                            
-                            if response.status_code == 200:
-                                # Save new version
+                            saved_content = _download_onlyoffice_saved_content(saved_file_url)
+                            if saved_content:
                                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                                 filename = f"{timestamp}_{file.original_name}"
                                 filepath = os.path.join('uploads', 'files', filename)
-                                
                                 os.makedirs(os.path.dirname(filepath), exist_ok=True)
-                                
+
                                 with open(filepath, 'wb') as f:
-                                    f.write(response.content)
-                                
+                                    f.write(saved_content)
+
                                 absolute_filepath = os.path.abspath(filepath)
-                                
-                                # IMPORTANT: For collaborative editing, we need to be careful about version increments
-                                # Status 6 (force save) always increments version and creates version history
-                                # Status 4 (auto-save) should NOT increment version to avoid "Version wurde geändert" messages
-                                
+
                                 if status == 6:
-                                    # Force save: Create new version with history
-                                    # Save current version to history
                                     version = FileVersion(
                                         file_id=file.id,
                                         version_number=file.version_number,
@@ -5049,48 +5047,37 @@ def onlyoffice_callback():
                                         uploaded_by=file.uploaded_by
                                     )
                                     db.session.add(version)
-                                    
-                                    # Delete oldest version if needed
+
                                     versions = FileVersion.query.filter_by(file_id=file.id).order_by(
                                         FileVersion.version_number.desc()
                                     ).all()
-                                    
                                     if len(versions) >= MAX_FILE_VERSIONS:
                                         oldest = versions[-1]
                                         if os.path.exists(oldest.file_path):
                                             os.remove(oldest.file_path)
                                         db.session.delete(oldest)
-                                    
+
                                     file.file_path = absolute_filepath
                                     file.file_size = os.path.getsize(absolute_filepath)
                                     file.version_number += 1
                                     file.updated_at = datetime.utcnow()
-                                    
                                     db.session.commit()
-                                    
                                     logging.info(f"ONLYOFFICE: File {file_id} force saved (new version {file.version_number})")
                                 else:
-                                    # Auto-save (status 4): Update file in place without version increment
-                                    # This allows collaborative editing without "Version wurde geändert" messages
                                     old_file_path = file.file_path
                                     file.file_path = absolute_filepath
                                     file.file_size = os.path.getsize(absolute_filepath)
                                     file.updated_at = datetime.utcnow()
-                                    # Keep same version_number for auto-save
-                                    
                                     db.session.commit()
-                                    
-                                    # Delete old file if it's different (but keep versions)
+
                                     if old_file_path != absolute_filepath and os.path.exists(old_file_path):
-                                        # Only delete if it's not a version file
                                         try:
                                             os.remove(old_file_path)
                                         except Exception as e:
                                             logging.warning(f"Could not delete old file {old_file_path}: {e}")
-                                    
+
                                     logging.info(f"ONLYOFFICE: File {file_id} auto-saved (version {file.version_number} updated)")
-                                
-                                # Send notification
+
                                 try:
                                     send_file_notification(file.id, 'modified')
                                 except Exception as e:
@@ -5101,51 +5088,18 @@ def onlyoffice_callback():
                     logging.error(f"ONLYOFFICE callback: Error saving file: {e}")
             else:
                 logging.warning("ONLYOFFICE callback: No file_id provided in callback URL")
-        
-        # Create response with CORS headers
-        response = jsonify({'error': 0})  # Success response for ONLYOFFICE
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
-        
+
+        return _onlyoffice_cors_response({'error': 0})[0]
     except Exception as e:
         logging.error(f"ONLYOFFICE callback error: {e}")
-        error_response = jsonify({'error': str(e)})
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            error_response.headers['Access-Control-Allow-Origin'] = origin
-            error_response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            error_response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            error_response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return error_response, 500
+        return _onlyoffice_cors_response({'error': 'callback_error'}, 500)
 
 
 @files_bp.route('/share/<token>/onlyoffice-callback', methods=['POST', 'OPTIONS'])
 def share_onlyoffice_callback(token):
     """Handle callbacks from ONLYOFFICE Document Server (Gast-Zugriff)."""
-    # Handle CORS preflight
     if request.method == 'OPTIONS':
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        response = jsonify({})
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
+        return _onlyoffice_cors_response({})[0]
     
     # Check if ONLYOFFICE is enabled
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
@@ -5180,11 +5134,10 @@ def share_onlyoffice_callback(token):
         file = item
     
     try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data received'}), 400
-        
+        data, error_response = _onlyoffice_validate_callback_payload()
+        if error_response:
+            return error_response
+
         status = data.get('status')
         
         logging.info(f"ONLYOFFICE share callback received - status: {status}")
@@ -5211,26 +5164,14 @@ def share_onlyoffice_callback(token):
             # Only skip auto-save (status 4), but always allow force save (status 6)
             if status == 4 and time_since_update < 10:
                 logging.info(f"ONLYOFFICE: Skipping auto-save for shared file {file.id} (recently updated, likely initial load)")
-                # Still return success to OnlyOffice
-                response = jsonify({'error': 0})
-                onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-                if onlyoffice_url.startswith('http'):
-                    from urllib.parse import urlparse
-                    parsed = urlparse(onlyoffice_url)
-                    origin = f"{parsed.scheme}://{parsed.netloc}"
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-                    response.headers['Access-Control-Allow-Credentials'] = 'true'
-                return response
+                return _onlyoffice_cors_response({'error': 0})[0]
             
             saved_file_url = data.get('url')
             
             if saved_file_url:
-                # Download the saved file from ONLYOFFICE
-                response = requests.get(saved_file_url)
-                
-                if response.status_code == 200:
+                saved_content = _download_onlyoffice_saved_content(saved_file_url)
+
+                if saved_content:
                     # Get anonymous user for guest edits
                     anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
                     if not anonymous_user:
@@ -5254,7 +5195,7 @@ def share_onlyoffice_callback(token):
                     os.makedirs(os.path.dirname(filepath), exist_ok=True)
                     
                     with open(filepath, 'wb') as f:
-                        f.write(response.content)
+                        f.write(saved_content)
                     
                     absolute_filepath = os.path.abspath(filepath)
                     
@@ -5313,32 +5254,11 @@ def share_onlyoffice_callback(token):
                         
                         logging.info(f"ONLYOFFICE: Shared file {file.id} auto-saved (version {file.version_number} updated) by guest {guest_name}")
         
-        # Create response with CORS headers
-        response = jsonify({'error': 0})  # Success response for ONLYOFFICE
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
+        return _onlyoffice_cors_response({'error': 0})[0]
         
     except Exception as e:
         logging.error(f"ONLYOFFICE callback error (share): {e}")
-        error_response = jsonify({'error': str(e)})
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
-        if onlyoffice_url.startswith('http'):
-            from urllib.parse import urlparse
-            parsed = urlparse(onlyoffice_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            error_response.headers['Access-Control-Allow-Origin'] = origin
-            error_response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            error_response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            error_response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return error_response, 500
+        return _onlyoffice_cors_response({'error': 'callback_error'}, 500)
 
 
 

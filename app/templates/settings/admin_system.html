@@ -116,6 +116,28 @@
             </div>
         </section>
 
+        <section class="settings-admin-system-card" aria-labelledby="system-section-guest-domain">
+            <div class="settings-admin-system-card-head">
+                <h2 id="system-section-guest-domain" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_guest_domain') }}</h2>
+                <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.guest_email_domain_help') }}" aria-label="{{ _('settings.admin.system.guest_email_domain_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="settings-admin-system-field mb-0">
+                <label for="guest_email_domain" class="form-label">{{ _('settings.admin.system.guest_email_domain_label') }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">@</span>
+                    <input type="text" class="form-control settings-admin-system-input" id="guest_email_domain" name="guest_email_domain"
+                           value="{{ guest_email_domain }}" placeholder="{{ _('settings.admin.system.guest_email_domain_placeholder') }}"
+                           autocomplete="off" spellcheck="false">
+                </div>
+                <p class="form-text mb-0 mt-2" id="guest-email-domain-preview">
+                    {{ _('settings.admin.system.guest_email_domain_preview', domain=guest_email_domain) }}
+                </p>
+            </div>
+        </section>
+
         <div class="settings-admin-system-actions">
             <button type="submit" class="btn btn-accent settings-admin-system-submit">{{ _('settings.admin.system.save_button') }}</button>
         </div>
@@ -129,6 +151,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (defaultAccentColor && colorPreview) {
         defaultAccentColor.addEventListener('input', function () {
             colorPreview.style.backgroundColor = this.value;
+        });
+    }
+
+    var guestDomainInput = document.getElementById('guest_email_domain');
+    var guestDomainPreview = document.getElementById('guest-email-domain-preview');
+    var guestPreviewTpl = {{ _('settings.admin.system.guest_email_domain_preview')|tojson }};
+    if (guestDomainInput && guestDomainPreview) {
+        guestDomainInput.addEventListener('input', function () {
+            var domain = (this.value || '').trim().replace(/^@+/, '').toLowerCase() || '…';
+            guestDomainPreview.textContent = guestPreviewTpl.replace('{domain}', domain);
         });
     }
 

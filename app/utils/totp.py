@@ -42,13 +42,13 @@ def get_encryption_key():
             secret_seed = None
 
     if not secret_seed:
-        secret_seed = 'prismateams-totp-fallback'
         try:
-            current_app.logger.warning(
-                "Weder TOTP_ENCRYPTION_KEY noch SECRET_KEY gesetzt; verwende unsicheren Fallback."
+            current_app.logger.error(
+                "Weder TOTP_ENCRYPTION_KEY noch SECRET_KEY gesetzt; TOTP kann nicht sicher verwendet werden."
             )
         except Exception:
             pass
+        raise RuntimeError("Missing TOTP_ENCRYPTION_KEY or SECRET_KEY for TOTP encryption.")
 
     digest = hashlib.sha256(secret_seed.encode('utf-8')).digest()
     return std_base64.urlsafe_b64encode(digest)

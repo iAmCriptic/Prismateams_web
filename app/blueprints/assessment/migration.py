@@ -1,5 +1,7 @@
 """Idempotente Schema- und Datenmigration für das Bewertungsmodul."""
 
+import re
+
 from sqlalchemy import inspect, text
 
 from app import db
@@ -21,12 +23,15 @@ def _column_names(inspector, table):
 
 
 def _add_column(connection, dialect, table, column, col_type_mysql, col_type_sqlite=None):
-    sqlite_type = col_type_sqlite or col_type_mysql
+    _validate_sql_identifier(table)
+    _validate_sql_identifier(column)
     col_def = col_type_sqlite if dialect == "sqlite" else col_type_mysql
     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
 
 
 def _drop_index_if_exists(connection, dialect, table, index_name):
+    _validate_sql_identifier(table)
+    _validate_sql_identifier(index_name)
     try:
         if dialect == "sqlite":
             connection.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
@@ -38,12 +43,23 @@ def _drop_index_if_exists(connection, dialect, table, index_name):
 
 def _drop_legacy_floor_plan_tables(connection, inspector):
     for table in ("ass_floor_plan_objects", "ass_floor_plans"):
+        _validate_sql_identifier(table)
         if table in inspector.get_table_names():
             try:
                 connection.execute(text(f"DROP TABLE {table}"))
                 print(f"[OK] Legacy-Tabelle {table} entfernt")
             except Exception as exc:
                 print(f"[WARNUNG] {table} konnte nicht gelöscht werden: {exc}")
+
+
+def _validate_sql_identifier(identifier):
+    """
+    Enforce safe SQL identifiers for dynamic DDL snippets.
+    Allows only [A-Za-z0-9_] and leading letter/underscore.
+    """
+    value = (identifier or "").strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        raise ValueError(f"Unsafe SQL identifier: {identifier!r}")
 
 
 def run_assessment_migrations():

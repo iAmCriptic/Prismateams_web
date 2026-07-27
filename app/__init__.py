@@ -9,6 +9,7 @@ from config import config
 import json
 import os
 from app.utils.i18n import register_i18n, translate
+from urllib.parse import urlparse
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -24,6 +25,53 @@ def create_socketio():
 socketio = create_socketio()
 
 
+def _is_insecure_secret_key(value):
+    secret = (value or "").strip()
+    return (not secret) or secret == 'dev-secret-key-change-in-production'
+
+
+def _is_same_origin(target_url, expected_host):
+    if not target_url:
+        return False
+    try:
+        parsed = urlparse(target_url)
+        return (parsed.netloc or '').lower() == (expected_host or '').lower()
+    except Exception:
+        return False
+
+
+def _env_flag(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _current_release_marker(app):
+    release = str(app.config.get('ABOUT_RELEASE_VERSION') or '').strip()
+    build = str(app.config.get('ABOUT_BUILD_NUMBER') or '').strip()
+    if release and build:
+        return f"{release}:{build}"
+    return release or build or 'unknown'
+
+
+def _should_run_migrations_after_update(app):
+    """
+    Auto-Migration nur nach Update:
+    Läuft, wenn der gespeicherte Release-Marker vom aktuellen Marker abweicht.
+    """
+    try:
+        from app.models.settings import SystemSettings
+        marker = _current_release_marker(app)
+        setting = SystemSettings.query.filter_by(key='last_auto_migrated_release').first()
+        if not setting:
+            return True, marker
+        return (str(setting.value or '').strip() != marker), marker
+    except Exception:
+        # Fallback: lieber migrieren als ein notwendiges Update zu verpassen.
+        return True, _current_release_marker(app)
+
+
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
     import os
@@ -32,6 +80,11 @@ def create_app(config_name='default'):
     app.url_map.strict_slashes = False
     
     app.config.from_object(config[config_name])
+
+    if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
+        raise RuntimeError(
+            "Production requires a strong SECRET_KEY via environment variable SECRET_KEY."
+        )
 
     # Relative UPLOAD_FOLDER must resolve to project root, not app package
     # (Flask send_file joins relative paths with app.root_path = .../app).
@@ -213,6 +266,56 @@ def create_app(config_name='default'):
         logger.debug("Socket.IO: Client getrennt")
     
     @app.before_request
+    def csrf_same_origin_guard():
+        """
+        CSRF mitigation without breaking existing forms/AJAX:
+        enforce same-origin on state-changing requests.
+        """
+        if request.method in {'GET', 'HEAD', 'OPTIONS', 'TRACE'}:
+            return
+
+        # Ignore Socket.IO transport paths.
+        if request.path.startswith('/socket.io/'):
+            return
+
+        endpoint = request.endpoint or ''
+
+        # Machine callbacks/webhooks and token/public paths are excluded.
+        if (
+            endpoint.startswith('files.onlyoffice') or
+            endpoint.startswith('files.share_onlyoffice') or
+            request.path.startswith('/onlyoffice') or
+            '/onlyoffice-callback' in request.path
+        ):
+            return
+
+        origin = request.headers.get('Origin', '')
+        referer = request.headers.get('Referer', '')
+        sec_fetch_site = (request.headers.get('Sec-Fetch-Site') or '').strip().lower()
+        host = request.host
+
+        if origin:
+            if _is_same_origin(origin, host):
+                return
+            app.logger.warning("CSRF blocked by Origin mismatch: %s -> %s", origin, host)
+            return jsonify({'error': 'CSRF validation failed'}), 403
+
+        if referer:
+            if _is_same_origin(referer, host):
+                return
+            app.logger.warning("CSRF blocked by Referer mismatch: %s -> %s", referer, host)
+            return jsonify({'error': 'CSRF validation failed'}), 403
+
+        # Einige Reverse-Proxy/Client-Kombinationen senden kein Origin/Referer.
+        # Wenn Browser den Request als same-origin/same-site/none klassifiziert,
+        # akzeptieren wir den State-Change trotzdem.
+        if sec_fetch_site in {'same-origin', 'same-site', 'none'}:
+            return
+
+        app.logger.warning("CSRF blocked: missing Origin/Referer for %s %s", request.method, request.path)
+        return jsonify({'error': 'CSRF validation failed'}), 403
+
+    @app.before_request
     def check_email_confirmation():
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
@@ -265,7 +368,8 @@ def create_app(config_name='default'):
     @app.before_request
     def ensure_portal_session_tracking():
         """Sorgt dafür, dass authentifizierte Portal-Sessions in user_sessions erfasst sind."""
-        from flask_login import current_user
+        from flask import redirect, url_for, flash
+        from flask_login import current_user, logout_user
 
         if not current_user.is_authenticated:
             return
@@ -282,13 +386,47 @@ def create_app(config_name='default'):
             return
 
         from datetime import datetime, timedelta
-        from app.utils.session_manager import get_current_session, create_session
+        from app.utils.session_manager import get_current_session, revoke_all_sessions
+        from app.utils.common import portal_now_naive
 
         try:
+            # Abgelaufene Gast-Accounts sofort deaktivieren und abmelden.
+            if getattr(current_user, 'is_guest', False) and current_user.guest_expires_at:
+                if portal_now_naive() > current_user.guest_expires_at:
+                    if current_user.is_active:
+                        current_user.is_active = False
+                        revoke_all_sessions(current_user.id, exclude_current=False)
+                        db.session.commit()
+                    logout_user()
+                    session.clear()
+                    if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                        return jsonify({'error': 'Guest access expired'}), 401
+                    flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
+                    return redirect(url_for('auth.login'))
+
+            if not getattr(current_user, 'is_active', True):
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Account deactivated'}), 401
+                return redirect(url_for('auth.login'))
+
+            current_session_id = session.get('session_id')
+            if not current_session_id:
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Session invalidated'}), 401
+                return redirect(url_for('auth.login'))
+
             current_session = get_current_session(current_user.id)
             if current_session is None:
-                create_session(current_user.id)
-                return
+                # WICHTIG: Keine automatische Neuanlage widerrufener Sessions.
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Session invalidated'}), 401
+                return redirect(url_for('auth.login'))
 
             # Last-Activity nicht bei jedem Request schreiben, um DB-Last zu reduzieren.
             if not current_session.last_activity or (datetime.utcnow() - current_session.last_activity) >= timedelta(minutes=1):
@@ -931,6 +1069,7 @@ def create_app(config_name='default'):
     is_debug = app.config.get('DEBUG', False)
     from app.utils.schema_init import should_run_startup_schema, ensure_all_tables
     run_schema_init = should_run_startup_schema(debug=is_debug)
+    run_startup_migrations = _env_flag('PRISMATEAMS_STARTUP_MIGRATIONS', False)
     # Legacy-Name: Background-Jobs nur im „Hauptprozess“ (kein Reloader-Parent)
     is_main_process = (werkzeug_run_main == 'true') or (not is_debug)
     
@@ -982,8 +1121,12 @@ def create_app(config_name='default'):
                 if not schema_ok:
                     print(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
 
-                # Alle migrate_*.py aus migrations/ automatisch ausführen (vor Server-Start)
-                if not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
+                auto_migrate_after_update, release_marker = _should_run_migrations_after_update(app)
+                should_run_startup_migrations = run_startup_migrations or auto_migrate_after_update
+
+                # Migrationen laufen automatisch nach Update (Release-Marker-Wechsel)
+                # oder explizit via PRISMATEAMS_STARTUP_MIGRATIONS=true.
+                if should_run_startup_migrations and not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
                     try:
                         from app.utils.auto_migrate import run_pending_migrations
                         run_pending_migrations(db)
@@ -994,6 +1137,8 @@ def create_app(config_name='default'):
                         ensure_all_tables(db)
                     except Exception as schema_again_err:
                         print(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
+                else:
+                    print("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
                 
                 try:
                     from sqlalchemy import inspect
@@ -1227,7 +1372,6 @@ def create_app(config_name='default'):
                     from app.models.assessment import (
                         AssessmentAppSetting,
                         AssessmentRole,
-                        AssessmentUser,
                     )
 
                     inspector = inspect(db.engine)
@@ -1244,29 +1388,12 @@ def create_app(config_name='default'):
                             print("[OK] ass_users.theme_mode hinzugefügt")
 
                     default_roles = ['Administrator', 'Bewerter', 'Betrachter', 'Inspektor', 'Verwarner']
-                    role_map = {}
                     for role_name in default_roles:
                         role = AssessmentRole.query.filter_by(name=role_name).first()
                         if not role:
                             role = AssessmentRole(name=role_name)
                             db.session.add(role)
                             db.session.flush()
-                        role_map[role_name] = role
-
-                    admin = AssessmentUser.query.filter_by(username='admin').first()
-                    if not admin:
-                        admin = AssessmentUser(
-                            username='admin',
-                            display_name='Administrator',
-                            is_admin=True,
-                            must_change_password=True,
-                            is_active=True,
-                        )
-                        admin.set_password('password')
-                        db.session.add(admin)
-                        db.session.flush()
-                    if role_map['Administrator'] not in admin.roles:
-                        admin.roles.append(role_map['Administrator'])
 
                     assessment_defaults = {
                         'welcome_title': 'Willkommen im Bewertungstool',
@@ -1279,11 +1406,36 @@ def create_app(config_name='default'):
                             db.session.add(AssessmentAppSetting(setting_key=key, setting_value=value))
                     db.session.commit()
 
-                    from app.blueprints.assessment.migration import run_assessment_migrations
-                    run_assessment_migrations()
+                    if should_run_startup_migrations:
+                        from app.blueprints.assessment.migration import run_assessment_migrations
+                        run_assessment_migrations()
                 except Exception as assessment_error:
                     db.session.rollback()
                     print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
+
+                if should_run_startup_migrations:
+                    try:
+                        from app.models.settings import SystemSettings
+                        marker_setting = SystemSettings.query.filter_by(
+                            key='last_auto_migrated_release'
+                        ).first()
+                        if not marker_setting:
+                            marker_setting = SystemSettings(
+                                key='last_auto_migrated_release',
+                                value=release_marker,
+                                description='Letzter Release-Marker mit erfolgreicher Startup-Auto-Migration'
+                            )
+                            db.session.add(marker_setting)
+                        else:
+                            marker_setting.value = release_marker
+                            if not marker_setting.description:
+                                marker_setting.description = (
+                                    'Letzter Release-Marker mit erfolgreicher Startup-Auto-Migration'
+                                )
+                        db.session.commit()
+                    except Exception as marker_err:
+                        db.session.rollback()
+                        print(f"[WARNUNG] Release-Marker für Auto-Migration konnte nicht gespeichert werden: {marker_err}")
                 
                 from app.models.email import EmailFolder
                 

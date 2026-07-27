@@ -60,7 +60,7 @@ class User(UserMixin, db.Model):
     # Guest Account Fields
     is_guest = db.Column(db.Boolean, default=False, nullable=False)  # Kennzeichnet Gast-Accounts
     guest_expires_at = db.Column(db.DateTime, nullable=True)  # Ablaufzeit für Gast-Accounts
-    guest_username = db.Column(db.String(100), nullable=True)  # Benutzername für Gast-Accounts (z.B. "max.mustermann" für "max.mustermann@gast.system.local")
+    guest_username = db.Column(db.String(100), nullable=True)  # Gast-Benutzername (Login: {username}@{guest_email_domain})
     
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module

@@ -69,40 +69,76 @@
 
         {# —— Gast —— #}
         <div id="panel-guest" class="settings-admin-create-panel" data-account-type="guest" hidden>
-            <section class="settings-admin-create-card">
-                <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
-                <div class="settings-admin-create-fields">
-                    <div class="settings-admin-create-field">
-                        <label for="guest_first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control settings-admin-create-input" id="guest_first_name" name="first_name" data-panel="guest" autocomplete="off" disabled>
-                    </div>
-                    <div class="settings-admin-create-field">
-                        <label for="guest_last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control settings-admin-create-input" id="guest_last_name" name="last_name" data-panel="guest" autocomplete="off" disabled>
-                    </div>
-                    <div class="settings-admin-create-field">
-                        <div class="settings-admin-create-label-row">
-                            <label for="guest_username" class="form-label mb-0">{{ _('settings.admin.create_user.guest_username') }} <span class="text-danger">*</span></label>
-                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.guest_username_help') }}" aria-label="{{ _('settings.admin.create_user.guest_username_help') }}">
+            <div class="settings-admin-create-top-grid">
+                <section class="settings-admin-create-card">
+                    <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
+                    <div class="settings-admin-create-fields">
+                        <div class="settings-admin-create-field">
+                            <label for="guest_first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control settings-admin-create-input" id="guest_first_name" name="first_name" data-panel="guest" autocomplete="off" disabled>
+                        </div>
+                        <div class="settings-admin-create-field">
+                            <label for="guest_last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control settings-admin-create-input" id="guest_last_name" name="last_name" data-panel="guest" autocomplete="off" disabled>
+                        </div>
+                        <div class="settings-admin-create-field">
+                            <div class="settings-admin-create-label-row">
+                                <label for="guest_username" class="form-label mb-0">{{ _('settings.admin.create_user.guest_username') }} <span class="text-danger">*</span></label>
+                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.guest_username_help', domain=guest_email_domain) }}" aria-label="{{ _('settings.admin.create_user.guest_username_help', domain=guest_email_domain) }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
+                            </div>
+                            <div class="settings-admin-create-username">
+                                <input type="text" class="form-control settings-admin-create-input" id="guest_username" name="guest_username" data-panel="guest" pattern="[a-zA-Z0-9._\-]+" autocomplete="off" disabled>
+                                <span class="settings-admin-create-username-suffix">{{ guest_email_suffix }}</span>
+                            </div>
                         </div>
-                        <div class="settings-admin-create-username">
-                            <input type="text" class="form-control settings-admin-create-input" id="guest_username" name="guest_username" data-panel="guest" pattern="[a-zA-Z0-9._\-]+" autocomplete="off" disabled>
-                            <span class="settings-admin-create-username-suffix">@gast.system.local</span>
+                        <div class="settings-admin-create-field">
+                            <div class="settings-admin-create-label-row">
+                                <label for="guest_expires_at" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
+                                <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <input type="datetime-local" class="form-control settings-admin-create-input" id="guest_expires_at" name="guest_expires_at" data-panel="guest" disabled>
+                        </div>
+                    </div>
+                </section>
+                <aside class="settings-admin-create-card settings-admin-create-credentials" id="guest-credentials-panel" hidden>
+                    <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.guest_modal_title') }}</h2>
+                    <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_modal_note') }}</p>
+                    <p class="settings-admin-create-guest-name" id="guest-full-name"></p>
+                    <div class="settings-admin-create-field">
+                        <label class="form-label" for="guest-username-display">{{ _('settings.admin.create_user.guest_modal_username') }}</label>
+                        <div class="settings-admin-create-cred-row">
+                            <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-username-display" readonly>
+                            <button class="btn settings-admin-create-copy" type="button" data-copy="guest-username-display">{{ _('settings.admin.create_user.copy') }}</button>
                         </div>
                     </div>
                     <div class="settings-admin-create-field">
-                        <div class="settings-admin-create-label-row">
-                            <label for="guest_expires_at" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
-                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
+                        <label class="form-label" for="guest-password-display">{{ _('settings.admin.create_user.guest_modal_password') }}</label>
+                        <div class="settings-admin-create-cred-row">
+                            <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-password-display" readonly>
+                            <button class="btn settings-admin-create-copy" type="button" data-copy="guest-password-display">{{ _('settings.admin.create_user.copy') }}</button>
                         </div>
-                        <input type="datetime-local" class="form-control settings-admin-create-input" id="guest_expires_at" name="guest_expires_at" data-panel="guest" disabled>
                     </div>
-                </div>
-            </section>
+                    <p class="settings-admin-create-hint" id="guest-login-hint"></p>
+                    <div class="settings-admin-create-field">
+                        <label class="form-label" for="guest-email-recipient">{{ _('settings.admin.create_user.guest_email_modal_label') }}</label>
+                        <input type="email" class="form-control settings-admin-create-input" id="guest-email-recipient"
+                               placeholder="{{ _('settings.admin.create_user.guest_email_modal_placeholder') }}" autocomplete="email">
+                    </div>
+                    <div class="settings-admin-create-credentials-actions">
+                        <button type="button" class="btn btn-outline-secondary" id="guest-inline-print">
+                            <i class="bi bi-printer me-1" aria-hidden="true"></i>{{ _('settings.admin.create_user.guest_modal_print') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="guest-inline-email">
+                            <i class="bi bi-envelope me-1" aria-hidden="true"></i>{{ _('settings.admin.create_user.guest_modal_email') }}
+                        </button>
+                        <button type="button" class="btn btn-accent" id="guest-inline-done">{{ _('settings.admin.create_user.guest_modal_done') }}</button>
+                    </div>
+                </aside>
+            </div>
 
             <section class="settings-admin-create-card">
                 <div class="settings-admin-create-card-head">
@@ -168,38 +204,6 @@
     </form>
 </div>
 
-<div class="modal fade" id="guestCredentialsModal" tabindex="-1" aria-labelledby="guestCredentialsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="guestCredentialsModalLabel">{{ _('settings.admin.create_user.guest_modal_title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-            </div>
-            <div class="modal-body">
-                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_modal_note') }}</p>
-                <p class="mb-2"><strong id="guest-full-name"></strong></p>
-                <div class="settings-admin-create-field mb-3">
-                    <label class="form-label" for="guest-username-display">{{ _('settings.admin.create_user.guest_modal_username') }}</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-username-display" readonly>
-                        <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-username-display">{{ _('settings.admin.create_user.copy') }}</button>
-                    </div>
-                </div>
-                <div class="settings-admin-create-field mb-3">
-                    <label class="form-label" for="guest-password-display">{{ _('settings.admin.create_user.guest_modal_password') }}</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-password-display" readonly>
-                        <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-password-display">{{ _('settings.admin.create_user.copy') }}</button>
-                    </div>
-                </div>
-                <p class="settings-admin-create-hint" id="guest-login-hint"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-accent" data-bs-dismiss="modal" id="guest-modal-done">{{ _('settings.admin.create_user.guest_modal_done') }}</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -209,12 +213,31 @@
     var accountTypeInput = document.getElementById('account_type');
     var panelFull = document.getElementById('panel-full');
     var panelGuest = document.getElementById('panel-guest');
+    var guestCredentialsPanel = document.getElementById('guest-credentials-panel');
+    var guestCreds = null;
+    var guestPdfUrl = {{ url_for('settings.guest_credentials_pdf')|tojson }};
+    var guestEmailUrl = {{ url_for('settings.guest_credentials_email')|tojson }};
+    var adminUsersUrl = {{ url_for('settings.admin_users')|tojson }};
+    var i18nGuest = {
+        emailInvalid: {{ _('settings.admin.create_user.guest_email_invalid')|tojson }},
+        emailFailed: {{ _('settings.admin.create_user.guest_email_failed')|tojson }},
+        emailSent: {{ _('settings.admin.create_user.guest_email_sent', email='{email}')|tojson }},
+        pdfFailed: {{ _('settings.admin.create_user.guest_pdf_failed')|tojson }},
+        credentialsMissing: {{ _('settings.admin.create_user.guest_credentials_missing')|tojson }}
+    };
+
+    function goToAdminUsers() {
+        window.location.href = adminUsersUrl;
+    }
 
     function setAccountType(type) {
         accountTypeInput.value = type;
         var isGuest = type === 'guest';
         panelFull.hidden = isGuest;
         panelGuest.hidden = !isGuest;
+        if (!isGuest && guestCredentialsPanel) {
+            guestCredentialsPanel.hidden = true;
+        }
 
         document.querySelectorAll('[data-panel]').forEach(function (el) {
             var active = el.getAttribute('data-panel') === type;
@@ -229,6 +252,23 @@
             var el = document.getElementById(id);
             if (el && !el.disabled) el.setAttribute('required', 'required');
         });
+    }
+
+    function notify(message, category) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, category || 'info');
+        } else {
+            alert(message);
+        }
+    }
+
+    function currentCredentials() {
+        if (guestCreds) return guestCreds;
+        var username = (document.getElementById('guest-username-display').value || '').trim();
+        var password = (document.getElementById('guest-password-display').value || '').trim();
+        var fullName = (document.getElementById('guest-full-name').textContent || '').trim();
+        if (!username || !password) return null;
+        return { username: username, password: password, full_name: fullName };
     }
 
     document.querySelectorAll('input[name="create_type_toggle"]').forEach(function (radio) {
@@ -315,19 +355,20 @@
         })
         .then(function (data) {
             if (!data.success) throw new Error(data.message || 'Error');
+            guestCreds = data.credentials || null;
             document.getElementById('guest-full-name').textContent = data.credentials.full_name;
             document.getElementById('guest-username-display').value = data.credentials.username;
             document.getElementById('guest-password-display').value = data.credentials.password;
             var hint = document.getElementById('guest-login-hint');
             if (hint && data.credentials.guest_username) {
-                hint.textContent = {{ _('settings.admin.create_user.guest_login_hint')|tojson }}.replace('{username}', data.credentials.guest_username);
+                hint.textContent = {{ _('settings.admin.create_user.guest_login_hint')|tojson }}
+                    .replace('{username}', data.credentials.guest_username)
+                    .replace('{domain}', {{ guest_email_domain|tojson }});
             }
-            var modalEl = document.getElementById('guestCredentialsModal');
-            var modal = new bootstrap.Modal(modalEl);
-            modal.show();
-            modalEl.addEventListener('hidden.bs.modal', function () {
-                window.location.href = {{ url_for('settings.admin_users')|tojson }};
-            }, { once: true });
+            if (guestCredentialsPanel) guestCredentialsPanel.hidden = false;
+            notify(data.message || {{ _('settings.admin.create_user.guest_modal_title')|tojson }}, 'success');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = original;
         })
         .catch(function (err) {
             alert(err.message || 'Error');
@@ -336,8 +377,102 @@
         });
     });
 
-    document.getElementById('guest-modal-done').addEventListener('click', function () {
-        window.location.href = {{ url_for('settings.admin_users')|tojson }};
+    document.getElementById('guest-inline-done').addEventListener('click', function () {
+        goToAdminUsers();
+    });
+
+    document.getElementById('guest-inline-print').addEventListener('click', function () {
+        var creds = currentCredentials();
+        if (!creds) {
+            notify(i18nGuest.credentialsMissing, 'warning');
+            return;
+        }
+        var btn = document.getElementById('guest-inline-print');
+        btn.disabled = true;
+        fetch(guestPdfUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                username: creds.username,
+                password: creds.password,
+                full_name: creds.full_name
+            })
+        })
+        .then(function (response) {
+            if (!response.ok) {
+                return response.json().catch(function () { return {}; }).then(function (data) {
+                    throw new Error(data.message || i18nGuest.pdfFailed);
+                });
+            }
+            return response.blob();
+        })
+        .then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'gast-zugangsdaten.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        })
+        .catch(function (err) {
+            notify(err.message || i18nGuest.pdfFailed, 'danger');
+        })
+        .finally(function () {
+            btn.disabled = false;
+        });
+    });
+
+    document.getElementById('guest-inline-email').addEventListener('click', function () {
+        var creds = currentCredentials();
+        if (!creds) {
+            notify(i18nGuest.credentialsMissing, 'warning');
+            return;
+        }
+        var input = document.getElementById('guest-email-recipient');
+        var recipient = (input.value || '').trim();
+        if (!recipient || recipient.indexOf('@') < 1) {
+            input.classList.add('is-invalid');
+            notify(i18nGuest.emailInvalid, 'warning');
+            return;
+        }
+        input.classList.remove('is-invalid');
+        var btn = document.getElementById('guest-inline-email');
+        btn.disabled = true;
+        fetch(guestEmailUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                recipient: recipient,
+                username: creds.username,
+                password: creds.password,
+                full_name: creds.full_name
+            })
+        })
+        .then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || i18nGuest.emailFailed);
+                }
+                return data;
+            });
+        })
+        .then(function (data) {
+            notify(data.message || i18nGuest.emailSent.replace('{email}', recipient), 'success');
+        })
+        .catch(function (err) {
+            notify(err.message || i18nGuest.emailFailed, 'danger');
+        })
+        .finally(function () {
+            btn.disabled = false;
+        });
     });
 })();
 </script>

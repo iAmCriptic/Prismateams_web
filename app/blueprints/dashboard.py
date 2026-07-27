@@ -13,6 +13,7 @@ from app.models.user import User
 from app import db
 from app.utils.common import is_module_enabled, check_for_updates, portal_now_naive
 from app.utils.i18n import translate
+from config import ABOUT_RELEASE_VERSION
 from app.utils.multi_calendars import (
     events_query_for_calendars,
     list_sidebar_calendars,
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint('dashboard', __name__)
 
 # Bei jedem Release erhöhen, damit alle Nutzer What's New einmalig erneut sehen.
-WHATS_NEW_VERSION = '3.0.0'
+WHATS_NEW_VERSION = str(ABOUT_RELEASE_VERSION).strip().lstrip('vV') or '3.0.0'
 
 WIDGET_MODULE_MAP = {
     'termine': 'module_calendar',
@@ -346,8 +347,10 @@ def index():
 
     # What's New genau einmal: schon beim ersten Dashboard-Aufruf als gesehen speichern.
     # Modal öffnet in diesem Request noch, auch wenn der Nutzer nur per X schließt.
+    # Gäste bekommen kein What's-New (meist irrelevant).
+    is_guest = getattr(current_user, 'is_guest', False)
     seen_version = getattr(current_user, 'whats_new_seen_version', None)
-    show_whats_new = seen_version != WHATS_NEW_VERSION
+    show_whats_new = (not is_guest) and (seen_version != WHATS_NEW_VERSION)
     if show_whats_new:
         try:
             current_user.whats_new_seen_version = WHATS_NEW_VERSION
@@ -375,6 +378,8 @@ def index():
 @login_required
 def api_whats_new_seen():
     """Markiert What's New für die aktuelle Release-Version als gesehen."""
+    if getattr(current_user, 'is_guest', False):
+        return jsonify({'success': True, 'version': WHATS_NEW_VERSION, 'skipped': True})
     current_user.whats_new_seen_version = WHATS_NEW_VERSION
     db.session.commit()
     return jsonify({'success': True, 'version': WHATS_NEW_VERSION})

@@ -28,6 +28,44 @@ def _msg_has_nested_related(msg):
     except Exception:
         return False
 
+
+def _mark_logo_inline(msg):
+    """Markiert vorhandene Logo-Bildteile als inline mit stabiler CID."""
+    try:
+        if not getattr(msg, 'msg', None):
+            return
+        if not hasattr(msg.msg, 'get_payload'):
+            return
+        parts = msg.msg.get_payload()
+        if not isinstance(parts, list):
+            return
+
+        logo_filenames = ('logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif')
+        for part in parts:
+            if not (hasattr(part, 'get_content_type') and part.get_content_type().startswith('image/')):
+                continue
+            disp = part.get('Content-Disposition', '') or ''
+            if not any(name in disp.lower() for name in logo_filenames):
+                continue
+
+            if not part.get('Content-ID'):
+                part.add_header('Content-ID', '<portal_logo>')
+            if 'attachment' in disp and 'inline' not in disp:
+                import re
+                filename_match = re.search(r'filename="?([^"]+)"?', disp)
+                filename = filename_match.group(1) if filename_match else 'logo.png'
+                try:
+                    part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
+                except Exception:
+                    del part['Content-Disposition']
+                    part.add_header('Content-Disposition', f'inline; filename="{filename}"')
+            elif not disp:
+                part.add_header('Content-Disposition', 'inline; filename="logo.png"')
+            break
+    except Exception as e:
+        logging.warning("Logo-CID-Markierung fehlgeschlagen: %s", e)
+
+
 def send_email_with_lock(msg, timeout=60):
     """
     Sendet eine E-Mail mit Lock-Schutz, um sicherzustellen, dass nur ein Worker gleichzeitig sendet.
@@ -42,439 +80,25 @@ def send_email_with_lock(msg, timeout=60):
     Raises:
         Exception: Wenn E-Mail-Versand fehlschlägt
     """
-    # KRITISCH: Flask-Mail erstellt msg.msg erst beim Senden (in mail.send())
-    # Wir müssen das Logo direkt VOR mail.send() mit CID markieren
-    # Dazu müssen wir msg._message aufrufen, um msg.msg zu erstellen
-    
-    # Stelle sicher, dass msg.msg erstellt wurde
-    # Flask-Mail erstellt msg.msg erst beim ersten Zugriff oder beim Senden
-    # Wir müssen es explizit erstellen, um es vorher manipulieren zu können
     try:
-        # Versuche _message() zu verwenden (Flask-Mail's interne Methode)
+        # Flask-Mail Message-Struktur vorab erstellen, damit Inline-CID sauber gesetzt werden kann.
         if hasattr(msg, '_message'):
-            _message = msg._message()
-        # Fallback: Zugriff auf msg.msg erstellt es möglicherweise
-        elif hasattr(msg, 'msg'):
-            # Versuche msg.msg zu erstellen durch Zugriff
-            try:
-                _ = msg.msg.get_content_type() if msg.msg else None
-            except AttributeError:
-                # msg.msg ist None - Flask-Mail wird es beim Senden erstellen
-                pass
+            msg.msg = msg._message()
     except Exception as e:
-        logging.warning(f"Fehler beim Erstellen von msg.msg: {e}")
-        # Wenn das fehlschlägt, wird Flask-Mail msg.msg beim Senden erstellen
-        # Wir versuchen dann in einem Patch direkt vor mail.send()
-    
-    # Suche nach Logo-Anhang und markiere ihn mit CID
-    if hasattr(msg, 'msg') and msg.msg:
-        if hasattr(msg.msg, 'get_payload'):
-            parts = msg.msg.get_payload()
-            if isinstance(parts, list):
-                # Suche nach logo.png, logo.jpg, logo.gif
-                logo_filenames = ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif']
-                for part in parts:
-                    if (hasattr(part, 'get_content_type') and 
-                        part.get_content_type().startswith('image/')):
-                        disp = part.get('Content-Disposition', '')
-                        # Prüfe, ob es ein Logo-Anhang ist
-                        is_logo = any(logo_fn in disp for logo_fn in logo_filenames)
-                        if is_logo:
-                            # Logo-Anhang gefunden - setze CID und inline
-                            if not part.get('Content-ID'):
-                                part.add_header('Content-ID', '<portal_logo>')
-                            # Stelle sicher, dass es inline ist
-                            if 'attachment' in disp and 'inline' not in disp:
-                                # Extrahiere filename aus alter disposition
-                                import re
-                                filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                                filename = filename_match.group(1) if filename_match else 'logo.png'
-                                try:
-                                    part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                                except:
-                                    # Wenn replace fehlschlägt, entferne alte und füge neue hinzu
-                                    del part['Content-Disposition']
-                                    part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-                            elif not disp:
-                                part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                            
-                            logging.info(f"Logo-Anhang mit CID markiert: {part.get('Content-ID')}, Disposition: {part.get('Content-Disposition')}")
-                            break
-    
-    
-    # KRITISCHER PUNKT: Flask-Mail erstellt msg.msg erst INNERHALB von mail.send()
-    # Wir müssen die Message-Struktur NACH ihrer Erstellung, aber VOR dem tatsächlichen Senden manipulieren
-    # Lösung: Wrapper um mail.send(), der die Message-Struktur manipuliert
-    def send_with_logo_fix():
-        """Sende E-Mail und stelle sicher, dass Logo mit CID markiert ist"""
-        # Flask-Mail's send() erstellt msg.msg intern
-        # Wir müssen einen Hook finden, um danach, aber vor dem tatsächlichen Senden zu manipulieren
-        
-        # Versuche 1: Manuell msg.msg erstellen, bevor mail.send() aufgerufen wird
-        try:
-            # Flask-Mail's Message._message() erstellt die Message-Struktur
-            if hasattr(msg, '_message'):
-                msg.msg = msg._message()
-        except Exception as e:
-            logging.warning(f"Fehler beim Erstellen von msg.msg via _message(): {e}")
-        
-        # Jetzt sollte msg.msg existieren - manipuliere es
-        if hasattr(msg, 'msg') and msg.msg:
-            if hasattr(msg.msg, 'get_payload'):
-                parts = msg.msg.get_payload()
-                if isinstance(parts, list):
-                    logo_filenames = ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif']
-                    for part in parts:
-                        if (hasattr(part, 'get_content_type') and 
-                            part.get_content_type().startswith('image/')):
-                            disp = part.get('Content-Disposition', '')
-                            is_logo = any(logo_fn in disp for logo_fn in logo_filenames)
-                            if is_logo:
-                                # Setze CID
-                                if not part.get('Content-ID'):
-                                    part.add_header('Content-ID', '<portal_logo>')
-                                # Stelle sicher, dass es inline ist
-                                if 'attachment' in disp and 'inline' not in disp:
-                                    import re
-                                    filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                                    filename = filename_match.group(1) if filename_match else 'logo.png'
-                                    try:
-                                        part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                                    except:
-                                        del part['Content-Disposition']
-                                        part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-                                elif not disp:
-                                    part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                                
-                                logging.info(f"Logo mit CID markiert in send_with_logo_fix(): {part.get('Content-ID')}")
-                                break
-        
-        # Sende die E-Mail - Flask-Mail wird msg.msg verwenden (oder neu erstellen)
-        # Das Problem ist, dass Flask-Mail möglicherweise msg.msg neu erstellt
-        # Wir müssen sicherstellen, dass unsere Änderungen erhalten bleiben
-        
-        # Versuche 2: Patch Flask-Mail's send() um unsere Änderungen zu bewahren
-        # Oder: Verwende mail's connection direkt und sende die manipulierten msg.msg
-        try:
-            # Hole die Connection und sende direkt
-            with mail.connect() as conn:
-                conn.send(msg)
-        except Exception as e:
-            logging.error(f"Fehler beim Senden mit Connection: {e}")
-            # Fallback: Normale mail.send()
-            mail.send(msg)
-    
+        logging.warning("Fehler beim Erstellen von msg.msg: %s", e)
+
+    _mark_logo_inline(msg)
+
     with acquire_email_send_lock(timeout=timeout) as acquired:
-        if acquired:
-            # Erstelle msg.msg explizit, bevor mail.send() aufgerufen wird
-            if not hasattr(msg, 'msg') or not msg.msg:
-                try:
-                    if hasattr(msg, '_message'):
-                        msg.msg = msg._message()
-                except Exception as e:
-                    logging.warning(f"Fehler beim Erstellen von msg.msg via _message(): {e}")
-            
-            # Manipuliere msg.msg, wenn es existiert
-            if hasattr(msg, 'msg') and msg.msg:
-                # KRITISCH: Für inline images mit CID brauchen wir multipart/related, nicht multipart/mixed
-                current_content_type = msg.msg.get_content_type() if hasattr(msg.msg, 'get_content_type') else None
-                
-                
-                # KRITISCH: Wenn multipart/mixed, müssen wir auf multipart/related umstellen
-                # Aber: Wenn es normale Anhänge gibt, müssen wir verschachteln:
-                # multipart/mixed (äußere) -> multipart/related (innere, mit Logo)
-                if current_content_type == 'multipart/mixed' and not _msg_has_nested_related(msg):
-                    from email.mime.multipart import MIMEMultipart
-                    from email.mime.text import MIMEText
-                    from email.header import Header
-                    
-                    # Erstelle neue multipart/related Struktur
-                    # WICHTIG: multipart/related benötigt einen "root" Part (meist multipart/alternative)
-                    # und dann related resources (Bilder mit CID)
-                    new_msg = MIMEMultipart('related')
-                    # Setze Content-Type mit Start-Parameter für bessere Kompatibilität
-                    new_msg.set_type('multipart/related')
-                    
-                    # Kopiere alle Header
-                    for key, value in msg.msg.items():
-                        if key.lower() not in ['content-type', 'mime-version']:
-                            new_msg[key] = value
-                    
-                    # Extrahiere alle Parts aus der alten Struktur
-                    old_parts = msg.msg.get_payload() if hasattr(msg.msg, 'get_payload') else []
-                    if isinstance(old_parts, list):
-                        # Finde multipart/alternative (Text + HTML)
-                        alternative_part = None
-                        logo_part = None
-                        other_attachments = []
-                        
-                        
-                        for part in old_parts:
-                            if hasattr(part, 'get_content_type'):
-                                ct = part.get_content_type()
-                                if ct == 'multipart/alternative':
-                                    alternative_part = part
-                                elif ct.startswith('image/'):
-                                    # Suche nach Logo - prüfe sowohl Content-Disposition als auch Dateinamen
-                                    disp = part.get('Content-Disposition', '')
-                                    # Prüfe, ob es ein Logo ist (nach Dateinamen in Content-Disposition)
-                                    is_logo = any(logo_fn in disp.lower() for logo_fn in ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif'])
-                                    
-                                    
-                                    if is_logo and not logo_part:
-                                        logo_part = part
-                                    else:
-                                        other_attachments.append(part)
-                                else:
-                                    other_attachments.append(part)
-                        
-                        # KRITISCH: Für multipart/related muss die Struktur korrekt sein:
-                        # 1. Root-Part (multipart/alternative mit text/plain und text/html)
-                        # 2. Inline-Ressourcen (Bilder mit CID) - müssen NACH dem Root kommen
-                        # 3. Andere Anhänge müssen in einen separaten multipart/mixed eingebettet werden
-                        
-                        # Füge alternative (Text + HTML) als ROOT hinzu - ZUERST!
-                        if alternative_part:
-                            new_msg.attach(alternative_part)
-                        
-                        # Füge Logo hinzu (mit CID) - NACH dem Root
-                        if logo_part:
-                            if not logo_part.get('Content-ID'):
-                                # WICHTIG: Content-ID muss exakt mit der CID-Referenz im HTML übereinstimmen
-                                # Im HTML: cid:portal_logo -> Im Attachment: <portal_logo>
-                                logo_part.add_header('Content-ID', '<portal_logo>')
-                            disp = logo_part.get('Content-Disposition', '')
-                            if 'attachment' in disp and 'inline' not in disp:
-                                import re
-                                filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                                filename = filename_match.group(1) if filename_match else 'logo.png'
-                                try:
-                                    logo_part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                                except:
-                                    del logo_part['Content-Disposition']
-                                    logo_part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-                            elif not disp:
-                                logo_part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                            new_msg.attach(logo_part)
-                            
-                            # WICHTIG: Füge Logo ZUSÄTZLICH als attachment hinzu (für separaten Anhang)
-                            # Lade Logo-Daten erneut für den Anhang (separate Instanz)
-                            from email.mime.image import MIMEImage
-                            
-                            # Lade Logo-Daten erneut für den Anhang
-                            logo_data_for_attachment, logo_mime_type_att, logo_filename_att = get_logo_data()
-                            if logo_data_for_attachment and logo_mime_type_att:
-                                image_type_att = logo_mime_type_att.split('/')[1] if '/' in logo_mime_type_att else 'png'
-                                logo_attachment = MIMEImage(logo_data_for_attachment, image_type_att)
-                                
-                                # Setze Dateiname für Anhang
-                                if image_type_att == 'jpeg' or image_type_att == 'jpg':
-                                    attachment_filename_att = 'logo.jpg'
-                                elif image_type_att == 'png':
-                                    attachment_filename_att = 'logo.png'
-                                elif image_type_att == 'gif':
-                                    attachment_filename_att = 'logo.gif'
-                                else:
-                                    attachment_filename_att = 'logo.png'
-                                
-                                # WICHTIG: KEINE Content-ID für den Anhang (nur für inline)
-                                # Setze attachment disposition
-                                logo_attachment.add_header('Content-Disposition', 'attachment', filename=attachment_filename_att)
-                                
-                                # Speichere für später (wird zur multipart/mixed Struktur hinzugefügt)
-                                logo_attachment_part = logo_attachment
-                                
-                            else:
-                                logo_attachment_part = None
-                        else:
-                            logo_attachment_part = None
-                        
-                        # KRITISCH: Erstelle IMMER multipart/mixed Struktur, wenn Logo vorhanden ist
-                        # Grund: Logo muss sowohl inline (in multipart/related) als auch als attachment sein
-                        if logo_part and logo_attachment_part:
-                            # Erstelle multipart/mixed als äußere Ebene
-                            from email.mime.multipart import MIMEMultipart as OuterMIMEMultipart
-                            outer_msg = OuterMIMEMultipart('mixed')
-                            
-                            # Kopiere alle Header von new_msg zu outer_msg
-                            for key, value in new_msg.items():
-                                if key.lower() not in ['content-type', 'mime-version']:
-                                    outer_msg[key] = value
-                            
-                            # Füge multipart/related (mit alternative + logo als inline) als ersten Part hinzu
-                            outer_msg.attach(new_msg)
-                            
-                            # Füge Logo als attachment hinzu
-                            outer_msg.attach(logo_attachment_part)
-                            
-                            # Füge andere Anhänge hinzu (falls vorhanden)
-                            if other_attachments:
-                                for att in other_attachments:
-                                    outer_msg.attach(att)
-                            
-                            # Ersetze msg.msg mit der verschachtelten Struktur
-                            msg.msg = outer_msg
-                            
-                        elif other_attachments:
-                            # Logo nicht gefunden, aber andere Anhänge vorhanden
-                            # Erstelle multipart/mixed als äußere Ebene
-                            from email.mime.multipart import MIMEMultipart as OuterMIMEMultipart
-                            outer_msg = OuterMIMEMultipart('mixed')
-                            
-                            # Kopiere alle Header von new_msg zu outer_msg
-                            for key, value in new_msg.items():
-                                if key.lower() not in ['content-type', 'mime-version']:
-                                    outer_msg[key] = value
-                            
-                            # Füge multipart/related (mit alternative) als ersten Part hinzu
-                            outer_msg.attach(new_msg)
-                            
-                            # Füge andere Anhänge hinzu
-                            for att in other_attachments:
-                                outer_msg.attach(att)
-                            
-                            # Ersetze msg.msg mit der verschachtelten Struktur
-                            msg.msg = outer_msg
-                        else:
-                            # Keine anderen Anhänge und kein Logo-Anhang - multipart/related bleibt wie es ist
-                            # Ersetze msg.msg mit neuer Struktur
-                            msg.msg = new_msg
-                    
-                    logging.info("Message-Struktur auf multipart/related umgestellt für inline Logo")
-                else:
-                    # Wenn bereits multipart/related oder andere Struktur, markiere Logo nur mit CID
-                    if hasattr(msg.msg, 'get_payload'):
-                        parts = msg.msg.get_payload()
-                        if isinstance(parts, list):
-                            logo_filenames = ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif']
-                            for part in parts:
-                                if (hasattr(part, 'get_content_type') and 
-                                    part.get_content_type().startswith('image/')):
-                                    disp = part.get('Content-Disposition', '')
-                                    is_logo = any(logo_fn in disp for logo_fn in logo_filenames)
-                                    if is_logo:
-                                        # Setze CID
-                                        if not part.get('Content-ID'):
-                                            part.add_header('Content-ID', '<portal_logo>')
-                                        # Stelle sicher, dass es inline ist
-                                        if 'attachment' in disp and 'inline' not in disp:
-                                            import re
-                                            filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                                            filename = filename_match.group(1) if filename_match else 'logo.png'
-                                            try:
-                                                part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                                            except:
-                                                del part['Content-Disposition']
-                                                part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-                                        elif not disp:
-                                            part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                                        
-                                        logging.info(f"Logo mit CID markiert: {part.get('Content-ID')}, Disposition: {part.get('Content-Disposition')}")
-                                        break
-            
-            
-            # KRITISCH: Flask-Mail's send() erstellt möglicherweise msg.msg neu und überschreibt unsere Struktur
-            # Lösung: Sende die Message direkt über SMTP, ohne Flask-Mail's send()
-            try:
-                import smtplib
-                from email.utils import formataddr
-                
-                # Hole SMTP-Konfiguration
-                mail_server = current_app.config.get('MAIL_SERVER')
-                mail_port = current_app.config.get('MAIL_PORT', 587)
-                mail_username = current_app.config.get('MAIL_USERNAME')
-                mail_password = current_app.config.get('MAIL_PASSWORD')
-                mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
-                mail_use_ssl = current_app.config.get('MAIL_USE_SSL', False)
-                
-                # Stelle sicher, dass msg.msg unsere manipulierten Struktur ist
-                if not hasattr(msg, 'msg') or not msg.msg:
-                    # Falls msg.msg nicht existiert, erstelle es (sollte aber bereits existieren)
-                    if hasattr(msg, '_message'):
-                        msg.msg = msg._message()
-                    else:
-                        # Fallback: Verwende Flask-Mail's send()
-                        mail.send(msg)
-                        return True
-                
-                # Sende direkt über SMTP
-                if mail_use_ssl:
-                    smtp = smtplib.SMTP_SSL(mail_server, mail_port)
-                else:
-                    smtp = smtplib.SMTP(mail_server, mail_port)
-                    if mail_use_tls:
-                        smtp.starttls()
-                
-                smtp.login(mail_username, mail_password)
-                
-                # Konvertiere Message zu String und sende
-                email_string = msg.msg.as_string()
-                email_bytes = email_string.encode('utf-8')
-                
-                # Bestimme Empfänger
-                recipients = []
-                if hasattr(msg, 'recipients'):
-                    recipients.extend(msg.recipients if isinstance(msg.recipients, list) else [msg.recipients])
-                if hasattr(msg, 'cc') and msg.cc:
-                    recipients.extend(msg.cc if isinstance(msg.cc, list) else [msg.cc])
-                if hasattr(msg, 'bcc') and msg.bcc:
-                    recipients.extend(msg.bcc if isinstance(msg.bcc, list) else [msg.bcc])
-                
-                # Sende E-Mail
-                smtp.sendmail(msg.sender, recipients, email_bytes)
-                smtp.quit()
-                
-                
-                return True
-                
-            except Exception as smtp_error:
-                # Fallback: Verwende Flask-Mail's send() wenn SMTP direkt fehlschlägt
-                logging.warning(f"Direktes SMTP-Senden fehlgeschlagen, verwende Flask-Mail: {smtp_error}")
-                try:
-                    mail.send(msg)
-                    return True
-                except Exception as fallback_error:
-                    logging.error(f"Fehler beim Senden der E-Mail: {fallback_error}")
-                    raise
-        else:
-            logging.warning("E-Mail-Versand-Lock konnte nicht erworben werden, versuche erneut ohne Lock...")
-            # Fallback: Versuche ohne Lock zu senden (falls Lock-Mechanismus nicht funktioniert)
-            if not hasattr(msg, 'msg') or not msg.msg:
-                try:
-                    if hasattr(msg, '_message'):
-                        msg.msg = msg._message()
-                except Exception as e:
-                    logging.warning(f"Fehler beim Erstellen von msg.msg via _message(): {e}")
-            
-            # Manipuliere auch hier
-            if hasattr(msg, 'msg') and msg.msg:
-                if hasattr(msg.msg, 'get_payload'):
-                    parts = msg.msg.get_payload()
-                    if isinstance(parts, list):
-                        logo_filenames = ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif']
-                        for part in parts:
-                            if (hasattr(part, 'get_content_type') and 
-                                part.get_content_type().startswith('image/')):
-                                disp = part.get('Content-Disposition', '')
-                                is_logo = any(logo_fn in disp for logo_fn in logo_filenames)
-                                if is_logo:
-                                    if not part.get('Content-ID'):
-                                        part.add_header('Content-ID', '<portal_logo>')
-                                    if 'attachment' in disp and 'inline' not in disp:
-                                        import re
-                                        filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                                        filename = filename_match.group(1) if filename_match else 'logo.png'
-                                        try:
-                                            part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                                        except:
-                                            del part['Content-Disposition']
-                                            part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-                                    elif not disp:
-                                        part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                                    break
-            
+        if not acquired:
+            # Kein direkter SMTP-Bypass mehr: ein Versandpfad reduziert Regressionen.
+            logging.warning("E-Mail-Versand-Lock nicht erworben; sende dennoch über Flask-Mail.")
+        try:
             mail.send(msg)
             return True
+        except Exception as send_err:
+            logging.error("Fehler beim Senden der E-Mail: %s", send_err)
+            raise
 
 def generate_confirmation_code():
     """Generiert einen 6-stelligen Bestätigungscode."""
@@ -1418,4 +1042,50 @@ def send_account_creation_email(user, password):
             return False
     except Exception as e:
         logging.error(f'Failed to send account creation email to {user.email}: {str(e)}')
+        return False
+
+
+def send_guest_credentials_email(recipient, full_name, username, password):
+    """Sendet Gast-Zugangsdaten manuell an eine angegebene Empfänger-Adresse."""
+    try:
+        recipient = (recipient or '').strip().lower()
+        if not recipient or '@' not in recipient:
+            logging.warning('Gast-Zugangsdaten-E-Mail: ungültiger Empfänger.')
+            return False
+        if not _mail_configured():
+            logging.warning(
+                'E-Mail-Konfiguration unvollständig. Gast-Zugangsdaten an %s nicht gesendet.',
+                recipient,
+            )
+            return False
+
+        portal_name = _portal_name()
+        login_url = url_for('auth.login', _external=True)
+        display_name = (full_name or '').strip() or 'Gast'
+        plain_text = (
+            f'Hallo!\n\n'
+            f'für Sie wurde ein Gast-Zugang bei {portal_name} eingerichtet.\n\n'
+            f'Zugangsdaten:\n'
+            f'Benutzername/E-Mail: {username}\n'
+            f'Passwort: {password}\n\n'
+            f'Login: {login_url}\n\n'
+            f'Bewahren Sie diese Zugangsdaten sicher auf.\n'
+        )
+        ok = render_and_send_portal_email(
+            subject=f'Gast-Zugang für {portal_name}',
+            recipients=[recipient],
+            template_name='emails/guest_credentials.html',
+            body_text=plain_text,
+            full_name=display_name,
+            username=username,
+            password=password,
+            login_url=login_url,
+        )
+        if not ok:
+            logging.error('Gast-Zugangsdaten-E-Mail an %s fehlgeschlagen.', recipient)
+            return False
+        logging.info('Gast-Zugangsdaten-E-Mail an %s gesendet.', recipient)
+        return True
+    except Exception as e:
+        logging.error('Gast-Zugangsdaten-E-Mail fehlgeschlagen: %s', e)
         return False

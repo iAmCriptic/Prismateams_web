@@ -230,9 +230,9 @@
                     </div>
                 </div>
                 <div class="settings-admin-users-row-actions">
-                    <a href="{{ url_for('settings.edit_guest_user', user_id=guest.id) }}" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.edit') }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.edit_guest') }}" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
                         <i class="bi bi-pencil" aria-hidden="true"></i>
-                    </a>
+                    </button>
                     <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}">
                         <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{% if guest.is_active %}{{ _('settings.admin.users.deactivate') }}{% else %}{{ _('settings.admin.users.activate') }}{% endif %}">
                             <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle" aria-hidden="true"></i>
@@ -251,6 +251,94 @@
             {% endif %}
         </div>
     </section>
+</div>
+
+{# —— Gast bearbeiten (neues Settings-Design, wie Rollen-Modal) —— #}
+<div class="modal fade settings-admin-roles-modal" id="guestEditModal" tabindex="-1" aria-labelledby="guestEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header settings-admin-roles-modal-header">
+                <h5 class="modal-title" id="guestEditModalLabel">
+                    {{ _('settings.admin.users.edit_guest') }}: <span id="guestEditModalName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body settings-admin-roles-modal-body">
+                <form id="guestEditForm" class="settings-admin-roles-form" onsubmit="return false;">
+                    <input type="hidden" id="guestEditUserId" name="user_id">
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-details-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-details-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.section_details') }}</h2>
+                        </div>
+                        <div class="settings-admin-roles-fields">
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditFirstName" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditFirstName" name="first_name" required autocomplete="off">
+                            </div>
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditLastName" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditLastName" name="last_name" required autocomplete="off">
+                            </div>
+                            <div class="settings-admin-roles-field">
+                                <label for="guestEditUsername" class="form-label">{{ _('settings.admin.create_user.guest_username') }}</label>
+                                <input type="text" class="form-control settings-admin-roles-input font-monospace" id="guestEditUsername" readonly tabindex="-1">
+                            </div>
+                            <div class="settings-admin-roles-field">
+                                <div class="settings-admin-roles-card-head settings-admin-roles-field-label">
+                                    <label for="guestEditExpires" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
+                                    <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
+                                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <input type="datetime-local" class="form-control settings-admin-roles-input" id="guestEditExpires" name="guest_expires_at">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-shares-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-shares-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.shares_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-chips" id="guestEditShares" role="group" aria-label="{{ _('settings.admin.create_user.shares_title') }}"></div>
+                        <p id="guestEditSharesEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.shares_empty') }}</p>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-chats-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-chats-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.chats_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-chips" id="guestEditChats" role="group" aria-label="{{ _('settings.admin.create_user.chats_title') }}"></div>
+                        <p id="guestEditChatsEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.chats_empty') }}</p>
+                    </section>
+
+                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-modules-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="guest-edit-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.modules_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-chips" id="guestEditModules" role="group" aria-label="{{ _('settings.admin.create_user.modules_title') }}"></div>
+                        <p class="settings-admin-roles-hint">{{ _('settings.admin.create_user.guest_hint') }}</p>
+                    </section>
+                </form>
+            </div>
+            <div class="modal-footer settings-admin-roles-modal-footer">
+                <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent settings-admin-roles-btn" id="guestEditSaveBtn">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    {{ _('common.save') }}
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {# —— Rollen-Modal (neues Settings-Design) —— #}
@@ -341,8 +429,17 @@
 
 <script>
 const allModules = {{ all_modules|tojson }};
+const guestModules = {{ guest_modules|tojson }};
+const guestShares = {{ assignable_shares|tojson }};
+const guestChats = {{ guest_chats_json|tojson }};
+const guestEmailSuffix = {{ guest_email_suffix|tojson }};
+const i18nGuestEdit = {
+    mainChat: {{ _('settings.admin.create_user.main_chat')|tojson }},
+    loadError: {{ _('settings.admin.users.flash_guest_load_error')|tojson }},
+    saveError: {{ _('settings.admin.users.flash_guest_save_error')|tojson }}
+};
 
-document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"], #rolesModal [data-bs-toggle="tooltip"]').forEach(function (el) {
+document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"], #rolesModal [data-bs-toggle="tooltip"], #guestEditModal [data-bs-toggle="tooltip"]').forEach(function (el) {
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         new bootstrap.Tooltip(el);
     }
@@ -361,18 +458,173 @@ document.querySelectorAll('.settings-admin-users-copy').forEach(function (btn) {
     });
 });
 
-document.getElementById('rolesModal').addEventListener('show.bs.modal', function (event) {
-    const button = event.relatedTarget;
-    if (!button) return;
-    const userId = button.getAttribute('data-user-id');
-    const userName = button.getAttribute('data-user-name');
-    document.getElementById('modalUserId').value = userId;
-    document.getElementById('modalUserName').textContent = userName;
-    loadUserRoles(userId);
-});
+function moveModalToBody(el) {
+    if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+    }
+}
+
+(function () {
+    const rolesModalEl = document.getElementById('rolesModal');
+    if (!rolesModalEl) return;
+    moveModalToBody(rolesModalEl);
+    rolesModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+        const userId = button.getAttribute('data-user-id');
+        const userName = button.getAttribute('data-user-name');
+        document.getElementById('modalUserId').value = userId;
+        document.getElementById('modalUserName').textContent = userName;
+        loadUserRoles(userId);
+    });
+})();
+
+(function () {
+    const guestModalEl = document.getElementById('guestEditModal');
+    if (!guestModalEl) return;
+    moveModalToBody(guestModalEl);
+    guestModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+        const userId = button.getAttribute('data-user-id');
+        const userName = button.getAttribute('data-user-name');
+        document.getElementById('guestEditUserId').value = userId;
+        document.getElementById('guestEditModalName').textContent = userName || '';
+        loadGuestEdit(userId);
+    });
+    const saveBtn = document.getElementById('guestEditSaveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', saveGuestEdit);
+})();
 
 document.getElementById('modalHasFullAccess').addEventListener('change', toggleModuleRoles);
 document.getElementById('rolesSaveBtn').addEventListener('click', saveRoles);
+
+function fillGuestChipGroup(container, emptyEl, items, selected, idPrefix, valueKey, labelFn) {
+    container.innerHTML = '';
+    const selectedSet = new Set((selected || []).map(String));
+    if (!items || !items.length) {
+        if (emptyEl) emptyEl.hidden = false;
+        container.hidden = true;
+        return;
+    }
+    if (emptyEl) emptyEl.hidden = true;
+    container.hidden = false;
+    items.forEach(function (item, index) {
+        const value = String(Array.isArray(item) ? item[0] : item[valueKey]);
+        const labelText = labelFn ? labelFn(item) : (Array.isArray(item) ? item[1] : item.label);
+        const id = idPrefix + '_' + (value.replace(/[^a-zA-Z0-9_-]/g, '_') || index);
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'btn-check';
+        checkbox.id = id;
+        checkbox.value = value;
+        checkbox.autocomplete = 'off';
+        checkbox.checked = selectedSet.has(value);
+        const label = document.createElement('label');
+        label.className = 'settings-admin-roles-chip';
+        label.htmlFor = id;
+        label.textContent = labelText;
+        container.appendChild(checkbox);
+        container.appendChild(label);
+    });
+}
+
+function loadGuestEdit(userId) {
+    fetch('/settings/admin/users/' + userId + '/edit_guest?format=json', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+        if (!data || data.success === false) {
+            alert((data && data.error) || i18nGuestEdit.loadError);
+            return;
+        }
+        document.getElementById('guestEditFirstName').value = data.first_name || '';
+        document.getElementById('guestEditLastName').value = data.last_name || '';
+        document.getElementById('guestEditUsername').value = data.guest_username
+            ? (data.guest_username + guestEmailSuffix)
+            : (data.email || '');
+        document.getElementById('guestEditExpires').value = data.guest_expires_at || '';
+        document.getElementById('guestEditModalName').textContent = data.full_name || '';
+
+        fillGuestChipGroup(
+            document.getElementById('guestEditShares'),
+            document.getElementById('guestEditSharesEmpty'),
+            guestShares,
+            data.current_share_tokens || [],
+            'guest_share',
+            'token',
+            function (share) { return share.label + ' (' + share.token_prefix + '…)'; }
+        );
+        fillGuestChipGroup(
+            document.getElementById('guestEditChats'),
+            document.getElementById('guestEditChatsEmpty'),
+            guestChats,
+            (data.current_chat_ids || []).map(String),
+            'guest_chat',
+            'id',
+            function (chat) {
+                return chat.name + (chat.is_main_chat ? (' · ' + i18nGuestEdit.mainChat) : '');
+            }
+        );
+        fillGuestChipGroup(
+            document.getElementById('guestEditModules'),
+            null,
+            guestModules,
+            data.current_modules || [],
+            'guest_mod',
+            null,
+            null
+        );
+    })
+    .catch(function (error) {
+        console.error(error);
+        alert(i18nGuestEdit.loadError);
+    });
+}
+
+function saveGuestEdit() {
+    const userId = document.getElementById('guestEditUserId').value;
+    const formData = new FormData();
+    formData.append('first_name', document.getElementById('guestEditFirstName').value.trim());
+    formData.append('last_name', document.getElementById('guestEditLastName').value.trim());
+    formData.append('guest_expires_at', document.getElementById('guestEditExpires').value || '');
+
+    document.querySelectorAll('#guestEditShares .btn-check:checked').forEach(function (cb) {
+        formData.append('share_tokens', cb.value);
+    });
+    document.querySelectorAll('#guestEditChats .btn-check:checked').forEach(function (cb) {
+        formData.append('chat_ids', cb.value);
+    });
+    document.querySelectorAll('#guestEditModules .btn-check:checked').forEach(function (cb) {
+        formData.append('allowed_modules', cb.value);
+    });
+
+    const saveBtn = document.getElementById('guestEditSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
+
+    fetch('/settings/admin/users/' + userId + '/edit_guest', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+    .then(function (result) {
+        if (result.data && result.data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('guestEditModal'));
+            if (modal) modal.hide();
+            location.reload();
+            return;
+        }
+        if (saveBtn) saveBtn.disabled = false;
+        alert((result.data && result.data.error) || i18nGuestEdit.saveError);
+    })
+    .catch(function (error) {
+        console.error(error);
+        if (saveBtn) saveBtn.disabled = false;
+        alert(i18nGuestEdit.saveError);
+    });
+}
 
 function loadUserRoles(userId) {
     fetch(`/settings/admin/roles/user/${userId}?format=json`)

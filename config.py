@@ -100,7 +100,8 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
-    SESSION_COOKIE_SECURE = False
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SESSION_COOKIE_SECURE = True
 
 
 class TestingConfig(Config):

@@ -17,8 +17,9 @@ from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
-from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone
-from datetime import datetime
+from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone, portal_now_naive
+from datetime import datetime, timedelta
+from sqlalchemy import or_
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -28,6 +29,36 @@ def _settings_redirect(endpoint, **values):
     if request.args.get('embed') or request.form.get('embed'):
         values.setdefault('embed', 1)
     return redirect(url_for(endpoint, **values))
+
+
+def _guest_account_form_options():
+    """Module, Freigaben und Chats für Gast-Erstellung/-Bearbeitung."""
+    guest_modules = [
+        ('module_calendar', 'Kalender'),
+        ('module_events', 'Veranstaltungen'),
+        ('module_contacts', 'Kontakte'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_music', 'Musik'),
+        ('module_media_downloader', 'Media Downloader'),
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks'),
+    ]
+    from app.utils.public_share import get_assignable_public_shares
+    assignable_shares = get_assignable_public_shares()
+
+    all_chats_list = Chat.query.order_by(Chat.created_at).all()
+    all_chats = []
+    main_chat_added = False
+    for chat in all_chats_list:
+        if chat.is_main_chat and not main_chat_added:
+            all_chats.append(chat)
+            main_chat_added = True
+        elif not chat.is_main_chat:
+            all_chats.append(chat)
+
+    return guest_modules, assignable_shares, all_chats
 
 
 @settings_bp.route('/')
@@ -392,9 +423,18 @@ def admin_users():
         User.email != 'anonymous@system.local'
     ).order_by(User.created_at.desc()).all()
     
-    # Get all guest accounts
+    # Get all guest accounts.
+    # Inaktive Gäste bleiben 7 Tage sichtbar (reaktivierbar), danach verschwinden sie aus der Liste.
+    # guest_expires_at mit Portal-Wandzeit vergleichen; Retention an updated_at (UTC).
+    now_portal = portal_now_naive()
+    guest_retention_cutoff = datetime.utcnow() - timedelta(days=7)
     guest_users = User.query.filter(
         User.is_guest == True
+    ).filter(
+        or_(
+            User.is_active == True,
+            User.updated_at >= guest_retention_cutoff
+        )
     ).order_by(User.created_at.desc()).all()
     
     # Erstelle Liste mit Benutzer-Rollen-Informationen für aktive Benutzer
@@ -431,8 +471,7 @@ def admin_users():
             'share_count': len(share_accesses)
         })
     
-    from datetime import datetime
-    now = datetime.utcnow()
+    now = now_portal
 
     # Ausstehende E-Mail-Bestätigungscodes (nur aktive Konten — Code startet erst nach Freischaltung)
     pending_code_users = User.query.filter(
@@ -448,6 +487,13 @@ def admin_users():
             confirmation_code_users.append(user)
     confirmation_code_users.sort(key=lambda u: u.created_at or now, reverse=True)
 
+    guest_modules, assignable_shares, all_chats = _guest_account_form_options()
+    guest_chats_json = [
+        {'id': c.id, 'name': c.name, 'is_main_chat': bool(c.is_main_chat)}
+        for c in all_chats
+    ]
+    from app.utils.guest_accounts import get_guest_email_domain, get_guest_email_suffix
+
     return render_template('settings/admin_users.html', 
                          active_users=active_users, 
                          pending_users=pending_users,
@@ -455,6 +501,11 @@ def admin_users():
                          guest_users_with_roles=guest_users_with_roles,
                          confirmation_code_users=confirmation_code_users,
                          all_modules=all_modules,
+                         guest_modules=guest_modules,
+                         assignable_shares=assignable_shares,
+                         guest_chats_json=guest_chats_json,
+                         guest_email_domain=get_guest_email_domain(),
+                         guest_email_suffix=get_guest_email_suffix(),
                          now=now)
 
 
@@ -654,8 +705,9 @@ def create_user():
                     flash(error_msg, 'danger')
                     return redirect(url_for('settings.create_user'))
             
-            # Email-Format: {guest_username}@gast.system.local
-            email = f"{guest_username}@gast.system.local"
+            # Email-Format: {guest_username}@{konfigurierte Domain}
+            from app.utils.guest_accounts import build_guest_email
+            email = build_guest_email(guest_username)
             
             # Prüfe ob Benutzername bereits existiert
             if User.query.filter_by(guest_username=guest_username, is_guest=True).first():
@@ -820,52 +872,81 @@ def create_user():
             flash(error_msg, 'danger')
             return redirect(url_for('settings.create_user'))
     
-    # GET: Zeige Formular
-    # Hole alle verfügbaren Module (ohne E-Mail, Credentials, Chats und Dateien für Gäste)
-    # Chats und Dateien werden über spezifische Zuweisungen gesteuert
-    guest_modules = [
-        ('module_calendar', 'Kalender'),
-        ('module_events', 'Veranstaltungen'),
-        ('module_contacts', 'Kontakte'),
-        ('module_manuals', 'Anleitungen'),
-        ('module_inventory', 'Lagerverwaltung'),
-        ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik'),
-        ('module_media_downloader', 'Media Downloader'),
-        ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
-    ]
-    
-    from app.utils.public_share import get_assignable_public_shares
-    assignable_shares = get_assignable_public_shares()
-
-    # Hole alle verfügbaren Chats (ohne Duplikate)
-    # Nur einen Haupt-Chat zeigen (auch wenn mehrere existieren, zeige nur den ersten/ältesten)
-    # Hole alle Chats und filtere nach is_main_chat
-    all_chats_list = Chat.query.order_by(Chat.created_at).all()
-    
-    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
-    all_chats = []
-    main_chat_added = False
-    main_chat_ids = set()
-    
-    # Zuerst: Füge nur den ersten Haupt-Chat hinzu
-    for chat in all_chats_list:
-        if chat.is_main_chat and not main_chat_added:
-            all_chats.append(chat)
-            main_chat_added = True
-            main_chat_ids.add(chat.id)
-        elif chat.is_main_chat:
-            # Weitere Haupt-Chats: Markiere sie, aber füge sie nicht hinzu
-            main_chat_ids.add(chat.id)
-        elif not chat.is_main_chat:
-            # Normale Chats: Füge sie hinzu
-            all_chats.append(chat)
-    
+    guest_modules, assignable_shares, all_chats = _guest_account_form_options()
+    from app.utils.guest_accounts import get_guest_email_domain, get_guest_email_suffix
     return render_template('settings/admin_create_user.html',
                          guest_modules=guest_modules,
                          assignable_shares=assignable_shares,
-                         all_chats=all_chats)
+                         all_chats=all_chats,
+                         guest_email_domain=get_guest_email_domain(),
+                         guest_email_suffix=get_guest_email_suffix())
+
+
+@settings_bp.route('/admin/users/guest-credentials/pdf', methods=['POST'])
+@login_required
+def guest_credentials_pdf():
+    """PDF mit Gast-Zugangsdaten, QR und Login-Link (Admin only)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    full_name = (data.get('full_name') or '').strip()
+    if not username or not password:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_credentials_missing')}), 400
+
+    from app.utils.pdf_generator import generate_guest_credentials_pdf
+    from io import BytesIO
+
+    login_url = url_for('auth.login', _external=True)
+    pdf_buf = generate_guest_credentials_pdf(
+        full_name=full_name,
+        username=username,
+        password=password,
+        login_url=login_url,
+    )
+    if isinstance(pdf_buf, BytesIO):
+        pdf_buf.seek(0)
+    return send_file(
+        pdf_buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='gast-zugangsdaten.pdf',
+    )
+
+
+@settings_bp.route('/admin/users/guest-credentials/email', methods=['POST'])
+@login_required
+def guest_credentials_email():
+    """Sendet Gast-Zugangsdaten manuell an eine Empfänger-Adresse (Admin only)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    data = request.get_json(silent=True) or {}
+    recipient = (data.get('recipient') or '').strip().lower()
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    full_name = (data.get('full_name') or '').strip()
+
+    if not recipient or '@' not in recipient or '.' not in recipient.split('@')[-1]:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_email_invalid')}), 400
+    if not username or not password:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_credentials_missing')}), 400
+
+    from app.utils.email_sender import send_guest_credentials_email
+    ok = send_guest_credentials_email(
+        recipient=recipient,
+        full_name=full_name,
+        username=username,
+        password=password,
+    )
+    if not ok:
+        return jsonify({'success': False, 'message': translate('settings.admin.create_user.guest_email_failed')}), 500
+    return jsonify({
+        'success': True,
+        'message': translate('settings.admin.create_user.guest_email_sent', email=recipient),
+    })
 
 
 @settings_bp.route('/admin/users/<int:user_id>/activate', methods=['POST'])
@@ -940,9 +1021,22 @@ def deactivate_user(user_id):
         flash(translate('settings.admin.users.flash_cannot_deactivate_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
+    # Gäste können mit demselben Button reaktiviert werden.
+    if user.is_guest and not user.is_active:
+        user.is_active = True
+        db.session.commit()
+        flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
+        return redirect(url_for('settings.admin_users'))
+
     user.is_active = False
     db.session.commit()
-    
+    try:
+        from app.utils.session_manager import revoke_all_sessions
+        revoke_all_sessions(user.id, exclude_current=False)
+        db.session.commit()
+    except Exception:
+        pass
+
     flash(translate('settings.admin.users.flash_user_deactivated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
@@ -996,45 +1090,55 @@ def remove_admin(user_id):
 @settings_bp.route('/admin/users/<int:user_id>/edit_guest', methods=['GET', 'POST'])
 @login_required
 def edit_guest_user(user_id):
-    """Edit a guest account (admin only)."""
+    """Edit a guest account (admin only). JSON/AJAX für Modal; HTML-GET → Benutzerliste."""
     if not current_user.is_admin:
+        if request.args.get('format') == 'json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': translate('settings.admin.users.flash_unauthorized')}), 403
         return redirect(url_for('settings.index'))
-    
+
     user = User.query.get_or_404(user_id)
-    
-    # Nur Gast-Accounts können bearbeitet werden
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('format') == 'json'
+
     if not user.is_guest:
-        flash('Dieser Benutzer ist kein Gast-Account.', 'danger')
+        msg = translate('settings.admin.users.flash_guest_not_guest')
+        if is_ajax:
+            return jsonify({'success': False, 'error': msg}), 400
+        flash(msg, 'danger')
         return redirect(url_for('settings.admin_users'))
-    
+
     if request.method == 'POST':
-        # Aktualisiere Name
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
-        
+
         if not first_name or not last_name:
-            flash('Bitte geben Sie Vor- und Nachname ein.', 'danger')
-            return redirect(url_for('settings.edit_guest_user', user_id=user_id))
-        
+            msg = translate('settings.admin.users.flash_guest_name_required')
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
+            return redirect(url_for('settings.admin_users'))
+
         user.first_name = first_name
         user.last_name = last_name
-        
-        # Aktualisiere Ablaufzeit
+
         guest_expires_at_str = request.form.get('guest_expires_at', '').strip()
         if guest_expires_at_str:
             try:
                 user.guest_expires_at = datetime.fromisoformat(guest_expires_at_str.replace('T', ' '))
-            except:
-                flash('Ungültiges Datumsformat für Ablaufzeit.', 'danger')
-                return redirect(url_for('settings.edit_guest_user', user_id=user_id))
+            except Exception:
+                msg = translate('settings.admin.users.flash_guest_invalid_expiry')
+                if is_ajax:
+                    return jsonify({'success': False, 'error': msg}), 400
+                flash(msg, 'danger')
+                return redirect(url_for('settings.admin_users'))
         else:
             user.guest_expires_at = None
-        
-        # Aktualisiere Module
+
         from app.models.role import UserModuleRole
         from app.utils.common import is_module_enabled
-        
-        # Erlaubte Module für Gäste
+        from app.models.guest import GuestShareAccess
+        from app.models.file import File, Folder
+        from app.models.public_share import PublicShare
+
         allowed_modules = [
             'module_calendar',
             'module_events',
@@ -1047,45 +1151,31 @@ def edit_guest_user(user_id):
             'module_assessment',
             'module_shortlinks',
         ]
-        
-        # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
+
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
         for role in existing_roles:
-            # Behalte automatisch gesetzte Module (module_chat, module_files) nur wenn noch Zugriff vorhanden
             if role.module_key in ['module_chat', 'module_files']:
-                # Prüfe ob noch Chat/File-Zugriff vorhanden
                 if role.module_key == 'module_chat':
-                    from app.models.chat import ChatMember
                     has_chat = ChatMember.query.filter_by(user_id=user.id).first() is not None
                     if not has_chat:
                         db.session.delete(role)
                 elif role.module_key == 'module_files':
-                    from app.models.guest import GuestShareAccess
                     has_file_access = GuestShareAccess.query.filter_by(user_id=user.id).first() is not None
                     if not has_file_access:
                         db.session.delete(role)
             elif role.module_key in allowed_modules:
-                # Entferne erlaubte Module - werden neu gesetzt
                 db.session.delete(role)
-        
-        # Füge neue Module hinzu
+
         selected_modules = request.form.getlist('allowed_modules')
         for module_key in selected_modules:
             if module_key in allowed_modules and is_module_enabled(module_key):
-                role = UserModuleRole(
+                db.session.add(UserModuleRole(
                     user_id=user.id,
                     module_key=module_key,
-                    has_access=True
-                )
-                db.session.add(role)
-        
-        # Aktualisiere Chat-Zuweisungen
-        from app.models.chat import Chat, ChatMember
-        
-        # Entferne alle bestehenden Chat-Mitgliedschaften
+                    has_access=True,
+                ))
+
         ChatMember.query.filter_by(user_id=user.id).delete()
-        
-        # Füge neue Chat-Mitgliedschaften hinzu
         chat_ids = request.form.getlist('chat_ids')
         has_chat_access = False
         for chat_id_str in chat_ids:
@@ -1093,160 +1183,81 @@ def edit_guest_user(user_id):
                 chat_id = int(chat_id_str)
                 chat = Chat.query.get(chat_id)
                 if chat:
-                    member = ChatMember(
-                        chat_id=chat_id,
-                        user_id=user.id
-                    )
-                    db.session.add(member)
+                    db.session.add(ChatMember(chat_id=chat_id, user_id=user.id))
                     has_chat_access = True
             except (ValueError, TypeError):
                 pass
-        
-        # Aktualisiere Chat-Modul-Zugriff
+
+        chat_role = UserModuleRole.query.filter_by(user_id=user.id, module_key='module_chat').first()
         if has_chat_access and is_module_enabled('module_chat'):
-            # Prüfe ob Chat-Modul-Rolle bereits existiert
-            chat_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_chat'
-            ).first()
             if not chat_role:
-                chat_role = UserModuleRole(
-                    user_id=user.id,
-                    module_key='module_chat',
-                    has_access=True
-                )
-                db.session.add(chat_role)
-        else:
-            # Entferne Chat-Modul-Rolle wenn keine Chats mehr zugewiesen
-            chat_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_chat'
-            ).first()
-            if chat_role:
-                db.session.delete(chat_role)
-        
-        # Aktualisiere Freigabelink-Zuweisungen
-        from app.models.guest import GuestShareAccess
-        from app.models.file import File, Folder
-        
-        # Entferne alle bestehenden Freigabelink-Zuweisungen
+                db.session.add(UserModuleRole(user_id=user.id, module_key='module_chat', has_access=True))
+        elif chat_role:
+            db.session.delete(chat_role)
+
         GuestShareAccess.query.filter_by(user_id=user.id).delete()
-        
-        # Füge neue Freigabelink-Zuweisungen hinzu
         share_tokens = request.form.getlist('share_tokens')
         has_file_access = False
-        from app.models.public_share import PublicShare
         for share_token in share_tokens:
             share = PublicShare.query.filter_by(token=share_token, enabled=True).first()
             if share:
-                share_access = GuestShareAccess(
+                db.session.add(GuestShareAccess(
                     user_id=user.id,
                     share_token=share_token,
                     share_type=share.resource_type,
-                )
-                db.session.add(share_access)
+                ))
                 has_file_access = True
                 continue
             file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
             folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
             if file_item:
-                share_access = GuestShareAccess(
-                    user_id=user.id,
-                    share_token=share_token,
-                    share_type='file',
-                )
-                db.session.add(share_access)
+                db.session.add(GuestShareAccess(user_id=user.id, share_token=share_token, share_type='file'))
                 has_file_access = True
             elif folder_item:
-                share_access = GuestShareAccess(
-                    user_id=user.id,
-                    share_token=share_token,
-                    share_type='folder',
-                )
-                db.session.add(share_access)
+                db.session.add(GuestShareAccess(user_id=user.id, share_token=share_token, share_type='folder'))
                 has_file_access = True
-        
-        # Aktualisiere Dateien-Modul-Zugriff
-        if has_file_access and is_module_enabled('module_files'):
-            # Prüfe ob Dateien-Modul-Rolle bereits existiert
-            file_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_files'
-            ).first()
-            if not file_role:
-                file_role = UserModuleRole(
-                    user_id=user.id,
-                    module_key='module_files',
-                    has_access=True
-                )
-                db.session.add(file_role)
-        else:
-            # Entferne Dateien-Modul-Rolle wenn keine Freigabelinks mehr zugewiesen
-            file_role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key='module_files'
-            ).first()
-            if file_role:
-                db.session.delete(file_role)
-        
-        db.session.commit()
-        
-        flash(f'Gast-Account für {user.full_name} wurde erfolgreich aktualisiert.', 'success')
-        return redirect(url_for('settings.admin_users'))
-    
-    # GET: Zeige Bearbeitungsformular
-    # Hole aktuelle Module des Gastes
-    from app.models.role import UserModuleRole
-    current_modules = [role.module_key for role in UserModuleRole.query.filter_by(user_id=user.id).all()]
-    
-    # Hole aktuelle Chat-Mitgliedschaften
-    from app.models.chat import ChatMember
-    current_chat_ids = [member.chat_id for member in ChatMember.query.filter_by(user_id=user.id).all()]
-    
-    # Hole aktuelle Freigabelink-Zuweisungen
-    from app.models.guest import GuestShareAccess
-    current_share_tokens = [access.share_token for access in GuestShareAccess.query.filter_by(user_id=user.id).all()]
-    
-    # Hole alle verfügbaren Module
-    guest_modules = [
-        ('module_calendar', 'Kalender'),
-        ('module_manuals', 'Anleitungen'),
-        ('module_inventory', 'Lagerverwaltung'),
-        ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
-    ]
-    
-    from app.utils.public_share import get_assignable_public_shares
-    assignable_shares = get_assignable_public_shares()
 
-    from app.models.chat import Chat
-    all_chats_list = Chat.query.order_by(Chat.created_at).all()
-    
-    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
-    all_chats = []
-    main_chat_added = False
-    main_chat_ids = set()
-    
-    for chat in all_chats_list:
-        if chat.is_main_chat and not main_chat_added:
-            all_chats.append(chat)
-            main_chat_added = True
-            main_chat_ids.add(chat.id)
-        elif chat.is_main_chat:
-            main_chat_ids.add(chat.id)
-        elif not chat.is_main_chat:
-            all_chats.append(chat)
-    
-    return render_template('settings/admin_edit_guest.html',
-                         user=user,
-                         guest_modules=guest_modules,
-                         current_modules=current_modules,
-                         assignable_shares=assignable_shares,
-                         current_share_tokens=current_share_tokens,
-                         all_chats=all_chats,
-                         current_chat_ids=current_chat_ids)
+        file_role = UserModuleRole.query.filter_by(user_id=user.id, module_key='module_files').first()
+        if has_file_access and is_module_enabled('module_files'):
+            if not file_role:
+                db.session.add(UserModuleRole(user_id=user.id, module_key='module_files', has_access=True))
+        elif file_role:
+            db.session.delete(file_role)
+
+        db.session.commit()
+        msg = translate('settings.admin.users.flash_guest_updated', name=user.full_name)
+        if is_ajax:
+            return jsonify({'success': True, 'message': msg})
+        flash(msg, 'success')
+        return redirect(url_for('settings.admin_users'))
+
+    # GET
+    from app.models.role import UserModuleRole
+    from app.models.guest import GuestShareAccess
+
+    current_modules = [role.module_key for role in UserModuleRole.query.filter_by(user_id=user.id).all()]
+    current_chat_ids = [member.chat_id for member in ChatMember.query.filter_by(user_id=user.id).all()]
+    current_share_tokens = [access.share_token for access in GuestShareAccess.query.filter_by(user_id=user.id).all()]
+
+    if request.args.get('format') == 'json':
+        expires = ''
+        if user.guest_expires_at:
+            expires = user.guest_expires_at.strftime('%Y-%m-%dT%H:%M')
+        return jsonify({
+            'success': True,
+            'id': user.id,
+            'first_name': user.first_name or '',
+            'last_name': user.last_name or '',
+            'full_name': user.full_name,
+            'email': user.email or '',
+            'guest_username': user.guest_username or '',
+            'guest_expires_at': expires,
+            'current_modules': current_modules,
+            'current_chat_ids': current_chat_ids,
+            'current_share_tokens': current_share_tokens,
+        })
+
+    return redirect(url_for('settings.admin_users'))
 
 
 @settings_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
@@ -1572,12 +1583,44 @@ def admin_system():
                 description='Globale Zeitzone für Datums- und Zeitangaben'
             )
             db.session.add(timezone_setting)
+
+        # Gast-E-Mail-Domain (ohne @), gilt für alle Gast-Accounts
+        from app.utils.guest_accounts import (
+            GUEST_EMAIL_DOMAIN_SETTING_KEY,
+            get_guest_email_domain,
+            normalize_guest_email_domain,
+        )
+        old_guest_domain = get_guest_email_domain()
+        guest_domain_raw = request.form.get('guest_email_domain', '').strip()
+        guest_email_domain = normalize_guest_email_domain(guest_domain_raw)
+        if not guest_email_domain:
+            flash(translate('settings.admin.system.flash_guest_domain_invalid'), 'danger')
+            return redirect(url_for('settings.admin_system'))
+
+        guest_domain_setting = SystemSettings.query.filter_by(key=GUEST_EMAIL_DOMAIN_SETTING_KEY).first()
+        if guest_domain_setting:
+            guest_domain_setting.value = guest_email_domain
+        else:
+            guest_domain_setting = SystemSettings(
+                key=GUEST_EMAIL_DOMAIN_SETTING_KEY,
+                value=guest_email_domain,
+                description='Domain-Suffix für Gast-Login-Adressen (ohne @)'
+            )
+            db.session.add(guest_domain_setting)
+
+        if guest_email_domain != old_guest_domain:
+            guests = User.query.filter_by(is_guest=True).all()
+            for guest in guests:
+                if guest.guest_username:
+                    guest.email = f"{guest.guest_username}@{guest_email_domain}"
         
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
         return redirect(url_for('settings.admin_system'))
     
     # Get current settings
+    from app.utils.guest_accounts import get_guest_email_domain
+
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
@@ -1589,6 +1632,7 @@ def admin_system():
     default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
     color_gradient = gradient_setting.value if gradient_setting else ''
     portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
+    guest_email_domain = get_guest_email_domain()
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -1596,6 +1640,7 @@ def admin_system():
                          default_accent_color=default_accent_color,
                          color_gradient=color_gradient,
                          portal_timezone=portal_timezone,
+                         guest_email_domain=guest_email_domain,
                          timezone_choices=get_timezone_choices())
 
 

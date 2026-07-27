@@ -2238,7 +2238,15 @@
     --sar-border: rgba(255, 255, 255, 0.12);
 }
 
-/* Rollen-Modal (Benutzerverwaltung) */
+/* Rollen-Modal (Benutzerverwaltung) — am body, über Flash/Settings-Shell */
+.settings-admin-roles-modal {
+    z-index: 1060 !important;
+}
+
+.settings-admin-roles-modal .modal-dialog {
+    pointer-events: auto;
+}
+
 .settings-admin-roles-modal .modal-content {
     border-radius: 1.15rem;
     border: 1px solid var(--sar-border, var(--bs-border-color-translucent, #e9ecef));
@@ -2248,6 +2256,58 @@
     --sar-border: var(--bs-border-color-translucent, #e9ecef);
     --sar-text: var(--bs-body-color, #212529);
     --sar-muted: var(--bs-secondary-color, #6c757d);
+}
+
+/* Flash unter Modal, Toast selbst weiter klickbar zum Schließen */
+body:has(.settings-admin-roles-modal.show) .app-flash-banner {
+    z-index: 1070;
+    pointer-events: none;
+}
+
+body:has(.settings-admin-roles-modal.show) .app-flash-banner .portal-msg {
+    pointer-events: auto;
+}
+
+.settings-admin-roles-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 0.85rem;
+}
+
+.settings-admin-roles-field {
+    min-width: 0;
+}
+
+.settings-admin-roles-field:nth-child(3),
+.settings-admin-roles-field:nth-child(4) {
+    grid-column: 1 / -1;
+}
+
+.settings-admin-roles-field-label {
+    margin-bottom: 0.35rem;
+}
+
+.settings-admin-roles-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.55rem 0.95rem;
+    border-color: var(--sar-border, var(--bs-border-color));
+    background: var(--sar-elevated, var(--bs-body-bg));
+}
+
+.settings-admin-roles-input:focus {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--sar-border, #dee2e6));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+}
+
+@media (max-width: 575.98px) {
+    .settings-admin-roles-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-admin-roles-field:nth-child(3),
+    .settings-admin-roles-field:nth-child(4) {
+        grid-column: auto;
+    }
 }
 
 .settings-admin-roles-modal-header {
@@ -2392,6 +2452,18 @@
     gap: 0.65rem;
 }
 
+.settings-admin-create-top-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 36rem) minmax(22rem, 28rem);
+    gap: 0.65rem;
+    align-items: start;
+}
+
+.settings-admin-create-panel > .settings-admin-create-card {
+    width: 100%;
+    max-width: 36rem;
+}
+
 .settings-admin-create-card {
     padding: 0.85rem 1rem;
     border-radius: 1.15rem;
@@ -2531,6 +2603,66 @@
     color: var(--sac-muted);
 }
 
+.settings-admin-create-credentials {
+    position: sticky;
+    top: 1rem;
+}
+
+.settings-admin-create-guest-name {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--sac-text);
+}
+
+.settings-admin-create-cred-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.45rem;
+}
+
+.settings-admin-create-cred-row .settings-admin-create-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-admin-create-copy {
+    flex: 0 0 auto;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: 1px solid var(--sac-border);
+    color: var(--accent-color, #0d6efd);
+    background: var(--sac-surface);
+    font-weight: 600;
+    padding-inline: 0.95rem;
+    white-space: nowrap;
+}
+
+.settings-admin-create-copy:hover {
+    color: #fff;
+    background: var(--accent-color, #0d6efd);
+    border-color: var(--accent-color, #0d6efd);
+}
+
+.settings-admin-create-credentials-actions {
+    margin-top: 0.65rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.settings-admin-create-credentials-actions .btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    padding: 0.55rem 0.85rem;
+    white-space: nowrap;
+}
+
+.settings-admin-create-credentials-actions .btn-accent {
+    flex: 1 1 100%;
+}
+
 .settings-admin-create-submit,
 .settings-admin-create-cancel {
     border-radius: var(--mod-radius-pill, 1.5rem);
@@ -2554,6 +2686,234 @@
     --sac-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
     --sac-elevated: var(--bs-body-bg, #212529);
     --sac-border: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 1199.98px) {
+    .settings-admin-create-top-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-admin-create-credentials {
+        position: static;
+    }
+}
+
+@media (min-width: 1200px) {
+    .settings-admin-create {
+        max-width: none;
+    }
+
+    .settings-admin-create-panel > .settings-admin-create-submit {
+        max-width: 36rem;
+    }
+
+    #panel-guest {
+        position: relative;
+        padding-right: 28.65rem;
+    }
+
+    #panel-guest .settings-admin-create-top-grid {
+        display: block;
+    }
+
+    #panel-guest .settings-admin-create-top-grid > .settings-admin-create-card {
+        width: 100%;
+        max-width: 36rem;
+    }
+
+    #panel-guest .settings-admin-create-credentials {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 28rem;
+    }
+}
+
+/* Guest credentials / email modals — eigene Tokens (Modal hängt oft am body) */
+.settings-admin-create-modal {
+    --sac-surface: var(--bs-tertiary-bg, #f1f3f5);
+    --sac-elevated: #ffffff;
+    --sac-border: rgba(15, 23, 42, 0.1);
+    --sac-text: var(--bs-body-color, #212529);
+    --sac-muted: var(--bs-secondary-color, #6c757d);
+    --sac-modal-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+    z-index: 1060 !important;
+    opacity: 1 !important;
+}
+
+.settings-admin-create-modal .modal-dialog {
+    max-width: 34rem;
+    pointer-events: auto;
+}
+
+.settings-admin-create-modal .modal-content {
+    border-radius: 1.75rem;
+    border: 1px solid var(--sac-border);
+    background: var(--sac-elevated) !important;
+    background-color: #ffffff !important;
+    box-shadow: var(--sac-modal-shadow);
+    overflow: hidden;
+    opacity: 1 !important;
+    isolation: isolate;
+}
+
+.settings-admin-create-modal .modal-header,
+.settings-admin-create-modal .modal-body,
+.settings-admin-create-modal .modal-footer {
+    border-color: var(--sac-border);
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+.settings-admin-create-modal .modal-header {
+    padding: 1.1rem 1.25rem 0.85rem;
+    border-bottom: 1px solid var(--sac-border);
+}
+
+.settings-admin-create-modal .modal-body {
+    padding: 1rem 1.25rem 0.35rem;
+}
+
+.settings-admin-create-modal .modal-footer {
+    padding: 0.85rem 1.25rem 1.15rem;
+    border-top: 1px solid var(--sac-border);
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+
+.settings-admin-create-modal .modal-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--sac-text);
+}
+
+.settings-admin-create-modal .settings-admin-create-hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    color: var(--sac-muted);
+    line-height: 1.4;
+}
+
+.settings-admin-create-modal .settings-admin-create-guest-name {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--sac-text);
+}
+
+.settings-admin-create-modal .settings-admin-create-field {
+    margin-bottom: 0.85rem;
+}
+
+.settings-admin-create-modal .settings-admin-create-field .form-label {
+    margin-bottom: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sac-muted);
+}
+
+.settings-admin-create-modal .settings-admin-create-cred-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.45rem;
+}
+
+.settings-admin-create-modal .settings-admin-create-input {
+    flex: 1;
+    min-width: 0;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    background: var(--sac-surface) !important;
+    border: 1px solid var(--sac-border) !important;
+    color: var(--sac-text) !important;
+    opacity: 1 !important;
+}
+
+.settings-admin-create-modal .settings-admin-create-copy {
+    flex: 0 0 auto;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: 1px solid var(--sac-border);
+    color: var(--accent-color, #0d6efd);
+    background: var(--sac-surface);
+    font-weight: 600;
+    padding-inline: 0.95rem;
+    white-space: nowrap;
+}
+
+.settings-admin-create-modal .settings-admin-create-copy:hover {
+    color: #fff;
+    background: var(--accent-color, #0d6efd);
+    border-color: var(--accent-color, #0d6efd);
+}
+
+.settings-admin-create-modal .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    white-space: nowrap;
+}
+
+.settings-admin-create-modal .btn-outline-secondary {
+    border-color: var(--sac-border);
+    color: var(--sac-text);
+    background: var(--sac-surface);
+}
+
+.settings-admin-create-modal .btn-outline-secondary:hover {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--sac-border));
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, #fff);
+}
+
+.settings-admin-create-modal .btn-accent {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+/* Soft backdrop — grau, explizit unter dem Guest-Modal */
+.modal-backdrop.settings-admin-create-modal-backdrop {
+    background: rgba(15, 23, 42, 0.38) !important;
+    opacity: 1 !important;
+    z-index: 1050 !important;
+}
+
+.settings-admin-create-modal--credentials .modal-footer {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+}
+
+.settings-admin-create-modal--credentials .modal-footer .btn {
+    width: 100%;
+}
+
+.settings-admin-create-modal--email .modal-dialog {
+    max-width: 29rem;
+}
+
+[data-bs-theme="dark"] .modal-backdrop.settings-admin-create-modal-backdrop {
+    background: rgba(15, 23, 42, 0.42) !important;
+}
+
+[data-bs-theme="dark"] .settings-admin-create-modal {
+    --sac-surface: #2a2f36;
+    --sac-elevated: #1e2228;
+    --sac-border: rgba(255, 255, 255, 0.12);
+    --sac-modal-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+
+[data-bs-theme="dark"] .settings-admin-create-modal .modal-content,
+[data-bs-theme="dark"] .settings-admin-create-modal .modal-header,
+[data-bs-theme="dark"] .settings-admin-create-modal .modal-body,
+[data-bs-theme="dark"] .settings-admin-create-modal .modal-footer {
+    background: #1e2228 !important;
+    background-color: #1e2228 !important;
+}
+
+[data-bs-theme="dark"] .settings-admin-create-modal .settings-admin-create-input,
+[data-bs-theme="dark"] .settings-admin-create-modal .settings-admin-create-copy,
+[data-bs-theme="dark"] .settings-admin-create-modal .btn-outline-secondary {
+    background: var(--sac-surface) !important;
+    color: var(--sac-text);
 }
 
 /* Admin whitelist */

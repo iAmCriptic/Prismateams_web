@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from flask import current_app
 
@@ -291,4 +292,110 @@ def validate_onlyoffice_access_token(token, file_id):
     # since tokens are generated with file_id and secret key.
     current_app.logger.debug(f"ONLYOFFICE access token validated successfully for file {file_id}")
     return True
+
+
+def verify_onlyoffice_callback_token(raw_body, auth_header=None):
+    """
+    Verify ONLYOFFICE callback JWT token and return signed payload.
+
+    Compatibility behavior:
+    - If ONLYOFFICE_SECRET_KEY is empty, callbacks are accepted (token optional mode).
+    - If ONLYOFFICE_SECRET_KEY is set, a valid JWT is required either in:
+      - Authorization: Bearer <token>
+      - JSON body field: token
+    """
+    secret_key = (current_app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+    if not secret_key:
+        return True, raw_body, "secret_not_configured"
+
+    if not JWT_AVAILABLE:
+        return False, None, "jwt_library_missing"
+
+    token = ""
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        token = (raw_body or {}).get('token', '').strip()
+    if not token:
+        return False, None, "missing_token"
+
+    try:
+        decoded = jwt.decode(token, secret_key, algorithms=['HS256'])
+    except Exception:
+        return False, None, "invalid_token"
+
+    # ONLYOFFICE commonly signs payload under "payload".
+    signed_payload = decoded.get('payload') if isinstance(decoded, dict) else None
+    if not isinstance(signed_payload, dict):
+        signed_payload = decoded if isinstance(decoded, dict) else {}
+
+    if not isinstance(signed_payload, dict):
+        return False, None, "invalid_payload"
+
+    return True, signed_payload, "ok"
+
+
+def is_onlyoffice_callback_download_url_allowed(saved_file_url):
+    """
+    Restrict ONLYOFFICE callback download URL to trusted ONLYOFFICE host(s).
+    Prevents arbitrary SSRF targets while keeping ONLYOFFICE-compatible flows.
+    """
+    if not saved_file_url:
+        return False, "empty_url"
+
+    try:
+        parsed = urlparse(saved_file_url.strip())
+    except Exception:
+        return False, "invalid_url"
+
+    if parsed.scheme not in {"http", "https"}:
+        return False, "invalid_scheme"
+    if not parsed.hostname:
+        return False, "missing_host"
+
+    allowed_hosts = set()
+    allowed_host_ports = set()
+
+    configured_ds_url = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
+    if configured_ds_url.startswith('http://') or configured_ds_url.startswith('https://'):
+        try:
+            parsed_ds = urlparse(configured_ds_url)
+            ds_host = parsed_ds.hostname
+            if ds_host:
+                allowed_hosts.add(ds_host.lower())
+                if parsed_ds.port:
+                    allowed_host_ports.add((ds_host.lower(), parsed_ds.port))
+        except Exception:
+            pass
+
+    configured_public_url = (current_app.config.get('ONLYOFFICE_PUBLIC_URL') or '').strip()
+    if configured_public_url.startswith('http://') or configured_public_url.startswith('https://'):
+        try:
+            parsed_public = urlparse(configured_public_url)
+            public_host = parsed_public.hostname
+            if public_host:
+                allowed_hosts.add(public_host.lower())
+                if parsed_public.port:
+                    allowed_host_ports.add((public_host.lower(), parsed_public.port))
+        except Exception:
+            pass
+
+    # Same-host/proxy deployments often use relative ONLYOFFICE URL.
+    if configured_ds_url.startswith('/'):
+        allowed_hosts.update({'localhost', '127.0.0.1', '::1'})
+
+    if not allowed_hosts:
+        return False, "no_allowed_hosts_configured"
+
+    target_host = parsed.hostname.lower()
+    if target_host not in allowed_hosts:
+        return False, "host_not_allowed"
+
+    # If specific port(s) are configured for a host, enforce that port.
+    if any(host == target_host for host, _port in allowed_host_ports):
+        target_port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+        if (target_host, target_port) not in allowed_host_ports:
+            return False, "port_not_allowed"
+
+    return True, "ok"
 

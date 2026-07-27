@@ -642,6 +642,156 @@ def generate_music_wish_pdf(public_url, output=None):
     )
 
 
+def generate_guest_credentials_pdf(full_name, username, password, login_url, output=None):
+    """
+    A5-PDF mit Gast-Zugangsdaten: Portal-Kopf, Credentials-Karte, QR + Login-Link.
+    """
+    if output is None:
+        output = BytesIO()
+
+    usable = A5[0] - 3 * cm
+    ps = pdf_paragraph_styles()
+    portal = get_portal_name()
+    display_name = (full_name or '').strip() or 'Gast'
+
+    story = [
+        build_standard_header(
+            "Gast-Zugang",
+            subtitle=portal,
+            pagesize=A5,
+            logo_size=2.0 * cm,
+            content_width=usable,
+        ),
+        Spacer(1, 0.45 * cm),
+        Paragraph(
+            f"Zugangsdaten für <b>{display_name}</b>",
+            ParagraphStyle(
+                'GuestCredIntro',
+                parent=ps['body'],
+                fontSize=11,
+                leading=14,
+                alignment=TA_CENTER,
+            ),
+        ),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    label_style = ParagraphStyle(
+        'GuestCredLabel',
+        parent=ps['caption'],
+        fontSize=8,
+        textColor=PDF_COLORS['text_muted'],
+        spaceAfter=1,
+    )
+    value_style = ParagraphStyle(
+        'GuestCredValue',
+        parent=ps['body'],
+        fontName='Courier',
+        fontSize=11,
+        leading=14,
+        spaceAfter=8,
+    )
+    password_style = ParagraphStyle(
+        'GuestCredPassword',
+        parent=value_style,
+        fontName='Courier-Bold',
+        fontSize=14,
+        leading=17,
+        spaceAfter=0,
+    )
+
+    cred_inner = Table(
+        [
+            [Paragraph('Benutzername / E-Mail', label_style)],
+            [Paragraph(str(username or ''), value_style)],
+            [Paragraph('Passwort', label_style)],
+            [Paragraph(str(password or ''), password_style)],
+        ],
+        colWidths=[usable - 1.2 * cm],
+    )
+    cred_inner.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(RoundedBox(
+        cred_inner,
+        width=usable,
+        padding=14,
+        radius=12,
+        fill_color=PDF_COLORS['zebra'],
+        stroke_color=PDF_COLORS['line'],
+    ))
+    story.append(Spacer(1, 0.45 * cm))
+
+    qr_bytes = generate_qr_code_bytes(login_url, box_size=8, border=2)
+    qr_size = 4.2 * cm
+    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+    qr_label = ParagraphStyle(
+        'GuestQrLabel',
+        parent=ps['section'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        spaceAfter=0.15 * cm,
+    )
+    qr_caption = ParagraphStyle(
+        'GuestQrCaption',
+        parent=ps['caption'],
+        fontSize=7,
+        leading=9,
+        alignment=TA_CENTER,
+        wordWrap='CJK',
+    )
+    qr_inner = Table(
+        [
+            [Paragraph('Zur Website / Login', qr_label)],
+            [qr_image],
+            [Paragraph(str(login_url or ''), qr_caption)],
+        ],
+        colWidths=[usable - 1.2 * cm],
+    )
+    qr_inner.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(RoundedBox(
+        qr_inner,
+        width=usable,
+        padding=12,
+        radius=12,
+        fill_color=PDF_COLORS['card_bg'],
+        stroke_color=PDF_COLORS['line'],
+    ))
+    story.append(Spacer(1, 0.35 * cm))
+    story.append(Paragraph(
+        'Zugangsdaten sicher aufbewahren und nicht weitergeben.',
+        ParagraphStyle(
+            'GuestCredNote',
+            parent=ps['muted'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            leading=10,
+        ),
+    ))
+
+    return build_standard_pdf(
+        story,
+        pagesize=A5,
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=1.3 * cm,
+        bottomMargin=1.8 * cm,
+        output=output,
+    )
+
+
 def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     """
     Generiert einen Ausleihschein-PDF für Checkout oder Legacy-BorrowTransactions.

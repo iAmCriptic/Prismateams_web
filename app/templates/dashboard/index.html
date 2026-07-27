@@ -35,7 +35,9 @@
 {% endblock %}
 
 {% block content %}
+{% if not current_user.is_guest %}
 {% include 'dashboard/_whats_new_modal.html' %}
+{% endif %}
 
 <div class="dashboard-shell dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
     <aside class="mod-sidebar">
@@ -49,6 +51,7 @@
             {% include 'dashboard/_quick_access.html' %}
         </nav>
         <div class="mod-sidebar-footer">
+            {% if not current_user.is_guest %}
             <button type="button"
                     class="dashboard-sidebar-whats-new position-relative"
                     id="whatsNewBtn"
@@ -62,7 +65,6 @@
                     <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
                 </span>
             </button>
-            {% if not current_user.is_guest %}
             <a href="{{ url_for('dashboard.edit') }}" class="mod-nav-link dashboard-sidebar-edit-link">
                 <i class="bi bi-pencil-square"></i>
                 <span>{{ _('dashboard.quick_access.edit_dashboard') }}</span>
@@ -107,6 +109,7 @@
             <div class="dashboard-mobile-qa-grid">
                 {% set qa_variant = 'mobile' %}
                 {% include 'dashboard/_quick_access.html' %}
+                {% if not current_user.is_guest %}
                 <button type="button"
                         class="dashboard-qa-tile dashboard-qa-tile--neu"
                         data-bs-toggle="modal"
@@ -115,6 +118,7 @@
                     <i class="bi bi-stars"></i>
                     <span>{{ _('dashboard.whats_new.button_label') }}</span>
                 </button>
+                {% endif %}
             </div>
         </div>
 
@@ -271,7 +275,8 @@ setInterval(updateClock, 1000);
 
     const badge = document.getElementById('whatsNewBadge');
     const modalEl = document.getElementById('whatsNewModal');
-    const seenUrl = modalEl ? modalEl.dataset.whatsNewSeenUrl : '';
+    if (!modalEl) return;
+    const seenUrl = modalEl.dataset.whatsNewSeenUrl || '';
 
     function markSeen() {
         if (seenMarked || !seenUrl) return;

@@ -13,7 +13,9 @@ from app.utils.totp import verify_totp
 from app.utils.password_policy import validate_password
 from app.utils.bot_protection import get_template_context, validate_bot_protection
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 import logging
+from app.utils.common import portal_now_naive
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -61,6 +63,29 @@ def _clear_pending_2fa_login():
     session.pop('pending_2fa_user_id', None)
     session.pop('pending_2fa_remember', None)
     session.pop('pending_2fa_next', None)
+
+
+def _sanitize_next_page(candidate):
+    """Erlaubt nur interne Redirect-Ziele (relative URL oder gleiche Origin)."""
+    value = (candidate or "").strip()
+    if not value:
+        return None
+
+    parsed = urlparse(value)
+
+    # Interne relative Pfade erlauben, aber kein protocol-relative //host.
+    if not parsed.scheme and not parsed.netloc:
+        if value.startswith('/') and not value.startswith('//'):
+            return value
+        return None
+
+    # Absolute URL nur erlauben, wenn sie zur aktuellen Origin gehört.
+    request_host = request.host.lower()
+    target_host = (parsed.netloc or "").lower()
+    if parsed.scheme in {"http", "https"} and target_host == request_host:
+        return f"{parsed.path or '/'}{('?' + parsed.query) if parsed.query else ''}"
+
+    return None
 
 
 def _finalize_portal_login(user, remember=False, next_page=None):
@@ -112,15 +137,17 @@ def _finalize_portal_login(user, remember=False, next_page=None):
     if remember:
         session.permanent = True
 
+    safe_next_page = _sanitize_next_page(next_page)
+
     from app.blueprints.setup import is_setup_needed
     if is_setup_needed():
-        if next_page:
-            return redirect(next_page)
+        if safe_next_page:
+            return redirect(safe_next_page)
         return redirect(url_for('setup.setup'))
 
     # Redirect to next page or dashboard
-    if next_page:
-        return redirect(next_page)
+    if safe_next_page:
+        return redirect(safe_next_page)
     return redirect(url_for('dashboard.index'))
 
 
@@ -279,7 +306,7 @@ def login():
     
     if current_user.is_authenticated:
         if is_setup_needed():
-            next_page = request.args.get('next')
+            next_page = _sanitize_next_page(request.args.get('next'))
             if next_page:
                 return redirect(next_page)
             return redirect(url_for('setup.setup'))
@@ -299,7 +326,7 @@ def login():
         email = login_input.lower()
         password = request.form.get('password', '')
         remember = request.form.get('remember', False) == 'on'
-        next_page = request.form.get('next') or request.args.get('next')
+        next_page = _sanitize_next_page(request.form.get('next') or request.args.get('next'))
         
         if not email or not password:
             flash(translate('auth.flash.enter_email_password'), 'danger')
@@ -326,11 +353,11 @@ def login():
                 return redirect(url_for('assessment.auth.admin_setup'))
             return redirect(url_for('assessment.general.home'))
 
-        # Unterstütze @gast.system.local Format für Gast-Accounts
+        # Unterstütze konfigurierte Gast-Domain für Gast-Accounts
+        from app.utils.guest_accounts import parse_guest_login_email
         user = None
-        if email.endswith('@gast.system.local'):
-            # Extrahiere Gast-Benutzernamen
-            guest_username = email.replace('@gast.system.local', '')
+        guest_username = parse_guest_login_email(email)
+        if guest_username:
             user = User.query.filter_by(guest_username=guest_username, is_guest=True).first()
         else:
             # Standard-Login für normale Accounts
@@ -359,16 +386,22 @@ def login():
         user.failed_login_until = None
         db.session.commit()
         
-        # Prüfe Ablaufzeit für Gast-Accounts
+        # Prüfe Ablaufzeit für Gast-Accounts.
+        # Abgelaufene Gäste werden deaktiviert (nicht sofort gelöscht), damit sie
+        # für eine kurze Zeit durch Admins reaktiviert werden können.
+        # guest_expires_at ist Portal-Wandzeit (naive) — mit portal_now_naive vergleichen.
         if user.is_guest and user.guest_expires_at:
-            if datetime.utcnow() > user.guest_expires_at:
-                # Account ist abgelaufen - lösche ihn
-                db.session.delete(user)
-                db.session.commit()
-                flash(translate('auth.flash.guest_account_expired'), 'danger')
+            if portal_now_naive() > user.guest_expires_at:
+                if user.is_active:
+                    user.is_active = False
+                    db.session.commit()
+                flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
                 return render_template('auth/login.html', **_auth_template_kwargs())
         
         if not user.is_active:
+            if user.is_guest:
+                flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
+                return render_template('auth/login.html', **_auth_template_kwargs())
             flash(translate('auth.flash.account_not_activated'), 'warning')
             return render_template('auth/login.html', **_auth_template_kwargs())
         
@@ -397,7 +430,7 @@ def login_2fa():
 
     pending_user_id = session.get('pending_2fa_user_id')
     remember = bool(session.get('pending_2fa_remember', False))
-    next_page = session.get('pending_2fa_next')
+    next_page = _sanitize_next_page(session.get('pending_2fa_next'))
 
     if not pending_user_id:
         flash(translate('auth.flash.enter_email_password'), 'warning')
