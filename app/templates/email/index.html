@@ -26,46 +26,76 @@
 
 {% macro email_action_menu(email, folder_tree) %}
 <ul class="dropdown-menu dropdown-menu-end email-actions-menu">
-    <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
-        <i class="bi bi-eye me-2"></i>{{ _('email.index.actions.view') }}
-    </a></li>
-    <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
-        <i class="bi bi-reply me-2"></i>{{ _('email.index.actions.reply') }}
-    </a></li>
-    <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
-        <i class="bi bi-reply-all me-2"></i>{{ _('email.index.actions.reply_all') }}
-    </a></li>
-    <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
-        <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
-    </a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li>
-        <button type="button" class="dropdown-item" data-action="toggle-read" data-email-id="{{ email.id }}" data-state="{{ 'unread' if email.is_read else 'read' }}">
-            <i class="bi bi-envelope{{ '-open' if not email.is_read else '' }} me-2"></i>
-            {% if email.is_read %}{{ _('email.index.actions.mark_unread') }}{% else %}{{ _('email.index.actions.mark_read') }}{% endif %}
+    <li class="email-action-primary">
+        <a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}"
+           title="{{ _('email.index.actions.view') }}" aria-label="{{ _('email.index.actions.view') }}">
+            <i class="bi bi-eye" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.actions.view') }}</span>
+        </a>
+    </li>
+    <li class="email-action-primary">
+        <a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}"
+           title="{{ _('email.index.actions.reply') }}" aria-label="{{ _('email.index.actions.reply') }}">
+            <i class="bi bi-reply" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.actions.reply') }}</span>
+        </a>
+    </li>
+    <li class="email-action-primary">
+        <a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}"
+           title="{{ _('email.index.actions.reply_all') }}" aria-label="{{ _('email.index.actions.reply_all') }}">
+            <i class="bi bi-reply-all" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.actions.reply_all') }}</span>
+        </a>
+    </li>
+    <li class="email-action-primary">
+        <a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}"
+           title="{{ _('email.index.actions.forward') }}" aria-label="{{ _('email.index.actions.forward') }}">
+            <i class="bi bi-forward" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.actions.forward') }}</span>
+        </a>
+    </li>
+    <li class="email-action-primary">
+        <button type="button" class="dropdown-item" data-action="toggle-read" data-email-id="{{ email.id }}"
+                data-state="{{ 'unread' if email.is_read else 'read' }}"
+                title="{% if email.is_read %}{{ _('email.index.actions.mark_unread') }}{% else %}{{ _('email.index.actions.mark_read') }}{% endif %}"
+                aria-label="{% if email.is_read %}{{ _('email.index.actions.mark_unread') }}{% else %}{{ _('email.index.actions.mark_read') }}{% endif %}">
+            <i class="bi bi-envelope{{ '-open' if not email.is_read else '' }}" aria-hidden="true"></i>
+            <span class="email-action-label">{% if email.is_read %}{{ _('email.index.actions.mark_unread') }}{% else %}{{ _('email.index.actions.mark_read') }}{% endif %}</span>
         </button>
     </li>
+    <li class="email-action-primary">
+        <button type="button" class="dropdown-item text-danger" data-action="delete-email" data-email-id="{{ email.id }}"
+                title="{{ _('email.index.actions.delete') }}" aria-label="{{ _('email.index.actions.delete') }}">
+            <i class="bi bi-trash" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.actions.delete') }}</span>
+        </button>
+    </li>
+    <li><hr class="dropdown-divider email-action-divider"></li>
     <li class="email-action-colors">
-        <h6 class="dropdown-header">{{ _('email.index.actions.set_color_dot') }}</h6>
-        <div class="email-color-picker">
+        <h6 class="dropdown-header email-action-label">{{ _('email.index.actions.set_color_dot') }}</h6>
+        <div class="email-color-picker" role="group" aria-label="{{ _('email.index.actions.set_color_dot') }}">
             <button type="button" class="email-color-swatch {% if not email.color_dot %}is-active{% endif %}"
                     data-action="set-color" data-email-id="{{ email.id }}" data-color=""
-                    title="{{ _('email.index.actions.color_none') }}">
-                <i class="bi bi-x"></i>
+                    title="{{ _('email.index.actions.color_none') }}"
+                    aria-label="{{ _('email.index.actions.color_none') }}">
+                <i class="bi bi-x" aria-hidden="true"></i>
             </button>
             {% for color in color_dot_choices %}
             <button type="button" class="email-color-swatch {% if email.color_dot == color %}is-active{% endif %}"
                     data-action="set-color" data-email-id="{{ email.id }}" data-color="{{ color }}"
                     data-color-label="{{ color }}"
                     style="--swatch-color: var(--email-dot-{{ color }}, transparent);"
-                    title="{{ color }}"></button>
+                    title="{{ color }}"
+                    aria-label="{{ color }}"></button>
             {% endfor %}
         </div>
     </li>
-    <li><hr class="dropdown-divider"></li>
+    <li><hr class="dropdown-divider email-action-divider"></li>
     <li class="dropdown-submenu">
-        <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-folder-symlink me-2"></i>{{ _('email.index.labels.move_to_folder') }}
+        <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+           title="{{ _('email.index.labels.move_to_folder') }}" aria-label="{{ _('email.index.labels.move_to_folder') }}">
+            <i class="bi bi-folder-symlink" aria-hidden="true"></i>
+            <span class="email-action-label">{{ _('email.index.labels.move_to_folder') }}</span>
         </a>
         <ul class="dropdown-menu dropdown-menu-end email-move-menu">
             {% for entry in folder_tree %}
@@ -83,12 +113,6 @@
                 {% endif %}
             {% endfor %}
         </ul>
-    </li>
-    <li><hr class="dropdown-divider"></li>
-    <li>
-        <button type="button" class="dropdown-item text-danger" data-action="delete-email" data-email-id="{{ email.id }}">
-            <i class="bi bi-trash me-2"></i>{{ _('email.index.actions.delete') }}
-        </button>
     </li>
 </ul>
 {% endmacro %}
@@ -207,7 +231,7 @@
                 <div class="dropdown">
                     <button class="btn btn-sm btn-link email-action-toggle" type="button"
                             data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static"
-                            data-bs-auto-close="outside" data-mobile-modal="dropdown"
+                            data-bs-auto-close="outside"
                             aria-label="{{ _('email.index.labels.options_title') }}">
                         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                     </button>
@@ -490,19 +514,6 @@
     </div>
 </div>
 
-<!-- Mobile Actions Modal (renders dropdown contents as a centered modal on small screens) -->
-<div class="modal fade" id="emailActionsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{ _('email.index.labels.options_title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('email.index.mobile.close') }}"></button>
-            </div>
-            <div class="modal-body" id="emailActionsContent"></div>
-        </div>
-    </div>
-</div>
-
 </div>
 {% endblock %}
 
@@ -587,7 +598,7 @@ function updateEmailItemState(emailId, { isRead, colorDot, removed, movedToFolde
             const btn = item.querySelector('[data-action="toggle-read"]');
             if (btn) btn.dataset.state = isRead ? 'unread' : 'read';
             if (openEnv) {
-                openEnv.className = isRead ? 'bi bi-envelope me-2' : 'bi bi-envelope-open me-2';
+                openEnv.className = isRead ? 'bi bi-envelope' : 'bi bi-envelope-open';
             }
         }
         if (colorDot !== undefined) {
@@ -875,39 +886,17 @@ document.addEventListener('click', (e) => {
     handleDeleteFolder(btn.dataset.folder);
 });
 
-// Mobile actions modal: render ⋮ dropdown contents as modal on narrow screens
+// Desktop/touch: nested “move to folder” via tap (Action Sheet handled in context-menu.js)
 document.addEventListener('click', function(e) {
-    const toggleBtn = e.target.closest('[data-mobile-modal="dropdown"]');
-    if (!toggleBtn) return;
-    if (!window.matchMedia('(max-width: 767.98px)').matches) return;
-    const dropdown = toggleBtn.parentElement && toggleBtn.parentElement.querySelector('.dropdown-menu');
-    if (!dropdown) return;
-    e.preventDefault();
-    const modalEl = document.getElementById('emailActionsModal');
-    const contentEl = document.getElementById('emailActionsContent');
-    if (!modalEl || !contentEl) return;
-    contentEl.innerHTML = '';
-    Array.from(dropdown.children).forEach(child => contentEl.appendChild(child.cloneNode(true)));
-    contentEl.querySelectorAll('.dropdown-item').forEach(item => item.classList.add('py-2'));
-    // Nested “move to folder” stays inside ⋮ — expand via tap, no hover flyout
-    contentEl.querySelectorAll('.dropdown-submenu > .dropdown-toggle').forEach((toggle) => {
-        toggle.removeAttribute('data-bs-toggle');
-        toggle.setAttribute('aria-expanded', 'false');
-    });
-    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    bsModal.show();
-});
-
-// ⋮ / modal: open nested submenu by tap (touch has no :hover)
-document.addEventListener('click', function(e) {
-    const toggle = e.target.closest('.email-actions-menu .dropdown-submenu > .dropdown-toggle, #emailActionsContent .dropdown-submenu > .dropdown-toggle');
+    if (e.target.closest('#prismateams-context-menu.pt-context-menu--sheet')) return;
+    const toggle = e.target.closest('.email-actions-menu .dropdown-submenu > .dropdown-toggle');
     if (!toggle) return;
     e.preventDefault();
     e.stopPropagation();
     const parent = toggle.closest('.dropdown-submenu');
     const sub = parent && parent.querySelector(':scope > .dropdown-menu');
     if (!parent || !sub) return;
-    const root = toggle.closest('.email-actions-menu, #emailActionsContent') || document;
+    const root = toggle.closest('.email-actions-menu') || document;
     root.querySelectorAll('.dropdown-submenu').forEach((li) => {
         if (li === parent) return;
         li.classList.remove('is-open');

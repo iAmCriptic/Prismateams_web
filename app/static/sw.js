@@ -1,9 +1,11 @@
 // Service Worker für Team Portal PWA - Serverbasiertes Push-System
 // Network-First Strategie: Cache nur als Backup bei Offline-Verbindung
-const CACHE_NAME = 'team-portal-v9';
+// __SW_CACHE_NAME__ / __SW_ASSET_VERSION__ werden von /sw.js-Route ersetzt
+const CACHE_NAME = '__SW_CACHE_NAME__';
+const ASSET_VERSION = '__SW_ASSET_VERSION__';
 const PORTAL_INFO_CACHE_KEY = 'portal-info';
 const urlsToCache = [
-  '/static/css/style.css',
+  '/static/css/base.css',
   '/static/css/cookie-consent.css',
   '/static/js/app.js',
   '/static/js/cookie-consent.js',
@@ -62,7 +64,15 @@ async function getPortalInfo() {
   };
 }
 
+// Client kann Skip-Waiting anfordern (Update-Prompt)
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Install Event - Cache wichtige Ressourcen (einzeln, CDN-Fehler blockieren nicht alles)
+// skipWaiting bewusst nicht hier: Client sendet SKIP_WAITING nach User-Confirm
 self.addEventListener('install', function(event) {
   event.waitUntil(
     Promise.all([
@@ -82,14 +92,13 @@ self.addEventListener('install', function(event) {
       fetchAndCachePortalInfo()
     ])
   );
-  self.skipWaiting();
 });
 
-// Activate Event - Alte Caches löschen
+// Activate Event - Alle alten Caches verwerfen und Clients übernehmen
 self.addEventListener('activate', function(event) {
   event.waitUntil(
-    Promise.all([
-      caches.keys().then(function(cacheNames) {
+    caches.keys()
+      .then(function(cacheNames) {
         return Promise.all(
           cacheNames.map(function(cacheName) {
             if (cacheName !== CACHE_NAME) {
@@ -98,14 +107,13 @@ self.addEventListener('activate', function(event) {
             }
           })
         );
-      }).then(function() {
-        // Entferne auch alte HTML-Caches für Inventory-Routen, die Probleme verursachen könnten
+      })
+      .then(function() {
         return caches.open(CACHE_NAME).then(function(cache) {
           return cache.keys().then(function(keys) {
             return Promise.all(
               keys.map(function(request) {
                 const url = new URL(request.url);
-                // Entferne gecachte HTML-Seiten für Inventory-Routen
                 if (ALWAYS_NETWORK_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + '/'))) {
                   console.log('Entferne gecachte Route:', url.pathname);
                   return cache.delete(request);
@@ -114,14 +122,14 @@ self.addEventListener('activate', function(event) {
             );
           });
         });
-      }),
-      // Portal-Infos beim Aktivieren aktualisieren
-      fetchAndCachePortalInfo()
-    ])
+      })
+      .then(function() {
+        return fetchAndCachePortalInfo();
+      })
+      .then(function() {
+        return self.clients.claim();
+      })
   );
-  
-  // Übernehme sofort die Kontrolle
-  return self.clients.claim();
 });
 
 // Offline-/Netzwerkfehler: Cache → erneuter Fetch — kein Fake-503 für Scripts/CSS

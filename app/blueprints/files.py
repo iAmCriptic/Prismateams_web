@@ -2025,6 +2025,17 @@ def view_file(file_id):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
+    else:
+        try:
+            from app.utils.notifications import mark_in_app_notifications_read
+            mark_in_app_notifications_read(
+                current_user.id,
+                notification_type='file',
+                source_id=file_id,
+                commit=True,
+            )
+        except Exception:
+            pass
     
     # Merke View/Ordner für „Schließen“ zurück in denselben Kontext
     view_arg = request.args.get('view')

@@ -48,6 +48,12 @@
       "install": "Instalar",
       "later": "Mais tarde",
       "never": "Não mostrar novamente"
+    },
+    "pwa_update": {
+      "title": "Nova versão disponível",
+      "description": "Uma nova versão do app está pronta. Atualize para obter as últimas melhorias.",
+      "reload": "Atualizar",
+      "later": "Mais tarde"
     }
   },
   "common": {
@@ -314,6 +320,8 @@
       "started": "Download iniciado.",
       "expired": "Este arquivo não está mais disponível.",
       "err_http_403": "Download bloqueado pelo YouTube (HTTP 403). Tente novamente mais tarde ou use outra qualidade/URL.",
+      "err_bot_check": "O YouTube exige login (verificação de bot). Admins podem definir opcionalmente um cookies.txt (ver documentação de instalação).",
+      "err_cookies_needed": "Cookies do YouTube ausentes, expirados ou inválidos. Renove o cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "Este vídeo tem restrição de idade e não pode ser baixado sem login/cookies.",
       "err_video_unavailable": "Este vídeo não está disponível.",
       "err_download_failed": "Falha no download. Tente novamente.",
@@ -537,7 +545,10 @@
       "history_empty": "Sem versões anteriores.",
       "history_current": "atual",
       "more": "Mais",
-      "version_label": "Versão {number}"
+      "version_label": "Versão {number}",
+      "pdf_title": "Visualizador PDF",
+      "pdf_loading": "A carregar PDF…",
+      "pdf_error": "Este browser não conseguiu incorporar o PDF. Por favor, descarregue-o."
     },
     "index": {
       "search_placeholder": "Pesquisar em ficheiros",

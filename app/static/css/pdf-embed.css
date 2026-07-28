@@ -1,0 +1,113 @@
+/* Embedded PDF.js viewer — mobile only; desktop uses native iframe */
+
+.file-viewer-pdf-embed,
+.file-viewer-pdf-native,
+[data-pdf-embed] {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: #525659;
+}
+
+.file-viewer-pdf-native {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-viewer-pdf-native .file-viewer-pdf-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: #525659;
+    display: block;
+}
+
+/*
+ * Mobile: THIS element is the scroller (pages stack inside).
+ * Zoom transform lives on .pdf-embed-zoom — never on the scroller —
+ * so multipage scroll works at 1x and the portal header stays put.
+ */
+.file-viewer-pdf-embed.pdf-embed--mobile {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    position: relative;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.file-viewer-pdf-embed.pdf-embed--zoomed {
+    overflow: hidden;
+    touch-action: none;
+}
+
+.pdf-embed-zoom {
+    width: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+.pdf-embed-status {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    padding: 1.25rem 1.5rem;
+    max-width: 22rem;
+    text-align: center;
+    color: #f1f3f5;
+    font-size: 0.95rem;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.pdf-embed-status:not([hidden]) {
+    pointer-events: auto;
+}
+
+.pdf-embed-status--error {
+    color: #fff;
+    pointer-events: auto;
+}
+
+.pdf-embed-pages {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.5rem 1.5rem;
+    box-sizing: border-box;
+}
+
+.pdf-embed-page {
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    line-height: 0;
+    max-width: 100%;
+}
+
+.pdf-embed-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    pointer-events: none;
+}
+
+[data-bs-theme="dark"] .pdf-embed-page {
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+}
+
+.file-viewer--pdf .file-viewer-header {
+    touch-action: manipulation;
+    flex-shrink: 0;
+}

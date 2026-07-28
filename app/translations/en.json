@@ -56,6 +56,12 @@
       "install": "Install",
       "later": "Later",
       "never": "Don't show again"
+    },
+    "pwa_update": {
+      "title": "New version available",
+      "description": "A new version of the app is ready. Please update to get the latest improvements.",
+      "reload": "Update",
+      "later": "Later"
     }
   },
   "common": {
@@ -85,6 +91,8 @@
   },
   "context_menu": {
     "copy_info": "Copy info",
+    "copied": "Copied",
+    "copy_error": "Could not copy.",
     "dashboard_remove_widget": "Remove widget",
     "dashboard_manage_widgets": "Manage widgets",
     "format": {
@@ -269,7 +277,7 @@
       "next": "Next",
       "welcome": {
         "title": "Welcome to Version 3",
-        "text": "PrismaTeams 3.0.0 is here – a refreshed design, new modules, and many day-to-day improvements for your team.",
+        "text": "PrismaTeams {version} is here – a refreshed design, new modules, and many day-to-day improvements for your team.",
         "highlights": {
           "design": "A fresher UI, clearer navigation, and a consistent design language.",
           "modules": "New and expanded modules: Assessment, Music, Shortlinks, Booking, Events, and more.",
@@ -1125,7 +1133,7 @@
         "breadcrumb_users": "User Management",
         "heading": "User Management",
         "configure_default_roles": "Default roles",
-        "flash_unauthorized": "Only administrators have access to this page.",
+        "flash_unauthorized": "Only administrators can access this page.",
         "create_user": "New user",
         "guest_account": "Guest Account",
         "guest_expires_at": "Expires at",
@@ -1194,7 +1202,6 @@
         "borrow_toggle": "Can borrow items",
         "booking_roles_title": "Booking roles",
         "booking_roles_help": "Assign roles so the user can approve or reject booking requests.",
-        "flash_unauthorized": "Only administrators can access this page.",
         "flash_guest_updated": "Guest account for {name} was updated.",
         "flash_guest_not_guest": "This user is not a guest account.",
         "flash_guest_name_required": "Please enter first and last name.",
@@ -2266,7 +2273,10 @@
       "history_empty": "No older versions.",
       "history_current": "current",
       "more": "More",
-      "version_label": "Version {number}"
+      "version_label": "Version {number}",
+      "pdf_title": "PDF viewer",
+      "pdf_loading": "Loading PDF…",
+      "pdf_error": "This browser could not embed the PDF. Please download it instead."
     },
     "onlyoffice": {
       "back_button_label": "Back"
@@ -3019,7 +3029,8 @@
         "mark_unread": "Mark as unread",
         "set_color_dot": "Set colored dot",
         "color_none": "No color",
-        "delete_folder": "Delete folder"
+        "delete_folder": "Delete folder",
+        "print": "Print"
       },
       "confirm": {
         "delete_email": "Really delete this email?",
@@ -3169,7 +3180,11 @@
         "title": "Attachment preview",
         "close": "Close",
         "download": "Download"
-      }
+      },
+      "actions": {
+        "print": "Print"
+      },
+      "print_eco_alert": "Please consider whether printing this email is really necessary. Protecting the environment concerns us all."
     },
     "onlyoffice": {
       "page_title_suffix": "ONLYOFFICE Editor",
@@ -3185,7 +3200,8 @@
       "attachment_corrupted": "Attachment not found or corrupted.",
       "sync_already_running": "⚠️ Synchronization is already running in another worker. Please wait a moment.",
       "deleted": "Email has been successfully deleted.",
-      "target_folder_not_specified": "Target folder not specified."
+      "target_folder_not_specified": "Target folder not specified.",
+      "draft_no_print": "Drafts cannot be printed as PDF."
     }
   },
   "credentials": {
@@ -3221,7 +3237,10 @@
         "favorite": "Toggle favorite"
       },
       "messages": {
-        "copy_success": "Copied to clipboard!",
+        "copy_success": "Copied",
+        "copied_username": "Username copied",
+        "copied_password": "Password copied",
+        "copy_error": "Could not copy.",
         "password_error": "Could not load password.",
         "favorite_error": "Could not update favorite state.",
         "move_error": "Could not move credential."
@@ -3388,9 +3407,17 @@
         "copy_name": "Copy name",
         "copy_email": "Copy email",
         "copy_phone": "Copy phone number",
+        "call": "Call",
         "write_mail": "Write email",
         "favorite": "Add to favorites",
         "unfavorite": "Remove from favorites"
+      },
+      "messages": {
+        "copy_success": "Copied",
+        "copied_name": "Name copied",
+        "copied_email": "Email copied",
+        "copied_phone": "Phone number copied",
+        "copy_error": "Could not copy."
       },
       "empty_message": "No contacts available."
     },
@@ -3541,7 +3568,9 @@
       "page_title_suffix": "Manuals",
       "download": "Download",
       "close": "Close",
-      "iframe_title": "PDF viewer"
+      "iframe_title": "PDF viewer",
+      "pdf_loading": "Loading PDF…",
+      "pdf_error": "This browser could not embed the PDF. Please download it instead."
     }
   },
   "inventory": {
@@ -4749,6 +4778,8 @@
       "started": "Download started.",
       "expired": "This file is no longer available.",
       "err_http_403": "Download blocked by YouTube (HTTP 403). Please retry later or use a different quality/URL.",
+      "err_bot_check": "YouTube requires sign-in (bot check). Admins can optionally set a cookies.txt file (see installation docs).",
+      "err_cookies_needed": "YouTube cookies are missing, expired, or invalid. Renew cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "This video is age-restricted and cannot be downloaded without sign-in/cookies.",
       "err_video_unavailable": "This video is unavailable.",
       "err_download_failed": "Download failed. Please try again.",

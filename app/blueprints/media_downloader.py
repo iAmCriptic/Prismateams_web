@@ -206,6 +206,8 @@ def _apply_job_result(job, success, error_message):
     job.status = 'failed'
     key_map = {
         'err_http_403': 'media_downloader.flash.err_http_403',
+        'err_bot_check': 'media_downloader.flash.err_bot_check',
+        'err_cookies_needed': 'media_downloader.flash.err_cookies_needed',
         'err_age_restricted': 'media_downloader.flash.err_age_restricted',
         'err_video_unavailable': 'media_downloader.flash.err_video_unavailable',
         'err_download_failed': 'media_downloader.flash.err_download_failed',

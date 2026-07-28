@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="settings-admin-booking-form" id="bookingMainForm">
+    <form method="POST" action="{{ url_for('settings.booking_form_edit', form_id=form.id, new=1) if is_new else url_for('settings.booking_form_edit', form_id=form.id) }}" class="settings-admin-booking-form" id="bookingMainForm">
         <section class="settings-admin-booking-card" aria-labelledby="booking-basics">
             <h2 id="booking-basics" class="settings-admin-booking-section-title">{{ _('settings.admin.booking_forms.section_basics') }}</h2>
             <div class="settings-admin-booking-fields">

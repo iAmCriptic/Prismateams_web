@@ -3,8 +3,8 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # About-Seite (Release / Build)
-ABOUT_RELEASE_VERSION = 'v3.0.0'
-ABOUT_BUILD_NUMBER = 'B300.202607272355.01'
+ABOUT_RELEASE_VERSION = 'v3.0.1'
+ABOUT_BUILD_NUMBER = 'B301.20260728.01'
 
 load_dotenv()
 
@@ -84,6 +84,13 @@ class Config:
     MEDIA_DOWNLOADER_RETENTION_HOURS = int(os.environ.get('MEDIA_DOWNLOADER_RETENTION_HOURS', '1'))
     MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
     FFMPEG_PATH = os.environ.get('FFMPEG_PATH', '')
+    # Comma-separated yt-dlp YouTube player clients (bot-check workaround for datacenter IPs)
+    MEDIA_DOWNLOADER_PLAYER_CLIENT = os.environ.get(
+        'MEDIA_DOWNLOADER_PLAYER_CLIENT',
+        'ios,web_creator,mweb',
+    ).strip()
+    # Optional Netscape cookies.txt for yt-dlp (age-restricted / stubborn bot checks)
+    MEDIA_DOWNLOADER_COOKIES_FILE = os.environ.get('MEDIA_DOWNLOADER_COOKIES_FILE', '').strip()
 
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

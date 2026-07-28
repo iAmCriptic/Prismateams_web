@@ -48,6 +48,12 @@
       "install": "Установить",
       "later": "Позже",
       "never": "Больше не показывать"
+    },
+    "pwa_update": {
+      "title": "Доступна новая версия",
+      "description": "Готова новая версия приложения. Обновите, чтобы получить последние улучшения.",
+      "reload": "Обновить",
+      "later": "Позже"
     }
   },
   "common": {
@@ -314,6 +320,8 @@
       "started": "Загрузка начата.",
       "expired": "Файл больше недоступен.",
       "err_http_403": "Загрузка заблокирована YouTube (HTTP 403). Попробуйте позже или используйте другое качество/URL.",
+      "err_bot_check": "YouTube требует вход (проверка на бота). Админы могут опционально указать cookies.txt (см. документацию по установке).",
+      "err_cookies_needed": "Cookies YouTube отсутствуют, устарели или недействительны. Обновите cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "Видео имеет возрастное ограничение и не может быть загружено без входа/cookies.",
       "err_video_unavailable": "Это видео недоступно.",
       "err_download_failed": "Ошибка загрузки. Попробуйте снова.",
@@ -537,7 +545,10 @@
       "history_empty": "Нет предыдущих версий.",
       "history_current": "текущая",
       "more": "Ещё",
-      "version_label": "Version {number}"
+      "version_label": "Version {number}",
+      "pdf_title": "PDF-просмотрщик",
+      "pdf_loading": "Загрузка PDF…",
+      "pdf_error": "Этот браузер не смог встроить PDF. Пожалуйста, скачайте файл."
     },
     "index": {
       "search_placeholder": "Поиск в файлах",

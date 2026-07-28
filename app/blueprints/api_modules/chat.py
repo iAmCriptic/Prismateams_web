@@ -779,6 +779,15 @@ def register_chat_routes(api_bp, require_api_auth):
 
         membership.last_read_at = datetime.utcnow()
         current_user.last_seen = datetime.utcnow()
+        try:
+            from app.utils.notifications import mark_in_app_notifications_read
+            mark_in_app_notifications_read(
+                current_user.id,
+                notification_type='chat',
+                source_id=actual_chat_id,
+            )
+        except Exception:
+            pass
         db.session.commit()
         return jsonify({"success": True}), 200
 

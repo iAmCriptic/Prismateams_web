@@ -232,7 +232,26 @@ ffmpeg -version
 - **Aktivierung im Portal:** Einstellungen → Administration → Module → **Media Downloader**
 - Heruntergeladene Dateien werden standardmäßig nach **1 Stunde** automatisch gelöscht (`MEDIA_DOWNLOADER_RETENTION_HOURS` in `.env`, optional)
 - **Playlists:** YouTube- und YouTube-Music-Playlists können über die Weboberfläche als Batch heruntergeladen werden; parallel laufende Downloads begrenzt `MEDIA_DOWNLOADER_MAX_CONCURRENT` (Standard: 2)
+- **Player-Clients (Standard):** yt-dlp nutzt `ios,web_creator,mweb` (`MEDIA_DOWNLOADER_PLAYER_CLIENT`), um Bot-/Sign-in-Checks auf Rechenzentrums-IPs oft ohne Cookies zu umgehen
 - **Rechtlicher Hinweis:** Nutzer sind für die Einhaltung von Urheberrecht und Plattform-Nutzungsbedingungen verantwortlich
+
+#### Optional: YouTube-Cookies (nur bei Bedarf)
+
+Cookies sind **kein Standard**. Sie helfen bei altersbeschränkten Videos oder wenn YouTube trotz Player-Clients blockiert.
+
+1. Auf einem Desktop-PC bei YouTube anmelden und Cookies als Netscape-`cookies.txt` exportieren (z. B. Browser-Erweiterung „Get cookies.txt LOCALLY“ / yt-dlp-Doku).
+2. Datei sicher auf den Server legen, z. B. `/etc/prismateams/yt-cookies.txt`:
+   ```bash
+   sudo mkdir -p /etc/prismateams
+   sudo install -m 600 -o www-data -g www-data ./cookies.txt /etc/prismateams/yt-cookies.txt
+   ```
+3. In `.env` setzen:
+   ```env
+   MEDIA_DOWNLOADER_COOKIES_FILE=/etc/prismateams/yt-cookies.txt
+   ```
+4. Dienst neu starten: `sudo systemctl restart teamportal`
+
+**Rotation:** Cookies bleiben nicht „für immer“. Bei Logout, Passwortwechsel oder Session-Ablauf (oft Wochen bis Monate) erscheinen Fehler wie Bot-Check / 403 / Altersfreigabe — dann `cookies.txt` neu exportieren und ersetzen.
 
 ### Schritt 7: Konfiguration (.env-Datei)
 
@@ -300,7 +319,7 @@ REDIS_URL=redis://localhost:6379/0
 - **E-Mail-Speicherlimits:** `EMAIL_HTML_MAX_LENGTH`, `EMAIL_TEXT_MAX_LENGTH`, `EMAIL_HTML_STORAGE_TYPE`
 - **IMAP:** `IMAP_SERVER`, `IMAP_PORT`, `IMAP_USE_SSL`
 - **Uploads:** `UPLOAD_FOLDER` (Dateigrößenlimits werden in den Datei-Einstellungen verwaltet)
-- **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
+- **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`, `MEDIA_DOWNLOADER_PLAYER_CLIENT` (Default `ios,web_creator,mweb`), optional `MEDIA_DOWNLOADER_COOKIES_FILE`
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
   - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
   - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
@@ -627,10 +646,24 @@ server {
     }
 
     # Statische Dateien (MUSS VOR / kommen!)
+    # Hinweis: "immutable" ist nur sicher, weil Templates Static-URLs mit ?v=<BUILD> ausliefern
+    # (Cache-Busting). Ohne Versions-Query würden Browser CSS/JS nach Deploys nicht aktualisieren.
     location /static {
         alias /var/www/teamportal/app/static;
         expires 30d;
         add_header Cache-Control "public, immutable";
+    }
+
+    # Service Worker: niemals long-cachen (sonst bleiben PWAs auf altem SW hängen)
+    location = /sw.js {
+        proxy_pass http://teamportal_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        expires off;
     }
 
     # Uploads (MUSS VOR / kommen!)

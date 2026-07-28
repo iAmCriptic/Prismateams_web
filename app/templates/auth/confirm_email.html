@@ -4,7 +4,7 @@
 {% block title %}{{ _('auth.confirm_email.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container auth-login auth-confirm-email">
+<div class="auth-container auth-confirm-email">
     <div class="auth-card">
         <div class="auth-panel">
             <div class="auth-panel-body">
@@ -21,16 +21,9 @@
                 <h5 class="text-center mb-2">{{ _('auth.confirm_email.title') }}</h5>
                 <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.confirm_email.subtitle') }}</p>
 
-                <div class="alert portal-msg portal-msg--info alert-permanent mb-4" role="status">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-info-circle-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.info_title') }}</h6>
-                            <p class="portal-msg__text">{{ _('auth.confirm_email.info_message') }}</p>
-                        </div>
-                    </div>
+                <div class="auth-hint auth-hint--info mb-4" role="status">
+                    <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                    <p class="auth-hint__text mb-0">{{ _('auth.confirm_email.info_message') }}</p>
                 </div>
 
                 <form method="POST" id="confirmEmailForm">
@@ -58,7 +51,7 @@
 
                 <div class="text-center mb-3">
                     <p class="mb-2 text-muted">{{ _('auth.confirm_email.no_email') }}</p>
-                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-outline-secondary w-100">
                         <i class="bi bi-arrow-clockwise me-2" aria-hidden="true"></i>
                         {{ _('auth.confirm_email.resend_button') }}
                     </a>
@@ -66,17 +59,19 @@
 
                 <hr class="my-4">
 
-                <div class="alert portal-msg portal-msg--warning alert-permanent mb-0" role="note">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.warning_title') }}</h6>
-                            <p class="portal-msg__text">{{ _('auth.confirm_email.warning_message') }}</p>
-                        </div>
-                    </div>
+                <div class="auth-hint auth-hint--warning mb-0" role="note">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                    <p class="auth-hint__text mb-0">{{ _('auth.confirm_email.warning_message') }}</p>
                 </div>
+
+                <hr class="my-4">
+
+                <p class="text-center mb-0">
+                    <a href="{{ url_for('auth.logout') }}" class="text-muted">
+                        <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>
+                        {{ _('layout.nav.logout') }}
+                    </a>
+                </p>
             </div>
         </div>
     </div>

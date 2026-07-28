@@ -157,10 +157,15 @@ step_env() {
         set_env_var "REDIS_ENABLED" "False" .env
     fi
 
-    # FFmpeg
+    # FFmpeg / Media Downloader
     if is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
         FFMPEG_PATH="${FFMPEG_PATH:-$(command -v ffmpeg 2>/dev/null || echo /usr/bin/ffmpeg)}"
         set_env_var "FFMPEG_PATH" "$FFMPEG_PATH" .env
+        set_env_var "MEDIA_DOWNLOADER_PLAYER_CLIENT" "${MEDIA_DOWNLOADER_PLAYER_CLIENT:-ios,web_creator,mweb}" .env
+        if [ -n "${MEDIA_DOWNLOADER_COOKIES_FILE:-}" ]; then
+            set_env_var "MEDIA_DOWNLOADER_COOKIES_FILE" "$MEDIA_DOWNLOADER_COOKIES_FILE" .env
+        fi
+        log_info "Media Downloader: player_client=ios,web_creator,mweb (Cookie-Datei nur optional, siehe docs/INSTALLATION.md)"
     fi
 
     # Mail

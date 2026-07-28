@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, url_for as flask_url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -475,6 +475,25 @@ def create_app(config_name='default'):
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
+
+    def _asset_version():
+        build = str(app.config.get('ABOUT_BUILD_NUMBER') or '').strip()
+        release = str(app.config.get('ABOUT_RELEASE_VERSION') or '').strip()
+        return build or release or 'dev'
+
+    def versioned_url_for(endpoint, **values):
+        """Jinja url_for with cache-busting query for static assets."""
+        if endpoint == 'static':
+            values.setdefault('v', _asset_version())
+        return flask_url_for(endpoint, **values)
+
+    @app.context_processor
+    def inject_versioned_url_for():
+        return {
+            'url_for': versioned_url_for,
+            'asset_version': _asset_version(),
+            'app_version': str(app.config.get('ABOUT_RELEASE_VERSION') or '').strip() or 'unknown',
+        }
     
     @app.context_processor
     def inject_app_config():
@@ -1066,7 +1085,28 @@ def create_app(config_name='default'):
     
     @app.route('/sw.js')
     def service_worker():
-        return app.send_static_file('sw.js')
+        """Serve SW with release-bound cache name and no-cache headers."""
+        from flask import Response, make_response
+
+        sw_path = os.path.join(app.static_folder, 'sw.js')
+        with open(sw_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        release = str(app.config.get('ABOUT_RELEASE_VERSION') or 'v0.0.0').strip().lstrip('vV') or '0.0.0'
+        build = str(app.config.get('ABOUT_BUILD_NUMBER') or '').strip()
+        cache_name = f"team-portal-v{release}"
+        if build:
+            cache_name = f"{cache_name}-{build}"
+
+        content = content.replace('__SW_CACHE_NAME__', cache_name)
+        content = content.replace('__SW_ASSET_VERSION__', _asset_version())
+
+        response = make_response(Response(content, mimetype='application/javascript'))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['Service-Worker-Allowed'] = '/'
+        return response
     
     # Schema-Init: immer (außer Reloader-Parent / explizitem Skip).
     # Background-Jobs: nicht im Reloader-Parent und nicht während Migrationen.

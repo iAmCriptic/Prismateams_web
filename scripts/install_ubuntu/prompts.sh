@@ -142,7 +142,14 @@ gather_information() {
     log_info ""
     log_info "=== Media Downloader ==="
     prompt_yes_no INSTALL_MEDIA_DOWNLOADER "Media Downloader (FFmpeg) installieren?" "n"
-    if ! is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+    if is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        log_info "yt-dlp nutzt Standard-Player-Clients (ios,web_creator,mweb)."
+        log_info "Optionaler Cookie-Fallback: MEDIA_DOWNLOADER_COOKIES_FILE in .env (siehe docs/INSTALLATION.md)."
+        if [ -z "${MEDIA_DOWNLOADER_COOKIES_FILE:-}" ] && ! is_yes "$NON_INTERACTIVE"; then
+            read -r -p "Pfad zu cookies.txt (leer = überspringen): " MEDIA_DOWNLOADER_COOKIES_FILE
+            MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
+        fi
+    else
         print_manual_media_downloader_hint
     fi
 

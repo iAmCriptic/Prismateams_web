@@ -5,6 +5,10 @@
 {% block content %}
 <div class="dashboard-edit-page">
     <header class="dashboard-edit-header">
+        <a href="{{ url_for('dashboard.index') }}" class="dashboard-edit-back" aria-label="{{ _('layout.nav.back') }}">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
         <h1>{{ _('dashboard.edit.heading') }}</h1>
         <p class="dashboard-edit-subtitle">{{ _('dashboard.edit.subtitle') }}</p>
     </header>

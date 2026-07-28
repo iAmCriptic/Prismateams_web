@@ -107,7 +107,21 @@ def _mark_applied(db, filename: str) -> None:
         )
 
 
-def _run_script(script_path: str, timeout: int = 180) -> tuple[bool, str]:
+def _script_timeout(script_path: str) -> int:
+    """Große Upgrade-Migrationen brauchen länger als kleine Patch-Skripte."""
+    name = os.path.basename(script_path).lower()
+    if name in (
+        "migrate_to_3_0_0.py",
+        "migrate_to_3_0_1_full_upgrade.py",
+        "migrate_upgrade_from_legacy.py",
+    ):
+        return int(os.getenv("PRISMATEAMS_MIGRATION_TIMEOUT", "900"))
+    return int(os.getenv("PRISMATEAMS_MIGRATION_TIMEOUT_DEFAULT", "300"))
+
+
+def _run_script(script_path: str, timeout: int | None = None) -> tuple[bool, str]:
+    if timeout is None:
+        timeout = _script_timeout(script_path)
     env = os.environ.copy()
     env[RUNNING_ENV] = "1"
     env.setdefault(SKIP_JOBS_ENV, "1")

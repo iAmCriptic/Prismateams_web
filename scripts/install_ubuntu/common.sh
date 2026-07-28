@@ -274,6 +274,10 @@ print_manual_media_downloader_hint() {
     log_manual "  1. FFmpeg installieren: apt install -y ffmpeg"
     log_manual "  2. In .env: FFMPEG_PATH=$(command -v ffmpeg 2>/dev/null || echo /usr/bin/ffmpeg)"
     log_manual "  3. Modul aktivieren: Einstellungen -> Administration -> Module -> Media Downloader"
+    log_manual "  4. Standard: MEDIA_DOWNLOADER_PLAYER_CLIENT=ios,web_creator,mweb (Bot-Check-Workaround)"
+    log_manual "  5. Optional bei Altersfreigabe/hartnaeckigen Blocks:"
+    log_manual "       MEDIA_DOWNLOADER_COOKIES_FILE=/etc/prismateams/yt-cookies.txt"
+    log_manual "       (Netscape cookies.txt, chmod 600, Owner www-data — siehe docs/INSTALLATION.md)"
     echo
 }
 
@@ -331,6 +335,8 @@ init_defaults() {
     LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
     INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-}"
     INSTALL_MEDIA_DOWNLOADER="${INSTALL_MEDIA_DOWNLOADER:-}"
+    MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
+    MEDIA_DOWNLOADER_PLAYER_CLIENT="${MEDIA_DOWNLOADER_PLAYER_CLIENT:-}"
     INSTALL_DOCKER="${INSTALL_DOCKER:-}"
     SETUP_MYSQL="${SETUP_MYSQL:-}"
     SETUP_REDIS="${SETUP_REDIS:-}"

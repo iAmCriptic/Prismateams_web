@@ -56,6 +56,12 @@
       "install": "Installieren",
       "later": "Später",
       "never": "Nicht mehr anzeigen"
+    },
+    "pwa_update": {
+      "title": "Neue Version verfügbar",
+      "description": "Eine neue Version der App ist bereit. Bitte aktualisieren, um die neuesten Verbesserungen zu nutzen.",
+      "reload": "Aktualisieren",
+      "later": "Später"
     }
   },
   "common": {
@@ -85,6 +91,8 @@
   },
   "context_menu": {
     "copy_info": "Infos kopieren",
+    "copied": "Kopiert",
+    "copy_error": "Kopieren fehlgeschlagen.",
     "dashboard_remove_widget": "Widget entfernen",
     "dashboard_manage_widgets": "Widgets verwalten",
     "format": {
@@ -273,7 +281,7 @@
       "next": "Weiter",
       "welcome": {
         "title": "Willkommen zu Version 3",
-        "text": "PrismaTeams 3.0.0 ist da – neues Design, neue Module und viele Verbesserungen für den Alltag im Team.",
+        "text": "PrismaTeams {version} ist da – neues Design, neue Module und viele Verbesserungen für den Alltag im Team.",
         "highlights": {
           "design": "Frischere Oberfläche, klarere Navigation und einheitliche Designsprache.",
           "modules": "Neue und stark erweiterte Module: Bewertung, Musik, Shortlinks, Booking, Events und mehr.",
@@ -2268,7 +2276,10 @@
       "history_empty": "Keine älteren Versionen.",
       "history_current": "aktuell",
       "more": "Mehr",
-      "version_label": "Version {number}"
+      "version_label": "Version {number}",
+      "pdf_title": "PDF-Viewer",
+      "pdf_loading": "PDF wird geladen…",
+      "pdf_error": "PDF konnte in diesem Browser nicht eingebettet werden. Bitte herunterladen."
     },
     "onlyoffice": {
       "back_button_label": "Zurück"
@@ -2284,7 +2295,8 @@
       "attachment_corrupted": "Anhang nicht gefunden oder beschädigt.",
       "sync_already_running": "⚠️ Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.",
       "deleted": "E-Mail wurde erfolgreich gelöscht.",
-      "target_folder_not_specified": "Zielordner nicht angegeben."
+      "target_folder_not_specified": "Zielordner nicht angegeben.",
+      "draft_no_print": "Entwürfe können nicht als PDF gedruckt werden."
     },
     "index": {
       "page_title": "E-Mail - Team Portal",
@@ -2323,7 +2335,8 @@
         "mark_unread": "Als ungelesen markieren",
         "set_color_dot": "Farbpunkt setzen",
         "color_none": "Keine Farbe",
-        "delete_folder": "Ordner löschen"
+        "delete_folder": "Ordner löschen",
+        "print": "Drucken"
       },
       "confirm": {
         "delete_email": "E-Mail wirklich löschen?",
@@ -2473,7 +2486,11 @@
         "title": "Anhang-Vorschau",
         "close": "Schließen",
         "download": "Herunterladen"
-      }
+      },
+      "actions": {
+        "print": "Drucken"
+      },
+      "print_eco_alert": "Bitte prüfen Sie vor dem Ausdrucken dieser E-Mail, ob dies wirklich nötig ist. Umweltschutz geht uns alle an."
     },
     "onlyoffice": {
       "page_title_suffix": "ONLYOFFICE Editor",
@@ -2527,7 +2544,10 @@
         "favorite": "Favorit umschalten"
       },
       "messages": {
-        "copy_success": "In die Zwischenablage kopiert!",
+        "copy_success": "Kopiert",
+        "copied_username": "Benutzername kopiert",
+        "copied_password": "Passwort kopiert",
+        "copy_error": "Kopieren fehlgeschlagen.",
         "password_error": "Passwort konnte nicht geladen werden.",
         "favorite_error": "Favorit konnte nicht aktualisiert werden.",
         "move_error": "Eintrag konnte nicht verschoben werden."
@@ -2681,9 +2701,17 @@
         "copy_name": "Name kopieren",
         "copy_email": "Mail kopieren",
         "copy_phone": "Telefonnummer kopieren",
+        "call": "Anrufen",
         "write_mail": "Mail schreiben",
         "favorite": "Zu Favoriten",
         "unfavorite": "Aus Favoriten entfernen"
+      },
+      "messages": {
+        "copy_success": "Kopiert",
+        "copied_name": "Name kopiert",
+        "copied_email": "E-Mail kopiert",
+        "copied_phone": "Telefonnummer kopiert",
+        "copy_error": "Kopieren fehlgeschlagen."
       },
       "empty_message": "Keine Kontakte vorhanden."
     },
@@ -3540,7 +3568,9 @@
       "page_title_suffix": "Anleitungen",
       "download": "Herunterladen",
       "close": "Schließen",
-      "iframe_title": "PDF-Viewer"
+      "iframe_title": "PDF-Viewer",
+      "pdf_loading": "PDF wird geladen…",
+      "pdf_error": "PDF konnte in diesem Browser nicht eingebettet werden. Bitte herunterladen."
     }
   },
   "inventory": {
@@ -4920,6 +4950,8 @@
       "started": "Download wurde gestartet.",
       "expired": "Diese Datei ist nicht mehr verfügbar.",
       "err_http_403": "Download durch YouTube blockiert (HTTP 403). Bitte später erneut versuchen oder eine andere Qualitätsstufe/URL nutzen.",
+      "err_bot_check": "YouTube verlangt eine Anmeldung (Bot-Check). Admins können optional eine cookies.txt setzen (siehe Installationsdoku).",
+      "err_cookies_needed": "YouTube-Cookies fehlen, sind abgelaufen oder ungültig. Bitte cookies.txt erneuern (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "Dieses Video ist altersbeschränkt und kann ohne Anmeldung/Cookies nicht heruntergeladen werden.",
       "err_video_unavailable": "Dieses Video ist nicht verfügbar.",
       "err_download_failed": "Download fehlgeschlagen. Bitte erneut versuchen.",

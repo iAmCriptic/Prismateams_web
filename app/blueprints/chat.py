@@ -224,6 +224,15 @@ def view_chat(chat_id):
     membership.last_read_at = datetime.utcnow()
     # Update user's last_seen for online status
     current_user.last_seen = datetime.utcnow()
+    try:
+        from app.utils.notifications import mark_in_app_notifications_read
+        mark_in_app_notifications_read(
+            current_user.id,
+            notification_type='chat',
+            source_id=actual_chat_id,
+        )
+    except Exception:
+        pass
     db.session.commit()
     
     # Get chat members - use ChatMember as base to ensure all members are included

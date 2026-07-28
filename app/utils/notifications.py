@@ -186,6 +186,41 @@ def upsert_notification_log(
     return log_entry
 
 
+def mark_in_app_notifications_read(
+    user_id: int,
+    *,
+    notification_type: Optional[str] = None,
+    notification_types: Optional[List[str]] = None,
+    source_id: Optional[int] = None,
+    dedup_key: Optional[str] = None,
+    commit: bool = False,
+) -> int:
+    """
+    Markiert passende ungelesene In-App-Benachrichtigungen als gelesen.
+    Löscht Einträge nicht — sie verschwinden nur aus der „Neu“-Liste / dem Badge.
+    """
+    query = NotificationLog.query.filter_by(user_id=user_id, is_read=False)
+    if notification_types:
+        query = query.filter(NotificationLog.notification_type.in_(notification_types))
+    elif notification_type is not None:
+        query = query.filter_by(notification_type=notification_type)
+    if source_id is not None:
+        query = query.filter_by(source_id=source_id)
+    if dedup_key is not None:
+        query = query.filter_by(dedup_key=dedup_key)
+
+    updated = query.update(
+        {
+            NotificationLog.is_read: True,
+            NotificationLog.read_at: datetime.utcnow(),
+        },
+        synchronize_session=False,
+    )
+    if commit:
+        db.session.commit()
+    return int(updated or 0)
+
+
 def notify_user(
     user_id: int,
     *,

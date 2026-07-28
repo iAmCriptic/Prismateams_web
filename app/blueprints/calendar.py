@@ -380,6 +380,17 @@ def view_event(event_id):
     if not booking_request and event.booking_request_id:
         from app.models.booking import BookingRequest
         booking_request = BookingRequest.query.get(event.booking_request_id)
+
+    try:
+        from app.utils.notifications import mark_in_app_notifications_read
+        mark_in_app_notifications_read(
+            current_user.id,
+            notification_types=['calendar', 'calendar_invite'],
+            source_id=event_id,
+            commit=True,
+        )
+    except Exception:
+        pass
     
     return render_template(
         'calendar/view.html',

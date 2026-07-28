@@ -1236,24 +1236,34 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 
 /* ========== Dashboard bearbeiten ========== */
 
-body:has(.dashboard-edit-page) .back-button {
-    border-radius: 1.5rem !important;
-    padding: 0.5rem 1.15rem !important;
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color, #dee2e6));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg, #fff));
-    color: var(--accent-color, #0d6efd);
-    font-weight: 600;
-}
-
-body:has(.dashboard-edit-page) .back-button:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, var(--bs-body-bg, #fff));
-    border-color: var(--accent-color, #0d6efd);
-    color: var(--accent-color, #0d6efd);
-}
-
 .dashboard-edit-page {
     width: 100%;
     max-width: none;
+}
+
+.dashboard-edit-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 0.65rem;
+    padding: 0.25rem 0.15rem;
+    border-radius: 999px;
+    width: fit-content;
+}
+
+.dashboard-edit-back:hover,
+.dashboard-edit-back:focus {
+    color: var(--accent-color, #0d6efd);
+    text-decoration: none;
+}
+
+.dashboard-edit-back i {
+    font-size: 1rem;
+    line-height: 1;
 }
 
 .dashboard-edit-header {
