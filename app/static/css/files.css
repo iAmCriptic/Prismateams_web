@@ -2883,9 +2883,19 @@ body:has(.dropbox-shell) .container-fluid {
     margin-top: 0.1rem;
 }
 
+/* Mobile: Offcanvas endet über der Bottom-Nav (z-index 1046 > Offcanvas 1045) */
+@media (max-width: 991.98px) {
+    #filesMobileNav.mod-offcanvas.offcanvas {
+        bottom: var(--portal-mobile-nav-height);
+        height: auto;
+        max-height: none;
+    }
+}
+
 #filesMobileNav .files-storage-footer {
     margin-top: auto;
     padding-top: 1rem;
+    padding-bottom: 0.35rem;
     border-top: 1px solid var(--bs-border-color, #dee2e6);
 }
 

@@ -620,6 +620,17 @@ def request_detail(request_id):
     except Exception as e:
         current_app.logger.error(f"Could not mark booking messages read: {e}")
 
+    try:
+        from app.utils.notifications import mark_in_app_notifications_read
+        mark_in_app_notifications_read(
+            current_user.id,
+            notification_type='booking',
+            source_id=booking_request.id,
+            commit=True,
+        )
+    except Exception:
+        pass
+
     thread_messages = (
         BookingRequestMessage.query
         .filter_by(request_id=booking_request.id)

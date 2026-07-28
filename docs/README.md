@@ -1,16 +1,16 @@
-<p align="center">
+﻿<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="140">
 </p>
 
 <h1 align="center">Prismateams</h1>
 
 <p align="center">
-  <strong>Team-Portal · Version 3.0.0</strong><br>
+  <strong>Team-Portal · Version 3.0.1</strong><br>
   Modernes, modulares Web-Portal für Teams – Flask · Bootstrap · Mobile-First
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=for-the-badge" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=for-the-badge" alt="Version 3.0.1">
   <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
   <img src="https://img.shields.io/badge/Bootstrap-5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white" alt="Bootstrap">
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="#-neu-in-300">Neu in 3.0.0</a> ·
+  <a href="#-neu-in-301">Neu in 3.0.1</a> ·
   <a href="#-screenshots">Screenshots</a> ·
   <a href="#-module">Module</a> ·
   <a href="#-installation">Installation</a> ·
@@ -36,7 +36,7 @@ Prismateams ist ein webbasiertes Team-Portal mit einheitlicher Designsprache, mo
 
 ---
 
-## Neu in 3.0.0
+## Neu in 3.0.1
 
 PrismaTeams 3 bringt frisches Design, neue Module und mehr Sicherheit für den Alltag im Team.
 
@@ -252,5 +252,5 @@ Beiträge willkommen (PR oder Issue).
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="48"><br>
-  <sub>Prismateams 3.0.0 – Team-Zusammenarbeit, modular & modern</sub>
+  <sub>Prismateams 3.0.1 – Team-Zusammenarbeit, modular & modern</sub>
 </p>

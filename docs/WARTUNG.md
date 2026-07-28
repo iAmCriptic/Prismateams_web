@@ -1,12 +1,12 @@
-<p align="center">
+﻿<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
 <h1 align="center">Prismateams – Wartung</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.0</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <strong>Dokumentation · Version 3.0.1</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ---
 
-Laufender Betrieb von **Prismateams 3.0.0**: Logs, Neustart, Updates, Migrationen, Backups und Performance.
+Laufender Betrieb von **Prismateams 3.0.1**: Logs, Neustart, Updates, Migrationen, Backups und Performance.
 
 Bei Fehlern: [ERROR_HANDLING.md](ERROR_HANDLING.md)
 
@@ -95,20 +95,21 @@ sudo systemctl restart teamportal
 
 **Wichtig:** Bei einer Neuinstallation werden die Datenbank und alle Tabellen automatisch beim ersten Start angelegt. Sie müssen keine Tabellen manuell erstellen!
 
-**Migrationen sind nur erforderlich, wenn Sie von einer älteren Version aktualisieren.**
+**Migrationen sind nur erforderlich, wenn Sie von einer älteren Version aktualisieren** (z. B. von 2.5 auf 3.x).
 
 ```bash
 cd /var/www/teamportal
 
-# Empfohlen: verfügbare Migrationen nacheinander (siehe migrations/)
+# Empfohlen: alle ausstehenden Migrationen (inkl. Voll-Upgrade)
 sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.py"
 
-# Oder gezielt, z. B. auf 3.0.0 / Folgeversionen:
-# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_0.py"
-# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_1_0_file_storage_quotas.py"
+# Gezielt: modellbasierter Voll-Upgrade/Repair von Legacy 2.5+ (ab 3.0.1)
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_1_full_upgrade.py"
+# Erneut erzwingen:
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_1_full_upgrade.py --force"
 ```
 
-**Hinweis:** Im Ordner `migrations/` liegen die Skripte für **3.0.0** und nachfolgende Patches (z. B. `3.1.x`). Nur die Migrationen ausführen, die zu eurem Ausgangsstand passen – oder `run_all.py`, sofern das Skript eure Umgebung unterstützt.
+**Hinweis:** `migrate_to_3_0_1_full_upgrade.py` zieht fehlende Tabellen und Spalten aus den Models nach und führt Daten-Backfills aus (Kalender, Shares, Quotas, …). Das Skript ist idempotent und für Upgrades von 2.5+ gedacht. Timeout bei großen DBs ggf. über `PRISMATEAMS_MIGRATION_TIMEOUT` erhöhen (Standard 900s).
 
 ## Docker-Container aktualisieren (falls installiert)
 
@@ -223,11 +224,22 @@ Füge hinzu:
 
 ```nginx
 # Cache für statische Dateien
+# Sicher nur mit Cache-Busting: App hängt ?v=<ABOUT_BUILD_NUMBER> an Static-URLs.
 location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
     expires 30d;
     add_header Cache-Control "public, immutable";
 }
+
+# Service Worker darf nicht long-gecacht werden
+location = /sw.js {
+    proxy_pass http://teamportal_backend;
+    proxy_set_header Host $host;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    expires off;
+}
 ```
+
+**Wichtig:** `/sw.js` nicht unter die allgemeine Static-/immutable-Regel legen. Die App setzt zusätzlich `Cache-Control: no-cache` beim Ausliefern von `/sw.js`.
 
 ### OnlyOffice Performance (falls installiert)
 
@@ -290,5 +302,5 @@ Nach nachträglichem SSL (Certbot): Flag auf `True` setzen und Service neu start
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0</sub>
+  <sub>Prismateams 3.0.1</sub>
 </p>

@@ -867,22 +867,11 @@ class StockManager {
                             </button>
                         </div>
                         <div class="dropdown d-inline-block">
-                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" onclick="event.stopPropagation()">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
-                                <li>
-                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
-                                        <i class="bi bi-eye me-2"></i>Ansehen
-                                    </button>
-                                </li>
-                                ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
-                                <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
-                                <li>
-                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
-                                        <i class="bi bi-star me-2"></i>Favorit
-                                    </button>
-                                </li>
+                                ${this.buildProductActionItemsHtml(product)}
                             </ul>
                         </div>
                     </div>
@@ -891,7 +880,7 @@ class StockManager {
         `;
     }
 
-    buildProductContextMenuHtml(product) {
+    buildProductActionItemsHtml(product) {
         const id = product.id;
         let items = '';
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${id});}"><i class="bi bi-eye me-2"></i>Ansehen</button></li>`;
@@ -900,7 +889,17 @@ class StockManager {
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${id})"><i class="bi bi-star me-2"></i>Favorit</button></li>`;
-        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu inventory-actions-menu">${items}</ul></div>`;
+        items += `<li><hr class="dropdown-divider"></li>`;
+        if (product.status !== 'defective' && product.status !== 'retired') {
+            items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); markAsDefective(${id})"><i class="bi bi-exclamation-triangle me-2"></i>Als defekt markieren</button></li>`;
+        }
+        items += `<li><button type="button" class="dropdown-item text-danger" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.deleteProduct(${id});}"><i class="bi bi-trash me-2"></i>Löschen</button></li>`;
+        return items;
+    }
+
+    buildProductContextMenuHtml(product) {
+        const id = product.id;
+        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu inventory-actions-menu">${this.buildProductActionItemsHtml(product)}</ul></div>`;
     }
 
     buildFolderContextMenuHtml(folder) {
@@ -1048,7 +1047,7 @@ class StockManager {
                             ${this.isValidValue(product.serial_number) ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</p>` : ''}
                             ${this.isValidValue(product.location) ? `<p class="inventory-card-meta mb-0 text-truncate"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</p>` : ''}
                         </div>
-                        <div class="d-flex align-items-start gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                        <div class="inventory-card-actions gap-1" onclick="event.stopPropagation()">
                             <div class="inventory-grid-hover-actions">
                                 <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
                                         title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
@@ -1064,22 +1063,11 @@ class StockManager {
                                 </a>
                             </div>
                             <div class="dropdown inventory-card-menu">
-                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
-                                    <li>
-                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
-                                            <i class="bi bi-eye me-2"></i>Ansehen
-                                        </button>
-                                    </li>
-                                    ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
-                                    <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
-                                    <li>
-                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
-                                            <i class="bi bi-star me-2"></i>Favorit
-                                        </button>
-                                    </li>
+                                    ${this.buildProductActionItemsHtml(product)}
                                 </ul>
                             </div>
                         </div>
@@ -1211,6 +1199,9 @@ class StockManager {
                         ${product.status === 'missing'
                             ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
                             : `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
+                        ${product.status !== 'defective' && product.status !== 'retired'
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsDefective(${product.id})">Als defekt markieren</button>`
+                            : ''}
                     </div>
                 </section>
             </div>
@@ -1912,7 +1903,7 @@ class StockManager {
                                 <h6 class="mt-2 mb-0 text-truncate" title="${this.escapeHtml(folder.name)}">${this.escapeHtml(folder.name)}</h6>
                                 <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
                             </div>
-                            <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
+                            <div class="inventory-card-actions gap-1" onclick="event.stopPropagation()">
                                 <div class="inventory-grid-hover-actions">
                                     <button type="button" class="btn btn-sm btn-link" title="Umbenennen / Farbe"
                                             onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
@@ -1924,7 +1915,7 @@ class StockManager {
                                     </button>
                                 </div>
                                 <div class="dropdown inventory-card-menu">
-                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
@@ -1994,7 +1985,7 @@ class StockManager {
                             </button>
                         </div>
                         <div class="dropdown d-inline-block" onclick="event.stopPropagation()">
-                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
@@ -3461,7 +3452,7 @@ class BorrowScannerManager {
             this.showError('Bitte ID eingeben.');
             return;
         }
-        const value = input.value.trim();
+        const value = this.normalizeScannedCode(input.value);
         try {
             await this.addToCart(value);
             input.value = '';
@@ -3469,8 +3460,49 @@ class BorrowScannerManager {
             // Input kept so user can correct / retry; errors already shown in addToCart
         }
     }
+
+    normalizeScannedCode(rawValue) {
+        if (rawValue == null) return '';
+        let text = String(rawValue)
+            .replace(/[\u0000-\u001F\u007F]+/g, '')
+            .trim();
+        if (!text) return '';
+
+        // Handscanner tippt URL-Sonderzeichen oft falsch (US/DE-Layout):
+        // http://host:5000/inventory/... -> httpÖ--hostÖ5000-inventorz-...
+        let repaired = text
+            .replace(/[Öö]--/g, '://')
+            .replace(/[Öö]/g, ':')
+            .replace(/inventorz/gi, 'inventory')
+            .replace(/inventor[yz]/gi, 'inventory');
+
+        const cleanUrl = repaired.match(/[/\\]inventory[/\\]public[/\\]product[/\\](\d+)/i);
+        if (cleanUrl) return `PROD-${cleanUrl[1]}`;
+
+        const mangledUrl = repaired.match(/inventor[yz]?[-_/\\]+public[-_/\\]+product[-_/\\]+(\d+)/i)
+            || text.match(/inventor[yz]?[-_/\\]+public[-_/\\]+product[-_/\\]+(\d+)/i);
+        if (mangledUrl) return `PROD-${mangledUrl[1]}`;
+
+        if (/(?:https?|inventor|localhost|127\.0\.0\.1|public[-_/\\]+product)/i.test(repaired + text)) {
+            const productTail = (repaired.match(/product[-_/\\]+(\d+)/i)
+                || text.match(/product[-_/\\]+(\d+)/i));
+            if (productTail) return `PROD-${productTail[1]}`;
+        }
+
+        const prod = text.match(/(?:^|[^A-Za-z0-9])PROD[\s:_-]*([0-9]+)/i);
+        if (prod) return `PROD-${prod[1]}`;
+        const setMatch = text.match(/(?:^|[^A-Za-z0-9])SET[\s:_-]*([0-9]+)/i);
+        if (setMatch) return `SET-${setMatch[1]}`;
+
+        return text;
+    }
     
     async addToCart(qrCode) {
+        qrCode = this.normalizeScannedCode(qrCode);
+        if (!qrCode) {
+            this.showError('Bitte ID eingeben.');
+            return Promise.reject(new Error('Leerer Scan-Code'));
+        }
         if (window.inventoryScanMode === 'return') {
             try {
                 const response = await fetch('/inventory/api/return', {
@@ -3580,6 +3612,9 @@ class BorrowScannerManager {
                 // SOFORTIGE Aktualisierung - keine Verzögerung
                 this.updateCartFromJSON(result);
                 this.registerAddAction(result);
+                if (!result.is_set) {
+                    this.showSuccess('Produkt hinzugefügt');
+                }
 
                 // ensureCheckoutForm wird jetzt in updateCartFromJSON aufgerufen
                 
@@ -4330,6 +4365,7 @@ class BorrowScannerManager {
     }
 
     showSuccess(message) {
+        inventoryNotify(message, 'success');
         const errorDiv = document.getElementById('scannerError');
         if (errorDiv) {
             errorDiv.className = 'alert alert-success mt-2';
@@ -4482,6 +4518,43 @@ async function markAsMissing(productId) {
             window.location.reload();
         } else {
             inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
+    }
+}
+
+// Markiere Produkt als defekt (Status: defective)
+async function markAsDefective(productId) {
+    if (!(await inventoryConfirm('Möchten Sie dieses Produkt als defekt markieren?', {
+        title: 'Als defekt markieren',
+        confirmLabel: 'Als defekt markieren',
+        danger: true,
+    }))) {
+        return;
+    }
+
+    try {
+        const response = await fetchInventoryApi(`/products/${productId}/lifecycle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: 'defective', reason: 'defect_reported' })
+        });
+
+        if (response.ok) {
+            inventoryNotify('Produkt wurde als defekt markiert.', 'success');
+            if (window.stockManager && typeof window.stockManager.loadProducts === 'function') {
+                await window.stockManager.loadProducts();
+            } else {
+                window.location.reload();
+            }
+        } else {
+            const result = await response.json().catch(() => ({}));
+            const msg = result?.message || 'Fehler beim Aktualisieren des Status.';
+            inventoryNotify(msg, 'danger');
         }
     } catch (error) {
         console.error('Fehler:', error);

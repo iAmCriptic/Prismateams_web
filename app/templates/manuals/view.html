@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pdf-embed.css') }}">
 <style>
     .file-viewer {
         position: fixed;
@@ -19,10 +20,10 @@
     .file-viewer-header {
         position: sticky;
         top: 0;
-        background: var(--bs-body-bg);
-        border-bottom: 1px solid var(--bs-border-color);
+        background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
         z-index: 1051;
-        padding: 1rem;
+        padding: 0.65rem 1rem;
     }
 
     .file-viewer--pdf {
@@ -41,7 +42,7 @@
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
     }
 
-    .file-viewer--pdf .file-viewer-header-inner {
+    .file-viewer-header-inner--text {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -49,29 +50,65 @@
         min-width: 0;
     }
 
-    .file-viewer--pdf .file-viewer-meta {
+    .file-viewer-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
         min-width: 0;
         flex: 1 1 auto;
     }
 
-    .file-viewer--pdf .file-viewer-meta h4 {
-        margin: 0;
+    .file-viewer-brand-logo {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        object-fit: cover;
+        flex-shrink: 0;
+        box-shadow: 0 0.12rem 0.4rem rgba(13, 110, 253, 0.18);
+    }
+
+    .file-viewer-brand-mark {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent-style, var(--accent-color, #0d6efd));
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .file-viewer-brand-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.05rem;
+    }
+
+    .file-viewer-filename {
         font-size: 1.05rem;
-        font-weight: 600;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--bs-body-color);
+        margin: 0;
     }
 
-    .file-viewer--pdf .file-viewer-meta small {
+    .file-viewer-meta-line {
         display: block;
-        margin-top: 0.15rem;
+        font-size: 0.78rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .file-viewer--pdf .file-viewer-actions {
+    .file-viewer-actions {
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -86,21 +123,19 @@
         margin: 0;
         overflow: hidden;
         background: #525659;
+        display: flex;
     }
 
-    .file-viewer--pdf .file-viewer-pdf-frame {
+    .file-viewer--pdf .file-viewer-pdf-embed {
         width: 100%;
         height: 100%;
         min-height: 0;
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-        background: #525659;
         display: block;
     }
 
-    .file-viewer-close-fab {
-        display: none;
+    .file-viewer .btn,
+    .file-viewer-actions .btn {
+        border-radius: var(--mod-radius-pill, 1.5rem) !important;
     }
 
     .file-viewer .btn-outline-primary,
@@ -126,19 +161,22 @@
 
     @media (max-width: 768px) {
         .file-viewer--pdf .file-viewer-header {
-            padding: 0.5rem 0.75rem;
+            padding: 0.55rem 0.65rem;
         }
 
-        .file-viewer--pdf .file-viewer-header-inner {
-            flex-wrap: wrap;
+        .file-viewer--pdf .file-viewer-header-inner--text {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
         }
 
-        .file-viewer--pdf .file-viewer-meta h4 {
+        .file-viewer--pdf .file-viewer-filename {
             font-size: 0.95rem;
         }
 
-        .file-viewer--pdf .file-viewer-meta small {
-            font-size: 0.75rem;
+        .file-viewer--pdf .file-viewer-meta-line {
+            font-size: 0.72rem;
         }
 
         .file-viewer--pdf .file-viewer-actions .btn-label {
@@ -146,27 +184,12 @@
         }
 
         .file-viewer--pdf .file-viewer-actions .btn {
-            padding: 0.35rem 0.55rem;
-        }
-
-        .file-viewer--pdf .file-viewer-close-fab {
-            display: flex;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0.45rem 0.7rem;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            position: absolute;
-            top: 0.55rem;
-            right: 0.55rem;
-            z-index: 1060;
-            width: 2.25rem;
-            height: 2.25rem;
-            border: none;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.55);
-            color: #fff;
-        }
-
-        .file-viewer--pdf .file-viewer-actions .file-viewer-close-btn {
-            display: none;
         }
     }
 </style>
@@ -175,40 +198,48 @@
 {% block content %}
 <div class="file-viewer file-viewer--pdf">
     <div class="file-viewer-header">
-        <div class="file-viewer-header-inner">
-            <div class="file-viewer-meta">
-                <a href="{{ back_url }}" class="manuals-form-back mb-2 d-inline-flex">
-                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                    <span>{{ _('layout.nav.back') }}</span>
-                </a>
-                <h4 title="{{ manual.title }}">{{ manual.title }}</h4>
-                <small class="text-muted">
-                    {{ (manual.file_size / 1024)|round(2) }} KB •
-                    {{ manual.uploaded_at|localdatetime('%d.%m.%Y %H:%M') }}
-                </small>
+        <div class="file-viewer-header-inner file-viewer-header-inner--text">
+            <div class="file-viewer-brand">
+                {% if portal_logo_filename %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <span class="file-viewer-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+                {% endif %}
+                <div class="file-viewer-brand-text">
+                    <h4 class="file-viewer-filename mb-0" title="{{ manual.title }}">{{ manual.title }}</h4>
+                    <small class="file-viewer-meta-line text-muted">
+                        {{ (manual.file_size / 1024)|round(2) }} KB •
+                        {{ manual.uploaded_at|localdatetime('%d.%m.%Y %H:%M') }}
+                    </small>
+                </div>
             </div>
             <div class="file-viewer-actions">
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn" onclick="closeViewer()" title="{{ _('manuals.view.close') }}">
+                    <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('manuals.view.close') }}</span>
+                </button>
                 <a href="{{ download_url }}" class="btn btn-outline-primary" title="{{ _('manuals.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('manuals.view.download') }}</span>
                 </a>
-                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn" onclick="closeViewer()" title="{{ _('manuals.view.close') }}">
-                    <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('manuals.view.close') }}</span>
-                </button>
             </div>
         </div>
     </div>
 
-    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('manuals.view.close') }}">
-        <i class="bi bi-x-lg"></i>
-    </button>
     <div class="file-viewer-content file-viewer-content--pdf">
-        <iframe class="file-viewer-pdf-frame"
-                src="{{ pdf_src }}#view=FitH"
-                title="{{ _('manuals.view.iframe_title') }}"
-                allowfullscreen></iframe>
+        <div class="file-viewer-pdf-embed"
+             data-pdf-embed
+             data-pdf-url="{{ pdf_src }}"
+             data-download-url="{{ download_url }}"
+             data-loading="{{ _('manuals.view.pdf_loading') }}"
+             data-error="{{ _('manuals.view.pdf_error') }}"
+             data-download-label="{{ _('manuals.view.download') }}"
+             role="document"
+             aria-label="{{ _('manuals.view.iframe_title') }}"></div>
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/pdf-embed.js') }}" defer></script>
 <script>
 function closeViewer() {
     window.location.href = {{ back_url|tojson }};

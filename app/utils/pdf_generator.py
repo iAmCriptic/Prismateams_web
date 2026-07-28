@@ -13,7 +13,14 @@ from io import BytesIO
 from datetime import datetime
 import os
 from PIL import Image as PILImage
-from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code
+from app.utils.qr_code import (
+    generate_qr_code_bytes,
+    generate_qr_code_inverted_bytes,
+    generate_qr_code_with_logo_bytes,
+    generate_product_qr_code,
+    generate_borrow_qr_code,
+    generate_set_qr_code,
+)
 from app.utils.lengths import format_length_from_meters, parse_length_to_meters
 from app.utils.color_mapping import get_color_for_length, initialize_color_mappings
 
@@ -924,22 +931,20 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     return build_standard_pdf(story, pagesize=A4, output=output)
 
 
-def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload, get_name, get_id_label, continuation_title):
-    """Geräte-Raster: quadratischer QR, Logo links vom Text, weiche Karten."""
+def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload, get_name, continuation_title):
+    """Geräte-Raster: kompakt, Logo im QR, nur Name darunter, Outline-Karten."""
     from reportlab.platypus import PageBreak
 
-    qr_size = 2.7 * cm
-    items_per_row = 3
-    items_per_col = 4
+    # 4×5 = 20 Badges/Seite (vorher 3×4 = 12)
+    qr_size = 2.35 * cm
+    items_per_row = 4
+    items_per_col = 5
     items_per_page = items_per_row * items_per_col
-    cell_w = 5.5 * cm
+    col_w = 4.55 * cm
+    cell_w = 4.3 * cm
     name_style = ParagraphStyle(
-        'DeviceQrName', parent=styles['Normal'], fontSize=8, leading=10,
-        alignment=TA_LEFT, fontName='Helvetica-Bold', textColor=PDF_COLORS['text'],
-    )
-    id_style = ParagraphStyle(
-        'DeviceQrId', parent=styles['Normal'], fontSize=7, leading=9,
-        alignment=TA_LEFT, textColor=PDF_COLORS['text_muted'],
+        'DeviceQrName', parent=styles['Normal'], fontSize=7, leading=8.5,
+        alignment=TA_CENTER, fontName='Helvetica-Bold', textColor=PDF_COLORS['text'],
     )
 
     logo_path = get_logo_path()
@@ -954,7 +959,7 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
                 show_logo=False,
                 content_width=A4[0] - 2.4 * cm,
             ))
-            story.append(Spacer(1, 0.25 * cm))
+            story.append(Spacer(1, 0.2 * cm))
 
         page_items = items[page_start:page_start + items_per_page]
         qr_data = []
@@ -965,39 +970,21 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
                 if idx < len(page_items):
                     item = page_items[idx]
                     qr_payload = get_qr_payload(item)
-                    qr_bytes = generate_qr_code_bytes(qr_payload, box_size=6, border=2)
-                    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
-                    item_name = (get_name(item) or '—')[:28]
-                    text_block = [
-                        Paragraph(item_name, name_style),
-                        Paragraph(get_id_label(item), id_style),
-                    ]
-                    logo_cell = ''
                     if logo_path:
-                        try:
-                            logo_cell = Image(
-                                logo_path, width=0.85 * cm, height=0.85 * cm, kind='proportional'
-                            )
-                        except Exception:
-                            logo_cell = ''
-                    text_table = Table(
-                        [[logo_cell, text_block]],
-                        colWidths=[1.0 * cm, cell_w - 1.6 * cm],
-                    )
-                    text_table.setStyle(TableStyle([
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-                        ('TOPPADDING', (0, 0), (-1, -1), 0),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                    ]))
+                        qr_bytes = generate_qr_code_with_logo_bytes(
+                            qr_payload, logo_path, box_size=8, border=1, logo_ratio=0.22
+                        )
+                    else:
+                        qr_bytes = generate_qr_code_bytes(qr_payload, box_size=8, border=1)
+                    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+                    item_name = (get_name(item) or '—')[:32]
+                    name_para = Paragraph(item_name, name_style)
                     cell_inner = Table(
-                        [[qr_image], [Spacer(1, 0.12 * cm)], [text_table]],
-                        colWidths=[cell_w - 0.4 * cm],
+                        [[qr_image], [Spacer(1, 0.06 * cm)], [name_para]],
+                        colWidths=[cell_w - 0.3 * cm],
                     )
                     cell_inner.setStyle(TableStyle([
-                        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                         ('LEFTPADDING', (0, 0), (-1, -1), 0),
                         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
@@ -1007,8 +994,8 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
                     row_cells.append(RoundedBox(
                         cell_inner,
                         width=cell_w,
-                        padding=6,
-                        radius=9,
+                        padding=4,
+                        radius=7,
                         fill_color=PDF_COLORS['white'],
                         stroke_color=PDF_COLORS['line'],
                     ))
@@ -1016,14 +1003,18 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
                     row_cells.append('')
             qr_data.append(row_cells)
 
-        qr_table = Table(qr_data, colWidths=[5.7 * cm] * items_per_row, rowHeights=[4.8 * cm] * items_per_col)
+        qr_table = Table(
+            qr_data,
+            colWidths=[col_w] * items_per_row,
+            rowHeights=[3.55 * cm] * items_per_col,
+        )
         qr_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
         story.append(qr_table)
 
@@ -1123,7 +1114,6 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
             styles=styles,
             get_qr_payload=lambda p: generate_product_qr_code(p.id),
             get_name=lambda p: p.name or f"ID {p.id}",
-            get_id_label=lambda p: f"ID: {p.id}",
             continuation_title=title,
         )
 
@@ -1146,15 +1136,14 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
             styles=styles,
             get_qr_payload=lambda s: generate_set_qr_code(s.id),
             get_name=lambda s: s.name or f"Set {s.id}",
-            get_id_label=lambda s: f"SET-{s.id}",
             continuation_title="QR-Codes (Sets)",
         )
 
     return build_standard_pdf(
         story,
         pagesize=A4,
-        leftMargin=1.2 * cm,
-        rightMargin=1.2 * cm,
+        leftMargin=0.7 * cm,
+        rightMargin=0.7 * cm,
         topMargin=1.2 * cm,
         bottomMargin=2.0 * cm,
         output=output,

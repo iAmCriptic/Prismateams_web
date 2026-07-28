@@ -3028,7 +3028,7 @@ def booking_form_edit(form_id):
 
         db.session.commit()
         flash(translate('settings.admin.booking_forms.flash_form_updated', title=title), 'success')
-        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+        return _settings_redirect('settings.booking_forms')
 
     fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
     return render_template(

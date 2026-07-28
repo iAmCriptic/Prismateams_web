@@ -49,7 +49,8 @@ def register_notification_routes(api_bp, require_api_auth):
                     "icon_class": NOTIFICATION_TYPE_ICONS.get(ntype, 'bi-bell'),
                     "source_id": n.source_id,
                     "dedup_key": n.dedup_key,
-                    "sent_at": n.sent_at.isoformat() if n.sent_at else None,
+                    # sent_at ist UTC (datetime.utcnow); ohne Z wertet JS die Zeit als lokal → Offset-Bug
+                    "sent_at": (n.sent_at.isoformat() + "Z") if n.sent_at else None,
                 })
 
             unread_count = NotificationLog.query.filter_by(

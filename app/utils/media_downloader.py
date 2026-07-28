@@ -298,10 +298,59 @@ def get_retention_timedelta():
     return timedelta(hours=max(1, int(hours)))
 
 
+DEFAULT_PLAYER_CLIENTS = ('ios', 'web_creator', 'mweb')
+
+
+def _parse_player_clients(raw):
+    """Parse comma/space-separated player client names; fall back to defaults."""
+    if not raw or not str(raw).strip():
+        return list(DEFAULT_PLAYER_CLIENTS)
+    clients = [
+        part.strip()
+        for part in str(raw).replace(';', ',').split(',')
+        if part.strip()
+    ]
+    return clients or list(DEFAULT_PLAYER_CLIENTS)
+
+
+def _resolve_cookies_file():
+    """
+    Return a readable cookies.txt path from config, or None.
+
+    Logs a warning when configured but missing/unreadable (no crash).
+    """
+    configured = (current_app.config.get('MEDIA_DOWNLOADER_COOKIES_FILE') or '').strip()
+    if not configured:
+        return None
+
+    path = configured
+    if not os.path.isabs(path):
+        project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
+        path = os.path.join(project_root, path)
+    path = os.path.abspath(path)
+
+    if not os.path.isfile(path):
+        logger.warning(
+            'MEDIA_DOWNLOADER_COOKIES_FILE is set but file not found: %s',
+            path,
+        )
+        return None
+    if not os.access(path, os.R_OK):
+        logger.warning(
+            'MEDIA_DOWNLOADER_COOKIES_FILE is not readable: %s',
+            path,
+        )
+        return None
+    return path
+
+
 def _get_common_ydl_opts():
     """Shared yt-dlp options for metadata extraction and downloads."""
     max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 100 * 1024 * 1024)
     ffmpeg_path = get_ffmpeg_path()
+    player_clients = _parse_player_clients(
+        current_app.config.get('MEDIA_DOWNLOADER_PLAYER_CLIENT')
+    )
 
     ydl_opts = {
         'quiet': True,
@@ -318,13 +367,55 @@ def _get_common_ydl_opts():
         },
         'retries': 3,
         'fragment_retries': 3,
+        # Prefer non-web clients to reduce bot/sign-in blocks on datacenter IPs
+        'extractor_args': {
+            'youtube': {
+                'player_client': player_clients,
+            },
+        },
     }
 
     if ffmpeg_path:
         ffmpeg_dir = os.path.dirname(ffmpeg_path)
         ydl_opts['ffmpeg_location'] = ffmpeg_dir or ffmpeg_path
 
+    cookies_file = _resolve_cookies_file()
+    if cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
+
     return ydl_opts
+
+
+def _map_download_error(exc):
+    """Map yt-dlp / network exceptions to stable flash error keys."""
+    message = str(exc).lower()
+    if (
+        'sign in to confirm you’re not a bot' in message
+        or "sign in to confirm you're not a bot" in message
+        or 'confirm you are not a bot' in message
+        or 'confirm you’re not a bot' in message
+        or 'login required' in message
+        or 'please sign in' in message
+    ):
+        return 'err_bot_check'
+    if 'http error 403' in message or 'forbidden' in message:
+        return 'err_http_403'
+    if (
+        'sign in to confirm your age' in message
+        or 'confirm your age' in message
+        or 'age-restricted' in message
+        or 'age restricted' in message
+    ):
+        return 'err_age_restricted'
+    if 'cookies' in message and (
+        'expired' in message or 'invalid' in message or 'required' in message
+    ):
+        return 'err_cookies_needed'
+    if 'video is unavailable' in message or 'video unavailable' in message:
+        return 'err_video_unavailable'
+    if 'output_not_found' in message:
+        return 'output_not_found'
+    return 'err_download_failed'
 
 
 def extract_playlist_entries(url):
@@ -576,21 +667,7 @@ def run_download(job, should_cancel=None):
         return False, 'cancelled'
     except Exception as exc:
         logger.error('Media download failed for job %s: %s', job.id, exc, exc_info=True)
-        message = str(exc).lower()
-        if 'http error 403' in message or 'forbidden' in message:
-            return False, 'err_http_403'
-        if (
-            'sign in to confirm your age' in message
-            or 'confirm your age' in message
-            or 'age-restricted' in message
-            or 'age restricted' in message
-        ):
-            return False, 'err_age_restricted'
-        if 'video is unavailable' in message or 'video unavailable' in message:
-            return False, 'err_video_unavailable'
-        if 'output_not_found' in message:
-            return False, 'output_not_found'
-        return False, 'err_download_failed'
+        return False, _map_download_error(exc)
 
 
 def delete_job_file(job):

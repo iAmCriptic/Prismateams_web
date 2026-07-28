@@ -102,7 +102,10 @@ class NotificationCenter {
     formatTime(iso) {
         if (!iso) return '';
         try {
-            const d = new Date(iso);
+            // Naive ISO (ohne Z/Offset) aus der API ist UTC — explizit als UTC parsen
+            const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`;
+            const d = new Date(normalized);
+            if (Number.isNaN(d.getTime())) return '';
             const now = new Date();
             const diffMs = now - d;
             const diffMin = Math.floor(diffMs / 60000);
@@ -123,7 +126,11 @@ class NotificationCenter {
         }
 
         this.listEl.innerHTML = items.map((item) => `
-            <div class="notification-item unread" data-id="${item.id}" data-url="${this.escapeAttr(item.url || '/')}">
+            <div class="notification-item unread"
+                 data-id="${item.id}"
+                 data-url="${this.escapeAttr(item.url || '/')}"
+                 data-type="${this.escapeAttr(item.type || '')}"
+                 data-source-id="${item.source_id != null ? item.source_id : ''}">
                 <div class="notification-item-icon">
                     <i class="bi ${item.icon_class || 'bi-bell'}"></i>
                 </div>
@@ -148,7 +155,8 @@ class NotificationCenter {
                 if (e.target.closest('[data-action]')) return;
                 const url = row.dataset.url;
                 const id = row.dataset.id;
-                this.markRead(id, false).then(() => {
+                // Als gelesen markieren (nicht löschen), dann zur Zielseite
+                this.markRead(id, false).finally(() => {
                     if (url) window.location.href = url;
                 });
             });

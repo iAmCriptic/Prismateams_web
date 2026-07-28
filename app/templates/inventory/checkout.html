@@ -97,17 +97,12 @@
                 </div>
                 <div class="mb-3">
                     <label for="manualQrInput" class="form-label">ID</label>
-                    <div class="inventory-manual-row">
-                        <div class="inventory-manual-input-wrap flex-grow-1">
-                            <input type="text" class="form-control" id="manualQrInput" autofocus
-                                   placeholder="PROD, SET, BORROW" autocomplete="off">
-                        </div>
-                        <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
-                            <i class="bi bi-plus-circle"></i> Hinzufügen
-                        </button>
+                    <div class="inventory-manual-input-wrap">
+                        <input type="text" class="form-control" id="manualQrInput" autofocus
+                               placeholder="PROD, SET, BORROW" autocomplete="off">
                     </div>
                 </div>
-                <div>
+                <div class="mb-3">
                     <label for="productSearchInput" class="form-label">Produkt suchen</label>
                     <div class="inventory-manual-input-wrap position-relative">
                         <input type="text" class="form-control" id="productSearchInput"
@@ -115,6 +110,11 @@
                                autocomplete="off">
                         <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
                     </div>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
+                        <i class="bi bi-plus-circle"></i> Hinzufügen
+                    </button>
                 </div>
                 <div id="returnScanResult" class="mt-3"></div>
             </div>

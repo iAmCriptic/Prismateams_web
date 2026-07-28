@@ -170,23 +170,28 @@
 </li>
 {% if contact.name %}
 <li>
-    <button type="button" class="dropdown-item" data-copy-text="{{ contact.name }}">
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.name }}" data-copy-success="{{ _('contacts.index.messages.copied_name') }}">
         <i class="bi bi-person me-2"></i>{{ _('contacts.index.actions.copy_name') }}
     </button>
 </li>
 {% endif %}
 {% if contact.email %}
 <li>
-    <button type="button" class="dropdown-item" data-copy-text="{{ contact.email }}">
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.email }}" data-copy-success="{{ _('contacts.index.messages.copied_email') }}">
         <i class="bi bi-envelope me-2"></i>{{ _('contacts.index.actions.copy_email') }}
     </button>
 </li>
 {% endif %}
 {% if contact.phone %}
 <li>
-    <button type="button" class="dropdown-item" data-copy-text="{{ contact.phone }}">
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.phone }}" data-copy-success="{{ _('contacts.index.messages.copied_phone') }}">
         <i class="bi bi-telephone me-2"></i>{{ _('contacts.index.actions.copy_phone') }}
     </button>
+</li>
+<li>
+    <a class="dropdown-item" href="tel:{{ contact.phone }}">
+        <i class="bi bi-telephone-outbound me-2"></i>{{ _('contacts.index.actions.call') }}
+    </a>
 </li>
 {% endif %}
 {% if can_write_mail %}
@@ -233,19 +238,22 @@
                             <i class="bi {% if contact.id in favorite_ids %}bi-star-fill{% else %}bi-star{% endif %}"></i>
                         </button>
                         {% if contact.name %}
-                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}">
+                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}" data-copy-success="{{ _('contacts.index.messages.copied_name') }}">
                             <i class="bi bi-person"></i>
                         </button>
                         {% endif %}
                         {% if contact.email %}
-                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_email') }}" data-copy-text="{{ contact.email }}">
+                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_email') }}" data-copy-text="{{ contact.email }}" data-copy-success="{{ _('contacts.index.messages.copied_email') }}">
                             <i class="bi bi-envelope"></i>
                         </button>
                         {% endif %}
                         {% if contact.phone %}
-                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_phone') }}" data-copy-text="{{ contact.phone }}">
+                        <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_phone') }}" data-copy-text="{{ contact.phone }}" data-copy-success="{{ _('contacts.index.messages.copied_phone') }}">
                             <i class="bi bi-telephone"></i>
                         </button>
+                        <a class="btn btn-sm btn-link" href="tel:{{ contact.phone }}" title="{{ _('contacts.index.actions.call') }}">
+                            <i class="bi bi-telephone-outbound"></i>
+                        </a>
                         {% endif %}
                         {% if can_write_mail %}
                         <a class="btn btn-sm btn-link" href="{{ url_for('email.compose', to=contact.email) }}" title="{{ _('contacts.index.actions.write_mail') }}">
@@ -321,19 +329,22 @@
                     <i class="bi {% if contact.id in favorite_ids %}bi-star-fill{% else %}bi-star{% endif %}"></i>
                 </button>
                 {% if contact.name %}
-                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}">
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}" data-copy-success="{{ _('contacts.index.messages.copied_name') }}">
                     <i class="bi bi-person"></i>
                 </button>
                 {% endif %}
                 {% if contact.email %}
-                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_email') }}" data-copy-text="{{ contact.email }}">
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_email') }}" data-copy-text="{{ contact.email }}" data-copy-success="{{ _('contacts.index.messages.copied_email') }}">
                     <i class="bi bi-envelope"></i>
                 </button>
                 {% endif %}
                 {% if contact.phone %}
-                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_phone') }}" data-copy-text="{{ contact.phone }}">
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_phone') }}" data-copy-text="{{ contact.phone }}" data-copy-success="{{ _('contacts.index.messages.copied_phone') }}">
                     <i class="bi bi-telephone"></i>
                 </button>
+                <a class="btn btn-sm btn-link" href="tel:{{ contact.phone }}" title="{{ _('contacts.index.actions.call') }}">
+                    <i class="bi bi-telephone-outbound"></i>
+                </a>
                 {% endif %}
                 {% if can_write_mail %}
                 <a class="btn btn-sm btn-link" href="{{ url_for('email.compose', to=contact.email) }}" title="{{ _('contacts.index.actions.write_mail') }}">
@@ -487,6 +498,25 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
+const CONTACTS_I18N = {{ current_translations.get('contacts', {}).get('index', {})|tojson }};
+
+function notifyContacts(message, category) {
+    if (typeof window.showAppBanner === 'function') {
+        window.showAppBanner(String(message || ''), category || 'success', { timeout: 2500 });
+        return;
+    }
+    console.warn(message);
+}
+
+function copyContactText(text, successMessage) {
+    const messages = CONTACTS_I18N.messages || {};
+    navigator.clipboard.writeText(text).then(() => {
+        notifyContacts(successMessage || messages.copy_success || 'Kopiert', 'success');
+    }).catch(() => {
+        notifyContacts(messages.copy_error || 'Kopieren fehlgeschlagen.', 'danger');
+    });
+}
+
 function toggleContactFavorite(id) {
     fetch(`{{ url_for('contacts.toggle_favorite', contact_id=0) }}`.replace('/0', '/' + id), {
         method: 'POST'
@@ -563,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         event.preventDefault();
-        navigator.clipboard.writeText(text).catch(() => {});
+        copyContactText(text, copyBtn.getAttribute('data-copy-success'));
     });
 
     document.querySelectorAll('#contactsMobileNav a[data-contacts-dismiss-offcanvas]').forEach((link) => {

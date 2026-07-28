@@ -13,6 +13,8 @@
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
         return {
             copy_info: c.copy_info || 'Infos kopieren',
+            copied: c.copied || 'Kopiert',
+            copy_error: c.copy_error || 'Kopieren fehlgeschlagen.',
             dashboard_remove_widget: c.dashboard_remove_widget || 'Widget entfernen',
             dashboard_manage_widgets: c.dashboard_manage_widgets || 'Widgets verwalten',
             format: Object.assign(
@@ -28,10 +30,18 @@
         };
     }
 
+    function notifyCopy(message, category) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(String(message || ''), category || 'success', { timeout: 2500 });
+        }
+    }
+
     let activeMenu = null;
     let activeBackdrop = null;
     let quillInstance = null;
     const dynamicMatchers = [];
+    let sheetScrollY = 0;
+    let sheetTouchMoved = false;
 
     function isEnabled() {
         return DESKTOP_MQ.matches;
@@ -39,6 +49,24 @@
 
     function isMobileSheetEnabled() {
         return MOBILE_MQ.matches;
+    }
+
+    function unlockBodyScroll() {
+        if (!document.body.classList.contains('pt-action-sheet-open')) return;
+        document.body.classList.remove('pt-action-sheet-open');
+        document.body.style.removeProperty('top');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('width');
+        window.scrollTo(0, sheetScrollY);
+        sheetScrollY = 0;
+    }
+
+    function lockBodyScroll() {
+        sheetScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.classList.add('pt-action-sheet-open');
+        document.body.style.position = 'fixed';
+        document.body.style.top = '-' + sheetScrollY + 'px';
+        document.body.style.width = '100%';
     }
 
     function closeMenu() {
@@ -50,7 +78,8 @@
             activeBackdrop.remove();
             activeBackdrop = null;
         }
-        document.body.classList.remove('pt-action-sheet-open');
+        unlockBodyScroll();
+        sheetTouchMoved = false;
     }
 
     /** Shift/Ctrl/Cmd + Rechtsklick → natives Browser-Menü (kein Custom-Menü). */
@@ -97,9 +126,18 @@
         const menu = sourceMenu.cloneNode(true);
         menu.classList.add('show');
         menu.classList.remove('dropdown-menu-end');
+        menu.removeAttribute('data-bs-popper');
+        menu.removeAttribute('style');
         menu.style.position = 'static';
         menu.style.display = 'block';
         menu.style.transform = 'none';
+        menu.style.left = 'auto';
+        menu.style.right = 'auto';
+        menu.style.inset = 'auto';
+        menu.style.width = '100%';
+        menu.style.maxWidth = 'none';
+        menu.style.minWidth = '0';
+        menu.style.margin = '0';
         menu.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => {
             el.removeAttribute('data-bs-toggle');
             el.removeAttribute('data-bs-auto-close');
@@ -203,6 +241,54 @@
         }
     }
 
+    function closeSheetFlyout(container) {
+        if (!container) return;
+        container.classList.remove('pt-context-menu--sheet-subopen');
+        container.querySelectorAll(':scope > .pt-sheet-flyout').forEach((el) => el.remove());
+        container.querySelectorAll('.dropdown-submenu').forEach((li) => {
+            li.classList.remove('is-open');
+            const t = li.querySelector(':scope > .dropdown-toggle');
+            if (t) t.setAttribute('aria-expanded', 'false');
+            const m = li.querySelector(':scope > .dropdown-menu.show');
+            if (m) m.classList.remove('show');
+        });
+    }
+
+    function openSheetFlyout(container, parent, sub) {
+        closeSheetFlyout(container);
+
+        const flyout = document.createElement('div');
+        flyout.className = 'pt-sheet-flyout';
+        flyout.setAttribute('role', 'menu');
+
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'pt-sheet-flyout-back';
+        back.setAttribute('aria-label', 'Zurück');
+        back.innerHTML =
+            '<i class="bi bi-chevron-left" aria-hidden="true"></i><span>Zurück</span>';
+        back.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeSheetFlyout(container);
+        });
+
+        const list = sub.cloneNode(true);
+        list.classList.add('show');
+        list.classList.remove('dropdown-menu-end');
+        list.style.position = 'static';
+        list.style.display = 'block';
+        list.style.transform = 'none';
+
+        flyout.appendChild(back);
+        flyout.appendChild(list);
+        container.appendChild(flyout);
+        container.classList.add('pt-context-menu--sheet-subopen');
+        parent.classList.add('is-open');
+        const toggle = parent.querySelector(':scope > .dropdown-toggle');
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    }
+
     function wireMenuInteractions(menu, container) {
         // data-confirm-delete is handled globally by app.js (ptConfirm modal)
 
@@ -218,31 +304,55 @@
         });
 
         container.addEventListener('click', (e) => {
+            const isSheet = container.classList.contains('pt-context-menu--sheet');
+
             const toggle = e.target.closest('.dropdown-submenu > .dropdown-toggle');
-            if (toggle) {
+            if (toggle && container.contains(toggle)) {
                 e.preventDefault();
                 e.stopPropagation();
                 const parent = toggle.closest('.dropdown-submenu');
                 const sub = parent && parent.querySelector(':scope > .dropdown-menu');
-                if (sub) {
-                    container.querySelectorAll('.dropdown-submenu').forEach((li) => {
-                        if (li === parent) return;
-                        li.classList.remove('is-open');
-                        const m = li.querySelector(':scope > .dropdown-menu.show');
-                        if (m) m.classList.remove('show');
-                    });
-                    const open = !sub.classList.contains('show');
-                    sub.classList.toggle('show', open);
-                    if (parent) parent.classList.toggle('is-open', open);
+                if (!sub) return;
+
+                if (isSheet) {
+                    if (parent.classList.contains('is-open') && container.classList.contains('pt-context-menu--sheet-subopen')) {
+                        closeSheetFlyout(container);
+                    } else {
+                        openSheetFlyout(container, parent, sub);
+                    }
+                    return;
                 }
+
+                container.querySelectorAll('.dropdown-submenu').forEach((li) => {
+                    if (li === parent) return;
+                    li.classList.remove('is-open');
+                    const m = li.querySelector(':scope > .dropdown-menu.show');
+                    if (m) m.classList.remove('show');
+                });
+                const open = !sub.classList.contains('show');
+                sub.classList.toggle('show', open);
+                if (parent) parent.classList.toggle('is-open', open);
                 return;
             }
+
+            if (e.target.closest('.email-color-swatch')) {
+                setTimeout(closeMenu, 0);
+                return;
+            }
+
             const item = e.target.closest('a.dropdown-item, button.dropdown-item');
             if (!item) return;
+            if (item.classList.contains('dropdown-toggle') && item.closest('.dropdown-submenu')) return;
+
             const copyText = item.getAttribute('data-copy-text');
             if (copyText) {
                 e.preventDefault();
-                navigator.clipboard.writeText(copyText).catch(() => {});
+                const successMsg = item.getAttribute('data-copy-success') || i18n().copied;
+                navigator.clipboard.writeText(copyText).then(() => {
+                    notifyCopy(successMsg, 'success');
+                }).catch(() => {
+                    notifyCopy(i18n().copy_error, 'danger');
+                });
             }
             // Confirm-Dialog braucht den Button noch im DOM (app.js re-click)
             if (
@@ -290,13 +400,38 @@
 
         const backdrop = document.createElement(String.fromCharCode(100, 105, 118));
         backdrop.className = 'pt-action-sheet-backdrop';
-        backdrop.addEventListener('click', closeMenu);
+        sheetTouchMoved = false;
+
+        backdrop.addEventListener(
+            'touchstart',
+            () => {
+                sheetTouchMoved = false;
+            },
+            { passive: true }
+        );
+        backdrop.addEventListener(
+            'touchmove',
+            (e) => {
+                sheetTouchMoved = true;
+                e.preventDefault();
+            },
+            { passive: false }
+        );
+        backdrop.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+        backdrop.addEventListener('click', () => {
+            if (sheetTouchMoved) {
+                sheetTouchMoved = false;
+                return;
+            }
+            closeMenu();
+        });
+
         document.body.appendChild(backdrop);
         activeBackdrop = backdrop;
 
         const menu = prepareClonedMenu(sourceMenu);
         const container = createMenuContainer(menu, 'pt-context-menu--sheet');
-        document.body.classList.add('pt-action-sheet-open');
+        lockBodyScroll();
         activeMenu = container;
     }
 

@@ -6,6 +6,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
+{% if is_pdf|default(False) %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pdf-embed.css') }}">
+{% endif %}
 <style>
     .file-viewer {
         position: fixed;
@@ -197,15 +200,11 @@
         display: flex;
     }
 
-    .file-viewer--pdf .file-viewer-pdf-frame {
+    .file-viewer--pdf .file-viewer-pdf-embed {
         flex: 1 1 auto;
         width: 100%;
         height: 100%;
         min-height: 0;
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-        background: #525659;
     }
 
     .file-viewer-actions .btn,
@@ -256,8 +255,7 @@
             justify-content: center;
         }
 
-        /* Harter Schließen-Button immer sichtbar (über PDF-Plugin) */
-        .file-viewer--pdf .file-viewer-close-fab,
+        /* Media: floating close remains; PDF uses navbar Schließen */
         .file-viewer--media .file-viewer-close-fab {
             display: flex;
             position: fixed;
@@ -278,14 +276,31 @@
             touch-action: manipulation;
         }
 
-        .file-viewer--pdf .file-viewer-close-fab:active,
         .file-viewer--media .file-viewer-close-fab:active {
             filter: brightness(0.92);
         }
 
-        .file-viewer--pdf .file-viewer-actions .file-viewer-close-btn,
         .file-viewer--media .file-viewer-actions .file-viewer-close-btn {
             display: none;
+        }
+
+        .file-viewer--pdf .file-viewer-close-fab {
+            display: none !important;
+        }
+
+        .file-viewer--pdf .file-viewer-header-inner--text {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+        }
+
+        .file-viewer--pdf .file-viewer-filename {
+            font-size: 0.95rem;
+        }
+
+        .file-viewer--pdf .file-viewer-meta-line {
+            font-size: 0.72rem;
         }
     }
 
@@ -383,7 +398,38 @@
 {% set download_url = download_url|default(url_for('files.download_file', file_id=file.id)) %}
 <div class="file-viewer {% if is_pdf|default(False) %}file-viewer--pdf{% elif is_media %}file-viewer--media{% endif %}">
     <div class="file-viewer-header">
-        {% if is_pdf|default(False) or is_media %}
+        {% if is_pdf|default(False) %}
+        <div class="file-viewer-header-inner file-viewer-header-inner--text">
+            <div class="file-viewer-brand">
+                {% if portal_logo_filename %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <span class="file-viewer-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+                {% endif %}
+                <div class="file-viewer-brand-text">
+                    <h4 class="file-viewer-filename mb-0" title="{{ file.name }}">{{ file.name }}</h4>
+                    <small class="file-viewer-meta-line text-muted">
+                        {{ (file.file_size / 1024)|round(2) }} KB •
+                        Von {{ file.uploader.full_name if file.uploader else '—' }} •
+                        {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
+                        {% if file.version_number > 1 %}
+                        • Version {{ file.version_number }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            <div class="file-viewer-actions">
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                    <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
+                </button>
+                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                    <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
+                </a>
+            </div>
+        </div>
+        {% elif is_media %}
         <div class="file-viewer-header-inner">
             <div class="file-viewer-meta">
                 <h4 title="{{ file.name }}">{{ file.name }}</h4>
@@ -488,15 +534,18 @@
     {% endif %}
 
     {% if is_pdf|default(False) %}
-    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('files.view.close') }}">
-        <i class="bi bi-x-lg"></i>
-    </button>
     <div class="file-viewer-content file-viewer-content--pdf">
-        <iframe class="file-viewer-pdf-frame"
-                src="{{ pdf_src }}#view=FitH"
-                title="PDF Viewer"
-                allowfullscreen></iframe>
+        <div class="file-viewer-pdf-embed"
+             data-pdf-embed
+             data-pdf-url="{{ pdf_src }}"
+             data-download-url="{{ download_url }}"
+             data-loading="{{ _('files.view.pdf_loading') }}"
+             data-error="{{ _('files.view.pdf_error') }}"
+             data-download-label="{{ _('files.view.download') }}"
+             role="document"
+             aria-label="{{ _('files.view.pdf_title') }}"></div>
     </div>
+    <script src="{{ url_for('static', filename='js/pdf-embed.js') }}" defer></script>
     {% elif is_media %}
     <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('files.view.close') }}">
         <i class="bi bi-x-lg"></i>

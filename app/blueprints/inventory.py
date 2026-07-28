@@ -25,6 +25,7 @@ import os
 import secrets
 import string
 from io import BytesIO
+import re
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -69,6 +70,27 @@ def _serialize_set_members(product_set):
             'quantity': item.quantity or 1,
         })
     return members
+
+
+def _normalize_scanner_code(value):
+    """Bereinigt Handscanner-Input (CR/LF, Layout-Artefakte) und kanonisiert Produkt-URLs."""
+    from app.utils.qr_code import parse_qr_code
+
+    if value is None:
+        return ''
+    text = unquote(str(value))
+    text = re.sub(r'[\x00-\x1F\x7F]+', '', text).strip()
+    if not text:
+        return ''
+
+    parsed = parse_qr_code(text)
+    if parsed and parsed[0] == 'product':
+        return f'PROD-{parsed[1]}'
+    if parsed and parsed[0] == 'set':
+        return f'SET-{parsed[1]}'
+    if parsed and parsed[0] == 'borrow':
+        return f'BORROW-{parsed[1]}'
+    return text
 
 
 def _get_cart_set_meta():
@@ -919,7 +941,7 @@ def borrow_scanner():
                 return_checkout_by_ref,
                 find_checkout,
             )
-            qr_code = request.form.get('qr_code', '').strip()
+            qr_code = _normalize_scanner_code(request.form.get('qr_code', ''))
             product_id = request.form.get('product_id')
             
             product = None

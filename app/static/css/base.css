@@ -977,9 +977,10 @@ body.offline-mode {
     margin-top: 60px;
 }
 
-/* Portal toasts — Push + PWA: gleiche Breite/Shell */
+/* Portal toasts — Update + Push + PWA: gleiche Breite/Shell */
 .push-activation-prompt,
-.pwa-install-prompt {
+.pwa-install-prompt,
+.pwa-update-prompt {
     position: fixed;
     top: calc(1rem + env(safe-area-inset-top, 0px));
     right: 1rem;
@@ -1005,6 +1006,11 @@ body.offline-mode {
     animation: portal-toast-prompt-in 0.28s ease-out;
 }
 
+.pwa-update-prompt {
+    z-index: 1085;
+    animation: portal-toast-prompt-in 0.28s ease-out;
+}
+
 @keyframes portal-toast-prompt-in {
     from {
         opacity: 0;
@@ -1017,7 +1023,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__body,
-.pwa-install-prompt__body {
+.pwa-install-prompt__body,
+.pwa-update-prompt__body {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
@@ -1025,7 +1032,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__icon,
-.pwa-install-prompt__icon {
+.pwa-install-prompt__icon,
+.pwa-update-prompt__icon {
     flex-shrink: 0;
     width: 2.35rem;
     height: 2.35rem;
@@ -1039,13 +1047,15 @@ body.offline-mode {
 }
 
 .push-activation-prompt__content,
-.pwa-install-prompt__content {
+.pwa-install-prompt__content,
+.pwa-update-prompt__content {
     flex: 1 1 auto;
     min-width: 0;
 }
 
 .push-activation-prompt__title,
-.pwa-install-prompt__title {
+.pwa-install-prompt__title,
+.pwa-update-prompt__title {
     margin: 0 0 0.35rem;
     font-size: 0.95rem;
     font-weight: 650;
@@ -1055,7 +1065,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__text,
-.pwa-install-prompt__text {
+.pwa-install-prompt__text,
+.pwa-update-prompt__text {
     margin: 0 0 0.85rem;
     font-size: 0.8rem;
     line-height: 1.4;
@@ -1063,7 +1074,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__actions,
-.pwa-install-prompt__actions {
+.pwa-install-prompt__actions,
+.pwa-update-prompt__actions {
     display: flex;
     flex-wrap: nowrap;
     gap: 0.45rem;
@@ -1071,7 +1083,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__btn,
-.pwa-install-prompt__btn {
+.pwa-install-prompt__btn,
+.pwa-update-prompt__btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-weight: 600;
     font-size: 0.8rem;
@@ -1082,7 +1095,8 @@ body.offline-mode {
 }
 
 .push-activation-prompt__btn--yes,
-.pwa-install-prompt__btn--install {
+.pwa-install-prompt__btn--install,
+.pwa-update-prompt__btn--reload {
     color: #fff !important;
     background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
     box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.12);
@@ -1091,13 +1105,16 @@ body.offline-mode {
 .push-activation-prompt__btn--yes:hover,
 .push-activation-prompt__btn--yes:focus,
 .pwa-install-prompt__btn--install:hover,
-.pwa-install-prompt__btn--install:focus {
+.pwa-install-prompt__btn--install:focus,
+.pwa-update-prompt__btn--reload:hover,
+.pwa-update-prompt__btn--reload:focus {
     filter: brightness(1.08);
     color: #fff !important;
 }
 
 .push-activation-prompt__btn--later,
-.pwa-install-prompt__btn--later {
+.pwa-install-prompt__btn--later,
+.pwa-update-prompt__btn--later {
     color: var(--accent-color, #0d6efd) !important;
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
 }
@@ -1105,7 +1122,9 @@ body.offline-mode {
 .push-activation-prompt__btn--later:hover,
 .push-activation-prompt__btn--later:focus,
 .pwa-install-prompt__btn--later:hover,
-.pwa-install-prompt__btn--later:focus {
+.pwa-install-prompt__btn--later:focus,
+.pwa-update-prompt__btn--later:hover,
+.pwa-update-prompt__btn--later:focus {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
     color: var(--accent-color, #0d6efd) !important;
 }
@@ -1128,7 +1147,8 @@ body.offline-mode {
 
 @media (max-width: 575.98px) {
     .push-activation-prompt,
-    .pwa-install-prompt {
+    .pwa-install-prompt,
+    .pwa-update-prompt {
         top: calc(0.75rem + env(safe-area-inset-top, 0px));
         left: 0.75rem;
         right: 0.75rem;
@@ -1138,12 +1158,14 @@ body.offline-mode {
     }
 
     .push-activation-prompt__actions,
-    .pwa-install-prompt__actions {
+    .pwa-install-prompt__actions,
+    .pwa-update-prompt__actions {
         flex-wrap: nowrap;
     }
 
     .push-activation-prompt__btn,
-    .pwa-install-prompt__btn {
+    .pwa-install-prompt__btn,
+    .pwa-update-prompt__btn {
         font-size: 0.75rem;
         padding: 0.32rem 0.7rem !important;
     }
@@ -1156,12 +1178,14 @@ body.offline-mode {
 }
 
 [data-bs-theme="dark"] .push-activation-prompt,
-[data-bs-theme="dark"] .pwa-install-prompt {
+[data-bs-theme="dark"] .pwa-install-prompt,
+[data-bs-theme="dark"] .pwa-update-prompt {
     box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.35);
 }
 
 [data-oled-mode="true"] .push-activation-prompt,
-[data-oled-mode="true"] .pwa-install-prompt {
+[data-oled-mode="true"] .pwa-install-prompt,
+[data-oled-mode="true"] .pwa-update-prompt {
     background: #000 !important;
     border-color: #1a1a1a !important;
 }

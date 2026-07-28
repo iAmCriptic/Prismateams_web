@@ -17,6 +17,12 @@
             <a class="email-view-action-btn" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
                 <i class="bi bi-forward" aria-hidden="true"></i>
             </a>
+            <a class="email-view-action-btn js-email-print-pdf"
+               href="{{ url_for('email.print_email_pdf', email_id=email.id) }}"
+               title="{{ _('email.view.actions.print') }}"
+               aria-label="{{ _('email.view.actions.print') }}">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+            </a>
         </div>
     </div>
 
@@ -36,6 +42,12 @@
                 </a>
                 <a class="email-view-action-btn" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
                     <i class="bi bi-forward" aria-hidden="true"></i>
+                </a>
+                <a class="email-view-action-btn js-email-print-pdf"
+                   href="{{ url_for('email.print_email_pdf', email_id=email.id) }}"
+                   title="{{ _('email.view.actions.print') }}"
+                   aria-label="{{ _('email.view.actions.print') }}">
+                    <i class="bi bi-printer" aria-hidden="true"></i>
                 </a>
             </div>
         </div>
@@ -244,6 +256,48 @@
 </div>
 
 <script>
+(function () {
+    var ecoAlert = {{ _('email.view.print_eco_alert')|tojson }};
+    var printLinks = Array.prototype.slice.call(document.querySelectorAll('.js-email-print-pdf'));
+
+    function showEcoAlert() {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(ecoAlert, 'info', { timeout: 9000 });
+        }
+    }
+
+    function triggerPrintPdf(previewInline) {
+        var link = printLinks[0];
+        if (!link) return;
+        var href = link.getAttribute('href');
+        if (!href) return;
+        showEcoAlert();
+        window.setTimeout(function () {
+            if (previewInline) {
+                var sep = href.indexOf('?') === -1 ? '?' : '&';
+                window.location.assign(href + sep + 'inline=1');
+            } else {
+                window.location.assign(href);
+            }
+        }, 180);
+    }
+
+    printLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+            event.preventDefault();
+            triggerPrintPdf(false);
+        });
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (!(event.ctrlKey || event.metaKey)) return;
+        if (String(event.key).toLowerCase() !== 'p') return;
+        if (!printLinks.length) return;
+        event.preventDefault();
+        triggerPrintPdf(true);
+    });
+})();
+
 // Toggle attachments collapse icon - nur wenn Anhänge vorhanden sind
 const attachmentsList = document.getElementById('attachmentsList');
 if (attachmentsList) {

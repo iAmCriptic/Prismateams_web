@@ -2665,6 +2665,16 @@ def index():
             email_obj.has_attachments = True
         else:
             email_obj.has_attachments = False
+
+    try:
+        from app.utils.notifications import mark_in_app_notifications_read
+        mark_in_app_notifications_read(
+            current_user.id,
+            notification_type='email',
+        )
+    except Exception:
+        pass
+
     db.session.commit()
 
     from app.utils.email_counts import count_unread_emails_by_folder
@@ -2755,10 +2765,28 @@ def view_email(email_id):
     
     if not email_msg.is_read:
         email_msg.is_read = True
+        try:
+            from app.utils.notifications import mark_in_app_notifications_read
+            mark_in_app_notifications_read(
+                current_user.id,
+                notification_type='email',
+            )
+        except Exception:
+            pass
         db.session.commit()
         try:
             from app.utils.email_counts import emit_email_unread_update
             emit_email_unread_update(current_user.id)
+        except Exception:
+            pass
+    else:
+        try:
+            from app.utils.notifications import mark_in_app_notifications_read
+            mark_in_app_notifications_read(
+                current_user.id,
+                notification_type='email',
+                commit=True,
+            )
         except Exception:
             pass
     
@@ -2817,6 +2845,32 @@ def view_email(email_id):
         html_content=html_content,
         html_iframe_html=html_iframe_html,
         is_simple_html=is_simple_html
+    )
+
+
+@email_bp.route('/print/<int:email_id>')
+@login_required
+@check_module_access('module_email')
+def print_email_pdf(email_id):
+    """Druck-PDF einer einzelnen E-Mail (Portal-Layout)."""
+    if not check_email_permission('read'):
+        flash(translate('email.flash.no_read_permission'), 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    email_msg = EmailMessage.query.get_or_404(email_id)
+    if email_msg.folder == 'Drafts':
+        flash(translate('email.flash.draft_no_print'), 'warning')
+        return redirect(url_for('email.compose', draft_id=email_id))
+
+    from app.utils.email_pdf_generator import generate_email_print_pdf, safe_email_pdf_filename
+
+    inline_preview = request.args.get('inline') == '1'
+    pdf_buffer = generate_email_print_pdf(email_msg)
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=not inline_preview,
+        download_name=safe_email_pdf_filename(email_msg),
     )
 
 

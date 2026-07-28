@@ -48,6 +48,12 @@
       "install": "Instalar",
       "later": "Más tarde",
       "never": "No mostrar de nuevo"
+    },
+    "pwa_update": {
+      "title": "Nueva versión disponible",
+      "description": "Hay una nueva versión de la app lista. Actualiza para obtener las últimas mejoras.",
+      "reload": "Actualizar",
+      "later": "Más tarde"
     }
   },
   "common": {
@@ -314,6 +320,8 @@
       "started": "Descarga iniciada.",
       "expired": "Este archivo ya no está disponible.",
       "err_http_403": "Descarga bloqueada por YouTube (HTTP 403). Inténtelo más tarde o use otra calidad/URL.",
+      "err_bot_check": "YouTube requiere inicio de sesión (comprobación antibot). Los admins pueden configurar opcionalmente un cookies.txt (ver documentación de instalación).",
+      "err_cookies_needed": "Las cookies de YouTube faltan, han caducado o no son válidas. Renueve cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "Este video tiene restricción de edad y no puede descargarse sin inicio de sesión/cookies.",
       "err_video_unavailable": "Este video no está disponible.",
       "err_download_failed": "La descarga falló. Inténtelo de nuevo.",
@@ -537,7 +545,10 @@
       "history_empty": "No hay versiones anteriores.",
       "history_current": "actual",
       "more": "Más",
-      "version_label": "Version {number}"
+      "version_label": "Version {number}",
+      "pdf_title": "Visor PDF",
+      "pdf_loading": "Cargando PDF…",
+      "pdf_error": "Este navegador no pudo incrustar el PDF. Descárguelo en su lugar."
     },
     "index": {
       "search_placeholder": "Buscar en archivos",

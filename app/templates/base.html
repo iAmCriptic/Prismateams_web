@@ -76,44 +76,44 @@
             {% if request.endpoint.startswith('settings.booking_') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
             {% endif %}
-        {% elif 'chat' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
-        {% elif 'events' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
-        {% elif 'calendar' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
-        {% elif 'files' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
-        {% elif 'credentials' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
-        {% elif 'manuals' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
-        {% elif 'email' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
-        {% elif 'contacts' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
-        {% elif 'booking' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
-        {% elif 'auth' in request.endpoint %}
+        {% elif request.endpoint.startswith('auth.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
-        {% elif 'setup' in request.endpoint %}
+        {% elif request.endpoint.startswith('chat.') or 'chat' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+        {% elif request.endpoint.startswith('events.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
+        {% elif request.endpoint.startswith('calendar.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
+        {% elif request.endpoint.startswith('files.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+        {% elif request.endpoint.startswith('credentials.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
+        {% elif request.endpoint.startswith('manuals.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
+        {% elif request.endpoint.startswith('email.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
+        {% elif request.endpoint.startswith('contacts.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
+        {% elif request.endpoint.startswith('booking.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+        {% elif request.endpoint.startswith('setup.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-        {% elif 'errors' in request.endpoint %}
+        {% elif request.endpoint.startswith('errors.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
-        {% elif 'inventory' in request.endpoint %}
+        {% elif request.endpoint.startswith('inventory.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
-        {% elif 'wiki' in request.endpoint %}
+        {% elif request.endpoint.startswith('wiki.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
-        {% elif 'shortlinks' in request.endpoint %}
+        {% elif request.endpoint.startswith('shortlinks.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
-        {% elif 'music' in request.endpoint %}
+        {% elif request.endpoint.startswith('music.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
-        {% elif 'media_downloader' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}?v=4">
-        {% elif 'assessment' in request.endpoint %}
+        {% elif request.endpoint.startswith('media_downloader.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}">
+        {% elif request.endpoint.startswith('assessment.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
-        {% elif 'dashboard' in request.endpoint %}
+        {% elif request.endpoint.startswith('dashboard.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}
     {% endif %}
@@ -283,10 +283,12 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body{% if _assess_scope %} class="assessment-scope-solo"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
+<body{% if _assess_scope %} class="assessment-scope-solo"{% elif force_light_theme %} class="auth-scope"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
     {% set _is_setup = request.endpoint and request.endpoint.startswith('setup.') %}
     {% set _is_embed = request.args.get('embed') or request.form.get('embed') %}
-    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
+    {# Standalone auth pages (login/register/confirm-email/…) — no app chrome even when logged in #}
+    {% set _is_auth_shell = force_light_theme|default(false) %}
+    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
     <!-- Mobile Bottom Navigation -->
     <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
@@ -716,16 +718,16 @@
     </div>
     {% endif %}
 
-    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed %}
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed and not _is_auth_shell %}
     {% include 'partials/notification_center.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notification-center.css') }}">
     {% endif %}
 
     <!-- Main Content -->
-    <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
-        <div class="container-fluid{% if not _is_setup and not _is_embed %} py-3{% endif %}">
+    <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed and not _is_auth_shell %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
+        <div class="container-fluid{% if not _is_setup and not _is_embed and not _is_auth_shell %} py-3{% endif %}">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten / Inventar-Shell) -->
-            {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
+            {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
                 {% set index_endpoints = [
                     'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
                     'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
@@ -734,7 +736,7 @@
                     'shortlinks.index', 'booking.requests', 'music.index', 'media_downloader.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email'])) %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
                 {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
@@ -843,8 +845,16 @@
         'later': _('layout.pwa_install.later'),
         'never': _('layout.pwa_install.never')
     } | tojson }};
+    window.PRISMATEAMS_I18N.pwa_update = {{ {
+        'title': _('layout.pwa_update.title'),
+        'description': _('layout.pwa_update.description'),
+        'reload': _('layout.pwa_update.reload'),
+        'later': _('layout.pwa_update.later')
+    } | tojson }};
     window.PRISMATEAMS_I18N.context_menu = {{ {
         'copy_info': _('context_menu.copy_info'),
+        'copied': _('context_menu.copied'),
+        'copy_error': _('context_menu.copy_error'),
         'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),
         'dashboard_manage_widgets': _('context_menu.dashboard_manage_widgets'),
         'format': {

@@ -276,26 +276,238 @@ function showStatusInfo() {
     // Status-Info wird still geprüft, keine Console-Ausgabe
 }
 
-// PWA Service Worker Registration
+// PWA Service Worker Registration + Update-Handling
+// Update-Hinweis: In-App-Banner (wie Install/Push), kein window.confirm()
 if ('serviceWorker' in navigator) {
+    var _swRefreshing = false;
+    var _swUpdateAccepted = false;
+    var _swPromptedThisPage = false;
+    var _swPendingWorker = null;
+    var _swPendingRegistration = null;
+    var SW_UPDATE_DISMISS_KEY = 'swUpdateDismissed';
+    var SW_UPDATE_PENDING_KEY = 'swUpdatePending';
+    var PWA_UPDATE_PROMPT_ID = 'pwa-update-prompt';
+
+    function wasUpdateDismissed() {
+        try {
+            return sessionStorage.getItem(SW_UPDATE_DISMISS_KEY) === '1';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function markUpdateDismissed() {
+        try {
+            sessionStorage.setItem(SW_UPDATE_DISMISS_KEY, '1');
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearUpdateDismissed() {
+        try {
+            sessionStorage.removeItem(SW_UPDATE_DISMISS_KEY);
+        } catch (e) { /* ignore */ }
+    }
+
+    function markUpdatePending() {
+        try {
+            sessionStorage.setItem(SW_UPDATE_PENDING_KEY, '1');
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearUpdatePending() {
+        try {
+            sessionStorage.removeItem(SW_UPDATE_PENDING_KEY);
+        } catch (e) { /* ignore */ }
+    }
+
+    function isUpdatePending() {
+        try {
+            return sessionStorage.getItem(SW_UPDATE_PENDING_KEY) === '1';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function ptI18nPwaUpdate(key, fallback) {
+        var pack = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.pwa_update) || {};
+        return pack[key] || fallback;
+    }
+
+    function hidePwaUpdatePrompt() {
+        var prompt = document.getElementById(PWA_UPDATE_PROMPT_ID);
+        if (prompt) {
+            prompt.remove();
+        }
+        if (typeof layoutPortalPrompts === 'function') {
+            layoutPortalPrompts();
+        }
+    }
+
+    function activateWaitingWorker(worker, registration) {
+        var target = (registration && registration.waiting) || worker || _swPendingWorker;
+        var reg = registration || _swPendingRegistration;
+        if (!target && reg && reg.waiting) {
+            target = reg.waiting;
+        }
+        if (!target) {
+            return;
+        }
+        _swUpdateAccepted = true;
+        markUpdatePending();
+        clearUpdateDismissed();
+        target.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    function acceptPwaUpdate() {
+        hidePwaUpdatePrompt();
+        activateWaitingWorker(_swPendingWorker, _swPendingRegistration);
+        setTimeout(function() {
+            if (!_swRefreshing) {
+                _swRefreshing = true;
+                clearUpdatePending();
+                window.location.reload();
+            }
+        }, 800);
+    }
+
+    function dismissPwaUpdate() {
+        hidePwaUpdatePrompt();
+        markUpdateDismissed();
+        _swPendingWorker = null;
+        _swPendingRegistration = null;
+    }
+
+    // Reload nur nach expliziter Update-Bestätigung
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!_swUpdateAccepted && !isUpdatePending()) {
+            return;
+        }
+        if (_swRefreshing) {
+            return;
+        }
+        _swRefreshing = true;
+        clearUpdatePending();
+        window.location.reload();
+    });
+
+    function showPwaUpdatePrompt(worker, registration) {
+        if (document.getElementById(PWA_UPDATE_PROMPT_ID)) {
+            _swPendingWorker = worker;
+            _swPendingRegistration = registration;
+            return;
+        }
+
+        _swPendingWorker = worker;
+        _swPendingRegistration = registration;
+
+        var prompt = document.createElement('div');
+        prompt.id = PWA_UPDATE_PROMPT_ID;
+        prompt.className = 'pwa-update-prompt';
+        prompt.setAttribute('role', 'dialog');
+        prompt.setAttribute('aria-modal', 'false');
+        prompt.setAttribute('aria-labelledby', 'pwaUpdateTitle');
+        prompt.setAttribute('aria-describedby', 'pwaUpdateDesc');
+        prompt.innerHTML =
+            '<div class="pwa-update-prompt__body">' +
+                '<div class="pwa-update-prompt__icon" aria-hidden="true">' +
+                    '<i class="bi bi-arrow-clockwise"></i>' +
+                '</div>' +
+                '<div class="pwa-update-prompt__content">' +
+                    '<h6 class="pwa-update-prompt__title" id="pwaUpdateTitle">' +
+                        ptI18nPwaUpdate('title', 'Neue Version verfügbar') +
+                    '</h6>' +
+                    '<p class="pwa-update-prompt__text" id="pwaUpdateDesc">' +
+                        ptI18nPwaUpdate('description', 'Eine neue Version der App ist bereit. Bitte aktualisieren, um die neuesten Verbesserungen zu nutzen.') +
+                    '</p>' +
+                    '<div class="pwa-update-prompt__actions">' +
+                        '<button type="button" class="btn btn-sm pwa-update-prompt__btn pwa-update-prompt__btn--reload" data-pwa-update="reload">' +
+                            ptI18nPwaUpdate('reload', 'Aktualisieren') +
+                        '</button>' +
+                        '<button type="button" class="btn btn-sm pwa-update-prompt__btn pwa-update-prompt__btn--later" data-pwa-update="later">' +
+                            ptI18nPwaUpdate('later', 'Später') +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+
+        document.body.appendChild(prompt);
+        if (typeof layoutPortalPrompts === 'function') {
+            layoutPortalPrompts();
+        }
+
+        prompt.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-pwa-update]');
+            if (!btn) {
+                return;
+            }
+            var action = btn.getAttribute('data-pwa-update');
+            if (action === 'reload') {
+                acceptPwaUpdate();
+            } else if (action === 'later') {
+                dismissPwaUpdate();
+            }
+        });
+    }
+
+    function promptAndActivateWaitingWorker(worker, registration) {
+        if (!worker || _swPromptedThisPage || _swUpdateAccepted || wasUpdateDismissed()) {
+            return;
+        }
+
+        // Nach vorherigem OK: ohne erneuten Dialog aktivieren (Race-Fix)
+        if (isUpdatePending()) {
+            _swPromptedThisPage = true;
+            activateWaitingWorker(worker, registration);
+            setTimeout(function() {
+                if (!_swRefreshing) {
+                    _swRefreshing = true;
+                    clearUpdatePending();
+                    window.location.reload();
+                }
+            }, 500);
+            return;
+        }
+
+        _swPromptedThisPage = true;
+        showPwaUpdatePrompt(worker, registration);
+    }
+
+    function checkForWaitingWorker(registration) {
+        if (registration.waiting && navigator.serviceWorker.controller) {
+            promptAndActivateWaitingWorker(registration.waiting, registration);
+        }
+    }
+
     window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js')
             .then(function(registration) {
-                // Prüfe auf Updates
+                checkForWaitingWorker(registration);
+
                 registration.addEventListener('updatefound', function() {
                     const newWorker = registration.installing;
+                    if (!newWorker) {
+                        return;
+                    }
                     newWorker.addEventListener('statechange', function() {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // Neuer Service Worker verfügbar
-                            if (confirm('Eine neue Version der App ist verfügbar. Möchten Sie die Seite neu laden?')) {
-                                window.location.reload();
-                            }
+                            promptAndActivateWaitingWorker(newWorker, registration);
                         }
                     });
                 });
+
+                function requestSwUpdate() {
+                    registration.update().catch(function() {});
+                }
+                document.addEventListener('visibilitychange', function() {
+                    if (document.visibilityState === 'visible') {
+                        requestSwUpdate();
+                    }
+                });
+                window.addEventListener('focus', function() {
+                    requestSwUpdate();
+                });
             })
             .catch(function(error) {
-                // Nur bei echten Fehlern loggen
                 console.error('Service Worker Registrierung fehlgeschlagen:', error);
             });
     });
@@ -344,11 +556,11 @@ function hidePwaInstallPrompt() {
     layoutPortalPrompts();
 }
 
-/** Stack Push + PWA prompts top→bottom; after dismiss, remaining slides up. */
+/** Stack Update + Push + PWA prompts top→bottom; after dismiss, remaining slides up. */
 function layoutPortalPrompts() {
     const gap = 12;
     let nextTop = null;
-    ['push-activation-prompt', PWA_INSTALL_PROMPT_ID].forEach(function (id) {
+    ['pwa-update-prompt', 'push-activation-prompt', PWA_INSTALL_PROMPT_ID].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         if (nextTop === null) {

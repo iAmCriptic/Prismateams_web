@@ -1,12 +1,12 @@
-<p align="center">
+﻿<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
 <h1 align="center">Prismateams – Installationsskript (Ubuntu)</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.0</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <strong>Dokumentation · Version 3.0.1</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 24.04">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 26.04">
   <img src="https://img.shields.io/badge/Installer-ready-22c55e?style=flat-square" alt="Installer ready">
@@ -84,6 +84,15 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - OnlyOffice inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/onlyoffice` + `/cache`
 - FFmpeg / Media Downloader
 - `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
+
+## Media Downloader (yt-dlp)
+
+Beim Aktivieren von FFmpeg setzt der Installer u. a.:
+
+- `FFMPEG_PATH`
+- `MEDIA_DOWNLOADER_PLAYER_CLIENT=ios,web_creator,mweb` (Default gegen Bot-Checks in Rechenzentren)
+
+**Cookies sind optional.** Interaktiv kann ein Pfad zu einer Netscape-`cookies.txt` angegeben werden (`MEDIA_DOWNLOADER_COOKIES_FILE`). Details, Export und Rotation: [INSTALLATION.md](INSTALLATION.md) (Schritt 6b).
 
 ## Kommandozeilen-Optionen
 
@@ -188,5 +197,5 @@ Weitere Schritte: [WARTUNG.md](WARTUNG.md) · Probleme: [ERROR_HANDLING.md](ERRO
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
+  <sub>Prismateams 3.0.1 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
 </p>
