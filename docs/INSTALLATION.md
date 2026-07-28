@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – Installation</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.0</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <strong>Dokumentation · Version 3.0.1</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
   <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
 </p>
 
@@ -49,7 +49,7 @@ CLI, Module und Beispiele: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
 
 ## Produktionsinstallation (Ubuntu Server) – Manuelle Methode
 
-Schritt-für-Schritt-Installation von **Prismateams 3.0.0** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, OnlyOffice).
+Schritt-für-Schritt-Installation von **Prismateams 3.0.1** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, OnlyOffice).
 
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
 - **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
@@ -875,5 +875,5 @@ Bei Problemen:
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0</sub>
+  <sub>Prismateams 3.0.1</sub>
 </p>

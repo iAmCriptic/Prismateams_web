@@ -1,12 +1,12 @@
-<p align="center">
+﻿<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
 <h1 align="center">Prismateams – Installationsskript (Ubuntu)</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.0</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <strong>Dokumentation · Version 3.0.1</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 24.04">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 26.04">
   <img src="https://img.shields.io/badge/Installer-ready-22c55e?style=flat-square" alt="Installer ready">
@@ -197,5 +197,5 @@ Weitere Schritte: [WARTUNG.md](WARTUNG.md) · Probleme: [ERROR_HANDLING.md](ERRO
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
+  <sub>Prismateams 3.0.1 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
 </p>

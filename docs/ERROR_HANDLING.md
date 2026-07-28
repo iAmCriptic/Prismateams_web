@@ -1,12 +1,12 @@
-<p align="center">
+﻿<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
 <h1 align="center">Prismateams – Fehlerbehebung</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.0</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <strong>Dokumentation · Version 3.0.1</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ---
 
-Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.0.0**.
+Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.0.1**.
 
 > **Installer:** Modularer Ubuntu-Installer ist einsatzbereit — [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Bei Skript-Problemen Terminal-Ausgabe und `$INSTALL_DIR/install-report.txt` prüfen.
 
@@ -284,5 +284,5 @@ Bei anhaltenden Problemen:
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.0</sub>
+  <sub>Prismateams 3.0.1</sub>
 </p>
