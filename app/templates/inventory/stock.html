@@ -3,14 +3,20 @@
 {% set inventory_show_stock_tools = true %}
 
 {% block title %}{{ _('inventory.stock.page_title') }}{% endblock %}
-{% block inventory_heading_icon %}bi-box-seam{% endblock %}
-{% block inventory_heading %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endblock %}
+{% block inventory_heading_icon %}{% if is_retired_folder_view %}bi-trash3-fill{% else %}bi-box-seam{% endif %}{% endblock %}
+{% block inventory_heading %}{% if is_retired_folder_view %}Papierkorb{% else %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endif %}{% endblock %}
 
 {% block inventory_mobile_actions %}
 {% if show_new %}
-<a href="{{ url_for('inventory.product_new') }}" class="btn mod-new-btn btn-sm flex-shrink-0">
-    <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
-</a>
+<div class="dropdown">
+    <button class="btn mod-new-btn btn-sm flex-shrink-0 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{{ url_for('inventory.product_new') }}">{{ _('inventory.shell.new.product') }}</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('inventory.cable_new') }}">{{ _('inventory.shell.new.cable_consumable') }}</a></li>
+    </ul>
+</div>
 {% endif %}
 {% endblock %}
 
@@ -195,6 +201,11 @@
             <button id="bulkDeselectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
                 <i class="bi bi-square"></i> {{ _('inventory.stock.bulk_selection.deselect_all') }}
             </button>
+            {% if is_retired_folder_view %}
+            <button id="bulkRestoreBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="Wieder in Betrieb nehmen">
+                <i class="bi bi-arrow-counterclockwise"></i> Wieder in Betrieb nehmen
+            </button>
+            {% else %}
             <button id="bulkQrBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.print_qr') }}">
                 <i class="bi bi-qr-code"></i> {{ _('inventory.stock.bulk_selection.print_qr') }}
             </button>
@@ -213,6 +224,7 @@
             <button id="bulkDeleteBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
                 <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -398,6 +410,17 @@
                         </div>
                     </section>
 
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-diagram-3"></i> Mengenartikel</h2>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bulkEditConvertToCable" value="1">
+                            <label class="form-check-label" for="bulkEditConvertToCable">Auswahl in einen Mengenartikel überführen (Bestand zusammenfassen)</label>
+                        </div>
+                        <small class="text-muted">Voraussetzung: gleicher Name, gleiche Kategorie und gleiche Länge.</small>
+                    </section>
+
                     <div class="alert alert-warning mb-0" style="border-radius: 1rem;">
                         <i class="bi bi-exclamation-triangle"></i>
                         {{ _('inventory.stock.modals.bulk_edit.warning') }}
@@ -415,11 +438,24 @@
 </div>
 {% endblock %}
 
+{% block inventory_main_footer %}
+{% if not is_retired_folder_view and inventory_trash_url %}
+<footer class="inventory-stock-trash-footer" id="inventoryStockTrashFooter">
+    <a class="inventory-stock-trash-link" href="{{ inventory_trash_url }}">
+        <i class="bi bi-trash3-fill" aria-hidden="true"></i>
+        <span>Papierkorb</span>
+    </a>
+</footer>
+{% endif %}
+{% endblock %}
+
 {% block inventory_extra_js %}
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    window.INVENTORY_RETIRED_FOLDER_ID = {{ retired_folder_id|tojson }};
+    window.INVENTORY_IS_RETIRED_FOLDER_VIEW = {{ 'true' if is_retired_folder_view else 'false' }};
     try {
         if (typeof StockManager === 'undefined') {
             console.error('StockManager ist nicht definiert!');

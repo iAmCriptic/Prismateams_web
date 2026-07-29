@@ -94,6 +94,12 @@ def create_app(config_name='default'):
         upload_folder = os.path.join(project_root, upload_folder)
     app.config['UPLOAD_FOLDER'] = os.path.abspath(upload_folder)
     
+    # Reverse-Proxy-Support: X-Forwarded-For als echte IP verwenden
+    proxy_count = int(os.getenv('PROXY_COUNT', '1'))
+    if proxy_count > 0:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count, x_host=proxy_count, x_prefix=proxy_count)
+
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)

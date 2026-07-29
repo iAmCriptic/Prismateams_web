@@ -158,7 +158,11 @@ def log_share_access(
     ip_address = None
     user_agent = None
     if request is not None:
-        ip_address = request.remote_addr
+        ip_address = (
+            request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+            or request.headers.get('X-Real-IP', '').strip()
+            or request.remote_addr
+        )
         user_agent = (request.user_agent.string or '')[:500] if request.user_agent else None
 
     entry = ShareAccessLog(

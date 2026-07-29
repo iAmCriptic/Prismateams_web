@@ -32,6 +32,33 @@ inventory_bp = Blueprint('inventory', __name__)
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 DEFAULT_DGUV_INTERVAL_MONTHS = 12
 CART_SET_META_KEY = 'borrow_cart_set_meta'
+CART_QTY_META_KEY = 'borrow_cart_quantities'
+RETIRED_FOLDER_NAME = 'Papierkorb'
+
+
+@inventory_bp.context_processor
+def inject_inventory_trash_folder():
+    """Papierkorb für Sidebar-Footer und Templates bereitstellen."""
+    folder = _get_retired_folder(create=False)
+    if not folder:
+        try:
+            folder = _get_retired_folder(create=True)
+            if folder:
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+            folder = None
+    view_folder_id = None
+    try:
+        view_folder_id = request.view_args.get('folder_id') if request.view_args else None
+    except RuntimeError:
+        view_folder_id = None
+    trash_url = url_for('inventory.stock', folder_id=folder.id) if folder else None
+    return {
+        'inventory_trash_folder': folder,
+        'inventory_trash_url': trash_url,
+        'is_inventory_trash_view': bool(folder and view_folder_id and int(view_folder_id) == int(folder.id)),
+    }
 
 
 def _flash_checkout_receipt_email(checkout):
@@ -98,6 +125,54 @@ def _get_cart_set_meta():
     return meta if isinstance(meta, dict) else {}
 
 
+def _get_cart_qty_meta():
+    meta = session.get(CART_QTY_META_KEY) or {}
+    return meta if isinstance(meta, dict) else {}
+
+
+def _get_cart_qty_for_product(product_id):
+    try:
+        return max(0, int(_get_cart_qty_meta().get(str(int(product_id)), 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _set_cart_qty_for_product(product_id, qty):
+    meta = _get_cart_qty_meta()
+    key = str(int(product_id))
+    qty_int = max(0, int(qty))
+    if qty_int <= 0:
+        meta.pop(key, None)
+    else:
+        meta[key] = qty_int
+    session[CART_QTY_META_KEY] = meta
+    session.modified = True
+
+
+def _clear_cart_qty_for_product(product_id):
+    meta = _get_cart_qty_meta()
+    key = str(product_id)
+    if key in meta:
+        meta.pop(key, None)
+        session[CART_QTY_META_KEY] = meta
+        session.modified = True
+
+
+def _cart_total_count(cart_product_ids):
+    total = 0
+    qty_meta = _get_cart_qty_meta()
+    for pid in cart_product_ids or []:
+        qty = qty_meta.get(str(pid))
+        if qty is None:
+            total += 1
+            continue
+        try:
+            total += max(0, int(qty))
+        except (TypeError, ValueError):
+            total += 1
+    return total
+
+
 def _mark_cart_products_from_set(product_ids, product_set):
     """Markiert Warenkorb-Produkte als aus einem Set stammend."""
     if not product_set or not product_ids:
@@ -121,11 +196,15 @@ def _clear_cart_set_meta_for_product(product_id):
         meta.pop(key, None)
         session[CART_SET_META_KEY] = meta
         session.modified = True
+    _clear_cart_qty_for_product(product_id)
 
 
 def _clear_all_cart_set_meta():
     if CART_SET_META_KEY in session:
         session.pop(CART_SET_META_KEY, None)
+        session.modified = True
+    if CART_QTY_META_KEY in session:
+        session.pop(CART_QTY_META_KEY, None)
         session.modified = True
 
 
@@ -155,6 +234,7 @@ def _ordered_cart_products(cart_product_ids):
         if not product:
             continue
         product.cart_source_set = meta.get(str(pid))
+        product.cart_quantity = _get_cart_qty_for_product(pid) if product.item_type == 'consumable' else 1
         ordered.append(product)
     return ordered
 
@@ -309,6 +389,64 @@ def get_product_folders():
     return ProductFolder.query.order_by(ProductFolder.name).all()
 
 
+def _get_retired_folder(*, create=False):
+    folder = ProductFolder.query.filter_by(name=RETIRED_FOLDER_NAME).first()
+    if not folder:
+        # Legacy-Migration: vorhandenen Systemordner "Ausgemustert" auf "Papierkorb" umbenennen
+        legacy_folder = ProductFolder.query.filter_by(name='Ausgemustert').first()
+        if legacy_folder:
+            legacy_folder.name = RETIRED_FOLDER_NAME
+            legacy_folder.description = 'Systemordner für Geräte im Papierkorb'
+            folder = legacy_folder
+    if folder or not create:
+        return folder
+    creator_id = getattr(current_user, 'id', None) or 1
+    folder = ProductFolder(
+        name=RETIRED_FOLDER_NAME,
+        description='Systemordner für Geräte im Papierkorb',
+        created_by=creator_id,
+    )
+    db.session.add(folder)
+    db.session.flush()
+    return folder
+
+
+def _apply_retired_folder_assignment(product, *, create_folder=True):
+    if not product:
+        return
+    retired_folder = _get_retired_folder(create=create_folder) if (create_folder or product.status == 'retired') else _get_retired_folder(create=False)
+    if product.status == 'retired':
+        if retired_folder:
+            product.folder_id = retired_folder.id
+        return
+    if retired_folder and product.folder_id == retired_folder.id:
+        product.folder_id = None
+
+
+def _sync_retired_folder_assignments():
+    retired_folder = _get_retired_folder(create=False)
+    retired_products = Product.query.filter_by(status='retired').all()
+    if not retired_products:
+        return
+    if not retired_folder:
+        retired_folder = _get_retired_folder(create=True)
+    changed = False
+    for product in retired_products:
+        if product.folder_id != retired_folder.id:
+            product.folder_id = retired_folder.id
+            changed = True
+    if retired_folder:
+        wrongly_assigned = Product.query.filter(
+            Product.status != 'retired',
+            Product.folder_id == retired_folder.id,
+        ).all()
+        for product in wrongly_assigned:
+            product.folder_id = None
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 def check_borrow_permission(user=None):
     """Prüft ob der User ausleihen darf (Session-User oder API-Token-User)."""
     if user is None:
@@ -421,6 +559,12 @@ def dashboard():
 @check_module_access('module_inventory')
 def stock(folder_id=None):
     """Bestandsübersicht mit optionaler Ordner-Filterung."""
+    _sync_retired_folder_assignments()
+    retired_folder = _get_retired_folder(create=False)
+    if not retired_folder:
+        retired_folder = _get_retired_folder(create=True)
+        db.session.commit()
+
     current_folder = None
     subfolders = []
     
@@ -430,11 +574,209 @@ def stock(folder_id=None):
             flash(_('inventory.flash.folder_not_found'), 'warning')
             return redirect(url_for('inventory.stock'))
     else:
-        subfolders = ProductFolder.query.order_by(ProductFolder.name).all()
+        subfolders = [
+            f for f in ProductFolder.query.order_by(ProductFolder.name).all()
+            if not retired_folder or f.id != retired_folder.id
+        ]
     
-    return render_template('inventory/stock.html', 
-                          current_folder=current_folder, 
-                          subfolders=subfolders)
+    is_retired_folder_view = bool(
+        current_folder and retired_folder and current_folder.id == retired_folder.id
+    )
+
+    return render_template(
+        'inventory/stock.html',
+        current_folder=current_folder,
+        subfolders=subfolders,
+        retired_folder_id=(retired_folder.id if retired_folder else None),
+        is_retired_folder_view=is_retired_folder_view,
+    )
+
+
+def _cable_match_candidates(name, category, normalized_length):
+    query = Product.query.filter(
+        Product.item_type == 'consumable',
+        Product.name == name,
+        Product.category == (category or None),
+        Product.length == normalized_length,
+    ).order_by(Product.updated_at.desc(), Product.id.asc())
+    return query.all()
+
+
+def _cable_existing_candidates():
+    return Product.query.filter(
+        Product.item_type == 'consumable'
+    ).order_by(Product.name.asc(), Product.length.asc(), Product.id.asc()).all()
+
+
+@inventory_bp.route('/products/cables/new', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_inventory')
+def cable_new():
+    """Dedizierte Anlage für Kabel-Mengenartikel."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('inventory.flash.guests_cannot_create'), 'danger')
+        return redirect(url_for('inventory.stock'))
+
+    categories = get_inventory_categories()
+    folders = get_product_folders()
+    mode = (request.form.get('mode') or request.args.get('mode') or 'new').strip().lower()
+    if mode not in {'new', 'existing'}:
+        mode = 'new'
+
+    form_data = {
+        'name': (request.form.get('name') or '').strip(),
+        'description': (request.form.get('description') or '').strip(),
+        'category': (request.form.get('category') or '').strip(),
+        'location': (request.form.get('location') or '').strip(),
+        'length': (request.form.get('length') or '').strip(),
+        'folder_id': (request.form.get('folder_id') or '').strip(),
+        'quantity': (request.form.get('quantity') or '1').strip(),
+        'mode': mode,
+        'existing_product_id': (request.form.get('existing_product_id') or '').strip(),
+    }
+
+    candidates = []
+    if mode == 'existing':
+        candidates = _cable_existing_candidates()
+    elif form_data['name'] and form_data['length']:
+        normalized_length_preview, _unused = normalize_length_input(form_data['length'])
+        if normalized_length_preview is not None:
+            candidates = _cable_match_candidates(
+                form_data['name'],
+                form_data['category'],
+                normalized_length_preview,
+            )
+
+    if request.method == 'POST':
+        from app.services.inventory import StockService
+
+        name = form_data['name']
+        category = form_data['category']
+        location = form_data['location']
+        description = form_data['description']
+        length_input = form_data['length']
+        folder_id = form_data['folder_id']
+        quantity_str = form_data['quantity']
+
+        try:
+            quantity = int(quantity_str)
+        except ValueError:
+            quantity = 0
+        if quantity < 1 or quantity > 50000:
+            flash(_('inventory.cable_form.errors.quantity_range'), 'danger')
+            return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+        if mode == 'existing':
+            selected_id_raw = form_data['existing_product_id']
+            target = None
+            if selected_id_raw:
+                try:
+                    selected_id = int(selected_id_raw)
+                except ValueError:
+                    selected_id = None
+                if selected_id is not None:
+                    target = next((p for p in candidates if p.id == selected_id), None)
+            if not target:
+                flash(_('inventory.cable_form.errors.select_matching_product'), 'danger')
+                return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+            try:
+                StockService.add_stock(
+                    target,
+                    quantity,
+                    current_user.id,
+                    reason='Kabelbestand ergänzt',
+                    context_type='manual',
+                    context_id=f'cable_add:{target.id}',
+                )
+                db.session.commit()
+                flash(_('inventory.cable_form.flash.stock_added', name=target.name, qty=quantity), 'success')
+                return redirect(url_for('inventory.stock'))
+            except Exception as exc:
+                db.session.rollback()
+                current_app.logger.error(f'Fehler beim Ergänzen von Kabelbestand: {exc}', exc_info=True)
+                flash(_('inventory.flash.create_error'), 'danger')
+                return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+        if not name:
+            flash(_('inventory.cable_form.errors.name_required'), 'danger')
+            return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+        if not length_input:
+            flash(_('inventory.cable_form.errors.length_required'), 'danger')
+            return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+        normalized_length, _unused = normalize_length_input(length_input)
+        if normalized_length is None:
+            flash(_('inventory.flash.invalid_length'), 'danger')
+            return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+        folder_id_int = None
+        if folder_id:
+            try:
+                folder_id_int = int(folder_id)
+                if not ProductFolder.query.get(folder_id_int):
+                    folder_id_int = None
+            except ValueError:
+                folder_id_int = None
+
+        candidates = _cable_match_candidates(name, category, normalized_length)
+        if candidates:
+            flash(_('inventory.cable_form.errors.match_exists_use_existing'), 'warning')
+            return render_template('inventory/cable_form.html', categories=categories, folders=folders, form_data=form_data, candidates=candidates)
+
+        try:
+            product = Product(
+                name=name,
+                description=description or None,
+                category=category or None,
+                serial_number=None,
+                condition=None,
+                location=location or None,
+                length=normalized_length,
+                purchase_date=None,
+                folder_id=folder_id_int,
+                status='available',
+                item_type='consumable',
+                image_path=None,
+                created_by=current_user.id,
+                weight_kg=None,
+                width_cm=None,
+                height_cm=None,
+                depth_cm=None,
+                purchase_price=None,
+                replacement_value=None,
+            )
+            _apply_dguv_from_form(
+                product,
+                request.form,
+                next_equals_created_if_no_last=True,
+            )
+            db.session.add(product)
+            db.session.flush()
+            product.qr_code_data = generate_product_qr_code(product.id)
+            StockService.add_stock(
+                product,
+                quantity,
+                current_user.id,
+                reason='Initialer Kabelbestand',
+                context_type='manual',
+                context_id=f'cable_create:{product.id}',
+            )
+            db.session.commit()
+            flash(_('inventory.cable_form.flash.created', name=name, qty=quantity), 'success')
+            return redirect(url_for('inventory.stock'))
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error(f'Fehler beim Erstellen von Kabel-Mengenartikel: {exc}', exc_info=True)
+            flash(_('inventory.flash.create_error'), 'danger')
+
+    return render_template(
+        'inventory/cable_form.html',
+        categories=categories,
+        folders=folders,
+        form_data=form_data,
+        candidates=candidates,
+    )
 
 
 @inventory_bp.route('/products/new', methods=['GET', 'POST'])
@@ -528,6 +870,7 @@ def product_new():
                     purchase_date=purchase_date,
                     folder_id=folder_id_int,
                     status='available',
+                    item_type='asset',
                     image_path=image_path,  # Gleiches Bild für alle
                     created_by=current_user.id,
                     weight_kg=_parse_optional_float(request.form.get('weight_kg')),
@@ -627,6 +970,7 @@ def product_edit(product_id):
         
         if 'status' in request.form:
             product.status = request.form.get('status', 'available')
+            _apply_retired_folder_assignment(product)
         
         purchase_date_str = request.form.get('purchase_date', '').strip()
         if purchase_date_str:
@@ -682,10 +1026,54 @@ def product_edit(product_id):
         
         if not product.qr_code_data:
             product.qr_code_data = generate_product_qr_code(product.id)
+
+        if request.form.get('convert_to_cable') == '1':
+            from app.services.inventory import StockService
+
+            merge_similar = request.form.get('merge_similar_cables') == '1'
+            product.item_type = 'consumable'
+            if product.status == 'retired':
+                product.status = 'available'
+
+            converted_count = 1
+            merged_products = []
+            if merge_similar:
+                candidates = Product.query.filter(
+                    Product.id != product.id,
+                    Product.item_type == 'asset',
+                    Product.status == 'available',
+                    Product.name == product.name,
+                    Product.category == product.category,
+                    Product.length == product.length,
+                ).all()
+                for candidate in candidates:
+                    if candidate.serial_number and product.serial_number and candidate.serial_number != product.serial_number:
+                        continue
+                    merged_products.append(candidate)
+                for candidate in merged_products:
+                    candidate.status = 'retired'
+                    _apply_retired_folder_assignment(candidate)
+                    converted_count += 1
+
+            existing_qty = product.total_on_hand if product.item_type == 'consumable' else 0
+            target_qty = max(existing_qty, converted_count)
+            if target_qty > 0:
+                StockService.set_stock_count(
+                    product,
+                    target_qty,
+                    current_user.id,
+                    reason='Konvertierung zu Kabel-Mengenartikel',
+                    context_type='manual',
+                    context_id=f'convert:{product.id}',
+                )
+            flash(f'Produkt wurde als Kabel-Mengenartikel umgestellt (Bestand: {target_qty}).', 'success')
+            if merged_products:
+                flash(f'{len(merged_products)} ähnliche Einzelartikel wurden auf "ausgemustert" gesetzt.', 'info')
         
         db.session.commit()
         
-        flash(_('inventory.flash.product_updated', name=name), 'success')
+        if request.form.get('convert_to_cable') != '1':
+            flash(_('inventory.flash.product_updated', name=name), 'success')
         return redirect(url_for('inventory.stock'))
     
     purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
@@ -777,6 +1165,7 @@ def product_update_status(product_id):
         return jsonify({'success': False, 'error': 'Ungültiger Status.'}), 400
     
     product.status = new_status
+    _apply_retired_folder_assignment(product)
     db.session.commit()
     
     return jsonify({'success': True, 'status': new_status})
@@ -843,6 +1232,8 @@ def borrow_multiple():
     for p in products:
         if p.id not in cart:
             cart.append(p.id)
+        if p.item_type == 'consumable':
+            _set_cart_qty_for_product(p.id, _get_cart_qty_for_product(p.id) + 1)
     session['borrow_cart'] = cart
     session.modified = True
     flash(_('inventory.flash.product_added_to_cart'), 'info')
@@ -862,6 +1253,12 @@ def product_borrow(product_id):
         flash(_('inventory.errors.product_not_available'), 'danger')
         return redirect(url_for('inventory.stock'))
     cart = session.get('borrow_cart', [])
+    if product.item_type == 'consumable':
+        current_qty = _get_cart_qty_for_product(product.id)
+        if int(product.total_available or 0) <= current_qty:
+            flash(f'Nicht genug Bestand für "{product.name}".', 'danger')
+            return redirect(url_for('inventory.stock'))
+        _set_cart_qty_for_product(product.id, current_qty + 1)
     if product.id not in cart:
         cart.append(product.id)
         session['borrow_cart'] = cart
@@ -943,6 +1340,11 @@ def borrow_scanner():
             )
             qr_code = _normalize_scanner_code(request.form.get('qr_code', ''))
             product_id = request.form.get('product_id')
+            quantity_raw = request.form.get('quantity', '1')
+            try:
+                requested_quantity = max(1, int(quantity_raw))
+            except (TypeError, ValueError):
+                requested_quantity = 1
             
             product = None
             product_set = None
@@ -1087,7 +1489,7 @@ def borrow_scanner():
                     },
                     'added_products': added_products,
                     'unavailable_products': unavailable_products,
-                    'cart_count': len(cart)
+                    'cart_count': _cart_total_count(cart)
                 })
             
             if not product:
@@ -1107,10 +1509,27 @@ def borrow_scanner():
                 }), 400
             
             cart = session.get('borrow_cart', [])
-            if product.id not in cart:
-                cart.append(product.id)
-                session['borrow_cart'] = cart
-                session.modified = True  # Stelle sicher, dass Session gespeichert wird
+            if product.item_type == 'consumable':
+                current_qty = _get_cart_qty_for_product(product.id)
+                max_addable = max(0, int(product.total_available or 0) - current_qty)
+                if requested_quantity > max_addable:
+                    return jsonify({
+                        'error': f'Nicht genug Bestand für "{product.name}". Verfügbar: {max_addable}.',
+                        'blocked': True,
+                        'status': product.status,
+                        'product_id': product.id,
+                        'product_name': product.name,
+                    }), 400
+                _set_cart_qty_for_product(product.id, current_qty + requested_quantity)
+                if product.id not in cart:
+                    cart.append(product.id)
+                    session['borrow_cart'] = cart
+                    session.modified = True
+            else:
+                if product.id not in cart:
+                    cart.append(product.id)
+                    session['borrow_cart'] = cart
+                    session.modified = True  # Stelle sicher, dass Session gespeichert wird
             
             return jsonify({
                 'success': True,
@@ -1118,9 +1537,11 @@ def borrow_scanner():
                 'product': {
                     'id': product.id,
                     'name': product.name,
-                    'category': product.category
+                    'category': product.category,
+                    'item_type': product.item_type,
+                    'cart_quantity': _get_cart_qty_for_product(product.id) if product.item_type == 'consumable' else 1,
                 },
-                'cart_count': len(cart)
+                'cart_count': _cart_total_count(cart)
             })
         
         elif action == 'remove_from_cart':
@@ -1131,7 +1552,35 @@ def borrow_scanner():
                 session['borrow_cart'] = cart
                 session.modified = True  # Stelle sicher, dass Session gespeichert wird
             _clear_cart_set_meta_for_product(product_id)
-            return jsonify({'success': True, 'cart_count': len(cart)})
+            return jsonify({'success': True, 'cart_count': _cart_total_count(cart)})
+
+        elif action == 'update_cart_quantity':
+            product_id = int(request.form.get('product_id'))
+            quantity = int(request.form.get('quantity', 1))
+            if quantity < 0:
+                return jsonify({'error': 'Ungültige Menge.'}), 400
+            product = Product.query.get(product_id)
+            if not product:
+                return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
+            if product.item_type != 'consumable':
+                return jsonify({'error': 'Mengenanpassung nur für Kabel/Mengenartikel möglich.'}), 400
+            cart = session.get('borrow_cart', [])
+            current_qty = _get_cart_qty_for_product(product.id)
+            max_available = int(product.total_available or 0) + current_qty
+            if quantity > max_available:
+                return jsonify({'error': f'Maximal verfügbar: {max_available}'}), 400
+            if quantity == 0:
+                if product.id in cart:
+                    cart.remove(product.id)
+                    session['borrow_cart'] = cart
+                _clear_cart_set_meta_for_product(product.id)
+            else:
+                if product.id not in cart:
+                    cart.append(product.id)
+                    session['borrow_cart'] = cart
+                _set_cart_qty_for_product(product.id, quantity)
+            session.modified = True
+            return jsonify({'success': True, 'cart_count': _cart_total_count(session.get('borrow_cart', []))})
         
         elif action == 'clear_cart':
             session.pop('borrow_cart', None)
@@ -1147,7 +1596,7 @@ def borrow_scanner():
     
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     
-    return render_template('inventory/borrow_scanner.html', cart_products=cart_products, users=users)
+    return render_template('inventory/borrow_scanner.html', cart_products=cart_products, users=users, cart_count=_cart_total_count(cart_product_ids))
 
 
 @inventory_bp.route('/borrow-scanner/checkout', methods=['POST'])
@@ -1161,7 +1610,14 @@ def borrow_scanner_checkout():
         return redirect(url_for('inventory.borrow_scanner'))
     
     cart_product_ids = session.get('borrow_cart', [])
-    if not cart_product_ids:
+    cart_products = _ordered_cart_products(cart_product_ids)
+    consumable_quantities = {
+        p.id: int(getattr(p, 'cart_quantity', 0) or 0)
+        for p in cart_products
+        if p.item_type == 'consumable'
+    }
+    asset_product_ids = [p.id for p in cart_products if p.item_type != 'consumable']
+    if not asset_product_ids and not consumable_quantities:
         flash(_('inventory.flash.no_products_to_borrow'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
 
@@ -1181,7 +1637,7 @@ def borrow_scanner_checkout():
 
     try:
         checkout = create_checkout(
-            product_ids=cart_product_ids,
+            product_ids=asset_product_ids,
             event_name=event_name,
             borrower_name=current_user.full_name,
             created_by_id=current_user.id,
@@ -1191,6 +1647,7 @@ def borrow_scanner_checkout():
             require_event=False,
             require_end_date=False,
             product_source_sets=_cart_product_source_sets_map(),
+            consumable_quantities=consumable_quantities,
         )
     except ValueError as exc:
         code = str(exc)
@@ -1241,6 +1698,7 @@ def inventory_checkout():
         preset_contact_email=request.args.get('contact_email', ''),
         preset_event_id=request.args.get('event_id', ''),
         preset_event_appointment_id=request.args.get('event_appointment_id', ''),
+        cart_count=_cart_total_count(cart_product_ids),
     )
 
 
@@ -1255,7 +1713,14 @@ def inventory_checkout_confirm():
         return redirect(url_for('inventory.inventory_checkout'))
 
     cart_product_ids = session.get('borrow_cart', [])
-    if not cart_product_ids:
+    cart_products = _ordered_cart_products(cart_product_ids)
+    consumable_quantities = {
+        p.id: int(getattr(p, 'cart_quantity', 0) or 0)
+        for p in cart_products
+        if p.item_type == 'consumable'
+    }
+    asset_product_ids = [p.id for p in cart_products if p.item_type != 'consumable']
+    if not asset_product_ids and not consumable_quantities:
         flash(_('inventory.flash.no_products_to_borrow'), 'danger')
         return redirect(url_for('inventory.inventory_checkout'))
 
@@ -1318,7 +1783,7 @@ def inventory_checkout_confirm():
 
     try:
         checkout = create_checkout(
-            product_ids=cart_product_ids,
+            product_ids=asset_product_ids,
             event_name=event_name,
             borrower_name=borrower_name,
             created_by_id=current_user.id,
@@ -1331,6 +1796,7 @@ def inventory_checkout_confirm():
             event_id=linked_event_id,
             event_appointment_id=linked_appointment_id,
             product_source_sets=_cart_product_source_sets_map(),
+            consumable_quantities=consumable_quantities,
         )
     except ValueError as exc:
         code = str(exc)
@@ -1862,6 +2328,9 @@ def folders():
 def folder_delete(folder_id):
     """Ordner löschen."""
     folder = ProductFolder.query.get_or_404(folder_id)
+    if folder.name == RETIRED_FOLDER_NAME:
+        flash('Der Papierkorb kann nicht gelöscht werden.', 'warning')
+        return redirect(url_for('inventory.folders'))
     
     if folder.products:
         for product in folder.products:
@@ -2099,6 +2568,9 @@ def api_products():
                     'folder_name': folder_name,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
                     'status': p.status,
+                    'item_type': p.item_type,
+                    'on_hand': p.total_on_hand,
+                    'available': p.total_available,
                     'image_path': image_path_value,
                     'qr_code_data': p.qr_code_data,
                     'created_at': p.created_at.isoformat(),
@@ -2128,6 +2600,9 @@ def api_products():
                     'folder_name': None,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
                     'status': p.status,
+                    'item_type': getattr(p, 'item_type', 'asset'),
+                    'on_hand': getattr(p, 'total_on_hand', 0),
+                    'available': getattr(p, 'total_available', 0),
                     'image_path': image_path_value,
                     'qr_code_data': getattr(p, 'qr_code_data', None),
                     'created_at': p.created_at.isoformat(),
@@ -2167,6 +2642,9 @@ def api_product_get(product_id):
         'folder_name': product.folder.name if product.folder else None,
         'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
         'status': product.status,
+        'item_type': product.item_type,
+        'on_hand': product.total_on_hand,
+        'available': product.total_available,
         'image_path': image_path_value,
         'qr_code_data': product.qr_code_data,
         'created_at': product.created_at.isoformat(),
@@ -2274,7 +2752,7 @@ def api_product_update(product_id):
 @inventory_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
 @login_required
 def api_product_delete(product_id):
-    """API: Produkt löschen."""
+    """API: Produkt in den Papierkorb verschieben."""
     # Gast-Accounts können keine Produkte löschen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         return jsonify({'error': translate('inventory.errors.guests_cannot_delete')}), 403
@@ -2285,45 +2763,15 @@ def api_product_delete(product_id):
     if find_active_checkout_item_for_product(product_id) or product.status == 'borrowed':
         return jsonify({'error': translate('inventory.errors.product_borrowed_cannot_delete')}), 400
     
-    # Prüfe ob Produkt in Produktsets enthalten ist
-    set_items = ProductSetItem.query.filter_by(product_id=product_id).all()
-    if set_items:
-        set_names = [item.set.name for item in set_items if item.set]
-        return jsonify({
-            'error': f'Das Produkt "{product.name}" kann nicht gelöscht werden, da es in folgenden Produktsets enthalten ist: {", ".join(set_names)}. Bitte entfernen Sie das Produkt zuerst aus den Sets.'
-        }), 400
-    
     try:
-        # Lösche zugehörige Produktset-Items (falls vorhanden)
+        # Produkt aus Sets entfernen (Gerät darf trotzdem in den Papierkorb)
         ProductSetItem.query.filter_by(product_id=product_id).delete()
-        
-        # Lösche Produktbild
-        if product.image_path:
-            image_path_full = product.image_path
-            if not os.path.isabs(image_path_full):
-                image_path_full = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images', image_path_full)
-            
-            if os.path.exists(image_path_full):
-                try:
-                    os.remove(image_path_full)
-                except Exception as e:
-                    current_app.logger.warning(f"Fehler beim Löschen des Bildes von Produkt {product_id}: {e}")
-        
-        # Lösche zugehörige Dokumente
-        documents = ProductDocument.query.filter_by(product_id=product_id).all()
-        for doc in documents:
-            if doc.file_path and os.path.exists(doc.file_path):
-                try:
-                    os.remove(doc.file_path)
-                except Exception as e:
-                    current_app.logger.warning(f"Fehler beim Löschen des Dokuments {doc.id}: {e}")
-            db.session.delete(doc)
-        
-        # Lösche das Produkt
-        db.session.delete(product)
+
+        product.status = 'retired'
+        _apply_retired_folder_assignment(product)
         db.session.commit()
-        
-        return jsonify({'message': 'Produkt gelöscht.'})
+
+        return jsonify({'message': f'Produkt "{product.name}" wurde in den Papierkorb verschoben.'})
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Fehler beim Löschen von Produkt {product_id}: {e}", exc_info=True)
@@ -2367,6 +2815,7 @@ def api_products_bulk_update():
     
     updates = {}
     errors = []
+    convert_to_cable = bool(data.get('convert_to_cable'))
     
     if 'location' in data:
         location_value = data.get('location', '').strip() or None
@@ -2433,8 +2882,69 @@ def api_products_bulk_update():
     if errors:
         return jsonify({'error': translate('inventory.errors.validation_error'), 'details': errors}), 400
     
-    if not updates:
+    if not updates and not convert_to_cable:
         return jsonify({'error': translate('inventory.errors.no_update_data')}), 400
+
+    if convert_to_cable:
+        from app.services.inventory import StockService
+
+        names = {str(p.name or '').strip() for p in products}
+        categories = {str(p.category or '').strip() for p in products}
+        lengths = {str(p.length or '').strip() for p in products}
+        if len(names) != 1 or len(categories) != 1 or len(lengths) != 1:
+            return jsonify({'error': 'Konvertierung nur möglich, wenn Name, Kategorie und Länge bei allen ausgewählten Produkten gleich sind.'}), 400
+
+        blocked = [p for p in products if p.status in ('borrowed', 'missing', 'defective', 'in_repair')]
+        if blocked:
+            return jsonify({'error': 'Konvertierung nicht möglich: Einige ausgewählte Produkte sind nicht verfügbar (ausgeliehen/defekt/fehlend).'}), 400
+
+        target = next((p for p in products if p.status != 'retired'), products[0])
+        stock_total = 0
+        for product in products:
+            if product.item_type == 'consumable':
+                stock_total += int(product.total_on_hand or 0)
+            else:
+                stock_total += 0 if product.status == 'retired' else 1
+        stock_total = max(0, int(stock_total))
+
+        try:
+            target.item_type = 'consumable'
+            if target.status == 'retired' and stock_total > 0:
+                target.status = 'available'
+                _apply_retired_folder_assignment(target)
+
+            for product in products:
+                if product.id == target.id:
+                    continue
+                if product.item_type == 'consumable' and int(product.total_on_hand or 0) > 0:
+                    StockService.set_stock_count(
+                        product,
+                        0,
+                        current_user.id,
+                        reason='Bestand in Sammel-Mengenartikel überführt',
+                        context_type='manual',
+                        context_id=f'bulk-convert:{target.id}',
+                    )
+                product.status = 'retired'
+                _apply_retired_folder_assignment(product)
+
+            StockService.set_stock_count(
+                target,
+                stock_total,
+                current_user.id,
+                reason='Bulk-Konvertierung zu Mengenartikel',
+                context_type='manual',
+                context_id=f'bulk-convert:{target.id}',
+            )
+            db.session.commit()
+            return jsonify({
+                'message': f'Auswahl wurde in Mengenartikel "{target.name}" überführt (Bestand: {stock_total}).',
+                'updated_count': len(products)
+            })
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Fehler bei Bulk-Konvertierung zu Mengenartikel: {e}", exc_info=True)
+            return jsonify({'error': translate('inventory.errors.update_error')}), 500
     
     # Batch-Update durchführen
     updated_count = 0
@@ -2452,6 +2962,7 @@ def api_products_bulk_update():
                 product.folder_id = updates['folder_id']
             if 'status' in updates:
                 product.status = updates['status']
+                _apply_retired_folder_assignment(product)
             if updates.get('remove_image'):
                 if product.image_path:
                     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -2493,7 +3004,7 @@ def api_products_bulk_update():
 @inventory_bp.route('/api/products/bulk-delete', methods=['POST'])
 @login_required
 def api_products_bulk_delete():
-    """API: Mehrere Produkte gleichzeitig löschen."""
+    """API: Mehrere Produkte gleichzeitig in den Papierkorb verschieben."""
     # Gast-Accounts können keine Produkte löschen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         return jsonify({'error': translate('inventory.errors.guests_cannot_delete')}), 403
@@ -2534,8 +3045,7 @@ def api_products_bulk_delete():
             'details': product_names
         }), 400
     
-    # Lösche Produkte und deren Bilder
-    deleted_count = 0
+    moved_count = 0
     errors = []
     
     for product in products:
@@ -2543,52 +3053,21 @@ def api_products_bulk_delete():
         product_name = product.name  # Speichere Name für Fehlermeldung
         
         try:
-            # Prüfe ob Produkt in Produktsets enthalten ist
-            set_items = ProductSetItem.query.filter_by(product_id=product_id).all()
-            if set_items:
-                set_names = [item.set.name for item in set_items if item.set]
-                return jsonify({
-                    'error': f'Das Produkt "{product_name}" kann nicht gelöscht werden, da es in folgenden Produktsets enthalten ist: {", ".join(set_names)}. Bitte entfernen Sie das Produkt zuerst aus den Sets.',
-                    'details': [f'Produkt in Set: {name}' for name in set_names]
-                }), 400
-            
-            # Lösche zugehörige Produktset-Items (falls vorhanden)
+            # Produkt aus Sets entfernen (Gerät darf trotzdem in den Papierkorb)
             ProductSetItem.query.filter_by(product_id=product_id).delete()
-            
-            # Lösche Produktbild
-            if product.image_path:
-                image_path_full = product.image_path
-                if not os.path.isabs(image_path_full):
-                    image_path_full = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images', image_path_full)
-                
-                if os.path.exists(image_path_full):
-                    try:
-                        os.remove(image_path_full)
-                    except Exception as e:
-                        current_app.logger.warning(f"Fehler beim Löschen des Bildes von Produkt {product_id}: {e}")
-            
-            # Lösche auch zugehörige Dokumente
-            documents = ProductDocument.query.filter_by(product_id=product_id).all()
-            for doc in documents:
-                if doc.file_path and os.path.exists(doc.file_path):
-                    try:
-                        os.remove(doc.file_path)
-                    except Exception as e:
-                        current_app.logger.warning(f"Fehler beim Löschen des Dokuments {doc.id}: {e}")
-                db.session.delete(doc)
-            
-            # Lösche das Produkt
-            db.session.delete(product)
-            deleted_count += 1
+
+            product.status = 'retired'
+            _apply_retired_folder_assignment(product)
+            moved_count += 1
             
         except Exception as e:
             db.session.rollback()
             error_msg = str(e)
-            current_app.logger.error(f"Fehler beim Löschen von Produkt {product_id} ({product_name}): {e}", exc_info=True)
+            current_app.logger.error(f"Fehler beim Verschieben in Papierkorb von Produkt {product_id} ({product_name}): {e}", exc_info=True)
             
             # Prüfe ob es ein Foreign Key Constraint Fehler ist
             if 'foreign key constraint' in error_msg.lower() or '1451' in error_msg:
-                errors.append(f'Das Produkt "{product_name}" kann nicht gelöscht werden, da es noch in Verwendung ist (z.B. in einem Produktset).')
+                errors.append(f'Das Produkt "{product_name}" konnte nicht in den Papierkorb verschoben werden, da es noch in Verwendung ist.')
             else:
                 errors.append(f'Fehler bei Produkt "{product_name}" (ID: {product_id}): {error_msg}')
     
@@ -2600,12 +3079,12 @@ def api_products_bulk_delete():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Fehler beim Commit der Löschung: {e}", exc_info=True)
+        current_app.logger.error(f"Fehler beim Commit der Papierkorb-Verschiebung: {e}", exc_info=True)
         return jsonify({'error': 'Fehler beim Speichern der Änderungen. Bitte versuchen Sie es erneut.'}), 500
     
     return jsonify({
-        'message': f'{deleted_count} Produkt(e) erfolgreich gelöscht.',
-        'deleted_count': deleted_count
+        'message': f'{moved_count} Produkt(e) in den Papierkorb verschoben.',
+        'deleted_count': moved_count
     })
 
 
@@ -2694,6 +3173,9 @@ def api_stock():
                 'category': p.category,
                 'serial_number': p.serial_number,
                 'status': p.status,
+                'item_type': p.item_type,
+                'on_hand': p.total_on_hand,
+                'available': p.total_available,
                 'location': p.location,
                 'length': p.length,
                 'length_meters': parse_length_to_meters(p.length),
@@ -2718,6 +3200,9 @@ def api_stock():
                 'category': p.category,
                 'serial_number': p.serial_number,
                 'status': p.status,
+                'item_type': getattr(p, 'item_type', 'asset'),
+                'on_hand': getattr(p, 'total_on_hand', 0),
+                'available': getattr(p, 'total_available', 0),
                 'location': p.location,
                 'length': getattr(p, 'length', None),
                 'length_meters': parse_length_to_meters(getattr(p, 'length', None)),
@@ -4330,6 +4815,8 @@ def api_mobile_statistics():
 @login_required
 def api_folder_update_delete(folder_id):
     folder = ProductFolder.query.get_or_404(folder_id)
+    if folder.name == RETIRED_FOLDER_NAME:
+        return jsonify({'error': 'Der Papierkorb kann nicht geändert oder gelöscht werden.'}), 400
     if request.method == 'PUT':
         data = request.get_json() or {}
         new_name = (data.get('name') or '').strip()
@@ -4337,6 +4824,8 @@ def api_folder_update_delete(folder_id):
         color = (data.get('color') or '').strip() or None
         if not new_name:
             return jsonify({'error': translate('inventory.errors.folder_name_required')}), 400
+        if new_name == RETIRED_FOLDER_NAME:
+            return jsonify({'error': 'Der Name „Papierkorb“ ist für den Systemordner reserviert.'}), 400
         existing = ProductFolder.query.filter(ProductFolder.id != folder_id, ProductFolder.name == new_name).first()
         if existing:
             return jsonify({'error': translate('inventory.errors.folder_name_exists')}), 400

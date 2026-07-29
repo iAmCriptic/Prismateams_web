@@ -15,6 +15,16 @@
         {% if product.category %}
         <p class="inventory-cart-item-meta">{{ product.category }}</p>
         {% endif %}
+        {% if product.item_type == 'consumable' %}
+        <div class="input-group input-group-sm mt-2" style="max-width: 190px;">
+            <span class="input-group-text">Menge</span>
+            <input type="number"
+                   min="1"
+                   class="form-control cart-qty-input"
+                   data-product-id="{{ product.id }}"
+                   value="{{ product.cart_quantity or 1 }}">
+        </div>
+        {% endif %}
         {% if source_set %}
         <details class="inventory-set-members">
             <summary class="inventory-set-members-summary">

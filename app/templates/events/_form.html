@@ -12,6 +12,23 @@
         {% endif %}
     {% endfor %}
 {% endif %}
+{% set selected_guest_names = [] %}
+{% if event %}
+    {% for a in event.assignments if not a.user_id and a.display_name %}
+        {% set _ = selected_guest_names.append(a.display_name) %}
+    {% endfor %}
+{% endif %}
+{% set manual_contacts = [] %}
+{% if event %}
+    {% for c in event.contacts %}
+        {% set _ = manual_contacts.append({
+            'name': c.name or '',
+            'role': c.role or '',
+            'phone': c.phone or '',
+            'email': c.email or ''
+        }) %}
+    {% endfor %}
+{% endif %}
 
 <section class="events-form-card" aria-labelledby="events-form-basics">
     <div class="events-form-card-head">
@@ -42,11 +59,6 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="events-form-field">
-            <label class="form-label" for="event_timeline">Zeitplan (eine Zeile = ein Punkt)</label>
-            <textarea class="form-control" id="event_timeline" rows="2" name="timeline_text">{% if event %}{% for t in event.timeline_items %}{{ t.title }}
-{% endfor %}{% endif %}</textarea>
-        </div>
     </div>
 </section>
 
@@ -60,24 +72,27 @@
         </div>
         <div class="events-form-fields events-form-fields--2">
             <div class="events-form-field">
-                <label class="form-label" for="participantSearch">Portal-Personen</label>
-                <input class="form-control mb-2" id="participantSearch" type="text" placeholder="Person suchen…">
-                <div class="events-form-checklist">
+                <label class="form-label">Portal-Personen</label>
+                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="openParticipantsModalBtn">
+                    <i class="bi bi-search" aria-hidden="true"></i> Person suchen
+                </button>
+                <div class="events-form-pill-list mt-2" id="selectedParticipantsPills"></div>
+                <div id="selectedParticipantsInputs">
                     {% for user in users %}
-                    <div class="form-check participant-item" data-search="{{ user.full_name|lower }}">
-                        <input class="form-check-input" type="checkbox" name="participant_user_ids" value="{{ user.id }}" id="participant_{{ user.id }}" {% if user.id in selected_users %}checked{% endif %}>
-                        <label class="form-check-label" for="participant_{{ user.id }}">{{ user.full_name }}</label>
-                    </div>
-                    {% else %}
-                    <div class="form-text mb-0 py-1">Keine Portal-Personen.</div>
+                        {% if user.id in selected_users %}
+                        <input type="hidden" name="participant_user_ids" value="{{ user.id }}">
+                        {% endif %}
                     {% endfor %}
                 </div>
-                <div class="form-text">Mehrfachauswahl per Checkmark.</div>
+                <div class="form-text">Ausgewählte Personen werden als Pillen angezeigt.</div>
             </div>
             <div class="events-form-field">
-                <label class="form-label" for="guest_names">Freie Namen</label>
-                <textarea class="form-control" id="guest_names" rows="8" name="guest_names" placeholder="Eine Zeile = ein Name">{% if event %}{% for a in event.assignments if not a.user_id and a.display_name %}{{ a.display_name }}
-{% endfor %}{% endif %}</textarea>
+                <label class="form-label">Freie Namen</label>
+                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="addGuestNameBtn">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Freien Namen hinzufügen
+                </button>
+                <div class="events-form-pill-list mt-2" id="guestNamesPills"></div>
+                <input type="hidden" id="guestNamesJsonInput" name="guest_names_json" value='{{ selected_guest_names|tojson|safe }}'>
             </div>
         </div>
     </section>
@@ -91,25 +106,26 @@
         </div>
         <div class="events-form-fields events-form-fields--2">
             <div class="events-form-field">
-                <label class="form-label" for="contactSearch">Aus Kontakten</label>
-                <input class="form-control mb-2" id="contactSearch" type="text" placeholder="Kontakt suchen…">
-                <div class="events-form-checklist">
+                <label class="form-label">Aus Kontakten</label>
+                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="openContactsModalBtn">
+                    <i class="bi bi-search" aria-hidden="true"></i> Kontakt suchen
+                </button>
+                <div class="events-form-pill-list mt-2" id="selectedContactsPills"></div>
+                <div id="selectedContactsInputs">
                     {% for contact in contacts %}
-                    <div class="form-check contact-item" data-search="{{ (contact.name ~ ' ' ~ (contact.email or '') ~ ' ' ~ (contact.phone or ''))|lower }}">
-                        <input class="form-check-input" type="checkbox" name="contact_ids" value="{{ contact.id }}" id="contact_{{ contact.id }}" {% if contact.email and contact.email|lower in selected_contact_keys %}checked{% endif %}>
-                        <label class="form-check-label" for="contact_{{ contact.id }}">
-                            {{ contact.name }}{% if contact.email %} – {{ contact.email }}{% endif %}
-                        </label>
-                    </div>
-                    {% else %}
-                    <div class="form-text mb-0 py-1">Keine Kontakte.</div>
+                        {% if contact.email and contact.email|lower in selected_contact_keys %}
+                        <input type="hidden" name="contact_ids" value="{{ contact.id }}">
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
             <div class="events-form-field">
-                <label class="form-label" for="contacts_text">Zusätzliche Ansprechpartner</label>
-                <textarea class="form-control" id="contacts_text" rows="8" name="contacts_text" placeholder="Name|Rolle|Telefon|E-Mail pro Zeile">{% if event %}{% for c in event.contacts %}{{ c.name }}|{{ c.role or '' }}|{{ c.phone or '' }}|{{ c.email or '' }}
-{% endfor %}{% endif %}</textarea>
+                <label class="form-label">Zusätzliche Ansprechpartner</label>
+                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="addExternalContactBtn">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Ansprechpartner hinzufügen
+                </button>
+                <div class="events-form-pill-list mt-2" id="externalContactsPills"></div>
+                <input type="hidden" id="externalContactsJsonInput" name="contacts_json" value='{{ manual_contacts|tojson|safe }}'>
             </div>
         </div>
     </section>
@@ -156,7 +172,11 @@
                     </div>
                     <div class="events-form-field events-form-field--span-2">
                         <label class="form-label">Zeitplan für diesen Termin</label>
-                        <input class="form-control" name="appointment_timeline[]" placeholder="Mit | trennen" value="{{ appt_timeline_items|join(' | ') }}">
+                        <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
+                        </button>
+                        <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value='[{% for timeline_title in appt_timeline_items %}{"time":"","what":{{ timeline_title|tojson }},"person":""}{% if not loop.last %},{% endif %}{% endfor %}]'>
+                        <div class="events-form-pill-list mt-2 appointment-timeline-preview"></div>
                     </div>
                 </div>
             </div>
@@ -186,7 +206,11 @@
                 </div>
                 <div class="events-form-field events-form-field--span-2">
                     <label class="form-label">Zeitplan für diesen Termin</label>
-                    <input class="form-control" name="appointment_timeline[]" placeholder="Mit | trennen">
+                    <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+                        <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
+                    </button>
+                    <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value="[]">
+                    <div class="events-form-pill-list mt-2 appointment-timeline-preview"></div>
                 </div>
             </div>
         </div>
@@ -260,9 +284,457 @@
     <div class="form-text">Tipp: Scanner-Werte wie <code>PROD-123</code> oder nur <code>123</code> funktionieren auch.</div>
 </section>
 
+<div class="modal fade" id="participantsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Portal-Personen auswählen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <input class="form-control mb-2" id="participantSearch" type="text" placeholder="Person suchen...">
+                <div class="events-form-checklist">
+                    {% for user in users %}
+                    <div class="form-check participant-item" data-search="{{ user.full_name|lower }}">
+                        <input class="form-check-input participant-modal-check" type="checkbox" value="{{ user.id }}" id="participant_modal_{{ user.id }}" data-name="{{ user.full_name }}">
+                        <label class="form-check-label" for="participant_modal_{{ user.id }}">{{ user.full_name }}</label>
+                    </div>
+                    {% else %}
+                    <div class="form-text mb-0 py-1">Keine Portal-Personen.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveParticipantsBtn">Übernehmen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="contactsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kontakte auswählen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <input class="form-control mb-2" id="contactSearch" type="text" placeholder="Kontakt suchen...">
+                <div class="events-form-checklist">
+                    {% for contact in contacts %}
+                    <div class="form-check contact-item" data-search="{{ (contact.name ~ ' ' ~ (contact.email or '') ~ ' ' ~ (contact.phone or ''))|lower }}">
+                        <input class="form-check-input contact-modal-check" type="checkbox" value="{{ contact.id }}" id="contact_modal_{{ contact.id }}" data-name="{{ contact.name }}">
+                        <label class="form-check-label" for="contact_modal_{{ contact.id }}">
+                            {{ contact.name }}{% if contact.email %} – {{ contact.email }}{% endif %}
+                        </label>
+                    </div>
+                    {% else %}
+                    <div class="form-text mb-0 py-1">Keine Kontakte.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveContactsBtn">Übernehmen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="guestNameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Freien Namen eingeben</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="guestNameEditIndex" value="-1">
+                <label class="form-label" for="guestNameInput">Name</label>
+                <input class="form-control" id="guestNameInput" type="text" placeholder="Name">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveGuestNameBtn">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="externalContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ansprechpartner bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="externalContactEditIndex" value="-1">
+                <div class="mb-2">
+                    <label class="form-label" for="externalContactName">Name</label>
+                    <input class="form-control" id="externalContactName" type="text" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="externalContactRole">Rolle</label>
+                    <input class="form-control" id="externalContactRole" type="text">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="externalContactPhone">Telefon</label>
+                    <input class="form-control" id="externalContactPhone" type="text">
+                </div>
+                <div>
+                    <label class="form-label" for="externalContactEmail">E-Mail</label>
+                    <input class="form-control" id="externalContactEmail" type="email">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveExternalContactBtn">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="timelineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Zeitplan bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div id="timelineRows"></div>
+                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill mt-2" id="addTimelineRowBtn">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Zeile hinzufügen
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveTimelineBtn">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const modalIds = ['participantsModal', 'contactsModal', 'guestNameModal', 'externalContactModal', 'timelineModal'];
+  modalIds.forEach((modalId) => {
+    const modalEl = document.getElementById(modalId);
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+  });
+
+  const participantsModal = new bootstrap.Modal(document.getElementById('participantsModal'));
+  const contactsModal = new bootstrap.Modal(document.getElementById('contactsModal'));
+  const guestNameModal = new bootstrap.Modal(document.getElementById('guestNameModal'));
+  const externalContactModal = new bootstrap.Modal(document.getElementById('externalContactModal'));
+  const timelineModal = new bootstrap.Modal(document.getElementById('timelineModal'));
+
+  const participantsInputs = document.getElementById('selectedParticipantsInputs');
+  const participantsPills = document.getElementById('selectedParticipantsPills');
+  const contactsInputs = document.getElementById('selectedContactsInputs');
+  const contactsPills = document.getElementById('selectedContactsPills');
+  const guestNamesJsonInput = document.getElementById('guestNamesJsonInput');
+  const guestNamesPills = document.getElementById('guestNamesPills');
+  const externalContactsJsonInput = document.getElementById('externalContactsJsonInput');
+  const externalContactsPills = document.getElementById('externalContactsPills');
+  const timelineRows = document.getElementById('timelineRows');
+  let timelineTargetRow = null;
+
+  function setupSearch(inputId, itemSelector) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('input', function () {
+      const needle = this.value.trim().toLowerCase();
+      document.querySelectorAll(itemSelector).forEach((item) => {
+        const hay = (item.dataset.search || '').toLowerCase();
+        item.style.display = !needle || hay.includes(needle) ? '' : 'none';
+      });
+    });
+  }
+
+  setupSearch('participantSearch', '.participant-item');
+  setupSearch('contactSearch', '.contact-item');
+
+  function parseJson(value, fallback) {
+    try {
+      return JSON.parse(value || '');
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function createPillButton(iconClass, title, buttonClass) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `btn btn-sm ${buttonClass} events-form-btn-pill`;
+    button.title = title;
+    button.innerHTML = `<i class="bi ${iconClass}" aria-hidden="true"></i>`;
+    return button;
+  }
+
+  function renderParticipantPills() {
+    const selected = Array.from(participantsInputs.querySelectorAll('input[name="participant_user_ids"]')).map((input) => Number(input.value));
+    const lookup = new Map();
+    document.querySelectorAll('.participant-modal-check').forEach((checkbox) => {
+      lookup.set(Number(checkbox.value), checkbox.dataset.name || 'Person');
+      checkbox.checked = selected.includes(Number(checkbox.value));
+    });
+    participantsPills.innerHTML = '';
+    selected.forEach((id) => {
+      const pill = document.createElement('span');
+      pill.className = 'badge text-bg-secondary events-form-pill';
+      pill.textContent = lookup.get(id) || `Person #${id}`;
+      const removeBtn = createPillButton('bi-x-lg', 'Entfernen', 'btn-outline-light');
+      removeBtn.onclick = () => {
+        const targetInput = participantsInputs.querySelector(`input[name="participant_user_ids"][value="${id}"]`);
+        if (targetInput) targetInput.remove();
+        renderParticipantPills();
+      };
+      pill.appendChild(removeBtn);
+      participantsPills.appendChild(pill);
+    });
+  }
+
+  function renderContactPills() {
+    const selected = Array.from(contactsInputs.querySelectorAll('input[name="contact_ids"]')).map((input) => Number(input.value));
+    const lookup = new Map();
+    document.querySelectorAll('.contact-modal-check').forEach((checkbox) => {
+      lookup.set(Number(checkbox.value), checkbox.dataset.name || 'Kontakt');
+      checkbox.checked = selected.includes(Number(checkbox.value));
+    });
+    contactsPills.innerHTML = '';
+    selected.forEach((id) => {
+      const pill = document.createElement('span');
+      pill.className = 'badge text-bg-secondary events-form-pill';
+      pill.textContent = lookup.get(id) || `Kontakt #${id}`;
+      const removeBtn = createPillButton('bi-x-lg', 'Entfernen', 'btn-outline-light');
+      removeBtn.onclick = () => {
+        const targetInput = contactsInputs.querySelector(`input[name="contact_ids"][value="${id}"]`);
+        if (targetInput) targetInput.remove();
+        renderContactPills();
+      };
+      pill.appendChild(removeBtn);
+      contactsPills.appendChild(pill);
+    });
+  }
+
+  function renderGuestNamePills() {
+    const guestNames = parseJson(guestNamesJsonInput.value, []);
+    guestNamesPills.innerHTML = '';
+    guestNames.forEach((name, index) => {
+      const pill = document.createElement('span');
+      pill.className = 'badge text-bg-secondary events-form-pill';
+      pill.textContent = name;
+      const editBtn = createPillButton('bi-pencil', 'Bearbeiten', 'btn-outline-light');
+      editBtn.onclick = () => {
+        document.getElementById('guestNameEditIndex').value = String(index);
+        document.getElementById('guestNameInput').value = name;
+        guestNameModal.show();
+      };
+      const removeBtn = createPillButton('bi-x-lg', 'Entfernen', 'btn-outline-light');
+      removeBtn.onclick = () => {
+        guestNames.splice(index, 1);
+        guestNamesJsonInput.value = JSON.stringify(guestNames);
+        renderGuestNamePills();
+      };
+      pill.append(editBtn, removeBtn);
+      guestNamesPills.appendChild(pill);
+    });
+  }
+
+  function renderExternalContactPills() {
+    const contacts = parseJson(externalContactsJsonInput.value, []);
+    externalContactsPills.innerHTML = '';
+    contacts.forEach((contact, index) => {
+      const pill = document.createElement('span');
+      pill.className = 'badge text-bg-secondary events-form-pill';
+      pill.textContent = contact.name || 'Ohne Name';
+      const editBtn = createPillButton('bi-pencil', 'Bearbeiten', 'btn-outline-light');
+      editBtn.onclick = () => {
+        document.getElementById('externalContactEditIndex').value = String(index);
+        document.getElementById('externalContactName').value = contact.name || '';
+        document.getElementById('externalContactRole').value = contact.role || '';
+        document.getElementById('externalContactPhone').value = contact.phone || '';
+        document.getElementById('externalContactEmail').value = contact.email || '';
+        externalContactModal.show();
+      };
+      const removeBtn = createPillButton('bi-x-lg', 'Entfernen', 'btn-outline-light');
+      removeBtn.onclick = () => {
+        contacts.splice(index, 1);
+        externalContactsJsonInput.value = JSON.stringify(contacts);
+        renderExternalContactPills();
+      };
+      pill.append(editBtn, removeBtn);
+      externalContactsPills.appendChild(pill);
+    });
+  }
+
+  function buildTimelineRows(items) {
+    timelineRows.innerHTML = '';
+    items.forEach((item) => addTimelineRow(item.time || '', item.what || '', item.person || ''));
+    if (items.length === 0) addTimelineRow('', '', '');
+  }
+
+  function addTimelineRow(timeValue, whatValue, personValue) {
+    const row = document.createElement('div');
+    row.className = 'events-form-fields events-form-fields--timeline-row mb-2';
+    row.innerHTML = `
+      <div class="events-form-field">
+        <label class="form-label">Zeit</label>
+        <input type="text" class="form-control timeline-time-input" placeholder="z.B. 09:00 oder nach Aufbau" value="${timeValue || ''}">
+      </div>
+      <div class="events-form-field">
+        <label class="form-label">Was</label>
+        <input type="text" class="form-control timeline-what-input" placeholder="Programmpunkt" value="${whatValue || ''}">
+      </div>
+      <div class="events-form-field">
+        <label class="form-label">Person(en) optional</label>
+        <div class="input-group events-form-input-group">
+          <input type="text" class="form-control timeline-person-input" placeholder="optional" value="${personValue || ''}">
+          <button type="button" class="btn btn-outline-danger events-form-btn-pill remove-timeline-row-btn">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    `;
+    row.querySelector('.remove-timeline-row-btn').addEventListener('click', function () {
+      row.remove();
+      if (!timelineRows.children.length) addTimelineRow('', '', '');
+    });
+    timelineRows.appendChild(row);
+  }
+
+  function renderTimelinePreview(row) {
+    const preview = row.querySelector('.appointment-timeline-preview');
+    const hiddenInput = row.querySelector('.appointment-timeline-json-input');
+    const items = parseJson(hiddenInput.value, []);
+    preview.innerHTML = '';
+    items.forEach((item) => {
+      const labelParts = [];
+      if (item.time) labelParts.push(item.time);
+      if (item.what) labelParts.push(item.what);
+      if (item.person) labelParts.push(item.person);
+      if (!labelParts.length) return;
+      const pill = document.createElement('span');
+      pill.className = 'badge text-bg-light border events-form-pill';
+      pill.textContent = labelParts.join(' | ');
+      preview.appendChild(pill);
+    });
+  }
+
+  function bindTimelineButtons(scope) {
+    scope.querySelectorAll('.edit-timeline-btn').forEach((btn) => {
+      btn.onclick = function () {
+        const row = this.closest('.appointment-row');
+        timelineTargetRow = row;
+        const hiddenInput = row.querySelector('.appointment-timeline-json-input');
+        const items = parseJson(hiddenInput.value, []);
+        buildTimelineRows(items);
+        timelineModal.show();
+      };
+    });
+    scope.querySelectorAll('.appointment-row').forEach(renderTimelinePreview);
+  }
+
+  document.getElementById('openParticipantsModalBtn')?.addEventListener('click', function () {
+    renderParticipantPills();
+    participantsModal.show();
+  });
+  document.getElementById('saveParticipantsBtn')?.addEventListener('click', function () {
+    const selected = Array.from(document.querySelectorAll('.participant-modal-check:checked'));
+    participantsInputs.innerHTML = '';
+    selected.forEach((checkbox) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'participant_user_ids';
+      input.value = checkbox.value;
+      participantsInputs.appendChild(input);
+    });
+    renderParticipantPills();
+    participantsModal.hide();
+  });
+
+  document.getElementById('openContactsModalBtn')?.addEventListener('click', function () {
+    renderContactPills();
+    contactsModal.show();
+  });
+  document.getElementById('saveContactsBtn')?.addEventListener('click', function () {
+    const selected = Array.from(document.querySelectorAll('.contact-modal-check:checked'));
+    contactsInputs.innerHTML = '';
+    selected.forEach((checkbox) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'contact_ids';
+      input.value = checkbox.value;
+      contactsInputs.appendChild(input);
+    });
+    renderContactPills();
+    contactsModal.hide();
+  });
+
+  document.getElementById('addGuestNameBtn')?.addEventListener('click', function () {
+    document.getElementById('guestNameEditIndex').value = '-1';
+    document.getElementById('guestNameInput').value = '';
+    guestNameModal.show();
+  });
+  document.getElementById('saveGuestNameBtn')?.addEventListener('click', function () {
+    const input = document.getElementById('guestNameInput');
+    const name = (input.value || '').trim();
+    if (!name) return;
+    const editIndex = parseInt(document.getElementById('guestNameEditIndex').value, 10);
+    const guestNames = parseJson(guestNamesJsonInput.value, []);
+    if (editIndex >= 0 && editIndex < guestNames.length) guestNames[editIndex] = name;
+    else guestNames.push(name);
+    guestNamesJsonInput.value = JSON.stringify(guestNames);
+    renderGuestNamePills();
+    guestNameModal.hide();
+  });
+
+  document.getElementById('addExternalContactBtn')?.addEventListener('click', function () {
+    document.getElementById('externalContactEditIndex').value = '-1';
+    document.getElementById('externalContactName').value = '';
+    document.getElementById('externalContactRole').value = '';
+    document.getElementById('externalContactPhone').value = '';
+    document.getElementById('externalContactEmail').value = '';
+    externalContactModal.show();
+  });
+  document.getElementById('saveExternalContactBtn')?.addEventListener('click', function () {
+    const name = (document.getElementById('externalContactName').value || '').trim();
+    if (!name) return;
+    const role = (document.getElementById('externalContactRole').value || '').trim();
+    const phone = (document.getElementById('externalContactPhone').value || '').trim();
+    const email = (document.getElementById('externalContactEmail').value || '').trim();
+    const editIndex = parseInt(document.getElementById('externalContactEditIndex').value, 10);
+    const contacts = parseJson(externalContactsJsonInput.value, []);
+    const payload = { name, role, phone, email };
+    if (editIndex >= 0 && editIndex < contacts.length) contacts[editIndex] = payload;
+    else contacts.push(payload);
+    externalContactsJsonInput.value = JSON.stringify(contacts);
+    renderExternalContactPills();
+    externalContactModal.hide();
+  });
+
+  document.getElementById('addTimelineRowBtn')?.addEventListener('click', function () {
+    addTimelineRow('', '', '');
+  });
+  document.getElementById('saveTimelineBtn')?.addEventListener('click', function () {
+    if (!timelineTargetRow) return;
+    const entries = Array.from(timelineRows.children).map((row) => ({
+      time: (row.querySelector('.timeline-time-input')?.value || '').trim(),
+      what: (row.querySelector('.timeline-what-input')?.value || '').trim(),
+      person: (row.querySelector('.timeline-person-input')?.value || '').trim(),
+    })).filter((entry) => entry.time || entry.what || entry.person);
+    const hiddenInput = timelineTargetRow.querySelector('.appointment-timeline-json-input');
+    hiddenInput.value = JSON.stringify(entries);
+    renderTimelinePreview(timelineTargetRow);
+    timelineModal.hide();
+  });
+
   const wrap = document.getElementById('appointmentsWrap');
   const addBtn = document.getElementById('addAppointmentBtn');
   if (wrap && addBtn) {
@@ -293,28 +765,24 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <div class="events-form-field events-form-field--span-2">
             <label class="form-label">Zeitplan für diesen Termin</label>
-            <input class="form-control" name="appointment_timeline[]" placeholder="Mit | trennen">
+            <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+              <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
+            </button>
+            <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value="[]">
+            <div class="events-form-pill-list mt-2 appointment-timeline-preview"></div>
           </div>
         </div>
       `;
       wrap.appendChild(row);
+      bindTimelineButtons(row);
     });
   }
 
-  function setupSearch(inputId, itemSelector) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    input.addEventListener('input', function () {
-      const needle = this.value.trim().toLowerCase();
-      document.querySelectorAll(itemSelector).forEach((item) => {
-        const hay = (item.dataset.search || '').toLowerCase();
-        item.style.display = !needle || hay.includes(needle) ? '' : 'none';
-      });
-    });
-  }
-
-  setupSearch('participantSearch', '.participant-item');
-  setupSearch('contactSearch', '.contact-item');
+  renderParticipantPills();
+  renderContactPills();
+  renderGuestNamePills();
+  renderExternalContactPills();
+  bindTimelineButtons(document);
 
   const products = [
     {% for product in products %}
@@ -342,23 +810,15 @@ document.addEventListener('DOMContentLoaded', function () {
   function parseNeedInput(rawValue) {
     const value = (rawValue || '').trim();
     if (!value) return null;
-
     const upper = value.toUpperCase();
     if (upper.startsWith('PROD-')) {
       const parsedId = parseInt(upper.replace('PROD-', ''), 10);
-      if (!Number.isNaN(parsedId)) {
-        return products.find((p) => p.id === parsedId) || null;
-      }
+      if (!Number.isNaN(parsedId)) return products.find((p) => p.id === parsedId) || null;
     }
-
     const asId = parseInt(value, 10);
-    if (!Number.isNaN(asId) && String(asId) === value) {
-      return products.find((p) => p.id === asId) || null;
-    }
-
+    if (!Number.isNaN(asId) && String(asId) === value) return products.find((p) => p.id === asId) || null;
     const byQr = products.find((p) => p.qr && p.qr.toLowerCase() === value.toLowerCase());
     if (byQr) return byQr;
-
     return products.find((p) => p.name.toLowerCase() === value.toLowerCase()) || null;
   }
 
@@ -376,13 +836,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const existing = needsList.querySelector(`input[name="needs_product[]"][value="${product.id}"]`);
     if (existing) {
       const qtyInput = existing.closest('.need-row')?.querySelector('input[name="needs_quantity[]"]');
-      if (qtyInput) {
-        const current = parseInt(qtyInput.value || '1', 10);
-        qtyInput.value = String(current + quantity);
-      }
+      if (qtyInput) qtyInput.value = String((parseInt(qtyInput.value || '1', 10) || 1) + quantity);
       return;
     }
-
     const row = document.createElement('div');
     row.className = 'events-form-need-row need-row';
     row.innerHTML = `
@@ -405,25 +861,19 @@ document.addEventListener('DOMContentLoaded', function () {
     addNeedBtn.addEventListener('click', function () {
       const product = parseNeedInput(needLookupInput?.value);
       const quantity = Math.max(1, parseInt(needLookupQty?.value || '1', 10) || 1);
-      if (!product) {
-        alert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.');
-        return;
-      }
+      if (!product) return alert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.');
       addNeedRow(product, quantity);
       if (needLookupInput) needLookupInput.value = '';
       if (needLookupQty) needLookupQty.value = '1';
     });
   }
 
-  if (needLookupInput) {
-    needLookupInput.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        addNeedBtn?.click();
-      }
-    });
-  }
-
+  needLookupInput?.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      addNeedBtn?.click();
+    }
+  });
   bindNeedRemoveButtons();
 
   function showScannerError(message) {
@@ -439,16 +889,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   async function startScanner() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showScannerError('Kamera wird von diesem Browser nicht unterstützt.');
-      return;
-    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return showScannerError('Kamera wird von diesem Browser nicht unterstützt.');
     clearScannerError();
     try {
-      scannerStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false
-      });
+      scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       scannerVideo.srcObject = scannerStream;
       scannerContainer.style.display = 'block';
       startScannerBtn.style.display = 'none';
@@ -474,25 +918,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function scanFrame() {
     if (!scannerRunning || !scannerVideo || !scannerCanvas) return;
-    if (scannerVideo.readyState !== scannerVideo.HAVE_ENOUGH_DATA) {
-      requestAnimationFrame(scanFrame);
-      return;
-    }
-
+    if (scannerVideo.readyState !== scannerVideo.HAVE_ENOUGH_DATA) return requestAnimationFrame(scanFrame);
     scannerCanvas.width = scannerVideo.videoWidth;
     scannerCanvas.height = scannerVideo.videoHeight;
     const context = scannerCanvas.getContext('2d');
     context.drawImage(scannerVideo, 0, 0, scannerCanvas.width, scannerCanvas.height);
     const imageData = context.getImageData(0, 0, scannerCanvas.width, scannerCanvas.height);
     const code = (window.jsQR || jsQR)(imageData.data, imageData.width, imageData.height);
-
     if (code && code.data) {
       if (needLookupInput) needLookupInput.value = code.data.trim();
       addNeedBtn?.click();
-      setTimeout(() => {
-        if (scannerRunning) requestAnimationFrame(scanFrame);
-      }, 700);
-      return;
+      return setTimeout(() => { if (scannerRunning) requestAnimationFrame(scanFrame); }, 700);
     }
     requestAnimationFrame(scanFrame);
   }
