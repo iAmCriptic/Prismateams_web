@@ -80,6 +80,7 @@
     "confirm_delete_default": "Möchten Sie dieses Element wirklich löschen?",
     "loading": "Laden...",
     "actions": "Aktionen",
+    "more_actions": "Weitere Aktionen",
     "status": "Status",
     "active": "aktiviert",
     "inactive": "deaktiviert",
@@ -1207,7 +1208,9 @@
         "flash_guest_name_required": "Bitte Vor- und Nachname eingeben.",
         "flash_guest_invalid_expiry": "Ungültiges Datumsformat für Ablaufzeit.",
         "flash_guest_load_error": "Gast-Account konnte nicht geladen werden.",
-        "flash_guest_save_error": "Gast-Account konnte nicht gespeichert werden."
+        "flash_guest_save_error": "Gast-Account konnte nicht gespeichert werden.",
+        "search_placeholder": "Nach Name oder E-Mail suchen…",
+        "search_no_results": "Keine Benutzer gefunden."
       },
       "create_user": {
         "page_title": "Benutzer erstellen - Administration",
@@ -3579,7 +3582,8 @@
       "new_button": "Neu",
       "new": {
         "product": "Neues Produkt",
-        "set": "Neues Set"
+        "set": "Neues Set",
+        "cable_consumable": "Mengenartikel anlegen"
       },
       "nav": {
         "menu": "Menü",
@@ -3888,6 +3892,38 @@
         "critical_error": "Kritischer Fehler:"
       },
       "filters_sort_button": "Filter & Sortierung"
+    },
+    "cable_form": {
+      "page_title": "Mengenartikel anlegen - Team Portal",
+      "heading": "Mengenartikel anlegen",
+      "sections": {
+        "mode": "Modus",
+        "master_data": "Stammdaten",
+        "existing": "Bestehendes Produkt ergänzen"
+      },
+      "mode": {
+        "new": "Neues Kabelprodukt anlegen",
+        "existing": "Bestand bei bestehendem Kabelprodukt ergänzen"
+      },
+      "mode_help": "Für Ergänzung werden nur Produkte mit exakt gleichem Namen, Kategorie und Länge berücksichtigt.",
+      "quantity": "Anzahl",
+      "existing_product": "Passendes Produkt",
+      "auto_match": "Automatisch wählen (wenn eindeutig)",
+      "existing_hint": "Nur exakte Treffer (Name/Kategorie/Länge) werden angeboten.",
+      "submit": "Mengenartikel speichern",
+      "errors": {
+        "name_required": "Bitte einen Namen angeben.",
+        "category_required": "Bitte eine Kategorie angeben.",
+        "length_required": "Bitte eine Länge angeben.",
+        "quantity_range": "Die Anzahl muss zwischen 1 und 50000 liegen.",
+        "no_matching_product": "Kein passendes bestehendes Kabelprodukt gefunden.",
+        "select_matching_product": "Mehrere passende Produkte gefunden. Bitte eines auswählen.",
+        "match_exists_use_existing": "Ein passendes Kabelprodukt existiert bereits. Bitte Modus „Bestand ergänzen“ verwenden."
+      },
+      "flash": {
+        "created": "Mengenartikel „{name}“ mit Bestand {qty} angelegt.",
+        "stock_added": "Bestand für „{name}“ um {qty} erhöht."
+      }
     },
     "product": {
       "form": {

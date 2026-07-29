@@ -81,6 +81,8 @@ class StockManager {
         this.overdueProductIds = new Set();
         this.favoriteProductIds = new Set();
         this.editingFolderId = null;
+        this.retiredFolderId = Number(window.INVENTORY_RETIRED_FOLDER_ID || 0) || null;
+        this.isRetiredFolderView = !!window.INVENTORY_IS_RETIRED_FOLDER_VIEW;
     }
 
     getFilterEls(key) {
@@ -324,6 +326,7 @@ class StockManager {
             this.updateLocations();
             this.updateLengths();
             this.updatePurchaseYears();
+            this.updateTrashFooterCount();
             
             // Wende Filter an (nicht direkt renderProducts, damit Filterlogik angewendet wird)
             this.applyFilters();
@@ -459,6 +462,7 @@ class StockManager {
         const bulkEditBtn = document.getElementById('bulkEditBtn');
         const bulkBorrowBtn = document.getElementById('bulkBorrowBtn');
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const bulkRestoreBtn = document.getElementById('bulkRestoreBtn');
         const bulkQrBtn = document.getElementById('bulkQrBtn');
         const bulkRepairBtn = document.getElementById('bulkRepairBtn');
         const bulkAvailableBtn = document.getElementById('bulkAvailableBtn');
@@ -471,6 +475,7 @@ class StockManager {
         if (bulkRepairBtn) bulkRepairBtn.addEventListener('click', () => this.markSelectedInRepair());
         if (bulkAvailableBtn) bulkAvailableBtn.addEventListener('click', () => this.markSelectedAvailable());
         if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
+        if (bulkRestoreBtn) bulkRestoreBtn.addEventListener('click', () => this.restoreSelectedProducts());
     }
     
     setupSortControls() {
@@ -720,7 +725,21 @@ class StockManager {
         if (hasSearch) return [];
         // Flat folders: nur im Root anzeigen
         if (this.currentFolderId !== null && this.currentFolderId !== undefined) return [];
-        return Array.isArray(this.folders) ? this.folders.slice() : [];
+        const folders = Array.isArray(this.folders) ? this.folders.slice() : [];
+        // Papierkorb nicht als Grid-/Listen-Ordner, sondern als Footer in der Bestandsansicht
+        if (!this.retiredFolderId) return folders;
+        return folders.filter((folder) => Number(folder.id) !== Number(this.retiredFolderId));
+    }
+
+    updateTrashFooterCount() {
+        const label = document.getElementById('inventoryTrashCountLabel');
+        if (!label || !this.retiredFolderId) return;
+        const count = (this.products || []).filter(
+            (p) => Number(p.folder_id) === Number(this.retiredFolderId) || p.status === 'retired'
+        ).length;
+        label.textContent = count > 0
+            ? `${count} Gerät${count === 1 ? '' : 'e'}`
+            : 'Leer';
     }
     
     renderProductsGrid() {
@@ -789,11 +808,19 @@ class StockManager {
 
     /** Checkbox: alles außer ausgemustert. Ausleihen nur bei available. */
     isProductSelectable(product) {
-        return !!(product && product.status !== 'retired');
+        if (!product) return false;
+        if (this.isRetiredFolderView) {
+            return product.status === 'retired';
+        }
+        return product.status !== 'retired';
     }
 
     isProductBorrowable(product) {
-        return !!(product && product.status === 'available');
+        if (!product || product.status !== 'available') return false;
+        if (product.item_type === 'consumable') {
+            return Number(product.available || 0) > 0;
+        }
+        return true;
     }
 
     statusBadgeHtml(product) {
@@ -810,7 +837,7 @@ class StockManager {
             return '<span class="badge bg-danger">Defekt</span>';
         }
         if (product.status === 'retired') {
-            return '<span class="badge bg-secondary">Ausgemustert</span>';
+            return '<span class="badge bg-secondary">Papierkorb</span>';
         }
         return `<span class="badge bg-secondary">${this.escapeHtml(product.status || '—')}</span>`;
     }
@@ -825,9 +852,30 @@ class StockManager {
         const category = this.isValidValue(product.category) ? this.escapeHtml(product.category) : '—';
         const location = this.isValidValue(product.location) ? this.escapeHtml(product.location) : '—';
         const serial = this.isValidValue(product.serial_number) ? this.escapeHtml(product.serial_number) : '—';
+        const qtyBadge = product.item_type === 'consumable'
+            ? `<span class="badge bg-info-subtle text-dark ms-2">Bestand: ${this.escapeHtml(String(product.available ?? 0))}</span>`
+            : '';
 
-        const hoverBorrow = isBorrowable
+        const hoverBorrow = (!this.isRetiredFolderView && isBorrowable)
             ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
+            : '';
+
+        const hoverEdit = this.isRetiredFolderView
+            ? ''
+            : `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
+                                <i class="bi bi-pencil"></i>
+                            </a>`;
+        const hoverFavorite = this.isRetiredFolderView
+            ? ''
+            : `<button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
+                                    title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                <i class="bi bi-star"></i>
+                            </button>`;
+        const hoverRestore = this.isRetiredFolderView
+            ? `<button type="button" class="btn btn-sm btn-link" title="Wieder in Betrieb nehmen"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.restoreProduct(${product.id});}">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>`
             : '';
 
         return `
@@ -842,14 +890,14 @@ class StockManager {
                 <td>
                     <button type="button" class="mod-list-name inventory-item-name text-decoration-none text-start border-0 bg-transparent p-0"
                             onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
-                        <i class="bi bi-box-seam me-2 text-muted"></i><span class="inventory-item-name-text" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</span>
+                        <i class="bi bi-box-seam me-2 text-muted"></i><span class="inventory-item-name-text" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</span>${qtyBadge}
                     </button>
                     <div class="d-md-none mt-1">${statusBadge}</div>
                 </td>
                 <td class="d-none d-md-table-cell">${statusBadge}</td>
                 <td class="d-none d-md-table-cell text-muted">${category}</td>
                 <td class="d-none d-lg-table-cell text-muted">${location}</td>
-                <td class="d-none d-xl-table-cell text-muted">${serial}</td>
+                <td class="d-none d-xl-table-cell text-muted">${product.item_type === 'consumable' ? '—' : serial}</td>
                 <td class="text-end">
                     <div class="mod-list-actions">
                         <div class="mod-list-hover-actions">
@@ -858,13 +906,9 @@ class StockManager {
                                 <i class="bi bi-eye"></i>
                             </button>
                             ${hoverBorrow}
-                            <a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
-                                    title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
-                                <i class="bi bi-star"></i>
-                            </button>
+                            ${hoverEdit}
+                            ${hoverFavorite}
+                            ${hoverRestore}
                         </div>
                         <div class="dropdown d-inline-block">
                             <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" onclick="event.stopPropagation()">
@@ -882,6 +926,9 @@ class StockManager {
 
     buildProductActionItemsHtml(product) {
         const id = product.id;
+        if (this.isRetiredFolderView || product.status === 'retired') {
+            return `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.restoreProduct(${id});}"><i class="bi bi-arrow-counterclockwise me-2"></i>Wieder in Betrieb nehmen</button></li>`;
+        }
         let items = '';
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${id});}"><i class="bi bi-eye me-2"></i>Ansehen</button></li>`;
         if (this.isProductBorrowable(product)) {
@@ -1025,6 +1072,9 @@ class StockManager {
             ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
             : '';
 
+        const quantityInfo = product.item_type === 'consumable'
+            ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-boxes"></i> Bestand: ${this.escapeHtml(String(product.available ?? 0))}</p>`
+            : '';
         return `
             <div class="card h-100 inventory-product-card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 ${this.buildProductContextMenuHtml(product)}
@@ -1044,6 +1094,7 @@ class StockManager {
                                 ${statusBadge}
                             </div>
                             ${product.category ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-tag"></i> ${this.escapeHtml(product.category)}</p>` : ''}
+                            ${quantityInfo}
                             ${this.isValidValue(product.serial_number) ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</p>` : ''}
                             ${this.isValidValue(product.location) ? `<p class="inventory-card-meta mb-0 text-truncate"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</p>` : ''}
                         </div>
@@ -1150,6 +1201,9 @@ class StockManager {
                         ${row('Lagerort', val(product.location))}
                         ${row('Zustand', val(product.condition))}
                         ${row('Länge', val(product.length))}
+                        ${product.item_type === 'consumable'
+                            ? row('Bestand', `${this.escapeHtml(String(product.available ?? 0))} verfügbar${product.on_hand != null ? ` / ${this.escapeHtml(String(product.on_hand))} gesamt` : ''}`)
+                            : ''}
                         ${row('Ordner', val(product.folder_name))}
                     </div>
                 </section>
@@ -1499,14 +1553,14 @@ class StockManager {
     
     async deleteSelectedProducts(productIds, modal) {
         if (!productIds || productIds.length === 0) {
-            inventoryNotify('Keine Produkte zum Löschen ausgewählt.', 'warning');
+            inventoryNotify('Keine Produkte zum Verschieben ausgewählt.', 'warning');
             return;
         }
         
         const confirmBtn = document.getElementById('bulkDeleteConfirmBtn');
         if (confirmBtn) {
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Löschen...';
+            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verschiebe...';
         }
         
         try {
@@ -1534,7 +1588,7 @@ class StockManager {
             }
             
             if (!response.ok) {
-                throw new Error(data.error || 'Fehler beim Löschen der Produkte');
+                throw new Error(data.error || 'Fehler beim Verschieben der Produkte');
             }
             
             // Erfolgreich gelöscht
@@ -1553,7 +1607,7 @@ class StockManager {
             }
             
             // Zeige Erfolgsmeldung
-            this.showSuccess(data.message || `${data.deleted_count} Produkt(e) erfolgreich gelöscht.`);
+            this.showSuccess(data.message || `${data.deleted_count} Produkt(e) in den Papierkorb verschoben.`);
             
             // Entferne gelöschte Produkte aus der Auswahl
             productIds.forEach(id => {
@@ -1564,8 +1618,8 @@ class StockManager {
             await this.loadProducts();
             
         } catch (error) {
-            console.error('Fehler beim Löschen:', error);
-            this.showError(error.message || 'Fehler beim Löschen der Produkte. Bitte versuchen Sie es erneut.');
+            console.error('Fehler beim Verschieben in den Papierkorb:', error);
+            this.showError(error.message || 'Fehler beim Verschieben der Produkte. Bitte versuchen Sie es erneut.');
             
             // Modal schließen auch bei Fehler
             if (modal) {
@@ -1584,7 +1638,7 @@ class StockManager {
             
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="bi bi-trash"></i> Ja, löschen';
+                confirmBtn.innerHTML = '<i class="bi bi-trash"></i> In Papierkorb';
             }
         }
     }
@@ -1596,9 +1650,9 @@ class StockManager {
         }
         
         // Bestätigung
-        if (!(await inventoryConfirm('Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.', {
-            title: 'Produkt löschen',
-            confirmLabel: 'Löschen',
+        if (!(await inventoryConfirm('Gerät in den Papierkorb verschieben?', {
+            title: 'In den Papierkorb',
+            confirmLabel: 'Verschieben',
             danger: true,
         }))) {
             return;
@@ -1630,7 +1684,7 @@ class StockManager {
             }
             
             // Erfolgreich gelöscht
-            this.showSuccess(data.message || 'Produkt erfolgreich gelöscht.');
+            this.showSuccess(data.message || 'Produkt wurde in den Papierkorb verschoben.');
             
             // Entferne aus der Auswahl falls ausgewählt
             this.selectedProducts.delete(productId);
@@ -1640,7 +1694,66 @@ class StockManager {
             
         } catch (error) {
             console.error('Fehler beim Löschen:', error);
-            this.showError(error.message || 'Fehler beim Löschen des Produkts. Bitte versuchen Sie es erneut.');
+            this.showError(error.message || 'Fehler beim Verschieben in den Papierkorb. Bitte versuchen Sie es erneut.');
+        }
+    }
+
+    async restoreProduct(productId) {
+        if (!productId) {
+            inventoryNotify('Keine Produkt-ID angegeben.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm('Gerät wieder in Betrieb nehmen?', {
+            title: 'Wieder in Betrieb nehmen',
+            confirmLabel: 'Wiederherstellen',
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetchInventoryApi('/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: [productId], status: 'available' }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Wiederherstellen fehlgeschlagen');
+            }
+            this.showSuccess(data.message || 'Gerät wieder in Betrieb genommen.');
+            this.selectedProducts.delete(productId);
+            await this.loadProducts();
+        } catch (error) {
+            this.showError(error.message || 'Fehler beim Wiederherstellen.');
+        }
+    }
+
+    async restoreSelectedProducts() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm(`${selectedIds.length} Gerät(e) wieder in Betrieb nehmen?`, {
+            title: 'Wieder in Betrieb nehmen',
+            confirmLabel: 'Wiederherstellen',
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetchInventoryApi('/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds, status: 'available' }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Wiederherstellen fehlgeschlagen');
+            }
+            this.showSuccess(data.message || `${selectedIds.length} Gerät(e) wieder in Betrieb genommen.`);
+            this.selectedProducts.clear();
+            await this.loadProducts();
+        } catch (error) {
+            this.showError(error.message || 'Fehler beim Wiederherstellen.');
         }
     }
     
@@ -1678,7 +1791,9 @@ class StockManager {
         const folderSelect = document.getElementById('bulkEditFolder');
         if (folderSelect) {
             folderSelect.innerHTML = '<option value="">— nicht ändern —</option>' +
-                (this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map((folder) =>
+                (this.folders ? Array.from(this.folders)
+                    .filter((folder) => !this.retiredFolderId || Number(folder.id) !== Number(this.retiredFolderId))
+                    .sort((a, b) => a.name.localeCompare(b.name)).map((folder) =>
                     `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
                 ).join('') : '');
         }
@@ -1773,6 +1888,21 @@ class StockManager {
                         return;
                     }
                     updateData.remove_image = true;
+                    hasUpdate = true;
+                }
+                if (document.getElementById('bulkEditConvertToCable')?.checked) {
+                    const confirmedConvert = await inventoryConfirm(
+                        'Wirklich überführen? Dieser Schritt kann nicht rückgängig gemacht werden.',
+                        {
+                            title: 'Zu Mengenartikel überführen',
+                            confirmLabel: 'Ja, überführen',
+                            danger: true,
+                        }
+                    );
+                    if (!confirmedConvert) {
+                        return;
+                    }
+                    updateData.convert_to_cable = true;
                     hasUpdate = true;
                 }
 
@@ -3099,8 +3229,27 @@ class BorrowScannerManager {
                 if (productId) this.removeFromCart(productId);
             });
         });
+        this.bindCartQuantityInputs();
 
         this.setupCheckoutForm();
+    }
+
+    bindCartQuantityInputs(root = document) {
+        root.querySelectorAll('.cart-qty-input').forEach((input) => {
+            if (input.dataset.qtyBound) return;
+            input.dataset.qtyBound = '1';
+            input.addEventListener('change', async () => {
+                const productId = parseInt(input.dataset.productId, 10);
+                let qty = parseInt(input.value || '1', 10);
+                if (!Number.isFinite(qty) || qty < 1) qty = 1;
+                input.value = String(qty);
+                try {
+                    await this.updateCartQuantity(productId, qty);
+                } catch (err) {
+                    this.showError(err?.message || 'Menge konnte nicht aktualisiert werden');
+                }
+            });
+        });
     }
 
     buildSetMembersDropdownHtml(sourceSet, productId) {
@@ -3139,10 +3288,18 @@ class BorrowScannerManager {
             ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
             : '';
         const setDropdown = sourceSet ? this.buildSetMembersDropdownHtml(sourceSet, product.id) : '';
+        const qty = Number(product.cart_quantity || 1);
+        const qtyControls = product.item_type === 'consumable'
+            ? `<div class="input-group input-group-sm mt-2" style="max-width: 190px;">
+                    <span class="input-group-text">Menge</span>
+                    <input type="number" min="1" class="form-control cart-qty-input" data-product-id="${product.id}" value="${this.escapeHtml(String(qty))}">
+               </div>`
+            : '';
         newItem.innerHTML = `
             <div class="inventory-cart-item-body">
                 <p class="inventory-cart-item-title">${this.escapeHtml(product.name)} ${setBadge}</p>
                 ${categoryHtml}
+                ${qtyControls}
                 ${setDropdown}
             </div>
             <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
@@ -3707,6 +3864,7 @@ class BorrowScannerManager {
                     });
                 }
             });
+            this.bindCartQuantityInputs(cartItems);
             
             // Prüfe ob Checkout-Formular benötigt wird
             this.ensureCheckoutForm(result.cart_count);
@@ -3730,6 +3888,10 @@ class BorrowScannerManager {
         // Prüfe ob Produkt bereits vorhanden ist
         const existingItem = cartItems.querySelector(`[data-product-id="${result.product.id}"]`);
         if (existingItem) {
+            const qtyInput = existingItem.querySelector('.cart-qty-input');
+            if (qtyInput && result.product.cart_quantity != null) {
+                qtyInput.value = String(result.product.cart_quantity);
+            }
             return;
         }
         
@@ -3761,10 +3923,27 @@ class BorrowScannerManager {
                 }
             });
         }
+        this.bindCartQuantityInputs(newItem);
         
         // Prüfe ob Checkout-Formular benötigt wird
         this.ensureCheckoutForm(result.cart_count);
         
+    }
+
+    async updateCartQuantity(productId, quantity) {
+        const formData = new FormData();
+        formData.append('action', 'update_cart_quantity');
+        formData.append('product_id', String(productId));
+        formData.append('quantity', String(quantity));
+        const response = await fetch('/inventory/borrow-scanner', { method: 'POST', body: formData });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.error) {
+            throw new Error(result.error || 'Menge konnte nicht aktualisiert werden');
+        }
+        const cartCount = document.getElementById('cartCount');
+        if (cartCount && result.cart_count !== undefined) {
+            cartCount.textContent = String(result.cart_count);
+        }
     }
     
     ensureCheckoutForm(cartCount) {

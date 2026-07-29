@@ -80,6 +80,7 @@
     "confirm_delete_default": "Do you really want to delete this item?",
     "loading": "Loading...",
     "actions": "Actions",
+    "more_actions": "More actions",
     "status": "Status",
     "active": "Active",
     "inactive": "Inactive",
@@ -1207,7 +1208,9 @@
         "flash_guest_name_required": "Please enter first and last name.",
         "flash_guest_invalid_expiry": "Invalid expiry date format.",
         "flash_guest_load_error": "Could not load guest account.",
-        "flash_guest_save_error": "Could not save guest account."
+        "flash_guest_save_error": "Could not save guest account.",
+        "search_placeholder": "Search by name or email…",
+        "search_no_results": "No users found."
       },
       "create_user": {
         "page_title": "Create user - Administration",
@@ -3579,7 +3582,8 @@
       "new_button": "New",
       "new": {
         "product": "New product",
-        "set": "New set"
+        "set": "New set",
+        "cable_consumable": "Create consumable"
       },
       "nav": {
         "menu": "Menu",
@@ -3762,6 +3766,38 @@
         "critical_error": "Critical error:"
       },
       "filters_sort_button": "Filter & Sort"
+    },
+    "cable_form": {
+      "page_title": "Create consumable - Team Portal",
+      "heading": "Create consumable",
+      "sections": {
+        "mode": "Mode",
+        "master_data": "Master data",
+        "existing": "Extend existing product"
+      },
+      "mode": {
+        "new": "Create new cable product",
+        "existing": "Add stock to an existing cable product"
+      },
+      "mode_help": "For extending stock, only products with exactly the same name, category and length are considered.",
+      "quantity": "Quantity",
+      "existing_product": "Matching product",
+      "auto_match": "Auto select (if unique)",
+      "existing_hint": "Only exact matches (name/category/length) are offered.",
+      "submit": "Save consumable",
+      "errors": {
+        "name_required": "Please enter a name.",
+        "category_required": "Please enter a category.",
+        "length_required": "Please enter a length.",
+        "quantity_range": "Quantity must be between 1 and 50000.",
+        "no_matching_product": "No matching existing cable product found.",
+        "select_matching_product": "Multiple matching products found. Please choose one.",
+        "match_exists_use_existing": "A matching cable product already exists. Please use \"Extend existing\" mode."
+      },
+      "flash": {
+        "created": "Consumable \"{name}\" created with stock {qty}.",
+        "stock_added": "Stock for \"{name}\" increased by {qty}."
+      }
     },
     "product": {
       "form": {

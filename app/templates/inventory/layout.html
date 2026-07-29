@@ -37,6 +37,11 @@
             <i class="bi bi-collection me-2"></i>{{ _('inventory.shell.new.set') }}
         </a>
     </li>
+    <li>
+        <a class="dropdown-item" href="{{ url_for('inventory.cable_new') }}">
+            <i class="bi bi-diagram-3 me-2"></i>{{ _('inventory.shell.new.cable_consumable') }}
+        </a>
+    </li>
 </ul>
 {% endmacro %}
 
@@ -189,7 +194,10 @@
         </div>
         {% endif %}
 
-        {% block inventory_content %}{% endblock %}
+        <div class="inventory-main-body">
+            {% block inventory_content %}{% endblock %}
+        </div>
+        {% block inventory_main_footer %}{% endblock %}
     </div>
 </div>
 

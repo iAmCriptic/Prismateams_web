@@ -17,7 +17,7 @@
     {%- if view == 'ablage' -%}<i class="bi bi-hdd" aria-hidden="true"></i>
     {%- elif view == 'public' -%}<i class="bi bi-globe2" aria-hidden="true"></i>
     {%- elif view == 'freigaben' -%}<i class="bi bi-people" aria-hidden="true"></i>
-    {%- elif view == 'trash' -%}<i class="bi bi-trash" aria-hidden="true"></i>
+{%- elif view == 'trash' -%}<i class="bi bi-trash3-fill" aria-hidden="true"></i>
     {%- else -%}<i class="bi bi-folder2-open" aria-hidden="true"></i>
     {%- endif -%}
 {%- endmacro %}
@@ -31,7 +31,7 @@
     {% if files_private_folders_enabled %}
     <a class="nav-link mod-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
     {% endif %}
-    <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
+    <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash3-fill me-2"></i>Papierkorb</a>
 </nav>
 {% endmacro %}
 

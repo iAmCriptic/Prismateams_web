@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
+import json
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
@@ -268,6 +269,7 @@ def _store_form_data(event_obj, req):
     locations = req.form.getlist('appointment_location[]')
     descriptions = req.form.getlist('appointment_description[]')
     appointment_timeline_values = req.form.getlist('appointment_timeline[]')
+    appointment_timeline_json_values = req.form.getlist('appointment_timeline_json[]')
     needs_products = req.form.getlist('needs_product[]')
     needs_quantities = req.form.getlist('needs_quantity[]')
 
@@ -290,14 +292,41 @@ def _store_form_data(event_obj, req):
         db.session.flush()
         created_appointments.append(appointment)
 
-        timeline_raw = appointment_timeline_values[index] if index < len(appointment_timeline_values) else ''
-        timeline_parts = [part.strip() for part in timeline_raw.split('|') if part.strip()]
-        for t_pos, title in enumerate(timeline_parts, start=1):
+        timeline_entries = []
+        timeline_json_raw = appointment_timeline_json_values[index] if index < len(appointment_timeline_json_values) else ''
+        if timeline_json_raw:
+            try:
+                parsed_entries = json.loads(timeline_json_raw)
+                if isinstance(parsed_entries, list):
+                    for entry in parsed_entries:
+                        if not isinstance(entry, dict):
+                            continue
+                        time_value = (entry.get('time') or '').strip()
+                        what_value = (entry.get('what') or '').strip()
+                        person_value = (entry.get('person') or '').strip()
+                        if not (time_value or what_value or person_value):
+                            continue
+                        title_parts = [part for part in [time_value, what_value, person_value] if part]
+                        timeline_entries.append({
+                            'title': ' | '.join(title_parts),
+                            'description': what_value or None,
+                        })
+            except (ValueError, TypeError, AttributeError):
+                timeline_entries = []
+
+        if not timeline_entries:
+            timeline_raw = appointment_timeline_values[index] if index < len(appointment_timeline_values) else ''
+            timeline_parts = [part.strip() for part in timeline_raw.split('|') if part.strip()]
+            for part in timeline_parts:
+                timeline_entries.append({'title': part, 'description': part})
+
+        for t_pos, entry in enumerate(timeline_entries, start=1):
             db.session.add(EventTimelineItem(
                 event_id=event_obj.id,
                 appointment_id=appointment.id,
                 position=t_pos,
-                title=title,
+                title=entry['title'],
+                description=entry['description'],
             ))
 
     # Materialbedarf wird dem ersten Termin zugeordnet (warnend, nicht blockierend).
@@ -318,11 +347,23 @@ def _store_form_data(event_obj, req):
         if user_id:
             db.session.add(EventAssignment(event_id=event_obj.id, user_id=int(user_id)))
 
-    guest_names = req.form.get('guest_names', '')
-    for line in guest_names.splitlines():
-        value = line.strip()
-        if value:
-            db.session.add(EventAssignment(event_id=event_obj.id, display_name=value))
+    guest_names_json_raw = req.form.get('guest_names_json', '').strip()
+    guest_names = []
+    if guest_names_json_raw:
+        try:
+            parsed_guest_names = json.loads(guest_names_json_raw)
+            if isinstance(parsed_guest_names, list):
+                guest_names.extend(str(item).strip() for item in parsed_guest_names if str(item).strip())
+        except (ValueError, TypeError):
+            guest_names = []
+
+    if not guest_names:
+        guest_names_legacy = req.form.get('guest_names', '')
+        guest_names.extend(line.strip() for line in guest_names_legacy.splitlines() if line.strip())
+        guest_names.extend(str(value).strip() for value in req.form.getlist('guest_name[]') if str(value).strip())
+
+    for value in guest_names:
+        db.session.add(EventAssignment(event_id=event_obj.id, display_name=value))
 
     existing_contact_keys = set()
     selected_contact_ids = req.form.getlist('contact_ids')
@@ -342,35 +383,54 @@ def _store_form_data(event_obj, req):
                 email=contact.email,
             ))
 
-    for contact_line in req.form.get('contacts_text', '').splitlines():
-        parts = [p.strip() for p in contact_line.split('|')]
-        if not parts or not parts[0]:
-            continue
+    manual_contacts = []
+    contacts_json_raw = req.form.get('contacts_json', '').strip()
+    if contacts_json_raw:
+        try:
+            parsed_contacts = json.loads(contacts_json_raw)
+            if isinstance(parsed_contacts, list):
+                for entry in parsed_contacts:
+                    if not isinstance(entry, dict):
+                        continue
+                    name = (entry.get('name') or '').strip()
+                    if not name:
+                        continue
+                    manual_contacts.append({
+                        'name': name,
+                        'role': (entry.get('role') or '').strip() or None,
+                        'phone': (entry.get('phone') or '').strip() or None,
+                        'email': (entry.get('email') or '').strip() or None,
+                    })
+        except (ValueError, TypeError, AttributeError):
+            manual_contacts = []
+
+    if not manual_contacts:
+        for contact_line in req.form.get('contacts_text', '').splitlines():
+            parts = [p.strip() for p in contact_line.split('|')]
+            if not parts or not parts[0]:
+                continue
+            manual_contacts.append({
+                'name': parts[0],
+                'role': parts[1] if len(parts) > 1 and parts[1] else None,
+                'phone': parts[2] if len(parts) > 2 and parts[2] else None,
+                'email': parts[3] if len(parts) > 3 and parts[3] else None,
+            })
+
+    for contact_entry in manual_contacts:
         manual_key = (
-            parts[0].lower(),
-            parts[2] if len(parts) > 2 and parts[2] else '',
-            (parts[3] if len(parts) > 3 and parts[3] else '').lower(),
+            contact_entry['name'].lower(),
+            (contact_entry['phone'] or '').strip(),
+            (contact_entry['email'] or '').strip().lower(),
         )
         if manual_key in existing_contact_keys:
             continue
         existing_contact_keys.add(manual_key)
         db.session.add(EventContact(
             event_id=event_obj.id,
-            name=parts[0],
-            role=parts[1] if len(parts) > 1 and parts[1] else None,
-            phone=parts[2] if len(parts) > 2 and parts[2] else None,
-            email=parts[3] if len(parts) > 3 and parts[3] else None,
-        ))
-
-    start_pos = len(created_appointments) * 100
-    for pos, line in enumerate(req.form.get('timeline_text', '').splitlines(), start=1):
-        line = line.strip()
-        if not line:
-            continue
-        db.session.add(EventTimelineItem(
-            event_id=event_obj.id,
-            position=start_pos + pos,
-            title=line,
+            name=contact_entry['name'],
+            role=contact_entry['role'],
+            phone=contact_entry['phone'],
+            email=contact_entry['email'],
         ))
 
 

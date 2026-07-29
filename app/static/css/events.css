@@ -299,6 +299,10 @@
     .events-form-fields--appt {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+
+    .events-form-fields--timeline-row {
+        grid-template-columns: 1fr 1.5fr 1.2fr;
+    }
 }
 
 .events-form-field--span-2 {
@@ -361,6 +365,26 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
+}
+
+.events-form-pill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.events-form-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+    padding: 0.4rem 0.55rem;
+}
+
+.events-form-pill .btn {
+    padding: 0.1rem 0.3rem;
+    line-height: 1;
+    font-size: 0.7rem;
 }
 
 .events-form-appointments {

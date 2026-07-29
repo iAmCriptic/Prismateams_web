@@ -72,8 +72,13 @@ def create_session(user_id):
     """Erstellt eine neue Session für einen Benutzer."""
     session_id = generate_session_id()
     
-    # Hole IP-Adresse und User-Agent
-    ip_address = request.remote_addr
+    # Hole IP-Adresse: ProxyFix setzt remote_addr bereits korrekt; als
+    # zusätzlicher Fallback prüfen wir X-Forwarded-For direkt.
+    ip_address = (
+        request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+        or request.headers.get('X-Real-IP', '').strip()
+        or request.remote_addr
+    )
     user_agent = request.headers.get('User-Agent', '')[:500]  # Max 500 Zeichen
     
     # Erstelle Session-Eintrag in der Datenbank

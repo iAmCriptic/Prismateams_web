@@ -47,6 +47,7 @@ def create_checkout(
     event_id: Optional[int] = None,
     event_appointment_id: Optional[int] = None,
     product_source_sets: Optional[dict] = None,
+    consumable_quantities: Optional[dict] = None,
 ) -> Checkout:
     event_name = (event_name or "").strip()
     borrower_name = (borrower_name or "").strip()
@@ -58,7 +59,8 @@ def create_checkout(
         raise ValueError("event_name_required")
     if not borrower_name:
         raise ValueError("borrower_name_required")
-    if not product_ids:
+    consumable_quantities = consumable_quantities or {}
+    if not product_ids and not consumable_quantities:
         raise ValueError("no_products")
 
     # Deduplicate IDs (preserve order) to avoid double CheckoutItems / double status flips
@@ -73,7 +75,7 @@ def create_checkout(
             continue
         seen_ids.add(pid)
         unique_ids.append(pid)
-    if not unique_ids:
+    if not unique_ids and not consumable_quantities:
         raise ValueError("no_products")
 
     if not borrower_id:
@@ -113,7 +115,42 @@ def create_checkout(
             continue
         available.append(product)
 
-    if not available:
+    available_assets = [p for p in available if p.item_type != "consumable"]
+    available_consumables = {}
+    if consumable_quantities:
+        consumable_ids = []
+        for raw_pid, raw_qty in consumable_quantities.items():
+            try:
+                pid = int(raw_pid)
+                qty = int(raw_qty)
+            except (TypeError, ValueError):
+                continue
+            if qty <= 0:
+                continue
+            consumable_ids.append(pid)
+            available_consumables[pid] = qty
+        if consumable_ids:
+            consumables = (
+                Product.query.filter(Product.id.in_(consumable_ids))
+                .order_by(Product.id.asc())
+                .with_for_update()
+                .all()
+            )
+            valid = {}
+            for product in consumables:
+                requested_qty = available_consumables.get(product.id, 0)
+                if product.item_type != "consumable":
+                    continue
+                if product.status != "available":
+                    continue
+                if requested_qty > int(product.total_available or 0):
+                    raise ValueError("insufficient_stock")
+                valid[product.id] = (product, requested_qty)
+            available_consumables = valid
+        else:
+            available_consumables = {}
+
+    if not available_assets and not available_consumables:
         raise ValueError("no_available_products")
 
     checkout_number = generate_checkout_number()
@@ -134,7 +171,7 @@ def create_checkout(
     db.session.add(checkout)
     db.session.flush()
 
-    for product in available:
+    for product in available_assets:
         source_set_id = None
         if product_source_sets:
             raw = product_source_sets.get(product.id)
@@ -153,6 +190,28 @@ def create_checkout(
             )
         )
         product.status = "borrowed"
+
+    if available_consumables:
+        from app.services.inventory.stock_service import StockService
+
+        for product, qty in available_consumables.values():
+            StockService.reserve_stock(
+                product,
+                qty,
+                created_by_id,
+                reason=f"Checkout {checkout_number}",
+                context_type="borrow",
+                context_id=checkout_number,
+            )
+            db.session.add(
+                CheckoutItem(
+                    checkout_id=checkout.id,
+                    product_id=product.id,
+                    source_set_id=None,
+                    returned_at=None,
+                    legacy_transaction_id=qty,
+                )
+            )
 
     checkout.refresh_status()
     db.session.commit()
@@ -181,6 +240,8 @@ def return_checkout_items(
     mark_defective: bool = False,
     damage_image_path: Optional[str] = None,
 ) -> list[CheckoutItem]:
+    from app.services.inventory.stock_service import StockService
+
     items = CheckoutItem.query.filter(CheckoutItem.id.in_(list(item_ids))).all()
     if not items:
         raise ValueError("no_items")
@@ -193,12 +254,28 @@ def return_checkout_items(
             continue
         item.returned_at = now
         if item.product:
-            if mark_defective:
-                item.product.status = "defective"
-                if damage_image_path:
-                    item.product.damage_image_path = damage_image_path
+            if item.product.item_type == "consumable":
+                qty = int(item.legacy_transaction_id or 1)
+                qty = max(1, qty)
+                if item.checkout and item.checkout.created_by:
+                    try:
+                        StockService.release_reserved_stock(
+                            item.product,
+                            qty,
+                            user_id=item.checkout.created_by,
+                            reason=f"Return {item.checkout.checkout_number}",
+                            context_type="borrow",
+                            context_id=item.checkout.checkout_number,
+                        )
+                    except ValueError:
+                        pass
             else:
-                item.product.status = "available"
+                if mark_defective:
+                    item.product.status = "defective"
+                    if damage_image_path:
+                        item.product.damage_image_path = damage_image_path
+                else:
+                    item.product.status = "available"
         checkouts[item.checkout_id] = item.checkout
         returned.append(item)
 
@@ -336,6 +413,7 @@ def serialize_checkout(checkout: Checkout) -> dict:
                 "product_id": item.product_id,
                 "product_name": item.product.name if item.product else None,
                 "serial_number": item.product.serial_number if item.product else None,
+                "quantity": (int(item.legacy_transaction_id or 1) if item.product and item.product.item_type == "consumable" else 1),
                 "returned_at": item.returned_at.isoformat() if item.returned_at else None,
                 "is_out": item.is_out,
             }

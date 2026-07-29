@@ -34,7 +34,7 @@
             </div>
             <div class="settings-admin-users-list">
                 {% for user in pending_users %}
-                <div class="settings-admin-users-row">
+                <div class="settings-admin-users-row sau-row">
                     <div class="settings-admin-users-row-main">
                         <div class="settings-admin-users-name">{{ user.full_name }}</div>
                         <div class="settings-admin-users-meta">
@@ -44,19 +44,40 @@
                             <span>{{ _('settings.admin.users.registered') }} {{ user.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                     </div>
-                    <div class="settings-admin-users-row-actions">
-                        <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}">
-                            <button type="submit" class="btn btn-sm btn-accent settings-admin-users-btn" title="{{ _('settings.admin.users.activate') }}">
-                                <i class="bi bi-check-circle" aria-hidden="true"></i>
-                                <span class="d-none d-sm-inline">{{ _('settings.admin.users.activate') }}</span>
+                    <div class="sau-actions">
+                        <div class="sau-hover-actions">
+                            <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}">
+                                <button type="submit" class="btn btn-sm btn-link sau-icon-btn text-success" title="{{ _('settings.admin.users.activate') }}">
+                                    <i class="bi bi-check-circle" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
+                                <button type="submit" class="btn btn-sm btn-link sau-icon-btn text-danger" data-confirm-delete="{{ _('settings.admin.users.reject_confirm') }}" title="{{ _('settings.admin.users.reject') }}">
+                                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-link sau-icon-btn" data-bs-toggle="dropdown" aria-label="{{ _('common.more_actions') }}">
+                                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                             </button>
-                        </form>
-                        <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.reject_confirm') }}" title="{{ _('settings.admin.users.reject') }}">
-                                <i class="bi bi-x-circle" aria-hidden="true"></i>
-                                <span class="d-none d-sm-inline">{{ _('settings.admin.users.reject') }}</span>
-                            </button>
-                        </form>
+                            <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                                <li>
+                                    <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}">
+                                        <button type="submit" class="dropdown-item text-success">
+                                            <i class="bi bi-check-circle me-2" aria-hidden="true"></i>{{ _('settings.admin.users.activate') }}
+                                        </button>
+                                    </form>
+                                </li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
+                                        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('settings.admin.users.reject_confirm') }}">
+                                            <i class="bi bi-x-circle me-2" aria-hidden="true"></i>{{ _('settings.admin.users.reject') }}
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -112,13 +133,19 @@
         <div class="settings-admin-users-card-head">
             <h2 id="admin-users-active" class="settings-admin-users-section-title mb-0">
                 {{ _('settings.admin.users.active_title') }}
-                <span class="badge rounded-pill text-bg-secondary">{{ users_with_roles|length }}</span>
+                <span class="badge rounded-pill text-bg-secondary" id="activeUserCount">{{ users_with_roles|length }}</span>
             </h2>
         </div>
-        <div class="settings-admin-users-list">
+        <div class="sau-search-wrap">
+            <div class="sau-search-inner">
+                <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                <input type="search" id="userSearch" class="form-control sau-search-input" placeholder="{{ _('settings.admin.users.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.users.search_placeholder') }}">
+            </div>
+        </div>
+        <div class="settings-admin-users-list" id="activeUsersList">
             {% for item in users_with_roles %}
             {% set user = item.user %}
-            <div class="settings-admin-users-row">
+            <div class="settings-admin-users-row sau-row" data-search-name="{{ user.full_name|lower }}" data-search-email="{{ user.email|lower }}">
                 <div class="settings-admin-users-row-main">
                     <div class="settings-admin-users-name">
                         {{ user.full_name }}
@@ -153,38 +180,80 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="settings-admin-users-row-actions">
-                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.manage_roles') }}" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
-                        <i class="bi bi-person-badge" aria-hidden="true"></i>
-                    </button>
-                    {% if not user.is_admin %}
-                    <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{{ _('settings.admin.users.make_admin') }}">
-                            <i class="bi bi-shield-plus" aria-hidden="true"></i>
+                <div class="sau-actions">
+                    <div class="sau-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.manage_roles') }}" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
+                            <i class="bi bi-person-badge" aria-hidden="true"></i>
                         </button>
-                    </form>
-                    {% else %}
-                    <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary settings-admin-users-btn" title="{{ _('settings.admin.users.remove_admin') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                            <i class="bi bi-shield-minus" aria-hidden="true"></i>
+                        {% if not user.is_admin %}
+                        <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.make_admin') }}">
+                                <i class="bi bi-shield-plus" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.remove_admin') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                                <i class="bi bi-shield-minus" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.deactivate') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                                <i class="bi bi-pause-circle" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-link sau-icon-btn" data-bs-toggle="dropdown" aria-label="{{ _('common.more_actions') }}">
+                            <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                         </button>
-                    </form>
-                    {% endif %}
-                    <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{{ _('settings.admin.users.deactivate') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                            <i class="bi bi-pause-circle" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.delete_confirm') }}" title="{{ _('settings.admin.users.delete') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
-                    </form>
+                        <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                            <li>
+                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
+                                    <i class="bi bi-person-badge me-2" aria-hidden="true"></i>{{ _('settings.admin.users.manage_roles') }}
+                                </button>
+                            </li>
+                            {% if not user.is_admin %}
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-shield-plus me-2" aria-hidden="true"></i>{{ _('settings.admin.users.make_admin') }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% else %}
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}">
+                                    <button type="submit" class="dropdown-item" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                                        <i class="bi bi-shield-minus me-2" aria-hidden="true"></i>{{ _('settings.admin.users.remove_admin') }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}">
+                                    <button type="submit" class="dropdown-item" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                                        <i class="bi bi-pause-circle me-2" aria-hidden="true"></i>{{ _('settings.admin.users.deactivate') }}
+                                    </button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}">
+                                    <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('settings.admin.users.delete_confirm') }}" {% if user.id == current_user.id or user.is_super_admin %}disabled{% endif %}>
+                                        <i class="bi bi-trash me-2" aria-hidden="true"></i>{{ _('settings.admin.users.delete') }}
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             {% else %}
-            <p class="settings-admin-users-empty">{{ _('settings.admin.users.no_active') }}</p>
+            <p class="settings-admin-users-empty" id="noActiveUsersMsg">{{ _('settings.admin.users.no_active') }}</p>
             {% endfor %}
+            <p class="settings-admin-users-empty" id="noSearchResults" style="display:none;">{{ _('settings.admin.users.search_no_results') }}</p>
         </div>
     </section>
 
@@ -200,7 +269,7 @@
             {% for item in guest_users_with_roles %}
             {% set guest = item.user %}
             {% set is_expired = guest.guest_expires_at and guest.guest_expires_at < now %}
-            <div class="settings-admin-users-row{% if is_expired %} is-warn{% elif not guest.is_active %} is-muted{% endif %}">
+            <div class="settings-admin-users-row sau-row{% if is_expired %} is-warn{% elif not guest.is_active %} is-muted{% endif %}">
                 <div class="settings-admin-users-row-main">
                     <div class="settings-admin-users-name">
                         {{ guest.full_name }}
@@ -229,20 +298,44 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="settings-admin-users-row-actions">
-                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-users-btn" title="{{ _('settings.admin.users.edit_guest') }}" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
-                        <i class="bi bi-pencil" aria-hidden="true"></i>
-                    </button>
-                    <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-warning settings-admin-users-btn" title="{% if guest.is_active %}{{ _('settings.admin.users.deactivate') }}{% else %}{{ _('settings.admin.users.activate') }}{% endif %}">
-                            <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle" aria-hidden="true"></i>
+                <div class="sau-actions">
+                    <div class="sau-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.edit_guest') }}" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
                         </button>
-                    </form>
-                    <form method="POST" action="{{ url_for('settings.delete_user', user_id=guest.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-users-btn" data-confirm-delete="{{ _('settings.admin.users.delete_guest_confirm') }}" title="{{ _('settings.admin.users.delete') }}">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}">
+                            <button type="submit" class="btn btn-sm btn-link sau-icon-btn" title="{% if guest.is_active %}{{ _('settings.admin.users.deactivate') }}{% else %}{{ _('settings.admin.users.activate') }}{% endif %}">
+                                <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-link sau-icon-btn" data-bs-toggle="dropdown" aria-label="{{ _('common.more_actions') }}">
+                            <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                         </button>
-                    </form>
+                        <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                            <li>
+                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
+                                    <i class="bi bi-pencil me-2" aria-hidden="true"></i>{{ _('settings.admin.users.edit_guest') }}
+                                </button>
+                            </li>
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle me-2" aria-hidden="true"></i>{% if guest.is_active %}{{ _('settings.admin.users.deactivate') }}{% else %}{{ _('settings.admin.users.activate') }}{% endif %}
+                                    </button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=guest.id) }}">
+                                    <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('settings.admin.users.delete_guest_confirm') }}">
+                                        <i class="bi bi-trash me-2" aria-hidden="true"></i>{{ _('settings.admin.users.delete') }}
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -733,6 +826,30 @@ function toggleModuleRoles() {
     if (chips) chips.hidden = fullAccess;
     moduleCheckboxes.forEach(cb => { cb.disabled = fullAccess; });
 }
+
+// Benutzersuche
+(function () {
+    const searchInput = document.getElementById('userSearch');
+    if (!searchInput) return;
+    const list = document.getElementById('activeUsersList');
+    const noResults = document.getElementById('noSearchResults');
+    const countBadge = document.getElementById('activeUserCount');
+    const rows = list ? Array.from(list.querySelectorAll('.sau-row[data-search-name]')) : [];
+
+    searchInput.addEventListener('input', function () {
+        const q = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const name = row.getAttribute('data-search-name') || '';
+            const email = row.getAttribute('data-search-email') || '';
+            const match = !q || name.includes(q) || email.includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        if (noResults) noResults.style.display = (q && visible === 0) ? '' : 'none';
+        if (countBadge) countBadge.textContent = visible;
+    });
+})();
 
 function saveRoles() {
     const userId = document.getElementById('modalUserId').value;

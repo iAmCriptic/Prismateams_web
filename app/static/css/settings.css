@@ -1992,6 +1992,113 @@
     flex-shrink: 0;
 }
 
+/* ===== Hover-Icons + 3-Punkte-Menü (sau = settings-admin-users) ===== */
+.sau-row {
+    position: relative;
+}
+
+.sau-actions {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.sau-hover-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.sau-row:hover .sau-hover-actions,
+.sau-row:focus-within .sau-hover-actions {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sau-icon-btn {
+    color: var(--bs-secondary-color, #6c757d) !important;
+    text-decoration: none !important;
+    padding: 0.2rem 0.35rem !important;
+    line-height: 1 !important;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.sau-icon-btn:hover,
+.sau-icon-btn:focus {
+    color: var(--accent-color, #0d6efd) !important;
+    background: rgba(13, 110, 253, 0.08) !important;
+}
+
+.sau-icon-btn:disabled,
+.sau-icon-btn[disabled] {
+    opacity: 0.4 !important;
+    pointer-events: none !important;
+}
+
+.sau-dropdown-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+}
+
+.sau-dropdown-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.85rem;
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.sau-dropdown-menu .dropdown-item:hover,
+.sau-dropdown-menu .dropdown-item:focus {
+    background: rgba(13, 110, 253, 0.08);
+}
+
+.sau-dropdown-menu .dropdown-divider {
+    margin: 0.35rem 0.5rem;
+}
+
+/* Suchfeld */
+.sau-search-wrap {
+    padding: 0.6rem 0.9rem 0.5rem;
+    border-bottom: 1px solid var(--bs-border-color, rgba(0,0,0,0.08));
+}
+
+.sau-search-inner {
+    position: relative;
+}
+
+.sau-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--bs-secondary-color, #6c757d);
+    pointer-events: none;
+    font-size: 0.85rem;
+}
+
+.sau-search-input {
+    padding-left: 2.1rem !important;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-size: 0.9rem;
+}
+
+/* Mobile: Hover-Icons ausblenden */
+@media (max-width: 767.98px) {
+    .sau-hover-actions {
+        display: none !important;
+    }
+}
+
 .settings-admin-users-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-weight: 600;

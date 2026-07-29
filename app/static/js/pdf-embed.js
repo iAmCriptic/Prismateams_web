@@ -91,9 +91,17 @@
     }
 
     /**
-     * Pinch + double-tap zoom on the zoom layer only.
-     * At 1x: do not touch scrolling — root scrolls natively through pages.
-     * When zoomed: pan via transform; header stays outside this root.
+     * Pinch + double-tap zoom + momentum-pan on the zoom layer.
+     *
+     * Koordinatensystem:
+     *   tx/ty sind Verschiebungen im CSS-Koordinatensystem des Scrollers
+     *   (ohne scrollTop), d.h. der Zoom-Ursprung wird immer relativ zur
+     *   sichtbaren Viewport-Position des Fingers berechnet.
+     *
+     * Beim 1x-Zoom: natives Scroll bleibt komplett unangetastet.
+     * Beim Pinch:   sofort preventDefault — kein gleichzeitiges Scrollen.
+     * Im Zoom-Modus (1x+): Pan per transform + Momentum (Fling) nach
+     *   Finger-Abheben, damit schnelles Wischen natürlich weiterfährt.
      */
     function enableContainedZoom(scroller, zoomLayer) {
         var MIN = 1;
@@ -101,24 +109,30 @@
         var scale = 1;
         var tx = 0;
         var ty = 0;
+
         var pointers = Object.create(null);
         var pinch = null;
         var pan = null;
         var moved = false;
         var didPinch = false;
+        var pinchActive = false;
         var lastTapTime = 0;
         var lastTapX = 0;
         var lastTapY = 0;
 
-        function isZoomed() {
-            return scale > 1.01;
-        }
+        // Momentum / Fling
+        var flingRaf = null;
+        var flingVx = 0;
+        var flingVy = 0;
+        var FLING_FRICTION = 0.88;
+        var FLING_MIN = 0.4;
+
+        function isZoomed() { return scale > 1.01; }
 
         function applyTransform() {
             if (!isZoomed()) {
                 zoomLayer.style.transform = '';
                 scroller.classList.remove('pdf-embed--zoomed');
-                // Restore native scroll after zoom-out
                 return;
             }
             zoomLayer.style.transform =
@@ -127,20 +141,50 @@
         }
 
         function clampPan() {
-            if (!isZoomed()) {
-                tx = 0;
-                ty = 0;
-                return;
-            }
+            if (!isZoomed()) { tx = 0; ty = 0; return; }
             var rect = scroller.getBoundingClientRect();
-            var sw = Math.max(zoomLayer.scrollWidth, zoomLayer.offsetWidth) * scale;
-            var sh = Math.max(zoomLayer.scrollHeight, zoomLayer.offsetHeight) * scale;
-            var maxX = Math.max(24, (sw - rect.width) / 2 + 48);
-            var maxY = Math.max(24, (sh - rect.height) / 2 + 48);
-            // Keep some room relative to current scroll offset
-            maxY += scroller.scrollTop;
-            tx = Math.max(-maxX, Math.min(maxX, tx));
-            ty = Math.max(-maxY, Math.min(maxY, ty));
+            var contentW = zoomLayer.offsetWidth  || zoomLayer.scrollWidth;
+            var contentH = zoomLayer.offsetHeight || zoomLayer.scrollHeight;
+            var scaledW = contentW * scale;
+            var scaledH = contentH * scale;
+            // transform-origin ist 0 0, d.h. tx/ty verschieben ab der oberen linken Ecke.
+            // tx darf maximal 0 sein (kein Überhang links) und minimal (rect.width - scaledW).
+            // Wenn scaledW < rect.width → zentrieren
+            if (scaledW <= rect.width) {
+                tx = (rect.width - scaledW) / 2;
+            } else {
+                tx = Math.min(0, Math.max(rect.width - scaledW, tx));
+            }
+            if (scaledH <= rect.height) {
+                ty = (rect.height - scaledH) / 2;
+            } else {
+                ty = Math.min(0, Math.max(rect.height - scaledH, ty));
+            }
+        }
+
+        function stopFling() {
+            if (flingRaf) { cancelAnimationFrame(flingRaf); flingRaf = null; }
+            flingVx = 0;
+            flingVy = 0;
+        }
+
+        function startFling() {
+            if (!isZoomed()) return;
+            if (Math.abs(flingVx) < FLING_MIN && Math.abs(flingVy) < FLING_MIN) return;
+            function step() {
+                flingVx *= FLING_FRICTION;
+                flingVy *= FLING_FRICTION;
+                tx += flingVx;
+                ty += flingVy;
+                clampPan();
+                applyTransform();
+                if (Math.abs(flingVx) > FLING_MIN || Math.abs(flingVy) > FLING_MIN) {
+                    flingRaf = requestAnimationFrame(step);
+                } else {
+                    flingRaf = null;
+                }
+            }
+            flingRaf = requestAnimationFrame(step);
         }
 
         function pointerList() {
@@ -148,38 +192,57 @@
         }
 
         function dist(a, b) {
-            var dx = a.x - b.x;
-            var dy = a.y - b.y;
+            var dx = a.x - b.x; var dy = a.y - b.y;
             return Math.sqrt(dx * dx + dy * dy);
         }
 
+        /**
+         * Zoom um einen Bildschirmpunkt herum.
+         * clientX/Y: Viewport-Koordinaten des Fingers.
+         * transform-origin ist 0 0 → Formel:
+         *   neues tx = finger_im_scroller - inhaltspunkt * nextScale
+         *
+         * scrollTop wird eingerechnet: vor dem ersten Zoom ist overflow:auto
+         * und der Scroller kann gescrollt sein. Danach ist overflow:hidden
+         * und scrollTop = 0. Deshalb wird scrollTop nur berücksichtigt wenn
+         * der Scale-Wechsel von 1x auf >1x passiert (baseTy == 0 und scrollTop > 0).
+         */
         function setScaleAround(clientX, clientY, nextScale, baseScale, baseTx, baseTy) {
             nextScale = Math.max(MIN, Math.min(MAX, nextScale));
             var rect = scroller.getBoundingClientRect();
-            var cx = clientX - rect.left;
-            var cy = clientY - rect.top;
-            var ratio = nextScale / baseScale;
-            tx = cx - (cx - baseTx) * ratio;
-            ty = cy - (cy - baseTy) * ratio;
+            var fx = clientX - rect.left;
+            // Beim Übergang 1x → gezoomt: scrollTop einrechnen damit der
+            // sichtbare Fingerpunkt korrekt gemappt wird.
+            // Im gezoomten Zustand ist scrollTop bereits 0 (overflow:hidden).
+            var scrollOffset = (baseScale <= 1.01) ? scroller.scrollTop : 0;
+            var fy = clientY - rect.top + scrollOffset;
+            // Inhaltspunkt unter dem Finger im unscalierten Raum
+            var contentX = (fx - baseTx) / baseScale;
+            var contentY = (fy - baseTy) / baseScale;
+            tx = fx - contentX * nextScale;
+            ty = fy - contentY * nextScale;
             scale = nextScale;
             if (!isZoomed()) {
-                scale = 1;
-                tx = 0;
-                ty = 0;
+                scale = 1; tx = 0; ty = 0;
             } else {
                 clampPan();
             }
             applyTransform();
         }
 
+        // ── Pointer-Events ─────────────────────────────────────────────────
+
         scroller.addEventListener('pointerdown', function (e) {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
+            stopFling();
             pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
             moved = false;
 
             var pts = pointerList();
             if (pts.length === 2) {
+                e.preventDefault();
                 didPinch = true;
+                pinchActive = true;
                 pan = null;
                 pinch = {
                     startDist: dist(pts[0], pts[1]) || 1,
@@ -189,20 +252,20 @@
                     originX: (pts[0].x + pts[1].x) / 2,
                     originY: (pts[0].y + pts[1].y) / 2
                 };
-                try { scroller.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+                try { scroller.setPointerCapture(e.pointerId); } catch (_) {}
             } else if (pts.length === 1 && isZoomed()) {
-                pan = { x: e.clientX, y: e.clientY };
-                try { scroller.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+                pan = { x: e.clientX, y: e.clientY, t: Date.now(), vx: 0, vy: 0 };
+                try { scroller.setPointerCapture(e.pointerId); } catch (_) {}
             }
-            // At 1x with one finger: do nothing — allow native scroll
-        });
+            // 1x + 1 Finger → natives Scrollen erlaubt
+        }, { passive: false });
 
         scroller.addEventListener('pointermove', function (e) {
             if (!pointers[e.pointerId]) return;
             var prev = pointers[e.pointerId];
-            if (Math.abs(e.clientX - prev.x) > 3 || Math.abs(e.clientY - prev.y) > 3) {
-                moved = true;
-            }
+            var dx = e.clientX - prev.x;
+            var dy = e.clientY - prev.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
             pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
             var pts = pointerList();
 
@@ -212,22 +275,28 @@
                 var midX = (pts[0].x + pts[1].x) / 2;
                 var midY = (pts[0].y + pts[1].y) / 2;
                 var next = pinch.startScale * (d / pinch.startDist);
+                // Zoom: Ursprung = Startmittelpunkt der Finger (konstant),
+                // dann Versatz durch Mittelpunkt-Wanderung dazuaddieren
                 setScaleAround(
-                    pinch.originX,
-                    pinch.originY,
+                    pinch.originX, pinch.originY,
                     next,
-                    pinch.startScale,
-                    pinch.startTx,
-                    pinch.startTy
+                    pinch.startScale, pinch.startTx, pinch.startTy
                 );
+                // Mittelpunktversatz (Translation der Finger) einrechnen
                 tx += midX - pinch.originX;
                 ty += midY - pinch.originY;
                 clampPan();
                 applyTransform();
             } else if (pan && pts.length === 1 && isZoomed()) {
                 e.preventDefault();
-                tx += e.clientX - pan.x;
-                ty += e.clientY - pan.y;
+                var now = Date.now();
+                var dt = Math.max(1, now - pan.t);
+                // Geschwindigkeit für Fling-Berechnung tracken (exponentieller Glättung)
+                pan.vx = (pan.vx * 0.6) + (dx / dt * 16 * 0.4);
+                pan.vy = (pan.vy * 0.6) + (dy / dt * 16 * 0.4);
+                pan.t = now;
+                tx += dx;
+                ty += dy;
                 pan.x = e.clientX;
                 pan.y = e.clientY;
                 clampPan();
@@ -241,31 +310,35 @@
             var pts = pointerList();
 
             if (pts.length < 2) pinch = null;
+            if (pts.length === 0) pinchActive = false;
+
             if (pts.length === 1 && isZoomed()) {
-                pan = { x: pts[0].x, y: pts[0].y };
+                pan = { x: pts[0].x, y: pts[0].y, t: Date.now(), vx: 0, vy: 0 };
             } else if (pts.length === 0) {
+                // Fling starten wenn der letzte Pan-Finger gehoben wird
+                if (pan && isZoomed()) {
+                    flingVx = pan.vx;
+                    flingVy = pan.vy;
+                    startFling();
+                }
                 pan = null;
             }
 
             if (!wasInPointers) return;
             if (e.pointerType === 'mouse') return;
             if (pts.length > 0) return;
-            if (didPinch) {
-                didPinch = false;
-                return;
-            }
+            if (didPinch) { didPinch = false; return; }
             if (moved) return;
 
+            // Double-tap
             var now = Date.now();
             var dt = now - lastTapTime;
-            var dx = Math.abs(e.clientX - lastTapX);
-            var dy = Math.abs(e.clientY - lastTapY);
-            if (dt < 280 && dx < 28 && dy < 28) {
+            var ddx = Math.abs(e.clientX - lastTapX);
+            var ddy = Math.abs(e.clientY - lastTapY);
+            if (dt < 280 && ddx < 28 && ddy < 28) {
                 e.preventDefault();
                 if (scale > 1.2) {
-                    scale = 1;
-                    tx = 0;
-                    ty = 0;
+                    scale = 1; tx = 0; ty = 0;
                     applyTransform();
                 } else {
                     setScaleAround(e.clientX, e.clientY, 2.5, scale, tx, ty);
@@ -281,15 +354,22 @@
         scroller.addEventListener('pointerup', onPointerEnd);
         scroller.addEventListener('pointercancel', onPointerEnd);
 
-        // Block browser page-zoom only for multi-touch / while zoomed — never block 1x scroll
+        // ── Touch-Events: Pinch/Zoom-Scroll-Konflikte blockieren ───────────
+        // iOS Safari leitet Scroll schon beim touchstart ein → sofort stoppen
+        scroller.addEventListener('touchstart', function (e) {
+            if (e.touches.length >= 2) e.preventDefault();
+        }, { passive: false });
+
         scroller.addEventListener('gesturestart', function (e) { e.preventDefault(); });
         scroller.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+
         scroller.addEventListener('touchmove', function (e) {
-            if (e.touches.length >= 2 || isZoomed()) {
+            if (e.touches.length >= 2 || pinchActive || isZoomed()) {
                 e.preventDefault();
             }
         }, { passive: false });
 
+        // ── Trackpad-Pinch-Zoom (Desktop) ──────────────────────────────────
         scroller.addEventListener('wheel', function (e) {
             if (!(e.ctrlKey || e.metaKey)) return;
             e.preventDefault();

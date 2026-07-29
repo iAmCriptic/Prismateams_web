@@ -78,7 +78,7 @@
                     <i class="bi bi-cart3" aria-hidden="true"></i>
                     Warenkorb
                 </h2>
-                <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
+                <span class="badge bg-primary" id="cartCount">{{ cart_count if cart_count is defined else cart_products|length }}</span>
             </div>
             <div class="inventory-panel-body">
                 <div id="cartItems" class="inventory-cart-list">
