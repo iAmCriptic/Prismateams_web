@@ -138,6 +138,51 @@
         </section>
     </div>
 
+    {# —— Google Login —— #}
+    {% if not current_user.is_guest %}
+    <section class="settings-security-card mb-3" aria-labelledby="security-google-heading">
+        <div class="settings-security-card-head">
+            <h2 id="security-google-heading" class="settings-security-section-title mb-0">{{ _('settings.security.google.heading') }}</h2>
+            <button type="button" class="settings-security-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.security.google.help') }}" aria-label="{{ _('settings.security.google.help') }}">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+            </button>
+        </div>
+        <p class="settings-security-hint">{{ _('settings.security.google.intro') }}</p>
+
+        {% if not google_login_ready|default(false) %}
+        <div class="alert alert-permanent portal-msg portal-msg--warning mb-0" role="status">
+            <div class="portal-msg__body">
+                <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portal-msg__content">
+                    <p class="portal-msg__text">{{ _('settings.security.google.admin_required') }}</p>
+                    {% if current_user.is_admin %}
+                    <div class="portal-msg__actions">
+                        <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">{{ _('settings.integrations.heading') }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% elif google_linked|default(false) %}
+        <div class="settings-security-status-row mb-2">
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.security.google.status_linked') }}</span>
+            {% if google_email %}<span class="text-muted small ms-2">{{ google_email }}</span>{% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('settings.security_google_unlink') }}" onsubmit="return confirm('{{ _('settings.security.google.unlink_confirm') }}');">
+            <button type="submit" class="btn btn-outline-danger settings-security-btn">{{ _('settings.security.google.unlink') }}</button>
+        </form>
+        {% else %}
+        <div class="settings-security-status-row mb-2">
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.security.google.status_unlinked') }}</span>
+        </div>
+        <a href="{{ url_for('settings.security_google_link') }}" class="btn btn-accent settings-security-btn">
+            <i class="bi bi-google me-1" aria-hidden="true"></i>
+            {{ _('settings.security.google.link') }}
+        </a>
+        {% endif %}
+    </section>
+    {% endif %}
+
     {# —— Geräte —— #}
     <section id="security-devices" class="settings-security-card settings-security-devices" aria-labelledby="security-devices-heading">
         <div class="settings-security-card-head">

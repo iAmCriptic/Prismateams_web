@@ -1,0 +1,173 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ team.name }} - {{ _('settings.admin.teams.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ team.name }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-teams" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+    <a href="{{ url_for('settings.admin_teams') }}" class="settings-subpage-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+    <div class="settings-admin-teams-header">
+        <div class="settings-admin-teams-detail-head">
+            <div class="settings-admin-teams-detail-title-row">
+                <div class="settings-admin-teams-avatar settings-admin-teams-avatar-lg">
+                    {% if team.image %}
+                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                    {% else %}
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="settings-admin-teams-title mb-1">{{ team.name }}</h1>
+                    {% if team.description %}
+                    <p class="settings-admin-teams-subtitle mb-1">{{ team.description }}</p>
+                    {% endif %}
+                    <div class="settings-admin-teams-card-meta">
+                        <span>{{ _('settings.admin.teams.members_count', count=members|length) }}</span>
+                        {% if team.leader %}
+                        <span aria-hidden="true">·</span>
+                        <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-admin-teams-header-actions">
+            {% if can_edit_team_meta|default(true) %}
+            <a href="{{ url_for('settings.edit_team', team_id=team.id) }}" class="btn btn-outline-secondary settings-admin-teams-btn">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.edit') }}
+            </a>
+            <form method="POST" action="{{ url_for('settings.delete_team', team_id=team.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.delete_confirm', name=team.name) }}">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                    {{ _('settings.admin.teams.delete') }}
+                </button>
+            </form>
+            {% endif %}
+            {% if email_multi_enabled %}
+            <a href="{{ url_for('settings.team_mailboxes', team_id=team.id) }}" class="btn btn-outline-primary settings-admin-teams-btn">
+                <i class="bi bi-envelope" aria-hidden="true"></i>
+                {{ _('settings.mailboxes.team_mailboxes') }}
+            </a>
+            {% endif %}
+            <button type="button" class="btn btn-accent settings-admin-teams-btn" data-bs-toggle="modal" data-bs-target="#addMembersModal">
+                <i class="bi bi-person-plus" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.add_members') }}
+            </button>
+        </div>
+    </div>
+
+    <section class="settings-admin-teams-panel">
+        <h2 class="settings-admin-teams-section-title">{{ _('settings.admin.teams.members_title') }}</h2>
+        {% if members %}
+        <div class="settings-admin-teams-member-list">
+            {% for m in members %}
+            <div class="settings-admin-teams-member-row">
+                <div class="settings-admin-teams-member-main">
+                    <div class="settings-admin-teams-member-name">
+                        {{ m.user.full_name }}
+                        {% if team.leader_id == m.user_id %}
+                        <span class="badge rounded-pill text-bg-primary">{{ _('settings.admin.teams.badge_leader') }}</span>
+                        {% endif %}
+                        {% if m.user.is_guest %}
+                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="settings-admin-teams-card-meta">
+                        {% if m.user.is_guest %}
+                        <code>{{ m.user.guest_username or m.user.email }}</code>
+                        {% else %}
+                        <span>{{ m.user.email }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
+                    <input type="hidden" name="action" value="remove_member">
+                    <input type="hidden" name="user_id" value="{{ m.user_id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.remove_member_confirm', name=m.user.full_name) }}">
+                        <i class="bi bi-person-dash" aria-hidden="true"></i>
+                        {{ _('settings.admin.teams.remove_member') }}
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.no_members') }}</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="modal fade settings-admin-roles-modal" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
+                <input type="hidden" name="action" value="add_members">
+                <div class="modal-header settings-admin-roles-modal-header">
+                    <h5 class="modal-title" id="addMembersModalLabel">{{ _('settings.admin.teams.add_members') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body settings-admin-roles-modal-body">
+                    {% if available_users %}
+                    <div class="settings-admin-teams-modal-search">
+                        <div class="sau-search-inner">
+                            <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                            <input type="search" id="memberPickerSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_users_placeholder') }}" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="settings-admin-teams-picker-list" id="memberPickerList">
+                        {% for u in available_users %}
+                        <label class="settings-admin-teams-picker-item" data-search-name="{{ u.full_name|lower }}" data-search-email="{{ (u.guest_username or u.email)|lower }}">
+                            <input class="form-check-input" type="checkbox" name="user_ids" value="{{ u.id }}">
+                            <span class="settings-admin-teams-picker-text">
+                                <strong>{{ u.full_name }}</strong>
+                                {% if u.is_guest %}
+                                <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
+                                {% endif %}
+                                <br>
+                                <small>{% if u.is_guest %}{{ u.guest_username or u.email }}{% else %}{{ u.email }}{% endif %}</small>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mb-0">{{ _('settings.admin.teams.all_users_already_members') }}</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer settings-admin-roles-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent settings-admin-roles-btn" {% if not available_users %}disabled{% endif %}>
+                        <i class="bi bi-person-plus" aria-hidden="true"></i>
+                        {{ _('settings.admin.teams.add_selected') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var modalEl = document.getElementById('addMembersModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    var input = document.getElementById('memberPickerSearch');
+    var list = document.getElementById('memberPickerList');
+    if (!input || !list) return;
+    input.addEventListener('input', function () {
+        var q = (input.value || '').trim().toLowerCase();
+        list.querySelectorAll('.settings-admin-teams-picker-item').forEach(function (item) {
+            var name = item.getAttribute('data-search-name') || '';
+            var email = item.getAttribute('data-search-email') || '';
+            item.hidden = !!(q && name.indexOf(q) === -1 && email.indexOf(q) === -1);
+        });
+    });
+})();
+</script>
+{% endblock %}

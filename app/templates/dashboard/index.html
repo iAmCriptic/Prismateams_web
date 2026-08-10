@@ -237,38 +237,19 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// What's New (v3.0.0)
+// What's New (v3.1.0)
 (function initWhatsNew() {
-    const VERSION = {{ (whats_new_version|default('3.0.0'))|tojson }};
+    const VERSION = {{ (whats_new_version|default('3.1.0'))|tojson }};
     const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
-    const panelsOrder = [
-        'welcome', 'overview', 'general', 'dashboard', 'security', 'chat', 'files',
-        'calendar', 'events', 'email', 'contacts', 'credentials', 'manuals',
-        'inventory', 'booking', 'music', 'assessment', 'shortlinks', 'media_downloader', 'wiki'
-    ];
+    const panelsOrder = ['welcome', 'overview', 'general', 'settings', 'email'];
     const titleEl = document.querySelector('[data-whats-new-title]');
-    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.0.0'), current='{current}', total='{total}')|tojson }};
+    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.1.0'), current='{current}', total='{total}')|tojson }};
     const moduleTitles = {
         welcome: {{ _('dashboard.whats_new.welcome.title')|tojson }},
         overview: {{ _('dashboard.whats_new.overview_label')|tojson }},
         general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
-        dashboard: {{ _('dashboard.whats_new.modules.dashboard.title')|tojson }},
-        security: {{ _('dashboard.whats_new.modules.security.title')|tojson }},
-        chat: {{ _('dashboard.whats_new.modules.chat.title')|tojson }},
-        files: {{ _('dashboard.whats_new.modules.files.title')|tojson }},
-        calendar: {{ _('dashboard.whats_new.modules.calendar.title')|tojson }},
-        events: {{ _('dashboard.whats_new.modules.events.title')|tojson }},
-        email: {{ _('dashboard.whats_new.modules.email.title')|tojson }},
-        contacts: {{ _('dashboard.whats_new.modules.contacts.title')|tojson }},
-        credentials: {{ _('dashboard.whats_new.modules.credentials.title')|tojson }},
-        manuals: {{ _('dashboard.whats_new.modules.manuals.title')|tojson }},
-        inventory: {{ _('dashboard.whats_new.modules.inventory.title')|tojson }},
-        booking: {{ _('dashboard.whats_new.modules.booking.title')|tojson }},
-        music: {{ _('dashboard.whats_new.modules.music.title')|tojson }},
-        assessment: {{ _('dashboard.whats_new.modules.assessment.title')|tojson }},
-        shortlinks: {{ _('dashboard.whats_new.modules.shortlinks.title')|tojson }},
-        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }},
-        wiki: {{ _('dashboard.whats_new.modules.wiki.title')|tojson }}
+        settings: {{ _('dashboard.whats_new.modules.settings.title')|tojson }},
+        email: {{ _('dashboard.whats_new.modules.email.title')|tojson }}
     };
     let currentPanel = 'welcome';
     let seenMarked = !AUTO_OPEN;

@@ -124,9 +124,11 @@
     "register": {
       "title": "Registrieren",
       "subtitle": "Erstelle dein Konto für Prismateams.",
+      "subtitle_google": "Daten aus Google übernommen — bitte prüfen, Passwort setzen und absenden.",
       "first_name": "Vorname",
       "last_name": "Nachname",
       "email": "E-Mail-Adresse",
+      "email_google_locked": "Die E-Mail-Adresse kommt von Google und kann hier nicht geändert werden.",
       "phone_optional": "Telefonnummer (optional)",
       "password": "Passwort",
       "password_help": "Mindestens 12 Zeichen, Groß- und Kleinbuchstaben, Zahlen und Sonderzeichen.",
@@ -134,6 +136,8 @@
       "dark_mode_label": "Dunkelmodus aktivieren",
       "dark_mode_help": "Du kannst diese Einstellung jederzeit in deinem Profil ändern.",
       "submit": "Konto erstellen",
+      "google_connected": "Mit Google verbunden",
+      "google_disconnect": "Ohne Google fortfahren",
       "login_link_prefix": "Schon registriert?",
       "login_link_cta": "Hier anmelden",
       "switch_title": "Schon dabei?",
@@ -194,8 +198,10 @@
       "email_already_registered": "Diese E-Mail-Adresse ist bereits registriert.",
       "register_success_whitelisted": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.",
       "register_success_whitelisted_no_email": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.",
+      "register_success_google_whitelisted": "Registrierung erfolgreich! Dein Konto wurde automatisch aktiviert. Die E-Mail-Adresse wurde über Google bestätigt.",
       "register_pending_admin": "Dein Konto muss vom Administrator freigeschaltet werden. Nach der Freischaltung erhältst du einen Bestätigungscode per E-Mail.",
       "register_pending_admin_no_email": "Dein Konto muss vom Administrator freigeschaltet werden. Nach der Freischaltung erhältst du einen Bestätigungscode per E-Mail.",
+      "register_pending_admin_google": "Dein Konto muss vom Administrator freigeschaltet werden. Die E-Mail-Adresse wurde bereits über Google bestätigt — ein Bestätigungscode entfällt.",
       "enter_email_password": "Bitte geben Sie E-Mail und Passwort ein.",
       "invalid_credentials": "Ungültige E-Mail oder Passwort.",
       "guest_account_expired": "Ihr Gast-Account ist abgelaufen und wurde entfernt.",
@@ -229,6 +235,27 @@
     },
     "bot_protection": {
       "recaptcha_required": "Bitte bestätigen Sie, dass Sie kein Roboter sind."
+    },
+    "google": {
+      "or": "oder",
+      "login_with": "Mit",
+      "login_with_aria": "Mit Google anmelden",
+      "register_with_aria": "Mit Google registrieren",
+      "login_hint": "Mit verknüpftem Konto anmelden. Neu? Registriere dich mit Google auf der Registrierungsseite.",
+      "register_hint": "E-Mail, Name und Profilbild werden übernommen. Passwort setzt du selbst. Freischaltung bleibt nötig — der Bestätigungscode entfällt.",
+      "register_prefill_ready": "Google-Daten übernommen. Bitte Passwort setzen und Registrierung abschließen.",
+      "register_via_login": "Noch kein Konto — bitte Registrierung mit den Google-Daten abschließen.",
+      "already_registered": "Dieses Google-Konto ist bereits registriert. Bitte melde dich an.",
+      "email_exists_link_instead": "Diese E-Mail ist bereits registriert. Melde dich an und verknüpfe Google unter Einstellungen → Sicherheit.",
+      "not_configured": "Google-Login ist noch nicht eingerichtet. Bitte unter Verknüpfungen Client-ID und Secret hinterlegen.",
+      "error": "Google-Anmeldung fehlgeschlagen: {error}",
+      "not_linked": "Dieses Google-Konto ist noch nicht verknüpft. Melde dich mit Passwort an und verknüpfe Google unter Einstellungen → Sicherheit.",
+      "link_requires_login": "Bitte melde dich zuerst an, um Google zu verknüpfen.",
+      "link_guest_forbidden": "Gastkonten können Google nicht verknüpfen.",
+      "already_linked_other": "Dieses Google-Konto ist bereits mit einem anderen Benutzer verknüpft.",
+      "link_success": "Google-Konto verknüpft. Bei aktivem Multi-Postfach wurde „Gmail“ angelegt bzw. aktualisiert.",
+      "unlink_success": "Google-Verknüpfung entfernt.",
+      "not_linked_account": "Es ist kein Google-Konto verknüpft."
     }
   },
   "dashboard": {
@@ -304,6 +331,15 @@
             "email_templates": "Einheitliches E-Mail-Template-System für alle Systemmails.",
             "pdf": "PDF-Generator überarbeitet (Inventar, Events, Booking, QR).",
             "i18n": "Übersetzungen und Mehrsprachigkeit weiter ausgebaut."
+          }
+        },
+        "settings": {
+          "title": "Einstellungen",
+          "teaser": "OAuth, Google & Teams",
+          "items": {
+            "oauth": "Neue OAuth-Anbindungen in den Einstellungen.",
+            "google": "Sign in with Google – Anmeldung und Kontoverknüpfung.",
+            "teams": "Neue Teameinrichtung als Basis für zukünftige Updates."
           }
         },
         "dashboard": {
@@ -384,15 +420,10 @@
         },
         "email": {
           "title": "E-Mail",
-          "teaser": "Design, Mobile & Rechte",
+          "teaser": "Multi-Postfächer & Teams",
           "items": {
-            "design": "Designanpassungen für eine klarere Oberfläche.",
-            "mobile_layout": "Mobile Layout Fixes.",
-            "mobile_nav": "Mobile Navigation Fixes.",
-            "permissions": "Berechtigungen zum Lesen und Senden pro Benutzer.",
-            "sent_folder": "Gesendete Mails können im IMAP-Sent-Ordner landen.",
-            "templates": "Systemmails nutzen das neue einheitliche Template.",
-            "fixes": "Weitere Stabilitäts- und UI-Fixes."
+            "multi_mailbox": "Neue Multi-Postfächer – mehrere Mailboxen parallel nutzen und verwalten.",
+            "team": "Erste Integration von Team-Funktionalitäten im E-Mail-Modul."
           }
         },
         "contacts": {
@@ -706,7 +737,8 @@
       "sections": {
         "account": "Konto",
         "modules": "Moduleinstellungen"
-      }
+      },
+      "team_lead_heading": "Teamleitung"
     },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
@@ -794,6 +826,11 @@
           "description": "Informationen über PrismaTeams, Version und Ersteller",
           "button": "Öffnen"
         },
+        "my_mailboxes": {
+          "title": "Meine Postfächer",
+          "description": "Private Postfächer verwalten und verbinden",
+          "button": "Öffnen"
+        },
         "admin": {
           "title": "Administration",
           "description": "Benutzerverwaltung und System-Einstellungen",
@@ -849,7 +886,12 @@
       "flash_picture_uploaded": "Profilbild wurde erfolgreich hochgeladen.",
       "flash_picture_removed": "Profilbild wurde entfernt.",
       "flash_profile_updated": "Profil wurde aktualisiert.",
-      "flash_guests_cannot_edit": "Gast-Accounts können ihr Profil nicht bearbeiten."
+      "flash_guests_cannot_edit": "Gast-Accounts können ihr Profil nicht bearbeiten.",
+      "teams": {
+        "heading": "Meine Teams",
+        "empty": "Du bist derzeit in keinem Team.",
+        "leader_badge": "Leitung"
+      }
     },
     "security": {
       "page_title": "Sicherheit - Einstellungen",
@@ -935,6 +977,17 @@
         "no_sessions_to_revoke": "Keine anderen Sitzungen zum Abmelden.",
         "no_sessions": "Keine aktiven Sitzungen gefunden.",
         "invalid_session": "Ungültige Sitzung."
+      },
+      "google": {
+        "heading": "Google-Login",
+        "help": "Portal-Konto mit Google verknüpfen — für Login und Registrierung mit Google.",
+        "intro": "Verknüpfe dein Google-Konto, um dich per Google anzumelden. Neue Nutzer können sich auch mit Google registrieren (Passwort trotzdem nötig, Freischaltung bleibt). Bei aktivem Multi-Postfach wird automatisch ein privates Postfach „Gmail“ angelegt.",
+        "admin_required": "Google OAuth ist noch nicht konfiguriert. Ein Admin muss unter Verknüpfungen Client-ID und Secret hinterlegen.",
+        "status_linked": "Verknüpft",
+        "status_unlinked": "Nicht verknüpft",
+        "link": "Mit Google verknüpfen",
+        "unlink": "Verknüpfung entfernen",
+        "unlink_confirm": "Google-Verknüpfung wirklich entfernen? Das Gmail-Postfach bleibt erhalten."
       }
     },
     "notifications": {
@@ -1401,6 +1454,17 @@
           "template_label": "Footer-Template",
           "template_placeholder": "Footer-Text mit optionalen Variablen…",
           "preview_label": "Vorschau"
+        },
+        "multi": {
+          "title": "Multi-Postfach",
+          "lead": "Zusätzlich zum Hauptpostfach (App-Config) können Team-, Gruppen- und private Postfächer genutzt werden.",
+          "toggle_label": "Multi-Postfach aktivieren",
+          "toggle_help": "Aus = unverändertes Einzelpostfach. An = Outlook-Sidebar mit mehreren Postfächern.",
+          "max_private_label": "Max. private Postfächer pro Nutzer",
+          "max_private_help": "Limit für selbst angelegte private Postfächer.",
+          "html_design_label": "HTML-Design standardmäßig an",
+          "html_design_help": "Beim Verfassen: Layout mit Logo. Aus = formatierter Text ohne Design-Wrapper.",
+          "manage_link": "Postfächer verwalten"
         }
       },
       "backup": {
@@ -1703,6 +1767,10 @@
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
           "description": "Bot-Schutz für Login, Registrierung, Briefkästen und Freigaben"
+        },
+        "teams": {
+          "title": "Teams",
+          "description": "Teams anlegen und Benutzer zuordnen"
         }
       },
       "registration": {
@@ -1805,7 +1873,200 @@
         "save_button": "Speichern",
         "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+      },
+      "teams": {
+        "page_title": "Teams - Administration",
+        "heading": "Teams",
+        "subtitle": "Teams anlegen und Mitglieder zuordnen. Noch ohne Anbindung an Module.",
+        "create": "Team erstellen",
+        "create_heading": "Neues Team",
+        "create_page_title": "Team erstellen - Administration",
+        "edit": "Bearbeiten",
+        "edit_heading": "Team bearbeiten",
+        "edit_page_title": "Team bearbeiten - Administration",
+        "form_subtitle": "Nur der Name ist Pflicht. Beschreibung, Bild, Farbe und Leitung sind optional.",
+        "save": "Speichern",
+        "delete": "Löschen",
+        "delete_confirm": "Team \"{name}\" wirklich löschen?",
+        "back_to_list": "Zur Übersicht",
+        "empty": "Noch keine Teams vorhanden.",
+        "search_placeholder": "Teams suchen…",
+        "search_no_results": "Keine Teams gefunden.",
+        "search_users_placeholder": "Benutzer suchen…",
+        "members_count": "{count} Mitglieder",
+        "led_by": "Leitung: {name}",
+        "field_name": "Name",
+        "field_description": "Beschreibung",
+        "field_color": "Farbe",
+        "field_color_help": "Optional. Wird in Listen und Chips angezeigt.",
+        "clear_color": "Farbe entfernen",
+        "field_leader": "Leitung",
+        "field_leader_help": "Die Leitung wird automatisch als Mitglied hinzugefügt. Keine Extra-Rechte.",
+        "no_leader": "Keine Leitung",
+        "field_image": "Bild",
+        "field_image_help": "PNG, JPG, GIF oder WebP – max. 5 MB",
+        "remove_image": "Aktuelles Bild entfernen",
+        "members_title": "Mitglieder",
+        "no_members": "Dieses Team hat noch keine Mitglieder.",
+        "add_members": "Mitglieder hinzufügen",
+        "add_selected": "Ausgewählte hinzufügen",
+        "all_users_already_members": "Alle Benutzer sind bereits Mitglied.",
+        "remove_member": "Entfernen",
+        "remove_member_confirm": "{name} aus dem Team entfernen?",
+        "badge_leader": "Leitung",
+        "assign_teams": "Teams zuweisen",
+        "flash_name_required": "Bitte einen Teamnamen angeben.",
+        "flash_name_taken": "Ein Team mit diesem Namen existiert bereits.",
+        "flash_color_invalid": "Ungültige Farbe. Bitte ein Hex-Format wie #0d6efd verwenden.",
+        "flash_picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und WebP sind erlaubt.",
+        "flash_picture_too_large": "Das Bild ist zu groß. Maximale Größe: 5 MB.",
+        "flash_created": "Team \"{name}\" wurde erstellt.",
+        "flash_updated": "Team \"{name}\" wurde aktualisiert.",
+        "flash_deleted": "Team \"{name}\" wurde gelöscht.",
+        "flash_members_added": "{count} Mitglied(er) hinzugefügt.",
+        "flash_member_removed": "Mitglied entfernt.",
+        "flash_user_teams_updated": "Teams für {name} wurden aktualisiert."
       }
+    },
+    "mailboxes": {
+      "admin_title": "Postfächer",
+      "admin_heading": "Multi-Postfächer",
+      "admin_subtitle": "Private Postfächer und Übersicht. Team-Postfächer werden im Teams-Bereich angelegt.",
+      "create": "Hinzufügen",
+      "edit_title": "Postfach bearbeiten",
+      "col_name": "Name",
+      "col_type": "Typ",
+      "col_owner": "Zuordnung",
+      "col_active": "Aktiv",
+      "empty": "Noch keine Postfächer angelegt.",
+      "empty_private": "Du hast noch kein privates Postfach.",
+      "delete_confirm": "Postfach wirklich löschen?",
+      "flash_created": "Postfach wurde angelegt.",
+      "flash_saved": "Postfach wurde gespeichert.",
+      "flash_deleted": "Postfach wurde gelöscht.",
+      "flash_multi_disabled": "Multi-Postfach ist deaktiviert.",
+      "flash_limit_reached": "Limit erreicht ({max} private Postfächer).",
+      "flash_logo_invalid": "Ungültiges Logo-Format.",
+      "flash_logo_too_large": "Logo darf maximal 2 MB groß sein.",
+      "flash_logo_pref_saved": "Logo-Einstellung gespeichert.",
+      "my_title": "Meine Postfächer",
+      "my_heading": "Meine Postfächer",
+      "my_subtitle": "Private Postfächer: {used} von {max}.",
+      "private_list": "Deine privaten Postfächer",
+      "add_private": "Privates Postfach hinzufügen",
+      "add_team": "Team-Postfach hinzufügen",
+      "limit_info": "Du hast das Limit von {max} privaten Postfächern erreicht.",
+      "team_mailboxes": "Team-Postfächer",
+      "team_heading": "Postfächer für {name}",
+      "team_subtitle": "SMTP/IMAP, Footer und Logo je Team-Postfach.",
+      "name": "Name",
+      "name_help": "Anzeigename und interner Name sind identisch.",
+      "display_name": "Anzeigename",
+      "internal_name": "Interner Name",
+      "type_private_fixed": "Typ: privat (nicht änderbar).",
+      "type_team_fixed": "Typ: Team (nicht änderbar). Logo nur hier setzen.",
+      "team": "Team",
+      "owner": "Besitzer",
+      "members": "Mitglieder",
+      "members_help": "Nur für Gruppen-Postfächer. Team-Postfächer erben Team-Mitglieder.",
+      "color": "Farbe",
+      "active": "Aktiv",
+      "smtp_section": "SMTP (Ausgehend)",
+      "imap_section": "IMAP (Eingehend)",
+      "smtp_tls": "TLS (STARTTLS)",
+      "smtp_ssl": "SSL",
+      "smtp_ssl_help": "Optional. SSL (z. B. Port 465) statt STARTTLS. Nicht beides gleichzeitig.",
+      "footer": "Footer (optional)",
+      "footer_help": "Leer = globaler Footer aus den E-Mail-Einstellungen.",
+      "logo": "Logo (oben links in Mails)",
+      "logo_help": "Nur für Team-Postfächer. PNG/JPG/GIF/WebP, max. 2 MB.",
+      "logo_prefs_title": "Team-Logo in Mails",
+      "logo_prefs_help": "Lege fest, ob das Logo des Team-Postfachs in deinen ausgehenden Mails verwendet wird.",
+      "use_logo": "Logo nutzen",
+      "no_team_logo": "Kein Logo hinterlegt",
+      "wizard_title": "Postfach einrichten",
+      "wizard_heading": "Postfach einrichten",
+      "wizard_subtitle": "Wir führen dich Schritt für Schritt durch Name, SMTP und IMAP.",
+      "wizard_steps_label": "Einrichtungsschritte",
+      "wizard_step_name": "Name",
+      "wizard_step_smtp": "SMTP",
+      "wizard_step_imap": "IMAP",
+      "wizard_step_finish": "Fertigstellen",
+      "wizard_next": "Weiter",
+      "wizard_back": "Zurück",
+      "wizard_save": "Postfach speichern",
+      "test_smtp": "SMTP testen",
+      "test_imap": "IMAP testen",
+      "test_smtp_ok": "SMTP-Verbindung zu {server}:{port} erfolgreich.",
+      "test_imap_ok": "IMAP-Verbindung zu {server}:{port} erfolgreich.",
+      "test_smtp_incomplete": "SMTP Server, Benutzer und Passwort sind erforderlich.",
+      "test_imap_incomplete": "IMAP Server, Benutzer und Passwort sind erforderlich.",
+      "test_imap_incomplete_fields": "IMAP-Test unvollständig – fehlt: {fields}.",
+      "test_fail": "Test fehlgeschlagen: {error}",
+      "wizard_subtitle_provider": "Wähle deinen Anbieter und richte das Postfach Schritt für Schritt ein.",
+      "wizard_step_provider": "Anbieter",
+      "wizard_step_auth": "Anmeldung",
+      "wizard_provider_title": "Wo liegt dein Postfach?",
+      "wizard_provider_help": "Google und Microsoft verbinden sich per OAuth. Infomaniak, IONOS und Custom nutzen IMAP/SMTP.",
+      "provider_google": "Google",
+      "provider_microsoft": "Microsoft",
+      "provider_infomaniak": "Infomaniak",
+      "provider_ionos": "IONOS",
+      "provider_custom": "Benutzerdefiniert",
+      "account_email": "E-Mail-Adresse",
+      "account_email_help": "Wird für SMTP und IMAP als Benutzername verwendet.",
+      "account_password": "Passwort",
+      "oauth_help": "Melde dich im Popup bei deinem Anbieter an. Die Verbindung wird sicher gespeichert.",
+      "oauth_not_configured": "OAuth ist noch nicht eingerichtet. Ein Admin muss unter Verknüpfungen Client-ID und Secret hinterlegen.",
+      "oauth_password_fallback": "OAuth ist nicht eingerichtet — Verbindung läuft per IMAP/SMTP mit den Google-/Microsoft-Servern (App-Passwort).",
+      "oauth_password_fallback_help": "Bitte ein App-Passwort verwenden, kein normales Login-Passwort.",
+      "oauth_connect": "Mit Konto verbinden",
+      "oauth_connected": "Konto verbunden",
+      "oauth_hosts_hint": "Server und Ports werden automatisch gesetzt (Gmail bzw. Outlook).",
+      "oauth_required": "Bitte verbinde zuerst dein Konto per OAuth.",
+      "oauth_unknown_provider": "Unbekannter OAuth-Anbieter.",
+      "oauth_error": "OAuth fehlgeschlagen: {error}"
+    },
+    "integrations": {
+      "page_title": "Verknüpfungen",
+      "heading": "Verknüpfungen",
+      "subtitle": "Google OAuth/API und Microsoft Azure für Login, Module und Postfächer.",
+      "google_title": "Google Cloud",
+      "google_help": "Client-ID und Secret für Gmail-OAuth; API-Key für YouTube. Tippe auf das i für die Anleitung.",
+      "microsoft_title": "Microsoft Azure",
+      "microsoft_help": "App-Registrierung für Outlook IMAP/SMTP OAuth (XOAUTH2).",
+      "client_id": "Client ID",
+      "client_secret": "Client Secret",
+      "api_key": "API-Key",
+      "api_key_help": "Wird u. a. für YouTube im Musikmodul verwendet.",
+      "tenant": "Tenant",
+      "tenant_help": "Meist \"common\". Alternativ organizations oder die Tenant-ID.",
+      "redirect_hint": "Redirect-URI (für Login, Postfach und YouTube): {url}",
+      "flash_saved": "Verknüpfungen gespeichert.",
+      "google_api_help_open": "Anleitung: Google API-Schlüssel",
+      "google_api_help_title": "Google API-Schlüssel einrichten",
+      "google_api_help_intro": "In der Google Cloud Console aktivierst du die benötigten APIs und erstellst einen API-Schlüssel.",
+      "google_api_help_console_link": "Google Cloud Console öffnen",
+      "google_api_help_step1": "Projekt auswählen oder neues Projekt anlegen.",
+      "google_api_help_step2": "Unter „APIs & Dienste“ → „Bibliothek“ die YouTube Data API v3 suchen und aktivieren.",
+      "google_api_help_step3": "Ebenfalls die Gmail API suchen und aktivieren.",
+      "google_api_help_step4": "Unter „APIs & Dienste“ → „Anmeldedaten“ → „Anmeldedaten erstellen“ → „API-Schlüssel“ wählen.",
+      "google_api_help_step5": "Den erzeugten Schlüssel hier einfügen und speichern. Optional den Schlüssel in der Console einschränken (HTTP-Referrer / IP).",
+      "google_api_help_note": "Hinweis: Gmail-Postfächer im Portal nutzen E-Mail + App-Passwort (IMAP). Der API-Schlüssel dient den Google-/YouTube-API-Aufrufen.",
+      "google_api_help_open_credentials": "Zu Anmeldedaten",
+      "google_client_id_help": "Wird für Google-Login und Gmail-OAuth benötigt.",
+      "google_help_open": "Anleitung: Google OAuth und API-Schlüssel",
+      "google_help_title": "Google Cloud: OAuth und API-Schlüssel",
+      "google_help_why_title": "Warum Client-ID und Secret?",
+      "google_help_why": "Für Google-Login und Gmail im Portal brauchen wir OAuth (sichere Anmeldung ohne Passwort speichern). Dafür erstellt Google eine OAuth-Client-ID und ein Client-Secret. Ohne diese Werte funktionieren weder der Login-Button „With Google“ noch die Verknüpfung unter Sicherheit bzw. der Postfach-Wizard. Der API-Schlüssel ist zusätzlich für YouTube (Musikmodul) gedacht.",
+      "google_help_oauth_heading": "OAuth-Client anlegen (für Gmail)",
+      "google_help_oauth_step1": "Projekt auswählen oder neues Projekt anlegen.",
+      "google_help_oauth_step2": "Unter „APIs & Dienste“ → „Bibliothek“ die Gmail API aktivieren.",
+      "google_help_oauth_step3": "Unter „Anmeldedaten“ ggf. den OAuth-Zustimmungsbildschirm konfigurieren (Typ „Extern“ oder „Intern“).",
+      "google_help_oauth_step4": "„Anmeldedaten erstellen“ → „OAuth-Client-ID“ → Anwendungstyp „Webanwendung“. Als autorisierte Redirect-URI die unten angezeigte Callback-URL eintragen (eine URL für alles).",
+      "google_help_oauth_step5": "Client-ID und Client-Secret hier einfügen und speichern – danach sind Google-Login, Postfach-OAuth und YouTube nutzbar.",
+      "google_help_api_heading": "API-Schlüssel (für YouTube)",
+      "redirect_hint_login": "Redirect-URI: {url}"
     }
   },
   "chat": {
@@ -2499,6 +2760,14 @@
       "page_title_suffix": "ONLYOFFICE Editor",
       "back_button_label": "Teamportal",
       "back_button_title": "Zurück zum Team-Portal"
+    },
+    "multi": {
+      "main_mailbox": "Hauptpostfach",
+      "html_design": "HTML-Design",
+      "html_design_help": "An: Portal-Layout mit Logo. Aus: formatierter Text ohne Layout-Rahmen.",
+      "use_team_logo": "Team-Logo verwenden",
+      "use_team_logo_help": "Wenn aus: Portal-Logo statt Team-Logo im HTML-Design.",
+      "mailbox_label": "Postfach"
     }
   },
   "credentials": {
@@ -4447,7 +4716,8 @@
         "connected": "YouTube OAuth verbunden",
         "disconnect": "Trennen",
         "not_connected": "YouTube Music ist nicht verbunden.",
-        "connect": "Verbinden"
+        "connect": "Verbinden",
+        "keys_moved": "API-Key und OAuth-Credentials für YouTube/Google liegen jetzt unter Verknüpfungen."
       },
       "deezer": {
         "title": "Deezer",

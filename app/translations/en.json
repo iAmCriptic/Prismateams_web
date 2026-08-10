@@ -124,9 +124,11 @@
     "register": {
       "title": "Register",
       "subtitle": "Create your Prismateams account.",
+      "subtitle_google": "Details from Google applied — review them, set a password, then submit.",
       "first_name": "First name",
       "last_name": "Last name",
       "email": "Email address",
+      "email_google_locked": "This email comes from Google and cannot be changed here.",
       "phone_optional": "Phone number (optional)",
       "password": "Password",
       "password_help": "At least 12 characters including uppercase, lowercase, numbers and symbols.",
@@ -134,6 +136,8 @@
       "dark_mode_label": "Enable dark mode",
       "dark_mode_help": "You can change this setting anytime in your profile.",
       "submit": "Create account",
+      "google_connected": "Connected with Google",
+      "google_disconnect": "Continue without Google",
       "login_link_prefix": "Already registered?",
       "login_link_cta": "Log in here",
       "switch_title": "Already with us?",
@@ -172,8 +176,10 @@
       "email_already_registered": "This email address is already registered.",
       "register_success_whitelisted": "Registration successful! Your account has been automatically activated. Please confirm your email address.",
       "register_success_whitelisted_no_email": "Registration successful! Your account has been automatically activated. Email confirmation could not be sent.",
+      "register_success_google_whitelisted": "Registration successful! Your account has been activated. Your email was verified via Google.",
       "register_pending_admin": "Your account must be activated by an administrator. After activation you will receive a verification code by email.",
       "register_pending_admin_no_email": "Your account must be activated by an administrator. After activation you will receive a verification code by email.",
+      "register_pending_admin_google": "Your account must be activated by an administrator. Your email was already verified via Google — no confirmation code is needed.",
       "enter_email_password": "Please enter email and password.",
       "invalid_credentials": "Invalid email or password.",
       "guest_account_expired": "Your guest account has expired and has been removed.",
@@ -229,6 +235,27 @@
       "info_message": "The code is valid for 1 hour. Please also check your spam folder.",
       "submit": "Reset password",
       "back_to_login": "Back to login"
+    },
+    "google": {
+      "or": "or",
+      "login_with": "With",
+      "login_with_aria": "Sign in with Google",
+      "register_with_aria": "Sign up with Google",
+      "login_hint": "Sign in with a linked account. New here? Register with Google on the registration page.",
+      "register_hint": "Email, name and profile picture are filled in. You still set a password. Admin activation still applies — the confirmation code is skipped.",
+      "register_prefill_ready": "Google details applied. Please set a password and finish registration.",
+      "register_via_login": "No account yet — please complete registration with your Google details.",
+      "already_registered": "This Google account is already registered. Please sign in.",
+      "email_exists_link_instead": "This email is already registered. Sign in and link Google under Settings → Security.",
+      "not_configured": "Google login is not configured yet. Add Client ID and Secret under Integrations.",
+      "error": "Google sign-in failed: {error}",
+      "not_linked": "This Google account is not linked yet. Sign in with your password and link Google under Settings → Security.",
+      "link_requires_login": "Please sign in first to link Google.",
+      "link_guest_forbidden": "Guest accounts cannot link Google.",
+      "already_linked_other": "This Google account is already linked to another user.",
+      "link_success": "Google account linked. With multi-mailbox enabled, “Gmail” was created or updated.",
+      "unlink_success": "Google link removed.",
+      "not_linked_account": "No Google account is linked."
     }
   },
   "dashboard": {
@@ -300,6 +327,15 @@
             "email_templates": "Unified email template system for all system mails.",
             "pdf": "PDF generator reworked (inventory, events, booking, QR).",
             "i18n": "Translations and multilingual support expanded further."
+          }
+        },
+        "settings": {
+          "title": "Settings",
+          "teaser": "OAuth, Google & teams",
+          "items": {
+            "oauth": "New OAuth connections in Settings.",
+            "google": "Sign in with Google – login and account linking.",
+            "teams": "New team setup as a foundation for future updates."
           }
         },
         "dashboard": {
@@ -380,15 +416,10 @@
         },
         "email": {
           "title": "Email",
-          "teaser": "Design, mobile & permissions",
+          "teaser": "Multi-mailboxes & teams",
           "items": {
-            "design": "Design adjustments for a clearer interface.",
-            "mobile_layout": "Mobile layout fixes.",
-            "mobile_nav": "Mobile navigation fixes.",
-            "permissions": "Read and send permissions per user.",
-            "sent_folder": "Sent mail can be stored in the IMAP Sent folder.",
-            "templates": "System mails use the new unified template.",
-            "fixes": "Additional stability and UI fixes."
+            "multi_mailbox": "New multi-mailboxes – use and manage several mailboxes in parallel.",
+            "team": "First integration of team features in the email module."
           }
         },
         "contacts": {
@@ -706,7 +737,8 @@
       "sections": {
         "account": "Account",
         "modules": "Module settings"
-      }
+      },
+      "team_lead_heading": "Team lead"
     },
     "appearance": {
       "page_title": "Appearance - Settings",
@@ -794,6 +826,11 @@
           "description": "Information about Prismateams, version and creator",
           "button": "Open"
         },
+        "my_mailboxes": {
+          "title": "My mailboxes",
+          "description": "Manage and connect private mailboxes",
+          "button": "Open"
+        },
         "admin": {
           "title": "Administration",
           "description": "Manage users and system settings",
@@ -849,7 +886,12 @@
       "flash_profile_updated": "Profile updated.",
       "title": "Profile",
       "flash_picture_removed": "Profile picture has been removed.",
-      "flash_guests_cannot_edit": "Guest accounts cannot edit their profile."
+      "flash_guests_cannot_edit": "Guest accounts cannot edit their profile.",
+      "teams": {
+        "heading": "My teams",
+        "empty": "You are not in any team yet.",
+        "leader_badge": "Lead"
+      }
     },
     "notifications": {
       "page_title": "Notifications - Settings",
@@ -1055,6 +1097,17 @@
         "no_sessions_to_revoke": "No other sessions to sign out.",
         "no_sessions": "No active sessions found.",
         "invalid_session": "Invalid session."
+      },
+      "google": {
+        "heading": "Google login",
+        "help": "Link your portal account to Google — for sign-in and Google registration.",
+        "intro": "Link your Google account to sign in with Google. New users can also register with Google (a password is still required; admin activation still applies). With multi-mailbox enabled, a private “Gmail” mailbox is created automatically.",
+        "admin_required": "Google OAuth is not configured yet. An admin must add Client ID and Secret under Integrations.",
+        "status_linked": "Linked",
+        "status_unlinked": "Not linked",
+        "link": "Link Google",
+        "unlink": "Remove link",
+        "unlink_confirm": "Really remove the Google link? The Gmail mailbox will remain."
       }
     },
     "about": {
@@ -1365,6 +1418,10 @@
         "registration_options": {
           "title": "Bot protection",
           "description": "Bot protection for login, registration, mailboxes and shares"
+        },
+        "teams": {
+          "title": "Teams",
+          "description": "Create teams and assign users"
         }
       },
       "registration": {
@@ -1700,6 +1757,17 @@
           "template_label": "Footer template",
           "template_placeholder": "Footer text with optional variables…",
           "preview_label": "Preview"
+        },
+        "multi": {
+          "title": "Multi-mailbox",
+          "lead": "In addition to the main mailbox (app config), team, group and private mailboxes can be used.",
+          "toggle_label": "Enable multi-mailbox",
+          "toggle_help": "Off = single shared mailbox. On = Outlook-style sidebar with multiple mailboxes.",
+          "max_private_label": "Max private mailboxes per user",
+          "max_private_help": "Limit for self-created private mailboxes.",
+          "html_design_label": "HTML design on by default",
+          "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
+          "manage_link": "Manage mailboxes"
         }
       },
       "backup": {
@@ -1805,7 +1873,200 @@
         "flash_entry_not_found": "Whitelist entry not found.",
         "flash_entry_deleted": "Whitelist entry \"{entry}\" has been deleted.",
         "flash_entry_delete_error": "Error deleting whitelist entry."
+      },
+      "teams": {
+        "page_title": "Teams - Administration",
+        "heading": "Teams",
+        "subtitle": "Create teams and assign members. Not connected to modules yet.",
+        "create": "Create team",
+        "create_heading": "New team",
+        "create_page_title": "Create team - Administration",
+        "edit": "Edit",
+        "edit_heading": "Edit team",
+        "edit_page_title": "Edit team - Administration",
+        "form_subtitle": "Only the name is required. Description, image, color and lead are optional.",
+        "save": "Save",
+        "delete": "Delete",
+        "delete_confirm": "Really delete team \"{name}\"?",
+        "back_to_list": "Back to list",
+        "empty": "No teams yet.",
+        "search_placeholder": "Search teams…",
+        "search_no_results": "No teams found.",
+        "search_users_placeholder": "Search users…",
+        "members_count": "{count} members",
+        "led_by": "Lead: {name}",
+        "field_name": "Name",
+        "field_description": "Description",
+        "field_color": "Color",
+        "field_color_help": "Optional. Shown in lists and chips.",
+        "clear_color": "Clear color",
+        "field_leader": "Lead",
+        "field_leader_help": "The lead is automatically added as a member. No extra permissions.",
+        "no_leader": "No lead",
+        "field_image": "Image",
+        "field_image_help": "PNG, JPG, GIF or WebP – max. 5 MB",
+        "remove_image": "Remove current image",
+        "members_title": "Members",
+        "no_members": "This team has no members yet.",
+        "add_members": "Add members",
+        "add_selected": "Add selected",
+        "all_users_already_members": "All users are already members.",
+        "remove_member": "Remove",
+        "remove_member_confirm": "Remove {name} from the team?",
+        "badge_leader": "Lead",
+        "assign_teams": "Assign teams",
+        "flash_name_required": "Please enter a team name.",
+        "flash_name_taken": "A team with this name already exists.",
+        "flash_color_invalid": "Invalid color. Use a hex value like #0d6efd.",
+        "flash_picture_invalid_type": "Invalid file type. Only PNG, JPG, JPEG, GIF and WebP are allowed.",
+        "flash_picture_too_large": "Image is too large. Maximum size: 5 MB.",
+        "flash_created": "Team \"{name}\" was created.",
+        "flash_updated": "Team \"{name}\" was updated.",
+        "flash_deleted": "Team \"{name}\" was deleted.",
+        "flash_members_added": "{count} member(s) added.",
+        "flash_member_removed": "Member removed.",
+        "flash_user_teams_updated": "Teams for {name} were updated."
       }
+    },
+    "mailboxes": {
+      "admin_title": "Mailboxes",
+      "admin_heading": "Multi-mailboxes",
+      "admin_subtitle": "Private mailboxes and overview. Team mailboxes are created in the Teams section.",
+      "create": "Add",
+      "edit_title": "Edit mailbox",
+      "col_name": "Name",
+      "col_type": "Type",
+      "col_owner": "Assignment",
+      "col_active": "Active",
+      "empty": "No mailboxes yet.",
+      "empty_private": "You have no private mailbox yet.",
+      "delete_confirm": "Really delete this mailbox?",
+      "flash_created": "Mailbox created.",
+      "flash_saved": "Mailbox saved.",
+      "flash_deleted": "Mailbox deleted.",
+      "flash_multi_disabled": "Multi-mailbox is disabled.",
+      "flash_limit_reached": "Limit reached ({max} private mailboxes).",
+      "flash_logo_invalid": "Invalid logo format.",
+      "flash_logo_too_large": "Logo must be at most 2 MB.",
+      "flash_logo_pref_saved": "Logo preference saved.",
+      "my_title": "My mailboxes",
+      "my_heading": "My mailboxes",
+      "my_subtitle": "Private mailboxes: {used} of {max}.",
+      "private_list": "Your private mailboxes",
+      "add_private": "Add private mailbox",
+      "add_team": "Add team mailbox",
+      "limit_info": "You reached the limit of {max} private mailboxes.",
+      "team_mailboxes": "Team mailboxes",
+      "team_heading": "Mailboxes for {name}",
+      "team_subtitle": "SMTP/IMAP, footer and logo per team mailbox.",
+      "name": "Name",
+      "name_help": "Display name and internal name are the same.",
+      "display_name": "Display name",
+      "internal_name": "Internal name",
+      "type_private_fixed": "Type: private (not changeable).",
+      "type_team_fixed": "Type: team (not changeable). Logo can only be set here.",
+      "team": "Team",
+      "owner": "Owner",
+      "members": "Members",
+      "members_help": "For group mailboxes only. Team mailboxes inherit team members.",
+      "color": "Color",
+      "active": "Active",
+      "smtp_section": "SMTP (outgoing)",
+      "imap_section": "IMAP (incoming)",
+      "smtp_tls": "TLS (STARTTLS)",
+      "smtp_ssl": "SSL",
+      "smtp_ssl_help": "Optional. SSL (e.g. port 465) instead of STARTTLS. Do not enable both.",
+      "footer": "Footer (optional)",
+      "footer_help": "Empty = global footer from email settings.",
+      "logo": "Logo (top-left in emails)",
+      "logo_help": "Team mailboxes only. PNG/JPG/GIF/WebP, max 2 MB.",
+      "logo_prefs_title": "Team logo in emails",
+      "logo_prefs_help": "Choose whether the team mailbox logo is used in your outgoing emails.",
+      "use_logo": "Use logo",
+      "no_team_logo": "No logo set",
+      "wizard_title": "Set up mailbox",
+      "wizard_heading": "Set up mailbox",
+      "wizard_subtitle": "We'll guide you through name, SMTP and IMAP.",
+      "wizard_steps_label": "Setup steps",
+      "wizard_step_name": "Name",
+      "wizard_step_smtp": "SMTP",
+      "wizard_step_imap": "IMAP",
+      "wizard_step_finish": "Finish",
+      "wizard_next": "Next",
+      "wizard_back": "Back",
+      "wizard_save": "Save mailbox",
+      "test_smtp": "Test SMTP",
+      "test_imap": "Test IMAP",
+      "test_smtp_ok": "SMTP connection to {server}:{port} succeeded.",
+      "test_imap_ok": "IMAP connection to {server}:{port} succeeded.",
+      "test_smtp_incomplete": "SMTP server, username and password are required.",
+      "test_imap_incomplete": "IMAP server, username and password are required.",
+      "test_imap_incomplete_fields": "IMAP test incomplete – missing: {fields}.",
+      "test_fail": "Test failed: {error}",
+      "wizard_subtitle_provider": "Choose your provider and set up the mailbox step by step.",
+      "wizard_step_provider": "Provider",
+      "wizard_step_auth": "Sign-in",
+      "wizard_provider_title": "Where is your mailbox?",
+      "wizard_provider_help": "Google and Microsoft connect via OAuth. Infomaniak, IONOS and Custom use IMAP/SMTP.",
+      "provider_google": "Google",
+      "provider_microsoft": "Microsoft",
+      "provider_infomaniak": "Infomaniak",
+      "provider_ionos": "IONOS",
+      "provider_custom": "Custom",
+      "account_email": "Email address",
+      "account_email_help": "Used as username for SMTP and IMAP.",
+      "account_password": "Password",
+      "oauth_help": "Sign in with your provider in the popup. The connection is stored securely.",
+      "oauth_not_configured": "OAuth is not configured yet. An admin must set Client ID and Secret under Integrations.",
+      "oauth_password_fallback": "OAuth is not set up — connecting via IMAP/SMTP with Google/Microsoft servers (app password).",
+      "oauth_password_fallback_help": "Please use an app password, not your normal login password.",
+      "oauth_connect": "Connect account",
+      "oauth_connected": "Account connected",
+      "oauth_hosts_hint": "Servers and ports are set automatically (Gmail / Outlook).",
+      "oauth_required": "Please connect your account via OAuth first.",
+      "oauth_unknown_provider": "Unknown OAuth provider.",
+      "oauth_error": "OAuth failed: {error}"
+    },
+    "integrations": {
+      "page_title": "Integrations",
+      "heading": "Integrations",
+      "subtitle": "Google OAuth/API and Microsoft Azure for login, modules, and mailboxes.",
+      "google_title": "Google Cloud",
+      "google_help": "Client ID and secret for Gmail OAuth; API key for YouTube. Tap the i for instructions.",
+      "microsoft_title": "Microsoft Azure",
+      "microsoft_help": "App registration for Outlook IMAP/SMTP OAuth (XOAUTH2).",
+      "client_id": "Client ID",
+      "client_secret": "Client Secret",
+      "api_key": "API key",
+      "api_key_help": "Used e.g. for YouTube in the music module.",
+      "tenant": "Tenant",
+      "tenant_help": "Usually \"common\". Or organizations / tenant ID.",
+      "redirect_hint": "Redirect URI (login, mailbox and YouTube): {url}",
+      "flash_saved": "Integrations saved.",
+      "google_api_help_open": "Guide: Google API key",
+      "google_api_help_title": "Set up a Google API key",
+      "google_api_help_intro": "In Google Cloud Console you enable the required APIs and create an API key.",
+      "google_api_help_console_link": "Open Google Cloud Console",
+      "google_api_help_step1": "Select a project or create a new one.",
+      "google_api_help_step2": "Under APIs and Services > Library, find and enable YouTube Data API v3.",
+      "google_api_help_step3": "Also find and enable the Gmail API.",
+      "google_api_help_step4": "Under APIs and Services > Credentials > Create credentials > API key.",
+      "google_api_help_step5": "Paste the key here and save. Optionally restrict the key in the Console (HTTP referrers / IP).",
+      "google_api_help_note": "Note: Gmail mailboxes in the portal use email and app password (IMAP). The API key is for Google/YouTube API calls.",
+      "google_api_help_open_credentials": "Open credentials",
+      "google_client_id_help": "Required for Google login and Gmail OAuth.",
+      "google_help_open": "Guide: Google OAuth and API key",
+      "google_help_title": "Google Cloud: OAuth and API key",
+      "google_help_why_title": "Why Client ID and secret?",
+      "google_help_why": "Google login and Gmail in the portal need OAuth (sign-in without storing a password). Google issues an OAuth client ID and secret. Without them, neither the “With Google” login button / Security linking nor the mailbox wizard works. The API key is additionally used for YouTube (music module).",
+      "google_help_oauth_heading": "Create OAuth client (for Gmail)",
+      "google_help_oauth_step1": "Select a project or create a new one.",
+      "google_help_oauth_step2": "Under APIs & Services → Library, enable the Gmail API.",
+      "google_help_oauth_step3": "Under Credentials, configure the OAuth consent screen if needed (External or Internal).",
+      "google_help_oauth_step4": "Create credentials → OAuth client ID → application type Web application. Add the single redirect URI shown below (one URL for everything).",
+      "google_help_oauth_step5": "Paste Client ID and Secret here and save — then Google login, mailbox OAuth and YouTube work.",
+      "google_help_api_heading": "API key (for YouTube)",
+      "redirect_hint_login": "Redirect URI: {url}"
     }
   },
   "chat": {
@@ -3205,6 +3466,14 @@
       "deleted": "Email has been successfully deleted.",
       "target_folder_not_specified": "Target folder not specified.",
       "draft_no_print": "Drafts cannot be printed as PDF."
+    },
+    "multi": {
+      "main_mailbox": "Main mailbox",
+      "html_design": "HTML design",
+      "html_design_help": "On: portal layout with logo. Off: formatted text without layout frame.",
+      "use_team_logo": "Use team logo",
+      "use_team_logo_help": "If off: portal logo instead of team logo in HTML design.",
+      "mailbox_label": "Mailbox"
     }
   },
   "credentials": {
@@ -4440,7 +4709,8 @@
         "hint": "Requires the YouTube Data API v3. Enable that API in Google Cloud Console, create an API key, and under API restrictions select “YouTube Data API v3”. OAuth (Client ID/Secret) is optional.",
         "api_key_label": "API Key (recommended)",
         "api_key_placeholder": "YouTube API Key",
-        "api_key_help": "Google Cloud Console: enable YouTube Data API v3 → create an API key → under restrictions allow only “YouTube Data API v3”. <a href=\"{link}\" target=\"_blank\">Open Google Cloud Console</a>"
+        "api_key_help": "Google Cloud Console: enable YouTube Data API v3 → create an API key → under restrictions allow only “YouTube Data API v3”. <a href=\"{link}\" target=\"_blank\">Open Google Cloud Console</a>",
+        "keys_moved": "API key and OAuth credentials for YouTube/Google are now under Integrations."
       },
       "save": "Save settings",
       "cancel": "Cancel",

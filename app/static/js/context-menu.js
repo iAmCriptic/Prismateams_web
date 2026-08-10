@@ -457,17 +457,28 @@
     }
 
     function findKebabSourceMenu(toggle) {
-        // Template-Quellen (Kontakte / Passwörter / Anleitungen / Inventar) bevorzugen
-        const zone = toggle.closest('[data-context-zone][data-context-menu="template"]');
+        // Nächste Context-Zone zuerst (Dateien: Item=dropdown innerhalb Browser-template)
+        const zone = toggle.closest('[data-context-zone]');
         if (zone) {
-            const id = zone.getAttribute('data-context-menu-id');
-            let source = id ? document.getElementById(id) : null;
-            if (!source) source = zone.querySelector('.context-menu-source');
-            if (source) {
-                const tmpl =
-                    source.querySelector('.dropdown-menu') ||
-                    (source.classList.contains('dropdown-menu') ? source : null);
-                if (tmpl && tmpl.children.length) return tmpl;
+            const menuType = zone.getAttribute('data-context-menu');
+            if (menuType === 'dropdown') {
+                const dropdown = toggle.closest('.dropdown') || zone;
+                const menu =
+                    dropdown.querySelector(':scope > .dropdown-menu') ||
+                    zone.querySelector('.dropdown .dropdown-menu') ||
+                    zone.querySelector('.dropdown-menu');
+                if (menu && menu.children.length) return menu;
+            }
+            if (menuType === 'template') {
+                const id = zone.getAttribute('data-context-menu-id');
+                let source = id ? document.getElementById(id) : null;
+                if (!source) source = zone.querySelector('.context-menu-source');
+                if (source) {
+                    const tmpl =
+                        source.querySelector('.dropdown-menu') ||
+                        (source.classList.contains('dropdown-menu') ? source : null);
+                    if (tmpl && tmpl.children.length) return tmpl;
+                }
             }
         }
 

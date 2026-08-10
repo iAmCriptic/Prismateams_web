@@ -113,6 +113,7 @@ def _script_timeout(script_path: str) -> int:
     if name in (
         "migrate_to_3_0_0.py",
         "migrate_to_3_0_1_full_upgrade.py",
+        "migrate_to_3_1_0.py",
         "migrate_upgrade_from_legacy.py",
     ):
         return int(os.getenv("PRISMATEAMS_MIGRATION_TIMEOUT", "900"))

@@ -11,7 +11,9 @@ from app.utils.notifications import get_or_create_notification_settings, sync_us
 from app.utils.backup import export_backup, import_backup, SUPPORTED_CATEGORIES, CATEGORY_DEFINITIONS
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import json
 import os
+import secrets
 import tempfile
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
@@ -72,6 +74,15 @@ def index():
 @login_required
 def profile():
     """Edit user profile."""
+    from app.models.team import TeamMember
+
+    def _profile_teams():
+        memberships = TeamMember.query.filter_by(user_id=current_user.id).all()
+        return sorted(
+            [m.team for m in memberships if m.team],
+            key=lambda t: (t.name or '').lower()
+        )
+
     if request.method == 'POST':
         current_user.first_name = request.form.get('first_name', '').strip()
         current_user.last_name = request.form.get('last_name', '').strip()
@@ -93,7 +104,7 @@ def profile():
                     max_size = 5 * 1024 * 1024  # 5MB in bytes
                     if file_size > max_size:
                         flash(translate('settings.profile.flash_picture_too_large', size=file_size / (1024*1024)), 'danger')
-                        return render_template('settings/profile.html', user=current_user)
+                        return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
                     
                     # Create filename with timestamp
                     filename = secure_filename(file.filename)
@@ -122,13 +133,13 @@ def profile():
                     flash(translate('settings.profile.flash_picture_uploaded'), 'success')
                 else:
                     flash(translate('settings.profile.flash_picture_invalid_type'), 'danger')
-                    return render_template('settings/profile.html', user=current_user)
+                    return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
         
         db.session.commit()
         flash(translate('settings.profile.flash_profile_updated'), 'success')
         return redirect(url_for('settings.profile'))
     
-    return render_template('settings/profile.html', user=current_user)
+    return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
 
 
 @settings_bp.route('/profile/remove-picture', methods=['POST'])
@@ -493,6 +504,12 @@ def admin_users():
         for c in all_chats
     ]
     from app.utils.guest_accounts import get_guest_email_domain, get_guest_email_suffix
+    from app.models.team import Team, TeamMember
+
+    all_teams = Team.query.order_by(Team.name).all()
+    user_team_ids = {}
+    for membership in TeamMember.query.all():
+        user_team_ids.setdefault(membership.user_id, []).append(membership.team_id)
 
     return render_template('settings/admin_users.html', 
                          active_users=active_users, 
@@ -506,6 +523,8 @@ def admin_users():
                          guest_chats_json=guest_chats_json,
                          guest_email_domain=get_guest_email_domain(),
                          guest_email_suffix=get_guest_email_suffix(),
+                         all_teams=all_teams,
+                         user_team_ids=user_team_ids,
                          now=now)
 
 
@@ -1339,11 +1358,368 @@ def delete_user(user_id):
     # Delete booking role assignments before deleting user
     from app.models.booking import BookingFormRoleUser
     BookingFormRoleUser.query.filter_by(user_id=user_id).delete()
+
+    # Clear team leadership and memberships before deleting user
+    from app.models.team import Team, TeamMember
+    Team.query.filter_by(leader_id=user_id).update({'leader_id': None})
+    TeamMember.query.filter_by(user_id=user_id).delete()
     
     db.session.delete(user)
     db.session.commit()
     
     flash(translate('settings.admin.users.flash_user_deleted', name=user.full_name), 'success')
+    return redirect(url_for('settings.admin_users'))
+
+
+def _team_upload_dir():
+    project_root = os.path.dirname(current_app.root_path)
+    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'teams')
+    os.makedirs(upload_dir, exist_ok=True)
+    return upload_dir
+
+
+def _delete_team_image_file(filename):
+    if not filename:
+        return
+    try:
+        path = os.path.join(_team_upload_dir(), filename)
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
+def _normalize_team_color(raw):
+    """Return normalized #RRGGBB or None. Empty is allowed. False if invalid."""
+    if not raw:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    if value.startswith('#') and len(value) == 7:
+        hex_part = value[1:]
+        if all(c in '0123456789abcdefABCDEF' for c in hex_part):
+            return f'#{hex_part.lower()}'
+    return False
+
+
+def _team_name_taken(name, exclude_id=None):
+    from app.models.team import Team
+    query = Team.query.filter(db.func.lower(Team.name) == name.strip().lower())
+    if exclude_id is not None:
+        query = query.filter(Team.id != exclude_id)
+    return query.first() is not None
+
+
+def _ensure_team_member(team_id, user_id):
+    from app.models.team import TeamMember
+    existing = TeamMember.query.filter_by(team_id=team_id, user_id=user_id).first()
+    if existing:
+        return existing
+    member = TeamMember(team_id=team_id, user_id=user_id)
+    db.session.add(member)
+    return member
+
+
+def _save_team_image(file_storage, team_id=None):
+    """Validate and save team image. Returns (filename, error_key_or_None)."""
+    if not file_storage or not file_storage.filename:
+        return None, None
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    if '.' not in file_storage.filename or file_storage.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+        return None, 'settings.admin.teams.flash_picture_invalid_type'
+    file_storage.seek(0, 2)
+    file_size = file_storage.tell()
+    file_storage.seek(0)
+    if file_size > 5 * 1024 * 1024:
+        return None, 'settings.admin.teams.flash_picture_too_large'
+    filename = secure_filename(file_storage.filename)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    prefix = str(team_id) if team_id else 'new'
+    filename = f"{prefix}_{timestamp}_{filename}"
+    file_storage.save(os.path.join(_team_upload_dir(), filename))
+    return filename, None
+
+
+def _team_leader_choices():
+    """Active full users and guests available as team leaders."""
+    return User.query.filter(
+        User.email != 'anonymous@system.local',
+        or_(
+            User.is_active == True,
+            User.is_guest == True,
+        )
+    ).order_by(User.last_name, User.first_name).all()
+
+
+@settings_bp.route('/admin/teams')
+@login_required
+def admin_teams():
+    """List teams (admin: all; team leader: own teams)."""
+    from app.models.team import Team
+    from app.utils.multi_mailboxes import get_led_teams, user_is_team_leader
+
+    if current_user.is_admin:
+        teams = Team.query.order_by(Team.name).all()
+    elif user_is_team_leader(current_user):
+        teams = get_led_teams(current_user)
+    else:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    return render_template('settings/admin_teams.html', teams=teams, is_team_leader_view=not current_user.is_admin)
+
+
+@settings_bp.route('/admin/teams/create', methods=['GET', 'POST'])
+@login_required
+def create_team():
+    """Create a new team (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.team import Team
+    leader_choices = _team_leader_choices()
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        leader_id_raw = request.form.get('leader_id', '').strip()
+        color = _normalize_team_color(request.form.get('color', ''))
+
+        if not name:
+            flash(translate('settings.admin.teams.flash_name_required'), 'danger')
+            return render_template('settings/admin_team_form.html', team=None, leader_choices=leader_choices)
+
+        if color is False:
+            flash(translate('settings.admin.teams.flash_color_invalid'), 'danger')
+            return render_template('settings/admin_team_form.html', team=None, leader_choices=leader_choices)
+
+        if _team_name_taken(name):
+            flash(translate('settings.admin.teams.flash_name_taken'), 'danger')
+            return render_template('settings/admin_team_form.html', team=None, leader_choices=leader_choices)
+
+        leader_id = int(leader_id_raw) if leader_id_raw.isdigit() else None
+        if leader_id and not User.query.get(leader_id):
+            leader_id = None
+
+        team = Team(name=name, description=description, color=color, leader_id=leader_id)
+        db.session.add(team)
+        db.session.flush()
+
+        image_file = request.files.get('image')
+        filename, err = _save_team_image(image_file, team.id)
+        if err:
+            db.session.rollback()
+            flash(translate(err), 'danger')
+            return render_template('settings/admin_team_form.html', team=None, leader_choices=leader_choices)
+        if filename:
+            team.image = filename
+
+        if leader_id:
+            _ensure_team_member(team.id, leader_id)
+
+        db.session.commit()
+        flash(translate('settings.admin.teams.flash_created', name=team.name), 'success')
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    return render_template('settings/admin_team_form.html', team=None, leader_choices=leader_choices)
+
+
+@settings_bp.route('/admin/teams/<int:team_id>', methods=['GET', 'POST'])
+@login_required
+def admin_team_detail(team_id):
+    """Team detail: members list, bulk add, remove (admin or team leader)."""
+    from app.models.team import Team, TeamMember
+    from app.utils.multi_mailboxes import can_manage_team, is_email_multi_enabled
+
+    if not can_manage_team(current_user, team_id):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    team = Team.query.get_or_404(team_id)
+
+    if request.method == 'POST':
+        action = request.form.get('action', '').strip()
+
+        if action == 'add_members':
+            user_ids = request.form.getlist('user_ids')
+            added = 0
+            for raw_id in user_ids:
+                if not raw_id.isdigit():
+                    continue
+                uid = int(raw_id)
+                user = User.query.get(uid)
+                if not user or user.email == 'anonymous@system.local':
+                    continue
+                if TeamMember.query.filter_by(team_id=team.id, user_id=uid).first():
+                    continue
+                db.session.add(TeamMember(team_id=team.id, user_id=uid))
+                added += 1
+            db.session.commit()
+            flash(translate('settings.admin.teams.flash_members_added', count=added), 'success')
+            return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+        if action == 'remove_member':
+            raw_id = request.form.get('user_id', '').strip()
+            if raw_id.isdigit():
+                TeamMember.query.filter_by(team_id=team.id, user_id=int(raw_id)).delete()
+                db.session.commit()
+                flash(translate('settings.admin.teams.flash_member_removed'), 'success')
+            return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    member_user_ids = {m.user_id for m in team.members}
+    members = sorted(
+        [m for m in team.members if m.user],
+        key=lambda m: ((m.user.last_name or '').lower(), (m.user.first_name or '').lower())
+    )
+    available_q = User.query.filter(User.email != 'anonymous@system.local')
+    if member_user_ids:
+        available_q = available_q.filter(~User.id.in_(member_user_ids))
+    available_users = available_q.order_by(User.last_name, User.first_name).all()
+
+    return render_template(
+        'settings/admin_team_detail.html',
+        team=team,
+        members=members,
+        available_users=available_users,
+        email_multi_enabled=is_email_multi_enabled(),
+        can_edit_team_meta=current_user.is_admin,
+    )
+
+
+@settings_bp.route('/admin/teams/<int:team_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_team(team_id):
+    """Edit team metadata (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.team import Team
+    team = Team.query.get_or_404(team_id)
+    leader_choices = _team_leader_choices()
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        leader_id_raw = request.form.get('leader_id', '').strip()
+        color = _normalize_team_color(request.form.get('color', ''))
+        remove_image = request.form.get('remove_image') == '1'
+
+        if not name:
+            flash(translate('settings.admin.teams.flash_name_required'), 'danger')
+            return render_template('settings/admin_team_form.html', team=team, leader_choices=leader_choices)
+
+        if color is False:
+            flash(translate('settings.admin.teams.flash_color_invalid'), 'danger')
+            return render_template('settings/admin_team_form.html', team=team, leader_choices=leader_choices)
+
+        if _team_name_taken(name, exclude_id=team.id):
+            flash(translate('settings.admin.teams.flash_name_taken'), 'danger')
+            return render_template('settings/admin_team_form.html', team=team, leader_choices=leader_choices)
+
+        leader_id = int(leader_id_raw) if leader_id_raw.isdigit() else None
+        if leader_id and not User.query.get(leader_id):
+            leader_id = None
+
+        team.name = name
+        team.description = description
+        team.color = color
+        team.leader_id = leader_id
+
+        if remove_image and team.image:
+            _delete_team_image_file(team.image)
+            team.image = None
+
+        image_file = request.files.get('image')
+        filename, err = _save_team_image(image_file, team.id)
+        if err:
+            flash(translate(err), 'danger')
+            return render_template('settings/admin_team_form.html', team=team, leader_choices=leader_choices)
+        if filename:
+            if team.image:
+                _delete_team_image_file(team.image)
+            team.image = filename
+
+        if leader_id:
+            _ensure_team_member(team.id, leader_id)
+
+        db.session.commit()
+        flash(translate('settings.admin.teams.flash_updated', name=team.name), 'success')
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    return render_template('settings/admin_team_form.html', team=team, leader_choices=leader_choices)
+
+
+@settings_bp.route('/admin/teams/<int:team_id>/delete', methods=['POST'])
+@login_required
+def delete_team(team_id):
+    """Delete a team (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.team import Team
+    team = Team.query.get_or_404(team_id)
+    name = team.name
+    if team.image:
+        _delete_team_image_file(team.image)
+    db.session.delete(team)
+    db.session.commit()
+    flash(translate('settings.admin.teams.flash_deleted', name=name), 'success')
+    return redirect(url_for('settings.admin_teams'))
+
+
+@settings_bp.route('/admin/teams/image/<path:filename>')
+@login_required
+def team_image(filename):
+    """Serve team images."""
+    try:
+        from urllib.parse import unquote
+        filename = unquote(filename)
+        directory = _team_upload_dir()
+        full_path = os.path.join(directory, filename)
+        if not os.path.isfile(full_path):
+            abort(404)
+        return send_from_directory(directory, filename)
+    except FileNotFoundError:
+        abort(404)
+
+
+@settings_bp.route('/admin/users/<int:user_id>/teams', methods=['POST'])
+@login_required
+def set_user_teams(user_id):
+    """Set team memberships for a user from the users list (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.team import Team, TeamMember
+    user = User.query.get_or_404(user_id)
+    if user.email == 'anonymous@system.local':
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.admin_users'))
+
+    selected_raw = request.form.getlist('team_ids')
+    selected_ids = {int(x) for x in selected_raw if x.isdigit()}
+    valid_ids = {t.id for t in Team.query.filter(Team.id.in_(selected_ids)).all()} if selected_ids else set()
+
+    existing = TeamMember.query.filter_by(user_id=user.id).all()
+    existing_ids = {m.team_id for m in existing}
+
+    for membership in existing:
+        if membership.team_id not in valid_ids:
+            team = Team.query.get(membership.team_id)
+            if team and team.leader_id == user.id:
+                team.leader_id = None
+            db.session.delete(membership)
+
+    for tid in valid_ids - existing_ids:
+        db.session.add(TeamMember(team_id=tid, user_id=user.id))
+
+    db.session.commit()
+    flash(translate('settings.admin.teams.flash_user_teams_updated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -2068,6 +2444,41 @@ def admin_modules():
     return render_template('settings/admin_modules.html', **module_flags)
 
 
+@settings_bp.route('/admin/integrations', methods=['GET', 'POST'])
+@login_required
+def admin_integrations():
+    """Google Cloud + Microsoft Azure Verknüpfungen (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.integrations import (
+        get_google_credentials,
+        get_microsoft_credentials,
+        save_integrations_from_form,
+        migrate_youtube_keys_to_system,
+    )
+
+    migrate_youtube_keys_to_system()
+
+    if request.method == 'POST':
+        save_integrations_from_form(request.form)
+        db.session.commit()
+        flash(translate('settings.integrations.flash_saved'), 'success')
+        return _settings_redirect('settings.admin_integrations')
+
+    google = get_google_credentials()
+    microsoft = get_microsoft_credentials()
+    from app.utils.integrations import google_oauth_redirect_uri
+    return render_template(
+        'settings/admin_integrations.html',
+        google=google,
+        microsoft=microsoft,
+        google_redirect=google_oauth_redirect_uri(),
+        microsoft_redirect=url_for('settings.mailbox_oauth_callback', provider='microsoft', _external=True),
+    )
+
+
 @settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
 @login_required
 def admin_push_subscriptions():
@@ -2380,6 +2791,12 @@ Gesendet von <user> (<email>)
     
     sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
     sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
+
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        get_max_private_mailboxes,
+        is_email_html_design_default,
+    )
     
     now = now_in_portal_timezone()
     return render_template(
@@ -2389,6 +2806,9 @@ Gesendet von <user> (<email>)
         sync_interval=sync_interval,
         footer_preview_date=now.strftime('%d.%m.%Y'),
         footer_preview_time=now.strftime('%H:%M'),
+        email_multi_enabled=is_email_multi_enabled(),
+        email_max_private_mailboxes=get_max_private_mailboxes(),
+        email_compose_html_design_default=is_email_html_design_default(),
     )
 
 
@@ -2441,6 +2861,31 @@ def admin_email_settings():
                 description='Automatisches Synchronisationsintervall in Minuten'
             )
             db.session.add(sync_setting)
+
+        # Multi-Postfach-Einstellungen (optional im gleichen Formular)
+        if 'email_multi_enabled' in request.form or request.form.get('save_multi') == '1':
+            multi_enabled = request.form.get('email_multi_enabled') == 'on'
+            max_private_raw = request.form.get('email_max_private_mailboxes', '3').strip()
+            try:
+                max_private = max(0, int(max_private_raw))
+            except ValueError:
+                max_private = 3
+            html_design_default = request.form.get('email_compose_html_design_default') == 'on'
+
+            def _upsert_setting(key, value, description):
+                row = SystemSettings.query.filter_by(key=key).first()
+                if row:
+                    row.value = str(value)
+                else:
+                    db.session.add(SystemSettings(key=key, value=str(value), description=description))
+
+            _upsert_setting('email_multi_enabled', 'True' if multi_enabled else 'False', 'Multi-Postfach aktiv')
+            _upsert_setting('email_max_private_mailboxes', str(max_private), 'Max. private Postfächer pro Nutzer')
+            _upsert_setting(
+                'email_compose_html_design_default',
+                'True' if html_design_default else 'False',
+                'Standard: HTML-Design beim Verfassen',
+            )
         
         db.session.commit()
         flash(translate('settings.admin.email_settings.flash_saved'), 'success')
@@ -2567,6 +3012,726 @@ def admin_email_test_imap():
         })
 
 
+def _require_email_multi_or_redirect():
+    from app.utils.multi_mailboxes import is_email_multi_enabled
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return False
+    return True
+
+
+def _save_mailbox_logo(file_storage, mailbox_id):
+    """Validate and save mailbox logo. Returns (filename, error_key_or_None)."""
+    from app.utils.multi_mailboxes import mailbox_upload_dir
+    if not file_storage or not getattr(file_storage, 'filename', None):
+        return None, None
+    filename = file_storage.filename
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ('.png', '.jpg', '.jpeg', '.gif', '.webp'):
+        return None, 'settings.mailboxes.flash_logo_invalid'
+    file_storage.seek(0, os.SEEK_END)
+    size = file_storage.tell()
+    file_storage.seek(0)
+    if size > 2 * 1024 * 1024:
+        return None, 'settings.mailboxes.flash_logo_too_large'
+    safe_name = f"{mailbox_id}_{secrets.token_hex(6)}{ext}"
+    file_storage.save(os.path.join(mailbox_upload_dir(), safe_name))
+    return safe_name, None
+
+
+def _replace_mailbox_logo(mb, file_storage):
+    """Save new logo for team mailbox only. Returns error translation key or None."""
+    if mb.mailbox_type != 'team':
+        return None
+    filename, err = _save_mailbox_logo(file_storage, mb.id)
+    if err:
+        return err
+    if not filename:
+        return None
+    if mb.logo_filename:
+        try:
+            from app.utils.multi_mailboxes import mailbox_upload_dir
+            old = os.path.join(mailbox_upload_dir(), mb.logo_filename)
+            if os.path.exists(old):
+                os.remove(old)
+        except Exception:
+            pass
+    mb.logo_filename = filename
+    return None
+
+
+def _mailbox_test_payload():
+    """Credentials from JSON body or form for connection tests."""
+    data = request.get_json(silent=True, force=True)
+    if isinstance(data, dict) and data:
+        src = data
+    else:
+        src = request.form
+
+    def _s(key):
+        return str(src.get(key) or '').strip()
+
+    def _on(key, default=False):
+        raw = src.get(key)
+        if raw is None and default:
+            return True
+        return raw in ('on', 'true', True, '1', 1)
+
+    try:
+        smtp_port = int(src.get('smtp_port') or 587)
+    except (TypeError, ValueError):
+        smtp_port = 587
+    try:
+        imap_port = int(src.get('imap_port') or 993)
+    except (TypeError, ValueError):
+        imap_port = 993
+
+    return {
+        'smtp_server': _s('smtp_server'),
+        'smtp_port': smtp_port,
+        'smtp_use_tls': _on('smtp_use_tls'),
+        'smtp_use_ssl': _on('smtp_use_ssl'),
+        'smtp_username': _s('smtp_username'),
+        'smtp_password': _s('smtp_password'),
+        'imap_server': _s('imap_server'),
+        'imap_port': imap_port,
+        'imap_use_ssl': _on('imap_use_ssl', default=True),
+        'imap_username': _s('imap_username'),
+        'imap_password': _s('imap_password'),
+    }
+
+
+@settings_bp.route('/mailboxes/test-smtp', methods=['POST'])
+@login_required
+def mailbox_test_smtp():
+    """SMTP-Verbindungstest mit Formular-Credentials (JSON)."""
+    import smtplib
+    import ssl as ssl_mod
+
+    from app.utils.multi_mailboxes import is_email_multi_enabled
+    if not is_email_multi_enabled():
+        return jsonify({'success': False, 'message': translate('settings.mailboxes.flash_multi_disabled')}), 403
+
+    p = _mailbox_test_payload()
+    server = p['smtp_server']
+    user = p['smtp_username']
+    password = p['smtp_password']
+    if not server or not user or not password or password == '••••••••':
+        return jsonify({
+            'success': False,
+            'message': translate('settings.mailboxes.test_smtp_incomplete'),
+        })
+
+    use_ssl = p['smtp_use_ssl']
+    use_tls = p['smtp_use_tls'] and not use_ssl
+    port = p['smtp_port'] or (465 if use_ssl else 587)
+    try:
+        if use_ssl:
+            context = ssl_mod.create_default_context()
+            with smtplib.SMTP_SSL(server, port, timeout=20, context=context) as smtp:
+                smtp.login(user, password)
+        else:
+            with smtplib.SMTP(server, port, timeout=20) as smtp:
+                smtp.ehlo()
+                if use_tls:
+                    context = ssl_mod.create_default_context()
+                    smtp.starttls(context=context)
+                    smtp.ehlo()
+                smtp.login(user, password)
+        return jsonify({
+            'success': True,
+            'message': translate('settings.mailboxes.test_smtp_ok', server=server, port=port),
+        })
+    except smtplib.SMTPAuthenticationError as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.mailboxes.test_fail', error=f'Auth: {e}'),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.mailboxes.test_fail', error=str(e)),
+        })
+
+
+@settings_bp.route('/mailboxes/test-imap', methods=['POST'])
+@login_required
+def mailbox_test_imap():
+    """IMAP-Verbindungstest mit Formular-Credentials (JSON)."""
+    import imaplib
+    import ssl as ssl_mod
+
+    from app.utils.multi_mailboxes import is_email_multi_enabled
+    if not is_email_multi_enabled():
+        return jsonify({'success': False, 'message': translate('settings.mailboxes.flash_multi_disabled')}), 403
+
+    p = _mailbox_test_payload()
+    server = p['imap_server']
+    user = p['imap_username'] or p['smtp_username']
+    password = p['imap_password'] or p['smtp_password']
+    placeholder_pw = password in ('••••••••', '********', '••••••••••••')
+    if not server or not user or not password or placeholder_pw:
+        missing = []
+        if not server:
+            missing.append('Server')
+        if not user:
+            missing.append('Benutzer')
+        if not password or placeholder_pw:
+            missing.append('Passwort')
+        return jsonify({
+            'success': False,
+            'message': translate(
+                'settings.mailboxes.test_imap_incomplete_fields',
+                fields=', '.join(missing),
+            ) if missing else translate('settings.mailboxes.test_imap_incomplete'),
+        })
+
+    port = p['imap_port'] or 993
+    use_ssl = p['imap_use_ssl']
+    try:
+        if use_ssl:
+            context = ssl_mod.create_default_context()
+            try:
+                imap = imaplib.IMAP4_SSL(server, port, ssl_context=context, timeout=20)
+            except TypeError:
+                imap = imaplib.IMAP4_SSL(server, port, ssl_context=context)
+                imap.sock.settimeout(20)
+        else:
+            try:
+                imap = imaplib.IMAP4(server, port, timeout=20)
+            except TypeError:
+                imap = imaplib.IMAP4(server, port)
+                imap.sock.settimeout(20)
+        try:
+            typ, _ = imap.login(user, password)
+            if typ != 'OK':
+                raise RuntimeError(f'Login fehlgeschlagen: {typ}')
+            imap.select('INBOX', readonly=True)
+        finally:
+            try:
+                imap.logout()
+            except Exception:
+                pass
+        return jsonify({
+            'success': True,
+            'message': translate('settings.mailboxes.test_imap_ok', server=server, port=port),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.mailboxes.test_fail', error=str(e)),
+        })
+
+
+def _mailbox_wizard_context(**extra):
+    from app.utils.mailbox_oauth import (
+        peek_oauth_result,
+        provider_oauth_ready,
+    )
+    ctx = {
+        'google_oauth_ready': provider_oauth_ready('google'),
+        'microsoft_oauth_ready': provider_oauth_ready('microsoft'),
+        'oauth_result': peek_oauth_result(),
+        'show_logo': False,
+        'show_owner': False,
+        'team_id': None,
+        'users': None,
+    }
+    ctx.update(extra)
+    return ctx
+
+
+@settings_bp.route('/mailboxes/oauth/<provider>/start')
+@login_required
+def mailbox_oauth_start(provider):
+    """Startet Google/Microsoft OAuth (Popup oder Redirect)."""
+    from app.utils.mailbox_oauth import build_oauth_authorize_url, provider_oauth_ready
+    provider = (provider or '').strip().lower()
+    if provider not in ('google', 'microsoft'):
+        flash(translate('settings.mailboxes.oauth_unknown_provider'), 'danger')
+        return redirect(url_for('settings.my_mailboxes'))
+    if not provider_oauth_ready(provider):
+        flash(translate('settings.mailboxes.oauth_not_configured'), 'warning')
+        if current_user.is_admin:
+            return redirect(url_for('settings.admin_integrations'))
+        return redirect(url_for('settings.my_mailboxes'))
+    popup = request.args.get('popup') == '1'
+    try:
+        return redirect(build_oauth_authorize_url(provider, popup=popup))
+    except Exception as e:
+        flash(translate('settings.mailboxes.oauth_error', error=str(e)), 'danger')
+        return redirect(url_for('settings.my_mailboxes'))
+
+
+@settings_bp.route('/mailboxes/oauth/<provider>/callback')
+@login_required
+def mailbox_oauth_callback(provider):
+    """OAuth-Callback: Microsoft hier; Google primär über /google/callback (Legacy-URI bleibt kompatibel)."""
+    from app.utils.mailbox_oauth import (
+        handle_oauth_callback,
+        mailbox_oauth_popup_error_html,
+        mailbox_oauth_popup_success_html,
+    )
+    from flask import session
+    provider = (provider or '').strip().lower()
+    err = request.args.get('error')
+    if err:
+        msg = request.args.get('error_description') or err
+        if session.get('mailbox_oauth_popup'):
+            return mailbox_oauth_popup_error_html(msg)
+        flash(translate('settings.mailboxes.oauth_error', error=msg), 'danger')
+        return redirect(url_for('settings.my_mailbox_new'))
+
+    code = request.args.get('code')
+    state = request.args.get('state')
+    try:
+        # Legacy-Google-URI: Exchange muss dieselbe Redirect-URI wie Authorize nutzen
+        legacy_google_uri = None
+        if provider == 'google':
+            legacy_google_uri = url_for('settings.mailbox_oauth_callback', provider='google', _external=True)
+        result = handle_oauth_callback(provider, code, state, redirect_uri=legacy_google_uri)
+    except Exception as e:
+        if session.get('mailbox_oauth_popup'):
+            return mailbox_oauth_popup_error_html(str(e))
+        flash(translate('settings.mailboxes.oauth_error', error=str(e)), 'danger')
+        return redirect(url_for('settings.my_mailbox_new'))
+
+    if session.get('mailbox_oauth_popup'):
+        return mailbox_oauth_popup_success_html(result)
+    flash(translate('settings.mailboxes.oauth_connected'), 'success')
+    return redirect(url_for('settings.my_mailbox_new'))
+
+
+@settings_bp.route('/admin/mailboxes')
+@login_required
+def admin_mailboxes():
+    """Alle Multi-Postfächer (Admin)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not _require_email_multi_or_redirect():
+        return redirect(url_for('settings.admin_email_module'))
+
+    from app.models.email import Mailbox
+    mailboxes = Mailbox.query.order_by(Mailbox.mailbox_type, Mailbox.display_name).all()
+    return render_template('settings/admin_mailboxes.html', mailboxes=mailboxes)
+
+
+@settings_bp.route('/admin/mailboxes/create', methods=['GET', 'POST'])
+@login_required
+def admin_mailbox_create():
+    """Admin legt nur private Postfächer an (Team nur über Teams-Reiter)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not _require_email_multi_or_redirect():
+        return redirect(url_for('settings.admin_email_module'))
+
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import apply_mailbox_credentials
+    from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
+
+    users = User.query.filter(
+        User.is_active == True,
+        User.email != 'anonymous@system.local',
+    ).order_by(User.last_name, User.first_name).all()
+
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip() or 'Postfach'
+        mb = Mailbox(
+            name=name,
+            display_name=name,
+            mailbox_type='private',
+            owner_id=request.form.get('owner_id', type=int) or current_user.id,
+            team_id=None,
+            is_active=True,
+        )
+        apply_mailbox_credentials(mb, request.form)
+        oauth = pop_oauth_result()
+        if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
+            apply_oauth_tokens_to_mailbox(mb, oauth)
+        db.session.add(mb)
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_created'), 'success')
+        return redirect(url_for('settings.admin_mailboxes'))
+
+    return render_template(
+        'settings/mailbox_wizard.html',
+        **_mailbox_wizard_context(
+            mailbox=None,
+            mailbox_type='private',
+            cancel_url=url_for('settings.admin_mailboxes'),
+            show_owner=True,
+            users=users,
+        ),
+    )
+
+
+@settings_bp.route('/admin/mailboxes/<int:mailbox_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_mailbox_edit(mailbox_id):
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not _require_email_multi_or_redirect():
+        return redirect(url_for('settings.admin_email_module'))
+
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import apply_mailbox_credentials
+
+    mb = Mailbox.query.get_or_404(mailbox_id)
+    users = User.query.filter(
+        User.is_active == True,
+        User.email != 'anonymous@system.local',
+    ).order_by(User.last_name, User.first_name).all()
+
+    if request.method == 'POST':
+        apply_mailbox_credentials(mb, request.form)
+        mb.is_active = request.form.get('is_active') == 'on'
+        if mb.mailbox_type == 'private':
+            mb.owner_id = request.form.get('owner_id', type=int) or mb.owner_id
+            mb.team_id = None
+        # Typ bleibt unverändert
+        err = _replace_mailbox_logo(mb, request.files.get('logo'))
+        if err:
+            flash(translate(err), 'danger')
+            return render_template(
+                'settings/admin_mailbox_form.html',
+                mailbox=mb, users=users,
+            )
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_saved'), 'success')
+        return redirect(url_for('settings.admin_mailboxes'))
+
+    return render_template(
+        'settings/admin_mailbox_form.html',
+        mailbox=mb, users=users,
+    )
+
+
+@settings_bp.route('/admin/mailboxes/<int:mailbox_id>/delete', methods=['POST'])
+@login_required
+def admin_mailbox_delete(mailbox_id):
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    from app.models.email import Mailbox
+    mb = Mailbox.query.get_or_404(mailbox_id)
+    from app.utils.multi_mailboxes import delete_mailbox
+    delete_mailbox(mb)
+    db.session.commit()
+    flash(translate('settings.mailboxes.flash_deleted'), 'success')
+    return redirect(url_for('settings.admin_mailboxes'))
+
+
+@settings_bp.route('/my-mailboxes', methods=['GET', 'POST'])
+@login_required
+def my_mailboxes():
+    """Private Postfächer + Logo-Präferenz für Team-Postfächer."""
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        can_add_private_mailbox,
+        get_max_private_mailboxes,
+        count_private_mailboxes,
+        get_accessible_mailboxes,
+        get_mailbox_use_logo,
+        set_mailbox_use_logo,
+        user_has_mailbox_access,
+    )
+
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'delete':
+            mid = request.form.get('mailbox_id', type=int)
+            mb = Mailbox.query.filter_by(id=mid, owner_id=current_user.id, mailbox_type='private').first_or_404()
+            from app.utils.multi_mailboxes import delete_mailbox
+            delete_mailbox(mb)
+            db.session.commit()
+            flash(translate('settings.mailboxes.flash_deleted'), 'success')
+            return redirect(url_for('settings.my_mailboxes'))
+
+        if action == 'set_use_logo':
+            mid = request.form.get('mailbox_id', type=int)
+            mb = Mailbox.query.get_or_404(mid)
+            if not user_has_mailbox_access(current_user, mb, 'read'):
+                flash(translate('settings.admin.flash_unauthorized'), 'danger')
+                return redirect(url_for('settings.my_mailboxes'))
+            set_mailbox_use_logo(current_user, mb, request.form.get('use_logo') == 'on')
+            db.session.commit()
+            flash(translate('settings.mailboxes.flash_logo_pref_saved'), 'success')
+            return redirect(url_for('settings.my_mailboxes'))
+
+    private = Mailbox.query.filter_by(
+        owner_id=current_user.id, mailbox_type='private'
+    ).order_by(Mailbox.display_name).all()
+    accessible = get_accessible_mailboxes(current_user)
+    team_mailboxes_prefs = [
+        {
+            'mailbox': mb,
+            'use_logo': get_mailbox_use_logo(current_user, mb),
+        }
+        for mb in accessible
+        if mb.mailbox_type == 'team'
+    ]
+    return render_template(
+        'settings/my_mailboxes.html',
+        private_mailboxes=private,
+        accessible_mailboxes=accessible,
+        team_mailboxes_prefs=team_mailboxes_prefs,
+        can_add=can_add_private_mailbox(current_user),
+        max_private=get_max_private_mailboxes(),
+        used_private=count_private_mailboxes(current_user.id),
+    )
+
+
+@settings_bp.route('/my-mailboxes/new', methods=['GET', 'POST'])
+@login_required
+def my_mailbox_new():
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        can_add_private_mailbox,
+        get_max_private_mailboxes,
+        apply_mailbox_credentials,
+    )
+    from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
+
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.index'))
+    if not can_add_private_mailbox(current_user):
+        flash(translate('settings.mailboxes.flash_limit_reached', max=get_max_private_mailboxes()), 'danger')
+        return redirect(url_for('settings.my_mailboxes'))
+
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip() or 'Mein Postfach'
+        mb = Mailbox(
+            name=name,
+            display_name=name,
+            mailbox_type='private',
+            owner_id=current_user.id,
+            is_active=True,
+        )
+        apply_mailbox_credentials(mb, request.form)
+        oauth = pop_oauth_result()
+        if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
+            apply_oauth_tokens_to_mailbox(mb, oauth)
+        elif request.form.get('auth_type') == 'oauth' and request.form.get('provider') in ('google', 'microsoft'):
+            flash(translate('settings.mailboxes.oauth_required'), 'danger')
+            return render_template(
+                'settings/mailbox_wizard.html',
+                **_mailbox_wizard_context(
+                    mailbox=None,
+                    mailbox_type='private',
+                    cancel_url=url_for('settings.my_mailboxes'),
+                ),
+            )
+        db.session.add(mb)
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_created'), 'success')
+        return redirect(url_for('settings.my_mailboxes'))
+
+    return render_template(
+        'settings/mailbox_wizard.html',
+        **_mailbox_wizard_context(
+            mailbox=None,
+            mailbox_type='private',
+            cancel_url=url_for('settings.my_mailboxes'),
+        ),
+    )
+
+
+@settings_bp.route('/my-mailboxes/<int:mailbox_id>/edit', methods=['GET', 'POST'])
+@login_required
+def my_mailbox_edit(mailbox_id):
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import is_email_multi_enabled, apply_mailbox_credentials
+    from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
+
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.index'))
+
+    mb = Mailbox.query.filter_by(
+        id=mailbox_id, owner_id=current_user.id, mailbox_type='private'
+    ).first_or_404()
+
+    if request.method == 'POST':
+        apply_mailbox_credentials(mb, request.form)
+        oauth = pop_oauth_result()
+        if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
+            apply_oauth_tokens_to_mailbox(mb, oauth)
+        mb.is_active = request.form.get('is_active') == 'on'
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_saved'), 'success')
+        return redirect(url_for('settings.my_mailboxes'))
+
+    return render_template(
+        'settings/mailbox_wizard.html',
+        **_mailbox_wizard_context(
+            mailbox=mb,
+            mailbox_type='private',
+            cancel_url=url_for('settings.my_mailboxes'),
+        ),
+    )
+
+
+@settings_bp.route('/mailbox-logo/<path:filename>')
+@login_required
+def mailbox_logo(filename):
+    from app.utils.multi_mailboxes import mailbox_upload_dir
+    from flask import send_from_directory
+    return send_from_directory(mailbox_upload_dir(), filename)
+
+
+@settings_bp.route('/admin/teams/<int:team_id>/mailboxes', methods=['GET', 'POST'])
+@login_required
+def team_mailboxes(team_id):
+    """Team-Postfächer: Admin oder Teamleitung (Liste + Löschen)."""
+    from app.models.team import Team
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import can_manage_team, is_email_multi_enabled
+
+    team = Team.query.get_or_404(team_id)
+    if not can_manage_team(current_user, team.id):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    if request.method == 'POST' and request.form.get('action') == 'delete':
+        mid = request.form.get('mailbox_id', type=int)
+        mb = Mailbox.query.filter_by(id=mid, team_id=team.id, mailbox_type='team').first_or_404()
+        from app.utils.multi_mailboxes import delete_mailbox
+        delete_mailbox(mb)
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_deleted'), 'success')
+        return redirect(url_for('settings.team_mailboxes', team_id=team.id))
+
+    mailboxes = Mailbox.query.filter_by(
+        team_id=team.id, mailbox_type='team'
+    ).order_by(Mailbox.display_name).all()
+    return render_template('settings/team_mailboxes.html', team=team, mailboxes=mailboxes)
+
+
+@settings_bp.route('/admin/teams/<int:team_id>/mailboxes/new', methods=['GET', 'POST'])
+@login_required
+def team_mailbox_new(team_id):
+    from app.models.team import Team
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import (
+        can_manage_team,
+        is_email_multi_enabled,
+        apply_mailbox_credentials,
+    )
+    from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
+
+    team = Team.query.get_or_404(team_id)
+    if not can_manage_team(current_user, team.id):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    wizard_kw = dict(
+        mailbox_type='team',
+        team_id=team.id,
+        cancel_url=url_for('settings.team_mailboxes', team_id=team.id),
+        show_logo=True,
+    )
+
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip() or f'{team.name} Postfach'
+        mb = Mailbox(
+            name=name,
+            display_name=name,
+            mailbox_type='team',
+            team_id=team.id,
+            is_active=True,
+        )
+        apply_mailbox_credentials(mb, request.form)
+        oauth = pop_oauth_result()
+        if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
+            apply_oauth_tokens_to_mailbox(mb, oauth)
+        db.session.add(mb)
+        db.session.flush()
+        err = _replace_mailbox_logo(mb, request.files.get('logo'))
+        if err:
+            db.session.rollback()
+            flash(translate(err), 'danger')
+            return render_template(
+                'settings/mailbox_wizard.html',
+                **_mailbox_wizard_context(mailbox=None, **wizard_kw),
+            )
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_created'), 'success')
+        return redirect(url_for('settings.team_mailboxes', team_id=team.id))
+
+    return render_template(
+        'settings/mailbox_wizard.html',
+        **_mailbox_wizard_context(mailbox=None, **wizard_kw),
+    )
+
+
+@settings_bp.route('/admin/teams/<int:team_id>/mailboxes/<int:mailbox_id>/edit', methods=['GET', 'POST'])
+@login_required
+def team_mailbox_edit(team_id, mailbox_id):
+    from app.models.team import Team
+    from app.models.email import Mailbox
+    from app.utils.multi_mailboxes import (
+        can_manage_team,
+        is_email_multi_enabled,
+        apply_mailbox_credentials,
+    )
+    from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
+
+    team = Team.query.get_or_404(team_id)
+    if not can_manage_team(current_user, team.id):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not is_email_multi_enabled():
+        flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+    mb = Mailbox.query.filter_by(id=mailbox_id, team_id=team.id, mailbox_type='team').first_or_404()
+    wizard_kw = dict(
+        mailbox_type='team',
+        team_id=team.id,
+        cancel_url=url_for('settings.team_mailboxes', team_id=team.id),
+        show_logo=True,
+    )
+
+    if request.method == 'POST':
+        apply_mailbox_credentials(mb, request.form)
+        oauth = pop_oauth_result()
+        if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
+            apply_oauth_tokens_to_mailbox(mb, oauth)
+        mb.is_active = request.form.get('is_active') == 'on'
+        err = _replace_mailbox_logo(mb, request.files.get('logo'))
+        if err:
+            flash(translate(err), 'danger')
+            return render_template(
+                'settings/mailbox_wizard.html',
+                **_mailbox_wizard_context(mailbox=mb, **wizard_kw),
+            )
+        db.session.commit()
+        flash(translate('settings.mailboxes.flash_saved'), 'success')
+        return redirect(url_for('settings.team_mailboxes', team_id=team.id))
+
+    return render_template(
+        'settings/mailbox_wizard.html',
+        **_mailbox_wizard_context(mailbox=mb, **wizard_kw),
+    )
+
+
+
 @settings_bp.route('/admin/music', methods=['GET', 'POST'])
 @login_required
 def admin_music():
@@ -2617,32 +3782,8 @@ def admin_music():
             spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify Client Secret')
             db.session.add(spotify_secret_setting)
         
-        # YouTube Settings (API-Key oder OAuth)
-        youtube_api_key = request.form.get('youtube_api_key', '').strip()
-        youtube_client_id = request.form.get('youtube_client_id', '').strip()
-        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
-        
-        youtube_api_key_setting = MusicSettings.query.filter_by(key='youtube_api_key').first()
-        if youtube_api_key_setting:
-            youtube_api_key_setting.value = youtube_api_key
-        else:
-            youtube_api_key_setting = MusicSettings(key='youtube_api_key', value=youtube_api_key, description='YouTube API-Key (vereinfacht, kein OAuth)')
-            db.session.add(youtube_api_key_setting)
-        
-        youtube_id_setting = MusicSettings.query.filter_by(key='youtube_client_id').first()
-        if youtube_id_setting:
-            youtube_id_setting.value = youtube_client_id
-        else:
-            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID (optional)')
-            db.session.add(youtube_id_setting)
-        
-        youtube_secret_setting = MusicSettings.query.filter_by(key='youtube_client_secret').first()
-        if youtube_secret_setting:
-            youtube_secret_setting.value = youtube_client_secret
-        else:
-            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret (optional)')
-            db.session.add(youtube_secret_setting)
-        
+        # YouTube/Google-Keys liegen unter Einstellungen → Verknüpfungen
+
         # Deezer Settings (App-ID optional, aber empfohlen für Rate Limits)
         deezer_app_id = request.form.get('deezer_app_id', '').strip()
         
@@ -2667,9 +3808,6 @@ def admin_music():
     
     spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
     spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
-    youtube_api_key = MusicSettings.query.filter_by(key='youtube_api_key').first()
-    youtube_client_id = MusicSettings.query.filter_by(key='youtube_client_id').first()
-    youtube_client_secret = MusicSettings.query.filter_by(key='youtube_client_secret').first()
     deezer_app_id = MusicSettings.query.filter_by(key='deezer_app_id').first()
     # Prüfe Verbindungsstatus (nur für OAuth-basierte Provider)
     spotify_connected = is_provider_connected(current_user.id, 'spotify') if current_user.is_authenticated else False
@@ -2677,7 +3815,8 @@ def admin_music():
     
     # Redirect URIs
     spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
-    youtube_redirect_uri = url_for('music.youtube_callback', _external=True)
+    from app.utils.integrations import google_oauth_redirect_uri
+    youtube_redirect_uri = google_oauth_redirect_uri()
     
     # Hole Einstellung für Provider-Badge-Anzeige (auch im GET-Fall)
     show_provider_badges = MusicSettings.get_show_provider_badges()
@@ -2687,9 +3826,6 @@ def admin_music():
                          provider_order=provider_order,
                          spotify_client_id=spotify_client_id.value if spotify_client_id else '',
                          spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
-                         youtube_api_key=youtube_api_key.value if youtube_api_key else '',
-                         youtube_client_id=youtube_client_id.value if youtube_client_id else '',
-                         youtube_client_secret=youtube_client_secret.value if youtube_client_secret else '',
                          deezer_app_id=deezer_app_id.value if deezer_app_id else '',
                          spotify_connected=spotify_connected,
                          youtube_connected=youtube_connected,
@@ -3495,7 +4631,51 @@ def _render_security_page(scroll_to_devices=False):
         show_setup=show_setup,
         sessions=sessions,
         scroll_to_devices=scroll_to_devices,
+        google_linked=bool(getattr(current_user, 'google_sub', None)),
+        google_email=getattr(current_user, 'google_email', None),
+        google_login_ready=_google_ready(),
     )
+
+
+def _google_ready():
+    try:
+        from app.utils.google_login import google_login_ready
+        return google_login_ready()
+    except Exception:
+        return False
+
+
+@settings_bp.route('/security/google/link')
+@login_required
+def security_google_link():
+    """Startet Google-Verknüpfung (kein Register)."""
+    from app.utils.google_login import google_login_ready, build_google_login_url
+    if current_user.is_guest:
+        flash(translate('auth.google.link_guest_forbidden'), 'danger')
+        return redirect(url_for('settings.security'))
+    if not google_login_ready():
+        flash(translate('auth.google.not_configured'), 'warning')
+        return redirect(url_for('settings.security'))
+    try:
+        return redirect(build_google_login_url(purpose='link'))
+    except Exception as exc:
+        flash(translate('auth.google.error', error=str(exc)), 'danger')
+        return redirect(url_for('settings.security'))
+
+
+@settings_bp.route('/security/google/unlink', methods=['POST'])
+@login_required
+def security_google_unlink():
+    """Entfernt die Google-Verknüpfung (Postfach bleibt bestehen)."""
+    if not getattr(current_user, 'google_sub', None):
+        flash(translate('auth.google.not_linked_account'), 'info')
+        return redirect(url_for('settings.security'))
+    current_user.google_sub = None
+    current_user.google_email = None
+    current_user.google_linked_at = None
+    db.session.commit()
+    flash(translate('auth.google.unlink_success'), 'success')
+    return redirect(url_for('settings.security'))
 
 
 @settings_bp.route('/security/passwords', methods=['GET', 'POST'])

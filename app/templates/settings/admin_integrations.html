@@ -1,0 +1,158 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.integrations.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.integrations.heading') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-email settings-mailboxes-page">
+    <div class="settings-admin-email-header">
+        <h1 class="settings-admin-email-title">{{ _('settings.integrations.heading') }}</h1>
+        <p class="settings-admin-email-subtitle">{{ _('settings.integrations.subtitle') }}</p>
+    </div>
+
+    <form method="POST" class="settings-admin-email-form">
+        <section class="settings-admin-email-card mb-3">
+            <div class="settings-admin-email-card-head">
+                <h2 class="settings-admin-email-section-title mb-0">
+                    <i class="bi bi-google me-1" aria-hidden="true"></i>
+                    {{ _('settings.integrations.google_title') }}
+                </h2>
+                <button type="button"
+                        class="settings-admin-email-info"
+                        data-bs-toggle="modal"
+                        data-bs-target="#googleOAuthHelpModal"
+                        aria-label="{{ _('settings.integrations.google_help_open') }}"
+                        title="{{ _('settings.integrations.google_help_open') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.google_help') }}</p>
+            <div class="settings-admin-email-fields">
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="google_client_id">{{ _('settings.integrations.client_id') }}</label>
+                    <input type="text" class="form-control settings-admin-email-input" id="google_client_id" name="google_client_id"
+                           value="{{ google.client_id }}" autocomplete="off" spellcheck="false">
+                    <div class="form-text">{{ _('settings.integrations.google_client_id_help') }}</div>
+                </div>
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="google_client_secret">{{ _('settings.integrations.client_secret') }}</label>
+                    <input type="password" class="form-control settings-admin-email-input" id="google_client_secret" name="google_client_secret"
+                           value="{{ google.client_secret }}" autocomplete="new-password">
+                </div>
+                <div class="settings-admin-email-field mailbox-wizard-field--full">
+                    <label class="form-label" for="google_api_key">{{ _('settings.integrations.api_key') }}</label>
+                    <input type="text" class="form-control settings-admin-email-input" id="google_api_key" name="google_api_key"
+                           value="{{ google.api_key }}" autocomplete="off" spellcheck="false">
+                    <div class="form-text">{{ _('settings.integrations.api_key_help') }}</div>
+                </div>
+            </div>
+            <div class="form-text mt-2">
+                {{ _('settings.integrations.redirect_hint', url=google_redirect) }}
+            </div>
+        </section>
+
+        <section class="settings-admin-email-card mb-3">
+            <h2 class="settings-admin-email-section-title">
+                <i class="bi bi-microsoft me-1" aria-hidden="true"></i>
+                {{ _('settings.integrations.microsoft_title') }}
+            </h2>
+            <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.microsoft_help') }}</p>
+            <div class="settings-admin-email-fields">
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="microsoft_client_id">{{ _('settings.integrations.client_id') }}</label>
+                    <input type="text" class="form-control settings-admin-email-input" id="microsoft_client_id" name="microsoft_client_id"
+                           value="{{ microsoft.client_id }}" autocomplete="off">
+                </div>
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="microsoft_client_secret">{{ _('settings.integrations.client_secret') }}</label>
+                    <input type="password" class="form-control settings-admin-email-input" id="microsoft_client_secret" name="microsoft_client_secret"
+                           value="{{ microsoft.client_secret }}" autocomplete="new-password">
+                </div>
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="microsoft_tenant">{{ _('settings.integrations.tenant') }}</label>
+                    <input type="text" class="form-control settings-admin-email-input" id="microsoft_tenant" name="microsoft_tenant"
+                           value="{{ microsoft.tenant }}" placeholder="common" autocomplete="off">
+                    <div class="form-text">{{ _('settings.integrations.tenant_help') }}</div>
+                </div>
+            </div>
+            <div class="form-text mt-2">
+                {{ _('settings.integrations.redirect_hint', url=microsoft_redirect) }}
+            </div>
+        </section>
+
+        <button type="submit" class="btn btn-accent settings-admin-email-submit">
+            <i class="bi bi-save" aria-hidden="true"></i>
+            {{ _('common.save') }}
+        </button>
+    </form>
+</div>
+
+<div class="modal fade settings-integrations-help-modal"
+     id="googleOAuthHelpModal"
+     tabindex="-1"
+     aria-labelledby="googleOAuthHelpModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header settings-integrations-help-modal-header">
+                <h5 class="modal-title" id="googleOAuthHelpModalLabel">{{ _('settings.integrations.google_help_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body settings-integrations-help-modal-body">
+                <p><strong>{{ _('settings.integrations.google_help_why_title') }}</strong></p>
+                <p>{{ _('settings.integrations.google_help_why') }}</p>
+
+                <p class="mb-2">
+                    <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>{{ _('settings.integrations.google_api_help_console_link') }}
+                    </a>
+                </p>
+
+                <p class="mb-1"><strong>{{ _('settings.integrations.google_help_oauth_heading') }}</strong></p>
+                <ol class="ps-3 mb-3">
+                    <li class="mb-2">{{ _('settings.integrations.google_help_oauth_step1') }}</li>
+                    <li class="mb-2">{{ _('settings.integrations.google_help_oauth_step2') }}</li>
+                    <li class="mb-2">{{ _('settings.integrations.google_help_oauth_step3') }}</li>
+                    <li class="mb-2">{{ _('settings.integrations.google_help_oauth_step4') }}</li>
+                    <li>{{ _('settings.integrations.google_help_oauth_step5') }}</li>
+                </ol>
+
+                <p class="mb-1"><strong>{{ _('settings.integrations.google_help_api_heading') }}</strong></p>
+                <ol class="ps-3 mb-0">
+                    <li class="mb-2">{{ _('settings.integrations.google_api_help_step2') }}</li>
+                    <li class="mb-2">{{ _('settings.integrations.google_api_help_step3') }}</li>
+                    <li class="mb-2">{{ _('settings.integrations.google_api_help_step4') }}</li>
+                    <li>{{ _('settings.integrations.google_api_help_step5') }}</li>
+                </ol>
+            </div>
+            <div class="modal-footer settings-integrations-help-modal-footer">
+                <a class="btn btn-outline-primary" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">
+                    {{ _('settings.integrations.google_api_help_open_credentials') }}
+                </a>
+                <button type="button" class="btn btn-accent" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var el = document.getElementById('googleOAuthHelpModal');
+    if (!el) return;
+    if (el.parentElement !== document.body) {
+        document.body.appendChild(el);
+    }
+    el.addEventListener('show.bs.modal', function () {
+        // Backdrop-Klasse setzen, sobald Bootstrap ihn erzeugt
+        var tries = 0;
+        var timer = setInterval(function () {
+            var bds = document.querySelectorAll('.modal-backdrop');
+            bds.forEach(function (bd) {
+                bd.classList.add('settings-integrations-help-backdrop');
+            });
+            tries += 1;
+            if (bds.length || tries > 20) clearInterval(timer);
+        }, 16);
+    });
+})();
+</script>
+{% endblock %}

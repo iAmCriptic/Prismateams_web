@@ -40,6 +40,8 @@ class EmailMessage(db.Model):
     last_flag_sync_at = db.Column(db.DateTime, nullable=True)
 
     sent_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    # NULL = globales Hauptpostfach (App-Config); sonst Multi-Postfach
+    mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=True, index=True)
     
     received_at = db.Column(db.DateTime, nullable=True, index=True)
     sent_at = db.Column(db.DateTime, nullable=True)
@@ -47,6 +49,7 @@ class EmailMessage(db.Model):
     
     # Relationships
     attachments = db.relationship('EmailAttachment', back_populates='email', cascade='all, delete-orphan')
+    mailbox = db.relationship('Mailbox', back_populates='messages')
     
     def __repr__(self):
         return f'<EmailMessage {self.subject}>'
@@ -109,15 +112,23 @@ class EmailFolder(db.Model):
     __tablename__ = 'email_folders'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)  # IMAP folder name
+    name = db.Column(db.String(100), nullable=False)  # IMAP folder name
     display_name = db.Column(db.String(100), nullable=False)  # Display name in UI
     folder_type = db.Column(db.String(20), default='custom', nullable=False)  # 'standard' or 'custom'
     is_system = db.Column(db.Boolean, default=False, nullable=False)  # True for system folders like INBOX
     parent_folder = db.Column(db.String(100), nullable=True)  # For nested folders
     separator = db.Column(db.String(5), default='/', nullable=False)  # IMAP folder separator
+    # NULL = Hauptpostfach; sonst Ordner eines Multi-Postfachs
+    mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=True, index=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_synced = db.Column(db.DateTime, nullable=True)
+
+    mailbox = db.relationship('Mailbox', back_populates='folders')
+
+    __table_args__ = (
+        db.UniqueConstraint('name', 'mailbox_id', name='uq_email_folder_name_mailbox'),
+    )
     
     def __repr__(self):
         return f'<EmailFolder {self.name}>'
@@ -151,9 +162,79 @@ class EmailFolder(db.Model):
             'Spam': 'Spam',
             'Junk': 'Spam',
             'Archive': 'Archiv',
-            'Archives': 'Archiv'
+            'Archives': 'Archiv',
+            'All Mail': 'Alle Mails',
+            'Starred': 'Markiert',
+            'Important': 'Wichtig',
+            # Gmail EN
+            '[Gmail]/Sent Mail': 'Gesendet',
+            '[Google Mail]/Sent Mail': 'Gesendet',
+            '[Gmail]/Drafts': 'Entwürfe',
+            '[Google Mail]/Drafts': 'Entwürfe',
+            '[Gmail]/Trash': 'Papierkorb',
+            '[Google Mail]/Trash': 'Papierkorb',
+            '[Gmail]/Bin': 'Papierkorb',
+            '[Gmail]/Spam': 'Spam',
+            '[Google Mail]/Spam': 'Spam',
+            '[Gmail]/Starred': 'Markiert',
+            '[Google Mail]/Starred': 'Markiert',
+            '[Gmail]/Important': 'Wichtig',
+            '[Google Mail]/Important': 'Wichtig',
+            '[Gmail]/All Mail': 'Alle Mails',
+            '[Google Mail]/All Mail': 'Alle Mails',
+            # Gmail DE
+            '[Gmail]/Gesendet': 'Gesendet',
+            '[Google Mail]/Gesendet': 'Gesendet',
+            '[Gmail]/Papierkorb': 'Papierkorb',
+            '[Google Mail]/Papierkorb': 'Papierkorb',
+            '[Gmail]/Alle Nachrichten': 'Alle Mails',
+            '[Google Mail]/Alle Nachrichten': 'Alle Mails',
+            '[Gmail]/Markiert': 'Markiert',
+            '[Gmail]/Wichtig': 'Wichtig',
         }
-        return display_names.get(imap_name, imap_name)
+        if imap_name in display_names:
+            return display_names[imap_name]
+
+        # Modified UTF-7 Leaf (z. B. [Gmail]/Entw&APw-rfe → Entwürfe)
+        leaf = (imap_name or '').replace('\\', '/').rsplit('/', 1)[-1]
+        if '&' in leaf:
+            import base64
+            import re
+
+            def _repl(match):
+                body = match.group(1)
+                if body == '':
+                    return '&'
+                raw = body.replace(',', '/')
+                pad = '=' * (-len(raw) % 4)
+                try:
+                    return base64.b64decode(raw + pad).decode('utf-16-be')
+                except Exception:
+                    return match.group(0)
+
+            try:
+                leaf = re.sub(r'&([^-]*)-', _repl, leaf)
+            except Exception:
+                pass
+
+        leaf_map = {
+            'Papierkorb': 'Papierkorb',
+            'Trash': 'Papierkorb',
+            'Gesendet': 'Gesendet',
+            'Sent Mail': 'Gesendet',
+            'Entwürfe': 'Entwürfe',
+            'Drafts': 'Entwürfe',
+            'Spam': 'Spam',
+            'Alle Nachrichten': 'Alle Mails',
+            'All Mail': 'Alle Mails',
+            'Markiert': 'Markiert',
+            'Starred': 'Markiert',
+            'Wichtig': 'Wichtig',
+            'Important': 'Wichtig',
+        }
+        if leaf in leaf_map:
+            return leaf_map[leaf]
+        return leaf or imap_name
 
 
 class EmailPermission(db.Model):
@@ -171,4 +252,107 @@ class EmailPermission(db.Model):
         return f'<EmailPermission user={self.user_id} read={self.can_read} send={self.can_send}>'
 
 
+class Mailbox(db.Model):
+    """Multi-Postfach: team | group | private (Hauptpostfach bleibt App-Config)."""
+    __tablename__ = 'mailboxes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    display_name = db.Column(db.String(200), nullable=False)
+    mailbox_type = db.Column(db.String(20), nullable=False, index=True)  # team | group | private
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
+
+    # google | microsoft | infomaniak | ionos | custom
+    provider = db.Column(db.String(32), nullable=False, default='custom', index=True)
+    # password | oauth
+    auth_type = db.Column(db.String(16), nullable=False, default='password')
+
+    smtp_server = db.Column(db.String(255), nullable=True)
+    smtp_port = db.Column(db.Integer, nullable=True, default=587)
+    smtp_use_tls = db.Column(db.Boolean, nullable=False, default=True)
+    smtp_use_ssl = db.Column(db.Boolean, nullable=False, default=False)
+    smtp_username = db.Column(db.String(255), nullable=True)
+    smtp_password_enc = db.Column(db.Text, nullable=True)
+
+    imap_server = db.Column(db.String(255), nullable=True)
+    imap_port = db.Column(db.Integer, nullable=True, default=993)
+    imap_use_ssl = db.Column(db.Boolean, nullable=False, default=True)
+    imap_username = db.Column(db.String(255), nullable=True)
+    imap_password_enc = db.Column(db.Text, nullable=True)
+
+    oauth_access_token_enc = db.Column(db.Text, nullable=True)
+    oauth_refresh_token_enc = db.Column(db.Text, nullable=True)
+    oauth_expires_at = db.Column(db.DateTime, nullable=True)
+    oauth_email = db.Column(db.String(255), nullable=True)
+
+    footer_html = db.Column(db.Text, nullable=True)
+    logo_filename = db.Column(db.String(255), nullable=True)
+    color = db.Column(db.String(7), nullable=False, default='#0d6efd')
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_mailboxes', lazy='dynamic'))
+    team = db.relationship('Team', backref=db.backref('mailboxes', lazy='dynamic'))
+    memberships = db.relationship('MailboxMembership', back_populates='mailbox', cascade='all, delete-orphan')
+    # Wichtig: cascade delete — sonst setzt SQLAlchemy mailbox_id auf NULL (= Hauptpostfach)!
+    messages = db.relationship(
+        'EmailMessage',
+        back_populates='mailbox',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+    folders = db.relationship(
+        'EmailFolder',
+        back_populates='mailbox',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+
+    def __repr__(self):
+        return f'<Mailbox {self.id} {self.mailbox_type} {self.display_name}>'
+
+
+class MailboxMembership(db.Model):
+    """Zuordnung Nutzer ↔ Postfach (Gruppen/explizite Rechte; Team-Zugriff auch über TeamMember)."""
+    __tablename__ = 'mailbox_memberships'
+
+    id = db.Column(db.Integer, primary_key=True)
+    mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    can_read = db.Column(db.Boolean, nullable=False, default=True)
+    can_send = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    mailbox = db.relationship('Mailbox', back_populates='memberships')
+    user = db.relationship('User', backref=db.backref('mailbox_memberships', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('mailbox_id', 'user_id', name='uq_mailbox_membership'),
+    )
+
+    def __repr__(self):
+        return f'<MailboxMembership mailbox={self.mailbox_id} user={self.user_id}>'
+
+
+class MailboxUserPref(db.Model):
+    """Pro Nutzer: Präferenzen für ein zugängliches Postfach (z. B. Team-Logo nutzen)."""
+    __tablename__ = 'mailbox_user_prefs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    use_logo = db.Column(db.Boolean, nullable=False, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    mailbox = db.relationship('Mailbox', backref=db.backref('user_prefs', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('mailbox_prefs', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('mailbox_id', 'user_id', name='uq_mailbox_user_pref'),
+    )
+
+    def __repr__(self):
+        return f'<MailboxUserPref mailbox={self.mailbox_id} user={self.user_id} use_logo={self.use_logo}>'
 

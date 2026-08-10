@@ -78,7 +78,11 @@ def create_app(config_name='default'):
     basedir = os.path.abspath(os.path.dirname(__file__))
     app = Flask(__name__, static_folder=os.path.join(basedir, 'static'))
     app.url_map.strict_slashes = False
-    
+
+    # Gmail/IMAP-Ordner: Namen mit "/" und "&" (modUTF7) sicher in URLs
+    from app.utils.imap_folder_url import ImapFolderConverter
+    app.url_map.converters['imap_folder'] = ImapFolderConverter
+
     app.config.from_object(config[config_name])
 
     if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
@@ -505,6 +509,7 @@ def create_app(config_name='default'):
     def inject_app_config():
         from app.utils.common import is_module_enabled
         from app.utils.access_control import has_module_access
+        from app.utils.multi_mailboxes import is_email_multi_enabled
         from flask_login import current_user
         app_name = app.config.get('APP_NAME', 'Prismateams')
         app_logo = app.config.get('APP_LOGO')
@@ -717,6 +722,7 @@ def create_app(config_name='default'):
             'portal_logo_filename': portal_logo_filename,
             'onlyoffice_available': onlyoffice_available,
             'is_module_enabled': is_module_enabled,
+            'is_email_multi_enabled': is_email_multi_enabled,
             'has_module_access': has_module_access,
             'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name,
@@ -1500,7 +1506,9 @@ def create_app(config_name='default'):
                 ]
                 
                 for folder_data in standard_folders:
-                    existing_folder = EmailFolder.query.filter_by(name=folder_data['name']).first()
+                    existing_folder = EmailFolder.query.filter_by(
+                        name=folder_data['name'], mailbox_id=None
+                    ).first()
                     if not existing_folder:
                         folder = EmailFolder(**folder_data)
                         db.session.add(folder)

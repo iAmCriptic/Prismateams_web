@@ -34,6 +34,11 @@ CRITICAL_TABLES = (
     "email_messages",
     "email_attachments",
     "email_permissions",
+    "mailboxes",
+    "mailbox_memberships",
+    "mailbox_user_prefs",
+    "teams",
+    "team_members",
     "credentials",
     "manuals",
     "manual_folders",
@@ -89,6 +94,7 @@ def import_all_models() -> None:
     from app.models.inventory import Checkout, CheckoutItem  # noqa: F401
     from app.models.manual import Manual, ManualFolder  # noqa: F401
     from app.models.public_share import PublicShare, ShareAccessLog  # noqa: F401
+    from app.models.team import Team, TeamMember  # noqa: F401
     from app.models.wiki import WikiFavorite  # noqa: F401
 
 

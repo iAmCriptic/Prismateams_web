@@ -71,6 +71,11 @@ class User(UserMixin, db.Model):
     # Two-Factor Authentication (2FA)
     totp_secret = db.Column(db.String(255), nullable=True)  # Verschlüsseltes TOTP-Secret
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Google Login / Registrierung / Verknüpfung
+    google_sub = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    google_email = db.Column(db.String(120), nullable=True)
+    google_linked_at = db.Column(db.DateTime, nullable=True)
     
     # Password Policy
     password_changed_at = db.Column(db.DateTime, nullable=True)  # Wann wurde das Passwort zuletzt geändert
@@ -93,6 +98,8 @@ class User(UserMixin, db.Model):
     created_events = db.relationship('CalendarEvent', back_populates='creator', cascade='all, delete-orphan')
     event_participations = db.relationship('EventParticipant', back_populates='user', cascade='all, delete-orphan')
     email_permissions = db.relationship('EmailPermission', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    team_memberships = db.relationship('TeamMember', back_populates='user', cascade='all, delete-orphan')
+    led_teams = db.relationship('Team', foreign_keys='Team.leader_id', back_populates='leader')
     
     def set_password(self, password):
         """Hash and set the user's password."""

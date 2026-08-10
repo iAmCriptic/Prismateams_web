@@ -38,6 +38,29 @@
                     <input type="hidden" name="body" id="bodyHtml" value="">
 
                     <div class="email-composer-scroll">
+                        {% if email_multi_enabled and accessible_mailboxes is defined %}
+                        <div class="email-composer-field mb-2">
+                            <label class="form-label" for="composeMailboxSelect">{{ _('email.multi.mailbox_label') }}</label>
+                            <select class="form-select email-compose-input" id="composeMailboxSelect" name="mailbox_id">
+                                <option value="" {% if not active_mailbox_id %}selected{% endif %}>{{ _('email.multi.main_mailbox') }}</option>
+                                {% for mb in accessible_mailboxes %}
+                                <option value="{{ mb.id }}" {% if active_mailbox_id == mb.id %}selected{% endif %}>{{ mb.display_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="use_html_design" name="use_html_design" {% if use_html_design|default(true) %}checked{% endif %}>
+                            <label class="form-check-label" for="use_html_design">{{ _('email.multi.html_design') }}</label>
+                            <div class="form-text">{{ _('email.multi.html_design_help') }}</div>
+                        </div>
+                        {% if team_logo_available|default(false) %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="use_mailbox_logo" name="use_mailbox_logo" {% if use_mailbox_logo|default(true) %}checked{% endif %}>
+                            <label class="form-check-label" for="use_mailbox_logo">{{ _('email.multi.use_team_logo') }}</label>
+                            <div class="form-text">{{ _('email.multi.use_team_logo_help') }}</div>
+                        </div>
+                        {% endif %}
                         <div class="email-composer-fields">
                             <div class="email-composer-field">
                                 <label for="toChipContainer" class="form-label">{{ _('email.compose.form.to') }}</label>

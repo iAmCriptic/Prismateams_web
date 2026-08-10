@@ -3,7 +3,7 @@ from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember, ChatPin
 from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite, FileEditLock, FileStorageException
 from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
-from .email import EmailMessage, EmailPermission, EmailAttachment
+from .email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder, Mailbox, MailboxMembership, MailboxUserPref
 from .contact import Contact, ContactFavorite
 from .credential import Credential, CredentialFolder, CredentialFavorite
 from .manual import Manual, ManualFolder
@@ -40,13 +40,14 @@ from .assessment import (
     AssessmentAppSetting,
 )
 from .media_downloader import MediaDownloadJob
+from .team import Team, TeamMember
 
 __all__ = [
     'User', 'UserSession',
     'Chat', 'ChatMessage', 'ChatMember', 'ChatPin',
     'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite', 'FileEditLock', 'FileStorageException',
     'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
-    'EmailMessage', 'EmailPermission', 'EmailAttachment',
+    'EmailMessage', 'EmailPermission', 'EmailAttachment', 'EmailFolder', 'Mailbox', 'MailboxMembership', 'MailboxUserPref',
     'Contact', 'ContactFavorite',
     'Credential', 'CredentialFolder', 'CredentialFavorite',
     'Manual', 'ManualFolder',
@@ -71,6 +72,7 @@ __all__ = [
     'AssessmentWarning', 'AssessmentRoomInspection',
     'AssessmentAppSetting',
     'MediaDownloadJob',
+    'Team', 'TeamMember',
 ]
 
 

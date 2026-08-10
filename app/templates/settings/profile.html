@@ -84,6 +84,43 @@
             </button>
         </div>
     </form>
+
+    <section class="settings-profile-card mt-3" aria-labelledby="profile-teams-title">
+        <div class="settings-profile-card-head">
+            <h2 id="profile-teams-title" class="settings-profile-section-title mb-0">
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                {{ _('settings.profile.teams.heading') }}
+            </h2>
+        </div>
+        {% if user_teams is defined and user_teams %}
+        <div class="settings-profile-teams-list">
+            {% for team in user_teams %}
+            <div class="settings-profile-team-row" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+                <div class="settings-profile-team-avatar">
+                    {% if team.image %}
+                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                    {% else %}
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="settings-profile-team-name">
+                        {{ team.name }}
+                        {% if team.leader_id == user.id %}
+                        <span class="badge rounded-pill text-bg-primary">{{ _('settings.profile.teams.leader_badge') }}</span>
+                        {% endif %}
+                    </div>
+                    {% if team.description %}
+                    <div class="settings-profile-team-desc">{{ team.description }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="settings-profile-hint mb-0">{{ _('settings.profile.teams.empty') }}</p>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
 

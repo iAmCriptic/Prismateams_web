@@ -64,14 +64,14 @@ class EmailSyncScheduler:
         while self.running:
             try:
                 with self.app.app_context():
-                    from app.blueprints.email import sync_emails_from_server, cleanup_old_emails
+                    from app.blueprints.email import sync_all_configured_mailboxes, cleanup_old_emails
                     from app.utils.lock_manager import acquire_email_sync_lock
                     
                     # Non-blocking — nie 300s hinter anderem Worker warten
                     with acquire_email_sync_lock(timeout=0) as acquired:
                         if acquired:
                             logger.info("Starte automatische E-Mail-Synchronisation...")
-                            success, message = sync_emails_from_server()
+                            success, message = sync_all_configured_mailboxes()
                             
                             if success:
                                 logger.info(f"E-Mail-Synchronisation erfolgreich: {message}")

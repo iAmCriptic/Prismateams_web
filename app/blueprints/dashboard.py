@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint('dashboard', __name__)
 
 # Bei jedem Release erhöhen, damit alle Nutzer What's New einmalig erneut sehen.
-WHATS_NEW_VERSION = str(ABOUT_RELEASE_VERSION).strip().lstrip('vV') or '3.0.0'
+# Führendes „v“ entfernen, Zusätze wie „DEVELOPMENT“ bleiben erhalten.
+WHATS_NEW_VERSION = str(ABOUT_RELEASE_VERSION or '').strip().lstrip('vV') or '3.1.0'
 
 WIDGET_MODULE_MAP = {
     'termine': 'module_calendar',

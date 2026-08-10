@@ -23,6 +23,11 @@ auth_bp = Blueprint('auth', __name__)
 def _auth_template_kwargs(**extra):
     """Common template context for auth pages including bot protection."""
     kwargs = {'color_gradient': get_color_gradient()}
+    try:
+        from app.utils.google_login import google_login_ready
+        kwargs['google_login_ready'] = google_login_ready()
+    except Exception:
+        kwargs['google_login_ready'] = False
     kwargs.update(get_template_context())
     kwargs.update(extra)
     return kwargs
@@ -34,18 +39,29 @@ def get_color_gradient():
     return gradient_setting.value if gradient_setting else None
 
 
+def _google_register_template_kwargs(**extra):
+    """Auth-Template-Kontext inkl. optionalem Google-Registrierungs-Prefill."""
+    from app.utils.google_login import get_google_register_prefill
+    kwargs = _auth_template_kwargs(**extra)
+    kwargs['google_prefill'] = get_google_register_prefill()
+    return kwargs
+
+
 def _flash_existing_registration(existing_user):
     """Zeigt passende Meldung wenn E-Mail schon registriert ist (Pending vs. aktiv)."""
     if existing_user and not existing_user.is_active:
         flash(translate('auth.flash.account_not_activated'), 'info')
         return redirect(url_for('auth.login'))
     flash(translate('auth.flash.email_already_registered'), 'danger')
-    return render_template('auth/register.html', **_auth_template_kwargs())
+    return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
-def _finish_registration(new_user, email_sent, is_whitelisted):
+def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verified=False):
     """Erfolgsmeldung + Redirect nach erfolgreicher Registrierung."""
     if is_whitelisted:
+        if google_verified:
+            flash(translate('auth.flash.register_success_google_whitelisted'), 'success')
+            return _finalize_portal_login(new_user, remember=False)
         login_user(new_user, remember=False)
         if email_sent:
             flash(translate('auth.flash.register_success_whitelisted'), 'success')
@@ -53,8 +69,11 @@ def _finish_registration(new_user, email_sent, is_whitelisted):
             flash(translate('auth.flash.register_success_whitelisted_no_email'), 'warning')
         return redirect(url_for('auth.confirm_email'))
 
-    # Manuelle Freischaltung: noch kein Bestätigungscode — erst nach Admin-Aktivierung
-    flash(translate('auth.flash.register_pending_admin'), 'info')
+    # Manuelle Freischaltung bleibt — bei Google entfällt nur der Bestätigungscode
+    if google_verified:
+        flash(translate('auth.flash.register_pending_admin_google'), 'info')
+    else:
+        flash(translate('auth.flash.register_pending_admin'), 'info')
     return redirect(url_for('auth.login'))
 
 
@@ -170,19 +189,37 @@ def register():
     """User registration."""
     # Prüfe ob Setup nötig ist
     from app.blueprints.setup import is_setup_needed
+    from app.utils.google_login import (
+        clear_google_register_prefill,
+        get_google_register_prefill,
+        save_google_profile_picture,
+    )
     if is_setup_needed():
         return redirect(url_for('setup.setup'))
     
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
+
+    if request.args.get('clear_google') == '1':
+        clear_google_register_prefill()
+        return redirect(url_for('auth.register'))
+
+    google_prefill = get_google_register_prefill()
     
     if request.method == 'POST':
         bot_ok, _ = validate_bot_protection(request, 'register')
         if not bot_ok:
             flash(translate('auth.flash.bot_protection_failed'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
 
-        email = request.form.get('email', '').strip().lower()
+        # Bei Google-Prefill ist die E-Mail fest (verifiziert) und darf nicht geändert werden
+        if google_prefill:
+            email = (google_prefill.get('email') or '').strip().lower()
+            google_sub = google_prefill.get('sub') or ''
+        else:
+            email = request.form.get('email', '').strip().lower()
+            google_sub = None
+
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
         first_name = request.form.get('first_name', '').strip()
@@ -193,26 +230,34 @@ def register():
         # Validation
         if not all([email, password, first_name, last_name]):
             flash(translate('auth.flash.fill_all_fields'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
         
         if password != password_confirm:
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
 
         # Registrierung: mind. 12 Zeichen + Groß-/Kleinbuchstaben, Zahl, Sonderzeichen
         is_valid, _ = validate_password(password, min_length=12, require_complexity=True)
         if not is_valid:
             flash(translate('auth.flash.password_requirements'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
         
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             # Pending-User: Freigabe-Hinweis statt irreführender "bereits registriert"-Fehler
             return _flash_existing_registration(existing_user)
+
+        if google_sub:
+            existing_google = User.query.filter_by(google_sub=google_sub).first()
+            if existing_google:
+                clear_google_register_prefill()
+                flash(translate('auth.google.already_registered'), 'info')
+                return redirect(url_for('auth.login'))
         
         # Check if email is whitelisted
         is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
+        google_verified = bool(google_sub)
         
         # Get default accent color from system settings
         from app.models.settings import SystemSettings
@@ -228,14 +273,22 @@ def register():
             is_active=is_whitelisted,
             is_admin=False,
             dark_mode=dark_mode,
-            accent_color=default_accent_color
+            accent_color=default_accent_color,
+            is_email_confirmed=google_verified,
         )
+        if google_verified:
+            new_user.google_sub = google_sub
+            new_user.google_email = email
+            new_user.google_linked_at = datetime.utcnow()
         new_user.set_password(password)
         
         email_sent = False
         try:
             db.session.add(new_user)
             db.session.flush()
+
+            if google_verified and google_prefill.get('picture'):
+                save_google_profile_picture(new_user, google_prefill.get('picture'))
 
             # Standardrollen + E-Mail-Rechte vor dem Commit — unabhängig vom Mailversand
             from app.utils.access_control import apply_default_roles_to_user
@@ -255,17 +308,20 @@ def register():
             if existing_user:
                 return _flash_existing_registration(existing_user)
             flash(translate('auth.flash.email_already_registered'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
         except Exception as e:
             db.session.rollback()
             logging.exception('User create failed during registration for %s: %s', email, e)
             flash(translate('auth.flash.fill_all_fields'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+            return render_template('auth/register.html', **_google_register_template_kwargs())
+
+        clear_google_register_prefill()
 
         try:
             # Bestätigungscode erst nach Freischaltung:
             # Whitelist = sofort aktiv → Code jetzt; sonst erst bei Admin-Freischaltung.
-            if is_whitelisted:
+            # Google-verifiziert: kein Bestätigungscode.
+            if is_whitelisted and not google_verified:
                 from app.utils.email_sender import send_confirmation_email
                 email_sent = send_confirmation_email(new_user)
 
@@ -289,9 +345,11 @@ def register():
         except Exception as e:
             logging.exception('Post-create steps failed during registration for %s: %s', email, e)
         
-        return _finish_registration(new_user, email_sent, is_whitelisted)
+        return _finish_registration(
+            new_user, email_sent, is_whitelisted, google_verified=google_verified
+        )
     
-    return render_template('auth/register.html', **_auth_template_kwargs())
+    return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -419,6 +477,247 @@ def login():
         return _finalize_portal_login(user, remember=remember, next_page=next_page)
     
     return render_template('auth/login.html', **_auth_template_kwargs())
+
+
+@auth_bp.route('/google/login')
+@limiter.limit("20 per 15 minutes")
+def google_login_start():
+    """Startet Google-OAuth für Login (verknüpfte Accounts)."""
+    from app.utils.google_login import google_login_ready, build_google_login_url
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    if not google_login_ready():
+        flash(translate('auth.google.not_configured'), 'warning')
+        return redirect(url_for('auth.login'))
+    try:
+        next_page = _sanitize_next_page(request.args.get('next'))
+        if next_page:
+            session['google_login_next'] = next_page
+        return redirect(build_google_login_url(purpose='login'))
+    except Exception as exc:
+        flash(translate('auth.google.error', error=str(exc)), 'danger')
+        return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/google/register')
+@limiter.limit("20 per 15 minutes")
+def google_register_start():
+    """Startet Google-OAuth für die Registrierung (Prefill + E-Mail verifiziert)."""
+    from app.utils.google_login import google_login_ready, build_google_login_url
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    if not google_login_ready():
+        flash(translate('auth.google.not_configured'), 'warning')
+        return redirect(url_for('auth.register'))
+    try:
+        return redirect(build_google_login_url(purpose='register'))
+    except Exception as exc:
+        flash(translate('auth.google.error', error=str(exc)), 'danger')
+        return redirect(url_for('auth.register'))
+
+
+@auth_bp.route('/google/callback')
+@limiter.limit("30 per 15 minutes")
+def google_callback():
+    """Einheitlicher Google-OAuth-Callback: Login, Register, Link, Postfach, YouTube."""
+    state = request.args.get('state')
+    code = request.args.get('code')
+    err = request.args.get('error')
+
+    # 1) Postfach-Wizard (Google)
+    if (
+        state
+        and state == session.get('mailbox_oauth_state')
+        and session.get('mailbox_oauth_provider') == 'google'
+    ):
+        return _google_callback_mailbox(code, state, err)
+
+    # 2) YouTube Musik
+    if state and state == session.get('youtube_oauth_state'):
+        return _google_callback_youtube(code, state, err)
+
+    # 3) Login / Registrierung / Account-Verknüpfung
+    return _google_callback_auth(code, state, err)
+
+
+def _google_callback_mailbox(code, state, err):
+    """Beendet Google-OAuth für den Postfach-Wizard (inkl. Popup)."""
+    from app.utils.mailbox_oauth import (
+        handle_oauth_callback,
+        mailbox_oauth_popup_error_html,
+        mailbox_oauth_popup_success_html,
+    )
+
+    if err:
+        msg = request.args.get('error_description') or err
+        if session.get('mailbox_oauth_popup'):
+            return mailbox_oauth_popup_error_html(msg)
+        flash(translate('settings.mailboxes.oauth_error', error=msg), 'danger')
+        return redirect(url_for('settings.my_mailbox_new'))
+
+    try:
+        result = handle_oauth_callback('google', code, state)
+    except Exception as e:
+        if session.get('mailbox_oauth_popup'):
+            return mailbox_oauth_popup_error_html(str(e))
+        flash(translate('settings.mailboxes.oauth_error', error=str(e)), 'danger')
+        return redirect(url_for('settings.my_mailbox_new'))
+
+    if session.get('mailbox_oauth_popup'):
+        return mailbox_oauth_popup_success_html(result)
+    flash(translate('settings.mailboxes.oauth_connected'), 'success')
+    return redirect(url_for('settings.my_mailbox_new'))
+
+
+def _google_callback_youtube(code, state, err):
+    """Beendet Google-OAuth für YouTube Music."""
+    from app.utils.music_oauth import handle_youtube_callback
+
+    if err:
+        flash(translate('music.flash.oauth_error', provider='YouTube', error=err), 'danger')
+        return redirect(url_for('music.index'))
+    if not code:
+        flash(translate('music.flash.no_auth_code'), 'danger')
+        return redirect(url_for('music.index'))
+    if not current_user.is_authenticated:
+        flash(translate('auth.google.link_requires_login'), 'warning')
+        return redirect(url_for('auth.login'))
+    try:
+        handle_youtube_callback(code, state)
+        flash(translate('music.flash.youtube_connected'), 'success')
+    except Exception as e:
+        flash(translate('music.flash.connect_error', provider='YouTube', error=str(e)), 'danger')
+    return redirect(url_for('music.index'))
+
+
+def _google_callback_auth(code, state, err):
+    """Beendet Google-OAuth für Login / Register / Link."""
+    from app.utils.google_login import (
+        exchange_google_login_code,
+        ensure_gmail_mailbox_for_user,
+        store_google_register_prefill,
+        clear_google_register_prefill,
+        save_google_profile_picture,
+    )
+
+    if err:
+        flash(translate('auth.google.error', error=request.args.get('error_description') or err), 'danger')
+        if current_user.is_authenticated:
+            return redirect(url_for('settings.security'))
+        return redirect(url_for('auth.login'))
+
+    try:
+        result = exchange_google_login_code(code, state)
+    except Exception as exc:
+        flash(translate('auth.google.error', error=str(exc)), 'danger')
+        if current_user.is_authenticated:
+            return redirect(url_for('settings.security'))
+        return redirect(url_for('auth.login'))
+
+    purpose = result.get('purpose') or 'login'
+    sub = result['sub']
+    google_email = result.get('email') or ''
+
+    if purpose == 'link':
+        if not current_user.is_authenticated:
+            flash(translate('auth.google.link_requires_login'), 'warning')
+            return redirect(url_for('auth.login'))
+        if current_user.is_guest:
+            flash(translate('auth.google.link_guest_forbidden'), 'danger')
+            return redirect(url_for('settings.security'))
+
+        other = User.query.filter(User.google_sub == sub, User.id != current_user.id).first()
+        if other:
+            flash(translate('auth.google.already_linked_other'), 'danger')
+            return redirect(url_for('settings.security'))
+
+        current_user.google_sub = sub
+        current_user.google_email = google_email or None
+        current_user.google_linked_at = datetime.utcnow()
+        try:
+            # Nur übernehmen, wenn der User noch kein eigenes Profilbild hat
+            picture_url = (result.get('picture') or '').strip()
+            if picture_url and not current_user.profile_picture:
+                save_google_profile_picture(current_user, picture_url)
+            ensure_gmail_mailbox_for_user(current_user, result)
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            flash(translate('auth.google.error', error=str(exc)), 'danger')
+            return redirect(url_for('settings.security'))
+        flash(translate('auth.google.link_success'), 'success')
+        return redirect(url_for('settings.security'))
+
+    if purpose == 'register':
+        existing_by_sub = User.query.filter_by(google_sub=sub).first()
+        if existing_by_sub:
+            flash(translate('auth.google.already_registered'), 'info')
+            return redirect(url_for('auth.login'))
+        if google_email:
+            existing_by_email = User.query.filter_by(email=google_email).first()
+            if existing_by_email:
+                flash(translate('auth.google.email_exists_link_instead'), 'warning')
+                return redirect(url_for('auth.login'))
+        try:
+            store_google_register_prefill(result)
+        except Exception as exc:
+            flash(translate('auth.google.error', error=str(exc)), 'danger')
+            return redirect(url_for('auth.register'))
+        flash(translate('auth.google.register_prefill_ready'), 'success')
+        return redirect(url_for('auth.register'))
+
+    # purpose == login
+    user = User.query.filter_by(google_sub=sub).first()
+    if not user:
+        if google_email:
+            existing_by_email = User.query.filter_by(email=google_email).first()
+            if existing_by_email:
+                flash(translate('auth.google.not_linked'), 'warning')
+                return redirect(url_for('auth.login'))
+        try:
+            store_google_register_prefill(result)
+            flash(translate('auth.google.register_via_login'), 'info')
+            return redirect(url_for('auth.register'))
+        except Exception:
+            clear_google_register_prefill()
+            flash(translate('auth.google.not_linked'), 'warning')
+            return redirect(url_for('auth.login'))
+
+    if user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+        remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+        flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
+        return redirect(url_for('auth.login'))
+
+    if not user.is_active:
+        flash(translate('auth.flash.account_not_activated'), 'warning')
+        return redirect(url_for('auth.login'))
+
+    try:
+        ensure_gmail_mailbox_for_user(user, result)
+        if google_email:
+            user.google_email = google_email
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    user.failed_login_attempts = 0
+    user.failed_login_until = None
+    db.session.commit()
+
+    next_page = _sanitize_next_page(session.pop('google_login_next', None))
+    remember = False
+
+    if user.totp_enabled and user.totp_secret:
+        session['pending_2fa_user_id'] = user.id
+        session['pending_2fa_remember'] = remember
+        if next_page:
+            session['pending_2fa_next'] = next_page
+        else:
+            session.pop('pending_2fa_next', None)
+        flash(translate('auth.flash.enter_2fa_code'), 'info')
+        return redirect(url_for('auth.login_2fa'))
+
+    return _finalize_portal_login(user, remember=remember, next_page=next_page)
 
 
 @auth_bp.route('/login/2fa', methods=['GET', 'POST'])

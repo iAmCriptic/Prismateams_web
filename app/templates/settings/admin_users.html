@@ -179,9 +179,23 @@
                         </span>
                         {% endif %}
                     </div>
+                    {% set member_team_ids = user_team_ids.get(user.id, []) if user_team_ids is defined else [] %}
+                    {% if member_team_ids %}
+                    <div class="settings-admin-teams-chips">
+                        {% for team in (all_teams if all_teams is defined else []) if team.id in member_team_ids %}
+                        <span class="settings-admin-teams-chip" style="--chip-color: {{ team.color or '#6c757d' }};">
+                            <span class="settings-admin-teams-chip-dot" aria-hidden="true"></span>
+                            {{ team.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="sau-actions">
                     <div class="sau-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.teams.assign_teams') }}" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" data-team-ids="{{ member_team_ids|join(',') }}">
+                            <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                        </button>
                         <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.manage_roles') }}" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
                             <i class="bi bi-person-badge" aria-hidden="true"></i>
                         </button>
@@ -209,6 +223,11 @@
                             <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                            <li>
+                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" data-team-ids="{{ member_team_ids|join(',') }}">
+                                    <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>{{ _('settings.admin.teams.assign_teams') }}
+                                </button>
+                            </li>
                             <li>
                                 <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
                                     <i class="bi bi-person-badge me-2" aria-hidden="true"></i>{{ _('settings.admin.users.manage_roles') }}
@@ -297,9 +316,23 @@
                         <span>{{ _('settings.admin.users.code_unlimited') }}</span>
                         {% endif %}
                     </div>
+                    {% set guest_team_ids = user_team_ids.get(guest.id, []) if user_team_ids is defined else [] %}
+                    {% if guest_team_ids %}
+                    <div class="settings-admin-teams-chips">
+                        {% for team in (all_teams if all_teams is defined else []) if team.id in guest_team_ids %}
+                        <span class="settings-admin-teams-chip" style="--chip-color: {{ team.color or '#6c757d' }};">
+                            <span class="settings-admin-teams-chip-dot" aria-hidden="true"></span>
+                            {{ team.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="sau-actions">
                     <div class="sau-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.teams.assign_teams') }}" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}" data-team-ids="{{ guest_team_ids|join(',') }}">
+                            <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                        </button>
                         <button type="button" class="btn btn-sm btn-link sau-icon-btn" title="{{ _('settings.admin.users.edit_guest') }}" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
                             <i class="bi bi-pencil" aria-hidden="true"></i>
                         </button>
@@ -314,6 +347,11 @@
                             <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                            <li>
+                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}" data-team-ids="{{ guest_team_ids|join(',') }}">
+                                    <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>{{ _('settings.admin.teams.assign_teams') }}
+                                </button>
+                            </li>
                             <li>
                                 <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#guestEditModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}">
                                     <i class="bi bi-pencil me-2" aria-hidden="true"></i>{{ _('settings.admin.users.edit_guest') }}
@@ -520,6 +558,50 @@
     </div>
 </div>
 
+<div class="modal fade settings-admin-roles-modal" id="teamsModal" tabindex="-1" aria-labelledby="teamsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" id="teamsAssignForm" action="">
+                <div class="modal-header settings-admin-roles-modal-header">
+                    <h5 class="modal-title" id="teamsModalLabel">
+                        {{ _('settings.admin.teams.assign_teams') }}: <span id="teamsModalUserName"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body settings-admin-roles-modal-body">
+                    {% if all_teams is defined and all_teams %}
+                    <div class="settings-admin-teams-picker-list" id="teamsModalList">
+                        {% for team in all_teams %}
+                        <label class="settings-admin-teams-picker-item">
+                            <input class="form-check-input teams-modal-checkbox" type="checkbox" name="team_ids" value="{{ team.id }}">
+                            <span>
+                                <strong>{{ team.name }}</strong>
+                                {% if team.color %}
+                                <span class="settings-admin-teams-chip-dot ms-1" style="background: {{ team.color }}; display: inline-block;" aria-hidden="true"></span>
+                                {% endif %}
+                                {% if team.description %}
+                                <br><small class="text-muted">{{ team.description }}</small>
+                                {% endif %}
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mb-0">{{ _('settings.admin.teams.empty') }}</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer settings-admin-roles-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent settings-admin-roles-btn" {% if all_teams is not defined or not all_teams %}disabled{% endif %}>
+                        <i class="bi bi-check-lg" aria-hidden="true"></i>
+                        {{ _('common.save') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 const allModules = {{ all_modules|tojson }};
 const guestModules = {{ guest_modules|tojson }};
@@ -587,6 +669,25 @@ function moveModalToBody(el) {
     });
     const saveBtn = document.getElementById('guestEditSaveBtn');
     if (saveBtn) saveBtn.addEventListener('click', saveGuestEdit);
+})();
+
+(function () {
+    const teamsModalEl = document.getElementById('teamsModal');
+    if (!teamsModalEl) return;
+    moveModalToBody(teamsModalEl);
+    const form = document.getElementById('teamsAssignForm');
+    teamsModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button || !form) return;
+        const userId = button.getAttribute('data-user-id');
+        const userName = button.getAttribute('data-user-name') || '';
+        const selected = (button.getAttribute('data-team-ids') || '').split(',').filter(Boolean);
+        document.getElementById('teamsModalUserName').textContent = userName;
+        form.action = {{ url_for('settings.set_user_teams', user_id=0)|tojson }}.replace('/0/', '/' + userId + '/');
+        teamsModalEl.querySelectorAll('.teams-modal-checkbox').forEach(function (cb) {
+            cb.checked = selected.indexOf(cb.value) !== -1;
+        });
+    });
 })();
 
 document.getElementById('modalHasFullAccess').addEventListener('change', toggleModuleRoles);
