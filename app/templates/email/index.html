@@ -3,13 +3,18 @@
 {% block title %}{{ _('email.index.page_title') }}{% endblock %}
 
 {% macro folder_icon(folder) -%}
-    {%- if folder.folder_type == 'standard' -%}
-        {%- if folder.name == 'INBOX' -%}<i class="bi bi-inbox"></i>
-        {%- elif folder.name in ['Sent', 'Sent Messages'] -%}<i class="bi bi-send"></i>
-        {%- elif folder.name == 'Drafts' -%}<i class="bi bi-file-earmark-text"></i>
-        {%- elif folder.name in ['Trash', 'Deleted Messages'] -%}<i class="bi bi-trash"></i>
-        {%- elif folder.name in ['Spam', 'Junk'] -%}<i class="bi bi-shield-exclamation"></i>
-        {%- elif folder.name in ['Archive', 'Archives'] -%}<i class="bi bi-archive"></i>
+    {%- set n = folder.name -%}
+    {%- set dn = folder.display_name or '' -%}
+    {%- if folder.folder_type == 'standard' or folder.is_system -%}
+        {%- if n == 'INBOX' or dn == 'Posteingang' -%}<i class="bi bi-inbox"></i>
+        {%- elif dn == 'Gesendet' or 'Sent' in n or n.endswith('/Gesendet') -%}<i class="bi bi-send"></i>
+        {%- elif dn == 'Entwürfe' or 'Drafts' in n or 'Entw' in n -%}<i class="bi bi-file-earmark-text"></i>
+        {%- elif dn == 'Papierkorb' or 'Trash' in n or 'Bin' in n or n.endswith('/Papierkorb') -%}<i class="bi bi-trash"></i>
+        {%- elif dn == 'Spam' or n.endswith('/Spam') or n.endswith('/Junk') -%}<i class="bi bi-shield-exclamation"></i>
+        {%- elif dn == 'Archiv' or 'Archive' in n -%}<i class="bi bi-archive"></i>
+        {%- elif dn == 'Markiert' or 'Starred' in n or n.endswith('/Markiert') -%}<i class="bi bi-star"></i>
+        {%- elif dn == 'Wichtig' or 'Important' in n or n.endswith('/Wichtig') -%}<i class="bi bi-exclamation-circle"></i>
+        {%- elif dn == 'Alle Mails' or 'All Mail' in n or 'Alle Nachrichten' in n -%}<i class="bi bi-mailbox"></i>
         {%- else -%}<i class="bi bi-folder"></i>
         {%- endif -%}
     {%- else -%}<i class="bi bi-folder"></i>
@@ -117,8 +122,9 @@
 </ul>
 {% endmacro %}
 
-{% macro folder_unread_count(folder_name) %}
-    {% set count = (folder_unread_counts or {}).get(folder_name, 0) %}
+{% macro folder_unread_count(folder_name, unread_counts=none) %}
+    {% set counts = unread_counts if unread_counts is not none else (folder_unread_counts or {}) %}
+    {% set count = counts.get(folder_name, 0) %}
     <span class="email-folder-unread{% if not count %} is-empty{% endif %}"
           data-email-folder-unread="{{ folder_name }}"
           data-count="{{ count }}"
@@ -127,13 +133,23 @@
     </span>
 {% endmacro %}
 
-{% macro folder_tree_links(folder_tree, current_folder, mode='sidebar') %}
+{% macro folder_tree_links(folder_tree, current_folder, mode='sidebar', for_mailbox_id=none, unread_counts=none) %}
+    {% if email_multi_enabled|default(false) %}
+        {% if for_mailbox_id is none %}
+            {% set mb_q = {'mailbox': 'main'} %}
+        {% else %}
+            {% set mb_q = {'mailbox': for_mailbox_id} %}
+        {% endif %}
+    {% else %}
+        {% set mb_q = {} %}
+    {% endif %}
+    {% set is_this_active = (for_mailbox_id == active_mailbox_id) or (for_mailbox_id is none and not active_mailbox_id) %}
     {% for entry in folder_tree %}
         {% set folder = entry.folder %}
         {% if mode == 'sidebar' %}
         <li class="nav-item email-folder-node" data-folder-depth="{{ entry.depth }}">
-            <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
-               class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+            <a href="{{ url_for('email.folder_view', folder_name=folder.name, **mb_q) }}"
+               class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if is_this_active and current_folder == folder.name %}active{% endif %}"
                data-folder="{{ folder.name }}"
                data-folder-type="{{ folder.folder_type }}"
                data-is-system="{{ 'true' if folder.is_system else 'false' }}"
@@ -141,7 +157,7 @@
                 <span class="email-folder-drop-indicator" aria-hidden="true"></span>
                 {{ folder_icon(folder) }}
                 <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
-                {{ folder_unread_count(folder.name) }}
+                {{ folder_unread_count(folder.name, unread_counts) }}
                 {% if folder.folder_type == 'custom' and not folder.is_system %}
                 <button type="button" class="btn btn-sm btn-link text-danger email-folder-delete" data-folder="{{ folder.name }}" title="{{ _('email.index.actions.delete_folder') }}">
                     <i class="bi bi-x-lg"></i>
@@ -150,8 +166,8 @@
             </a>
         </li>
         {% elif mode == 'offcanvas' %}
-        <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
-           class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+        <a href="{{ url_for('email.folder_view', folder_name=folder.name, **mb_q) }}"
+           class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if is_this_active and current_folder == folder.name %}active{% endif %}"
            data-folder="{{ folder.name }}"
            data-folder-type="{{ folder.folder_type }}"
            data-is-system="{{ 'true' if folder.is_system else 'false' }}"
@@ -160,16 +176,16 @@
             <span class="email-folder-drop-indicator" aria-hidden="true"></span>
             {{ folder_icon(folder) }}
             <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
-            {{ folder_unread_count(folder.name) }}
+            {{ folder_unread_count(folder.name, unread_counts) }}
         </a>
         {% elif mode == 'dropdown' %}
         <li>
-            <a class="dropdown-item email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
-               href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
+            <a class="dropdown-item email-folder-droptarget {% if is_this_active and current_folder == folder.name %}active{% endif %}"
+               href="{{ url_for('email.folder_view', folder_name=folder.name, **mb_q) }}"
                data-folder="{{ folder.name }}"
                style="padding-left: {{ 1 + (entry.depth * 1.1) }}rem;">
                 {{ folder_icon(folder) }} <span class="ms-2">{{ entry.short_name }}</span>
-                {{ folder_unread_count(folder.name) }}
+                {{ folder_unread_count(folder.name, unread_counts) }}
             </a>
         </li>
         {% endif %}
@@ -350,6 +366,8 @@
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
             <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form mb-0" onsubmit="return handleSyncSubmit(event, this);">
+                {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
+                {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
                 <button type="submit" class="btn btn-link email-mobile-sync-btn sync-btn p-1" title="{{ _('email.index.buttons.sync') }}">
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
@@ -419,6 +437,8 @@
         </div>
         <div class="mod-sidebar-actions">
             <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form mod-sidebar-action-form" onsubmit="return handleSyncSubmit(event, this);">
+                {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
+                {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
                 <button type="submit" class="btn mod-sidebar-action sync-btn w-100">
                     <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="display: none;"></span>
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
@@ -433,7 +453,60 @@
         {{ email_folder_create_inline('emailFolderCreateSidebar') }}
         <hr class="my-2">
         <ul class="nav flex-column gap-1 mod-sidebar-nav email-folder-list" id="emailFolderList">
+            {% if email_multi_enabled|default(false) %}
+            <li class="nav-item email-mailbox-group">
+                <a class="nav-link mod-nav-link email-mailbox-toggle {% if not active_mailbox_id %}active{% endif %}"
+                   data-bs-toggle="collapse" href="#mailboxMainFolders" role="button"
+                   aria-expanded="{{ 'true' if not active_mailbox_id else 'false' }}">
+                    <i class="bi bi-chevron-down email-mailbox-chevron" aria-hidden="true"></i>
+                    <i class="bi bi-inbox ms-1" aria-hidden="true"></i>
+                    <span class="ms-2">{{ _('email.multi.main_mailbox') }}</span>
+                </a>
+                <div class="collapse {% if not active_mailbox_id %}show{% endif %}" id="mailboxMainFolders">
+                    <ul class="nav flex-column gap-1 ps-1">
+                        {% set main_tree = (mailbox_folder_trees or {}).get('main', folder_tree if not active_mailbox_id else []) %}
+                        {% if main_tree %}
+                        {{ folder_tree_links(main_tree, current_folder, 'sidebar', for_mailbox_id=none, unread_counts=(mailbox_unread_counts or {}).get('main')) }}
+                        {% else %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('email.index', mailbox='main') }}" class="nav-link mod-nav-link email-folder-link">
+                                <i class="bi bi-inbox"></i>
+                                <span class="ms-2">INBOX</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+            {% for mb in accessible_mailboxes|default([]) %}
+            <li class="nav-item email-mailbox-group">
+                <a class="nav-link mod-nav-link email-mailbox-toggle {% if active_mailbox_id == mb.id %}active{% endif %}"
+                   data-bs-toggle="collapse" href="#mailboxFolders{{ mb.id }}" role="button"
+                   aria-expanded="{{ 'true' if active_mailbox_id == mb.id else 'false' }}">
+                    <i class="bi bi-chevron-down email-mailbox-chevron" aria-hidden="true"></i>
+                    <span class="d-inline-block rounded-circle ms-1" style="width:8px;height:8px;background:{{ mb.color }};"></span>
+                    <span class="ms-2">{{ mb.display_name }}</span>
+                </a>
+                <div class="collapse {% if active_mailbox_id == mb.id %}show{% endif %}" id="mailboxFolders{{ mb.id }}">
+                    <ul class="nav flex-column gap-1 ps-1">
+                        {% set mb_tree = (mailbox_folder_trees or {}).get(mb.id, folder_tree if active_mailbox_id == mb.id else []) %}
+                        {% if mb_tree %}
+                        {{ folder_tree_links(mb_tree, current_folder, 'sidebar', for_mailbox_id=mb.id, unread_counts=(mailbox_unread_counts or {}).get(mb.id)) }}
+                        {% else %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('email.index', mailbox=mb.id) }}" class="nav-link mod-nav-link email-folder-link">
+                                <i class="bi bi-inbox"></i>
+                                <span class="ms-2">INBOX</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+            {% endfor %}
+            {% else %}
             {{ folder_tree_links(folder_tree, current_folder, 'sidebar') }}
+            {% endif %}
         </ul>
     </div>
 
@@ -482,6 +555,8 @@
     </div>
     <div class="col-auto">
         <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
+            {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
+            {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
             <button type="submit" class="btn btn-outline-accent sync-btn">
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
                 <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}

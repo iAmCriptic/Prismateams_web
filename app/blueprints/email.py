@@ -25,7 +25,7 @@ import hashlib
 from markupsafe import Markup
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy import func, cast, Integer
+from sqlalchemy import func, cast, Integer, or_
 import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
@@ -56,8 +56,11 @@ def html_to_plain_text(html_content: str) -> str:
     return unescape(text).strip()
 
 
-def build_footer_html():
+def build_footer_html(mailbox=None):
     """Footer für ausgehende Mails im E-Mail-Modul (Admin-Template + Absenderzeile)."""
+    if mailbox is not None and (mailbox.footer_html or '').strip():
+        return mailbox.footer_html.strip()
+
     from app.utils.email_sender import build_email_footer_html
 
     html = build_email_footer_html(
@@ -690,17 +693,38 @@ def build_quoted_forward_html(original_email) -> str:
 
 
 def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_preview: bool = False,
-                        quoted_reply_html: str = None):
+                        quoted_reply_html: str = None, mailbox=None, use_html_design: bool = True,
+                        use_mailbox_logo: bool = True, logo_user=None):
     body_html = body_html or ''
-    footer_html = build_footer_html()
+    footer_html = build_footer_html(mailbox=mailbox)
     
     if footer_html:
         combined_html = body_html + '<p style="margin-top: 1em;"></p>' + footer_html
     else:
         combined_html = body_html
 
+    # Plain / ohne Design-Wrapper: formatierter Body + Footer, kein Layout-Template
+    if not use_html_design:
+        plain_body = html_to_plain_text(combined_html)
+        if quoted_reply_html:
+            quoted_plain = html_to_plain_text(quoted_reply_html)
+            if quoted_plain:
+                plain_body = (plain_body + '\n\n--\n' + quoted_plain).strip()
+            quoted_block = f'<div class="quoted-reply">{quoted_reply_html}</div>'
+            return combined_html + quoted_block, plain_body
+        return combined_html, plain_body
+
     app_name = get_portal_display_name()
-    logo_base64 = get_logo_base64()
+    from app.utils.multi_mailboxes import get_mailbox_logo_data
+    logo_bytes, _, _ = get_mailbox_logo_data(
+        mailbox, user=logo_user, use_logo=use_mailbox_logo
+    )
+    logo_base64 = None
+    if logo_bytes:
+        import base64 as _b64
+        logo_base64 = _b64.b64encode(logo_bytes).decode('ascii')
+    else:
+        logo_base64 = get_logo_base64()
     current_year = datetime.utcnow().year
 
     # In der Vorschau Base64 verwenden (CID funktioniert nicht ohne echte E-Mail)
@@ -859,24 +883,30 @@ def _imap_error_is_transient(exc):
     )
 
 
-def _open_imap_connection(timeout=20):
+def _open_imap_connection(timeout=20, mailbox=None):
     """
-    Öffnet eine IMAP-Verbindung aus App-Config (ohne Ordner-Select).
+    Öffnet eine IMAP-Verbindung aus App-Config oder Mailbox-Credentials (ohne Ordner-Select).
     Raises bei Fehler.
     """
     import ssl
+    from app.utils.multi_mailboxes import get_mailbox_imap_config
 
-    imap_server = current_app.config.get('IMAP_SERVER')
-    imap_port = int(current_app.config.get('IMAP_PORT', 993) or 993)
-    imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
-    username = current_app.config.get('MAIL_USERNAME')
-    password = current_app.config.get('MAIL_PASSWORD')
+    cfg = get_mailbox_imap_config(mailbox)
+    imap_server = cfg.get('server')
+    imap_port = int(cfg.get('port') or 993)
+    imap_use_ssl = cfg.get('use_ssl', True)
+    username = cfg.get('user')
+    password = cfg.get('password')
+    auth_type = cfg.get('auth_type') or 'password'
     timeout = int(current_app.config.get('MAIL_TIMEOUT', timeout) or timeout)
 
-    if not all([imap_server, username, password]):
+    if not imap_server or not username:
         raise RuntimeError('IMAP-Konfiguration unvollständig')
 
-    if _is_placeholder_imap_config(imap_server, username, password):
+    if auth_type != 'oauth' and not password:
+        raise RuntimeError('IMAP-Konfiguration unvollständig')
+
+    if auth_type != 'oauth' and _is_placeholder_imap_config(imap_server, username, password):
         raise RuntimeError('IMAP enthält Platzhalterwerte')
 
     if imap_use_ssl:
@@ -890,11 +920,16 @@ def _open_imap_connection(timeout=20):
             # Server ohne STARTTLS auf Klartext-Port
             pass
 
-    conn.login(username, password)
+    if auth_type == 'oauth' and mailbox is not None:
+        from app.utils.mailbox_oauth import get_valid_access_token, imap_authenticate_xoauth2
+        token = get_valid_access_token(mailbox)
+        imap_authenticate_xoauth2(conn, username, token)
+    else:
+        conn.login(username, password)
     return conn, imap_server, imap_port
 
 
-def probe_imap_connection(timeout=20, retries=3, wait_for_sync_seconds=8):
+def probe_imap_connection(timeout=20, retries=3, wait_for_sync_seconds=8, mailbox=None):
     """
     Prüft IMAP Login + INBOX (für Einstellungs-Test).
 
@@ -910,7 +945,7 @@ def probe_imap_connection(timeout=20, retries=3, wait_for_sync_seconds=8):
     def _do_probe():
         conn = None
         try:
-            conn, server, port = _open_imap_connection(timeout=timeout)
+            conn, server, port = _open_imap_connection(timeout=timeout, mailbox=mailbox)
             status, _ = conn.select('INBOX', readonly=True)
             if status != 'OK':
                 status, _ = conn.select('"INBOX"', readonly=True)
@@ -973,17 +1008,69 @@ def _imap_logout(mail_conn):
         pass
 
 
-def connect_imap(folder='INBOX'):
+def _send_flask_message_via_smtp(msg, smtp_cfg: dict):
+    """Sendet eine Flask-Mail Message über dynamische SMTP-Credentials (Multi-Postfach)."""
+    import ssl as ssl_mod
+
+    server = smtp_cfg.get('server')
+    port = int(smtp_cfg.get('port') or 587)
+    user = smtp_cfg.get('user')
+    password = smtp_cfg.get('password')
+    use_ssl = bool(smtp_cfg.get('use_ssl', False))
+    use_tls = bool(smtp_cfg.get('use_tls', True)) and not use_ssl
+    auth_type = smtp_cfg.get('auth_type') or 'password'
+    mailbox_obj = smtp_cfg.get('mailbox')
+    if not server or not user:
+        raise RuntimeError('SMTP-Konfiguration des Postfachs unvollständig')
+    if auth_type != 'oauth' and not password:
+        raise RuntimeError('SMTP-Konfiguration des Postfachs unvollständig')
+
+    # Flask-Mail baut die MIME-Message lazy über .message
+    mime = getattr(msg, 'message', None)
+    if mime is None:
+        raise RuntimeError('E-Mail-Nachricht konnte nicht aufgebaut werden')
+
+    recipients = list(msg.recipients or [])
+    if msg.cc:
+        recipients.extend(msg.cc)
+    if msg.bcc:
+        recipients.extend(msg.bcc)
+
+    timeout = int(current_app.config.get('MAIL_TIMEOUT', 20) or 20)
+    context = ssl_mod.create_default_context()
+
+    def _login(smtp):
+        if auth_type == 'oauth' and mailbox_obj is not None:
+            from app.utils.mailbox_oauth import get_valid_access_token, smtp_authenticate_xoauth2
+            token = get_valid_access_token(mailbox_obj)
+            smtp_authenticate_xoauth2(smtp, user, token)
+        else:
+            smtp.login(user, password)
+
+    if use_ssl:
+        with smtplib.SMTP_SSL(server, port, timeout=timeout, context=context) as smtp:
+            _login(smtp)
+            smtp.send_message(mime, from_addr=user, to_addrs=recipients)
+    else:
+        with smtplib.SMTP(server, port, timeout=timeout) as smtp:
+            if use_tls:
+                smtp.starttls(context=context)
+            _login(smtp)
+            smtp.send_message(mime, from_addr=user, to_addrs=recipients)
+
+
+def connect_imap(folder='INBOX', mailbox=None):
     """Connect to IMAP server with robust error handling.
     
     Args:
         folder: IMAP folder to select (default: 'INBOX')
+        mailbox: optional Mailbox model (None = Hauptpostfach aus App-Config)
     
     Returns:
         IMAP connection object or None if connection failed
     """
     try:
-        mail_conn, _, _ = _open_imap_connection(timeout=30)
+        mail_conn, _, _ = _open_imap_connection(timeout=30, mailbox=mailbox)
         
         logging.debug(f"Selecting folder: {folder}")
         status, messages = mail_conn.select(folder)
@@ -1047,9 +1134,117 @@ def is_sent_folder(folder_name):
         'INBOX.Sent',              # Einige IMAP-Server (z.B. Dovecot)
         'INBOX/Sent',              # Alternative Struktur
         'INBOX\\Sent',             # Windows-Pfad-Struktur (selten)
+        '[Gmail]/Sent Mail',
+        '[Google Mail]/Sent Mail',
+        '[Gmail]/Gesendet',
+        '[Google Mail]/Gesendet',
     ]
     
-    return folder_name in sent_folder_names
+    if folder_name in sent_folder_names:
+        return True
+    leaf = folder_name.replace('\\', '/').rsplit('/', 1)[-1].strip().lower()
+    return leaf in ('sent', 'sent mail', 'sent messages', 'sent items', 'gesendet', 'gesendete nachrichten')
+
+
+# Gmail-Namespace-Root (nicht auswählbar) – Kinder wie [Gmail]/Trash müssen bleiben
+_GMAIL_NAMESPACE_ROOTS = frozenset({
+    '[Gmail]',
+    '[Google Mail]',
+    '&XfJT0ZAB-',  # historisch / lokalisierte Roots
+    '&XfJSI-',
+})
+
+_GMAIL_LEAF_ROLES = {
+    'trash': 'Trash',
+    'bin': 'Trash',
+    'papierkorb': 'Trash',
+    'drafts': 'Drafts',
+    'entwürfe': 'Drafts',
+    'entwuerfe': 'Drafts',
+    'spam': 'Spam',
+    'junk': 'Spam',
+    'sent': 'Sent',
+    'sent mail': 'Sent',
+    'gesendet': 'Sent',
+    'archive': 'Archive',
+    'archiv': 'Archive',
+    'all mail': 'All Mail',
+    'alle nachrichten': 'All Mail',
+    'starred': 'Starred',
+    'markiert': 'Starred',
+    'important': 'Important',
+    'wichtig': 'Important',
+}
+
+
+def decode_imap_modutf7(value: str) -> str:
+    """IMAP Modified UTF-7 (z. B. Entw&APw-rfe → Entwürfe) dekodieren."""
+    if not value or '&' not in value:
+        return value or ''
+    import base64
+    import re
+
+    def _repl(match):
+        body = match.group(1)
+        if body == '':
+            return '&'
+        raw = body.replace(',', '/')
+        pad = '=' * (-len(raw) % 4)
+        try:
+            return base64.b64decode(raw + pad).decode('utf-16-be')
+        except Exception:
+            return match.group(0)
+
+    try:
+        return re.sub(r'&([^-]*)-', _repl, value)
+    except Exception:
+        return value
+
+
+def _imap_folder_leaf(folder_name: str) -> str:
+    leaf = (folder_name or '').replace('\\', '/').rsplit('/', 1)[-1].strip()
+    return decode_imap_modutf7(leaf)
+
+
+def gmail_folder_role(folder_name: str):
+    """Mappt Gmail/Google-Mail-Sonderordner auf Rollen (Trash, Sent, …) oder None."""
+    if not folder_name:
+        return None
+    name = folder_name.strip()
+    if name in _GMAIL_NAMESPACE_ROOTS:
+        return None
+    lower = name.lower()
+    if not (
+        lower.startswith('[gmail]/')
+        or lower.startswith('[google mail]/')
+        or name.startswith('&')
+    ):
+        return None
+    leaf = _imap_folder_leaf(name).lower()
+    # Umlaute normalisieren
+    leaf_ascii = (
+        leaf.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+    )
+    return _GMAIL_LEAF_ROLES.get(leaf) or _GMAIL_LEAF_ROLES.get(leaf_ascii)
+
+
+def is_standard_mail_folder(folder_name: str) -> bool:
+    """Ob Ordner als Standardordner (nicht Custom) behandelt wird."""
+    if not folder_name:
+        return False
+    name = folder_name.strip()
+    if name == 'INBOX' or is_sent_folder(name):
+        return True
+    if name in (
+        'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk',
+        'Archive', 'Archives', 'All Mail', 'Starred', 'Important',
+    ):
+        return True
+    return gmail_folder_role(name) is not None
+
+
+def is_gmail_namespace_root(folder_name: str) -> bool:
+    return (folder_name or '').strip() in _GMAIL_NAMESPACE_ROOTS
 
 
 def find_sent_folder(mail_conn):
@@ -1061,13 +1256,10 @@ def find_sent_folder(mail_conn):
         
         for folder_info in folders:
             try:
-                folder_str = folder_info.decode('utf-8')
-                parts = folder_str.split('"')
-                if len(parts) >= 3:
-                    folder_name = parts[-2]
-                    if is_sent_folder(folder_name):
-                        return folder_name
-            except:
+                folder_name, _ = _parse_imap_list_line(folder_info)
+                if folder_name and is_sent_folder(folder_name):
+                    return folder_name
+            except Exception:
                 continue
         
         # Fallback: Versuche 'Sent' direkt
@@ -1179,11 +1371,48 @@ def save_email_to_imap_sent(msg):
         return False, None
 
 
-def sync_imap_folders():
+def _parse_imap_list_line(folder_info):
+    """
+    Parse IMAP LIST response line.
+    Supports both:
+      (\\HasNoChildren) "/" INBOX
+      (\\HasNoChildren) "/" "Sent Messages"
+    Returns (folder_name, separator) or (None, '/') if unusable.
+    """
+    import re
+    if isinstance(folder_info, bytes):
+        folder_str = folder_info.decode('utf-8', errors='ignore')
+    else:
+        folder_str = str(folder_info)
+
+    match = re.match(
+        r'''^\s*\(.*\)\s+("(?P<sep1>[^"]*)"|(?P<sep2>\S+))\s+("(?P<name1>.*)"|(?P<name2>\S+))\s*$''',
+        folder_str,
+    )
+    if not match:
+        parts = folder_str.split('"')
+        if len(parts) >= 3:
+            sep = (parts[1] or '/').strip() or '/'
+            name = (parts[-2] or '').strip()
+            if name and name not in ('/', '.'):
+                return name, sep
+        return None, '/'
+
+    sep = match.group('sep1') if match.group('sep1') is not None else (match.group('sep2') or '/')
+    sep = (sep or '/').strip() or '/'
+    name = match.group('name1') if match.group('name1') is not None else match.group('name2')
+    name = (name or '').strip()
+    if not name or name in ('/', '.'):
+        return None, sep
+    return name, sep
+
+
+def sync_imap_folders(mailbox=None):
     """Sync IMAP folders from server to database."""
+    mailbox_id = mailbox.id if mailbox is not None else None
     mail_conn = None
     try:
-        mail_conn = connect_imap('INBOX')
+        mail_conn = connect_imap('INBOX', mailbox=mailbox)
         if not mail_conn:
             logging.error("IMAP-Verbindung fehlgeschlagen beim Synchronisieren der Ordner")
             return False, "IMAP-Verbindung fehlgeschlagen"
@@ -1192,118 +1421,139 @@ def sync_imap_folders():
         return False, f"IMAP-Verbindungsfehler: {str(conn_error)}"
     
     try:
+        list_rows = []
         status, folders = mail_conn.list()
-        if status != 'OK':
+        if status == 'OK' and folders:
+            list_rows.extend(folders)
+        else:
+            logging.warning("IMAP LIST (root) fehlgeschlagen oder leer: %s", status)
+
+        # Gmail: Sonderordner liegen unter [Gmail] / [Google Mail] – explizit nachlisten
+        for ns in ('[Gmail]', '[Google Mail]'):
+            try:
+                st, more = mail_conn.list(f'"{ns}"', '*')
+                if st == 'OK' and more:
+                    list_rows.extend(more)
+                    logging.info("IMAP LIST unter %s: %s Einträge", ns, len(more))
+            except Exception as ns_err:
+                logging.debug("IMAP LIST %s übersprungen: %s", ns, ns_err)
+
+        if not list_rows:
             return False, "Ordner-Liste konnte nicht abgerufen werden"
+
+        # Deduplizieren nach Rohzeile
+        seen_raw = set()
+        unique_rows = []
+        for row in list_rows:
+            key = row if isinstance(row, (bytes, str)) else repr(row)
+            if key in seen_raw:
+                continue
+            seen_raw.add(key)
+            unique_rows.append(row)
         
         synced_folders = []
         skipped_folders = []
         
-        logging.info(f"Processing {len(folders)} folders from IMAP server")
-        
-        for folder_info in folders:
+        logging.info(f"Processing {len(unique_rows)} folders from IMAP server (mailbox_id={mailbox_id})")
+        skip_gmail_on_main = False
+        if mailbox_id is None:
             try:
-                folder_str = folder_info.decode('utf-8')
-                parts = folder_str.split('"')
-                if len(parts) >= 3:
-                    folder_name = parts[-2]
-                    logging.debug(f"Found folder: '{folder_name}'")
-                    
-                    if not folder_name or folder_name.strip() == '' or folder_name == '/' or folder_name.strip() == '/':
-                        logging.debug(f"Skipping invalid folder name: '{folder_name}'")
-                        continue
-                    
-                    skip_folders = ['[Gmail]', '[Google Mail]', '&XfJT0ZAB-', '&XfJSI-']
-                    if any(skip in folder_name for skip in skip_folders):
-                        logging.debug(f"Skipping system folder: '{folder_name}'")
-                        continue
-                    
-                    is_system = folder_name in ['INBOX', 'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk', 'Archive', 'Archives'] or is_sent_folder(folder_name)
-                    display_name = EmailFolder.get_folder_display_name(folder_name)
-
-                    separator = parts[1] if len(parts) >= 3 and parts[1] else '/'
-                    separator = separator.strip() or '/'
-
-                    parent_folder = None
-                    if separator in folder_name:
-                        parent_candidate = folder_name.rsplit(separator, 1)[0]
-                        parent_folder = parent_candidate if parent_candidate and parent_candidate != folder_name else None
-
-                    now = datetime.utcnow()
-                    folder_type = 'standard' if is_system else 'custom'
-                    folder_payload = {
-                        'name': folder_name,
-                        'display_name': display_name,
-                        'folder_type': folder_type,
-                        'is_system': is_system,
-                        'parent_folder': parent_folder,
-                        'separator': separator,
-                        'last_synced': now,
-                        'created_at': now,
-                    }
-
-                    dialect_name = db.session.bind.dialect.name if db.session.bind else ''
-
-                    try:
-                        if dialect_name in ('mysql', 'mariadb'):
-                            insert_stmt = mysql_insert(EmailFolder.__table__).values(**folder_payload)
-                            update_stmt = {
-                                'display_name': insert_stmt.inserted.display_name,
-                                'folder_type': insert_stmt.inserted.folder_type,
-                                'is_system': insert_stmt.inserted.is_system,
-                                'parent_folder': insert_stmt.inserted.parent_folder,
-                                'separator': insert_stmt.inserted.separator,
-                                'last_synced': insert_stmt.inserted.last_synced,
-                            }
-                            db.session.execute(insert_stmt.on_duplicate_key_update(**update_stmt))
-                            synced_folders.append(folder_name)
-                            if folder_type == 'standard':
-                                logging.debug(f"Upserted system folder: '{folder_name}' ({display_name})")
-                            else:
-                                logging.info(f"Upserted folder: '{folder_name}' ({display_name})")
-                        else:
-                            existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
-                            if existing_folder:
-                                existing_folder.display_name = display_name
-                                existing_folder.folder_type = folder_type
-                                existing_folder.is_system = is_system
-                                existing_folder.parent_folder = parent_folder
-                                existing_folder.separator = separator
-                                existing_folder.last_synced = now
-                                logging.debug(f"Updated existing folder: '{folder_name}'")
-                            else:
-                                folder_payload_for_insert = folder_payload.copy()
-                                db.session.add(EmailFolder(**folder_payload_for_insert))
-                                logging.info(f"Added new folder: '{folder_name}' ({display_name})")
-                            synced_folders.append(folder_name)
-                    except IntegrityError:
-                        db.session.rollback()
-                        existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
-                        if existing_folder:
-                            existing_folder.last_synced = datetime.utcnow()
-                            synced_folders.append(folder_name)
-                            logging.debug(f"Recovered folder after IntegrityError: '{folder_name}'")
-                        else:
-                            logging.warning(f"IntegrityError without existing folder for '{folder_name}' – retrying insert")
-                            try:
-                                db.session.add(EmailFolder(
-                                    name=folder_name,
-                                    display_name=display_name,
-                                    folder_type=folder_type,
-                                    is_system=is_system,
-                                    parent_folder=parent_folder,
-                                    separator=separator,
-                                    last_synced=datetime.utcnow()
-                                ))
-                                db.session.flush()
-                                synced_folders.append(folder_name)
-                                logging.info(f"Inserted folder after retry: '{folder_name}'")
-                            except IntegrityError as retry_error:
-                                db.session.rollback()
-                                logging.error(f"Failed to insert folder '{folder_name}' after retry: {retry_error}")
-                                continue
-                else:
+                from app.utils.multi_mailboxes import is_email_multi_enabled
+                skip_gmail_on_main = bool(is_email_multi_enabled())
+            except Exception:
+                skip_gmail_on_main = False
+        
+        for folder_info in unique_rows:
+            try:
+                folder_name, separator = _parse_imap_list_line(folder_info)
+                folder_str = folder_info.decode('utf-8', errors='ignore') if isinstance(folder_info, bytes) else str(folder_info)
+                if not folder_name:
                     skipped_folders.append(folder_str)
+                    logging.debug(f"Skipping unparsable/invalid folder line: '{folder_str}'")
+                    continue
+
+                logging.info(f"Found folder: '{folder_name}'")
+
+                # Nur den Gmail-Root überspringen, nicht [Gmail]/Trash usw.
+                if is_gmail_namespace_root(folder_name):
+                    logging.debug(f"Skipping Gmail namespace root: '{folder_name}'")
+                    continue
+
+                # Bei Multi-Postfach: Gmail-/Google-Mail-Namespaces nicht ins Hauptpostfach
+                if skip_gmail_on_main and _is_provider_namespace_folder(folder_name):
+                    logging.debug(
+                        "Skipping provider namespace folder on Hauptpostfach: %s",
+                        folder_name,
+                    )
+                    continue
+                
+                is_system = is_standard_mail_folder(folder_name)
+                display_name = EmailFolder.get_folder_display_name(folder_name)
+
+                parent_folder = None
+                if separator in folder_name:
+                    parent_candidate = folder_name.rsplit(separator, 1)[0]
+                    # Gmail-Root nicht als Parent speichern (sonst hängen Kinder an fehlendem Knoten)
+                    if parent_candidate and parent_candidate != folder_name and not is_gmail_namespace_root(parent_candidate):
+                        parent_folder = parent_candidate
+                    else:
+                        parent_folder = None
+
+                now = datetime.utcnow()
+                folder_type = 'standard' if is_system else 'custom'
+                folder_payload = {
+                    'name': folder_name,
+                    'display_name': display_name,
+                    'folder_type': folder_type,
+                    'is_system': is_system,
+                    'parent_folder': parent_folder,
+                    'separator': separator,
+                    'last_synced': now,
+                    'created_at': now,
+                    'mailbox_id': mailbox_id,
+                }
+
+                try:
+                    existing_folder = _find_email_folder(folder_name, mailbox_id)
+                    if existing_folder:
+                        existing_folder.display_name = display_name
+                        existing_folder.folder_type = folder_type
+                        existing_folder.is_system = is_system
+                        existing_folder.parent_folder = parent_folder
+                        existing_folder.separator = separator
+                        existing_folder.last_synced = now
+                        logging.debug(f"Updated existing folder: '{folder_name}'")
+                    else:
+                        db.session.add(EmailFolder(**folder_payload))
+                        logging.info(f"Added new folder: '{folder_name}' ({display_name})")
+                    synced_folders.append(folder_name)
+                except IntegrityError:
+                    db.session.rollback()
+                    existing_folder = _find_email_folder(folder_name, mailbox_id)
+                    if existing_folder:
+                        existing_folder.last_synced = datetime.utcnow()
+                        synced_folders.append(folder_name)
+                        logging.debug(f"Recovered folder after IntegrityError: '{folder_name}'")
+                    else:
+                        logging.warning(f"IntegrityError without existing folder for '{folder_name}' – retrying insert")
+                        try:
+                            db.session.add(EmailFolder(
+                                name=folder_name,
+                                display_name=display_name,
+                                folder_type=folder_type,
+                                is_system=is_system,
+                                parent_folder=parent_folder,
+                                separator=separator,
+                                last_synced=datetime.utcnow(),
+                                mailbox_id=mailbox_id,
+                            ))
+                            db.session.flush()
+                            synced_folders.append(folder_name)
+                            logging.info(f"Inserted folder after retry: '{folder_name}'")
+                        except IntegrityError as retry_error:
+                            db.session.rollback()
+                            logging.error(f"Failed to insert folder '{folder_name}' after retry: {retry_error}")
+                            continue
                         
             except Exception as e:
                 logging.error(f"Fehler beim Verarbeiten des Ordners '{folder_str if 'folder_str' in locals() else folder_info}': {e}")
@@ -1313,12 +1563,18 @@ def sync_imap_folders():
         
         invalid_folder_names = ['/', '']
         for invalid_name in invalid_folder_names:
-            invalid_folders = EmailFolder.query.filter_by(name=invalid_name).all()
+            invalid_folders = (
+                EmailFolder.query.filter_by(name=invalid_name)
+                .filter(_folder_mailbox_filter(mailbox_id))
+                .all()
+            )
             for invalid_folder in invalid_folders:
                 logging.info(f"Removing invalid folder '{invalid_name}' from database")
                 db.session.delete(invalid_folder)
         
         db.session.commit()
+        if mailbox_id is None:
+            _cleanup_main_mailbox_folder_pollution()
         
         # Schließe IMAP-Verbindung sicher
         if mail_conn:
@@ -1352,18 +1608,20 @@ def sync_imap_folders():
         return False, f"Ordner-Sync-Fehler: {str(e)}"
 
 
-def sync_emails_from_folder(folder_name, mail_conn=None):
+def sync_emails_from_folder(folder_name, mail_conn=None, mailbox=None):
     """Sync emails from a specific IMAP folder with bidirectional support.
 
     Args:
         folder_name: IMAP-Ordnername
         mail_conn: Optionale bestehende IMAP-Verbindung (wird nicht geschlossen).
                    Wenn None, wird eine neue Verbindung geöffnet und am Ende geschlossen.
+        mailbox: Optional Mailbox model (None = Hauptpostfach)
     """
+    mailbox_id = mailbox.id if mailbox is not None else None
     owns_connection = mail_conn is None
     try:
         if owns_connection:
-            mail_conn = connect_imap(folder_name)
+            mail_conn = connect_imap(folder_name, mailbox=mailbox)
             if not mail_conn:
                 logging.error(f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'")
                 return False, f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'"
@@ -1457,15 +1715,15 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
     
     # Haupt-Synchronisations-Logik
     try:
-        # Ermittle die höchste bereits synchronisierte UID für diesen Ordner
+        # Ermittle die höchste bereits synchronisierte UID für diesen Ordner + Postfach
         highest_uid = None
         try:
             highest_uid_result = db.session.query(
                 func.max(cast(EmailMessage.imap_uid, Integer))
-            ).filter_by(folder=folder_name).scalar()
+            ).filter_by(folder=folder_name, mailbox_id=mailbox_id).scalar()
             if highest_uid_result:
                 highest_uid = int(highest_uid_result)
-                logging.debug(f"Highest UID for folder '{folder_name}': {highest_uid}")
+                logging.debug(f"Highest UID for folder '{folder_name}' mailbox={mailbox_id}: {highest_uid}")
         except Exception as e:
             logging.debug(f"Could not determine highest UID for folder '{folder_name}': {e}")
         
@@ -1596,7 +1854,10 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                             email_msg_test = email_module.message_from_bytes(raw_email_test)
                             message_id_test = email_msg_test.get('Message-ID', '')
                             if message_id_test:
-                                existing = EmailMessage.query.filter_by(message_id=message_id_test).first()
+                                existing = EmailMessage.query.filter_by(
+                                    message_id=message_id_test,
+                                    mailbox_id=mailbox_id,
+                                ).first()
                                 if not existing:
                                     email_seqs.append(seq_bytes)
                                     logging.info(f"Email with sequence {seq_str} (Message-ID: {message_id_test[:50]}) not in database, adding to sync list")
@@ -1624,7 +1885,8 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
             
             # Optimierte Prüfung: Nur UIDs abfragen statt alle E-Mails
             existing_uids = db.session.query(EmailMessage.imap_uid).filter_by(
-                folder=folder_name
+                folder=folder_name,
+                mailbox_id=mailbox_id,
             ).filter(EmailMessage.imap_uid.isnot(None)).all()
             existing_uid_set = {str(uid[0]) for uid in existing_uids if uid[0]}
             
@@ -1633,12 +1895,14 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                     # E-Mail existiert nicht mehr auf Server
                     email_obj = EmailMessage.query.filter_by(
                         imap_uid=existing_uid,
-                        folder=folder_name
+                        folder=folder_name,
+                        mailbox_id=mailbox_id,
                     ).first()
                     if email_obj:
                         # Prüfe ob E-Mail in einen anderen Ordner verschoben wurde
                         other_folder_email = EmailMessage.query.filter_by(
-                            message_id=email_obj.message_id
+                            message_id=email_obj.message_id,
+                            mailbox_id=mailbox_id,
                         ).filter(EmailMessage.folder != folder_name).first()
                         
                         if other_folder_email:
@@ -1663,7 +1927,7 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
         else:
             # Bei erster Synchronisation: Nur die letzten N E-Mails verarbeiten
             if not highest_uid:
-                is_special_folder = folder_name in ['INBOX', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] or is_sent_folder(folder_name)
+                is_special_folder = is_standard_mail_folder(folder_name)
                 max_emails = 100 if not is_special_folder else 30
                 emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
                 logging.debug(f"First sync: Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
@@ -1803,7 +2067,8 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                 
                 existing_in_folder = EmailMessage.query.filter_by(
                     imap_uid=imap_uid_str,
-                    folder=folder_name
+                    folder=folder_name,
+                    mailbox_id=mailbox_id,
                 ).first()
                 
                 if existing_in_folder:
@@ -1827,7 +2092,8 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                             db.session = db.create_scoped_session()
                             existing_in_folder = EmailMessage.query.filter_by(
                                 imap_uid=imap_uid_str,
-                                folder=folder_name
+                                folder=folder_name,
+                                mailbox_id=mailbox_id,
                             ).first()
                             if existing_in_folder:
                                 existing_in_folder.last_imap_sync = datetime.utcnow()
@@ -1841,7 +2107,10 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                         else:
                             raise update_error
                 
-                existing_by_message_id = EmailMessage.query.filter_by(message_id=message_id).first()
+                existing_by_message_id = EmailMessage.query.filter_by(
+                    message_id=message_id,
+                    mailbox_id=mailbox_id,
+                ).first()
                 if existing_by_message_id:
                     if existing_by_message_id.folder == folder_name:
                         try:
@@ -1859,7 +2128,10 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
-                                existing_by_message_id = EmailMessage.query.filter_by(message_id=message_id).first()
+                                existing_by_message_id = EmailMessage.query.filter_by(
+                                    message_id=message_id,
+                                    mailbox_id=mailbox_id,
+                                ).first()
                                 if existing_by_message_id and existing_by_message_id.folder == folder_name:
                                     existing_by_message_id.last_imap_sync = datetime.utcnow()
                                     existing_by_message_id.is_deleted_imap = False
@@ -1889,7 +2161,10 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
-                                existing_by_message_id = EmailMessage.query.filter_by(message_id=message_id).first()
+                                existing_by_message_id = EmailMessage.query.filter_by(
+                                    message_id=message_id,
+                                    mailbox_id=mailbox_id,
+                                ).first()
                                 if existing_by_message_id:
                                     existing_by_message_id.folder = folder_name
                                     existing_by_message_id.imap_uid = imap_uid_str
@@ -1904,6 +2179,30 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                             else:
                                 raise move_error
                 
+                # Globale Message-ID existiert evtl. in anderem Postfach – für dieses Postfach neu anlegen.
+                # Unique auf message_id: Suffix nur wenn Kollision mit anderem mailbox_id.
+                insert_message_id = message_id
+                global_collision = EmailMessage.query.filter_by(message_id=message_id).first()
+                if global_collision is not None and global_collision.mailbox_id != mailbox_id:
+                    suffix = f"mb{mailbox_id if mailbox_id is not None else 0}"
+                    insert_message_id = f"{message_id}#{suffix}"
+                    # Falls schon vorhanden (Re-Sync), wie existing behandeln
+                    existing_suffixed = EmailMessage.query.filter_by(
+                        message_id=insert_message_id,
+                        mailbox_id=mailbox_id,
+                    ).first()
+                    if existing_suffixed:
+                        existing_suffixed.folder = folder_name
+                        existing_suffixed.imap_uid = imap_uid_str
+                        existing_suffixed.last_imap_sync = datetime.utcnow()
+                        existing_suffixed.is_deleted_imap = False
+                        existing_suffixed.is_read = is_read_status
+                        existing_suffixed.is_sent = is_sent_folder_flag
+                        stats['updated_emails'] += 1
+                        db.session.commit()
+                        continue
+                message_id = insert_message_id
+
                 body_text = ""
                 body_html = ""
                 has_attachments = False
@@ -2134,7 +2433,8 @@ def sync_emails_from_folder(folder_name, mail_conn=None):
                     is_deleted_imap=False,
                     received_at=received_at,
                     is_read=is_read_status,
-                    is_sent=is_sent_folder_flag
+                    is_sent=is_sent_folder_flag,
+                    mailbox_id=mailbox_id,
                 )
                 
                 try:
@@ -2345,33 +2645,48 @@ def cleanup_old_emails():
         return 0
 
 
-def sync_emails_from_server():
-    """Sync emails from IMAP server to database with folder support."""
-    print("E-Mail-Synchronisation wird gestartet")
-    logging.info("E-Mail-Synchronisation wird gestartet")
+def sync_emails_from_server(mailbox=None):
+    """Sync emails from IMAP server to database with folder support.
+
+    mailbox=None → Hauptpostfach (App-Config).
+    """
+    label = f"mailbox#{mailbox.id}" if mailbox is not None else "main"
+    print(f"E-Mail-Synchronisation wird gestartet ({label})")
+    logging.info(f"E-Mail-Synchronisation wird gestartet ({label})")
     
     shared_conn = None
     try:
-        # Frühzeitiger Abbruch bei fehlender/platzhalterhafter IMAP-Konfiguration,
-        # um wiederholte Fehler pro Ordner zu vermeiden.
-        imap_server = current_app.config.get('IMAP_SERVER')
-        username = current_app.config.get('MAIL_USERNAME')
-        password = current_app.config.get('MAIL_PASSWORD')
-        if _is_placeholder_imap_config(imap_server, username, password):
+        from app.utils.multi_mailboxes import get_mailbox_imap_config
+        cfg = get_mailbox_imap_config(mailbox)
+        imap_server = cfg.get('server')
+        username = cfg.get('user')
+        password = cfg.get('password')
+        auth_type = (getattr(mailbox, 'auth_type', None) or 'password') if mailbox is not None else 'password'
+        # OAuth-Postfächer haben kein IMAP-Passwort – Platzhalter-Check nur für Passwort-Auth
+        if auth_type != 'oauth' and _is_placeholder_imap_config(imap_server, username, password):
             message = "IMAP ist nicht konfiguriert (Platzhalterwerte erkannt) - Synchronisation übersprungen"
             logging.warning(message)
             print(message)
             return False, message
+        if not imap_server or not username:
+            message = "IMAP-Konfiguration unvollständig (Server/Benutzer fehlen)"
+            logging.warning(message)
+            return False, message
 
         # Synchronisiere zuerst die Ordner-Liste
-        folder_success, folder_message = sync_imap_folders()
+        folder_success, folder_message = sync_imap_folders(mailbox=mailbox)
         if not folder_success:
             logging.warning(f"Ordner-Sync-Warnung: {folder_message}")
             # Weiter mit Standard-Ordnern, auch wenn Ordner-Sync fehlschlägt
             logging.info("Verwende Standard-Ordner als Fallback")
         
+        mailbox_id = mailbox.id if mailbox is not None else None
         # Hole Ordner aus Datenbank
-        folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
+        folder_rows = (
+            db.session.query(EmailFolder.name, EmailFolder.display_name)
+            .filter(_folder_mailbox_filter(mailbox_id))
+            .all()
+        )
         if not folder_rows:
             # Fallback: Verwende Standard-Ordner
             folder_rows = [('INBOX', 'Posteingang')]
@@ -2380,7 +2695,7 @@ def sync_emails_from_server():
         logging.info(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
         
         # Eine IMAP-Session für alle Ordner (weniger Logins, schneller, Provider-freundlicher)
-        shared_conn = connect_imap('INBOX')
+        shared_conn = connect_imap('INBOX', mailbox=mailbox)
         if not shared_conn:
             message = "IMAP-Verbindung fehlgeschlagen - Synchronisation abgebrochen"
             logging.error(message)
@@ -2396,7 +2711,9 @@ def sync_emails_from_server():
             try:
                 heartbeat_email_sync_lock()
                 logging.info(f"Syncing folder: '{folder_name}' ({display_name})")
-                success, message = sync_emails_from_folder(folder_name, mail_conn=shared_conn)
+                success, message = sync_emails_from_folder(
+                    folder_name, mail_conn=shared_conn, mailbox=mailbox
+                )
                 if success:
                     successful_folders += 1
                     import re
@@ -2450,6 +2767,30 @@ def sync_emails_from_server():
     finally:
         if shared_conn is not None:
             _imap_logout(shared_conn)
+
+
+def sync_all_configured_mailboxes():
+    """Sync Hauptpostfach + alle aktiven Multi-Postfächer (wenn Multi aktiv)."""
+    results = []
+    ok_main, msg_main = sync_emails_from_server(mailbox=None)
+    results.append(('main', ok_main, msg_main))
+
+    try:
+        from app.utils.multi_mailboxes import get_active_sync_mailboxes, is_email_multi_enabled
+        if is_email_multi_enabled():
+            for mb in get_active_sync_mailboxes():
+                try:
+                    ok, msg = sync_emails_from_server(mailbox=mb)
+                    results.append((f'mailbox#{mb.id}', ok, msg))
+                except Exception as exc:
+                    logging.error(f"Multi-Postfach-Sync fehlgeschlagen ({mb.id}): {exc}")
+                    results.append((f'mailbox#{mb.id}', False, str(exc)))
+    except Exception as exc:
+        logging.error(f"Multi-Postfach-Sync Setup-Fehler: {exc}")
+
+    any_ok = any(r[1] for r in results)
+    summary = '; '.join(f'{name}: {msg}' for name, _, msg in results)
+    return any_ok, summary
 
 
 def check_email_permission(permission_type='read'):
@@ -2532,6 +2873,311 @@ def check_duplicate_email(user_id, subject, recipients, body_hash, time_window_s
         return False
 
 
+def _folder_mailbox_filter(mailbox_id):
+    """SQL-Filter für EmailFolder/EmailMessage.mailbox_id (NULL = Hauptpostfach)."""
+    from app.models.email import EmailFolder
+    if mailbox_id is None:
+        return EmailFolder.mailbox_id.is_(None)
+    return EmailFolder.mailbox_id == mailbox_id
+
+
+def _message_mailbox_filter(mailbox_id):
+    from app.models.email import EmailMessage
+    if mailbox_id is None:
+        return EmailMessage.mailbox_id.is_(None)
+    return EmailMessage.mailbox_id == mailbox_id
+
+
+def _find_email_folder(name, mailbox_id=None):
+    """Eine Ordnerzeile für Postfach; bei MySQL-NULL-Duplikaten die älteste."""
+    return (
+        EmailFolder.query.filter_by(name=name)
+        .filter(_folder_mailbox_filter(mailbox_id))
+        .order_by(EmailFolder.id.asc())
+        .first()
+    )
+
+
+def _has_dedicated_google_mailbox() -> bool:
+    try:
+        from app.utils.multi_mailboxes import is_email_multi_enabled
+        from app.models.email import Mailbox
+        if not is_email_multi_enabled():
+            return False
+        return (
+            Mailbox.query.filter_by(provider='google', is_active=True).first() is not None
+        )
+    except Exception:
+        return False
+
+
+def _is_provider_namespace_folder(name: str) -> bool:
+    n = (name or '').strip()
+    lower = n.lower()
+    return (
+        lower.startswith('[gmail]/')
+        or lower.startswith('[google mail]/')
+        or n.startswith('[Gmail]')
+        or n.startswith('[Google Mail]')
+    )
+
+
+def _delete_messages_in_folders_on_main(folder_names):
+    """Löscht Mails (+Anhänge) bestimmter Ordner nur auf dem Hauptpostfach."""
+    names = [n for n in folder_names if n]
+    if not names:
+        return 0
+    msg_ids = [
+        row[0]
+        for row in db.session.query(EmailMessage.id)
+        .filter(EmailMessage.mailbox_id.is_(None))
+        .filter(EmailMessage.folder.in_(names))
+        .all()
+    ]
+    return _delete_email_rows_by_ids(msg_ids)
+
+
+def _delete_email_rows_by_ids(msg_ids) -> int:
+    from app.models.email import EmailAttachment
+
+    ids = [int(i) for i in (msg_ids or []) if i is not None]
+    if not ids:
+        return 0
+    chunk = 500
+    for i in range(0, len(ids), chunk):
+        part = ids[i:i + chunk]
+        EmailAttachment.query.filter(EmailAttachment.email_id.in_(part)).delete(
+            synchronize_session=False
+        )
+        EmailMessage.query.filter(EmailMessage.id.in_(part)).delete(synchronize_session=False)
+    return len(ids)
+
+
+def _base_message_id(message_id: str) -> str:
+    mid = (message_id or '').strip()
+    if '#mb' in mid:
+        return mid.rsplit('#mb', 1)[0]
+    return mid
+
+
+def _extract_email_addresses(*parts) -> set:
+    import re
+    found = set()
+    for part in parts:
+        if not part:
+            continue
+        for addr in re.findall(r'[\w.+\-]+@[\w.\-]+', str(part).lower()):
+            found.add(addr.strip().lower())
+    return found
+
+
+def _main_account_addresses() -> set:
+    """Adressen des Hauptpostfachs aus der App-Config."""
+    try:
+        from app.utils.multi_mailboxes import get_main_imap_config, get_main_smtp_config
+        imap = get_main_imap_config() or {}
+        smtp = get_main_smtp_config() or {}
+        addrs = _extract_email_addresses(
+            imap.get('user'),
+            smtp.get('user'),
+            smtp.get('sender'),
+            current_app.config.get('MAIL_USERNAME'),
+            current_app.config.get('MAIL_DEFAULT_SENDER'),
+        )
+        return addrs
+    except Exception:
+        try:
+            return _extract_email_addresses(
+                current_app.config.get('MAIL_USERNAME'),
+                current_app.config.get('MAIL_DEFAULT_SENDER'),
+            )
+        except Exception:
+            return set()
+
+
+def _email_belongs_to_main_account(msg, main_addrs: set) -> bool:
+    """True, wenn die Mail klar zum Hauptpostfach gehört (Empfänger bzw. Absender)."""
+    if not main_addrs:
+        return True  # ohne Config nichts löschen
+    if msg.is_sent or is_sent_folder(msg.folder or ''):
+        involved = _extract_email_addresses(msg.sender)
+    else:
+        involved = _extract_email_addresses(msg.recipients, msg.cc, msg.bcc)
+        # Manche Exporte speichern nur den Absender – dann konservativ behalten
+        if not involved:
+            return True
+    if not involved:
+        return True
+    return bool(involved & main_addrs)
+
+
+def _purge_emails_not_for_main_account() -> int:
+    """Löscht Hauptpostfach-Mails, deren Empfänger/Absender nicht zur Config-Adresse passen.
+
+    Typischer Fall nach dem alten SET-NULL-Bug: persönliche ik.me-/Gmail-Mails
+    liegen unter mailbox_id NULL, obwohl MAIL_USERNAME z. B. tech-merian@ikmail.com ist.
+    """
+    main_addrs = _main_account_addresses()
+    if not main_addrs:
+        logging.info('Hauptpostfach-Adressfilter übersprungen: keine MAIL_USERNAME konfiguriert')
+        return 0
+
+    purge_ids = []
+    for msg in EmailMessage.query.filter(EmailMessage.mailbox_id.is_(None)).all():
+        if not _email_belongs_to_main_account(msg, main_addrs):
+            purge_ids.append(msg.id)
+
+    if not purge_ids:
+        return 0
+    logging.info(
+        'Entferne %s Mails vom Hauptpostfach (gehören nicht zu %s); IDs z.B. %s',
+        len(purge_ids),
+        sorted(main_addrs),
+        purge_ids[:12],
+    )
+    return _delete_email_rows_by_ids(purge_ids)
+
+
+def _purge_stray_multi_emails_from_main() -> int:
+    """Entfernt Mails, die durch SET-NULL/Kollisionen im Hauptpostfach gelandet sind.
+
+    Erkennung:
+    - message_id mit Suffix ``#mbN`` (Kollisionsmarker eines anderen Postfachs)
+    - gleiche Basis-Message-ID oder gleiches (folder, imap_uid) wie solche Mails
+    - IMAP-UIDs, die klar außerhalb der UID-Cluster des Hauptpostfachs liegen (z. B. Gmail)
+    """
+    import statistics
+
+    marked = (
+        EmailMessage.query.filter(EmailMessage.mailbox_id.is_(None))
+        .filter(EmailMessage.message_id.like('%#mb%'))
+        .all()
+    )
+    purge_ids = {m.id for m in marked}
+
+    # Geschwister: gleiche Basis-Message-ID oder gleicher Ordner+UID
+    base_mids = {_base_message_id(m.message_id) for m in marked if m.message_id}
+    folder_uids = {
+        (m.folder, str(m.imap_uid))
+        for m in marked
+        if m.folder and m.imap_uid is not None
+    }
+    if base_mids or folder_uids:
+        candidates = EmailMessage.query.filter(EmailMessage.mailbox_id.is_(None)).all()
+        for m in candidates:
+            if m.id in purge_ids:
+                continue
+            if m.message_id and _base_message_id(m.message_id) in base_mids:
+                purge_ids.add(m.id)
+                continue
+            if m.folder and m.imap_uid is not None and (m.folder, str(m.imap_uid)) in folder_uids:
+                purge_ids.add(m.id)
+
+    # UID-Ausreißer pro Ordner (Gmail-UIDs sind oft deutlich höher als Infomaniak etc.)
+    by_folder = {}
+    for m in EmailMessage.query.filter(EmailMessage.mailbox_id.is_(None)).all():
+        try:
+            uid = int(m.imap_uid) if m.imap_uid is not None else None
+        except (TypeError, ValueError):
+            uid = None
+        if uid is None:
+            continue
+        by_folder.setdefault(m.folder or '', []).append((uid, m.id))
+
+    for folder, pairs in by_folder.items():
+        if len(pairs) < 8:
+            continue
+        uids = sorted(u for u, _ in pairs)
+        try:
+            median = statistics.median(uids)
+        except statistics.StatisticsError:
+            continue
+        # Klarer Sprung: UID > max(3×Median, Median+500) und > 1000
+        threshold = max(median * 3, median + 500, 1000)
+        for uid, mid in pairs:
+            if uid > threshold:
+                purge_ids.add(mid)
+
+    if not purge_ids:
+        return 0
+    logging.info(
+        'Entferne %s fremde/verschmutzte Mails vom Hauptpostfach (IDs z.B. %s)',
+        len(purge_ids),
+        sorted(purge_ids)[:12],
+    )
+    return _delete_email_rows_by_ids(purge_ids)
+
+
+def _cleanup_main_mailbox_folder_pollution():
+    """Entfernt Duplikate und fremde Provider-Ordner vom Hauptpostfach (mailbox_id NULL)."""
+    try:
+        from app.utils.multi_mailboxes import (
+            is_email_multi_enabled,
+            cleanup_orphaned_multi_mailbox_rows,
+        )
+
+        changed = False
+
+        # 0) Verwaiste Multi-Postfach-Daten (mailbox_id zeigt ins Leere)
+        if is_email_multi_enabled():
+            orphan_stats = cleanup_orphaned_multi_mailbox_rows()
+            if any(orphan_stats.values()):
+                changed = True
+                logging.info('Verwaiste Multi-Postfach-Daten entfernt: %s', orphan_stats)
+
+        # 1) Doppelte Ordnernamen unter Hauptpostfach (MySQL: UNIQUE ignoriert NULL)
+        main_folders = (
+            EmailFolder.query.filter(EmailFolder.mailbox_id.is_(None))
+            .order_by(EmailFolder.id.asc())
+            .all()
+        )
+        seen_names = {}
+        for folder in main_folders:
+            key = folder.name
+            if key in seen_names:
+                db.session.delete(folder)
+                changed = True
+            else:
+                seen_names[key] = folder
+
+        # 2) Bei Multi-Postfach: Provider-Namespaces gehören nie zum Hauptpostfach
+        #    (nach Delete ohne Cascade landeten sie bisher per SET NULL hier)
+        if is_email_multi_enabled():
+            foreign = [
+                f for f in EmailFolder.query.filter(EmailFolder.mailbox_id.is_(None)).all()
+                if _is_provider_namespace_folder(f.name)
+            ]
+            if foreign:
+                names = [f.name for f in foreign]
+                _delete_messages_in_folders_on_main(names)
+                for folder in foreign:
+                    db.session.delete(folder)
+                changed = True
+                logging.info(
+                    'Fremde Provider-Ordner vom Hauptpostfach entfernt: %s',
+                    names,
+                )
+
+            # 3) Einzelne Mails aus anderen Postfächern (SET-NULL / #mb-Suffix / UID-Ausreißer)
+            n_stray = _purge_stray_multi_emails_from_main()
+            if n_stray:
+                changed = True
+
+            # 4) Mails, die nicht an die konfigurierte Hauptpostfach-Adresse gehen
+            n_wrong_acct = _purge_emails_not_for_main_account()
+            if n_wrong_acct:
+                changed = True
+
+        if changed:
+            db.session.commit()
+            logging.info('Hauptpostfach-Ordner bereinigt')
+        return changed
+    except Exception as exc:
+        db.session.rollback()
+        logging.warning('Hauptpostfach-Ordner-Bereinigung fehlgeschlagen: %s', exc)
+        return False
+
+
 def _build_folder_tree(all_folders):
     """Build a sorted + hierarchical view of folder list.
 
@@ -2542,12 +3188,22 @@ def _build_folder_tree(all_folders):
     Standard folders come first in a fixed order, custom folders are rendered
     as a tree sorted alphabetically at each level.
     """
-    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Sent Messages', 'Archive', 'Archives', 'Trash', 'Spam']
+    standard_folder_order = [
+        'INBOX',
+        'Drafts', '[Gmail]/Drafts', '[Google Mail]/Drafts',
+        'Sent', 'Sent Messages', '[Gmail]/Sent Mail', '[Google Mail]/Sent Mail',
+        'Archive', 'Archives',
+        'Trash', 'Deleted Messages', '[Gmail]/Trash', '[Google Mail]/Trash', '[Gmail]/Bin',
+        'Spam', 'Junk', '[Gmail]/Spam', '[Google Mail]/Spam',
+        'Starred', '[Gmail]/Starred',
+        'Important', '[Gmail]/Important',
+        'All Mail', '[Gmail]/All Mail', '[Google Mail]/All Mail',
+    ]
 
     standard_folders = []
     custom_folders = []
     for folder in all_folders:
-        if folder.is_system or (folder.folder_type == 'standard' and folder.name in standard_folder_order):
+        if folder.is_system or (folder.folder_type == 'standard' and folder.name in standard_folder_order) or is_standard_mail_folder(folder.name):
             standard_folders.append(folder)
         else:
             custom_folders.append(folder)
@@ -2556,9 +3212,27 @@ def _build_folder_tree(all_folders):
         try:
             return standard_folder_order.index(f.name)
         except ValueError:
-            return 999
+            role = gmail_folder_role(f.name)
+            role_order = {
+                'Drafts': 1, 'Sent': 2, 'Archive': 3, 'Trash': 4,
+                'Spam': 5, 'Starred': 6, 'Important': 7, 'All Mail': 8,
+            }
+            return 50 + role_order.get(role or '', 40)
 
     standard_folders.sort(key=standard_sort_key)
+
+    # Gleicher Anzeigename (z. B. Archive + Archives → „Archiv“) nur einmal
+    deduped_standard = []
+    seen_display = set()
+    for f in standard_folders:
+        label = (f.display_name or f.name or '').strip().lower()
+        role = gmail_folder_role(f.name)
+        dedupe_key = role or label or f.name
+        if dedupe_key in seen_display:
+            continue
+        seen_display.add(dedupe_key)
+        deduped_standard.append(f)
+    standard_folders = deduped_standard
 
     # Build tree for custom folders by parent_folder
     custom_by_parent = {}
@@ -2603,13 +3277,39 @@ def _build_folder_tree(all_folders):
     return ordered
 
 
-def _folder_tree_context():
-    all_folders = EmailFolder.query.all()
-    ordered = _build_folder_tree(all_folders)
+def _folder_tree_context(mailbox_id=None):
+    if mailbox_id is None:
+        _cleanup_main_mailbox_folder_pollution()
+    all_folders = (
+        EmailFolder.query.filter(_folder_mailbox_filter(mailbox_id)).all()
+    )
+    # Sicherheit: namensgleiche Duplikate in der UI zusammenführen
+    deduped = []
+    seen = set()
+    for folder in sorted(all_folders, key=lambda f: f.id or 0):
+        if folder.name in seen:
+            continue
+        seen.add(folder.name)
+        deduped.append(folder)
+    ordered = _build_folder_tree(deduped)
     # `folders` is kept as flat list for backwards compatibility with the
     # templates; `folder_tree` adds depth information for the sidebar.
     flat = [entry['folder'] for entry in ordered]
     return flat, ordered
+
+
+def _multi_mailbox_sidebar_trees(user, accessible_mailboxes):
+    """Ordnerbäume + Unread-Counts für Hauptpostfach und alle zugänglichen Multi-Postfächer."""
+    from app.utils.email_counts import count_unread_emails_by_folder
+
+    trees = {}
+    unread = {}
+    _, trees['main'] = _folder_tree_context(mailbox_id=None)
+    unread['main'] = count_unread_emails_by_folder(user=user, mailbox_id=None)
+    for mb in accessible_mailboxes or []:
+        _, trees[mb.id] = _folder_tree_context(mailbox_id=mb.id)
+        unread[mb.id] = count_unread_emails_by_folder(user=user, mailbox_id=mb.id)
+    return trees, unread
 
 
 def _escape_like(value: str) -> str:
@@ -2617,9 +3317,11 @@ def _escape_like(value: str) -> str:
     return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
 
-def _emails_for_folder(folder_name: str, search_query: str = ''):
-    """Load emails for a folder, optionally filtered by subject search."""
-    query = EmailMessage.query.filter_by(folder=folder_name)
+def _emails_for_folder(folder_name: str, search_query: str = '', mailbox_id=None):
+    """Load emails for a folder, optionally filtered by subject search and mailbox."""
+    query = EmailMessage.query.filter_by(folder=folder_name).filter(
+        _message_mailbox_filter(mailbox_id)
+    )
     if search_query:
         query = query.filter(
             EmailMessage.subject.ilike(f'%{_escape_like(search_query)}%', escape='\\')
@@ -2641,6 +3343,25 @@ def _restore_false_deleted_flags(emails, folder_name: str) -> None:
         )
 
 
+def _resolve_request_mailbox(permission='read'):
+    """Parse ?mailbox= from request; return (mailbox_or_None, mailbox_id)."""
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        get_mailbox_for_user,
+    )
+    raw = request.args.get('mailbox') or request.form.get('mailbox_id') or request.form.get('mailbox')
+    if not is_email_multi_enabled() or raw in (None, '', 'main', '0'):
+        return None, None
+    try:
+        mid = int(raw)
+    except (TypeError, ValueError):
+        return None, None
+    mb = get_mailbox_for_user(current_user, mid, permission=permission)
+    if mb is None:
+        return None, None
+    return mb, mb.id
+
+
 @email_bp.route('/')
 @login_required
 @check_module_access('module_email')
@@ -2652,13 +3373,14 @@ def index():
     
     current_folder = request.args.get('folder', 'INBOX')
     search_query = (request.args.get('q') or '').strip()
-    emails = _emails_for_folder(current_folder, search_query)
+    active_mailbox, mailbox_id = _resolve_request_mailbox('read')
+    emails = _emails_for_folder(current_folder, search_query, mailbox_id=mailbox_id)
     _restore_false_deleted_flags(emails, current_folder)
 
-    folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
+    folder_obj = _find_email_folder(current_folder, mailbox_id)
     folder_display_name = folder_obj.display_name if folder_obj else current_folder
 
-    folders, folder_tree = _folder_tree_context()
+    folders, folder_tree = _folder_tree_context(mailbox_id=mailbox_id)
 
     for email_obj in emails:
         if email_obj.attachments:
@@ -2678,21 +3400,39 @@ def index():
     db.session.commit()
 
     from app.utils.email_counts import count_unread_emails_by_folder
+    from app.utils.multi_mailboxes import is_email_multi_enabled, get_accessible_mailboxes
+
+    multi_on = is_email_multi_enabled()
+    accessible = get_accessible_mailboxes(current_user) if multi_on else []
+    mailbox_folder_trees = {}
+    mailbox_unread_counts = {}
+    if multi_on:
+        mailbox_folder_trees, mailbox_unread_counts = _multi_mailbox_sidebar_trees(
+            current_user, accessible
+        )
 
     return render_template(
         'email/index.html',
         emails=emails,
         folders=folders,
         folder_tree=folder_tree,
-        folder_unread_counts=count_unread_emails_by_folder(),
+        folder_unread_counts=count_unread_emails_by_folder(
+            user=current_user, mailbox_id=mailbox_id
+        ),
         current_folder=current_folder,
         folder_display_name=folder_display_name,
         search_query=search_query,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
+        email_multi_enabled=multi_on,
+        accessible_mailboxes=accessible,
+        active_mailbox=active_mailbox,
+        active_mailbox_id=mailbox_id,
+        mailbox_folder_trees=mailbox_folder_trees,
+        mailbox_unread_counts=mailbox_unread_counts,
     )
 
 
-@email_bp.route('/folder/<folder_name>')
+@email_bp.route('/folder/<imap_folder:folder_name>')
 @login_required
 @check_module_access('module_email')
 def folder_view(folder_name):
@@ -2700,46 +3440,69 @@ def folder_view(folder_name):
     if not check_email_permission('read'):
         flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('dashboard.index'))
-    
-    # URL-decode folder name in case it's encoded
-    from urllib.parse import unquote
-    folder_name = unquote(folder_name)
+
+    # Converter dekodiert bereits; unquote bleibt harmlos für Alt-Links
+    folder_name = unquote(folder_name or '')
     
     # Reject invalid folder names
     if not folder_name or folder_name.strip() == '' or folder_name == '/':
         flash(translate('email.flash.invalid_folder_name'), 'danger')
         return redirect(url_for('email.index'))
+
+    active_mailbox, mailbox_id = _resolve_request_mailbox('read')
     
     # Check if folder exists, if not redirect to index
-    folder_obj = EmailFolder.query.filter_by(name=folder_name).first()
+    folder_obj = _find_email_folder(folder_name, mailbox_id)
     if not folder_obj:
-        existing_emails = EmailMessage.query.filter_by(folder=folder_name).count()
+        existing_emails = (
+            EmailMessage.query.filter_by(folder=folder_name)
+            .filter(_message_mailbox_filter(mailbox_id))
+            .count()
+        )
         if existing_emails > 0:
             logging.warning(f"Folder '{folder_name}' exists in emails but not in folders table")
         flash(f'Ordner "{folder_name}" nicht gefunden.', 'warning')
-        return redirect(url_for('email.index'))
+        return redirect(url_for('email.index', mailbox=mailbox_id or 'main'))
     
     search_query = (request.args.get('q') or '').strip()
-    emails = _emails_for_folder(folder_name, search_query)
+    emails = _emails_for_folder(folder_name, search_query, mailbox_id=mailbox_id)
     _restore_false_deleted_flags(emails, folder_name)
     
     logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails")
 
-    folders, folder_tree = _folder_tree_context()
+    folders, folder_tree = _folder_tree_context(mailbox_id=mailbox_id)
     folder_display_name = folder_obj.display_name if folder_obj else folder_name
 
     from app.utils.email_counts import count_unread_emails_by_folder
+    from app.utils.multi_mailboxes import is_email_multi_enabled, get_accessible_mailboxes
+
+    multi_on = is_email_multi_enabled()
+    accessible = get_accessible_mailboxes(current_user) if multi_on else []
+    mailbox_folder_trees = {}
+    mailbox_unread_counts = {}
+    if multi_on:
+        mailbox_folder_trees, mailbox_unread_counts = _multi_mailbox_sidebar_trees(
+            current_user, accessible
+        )
 
     return render_template(
         'email/index.html',
         emails=emails,
         folders=folders,
         folder_tree=folder_tree,
-        folder_unread_counts=count_unread_emails_by_folder(),
+        folder_unread_counts=count_unread_emails_by_folder(
+            user=current_user, mailbox_id=mailbox_id
+        ),
         current_folder=folder_name,
         folder_display_name=folder_display_name,
         search_query=search_query,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
+        email_multi_enabled=multi_on,
+        accessible_mailboxes=accessible,
+        active_mailbox=active_mailbox,
+        active_mailbox_id=mailbox_id,
+        mailbox_folder_trees=mailbox_folder_trees,
+        mailbox_unread_counts=mailbox_unread_counts,
     )
 
 
@@ -2753,6 +3516,15 @@ def view_email(email_id):
         return redirect(url_for('dashboard.index'))
     
     email_msg = EmailMessage.query.get_or_404(email_id)
+
+    # Multi-Postfach: kein Zugriff auf fremde Postfächer
+    if email_msg.mailbox_id is not None:
+        from app.utils.multi_mailboxes import user_has_mailbox_access, is_email_multi_enabled
+        if is_email_multi_enabled():
+            mb = email_msg.mailbox
+            if not mb or not user_has_mailbox_access(current_user, mb, 'read'):
+                flash(translate('email.flash.no_read_permission'), 'danger')
+                return redirect(url_for('email.index'))
     
     # Wenn es sich um einen Entwurf handelt, weiterleiten zur Bearbeitungsseite
     if email_msg.folder == 'Drafts':
@@ -3271,6 +4043,30 @@ def download_attachment(attachment_id):
         return redirect(url_for('email.view_email', email_id=email_msg.id))
 
 
+def _compose_multi_context():
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        get_accessible_mailboxes,
+        is_email_html_design_default,
+        get_mailbox_use_logo,
+    )
+    active_mailbox, mailbox_id = _resolve_request_mailbox('send')
+    use_mailbox_logo = True
+    team_logo_available = False
+    if active_mailbox and active_mailbox.mailbox_type == 'team' and active_mailbox.logo_filename:
+        team_logo_available = True
+        use_mailbox_logo = get_mailbox_use_logo(current_user, active_mailbox)
+    return {
+        'email_multi_enabled': is_email_multi_enabled(),
+        'accessible_mailboxes': get_accessible_mailboxes(current_user, 'send') if is_email_multi_enabled() else [],
+        'active_mailbox': active_mailbox,
+        'active_mailbox_id': mailbox_id,
+        'use_html_design': is_email_html_design_default(),
+        'use_mailbox_logo': use_mailbox_logo,
+        'team_logo_available': team_logo_available,
+    }
+
+
 @email_bp.route('/compose', methods=['GET', 'POST'])
 @login_required
 @check_module_access('module_email')
@@ -3301,6 +4097,26 @@ def compose():
         reply_to_email_id_raw = request.form.get('reply_to_email_id', '').strip()
         forward_from_email_id_raw = request.form.get('forward_from_email_id', '').strip()
         draft_id = request.form.get('draft_id', type=int)
+        use_html_design = request.form.get('use_html_design', 'on') == 'on'
+        active_mailbox, mailbox_id = _resolve_request_mailbox('send')
+        if active_mailbox is None and request.form.get('mailbox_id'):
+            from app.utils.multi_mailboxes import get_mailbox_for_user
+            try:
+                mid = int(request.form.get('mailbox_id'))
+                active_mailbox = get_mailbox_for_user(current_user, mid, 'send')
+                mailbox_id = active_mailbox.id if active_mailbox else None
+            except (TypeError, ValueError):
+                pass
+
+        use_mailbox_logo = True
+        if active_mailbox and active_mailbox.mailbox_type == 'team' and active_mailbox.logo_filename:
+            use_mailbox_logo = request.form.get('use_mailbox_logo') == 'on'
+            from app.utils.multi_mailboxes import set_mailbox_use_logo
+            set_mailbox_use_logo(current_user, active_mailbox, use_mailbox_logo)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         
         if not all([to, subject, body_html]):
             error_msg = 'Bitte füllen Sie alle Pflichtfelder aus.'
@@ -3322,9 +4138,12 @@ def compose():
             return render_template('email/compose.html')
         
         # Logo als CID-Anhang vorbereiten
-        logo_data, logo_mime_type, logo_filename = get_logo_data()
+        from app.utils.multi_mailboxes import get_mailbox_logo_data
+        logo_data, logo_mime_type, logo_filename = get_mailbox_logo_data(
+            active_mailbox, user=current_user, use_logo=use_mailbox_logo
+        )
         logo_cid = None
-        if logo_data and logo_mime_type:
+        if logo_data and logo_mime_type and use_html_design:
             logo_cid = "portal_logo"
             # Logo-Bytes werden später als CID-Anhang hinzugefügt
         
@@ -3350,13 +4169,25 @@ def compose():
                 logging.error(f"Fehler beim Aufbereiten der weitergeleiteten Original-E-Mail: {quote_exc}")
 
         full_body_html, full_body_plain = render_custom_email(
-            subject, body_html, logo_cid=logo_cid, quoted_reply_html=quoted_reply_html
+            subject,
+            body_html,
+            logo_cid=logo_cid,
+            quoted_reply_html=quoted_reply_html,
+            mailbox=active_mailbox,
+            use_html_design=use_html_design,
+            use_mailbox_logo=use_mailbox_logo,
+            logo_user=current_user,
         )
         
         
         try:
             from config import get_formatted_sender
-            sender = get_formatted_sender()
+            from app.utils.multi_mailboxes import get_mailbox_smtp_config
+            if active_mailbox is not None:
+                smtp_cfg = get_mailbox_smtp_config(active_mailbox)
+                sender = smtp_cfg.get('sender') or smtp_cfg.get('user')
+            else:
+                sender = get_formatted_sender()
             if not sender:
                 error_msg = 'E-Mail-Absender ist nicht konfiguriert. Bitte kontaktieren Sie den Administrator.'
                 if is_ajax_request:
@@ -3534,7 +4365,10 @@ def compose():
                                     break
             
             
-            send_email_with_lock(msg)
+            if active_mailbox is not None:
+                _send_flask_message_via_smtp(msg, get_mailbox_smtp_config(active_mailbox))
+            else:
+                send_email_with_lock(msg)
             
             # Entwurf nach erfolgreichem Versand entfernen (lokal + IMAP), damit er nicht in Entwürfe bleibt
             if draft_id:
@@ -3598,7 +4432,8 @@ def compose():
                 is_read=True,  # E-Mails im "Sent"-Ordner sind immer als gelesen markiert
                 sent_by_user_id=current_user.id,
                 sent_at=datetime.utcnow(),
-                has_attachments=bool(request.files.getlist('attachments')) or bool(forward_attachment_ids) or bool(original_attachment_ids)
+                has_attachments=bool(request.files.getlist('attachments')) or bool(forward_attachment_ids) or bool(original_attachment_ids),
+                mailbox_id=mailbox_id,
             )
             db.session.add(email_record)
             db.session.commit()
@@ -3702,6 +4537,7 @@ def compose():
         cc=cc_prefill,
         bcc=bcc_prefill,
         subject=subject_prefill,
+        **_compose_multi_context(),
     )
 
 
@@ -3962,20 +4798,28 @@ def sync_emails():
         or request.headers.get('Accept', '').startswith('application/json')
     )
     current_folder = request.form.get('folder') or None
+    active_mailbox, mailbox_id = _resolve_request_mailbox('read')
     folder_label = None
     if current_folder:
-        folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
+        folder_obj = _find_email_folder(current_folder, mailbox_id)
         folder_label = folder_obj.display_name if folder_obj else current_folder
-    
+
     if not is_async_request:
         try:
             # Non-blocking: nicht hinter anderem Worker/Sync warten
             with acquire_email_sync_lock(timeout=0) as acquired:
                 if acquired:
-                    if current_folder:
-                        success, message = sync_emails_from_folder(current_folder)
+                    if active_mailbox is not None:
+                        # Multi-Postfach: immer Ordnerliste + alle Ordner (Gmail [Gmail]/*)
+                        success, message = sync_emails_from_server(mailbox=active_mailbox)
+                    elif current_folder:
+                        sync_imap_folders(mailbox=None)
+                        success, message = sync_emails_from_folder(
+                            current_folder, mailbox=None
+                        )
                     else:
-                        success, message = sync_emails_from_server()
+                        # Nur Hauptpostfach — nicht alle Multi-Postfächer in denselben Sync mischen
+                        success, message = sync_emails_from_server(mailbox=None)
                     
                     if success:
                         flash(f'✅ {message}', 'success')
@@ -3989,11 +4833,14 @@ def sync_emails():
         
         target_endpoint = 'email.folder_view' if current_folder else 'email.index'
         target_kwargs = {'folder_name': current_folder} if current_folder else {}
+        if mailbox_id:
+            target_kwargs['mailbox'] = mailbox_id
         return redirect(url_for(target_endpoint, **target_kwargs))
     
     user_id = current_user.id
     job_id = f"{user_id}-{uuid4().hex}"
     app_instance = current_app._get_current_object()
+    sync_mailbox_id = mailbox_id
     
     def emit_status(status: str, message: str, level: str = 'info', **extras):
         payload = {
@@ -4003,6 +4850,7 @@ def sync_emails():
             'level': level,
             'folder': current_folder,
             'folderLabel': folder_label,
+            'mailboxId': sync_mailbox_id,
         }
         if extras:
             payload.update(extras)
@@ -4012,21 +4860,33 @@ def sync_emails():
     def sync_in_background():
         with app_instance.app_context():
             start_msg = 'Synchronisation gestartet.'
-            if folder_label:
+            if sync_mailbox_id:
+                start_msg = 'Postfach-Synchronisation gestartet (inkl. Ordner).'
+            elif folder_label:
                 start_msg = f"Synchronisation für '{folder_label}' gestartet."
             emit_status('started', start_msg, 'info', shouldRefresh=False)
             
             try:
+                from app.models.email import Mailbox as MailboxModel
+                mb_obj = MailboxModel.query.get(sync_mailbox_id) if sync_mailbox_id else None
                 # Non-blocking Lock — sofort „läuft bereits“ statt 60s warten
                 with acquire_email_sync_lock(timeout=0) as acquired:
                     if acquired:
-                        if current_folder:
+                        if mb_obj is not None:
+                            # Wichtig: Ordnerliste (Gmail [Gmail]/Trash …) + Inhalte aller Ordner
+                            print(f"E-Mail-Synchronisation wird gestartet (vollständiges Postfach, mailbox={sync_mailbox_id})")
+                            success, message = sync_emails_from_server(mailbox=mb_obj)
+                            print(f"E-Mail-Synchronisation wurde beendet (mailbox={sync_mailbox_id})")
+                        elif current_folder:
                             print(f"E-Mail-Synchronisation wird gestartet (Ordner: {folder_label or current_folder})")
-                            success, message = sync_emails_from_folder(current_folder)
+                            sync_imap_folders(mailbox=None)
+                            success, message = sync_emails_from_folder(
+                                current_folder, mailbox=None
+                            )
                             print(f"E-Mail-Synchronisation wurde beendet (Ordner: {folder_label or current_folder})")
                         else:
-                            # sync_emails_from_server() gibt bereits die Meldungen aus
-                            success, message = sync_emails_from_server()
+                            # Nur Hauptpostfach synchronisieren
+                            success, message = sync_emails_from_server(mailbox=None)
                         
                         if success:
                             emit_status('success', message, 'success', shouldRefresh=True)
@@ -4045,7 +4905,9 @@ def sync_emails():
     thread.start()
     
     response_message = 'Synchronisation gestartet.'
-    if folder_label:
+    if sync_mailbox_id:
+        response_message = 'Postfach-Synchronisation gestartet (inkl. Ordner).'
+    elif folder_label:
         response_message = f"Synchronisation für '{folder_label}' gestartet."
     
     return jsonify({
@@ -4053,7 +4915,8 @@ def sync_emails():
         'jobId': job_id,
         'message': response_message,
         'folder': current_folder,
-        'folderLabel': folder_label
+        'folderLabel': folder_label,
+        'mailboxId': sync_mailbox_id,
     }), 202
 
 
@@ -4822,7 +5685,7 @@ def email_sync_scheduler(app):
                     lock_acquired = acquired
                     if acquired:
                         try:
-                            success, message = sync_emails_from_server()
+                            success, message = sync_all_configured_mailboxes()
                             if success:
                                 logging.debug(f"Auto-sync: {message}")
                             else:

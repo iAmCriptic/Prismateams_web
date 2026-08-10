@@ -3065,3 +3065,16 @@ div.avatar-circle-mobile,
 }
 
 
+
+/* Multi-mailbox Outlook-style groups */
+.email-mailbox-group > .email-mailbox-toggle {
+  font-weight: 600;
+}
+.email-mailbox-group .email-mailbox-chevron {
+  transition: transform 0.15s ease;
+  font-size: 0.75rem;
+}
+.email-mailbox-group .email-mailbox-toggle.collapsed .email-mailbox-chevron,
+.email-mailbox-group .email-mailbox-toggle[aria-expanded="false"] .email-mailbox-chevron {
+  transform: rotate(-90deg);
+}

@@ -1,0 +1,85 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.mailboxes.my_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.mailboxes.my_title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-email settings-mailboxes-page">
+    <div class="settings-admin-email-header settings-mailboxes-header">
+        <div>
+            <h1 class="settings-admin-email-title">{{ _('settings.mailboxes.my_heading') }}</h1>
+            <p class="settings-admin-email-subtitle">
+                {{ _('settings.mailboxes.my_subtitle', used=used_private, max=max_private) }}
+            </p>
+        </div>
+        {% if can_add %}
+        <a href="{{ url_for('settings.my_mailbox_new') }}" class="btn btn-accent settings-admin-email-btn">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            {{ _('settings.mailboxes.create') }}
+        </a>
+        {% endif %}
+    </div>
+
+    {% if not can_add %}
+    <div class="alert alert-info">{{ _('settings.mailboxes.limit_info', max=max_private) }}</div>
+    {% endif %}
+
+    <section class="settings-admin-email-card mb-3">
+        <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.private_list') }}</h2>
+        {% if private_mailboxes %}
+        <ul class="list-group list-group-flush">
+            {% for mb in private_mailboxes %}
+            <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <span>
+                    <span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:{{ mb.color }};"></span>
+                    {{ mb.display_name }}
+                </span>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('settings.my_mailbox_edit', mailbox_id=mb.id) }}" class="btn btn-sm btn-outline-secondary settings-admin-email-btn">{{ _('common.edit') }}</a>
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="mailbox_id" value="{{ mb.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-email-btn" data-confirm-delete="{{ _('settings.mailboxes.delete_confirm') }}">{{ _('common.delete') }}</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">{{ _('settings.mailboxes.empty_private') }}</p>
+        {% endif %}
+    </section>
+
+    {% if team_mailboxes_prefs %}
+    <section class="settings-admin-email-card">
+        <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.logo_prefs_title') }}</h2>
+        <p class="settings-admin-email-subtitle mb-3">{{ _('settings.mailboxes.logo_prefs_help') }}</p>
+        <ul class="list-group list-group-flush">
+            {% for item in team_mailboxes_prefs %}
+            <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div>
+                    <strong>{{ item.mailbox.display_name }}</strong>
+                    {% if item.mailbox.logo_filename %}
+                    <img src="{{ url_for('settings.mailbox_logo', filename=item.mailbox.logo_filename) }}" alt="" class="ms-2" style="max-height:28px;vertical-align:middle;">
+                    {% else %}
+                    <span class="small text-muted ms-2">{{ _('settings.mailboxes.no_team_logo') }}</span>
+                    {% endif %}
+                </div>
+                <form method="POST" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="action" value="set_use_logo">
+                    <input type="hidden" name="mailbox_id" value="{{ item.mailbox.id }}">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="use_logo_{{ item.mailbox.id }}" name="use_logo"
+                               {% if item.use_logo %}checked{% endif %}
+                               {% if not item.mailbox.logo_filename %}disabled{% endif %}
+                               onchange="this.form.submit()">
+                        <label class="form-check-label" for="use_logo_{{ item.mailbox.id }}">{{ _('settings.mailboxes.use_logo') }}</label>
+                    </div>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

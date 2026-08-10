@@ -103,13 +103,13 @@ cd /var/www/teamportal
 # Empfohlen: alle ausstehenden Migrationen (inkl. Voll-Upgrade)
 sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.py"
 
-# Gezielt: modellbasierter Voll-Upgrade/Repair von Legacy 2.5+ (ab 3.0.1)
-# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_1_full_upgrade.py"
+# Gezielt: modellbasierter Voll-Upgrade/Repair von Legacy 2.5+ (ab 3.1.0)
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_1_0.py"
 # Erneut erzwingen:
-# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_1_full_upgrade.py --force"
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_1_0.py --force"
 ```
 
-**Hinweis:** `migrate_to_3_0_1_full_upgrade.py` zieht fehlende Tabellen und Spalten aus den Models nach und führt Daten-Backfills aus (Kalender, Shares, Quotas, …). Das Skript ist idempotent und für Upgrades von 2.5+ gedacht. Timeout bei großen DBs ggf. über `PRISMATEAMS_MIGRATION_TIMEOUT` erhöhen (Standard 900s).
+**Hinweis:** `migrate_to_3_1_0.py` ist die konsolidierte Upgrade-Migration (ersetzt frühere Einzel-Skripte und 3.0.1). Sie zieht fehlende Tabellen und Spalten aus den Models nach und führt Daten-Backfills aus (Kalender, Shares, Quotas, Multi-Mailbox, Google Login, …). Das Skript ist idempotent und für Upgrades von 2.5+ gedacht. Timeout bei großen DBs ggf. über `PRISMATEAMS_MIGRATION_TIMEOUT` erhöhen (Standard 900s).
 
 ## Docker-Container aktualisieren (falls installiert)
 

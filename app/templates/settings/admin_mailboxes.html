@@ -1,0 +1,66 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.mailboxes.admin_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.mailboxes.admin_title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-email settings-mailboxes-page">
+    <div class="settings-admin-email-header settings-mailboxes-header">
+        <div>
+            <h1 class="settings-admin-email-title">{{ _('settings.mailboxes.admin_heading') }}</h1>
+            <p class="settings-admin-email-subtitle">{{ _('settings.mailboxes.admin_subtitle') }}</p>
+        </div>
+        <a href="{{ url_for('settings.admin_mailbox_create') }}" class="btn btn-accent settings-admin-email-btn">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            {{ _('settings.mailboxes.create') }}
+        </a>
+    </div>
+
+    <section class="settings-admin-email-card">
+        {% if mailboxes %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ _('settings.mailboxes.col_name') }}</th>
+                        <th>{{ _('settings.mailboxes.col_type') }}</th>
+                        <th>{{ _('settings.mailboxes.col_owner') }}</th>
+                        <th>{{ _('settings.mailboxes.col_active') }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mb in mailboxes %}
+                    <tr>
+                        <td>
+                            <span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:{{ mb.color }};"></span>
+                            {{ mb.display_name }}
+                        </td>
+                        <td>{{ mb.mailbox_type }}</td>
+                        <td>
+                            {% if mb.mailbox_type == 'team' and mb.team %}{{ mb.team.name }}
+                            {% elif mb.owner %}{{ mb.owner.full_name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{% if mb.is_active %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('settings.admin_mailbox_edit', mailbox_id=mb.id) }}" class="btn btn-sm btn-outline-secondary settings-admin-email-btn">{{ _('common.edit') }}</a>
+                            <form method="POST" action="{{ url_for('settings.admin_mailbox_delete', mailbox_id=mb.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-email-btn" data-confirm-delete="{{ _('settings.mailboxes.delete_confirm') }}">{{ _('common.delete') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="mb-0 text-muted">{{ _('settings.mailboxes.empty') }}</p>
+        {% endif %}
+    </section>
+    <a href="{{ url_for('settings.admin_email_module') }}" class="settings-subpage-back mt-3 d-inline-flex">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+</div>
+{% endblock %}

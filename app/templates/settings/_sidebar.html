@@ -21,8 +21,33 @@
     'settings.make_admin',
     'settings.remove_admin',
     'settings.delete_user',
+    'settings.set_user_teams',
     'auth.show_confirmation_codes'
 ] %}
+{% set teams_active = ep in [
+    'settings.admin_teams',
+    'settings.create_team',
+    'settings.edit_team',
+    'settings.admin_team_detail',
+    'settings.delete_team',
+    'settings.team_image',
+    'settings.team_mailboxes'
+] %}
+{% set my_mailboxes_active = ep == 'settings.my_mailboxes' %}
+{% set mailboxes_admin_active = ep in [
+    'settings.admin_mailboxes',
+    'settings.admin_mailbox_create',
+    'settings.admin_mailbox_edit',
+    'settings.admin_mailbox_delete'
+] %}
+{% set email_active = ep in [
+    'settings.admin_email_module',
+    'settings.admin_email_footer',
+    'settings.admin_email_settings',
+    'settings.admin_email_permissions',
+    'auth.test_email'
+] or mailboxes_admin_active %}
+{% set show_teams_nav = current_user.is_admin or (current_user.led_teams and current_user.led_teams|length > 0) %}
 {% set codes_active = false %}
 {% set whitelist_active = ep in [
     'settings.admin_whitelist',
@@ -32,18 +57,12 @@
 ] %}
 {% set system_active = ep == 'settings.admin_system' %}
 {% set modules_active = ep == 'settings.admin_modules' %}
+{% set integrations_active = ep == 'settings.admin_integrations' %}
 {% set push_active = ep == 'settings.admin_push_subscriptions' %}
 {% set backup_active = ep == 'settings.admin_backup' %}
 {% set registration_active = ep == 'settings.admin_registration' %}
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
-{% set email_active = ep in [
-    'settings.admin_email_module',
-    'settings.admin_email_footer',
-    'settings.admin_email_settings',
-    'settings.admin_email_permissions',
-    'auth.test_email'
-] %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
@@ -73,6 +92,20 @@
         <i class="bi bi-info-circle me-2"></i>{{ _('settings.index.cards.about.title') }}
     </a>
 
+    {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
+    <a href="{{ url_for('settings.my_mailboxes') }}" class="nav-link mod-nav-link{% if my_mailboxes_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-mailbox me-2"></i>{{ _('settings.mailboxes.my_title') }}
+    </a>
+    {% endif %}
+
+    {% if show_teams_nav and not current_user.is_admin %}
+    <hr class="settings-nav-divider">
+    <div class="settings-nav-admin-heading">{{ _('settings.sidebar.team_lead_heading') }}</div>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
+    </a>
+    {% endif %}
+
     {% if current_user.is_admin %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.admin_heading') }}</div>
@@ -82,6 +115,9 @@
     </div>
     <a href="{{ url_for('settings.admin_users') }}" class="nav-link mod-nav-link{% if users_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>{{ _('settings.admin.cards.user_management.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
     </a>
     <a href="{{ url_for('settings.admin_whitelist') }}" class="nav-link mod-nav-link{% if whitelist_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-check me-2"></i>{{ _('settings.admin.cards.whitelist.title') }}
@@ -95,6 +131,9 @@
     </a>
     <a href="{{ url_for('settings.admin_modules') }}" class="nav-link mod-nav-link{% if modules_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-grid-3x3-gap me-2"></i>{{ _('settings.admin.cards.modules.title') }}
+    </a>
+    <a href="{{ url_for('settings.admin_integrations') }}" class="nav-link mod-nav-link{% if integrations_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-link-45deg me-2"></i>{{ _('settings.integrations.heading') }}
     </a>
     <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="nav-link mod-nav-link{% if push_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-bell me-2"></i>{{ _('settings.sidebar.push_subscriptions') }}

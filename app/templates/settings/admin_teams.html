@@ -1,0 +1,89 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.admin.teams.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.teams.title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-teams">
+    <div class="settings-admin-teams-header">
+        <div>
+            <h1 class="settings-admin-teams-title">{{ _('settings.admin.teams.heading') }}</h1>
+            <p class="settings-admin-teams-subtitle">{{ _('settings.admin.teams.subtitle') }}</p>
+        </div>
+        <div class="settings-admin-teams-header-actions">
+            {% if not is_team_leader_view|default(false) %}
+            <a href="{{ url_for('settings.create_team') }}" class="btn btn-accent settings-admin-teams-btn">
+                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.create') }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if teams %}
+    <div class="sau-search-wrap mb-3">
+        <div class="sau-search-inner">
+            <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                <input type="search" id="teamSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_placeholder') }}">
+        </div>
+    </div>
+
+    <div class="settings-admin-teams-grid" id="teamsList">
+        {% for team in teams %}
+        <a href="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="settings-admin-teams-card" data-search-name="{{ team.name|lower }}" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+            <div class="settings-admin-teams-card-accent" aria-hidden="true"></div>
+            <div class="settings-admin-teams-card-body">
+                <div class="settings-admin-teams-avatar">
+                    {% if team.image %}
+                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                    {% else %}
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div class="settings-admin-teams-card-main">
+                    <div class="settings-admin-teams-card-name">{{ team.name }}</div>
+                    {% if team.description %}
+                    <div class="settings-admin-teams-card-desc">{{ team.description }}</div>
+                    {% endif %}
+                    <div class="settings-admin-teams-card-meta">
+                        <span>{{ _('settings.admin.teams.members_count', count=team.members|length) }}</span>
+                        {% if team.leader %}
+                        <span aria-hidden="true">·</span>
+                        <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <i class="bi bi-chevron-right settings-admin-teams-card-chevron" aria-hidden="true"></i>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <p class="settings-admin-teams-empty" id="noTeamSearchResults" hidden>{{ _('settings.admin.teams.search_no_results') }}</p>
+    {% else %}
+    <p class="settings-admin-teams-empty">{{ _('settings.admin.teams.empty') }}</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var input = document.getElementById('teamSearch');
+    var list = document.getElementById('teamsList');
+    var empty = document.getElementById('noTeamSearchResults');
+    if (!input || !list) return;
+    input.addEventListener('input', function () {
+        var q = (input.value || '').trim().toLowerCase();
+        var cards = list.querySelectorAll('.settings-admin-teams-card');
+        var visible = 0;
+        cards.forEach(function (card) {
+            var name = card.getAttribute('data-search-name') || '';
+            var show = !q || name.indexOf(q) !== -1;
+            card.hidden = !show;
+            if (show) visible += 1;
+        });
+        if (empty) empty.hidden = visible > 0;
+    });
+})();
+</script>
+{% endblock %}

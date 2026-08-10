@@ -115,6 +115,60 @@
         </section>
     </div>
 
+    <section class="settings-admin-email-card" aria-labelledby="email-multi-title">
+        <div class="settings-admin-email-card-head">
+            <h2 id="email-multi-title" class="settings-admin-email-section-title mb-0">
+                <i class="bi bi-inbox-fill" aria-hidden="true"></i>
+                {{ _('settings.admin.email_module.multi.title') }}
+            </h2>
+        </div>
+        <p class="settings-admin-email-hint">{{ _('settings.admin.email_module.multi.lead') }}</p>
+        <form method="POST" action="{{ url_for('settings.admin_email_settings') }}" class="settings-admin-email-form">
+            <input type="hidden" name="return_to" value="module">
+            <input type="hidden" name="save_multi" value="1">
+            <input type="hidden" name="storage_days" value="{{ storage_days }}">
+            <input type="hidden" name="sync_interval" value="{{ sync_interval }}">
+            <div class="settings-admin-email-fields">
+                <div class="settings-admin-email-field mb-0">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="email_multi_enabled" name="email_multi_enabled" {% if email_multi_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="email_multi_enabled">
+                            <strong>{{ _('settings.admin.email_module.multi.toggle_label') }}</strong>
+                        </label>
+                    </div>
+                    <div class="form-text">{{ _('settings.admin.email_module.multi.toggle_help') }}</div>
+                </div>
+                <div class="settings-admin-email-field mb-0">
+                    <label for="email_max_private_mailboxes" class="form-label">{{ _('settings.admin.email_module.multi.max_private_label') }}</label>
+                    <input type="number" class="form-control settings-admin-email-input" id="email_max_private_mailboxes"
+                           name="email_max_private_mailboxes" value="{{ email_max_private_mailboxes }}" min="0" step="1">
+                    <div class="form-text">{{ _('settings.admin.email_module.multi.max_private_help') }}</div>
+                </div>
+                <div class="settings-admin-email-field mb-0">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="email_compose_html_design_default" name="email_compose_html_design_default" {% if email_compose_html_design_default %}checked{% endif %}>
+                        <label class="form-check-label" for="email_compose_html_design_default">
+                            <strong>{{ _('settings.admin.email_module.multi.html_design_label') }}</strong>
+                        </label>
+                    </div>
+                    <div class="form-text">{{ _('settings.admin.email_module.multi.html_design_help') }}</div>
+                </div>
+            </div>
+            <div class="settings-admin-email-actions d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-accent settings-admin-email-submit">
+                    <i class="bi bi-save" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.save') }}
+                </button>
+                {% if email_multi_enabled %}
+                <a href="{{ url_for('settings.admin_mailboxes') }}" class="btn btn-outline-secondary settings-admin-email-btn">
+                    <i class="bi bi-envelope-plus" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.multi.manage_link') }}
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+
     <section class="settings-admin-email-card" aria-labelledby="email-footer-title">
         <div class="settings-admin-email-card-head">
             <h2 id="email-footer-title" class="settings-admin-email-section-title mb-0">

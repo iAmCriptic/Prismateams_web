@@ -64,6 +64,18 @@
                 <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
             </a>
         </div>
+        {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.my_mailboxes') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-mailbox"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.index.cards.my_mailboxes.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.index.cards.my_mailboxes.description') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -85,6 +97,12 @@
                         <a href="{{ url_for('settings.admin_users') }}">
                             <i class="bi bi-people"></i>
                             <span>{{ _('settings.admin.cards.user_management.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('settings.admin_teams') }}">
+                            <i class="bi bi-diagram-3"></i>
+                            <span>{{ _('settings.admin.cards.teams.title') }}</span>
                         </a>
                     </li>
                     <li>

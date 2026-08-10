@@ -184,22 +184,19 @@
                 </div>
                 {% endif %}
 
-                <div class="settings-admin-music-field">
-                    <label for="youtube_api_key" class="form-label">{{ _('music.admin.youtube.api_key_label') }}</label>
-                    <input type="text" class="form-control settings-admin-music-input" id="youtube_api_key" name="youtube_api_key"
-                           value="{{ youtube_api_key }}" placeholder="{{ _('music.admin.youtube.api_key_placeholder') }}" autocomplete="off">
-                    <div class="form-text">{{ _('music.admin.youtube.api_key_help', link='https://console.cloud.google.com/apis/credentials') | safe }}</div>
-                </div>
-                <div class="settings-admin-music-fields">
-                    <div class="settings-admin-music-field mb-0">
-                        <label for="youtube_client_id" class="form-label">{{ _('music.admin.youtube.client_id') }}</label>
-                        <input type="text" class="form-control settings-admin-music-input" id="youtube_client_id" name="youtube_client_id"
-                               value="{{ youtube_client_id }}" placeholder="{{ _('music.admin.youtube.client_id_placeholder') }}" autocomplete="off">
-                    </div>
-                    <div class="settings-admin-music-field mb-0">
-                        <label for="youtube_client_secret" class="form-label">{{ _('music.admin.youtube.client_secret') }}</label>
-                        <input type="password" class="form-control settings-admin-music-input" id="youtube_client_secret" name="youtube_client_secret"
-                               value="{{ youtube_client_secret }}" placeholder="{{ _('music.admin.youtube.client_secret_placeholder') }}" autocomplete="new-password">
+                <div class="alert alert-permanent portal-msg portal-msg--info settings-admin-music-msg mb-0" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-info-circle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text">{{ _('music.admin.youtube.keys_moved') }}</p>
+                            <div class="portal-msg__actions">
+                                <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
+                                    <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>{{ _('settings.integrations.heading') }}
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -3023,6 +3023,112 @@ body:has(.settings-admin-roles-modal.show) .app-flash-banner .portal-msg {
     color: var(--sac-text);
 }
 
+/* Verknüpfungen: Google-Hilfe-Modal (Pill, über Settings-Shell) */
+.settings-integrations-help-modal {
+    --sih-elevated: #ffffff;
+    --sih-border: rgba(15, 23, 42, 0.1);
+    --sih-text: var(--bs-body-color, #212529);
+    --sih-muted: var(--bs-secondary-color, #6c757d);
+    --sih-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+    z-index: 1080 !important;
+    opacity: 1 !important;
+}
+
+.settings-integrations-help-modal .modal-dialog {
+    max-width: 34rem;
+    pointer-events: auto;
+}
+
+.settings-integrations-help-modal .modal-content {
+    border-radius: 1.75rem;
+    border: 1px solid var(--sih-border);
+    background: var(--sih-elevated) !important;
+    box-shadow: var(--sih-shadow);
+    overflow: hidden;
+    opacity: 1 !important;
+    isolation: isolate;
+}
+
+.settings-integrations-help-modal-header,
+.settings-integrations-help-modal-body,
+.settings-integrations-help-modal-footer {
+    border-color: var(--sih-border);
+    background: var(--sih-elevated) !important;
+}
+
+.settings-integrations-help-modal-header {
+    padding: 1.1rem 1.25rem 0.85rem;
+    border-bottom: 1px solid var(--sih-border);
+}
+
+.settings-integrations-help-modal-header .modal-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--sih-text);
+}
+
+.settings-integrations-help-modal-body {
+    padding: 1rem 1.25rem;
+    color: var(--sih-text);
+}
+
+.settings-integrations-help-modal-body p,
+.settings-integrations-help-modal-body li {
+    color: var(--sih-text);
+}
+
+.settings-integrations-help-modal-body strong {
+    font-weight: 650;
+}
+
+.settings-integrations-help-modal-footer {
+    padding: 0.85rem 1.25rem 1.15rem;
+    border-top: 1px solid var(--sih-border);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.settings-integrations-help-modal-footer .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 650;
+    padding: 0.55rem 1.15rem;
+}
+
+.modal-backdrop.settings-integrations-help-backdrop {
+    background: rgba(15, 23, 42, 0.38) !important;
+    opacity: 1 !important;
+    z-index: 1070 !important;
+}
+
+/* Fallback: auch ohne Backdrop-Klasse korrekt stapeln */
+body:has(.settings-integrations-help-modal.show) .modal-backdrop {
+    z-index: 1070 !important;
+    background: rgba(15, 23, 42, 0.38);
+    opacity: 1 !important;
+}
+
+body:has(.settings-integrations-help-modal.show) .settings-integrations-help-modal {
+    z-index: 1080 !important;
+}
+
+[data-bs-theme="dark"] .settings-integrations-help-modal {
+    --sih-elevated: #1e2228;
+    --sih-border: rgba(255, 255, 255, 0.12);
+    --sih-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+
+[data-bs-theme="dark"] .settings-integrations-help-modal .modal-content,
+[data-bs-theme="dark"] .settings-integrations-help-modal-header,
+[data-bs-theme="dark"] .settings-integrations-help-modal-body,
+[data-bs-theme="dark"] .settings-integrations-help-modal-footer {
+    background: #1e2228 !important;
+}
+
+[data-bs-theme="dark"] .modal-backdrop.settings-integrations-help-backdrop {
+    background: rgba(15, 23, 42, 0.5) !important;
+}
+
 /* Admin whitelist */
 .settings-admin-whitelist {
     --saw-surface: var(--bs-tertiary-bg, #f8f9fa);
@@ -5776,4 +5882,614 @@ textarea.settings-admin-booking-input {
         margin-left: 0;
         margin-top: 0.45rem;
     }
+}
+
+/* ===== Admin Teams ===== */
+.settings-admin-teams {
+    --sat-surface: var(--bs-tertiary-bg, #f8f9fa);
+    --sat-elevated: var(--bs-body-bg, #fff);
+    --sat-border: var(--bs-border-color-translucent, #e9ecef);
+    --sat-text: var(--bs-body-color, #212529);
+    --sat-muted: var(--bs-secondary-color, #6c757d);
+    --team-accent: var(--accent-color, #0d6efd);
+}
+
+.settings-admin-teams-btn,
+.settings-admin-teams .btn,
+#addMembersModal .btn,
+#teamsModal .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.settings-admin-teams-btn.btn-sm,
+.settings-admin-teams .btn-sm {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+}
+
+.settings-admin-teams-input,
+.settings-admin-teams .form-control,
+.settings-admin-teams .form-select,
+#addMembersModal .sau-search-input,
+#teamsModal .sau-search-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.55rem 0.95rem;
+}
+
+.settings-admin-teams-textarea {
+    border-radius: 1rem !important;
+    padding: 0.7rem 0.95rem;
+}
+
+.settings-admin-teams-color-picker {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0.2rem;
+}
+
+.settings-admin-teams-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+}
+
+.settings-admin-teams-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--sat-text, var(--bs-body-color, #212529));
+}
+
+.settings-admin-teams-subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--sat-muted, var(--bs-secondary-color, #6c757d));
+    font-size: 0.95rem;
+}
+
+.settings-admin-teams-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.settings-admin-teams-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.settings-admin-teams-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--sat-elevated, var(--bs-body-bg, #fff));
+    border: 1px solid var(--sat-border, var(--bs-border-color-translucent, #e9ecef));
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-admin-teams-card:hover,
+.settings-admin-teams-card:focus-visible {
+    border-color: color-mix(in srgb, var(--team-accent, var(--accent-color, #0d6efd)) 45%, var(--sat-border, #e9ecef));
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--team-accent, var(--accent-color, #0d6efd)) 18%, transparent);
+    outline: none;
+}
+
+.settings-admin-teams-card-accent {
+    height: 4px;
+    background: var(--team-accent, var(--accent-color, #0d6efd));
+}
+
+.settings-admin-teams-card-body {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+}
+
+.settings-admin-teams-avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: color-mix(in srgb, var(--team-accent, var(--accent-color, #0d6efd)) 16%, var(--sat-surface, #f8f9fa));
+    color: var(--team-accent, var(--accent-color, #0d6efd));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    font-size: 1.15rem;
+}
+
+.settings-admin-teams-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.settings-admin-teams-avatar-lg {
+    width: 3.5rem;
+    height: 3.5rem;
+    font-size: 1.4rem;
+}
+
+.settings-admin-teams-card-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.settings-admin-teams-card-name {
+    font-weight: 650;
+    font-size: 1rem;
+}
+
+.settings-admin-teams-card-desc {
+    color: var(--sat-muted, var(--bs-secondary-color, #6c757d));
+    font-size: 0.875rem;
+    margin-top: 0.15rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.settings-admin-teams-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+    color: var(--sat-muted, var(--bs-secondary-color, #6c757d));
+    font-size: 0.8rem;
+}
+
+.settings-admin-teams-card-chevron {
+    color: var(--sat-muted, var(--bs-secondary-color, #6c757d));
+    flex-shrink: 0;
+}
+
+.settings-admin-teams-empty {
+    color: var(--sat-muted, var(--bs-secondary-color, #6c757d));
+    margin: 1rem 0 0;
+}
+
+.settings-admin-teams-panel {
+    background: var(--sat-elevated, var(--bs-body-bg, #fff));
+    border: 1px solid var(--sat-border, var(--bs-border-color-translucent, #e9ecef));
+    border-radius: 1rem;
+    padding: 1rem 1.1rem;
+}
+
+.settings-admin-teams-section-title {
+    font-size: 0.95rem;
+    font-weight: 650;
+    margin: 0 0 0.85rem;
+}
+
+.settings-admin-teams-form-actions {
+    margin-top: 1rem;
+}
+
+.settings-admin-teams-color-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.settings-admin-teams-color-row .form-control:not(.form-control-color) {
+    max-width: 9rem;
+}
+
+.settings-admin-teams-current-image img {
+    width: 4.5rem;
+    height: 4.5rem;
+    object-fit: cover;
+    border-radius: 1rem;
+    border: 1px solid var(--sat-border, var(--bs-border-color-translucent, #e9ecef));
+}
+
+.settings-admin-teams-detail-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.settings-admin-teams-detail-title-row {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+}
+
+.settings-admin-teams-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.settings-admin-teams-member-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--sat-border, var(--bs-border-color-translucent, #e9ecef));
+    border-radius: 1rem;
+    background: var(--sat-surface, var(--bs-tertiary-bg, #f8f9fa));
+}
+
+.settings-admin-teams-member-name {
+    font-weight: 600;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    color: var(--sat-text, var(--bs-body-color, #212529));
+}
+
+.settings-admin-teams-modal-search {
+    margin-bottom: 0.85rem;
+}
+
+.settings-admin-teams-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-height: 22rem;
+    overflow: auto;
+}
+
+.settings-admin-teams-picker-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--bs-border-color-translucent, #e9ecef);
+    border-radius: 1rem;
+    cursor: pointer;
+    margin: 0;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #212529);
+    opacity: 1;
+}
+
+.settings-admin-teams-picker-item:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, var(--bs-body-bg, #fff));
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color-translucent, #e9ecef));
+}
+
+.settings-admin-teams-picker-item .form-check-input {
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.settings-admin-teams-picker-text {
+    color: var(--bs-body-color, #212529);
+    min-width: 0;
+}
+
+.settings-admin-teams-picker-text strong {
+    color: var(--bs-body-color, #212529);
+    font-weight: 650;
+}
+
+.settings-admin-teams-picker-text small {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.settings-admin-teams-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+}
+
+.settings-admin-teams-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    padding: 0.28rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--chip-color, #6c757d) 35%, var(--bs-border-color-translucent, #e9ecef));
+    background: color-mix(in srgb, var(--chip-color, #6c757d) 12%, transparent);
+    color: var(--bs-body-color, #212529);
+}
+
+.settings-admin-teams-chip-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--chip-color, #6c757d);
+    flex-shrink: 0;
+}
+
+.settings-profile-teams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.settings-profile-team-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid var(--bs-border-color-translucent, #e9ecef);
+    border-radius: 1rem;
+    border-left: 4px solid var(--team-accent, var(--accent-color, #0d6efd));
+}
+
+.settings-profile-team-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--team-accent, #0d6efd) 14%, transparent);
+    color: var(--team-accent, #0d6efd);
+    flex-shrink: 0;
+}
+
+.settings-profile-team-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.settings-profile-team-name {
+    font-weight: 650;
+}
+
+.settings-profile-team-desc {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.1rem;
+}
+
+[data-bs-theme="dark"] .settings-admin-teams {
+    --sat-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
+    --sat-elevated: var(--bs-body-bg, #212529);
+    --sat-border: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .settings-admin-teams-picker-item {
+    background: var(--bs-body-bg, #212529);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #f8f9fa);
+}
+
+@media (max-width: 767.98px) {
+    .settings-admin-teams-header-actions {
+        width: 100%;
+    }
+}
+
+/* ---- Multi-mailbox pages: pill controls + wizard ---- */
+.settings-mailboxes-page .btn,
+.settings-mailboxes-page .settings-admin-email-btn,
+.settings-mailboxes-page .settings-admin-email-submit {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.settings-mailboxes-page .btn-sm {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+}
+
+.settings-mailboxes-page .form-control:not(.form-control-color),
+.settings-mailboxes-page .form-select,
+.settings-mailboxes-page .settings-admin-email-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.55rem 0.95rem !important;
+    line-height: 1.4;
+    min-height: 2.55rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background-clip: padding-box;
+}
+
+.settings-mailboxes-page .form-control-color {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0.2rem;
+}
+
+.settings-mailboxes-page textarea.form-control {
+    border-radius: 1rem !important;
+    min-height: 7rem;
+}
+
+.settings-mailboxes-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.mailbox-wizard-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+}
+
+.mailbox-wizard-step {
+    border: 1px solid var(--bs-border-color-translucent, #e9ecef);
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-secondary-color, #6c757d);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.mailbox-wizard-step.is-active {
+    color: var(--bs-body-color, #212529);
+    border-color: var(--accent-color, #0d6efd);
+    box-shadow: 0 0 0 1px var(--accent-color, #0d6efd);
+}
+
+.mailbox-wizard-step.is-done {
+    color: var(--accent-color, #0d6efd);
+}
+
+.mailbox-wizard-step-num {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 110, 253, 0.12);
+    font-size: 0.75rem;
+}
+
+.mailbox-wizard-panel.settings-admin-email-card {
+    overflow: visible;
+}
+
+.mailbox-wizard-fields {
+    align-items: start;
+}
+
+.mailbox-wizard-field--full {
+    grid-column: 1 / -1;
+}
+
+.mailbox-wizard-switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.5rem;
+    align-items: center;
+    padding: 0.15rem 0;
+}
+
+/* Bootstrap form-switch ohne Negativ-Margin (sonst Clipping am Kartenrand) */
+.mailbox-wizard-switch.form-check {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.65rem;
+    padding-left: 0 !important;
+    margin: 0;
+    min-height: 1.6rem;
+}
+
+.mailbox-wizard-switch .form-check-input {
+    float: none !important;
+    margin: 0 !important;
+    position: static !important;
+    flex-shrink: 0;
+    width: 2.5em;
+    height: 1.35em;
+    cursor: pointer;
+}
+
+.mailbox-wizard-switch .form-check-label {
+    padding-left: 0 !important;
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+.mailbox-wizard-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+}
+
+.mailbox-wizard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0;
+    margin-left: auto;
+}
+
+.mailbox-wizard-test-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0;
+    min-width: 0;
+    flex: 1 1 14rem;
+}
+
+.mailbox-wizard-test-result {
+    font-size: 0.85rem;
+    flex: 1 1 10rem;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.mailbox-wizard-test-result.is-ok {
+    color: var(--bs-success, #198754);
+}
+
+.mailbox-wizard-test-result.is-err {
+    color: var(--bs-danger, #dc3545);
+}
+
+[data-bs-theme="dark"] .mailbox-wizard-step {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-secondary-color, #adb5bd);
+}
+
+[data-bs-theme="dark"] .mailbox-wizard-step.is-active {
+    color: var(--bs-body-color, #f8f9fa);
+    border-color: var(--accent-color, #0d6efd);
+}
+
+[data-bs-theme="dark"] .mailbox-wizard-step-num {
+    background: rgba(13, 110, 253, 0.22);
+}
+
+[data-bs-theme="dark"] .settings-mailboxes-page .form-control:not(.form-control-color),
+[data-bs-theme="dark"] .settings-mailboxes-page .form-select,
+[data-bs-theme="dark"] .settings-mailboxes-page .settings-admin-email-input {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--bs-body-color, #f8f9fa);
+}
+
+[data-bs-theme="dark"] .settings-mailboxes-page .form-control:focus,
+[data-bs-theme="dark"] .settings-mailboxes-page .settings-admin-email-input:focus {
+    border-color: var(--accent-color, #0d6efd);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
 }

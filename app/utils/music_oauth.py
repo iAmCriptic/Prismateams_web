@@ -21,15 +21,28 @@ TOKEN_CACHE_TTL = 300  # 5 Minuten in Sekunden
 
 
 def get_music_setting(key, default=None):
-    """Holt eine Musik-Einstellung aus MusicSettings oder Fallback."""
+    """Holt eine Musik-Einstellung: SystemSettings (Google) → MusicSettings → Config/Env."""
     from flask import current_app
-    
-    # Versuche zuerst aus MusicSettings
+
+    # Google-Cloud-Verknüpfungen haben Vorrang (geteilt mit Mail-OAuth / YouTube)
+    google_alias = {
+        'youtube_client_id': 'google_client_id',
+        'youtube_client_secret': 'google_client_secret',
+        'youtube_api_key': 'google_api_key',
+    }.get(key)
+    if google_alias:
+        try:
+            from app.utils.integrations import get_system_setting
+            sys_val = get_system_setting(google_alias)
+            if sys_val:
+                return sys_val
+        except Exception:
+            pass
+
     setting = MusicSettings.query.filter_by(key=key).first()
     if setting and setting.value:
         return setting.value
-    
-    # Fallback zu config oder Umgebungsvariable
+
     config_key = key.upper()
     return current_app.config.get(config_key) or os.environ.get(config_key) or default
 
@@ -87,10 +100,11 @@ def get_spotify_oauth_url():
 
 def get_youtube_oauth_url():
     """Generiert die YouTube OAuth URL."""
+    from app.utils.integrations import google_oauth_redirect_uri
     client_id = get_music_setting('youtube_client_id')
     if not client_id:
         raise Exception("YouTube Client ID nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
-    redirect_uri = url_for('music.youtube_callback', _external=True)
+    redirect_uri = google_oauth_redirect_uri()
     scope = 'https://www.googleapis.com/auth/youtube.readonly'
     state = os.urandom(16).hex()
     session['youtube_oauth_state'] = state
@@ -157,6 +171,7 @@ def handle_youtube_callback(code, state):
     """Verarbeitet den YouTube OAuth Callback."""
     from flask import session
     from flask_login import current_user
+    from app.utils.integrations import google_oauth_redirect_uri
     
     # Validiere State
     if state != session.get('youtube_oauth_state'):
@@ -166,7 +181,7 @@ def handle_youtube_callback(code, state):
     client_secret = get_music_setting('youtube_client_secret')
     if not client_id or not client_secret:
         raise Exception("YouTube Credentials nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
-    redirect_uri = url_for('music.youtube_callback', _external=True)
+    redirect_uri = google_oauth_redirect_uri()
     
     # Tausche Code gegen Token
     response = requests.post(

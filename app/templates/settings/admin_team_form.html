@@ -1,0 +1,110 @@
+{% extends "settings/base_settings.html" %}
+
+{% set is_edit = team is not none %}
+{% block title %}{% if is_edit %}{{ _('settings.admin.teams.edit_page_title') }}{% else %}{{ _('settings.admin.teams.create_page_title') }}{% endif %}{% endblock %}
+{% block settings_mobile_title %}{% if is_edit %}{{ _('settings.admin.teams.edit_heading') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-teams">
+    <a href="{% if is_edit %}{{ url_for('settings.admin_team_detail', team_id=team.id) }}{% else %}{{ url_for('settings.admin_teams') }}{% endif %}" class="settings-subpage-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+    <div class="settings-admin-teams-header">
+        <div>
+            <h1 class="settings-admin-teams-title">{% if is_edit %}{{ _('settings.admin.teams.edit_heading') }}{% else %}{{ _('settings.admin.teams.create_heading') }}{% endif %}</h1>
+            <p class="settings-admin-teams-subtitle">{{ _('settings.admin.teams.form_subtitle') }}</p>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="settings-admin-teams-form">
+        <section class="settings-admin-teams-panel">
+            <div class="mb-3">
+                <label for="name" class="form-label">{{ _('settings.admin.teams.field_name') }} <span class="text-danger">*</span></label>
+                <input type="text" class="form-control settings-admin-teams-input" id="name" name="name" required maxlength="100" value="{{ team.name if is_edit else '' }}" autocomplete="off">
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">{{ _('settings.admin.teams.field_description') }}</label>
+                <textarea class="form-control settings-admin-teams-textarea" id="description" name="description" rows="3" maxlength="2000">{{ team.description if is_edit and team.description else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="color" class="form-label">{{ _('settings.admin.teams.field_color') }}</label>
+                <div class="settings-admin-teams-color-row">
+                    <input type="color" class="form-control form-control-color settings-admin-teams-color-picker" id="color_picker" value="{{ team.color if is_edit and team.color else '#6c757d' }}" title="{{ _('settings.admin.teams.field_color') }}">
+                    <input type="text" class="form-control settings-admin-teams-input" id="color" name="color" maxlength="7" placeholder="#6c757d" value="{{ team.color if is_edit and team.color else '' }}" pattern="#?[0-9A-Fa-f]{6}" autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary settings-admin-teams-btn" id="clearColor">{{ _('settings.admin.teams.clear_color') }}</button>
+                </div>
+                <p class="form-text mb-0">{{ _('settings.admin.teams.field_color_help') }}</p>
+            </div>
+
+            <div class="mb-3">
+                <label for="leader_id" class="form-label">{{ _('settings.admin.teams.field_leader') }}</label>
+                <select class="form-select settings-admin-teams-input" id="leader_id" name="leader_id">
+                    <option value="">{{ _('settings.admin.teams.no_leader') }}</option>
+                    {% for u in leader_choices %}
+                    <option value="{{ u.id }}" {% if is_edit and team.leader_id == u.id %}selected{% endif %}>
+                        {{ u.full_name }}{% if u.is_guest %} ({{ _('settings.admin.users.badge_guest') }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="form-text mb-0">{{ _('settings.admin.teams.field_leader_help') }}</p>
+            </div>
+
+            <div class="mb-3">
+                <label for="image" class="form-label">{{ _('settings.admin.teams.field_image') }}</label>
+                {% if is_edit and team.image %}
+                <div class="settings-admin-teams-current-image mb-2">
+                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" value="1" id="remove_image" name="remove_image">
+                        <label class="form-check-label" for="remove_image">{{ _('settings.admin.teams.remove_image') }}</label>
+                    </div>
+                </div>
+                {% endif %}
+                <input type="file" class="form-control settings-admin-teams-input" id="image" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+                <p class="form-text mb-0">{{ _('settings.admin.teams.field_image_help') }}</p>
+            </div>
+        </section>
+
+        <div class="settings-admin-teams-form-actions">
+            <button type="submit" class="btn btn-accent settings-admin-teams-btn">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                {% if is_edit %}{{ _('settings.admin.teams.save') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var picker = document.getElementById('color_picker');
+    var text = document.getElementById('color');
+    var clearBtn = document.getElementById('clearColor');
+    if (!picker || !text) return;
+
+    function syncFromPicker() {
+        text.value = picker.value;
+    }
+    function syncFromText() {
+        var v = (text.value || '').trim();
+        if (v && v.charAt(0) !== '#') v = '#' + v;
+        if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+            text.value = v.toLowerCase();
+            picker.value = text.value;
+        }
+    }
+    picker.addEventListener('input', syncFromPicker);
+    text.addEventListener('change', syncFromText);
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            text.value = '';
+            picker.value = '#6c757d';
+        });
+    }
+})();
+</script>
+{% endblock %}

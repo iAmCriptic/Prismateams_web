@@ -1322,6 +1322,17 @@
             mobileBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                const cm = window.PrismateamsContextMenu;
+                if (
+                    cm &&
+                    typeof cm.isMobileSheetEnabled === 'function' &&
+                    cm.isMobileSheetEnabled() &&
+                    typeof cm.showMobileActionSheet === 'function'
+                ) {
+                    mobileMenu.style.display = 'none';
+                    cm.showMobileActionSheet(mobileMenu);
+                    return;
+                }
                 const open = mobileMenu.style.display === 'block';
                 mobileMenu.style.display = open ? 'none' : 'block';
             });

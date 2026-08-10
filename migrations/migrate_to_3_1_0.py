@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Vollständige Upgrade-/Repair-Migration: Legacy (2.4 / 2.5+) -> aktuelles Schema.
+Konsolidierte Upgrade-/Repair-Migration: Legacy (2.4 / 2.5+) -> 3.1.0.
 
-Idempotent und modellbasiert. Ersetzt die frühere Base64-Konsolidierung.
-Auch wenn eine ältere migrate_to_3_0_0 bereits als angewendet markiert ist,
-holt dieses Skript fehlende Tabellen/Spalten und Daten-Backfills nach.
+Idempotent und modellbasiert. Ersetzt alle früheren Einzel-Skripte
+(3.0.0 / 3.0.1 Full Upgrade, Google Login, Multi-Mailbox, OAuth, Wizard UX).
 
   1. Fehlende Tabellen aus SQLAlchemy-Models anlegen
   2. Fehlende Spalten per ALTER TABLE nachziehen
-  3. Spezielle Schema-Fixes (Shares-Constraint, BIGINT, E-Mail-Attachments)
+  3. Spezielle Schema-Fixes (Shares, BIGINT, E-Mail, Google-Index, Mailbox-Indexes)
   4. Daten-Backfills + SystemSettings-Seeds
 
 Aufruf:
-  python migrations/migrate_to_3_0_1_full_upgrade.py
+  python migrations/migrate_to_3_1_0.py
+  python migrations/migrate_to_3_1_0.py --force
   python migrations/run_all.py
 
 Läuft beim App-Start über app.utils.auto_migrate (Release-Wechsel oder
-PRISMATEAMS_STARTUP_MIGRATIONS=true). Ab Version 3.0.1.
+PRISMATEAMS_STARTUP_MIGRATIONS=true). Ab Version 3.1.0.
 """
 
 from __future__ import annotations
@@ -33,8 +33,11 @@ from sqlalchemy.schema import CreateColumn
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-# Einmal-Marker: verhindert Doppel-Lauf von Wrapper 3.0.0 + diesem Skript
-_SYNC_MARKER = "_internal_full_schema_sync_v1"
+# Einmal-Marker: verhindert Doppel-Lauf nach erfolgreichem 3.1.0-Sync
+_SYNC_MARKER = "_internal_full_schema_sync_v3_1_0"
+_PREVIOUS_SYNC_MARKERS = (
+    "_internal_full_schema_sync_v1",
+)
 
 # Legacy-Schrittnamen - nach erfolgreichem Lauf als angewendet markieren,
 # falls jemand noch Tracking-Einträge aus der alten Einzel-Skript-Zeit erwartet.
@@ -59,7 +62,13 @@ _LEGACY_STEP_MARKERS = (
     "migrate_to_2_7_12_booking_messages.py",
     "migrate_to_2_7_13_booking_message_notifications.py",
     "migrate_to_2_7_13_checkout_item_source_set.py",
+    "migrate_to_3_0_0.py",
     "migrate_to_3_0_0_whats_new.py",
+    "migrate_to_3_0_1_full_upgrade.py",
+    "migrate_google_login.py",
+    "migrate_mailbox_provider_oauth.py",
+    "migrate_mailbox_wizard_ux.py",
+    "migrate_to_multi_mailbox.py",
     "migrate_to_3_1_0_file_storage_quotas.py",
     "migrate_to_3_1_1_events_calendar.py",
     "migrate_to_3_1_1_fix_email_attachments.py",
@@ -187,6 +196,15 @@ def step_import_models(report: MigrationReport) -> None:
     from app.models.api_token import ApiToken  # noqa: F401
     from app.models.comment import Comment, CommentMention  # noqa: F401
     from app.models.credential import Credential, CredentialFavorite, CredentialFolder  # noqa: F401
+    from app.models.email import (  # noqa: F401
+        EmailAttachment,
+        EmailFolder,
+        EmailMessage,
+        EmailPermission,
+        Mailbox,
+        MailboxMembership,
+        MailboxUserPref,
+    )
     from app.models.file import (  # noqa: F401
         File,
         FileEditLock,
@@ -462,6 +480,9 @@ def step_seed_settings(db, report: MigrationReport) -> None:
         ("files_storage_quota_bytes", "16106127360", "Standard-Kontingent Bytes"),
         ("module_assessment", "True", "Assessment-Modul"),
         ("default_language", "de", "Standard-Sprache"),
+        ("email_multi_enabled", "False", "Multi-Postfach aktiv"),
+        ("email_max_private_mailboxes", "3", "Max. private Postfächer pro Nutzer"),
+        ("email_compose_html_design_default", "True", "Standard: HTML-Design beim Verfassen"),
     ]
     created = 0
     for key, value, desc in seeds:
@@ -818,6 +839,88 @@ def step_assessment_defaults(db, report: MigrationReport) -> None:
         report.note_warn(f"Assessment-Migration übersprungen: {exc}")
 
 
+def step_google_login_index(db, report: MigrationReport) -> None:
+    """Unique-Index users.google_sub (Spalten kommen über step_sync_columns)."""
+    engine = db.engine
+    if not _column_exists(engine, "users", "google_sub"):
+        report.note_skip("users.google_sub fehlt - Index übersprungen")
+        return
+    if _index_exists(engine, "users", "uq_users_google_sub"):
+        report.note_skip("uq_users_google_sub bereits vorhanden")
+        return
+    dialect = engine.dialect.name
+    try:
+        with engine.begin() as conn:
+            if dialect == "sqlite":
+                conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_google_sub "
+                        "ON users(google_sub)"
+                    )
+                )
+            else:
+                conn.execute(
+                    text("CREATE UNIQUE INDEX uq_users_google_sub ON users(google_sub)")
+                )
+        report.note_ok("Unique-Index users.google_sub")
+    except Exception as exc:
+        if _already_exists_error(exc):
+            report.note_skip("uq_users_google_sub existiert bereits")
+        else:
+            report.note_warn(f"Index google_sub: {exc}")
+
+
+def step_multi_mailbox_indexes(db, report: MigrationReport) -> None:
+    """
+    Multi-Postfach: alte Unique(name) auf email_folders entfernen und
+    Unique(name, mailbox_id) anlegen (MySQL/MariaDB).
+    Spalten/Tabellen kommen über step_sync_tables/columns.
+    """
+    engine = db.engine
+    dialect = engine.dialect.name
+    if dialect == "sqlite":
+        report.note_skip("SQLite: email_folders Unique-Anpassung ohne Rebuild übersprungen")
+        return
+    if not _table_exists(engine, "email_folders"):
+        report.note_skip("email_folders fehlt - Index-Fix übersprungen")
+        return
+
+    try:
+        indexes = inspect(engine).get_indexes("email_folders")
+        for idx in indexes:
+            cols = idx.get("column_names") or []
+            if idx.get("unique") and cols == ["name"]:
+                name = idx.get("name")
+                if not name:
+                    continue
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE email_folders DROP INDEX `{name}`"))
+                report.note_ok(f"Alten Unique-Index {name} auf email_folders.name entfernt")
+    except Exception as exc:
+        report.note_warn(f"Unique-Index Anpassung email_folders: {exc}")
+
+    if _unique_exists(engine, "email_folders", "uq_email_folder_name_mailbox"):
+        report.note_skip("uq_email_folder_name_mailbox bereits vorhanden")
+        return
+    if not _column_exists(engine, "email_folders", "mailbox_id"):
+        report.note_skip("email_folders.mailbox_id fehlt - Unique übersprungen")
+        return
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE email_folders "
+                    "ADD UNIQUE KEY uq_email_folder_name_mailbox (name, mailbox_id)"
+                )
+            )
+        report.note_ok("Unique (name, mailbox_id) auf email_folders")
+    except Exception as exc:
+        if _already_exists_error(exc):
+            report.note_skip("uq_email_folder_name_mailbox existiert bereits")
+        else:
+            report.note_warn(f"Unique (name, mailbox_id): {exc}")
+
+
 def _marker_applied(db, filename: str) -> bool:
     try:
         with db.engine.connect() as conn:
@@ -853,6 +956,8 @@ def step_mark_legacy_applied(db, report: MigrationReport) -> None:
     try:
         for filename in _LEGACY_STEP_MARKERS:
             _mark_filename(db, filename)
+        for marker in _PREVIOUS_SYNC_MARKERS:
+            _mark_filename(db, marker)
         _mark_filename(db, _SYNC_MARKER)
         report.note_ok(
             f"{len(_LEGACY_STEP_MARKERS)} Legacy-Migrationsmarker + Sync-Marker gesetzt"
@@ -879,7 +984,7 @@ def _run_step(name: str, fn, report: MigrationReport, *args) -> None:
 
 def migrate(*, force: bool = False) -> bool:
     print("=" * 60)
-    print("Upgrade-Migration: Legacy (2.5+) -> aktuelles Schema")
+    print("Upgrade-Migration: Legacy (2.5+) -> 3.1.0")
     print("=" * 60)
 
     os.environ.setdefault("PRISMATEAMS_SKIP_BACKGROUND_JOBS", "1")
@@ -924,39 +1029,46 @@ def migrate(*, force: bool = False) -> bool:
                 report,
                 db,
             )
-            _run_step("08 SystemSettings", step_seed_settings, report, db)
+            _run_step("08 Google-Login Index", step_google_login_index, report, db)
             _run_step(
-                "09 Private-Files space",
+                "09 Multi-Mailbox Indexes",
+                step_multi_mailbox_indexes,
+                report,
+                db,
+            )
+            _run_step("10 SystemSettings", step_seed_settings, report, db)
+            _run_step(
+                "11 Private-Files space",
                 step_backfill_private_files_space,
                 report,
                 db,
             )
             _run_step(
-                "10 contacts.sort_name",
+                "12 contacts.sort_name",
                 step_backfill_contacts_sort_name,
                 report,
                 db,
             )
             _run_step(
-                "11 Multi-Kalender Backfill",
+                "13 Multi-Kalender Backfill",
                 step_backfill_multi_calendars,
                 report,
                 db,
             )
             _run_step(
-                "12 Veranstaltungen-Kalender",
+                "14 Veranstaltungen-Kalender",
                 step_backfill_events_calendar,
                 report,
                 db,
             )
             _run_step(
-                "13 Credential-Favoriten",
+                "15 Credential-Favoriten",
                 step_backfill_credential_favorites,
                 report,
                 db,
             )
-            _run_step("14 Dropbox -> Shares", step_migrate_dropboxes, report, db)
-            _run_step("15 Assessment", step_assessment_defaults, report, db)
+            _run_step("16 Dropbox -> Shares", step_migrate_dropboxes, report, db)
+            _run_step("17 Assessment", step_assessment_defaults, report, db)
 
             print("")
             print("=" * 60)
@@ -980,14 +1092,14 @@ def migrate(*, force: bool = False) -> bool:
                 return False
 
             # Marker erst nach erfolgreichem Lauf setzen
-            _run_step("16 Legacy-Marker", step_mark_legacy_applied, report, db)
+            _run_step("18 Legacy-Marker", step_mark_legacy_applied, report, db)
 
             if report.errors:
                 print("[WARNUNG] Nicht-kritische Fehler - Schema sollte nutzbar sein")
                 for err in report.errors:
                     print(f"  - {err}")
 
-            print("[OK] Upgrade-Migration abgeschlossen")
+            print("[OK] Upgrade-Migration 3.1.0 abgeschlossen")
             return True
     except Exception as exc:
         print(f"[FEHLER] Migration abgebrochen: {exc}")
@@ -1001,7 +1113,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Vollständiger Schema-/Daten-Upgrade von Legacy 2.5+"
+        description="Konsolidierter Schema-/Daten-Upgrade auf 3.1.0"
     )
     parser.add_argument(
         "--force",

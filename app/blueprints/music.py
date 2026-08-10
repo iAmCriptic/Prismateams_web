@@ -5,7 +5,7 @@ from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSet
 from app.blueprints.sse import emit_music_update
 from app.utils.music_oauth import (
     get_spotify_oauth_url, get_youtube_oauth_url,
-    handle_spotify_callback, handle_youtube_callback,
+    handle_spotify_callback,
     is_provider_connected, disconnect_provider
 )
 from app.utils.music_api import search_music, get_track, search_music_multi_provider
@@ -766,26 +766,8 @@ def spotify_callback():
 @music_bp.route('/callback/youtube')
 @login_required
 def youtube_callback():
-    """YouTube OAuth Callback."""
-    code = request.args.get('code')
-    state = request.args.get('state')
-    error = request.args.get('error')
-    
-    if error:
-        flash(translate('music.flash.oauth_error', provider='YouTube', error=error), 'danger')
-        return redirect(url_for('music.index'))
-    
-    if not code:
-        flash(translate('music.flash.no_auth_code'), 'danger')
-        return redirect(url_for('music.index'))
-    
-    try:
-        handle_youtube_callback(code, state)
-        flash(translate('music.flash.youtube_connected'), 'success')
-    except Exception as e:
-        flash(translate('music.flash.connect_error', provider='YouTube', error=str(e)), 'danger')
-    
-    return redirect(url_for('music.index'))
+    """Legacy YouTube-Callback → zentraler Google-Callback."""
+    return redirect(url_for('auth.google_callback', **request.args.to_dict(flat=True)))
 
 
 @music_bp.route('/disconnect/<provider>')

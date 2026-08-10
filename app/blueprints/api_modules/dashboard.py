@@ -26,7 +26,7 @@ def register_dashboard_routes(api_bp, require_api_auth):
             ).count()
             unread_count += count
 
-        unread_emails = count_unread_emails()
+        unread_emails = count_unread_emails(user=current_user)
         total_files = File.query.filter_by(is_current=True).count()
 
         return jsonify({
@@ -43,8 +43,10 @@ def register_dashboard_routes(api_bp, require_api_auth):
             from app.utils.email_counts import count_unread_emails_by_folder
 
             return jsonify({
-                "count": count_unread_emails(),
-                "by_folder": count_unread_emails_by_folder(),
+                "count": count_unread_emails(user=current_user),
+                "by_folder": count_unread_emails_by_folder(
+                    user=current_user, all_accessible=True
+                ),
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
