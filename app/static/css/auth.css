@@ -110,6 +110,7 @@ body:has(.auth-container) .pwa-install-prompt {
     width: 100%;
     max-width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     margin: 0 !important;
@@ -124,24 +125,77 @@ body:has(.auth-container) .pwa-install-prompt {
     flex-shrink: 0;
 }
 
+.auth-legal-links {
+    margin-top: 1.25rem;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+
+.auth-legal-links a {
+    color: rgba(108, 117, 125, 0.95);
+    text-decoration: none;
+}
+
+.auth-legal-links a:hover,
+.auth-legal-links a:focus {
+    color: #6c757d;
+    text-decoration: underline;
+}
+
+.auth-legal-sep {
+    color: rgba(108, 117, 125, 0.7);
+    margin: 0 0.45rem;
+    user-select: none;
+}
+
+.auth-legal-card {
+    max-width: 720px;
+}
+
+.auth-legal-heading {
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.auth-legal-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--bs-body-color, #212529);
+    max-height: min(65vh, 640px);
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
 @media (min-width: 768px) {
     .auth-card {
         max-width: 520px;
         width: 100%;
     }
 
-    /* Taller auth flows (register / confirm) — allow page scroll */
+    .auth-legal-card {
+        max-width: 720px;
+    }
+
+    /* Taller auth flows (register / confirm / legal) — allow page scroll */
     body:has(.auth-register),
     html:has(.auth-register),
     body:has(.auth-confirm-email),
-    html:has(.auth-confirm-email) {
+    html:has(.auth-confirm-email),
+    body:has(.auth-legal),
+    html:has(.auth-legal) {
         overflow-y: auto !important;
         height: auto !important;
         max-height: none !important;
     }
 
     body:has(.auth-register) main,
-    body:has(.auth-confirm-email) main {
+    body:has(.auth-confirm-email) main,
+    body:has(.auth-legal) main {
         overflow-y: auto !important;
         height: auto !important;
         min-height: 100vh !important;
@@ -149,7 +203,8 @@ body:has(.auth-container) .pwa-install-prompt {
     }
 
     .auth-container.auth-register,
-    .auth-container.auth-confirm-email {
+    .auth-container.auth-confirm-email,
+    .auth-container.auth-legal {
         height: auto !important;
         min-height: 100vh !important;
         min-height: 100dvh !important;

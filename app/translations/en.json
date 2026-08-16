@@ -26,7 +26,8 @@
       "notifications": "Notifications",
       "notifications_short": "Alerts",
       "home": "Home",
-      "booking": "Bookings"
+      "booking": "Bookings",
+      "kanban": "Kanban"
     },
     "notification_center": {
       "open": "Open notifications",
@@ -120,6 +121,19 @@
       "2fa_code": "2FA code",
       "2fa_code_help": "Enter the 6-digit code from your authenticator app.",
       "forgot_password": "Forgot password?"
+    },
+    "legal": {
+      "nav_label": "Legal",
+      "terms": "Terms of Service",
+      "privacy": "Privacy policy",
+      "imprint": "Legal notice",
+      "terms_title": "Terms of Service",
+      "terms_heading": "Terms of Service",
+      "privacy_title": "Privacy policy",
+      "privacy_heading": "Privacy policy",
+      "imprint_title": "Legal notice",
+      "imprint_heading": "Legal notice",
+      "back_to_login": "Back to login"
     },
     "register": {
       "title": "Register",
@@ -738,7 +752,9 @@
         "account": "Account",
         "modules": "Module settings"
       },
-      "team_lead_heading": "Team lead"
+      "team_lead_heading": "Team lead",
+      "kanban": "Kanban",
+      "kanban_desc": "Visibility Private / Team / Public for boards"
     },
     "appearance": {
       "page_title": "Appearance - Settings",
@@ -1178,7 +1194,8 @@
         "module_shortlinks": "Short links",
         "save": "Save changes",
         "cancel": "Back",
-        "flash_updated": "Module settings have been updated."
+        "flash_updated": "Module settings have been updated.",
+        "module_kanban": "Kanban"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1391,6 +1408,10 @@
           "title": "System settings",
           "description": "Manage global system configuration"
         },
+        "legal": {
+          "title": "Privacy & legal notice",
+          "description": "Edit legal texts shown on the login screen"
+        },
         "modules": {
           "title": "Modules",
           "description": "Enable or disable modules"
@@ -1571,6 +1592,23 @@
         "flash_logo_removed": "Portal logo has been removed.",
         "flash_logo_too_large": "Logo too large ({size:.1f} MB). Maximum 5 MB allowed.",
         "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG."
+      },
+      "legal": {
+        "page_title": "Legal notice & terms - Administration",
+        "heading": "Legal notice & terms",
+        "subtitle": "Texts for the public pages linked from the login screen. Prefilled with generic templates — please adapt them to your organisation.",
+        "terms_heading": "Terms of Service",
+        "terms_label": "Terms of Service text",
+        "terms_help": "Shown publicly at /nutzungsbedingungen. Replace placeholders such as [Name der Organisation].",
+        "privacy_heading": "Privacy policy",
+        "privacy_label": "Privacy policy text",
+        "privacy_help": "Shown publicly at /datenschutz. Replace placeholders such as [Name der Organisation].",
+        "imprint_heading": "Legal notice",
+        "imprint_label": "Legal notice text",
+        "imprint_help": "Shown publicly at /impressum. Replace the placeholders with your correct details.",
+        "preview": "Preview",
+        "save": "Save changes",
+        "flash_saved": "Legal settings have been saved."
       },
       "booking_forms": {
         "page_title": "Booking forms - Administration",
@@ -1926,6 +1964,18 @@
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
         "flash_user_teams_updated": "Teams for {name} were updated."
+      },
+      "kanban": {
+        "page_title": "Kanban settings",
+        "heading": "Kanban",
+        "subtitle": "Configure allowed board visibility modes",
+        "visibility_title": "Visibility",
+        "visibility_lead": "Which board types users may create and discover in the overview. Members keep access to boards they already belong to.",
+        "allow_private": "Private boards (members + share links)",
+        "allow_team": "Team boards",
+        "allow_public": "Public boards (entire portal)",
+        "save": "Save",
+        "flash_saved": "Kanban settings saved."
       }
     },
     "mailboxes": {
@@ -5309,6 +5359,135 @@
       "page_title": "Settings – Assessment",
       "heading": "Assessment module settings",
       "subtitle": "Texts, ranking and appearance"
+    }
+  },
+  "kanban": {
+    "flash": {
+      "no_access": "No access to this board.",
+      "board_closed": "This board is closed."
+    },
+    "share": {
+      "wrong_password": "Wrong password.",
+      "password_prompt": "Enter password",
+      "submit": "Open",
+      "unavailable": "Share unavailable",
+      "mode": "Permission",
+      "mode_view": "View only",
+      "mode_edit": "Edit",
+      "password": "Password",
+      "password_optional": "Password (optional)",
+      "password_new": "New password (empty = unchanged)",
+      "clear_password": "Remove password",
+      "create": "Create link",
+      "empty": "No share links yet.",
+      "col_created_by": "Created by",
+      "col_link": "Link",
+      "col_password": "Password",
+      "col_mode": "Mode",
+      "col_actions": "Actions",
+      "edit_title": "Edit share",
+      "copy": "Copy",
+      "copied": "Copied",
+      "no_password": "—",
+      "delete_confirm": "Delete this share link?"
+    },
+    "index": {
+      "title": "Kanban Boards",
+      "new": "New",
+      "recent": "Recently viewed",
+      "private": "Private boards",
+      "team": "Team boards",
+      "public": "Public boards",
+      "create_title": "New board",
+      "board_title": "Title",
+      "visibility": "Visibility",
+      "team_label": "Team",
+      "template": "Template",
+      "choose_template": "Choose a template…",
+      "create_from": "Create from",
+      "create_empty": "Empty board",
+      "create_from_template": "From template",
+      "no_templates": "no templates yet",
+      "background": "Background",
+      "create": "Create board",
+      "empty": "No boards yet.",
+      "closed_link": "Show closed boards",
+      "nav_all": "All boards",
+      "list_view": "List",
+      "grid_view": "Grid",
+      "vis_private": "Private",
+      "vis_team": "Team",
+      "vis_public": "Public"
+    },
+    "board": {
+      "add_list": "Add list",
+      "list_name": "Enter list name …",
+      "add_card": "Add a card",
+      "card_title": "Card title …",
+      "share": "Share",
+      "settings": "Settings",
+      "close_board": "Close board",
+      "filter": "Filter",
+      "save_template": "Save as template"
+    },
+    "card": {
+      "description": "Description",
+      "description_ph": "Add a detailed description…",
+      "members": "Members",
+      "labels": "Labels",
+      "due": "Date",
+      "due_datetime": "Due date",
+      "clear_due": "Remove date",
+      "create_label": "New label",
+      "label_name": "Label name",
+      "label_color": "Color",
+      "checklist": "Checklist",
+      "attachment": "Attachment",
+      "comments": "Comments and activity",
+      "vote": "Vote",
+      "archive": "Archive",
+      "add": "Add",
+      "cover": "Cover",
+      "remove_cover": "Remove cover",
+      "complete": "Mark as complete",
+      "attachments": "Attachments",
+      "attach_file": "File",
+      "attach_link": "Link",
+      "link_title": "Title (optional)",
+      "activity": "Activity"
+    },
+    "filter": {
+      "keyword": "Keyword",
+      "keyword_ph": "Enter a keyword …",
+      "keyword_hint": "Search cards, members, labels and more.",
+      "no_members": "No members",
+      "assigned_me": "Cards assigned to me",
+      "status": "Card status",
+      "completed": "Marked as complete",
+      "not_completed": "Not marked as complete",
+      "due": "Due date",
+      "due_any": "Any due date",
+      "due_none": "No due dates",
+      "due_overdue": "Overdue",
+      "due_day": "Due within the next day",
+      "due_week": "Due within the next week",
+      "due_month": "Due within the next month",
+      "no_labels": "No labels",
+      "activity": "Activity",
+      "activity_any": "Any activity",
+      "activity_week": "Active in the last week",
+      "activity_two_weeks": "Active in the last two weeks",
+      "activity_four_weeks": "Active in the last four weeks",
+      "activity_none": "No activity in the last four weeks",
+      "collapse_empty": "Collapse lists without matching cards",
+      "reset": "Clear filters",
+      "apply": "Apply"
+    },
+    "closed": {
+      "title": "Closed boards",
+      "reopen": "Reopen",
+      "delete": "Delete",
+      "empty": "No closed boards."
     }
   }
 }

@@ -69,6 +69,7 @@ def register_meta_routes(api_bp, require_api_auth):
             "module_media_downloader",
             "module_assessment",
             "module_shortlinks",
+            "module_kanban",
         ]
 
         global_active, user_accessible, module_details = [], [], []

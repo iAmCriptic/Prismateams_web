@@ -7,7 +7,7 @@ class PublicShare(db.Model):
     __tablename__ = 'public_shares'
 
     id = db.Column(db.Integer, primary_key=True)
-    resource_type = db.Column(db.String(16), nullable=False)  # 'file' | 'folder'
+    resource_type = db.Column(db.String(32), nullable=False)  # 'file' | 'folder' | 'kanban_board'
     resource_id = db.Column(db.Integer, nullable=False)
     mode = db.Column(db.String(16), nullable=False)  # 'view' | 'edit' | 'dropbox'
     token = db.Column(db.String(255), nullable=False, unique=True)

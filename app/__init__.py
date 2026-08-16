@@ -988,6 +988,7 @@ def create_app(config_name='default'):
     from app.blueprints.shortlinks import shortlinks_bp
     from app.blueprints.events import events_bp
     from app.blueprints.media_downloader import media_downloader_bp
+    from app.blueprints.kanban import kanban_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -1014,6 +1015,7 @@ def create_app(config_name='default'):
     app.register_blueprint(shortlinks_bp)
     app.register_blueprint(events_bp, url_prefix='/events')
     app.register_blueprint(media_downloader_bp)
+    app.register_blueprint(kanban_bp, url_prefix='/kanban')
     
     @app.route('/manifest.json')
     def manifest():
@@ -1150,6 +1152,12 @@ def create_app(config_name='default'):
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.media_downloader import MediaDownloadJob
                 from app.models.shortlink import ShortLink
+                from app.models.kanban import (
+                    KanbanBoard, KanbanBoardMember, KanbanList, KanbanCard,
+                    KanbanLabel, KanbanCardLabel, KanbanCardAssignee,
+                    KanbanChecklist, KanbanChecklistItem, KanbanAttachment,
+                    KanbanCardVote, KanbanActivity, KanbanBoardTemplate, KanbanBoardView,
+                )
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
                 from app.models.event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
                 from app.models.user_session import UserSession
@@ -1207,6 +1215,43 @@ def create_app(config_name='default'):
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE folders ADD COLUMN color VARCHAR(16)"))
                             print("[OK] folders.color hinzugefügt")
+
+                    if 'kanban_cards' in inspector.get_table_names():
+                        kanban_cols = {col['name'] for col in inspector.get_columns('kanban_cards')}
+                        if 'poll_text' not in kanban_cols:
+                            print("[INFO] Ergänze kanban_cards.poll_text ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE kanban_cards ADD COLUMN poll_text TEXT"))
+                            print("[OK] kanban_cards.poll_text hinzugefügt")
+                        if 'completed_at' not in kanban_cols:
+                            print("[INFO] Ergänze kanban_cards.completed_at ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE kanban_cards ADD COLUMN completed_at DATETIME NULL"))
+                            print("[OK] kanban_cards.completed_at hinzugefügt")
+
+                    if 'kanban_attachments' in inspector.get_table_names():
+                        att_cols = {col['name']: col for col in inspector.get_columns('kanban_attachments')}
+                        if 'url' not in att_cols:
+                            print("[INFO] Ergänze kanban_attachments.url ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE kanban_attachments ADD COLUMN url VARCHAR(1000) NULL"))
+                            print("[OK] kanban_attachments.url hinzugefügt")
+                        dialect = db.engine.dialect.name
+                        if dialect == 'mysql':
+                            for col_name in ('filename', 'original_filename', 'storage_path'):
+                                col = att_cols.get(col_name)
+                                if col and not col.get('nullable', True):
+                                    print(f"[INFO] Lockere kanban_attachments.{col_name} (nullable) ...")
+                                    with db.engine.begin() as connection:
+                                        connection.execute(text(
+                                            f"ALTER TABLE kanban_attachments MODIFY COLUMN {col_name} VARCHAR(500) NULL"
+                                            if col_name == 'storage_path'
+                                            else f"ALTER TABLE kanban_attachments MODIFY COLUMN {col_name} VARCHAR(255) NULL"
+                                        ))
+                                    print(f"[OK] kanban_attachments.{col_name} nullable")
+                        elif dialect == 'sqlite':
+                            # SQLite: nullable change via recreate is heavy; new rows can use NULL if column allows
+                            pass
 
                     table_names = inspector.get_table_names()
                     if 'credential_folders' not in table_names:

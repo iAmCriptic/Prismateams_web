@@ -46,6 +46,7 @@ def _guest_account_form_options():
         ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
+        ('module_kanban', 'Kanban'),
     ]
     from app.utils.public_share import get_assignable_public_shares
     assignable_shares = get_assignable_public_shares()
@@ -419,7 +420,8 @@ def admin_users():
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
+        ('module_shortlinks', 'Kurzlinks'),
+        ('module_kanban', 'Kanban')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -849,6 +851,7 @@ def create_user():
                 'module_media_downloader',
                 'module_assessment',
                 'module_shortlinks',
+                'module_kanban',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -1169,6 +1172,7 @@ def edit_guest_user(user_id):
             'module_media_downloader',
             'module_assessment',
             'module_shortlinks',
+            'module_kanban',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
@@ -2020,6 +2024,32 @@ def admin_system():
                          timezone_choices=get_timezone_choices())
 
 
+@settings_bp.route('/admin/legal', methods=['GET', 'POST'])
+@login_required
+def admin_legal():
+    """Datenschutz, Impressum & Nutzungsbedingungen bearbeiten (admin only)."""
+    from app.utils.legal_pages import get_legal_content, set_legal_content
+
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        set_legal_content('terms', request.form.get('terms_text', ''))
+        set_legal_content('privacy', request.form.get('privacy_text', ''))
+        set_legal_content('imprint', request.form.get('imprint_text', ''))
+        db.session.commit()
+        flash(translate('settings.admin.legal.flash_saved'), 'success')
+        return _settings_redirect('settings.admin_legal')
+
+    return render_template(
+        'settings/admin_legal.html',
+        terms_text=get_legal_content('terms'),
+        privacy_text=get_legal_content('privacy'),
+        imprint_text=get_legal_content('imprint'),
+    )
+
+
 @settings_bp.route('/admin/registration', methods=['GET', 'POST'])
 @login_required
 def admin_registration():
@@ -2764,6 +2794,38 @@ def admin_inventory_settings():
     ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
     
     return render_template('settings/admin_inventory_settings.html', ownership_text=ownership_text)
+
+
+@settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])
+@login_required
+def admin_kanban_settings():
+    """Kanban-Modul-Einstellungen (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.bot_protection import upsert_setting
+    from app.utils.kanban_access import (
+        SETTING_ALLOW_PRIVATE,
+        SETTING_ALLOW_TEAM,
+        SETTING_ALLOW_PUBLIC,
+        _setting_bool,
+    )
+
+    if request.method == 'POST':
+        upsert_setting(SETTING_ALLOW_PRIVATE, str(request.form.get('allow_private') == 'on').lower(), 'Kanban: Private Boards')
+        upsert_setting(SETTING_ALLOW_TEAM, str(request.form.get('allow_team') == 'on').lower(), 'Kanban: Team Boards')
+        upsert_setting(SETTING_ALLOW_PUBLIC, str(request.form.get('allow_public') == 'on').lower(), 'Kanban: Public Boards')
+        db.session.commit()
+        flash(translate('settings.admin.kanban.flash_saved'), 'success')
+        return _settings_redirect('settings.admin_kanban_settings')
+
+    return render_template(
+        'settings/admin_kanban_settings.html',
+        allow_private=_setting_bool(SETTING_ALLOW_PRIVATE, True),
+        allow_team=_setting_bool(SETTING_ALLOW_TEAM, True),
+        allow_public=_setting_bool(SETTING_ALLOW_PUBLIC, True),
+    )
 
 
 @settings_bp.route('/admin/email-module')
@@ -3944,6 +4006,7 @@ def admin_roles_user_update(user_id):
             'module_media_downloader',
             'module_assessment',
             'module_shortlinks',
+            'module_kanban',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -4036,7 +4099,8 @@ def admin_roles_default():
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
-        ('module_shortlinks', 'Kurzlinks')
+        ('module_shortlinks', 'Kurzlinks'),
+        ('module_kanban', 'Kanban')
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

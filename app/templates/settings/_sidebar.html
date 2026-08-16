@@ -56,6 +56,7 @@
     'settings.delete_whitelist_entry'
 ] %}
 {% set system_active = ep == 'settings.admin_system' %}
+{% set legal_active = ep == 'settings.admin_legal' %}
 {% set modules_active = ep == 'settings.admin_modules' %}
 {% set integrations_active = ep == 'settings.admin_integrations' %}
 {% set push_active = ep == 'settings.admin_push_subscriptions' %}
@@ -64,6 +65,7 @@
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
+{% set kanban_active = ep == 'settings.admin_kanban_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
 
@@ -129,6 +131,9 @@
     <a href="{{ url_for('settings.admin_system') }}" class="nav-link mod-nav-link{% if system_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-gear me-2"></i>{{ _('settings.admin.cards.system_settings.title') }}
     </a>
+    <a href="{{ url_for('settings.admin_legal') }}" class="nav-link mod-nav-link{% if legal_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-file-earmark-text me-2"></i>{{ _('settings.admin.cards.legal.title') }}
+    </a>
     <a href="{{ url_for('settings.admin_modules') }}" class="nav-link mod-nav-link{% if modules_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-grid-3x3-gap me-2"></i>{{ _('settings.admin.cards.modules.title') }}
     </a>
@@ -166,6 +171,11 @@
     {% if is_module_enabled('module_inventory') %}
     <a href="{{ url_for('settings.admin_inventory_settings') }}" class="nav-link mod-nav-link{% if inventory_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-seam me-2"></i>{{ _('settings.sidebar.inventory') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_kanban') %}
+    <a href="{{ url_for('settings.admin_kanban_settings') }}" class="nav-link mod-nav-link{% if kanban_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-kanban me-2"></i>{{ _('settings.sidebar.kanban') }}
     </a>
     {% endif %}
     {% if is_module_enabled('module_calendar') %}

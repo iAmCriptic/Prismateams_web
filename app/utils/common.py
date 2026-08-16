@@ -24,6 +24,7 @@ AVAILABLE_MODULES = [
     'module_media_downloader',
     'module_assessment',
     'module_shortlinks',
+    'module_kanban',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

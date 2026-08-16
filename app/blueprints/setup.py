@@ -34,6 +34,7 @@ MODULE_META = [
     {'key': 'module_media_downloader', 'icon': 'bi-download', 'label': 'Media Downloader', 'settings_endpoint': None},
     {'key': 'module_assessment', 'icon': 'bi-clipboard-check', 'label': 'Bewertungen', 'settings_endpoint': 'assessment.admin_settings.admin_settings_page'},
     {'key': 'module_shortlinks', 'icon': 'bi-link-45deg', 'label': 'Kurzlinks', 'settings_endpoint': None},
+    {'key': 'module_kanban', 'icon': 'bi-kanban', 'label': 'Kanban', 'settings_endpoint': 'settings.admin_kanban_settings'},
 ]
 
 LANGUAGE_NAMES = {

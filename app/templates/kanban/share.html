@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ board.title }}{% endblock %}
+{% block content %}
+<div class="kanban-board-page kanban-share-board" style="--kanban-bg: {{ background_css }};">
+  <header class="kanban-board-topbar">
+    <h1 class="kanban-board-title">{{ board.title }}</h1>
+    <span class="kanban-vis-chip">{{ share_mode }}</span>
+  </header>
+  <div class="kanban-lists-scroll">
+    {% for lst in lists_json %}
+    <div class="kanban-list-col">
+      <div class="kanban-list-col__head">
+        <span class="kanban-list-col__title">{{ lst.title }}</span>
+        <span class="kanban-list-col__count">{{ lst.card_count }}</span>
+      </div>
+      <div class="kanban-list-col__cards">
+        {% for c in lst.cards %}
+        <div class="kanban-card">
+          {% if c.labels %}
+          <div class="kanban-card__labels">{% for lb in c.labels %}<span class="kanban-label-bar" style="background:{{ lb.color }}"></span>{% endfor %}</div>
+          {% endif %}
+          <div class="kanban-card__title">{{ c.title }}</div>
+          {% if c.description %}<div class="kanban-card__desc">{{ c.description[:120] }}</div>{% endif %}
+          <div class="kanban-card__footer">
+            {% if c.checklist and c.checklist.total %}<span><i class="bi bi-check2-square"></i> {{ c.checklist.done }}/{{ c.checklist.total }}</span>{% endif %}
+            {% if c.attachment_count %}<span><i class="bi bi-paperclip"></i> {{ c.attachment_count }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

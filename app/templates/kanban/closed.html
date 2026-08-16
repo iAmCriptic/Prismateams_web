@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ _('kanban.closed.title') }}{% endblock %}
+{% block content %}
+{% set active_nav = 'closed' %}
+{% set create_modal = false %}
+<div class="kanban-shell files-shell">
+  {% include 'kanban/_sidebar.html' %}
+
+  <div class="mod-main kanban-main">
+    <div class="mod-mobile-topbar d-lg-none">
+      <button type="button" class="btn mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#kanbanMobileNav"><i class="bi bi-list"></i></button>
+      <span class="mod-mobile-title">{{ _('kanban.closed.title') }}</span>
+      <a class="btn files-pill-new btn-accent" href="{{ url_for('kanban.index') }}"><i class="bi bi-plus-lg"></i></a>
+    </div>
+
+    <div class="page-toolbar-row kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h1 class="h4 mb-0">{{ _('kanban.closed.title') }}</h1>
+    </div>
+
+    {% if not boards %}
+    <p class="text-muted">{{ _('kanban.closed.empty') }}</p>
+    {% else %}
+    <div class="d-grid gap-2">
+      {% for b in boards %}
+      <div class="kanban-closed-row d-flex align-items-center justify-content-between gap-2">
+        <div>
+          <strong>{{ b.title }}</strong>
+          <div class="small text-muted">{% if b.closed_at %}{{ b.closed_at.strftime('%d.%m.%Y, %H:%M') }}{% endif %}</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn kanban-pill-btn btn-sm" data-reopen="{{ b.id }}">{{ _('kanban.closed.reopen') }}</button>
+          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost btn-sm" data-delete="{{ b.id }}">{{ _('kanban.closed.delete') }}</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script>
+document.querySelectorAll('[data-reopen]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    await fetch(`/kanban/api/boards/${btn.dataset.reopen}`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+      body: JSON.stringify({closed: false})
+    });
+    location.reload();
+  });
+});
+document.querySelectorAll('[data-delete]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!confirm('Board löschen?')) return;
+    await fetch(`/kanban/api/boards/${btn.dataset.delete}`, { method: 'DELETE', headers: {'X-Requested-With':'XMLHttpRequest'} });
+    location.reload();
+  });
+});
+</script>
+{% endblock %}

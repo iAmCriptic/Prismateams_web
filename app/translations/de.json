@@ -26,7 +26,8 @@
       "notifications": "Benachrichtigungen",
       "notifications_short": "Info",
       "home": "Home",
-      "booking": "Buchungen"
+      "booking": "Buchungen",
+      "kanban": "Kanban"
     },
     "notification_center": {
       "open": "Benachrichtigungen öffnen",
@@ -120,6 +121,19 @@
       "switch_cta": "Registrieren",
       "2fa_code": "2FA-Code",
       "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein."
+    },
+    "legal": {
+      "nav_label": "Rechtliche Hinweise",
+      "terms": "Nutzungsbedingungen",
+      "privacy": "Datenschutz",
+      "imprint": "Impressum",
+      "terms_title": "Nutzungsbedingungen",
+      "terms_heading": "Nutzungsbedingungen",
+      "privacy_title": "Datenschutz",
+      "privacy_heading": "Datenschutzerklärung",
+      "imprint_title": "Impressum",
+      "imprint_heading": "Impressum",
+      "back_to_login": "Zurück zur Anmeldung"
     },
     "register": {
       "title": "Registrieren",
@@ -738,7 +752,9 @@
         "account": "Konto",
         "modules": "Moduleinstellungen"
       },
-      "team_lead_heading": "Teamleitung"
+      "team_lead_heading": "Teamleitung",
+      "kanban": "Kanban",
+      "kanban_desc": "Sichtbarkeit Private / Team / Public für Boards"
     },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
@@ -1178,7 +1194,8 @@
         "module_shortlinks": "Kurzlinks",
         "save": "Änderungen speichern",
         "cancel": "Zurück",
-        "flash_updated": "Module-Einstellungen wurden aktualisiert."
+        "flash_updated": "Module-Einstellungen wurden aktualisiert.",
+        "module_kanban": "Kanban"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -1370,6 +1387,23 @@
         "flash_logo_removed": "Portalslogo wurde entfernt.",
         "flash_logo_too_large": "Logo zu groß ({size:.1f} MB). Maximal 5 MB erlaubt.",
         "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG."
+      },
+      "legal": {
+        "page_title": "Rechtliche Hinweise - Administration",
+        "heading": "Rechtliche Hinweise",
+        "subtitle": "Texte für die öffentlichen Seiten am Anmeldebildschirm. Vorausgefüllt mit generischen Vorlagen – bitte an Ihre Organisation anpassen.",
+        "terms_heading": "Nutzungsbedingungen",
+        "terms_label": "Nutzungsbedingungen",
+        "terms_help": "Wird unter /nutzungsbedingungen öffentlich angezeigt. Platzhalter wie [Name der Organisation] sollten ersetzt werden.",
+        "privacy_heading": "Datenschutz",
+        "privacy_label": "Datenschutzerklärung",
+        "privacy_help": "Wird unter /datenschutz öffentlich angezeigt. Platzhalter wie [Name der Organisation] sollten ersetzt werden.",
+        "imprint_heading": "Impressum",
+        "imprint_label": "Impressumstext",
+        "imprint_help": "Wird unter /impressum öffentlich angezeigt. Ersetzen Sie die Platzhalter durch Ihre korrekten Angaben.",
+        "preview": "Vorschau",
+        "save": "Änderungen speichern",
+        "flash_saved": "Rechtliche Hinweise wurden gespeichert."
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
@@ -1740,6 +1774,10 @@
           "title": "System-Einstellungen",
           "description": "Globale System-Einstellungen verwalten"
         },
+        "legal": {
+          "title": "Rechtliche Hinweise",
+          "description": "Rechtliche Texte für den Anmeldebildschirm bearbeiten"
+        },
         "modules": {
           "title": "Module",
           "description": "Module aktivieren oder deaktivieren"
@@ -1926,6 +1964,18 @@
         "flash_members_added": "{count} Mitglied(er) hinzugefügt.",
         "flash_member_removed": "Mitglied entfernt.",
         "flash_user_teams_updated": "Teams für {name} wurden aktualisiert."
+      },
+      "kanban": {
+        "page_title": "Kanban-Einstellungen",
+        "heading": "Kanban",
+        "subtitle": "Erlaubte Sichtbarkeitsmodi für Boards festlegen",
+        "visibility_title": "Sichtbarkeit",
+        "visibility_lead": "Welche Board-Typen Nutzer anlegen und über die Übersicht entdecken dürfen. Mitglieder behalten Zugriff auf bereits zugewiesene Boards.",
+        "allow_private": "Private Boards (Mitglieder + Freigabelinks)",
+        "allow_team": "Team-Boards",
+        "allow_public": "Öffentliche Boards (gesamtes Portal)",
+        "save": "Speichern",
+        "flash_saved": "Kanban-Einstellungen gespeichert."
       }
     },
     "mailboxes": {
@@ -5309,6 +5359,135 @@
     "push": {
       "test_title": "Test-Benachrichtigung",
       "test_body": "Test vom {portal_name}. Push funktioniert."
+    }
+  },
+  "kanban": {
+    "flash": {
+      "no_access": "Kein Zugriff auf dieses Board.",
+      "board_closed": "Dieses Board ist geschlossen."
+    },
+    "share": {
+      "wrong_password": "Falsches Passwort.",
+      "password_prompt": "Passwort eingeben",
+      "submit": "Öffnen",
+      "unavailable": "Freigabe nicht verfügbar",
+      "mode": "Berechtigung",
+      "mode_view": "Nur ansehen",
+      "mode_edit": "Bearbeiten",
+      "password": "Passwort",
+      "password_optional": "Passwort (optional)",
+      "password_new": "Neues Passwort (leer = unverändert)",
+      "clear_password": "Passwort entfernen",
+      "create": "Link erstellen",
+      "empty": "Noch keine Freigabelinks.",
+      "col_created_by": "Angelegt von",
+      "col_link": "Link",
+      "col_password": "Passwort",
+      "col_mode": "Modus",
+      "col_actions": "Optionen",
+      "edit_title": "Freigabe bearbeiten",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "no_password": "—",
+      "delete_confirm": "Freigabelink löschen?"
+    },
+    "index": {
+      "title": "Kanban Boards",
+      "new": "Neu",
+      "recent": "Kürzlich angesehen",
+      "private": "Private Boards",
+      "team": "Team-Boards",
+      "public": "Öffentliche Boards",
+      "create_title": "Neues Board",
+      "board_title": "Titel",
+      "visibility": "Sichtbarkeit",
+      "team_label": "Team",
+      "template": "Vorlage",
+      "choose_template": "Vorlage auswählen…",
+      "create_from": "Erstellen aus",
+      "create_empty": "Leeres Board",
+      "create_from_template": "Aus Vorlage",
+      "no_templates": "noch keine Vorlagen",
+      "background": "Hintergrund",
+      "create": "Board erstellen",
+      "empty": "Noch keine Boards.",
+      "closed_link": "Geschlossene Boards anzeigen",
+      "nav_all": "Alle Boards",
+      "list_view": "Liste",
+      "grid_view": "Raster",
+      "vis_private": "Privat",
+      "vis_team": "Team",
+      "vis_public": "Öffentlich"
+    },
+    "board": {
+      "add_list": "Liste hinzufügen",
+      "list_name": "Listennamen eingeben …",
+      "add_card": "Eine Karte hinzufügen",
+      "card_title": "Kartentitel …",
+      "share": "Freigeben",
+      "settings": "Einstellungen",
+      "close_board": "Board schließen",
+      "filter": "Filtern",
+      "save_template": "Als Vorlage"
+    },
+    "card": {
+      "description": "Beschreibung",
+      "description_ph": "Detaillierte Beschreibung hinzufügen…",
+      "members": "Mitglieder",
+      "labels": "Labels",
+      "due": "Datum",
+      "due_datetime": "Fälligkeitsdatum",
+      "clear_due": "Datum entfernen",
+      "create_label": "Neues Label",
+      "label_name": "Labelname",
+      "label_color": "Farbe",
+      "checklist": "Checkliste",
+      "attachment": "Anhang",
+      "comments": "Kommentare und Aktivität",
+      "vote": "Abstimmen",
+      "archive": "Archivieren",
+      "add": "Hinzufügen",
+      "cover": "Titelbild",
+      "remove_cover": "Titelbild entfernen",
+      "complete": "Als erledigt markieren",
+      "attachments": "Anhänge",
+      "attach_file": "Datei",
+      "attach_link": "Link",
+      "link_title": "Titel (optional)",
+      "activity": "Aktivität"
+    },
+    "filter": {
+      "keyword": "Stichwort",
+      "keyword_ph": "Geben Sie ein Stichwort ein …",
+      "keyword_hint": "Durchsuchen Sie Karten, Mitglieder, Labels und mehr.",
+      "no_members": "Keine Mitglieder",
+      "assigned_me": "Karten, die mir zugewiesen wurden",
+      "status": "Kartenstatus",
+      "completed": "Als abgeschlossen markiert",
+      "not_completed": "Nicht als abgeschlossen markiert",
+      "due": "Frist",
+      "due_any": "Alle Fristen",
+      "due_none": "Ohne Fälligkeitsdaten",
+      "due_overdue": "Überfällig",
+      "due_day": "Innerhalb des nächsten Tages fällig",
+      "due_week": "Innerhalb der nächsten Woche fällig",
+      "due_month": "Innerhalb des nächsten Monats fällig",
+      "no_labels": "Keine Labels",
+      "activity": "Aktivität",
+      "activity_any": "Beliebige Aktivität",
+      "activity_week": "Aktiv in der letzten Woche",
+      "activity_two_weeks": "Aktiv in den letzten zwei Wochen",
+      "activity_four_weeks": "Aktiv in den letzten vier Wochen",
+      "activity_none": "Keine Aktivität in den letzten vier Wochen",
+      "collapse_empty": "Listen ohne passende Karten einklappen",
+      "reset": "Filter zurücksetzen",
+      "apply": "Anwenden"
+    },
+    "closed": {
+      "title": "Geschlossene Boards",
+      "reopen": "Wieder öffnen",
+      "delete": "Löschen",
+      "empty": "Keine geschlossenen Boards."
     }
   }
 }

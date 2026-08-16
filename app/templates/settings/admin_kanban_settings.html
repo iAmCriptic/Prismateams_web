@@ -1,0 +1,45 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.admin.kanban.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.sidebar.kanban') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-inventory">
+    <div class="settings-admin-inventory-header">
+        <h1 class="settings-admin-inventory-title">{{ _('settings.admin.kanban.heading') }}</h1>
+        <p class="settings-admin-inventory-subtitle">{{ _('settings.admin.kanban.subtitle') }}</p>
+    </div>
+
+    <form method="POST" class="settings-admin-inventory-form">
+        <section class="settings-admin-inventory-card" aria-labelledby="kanban-vis-title">
+            <div class="settings-admin-inventory-card-head">
+                <h2 id="kanban-vis-title" class="settings-admin-inventory-section-title mb-0">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                    {{ _('settings.admin.kanban.visibility_title') }}
+                </h2>
+            </div>
+            <p class="settings-admin-inventory-hint">{{ _('settings.admin.kanban.visibility_lead') }}</p>
+
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="allow_private" name="allow_private" {% if allow_private %}checked{% endif %}>
+                <label class="form-check-label" for="allow_private">{{ _('settings.admin.kanban.allow_private') }}</label>
+            </div>
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="allow_team" name="allow_team" {% if allow_team %}checked{% endif %}>
+                <label class="form-check-label" for="allow_team">{{ _('settings.admin.kanban.allow_team') }}</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="allow_public" name="allow_public" {% if allow_public %}checked{% endif %}>
+                <label class="form-check-label" for="allow_public">{{ _('settings.admin.kanban.allow_public') }}</label>
+            </div>
+        </section>
+
+        <div class="settings-admin-inventory-actions">
+            <button type="submit" class="btn btn-accent settings-admin-inventory-submit">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                {{ _('settings.admin.kanban.save') }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

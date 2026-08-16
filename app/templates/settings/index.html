@@ -126,6 +126,12 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{{ url_for('settings.admin_legal') }}">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>{{ _('settings.admin.cards.legal.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ url_for('settings.admin_modules') }}">
                             <i class="bi bi-grid-3x3-gap"></i>
                             <span>{{ _('settings.admin.cards.modules.title') }}</span>
@@ -186,6 +192,14 @@
                         <a href="{{ url_for('settings.admin_inventory_settings') }}">
                             <i class="bi bi-box-seam"></i>
                             <span>{{ _('settings.sidebar.inventory') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_kanban') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_kanban_settings') }}">
+                            <i class="bi bi-kanban"></i>
+                            <span>{{ _('settings.sidebar.kanban') }}</span>
                         </a>
                     </li>
                     {% endif %}

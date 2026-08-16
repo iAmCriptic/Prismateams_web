@@ -1,0 +1,65 @@
+{# Shared Kanban overview sidebar. Expects optional active_nav: all|recent|private|team|public|closed #}
+{% set active_nav = active_nav|default('all') %}
+{% set create_modal = create_modal|default(true) %}
+{% set allowed_vis = allowed_visibilities|default(['private', 'team', 'public']) %}
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+  <div class="mod-sidebar-brand">
+    <i class="bi bi-kanban" aria-hidden="true"></i>
+    <span>{{ _('kanban.index.title') }}</span>
+  </div>
+  <div class="mod-sidebar-new-wrap w-100">
+    {% if create_modal %}
+    <button type="button" class="btn mod-sidebar-new w-100 text-start" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
+    </button>
+    {% else %}
+    <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('kanban.index') }}">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
+    </a>
+    {% endif %}
+  </div>
+  <nav class="mod-sidebar-nav nav flex-column gap-1 mt-2">
+    <a class="nav-link mod-nav-link{% if active_nav == 'all' %} active{% endif %}" href="{{ url_for('kanban.index') }}"><i class="bi bi-columns-gap me-2"></i>{{ _('kanban.index.nav_all') }}</a>
+    <a class="nav-link mod-nav-link{% if active_nav == 'recent' %} active{% endif %}" href="{{ url_for('kanban.index', section='recent') }}"><i class="bi bi-clock-history me-2"></i>{{ _('kanban.index.recent') }}</a>
+    {% if 'private' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('kanban.index', section='private') }}"><i class="bi bi-lock me-2"></i>{{ _('kanban.index.private') }}</a>
+    {% endif %}
+    {% if 'team' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team' %} active{% endif %}" href="{{ url_for('kanban.index', section='team') }}"><i class="bi bi-people me-2"></i>{{ _('kanban.index.team') }}</a>
+    {% endif %}
+    {% if 'public' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('kanban.index', section='public') }}"><i class="bi bi-globe2 me-2"></i>{{ _('kanban.index.public') }}</a>
+    {% endif %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'closed' %} active{% endif %}" href="{{ url_for('kanban.closed_boards') }}"><i class="bi bi-archive me-2"></i>{{ _('kanban.closed.title') }}</a>
+  </nav>
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="kanbanMobileNav">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">{{ _('kanban.index.title') }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body d-grid gap-1">
+    {% if create_modal %}
+    <button type="button" class="btn mod-sidebar-new w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#createBoardModal" data-bs-dismiss="offcanvas">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
+    </button>
+    {% else %}
+    <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('kanban.index') }}">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
+    </a>
+    {% endif %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'all' %} active{% endif %}" href="{{ url_for('kanban.index') }}">{{ _('kanban.index.nav_all') }}</a>
+    <a class="nav-link mod-nav-link{% if active_nav == 'recent' %} active{% endif %}" href="{{ url_for('kanban.index', section='recent') }}">{{ _('kanban.index.recent') }}</a>
+    {% if 'private' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('kanban.index', section='private') }}">{{ _('kanban.index.private') }}</a>
+    {% endif %}
+    {% if 'team' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team' %} active{% endif %}" href="{{ url_for('kanban.index', section='team') }}">{{ _('kanban.index.team') }}</a>
+    {% endif %}
+    {% if 'public' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('kanban.index', section='public') }}">{{ _('kanban.index.public') }}</a>
+    {% endif %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'closed' %} active{% endif %}" href="{{ url_for('kanban.closed_boards') }}">{{ _('kanban.closed.title') }}</a>
+  </div>
+</div>

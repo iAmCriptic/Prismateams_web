@@ -1,0 +1,30 @@
+{% set force_light_theme = true %}
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+<div class="auth-container auth-legal">
+    <div class="auth-card auth-legal-card">
+        <div class="auth-panel">
+            <div class="auth-panel-body">
+                <h1 class="auth-legal-heading mb-3">{{ page_heading }}</h1>
+                <div class="auth-legal-content">{{ content }}</div>
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('auth.login') }}" class="text-muted">{{ _('auth.legal.back_to_login') }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="auth-legal-links" aria-label="{{ _('auth.legal.nav_label') }}">
+        <a href="{{ url_for('auth.terms') }}">{{ _('auth.legal.terms') }}</a>
+        <span class="auth-legal-sep" aria-hidden="true">·</span>
+        <a href="{{ url_for('auth.privacy') }}">{{ _('auth.legal.privacy') }}</a>
+        <span class="auth-legal-sep" aria-hidden="true">·</span>
+        <a href="{{ url_for('auth.imprint') }}">{{ _('auth.legal.imprint') }}</a>
+    </nav>
+</div>
+
+{% include 'auth/_auth_bg.html' %}
+{% endblock %}

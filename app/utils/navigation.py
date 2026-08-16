@@ -16,6 +16,7 @@ MOBILE_NAV_SLOT_KEYS = (
     'wiki',
     'booking',
     'music',
+    'kanban',
 )
 
 MOBILE_NAV_DEFAULT_SLOTS = {
@@ -93,6 +94,13 @@ NAV_LINK_REGISTRY = {
         'label_key': 'layout.nav.music',
         'module': 'module_music',
         'active_prefix': 'music',
+    },
+    'kanban': {
+        'endpoint': 'kanban.index',
+        'icon': 'bi-kanban',
+        'label_key': 'layout.nav.kanban',
+        'module': 'module_kanban',
+        'active_prefix': 'kanban',
     },
 }
 

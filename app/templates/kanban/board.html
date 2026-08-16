@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+{% block title %}{{ board.title }} – Kanban{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="kanban-board-page" id="kanbanBoardApp"
+     data-board-id="{{ board.id }}"
+     data-can-edit="{{ '1' if can_edit else '0' }}"
+     data-can-manage="{{ '1' if can_manage else '0' }}"
+     data-sse-url="{{ url_for('sse.kanban_events', board_id=board.id) }}"
+     style="--kanban-bg: {{ background_css }};">
+
+  <header class="kanban-board-topbar">
+    <div class="kanban-board-topbar__left">
+      <a href="{{ url_for('kanban.index') }}" class="btn kanban-pill-btn kanban-pill-btn--ghost" title="Zurück"><i class="bi bi-arrow-left"></i></a>
+      <h1 class="kanban-board-title">{{ board.title }}</h1>
+      <span class="kanban-vis-chip">{{ _('kanban.index.vis_' + board.visibility) }}</span>
+    </div>
+    <div class="kanban-board-topbar__right">
+      <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
+      <button type="button"
+              class="btn kanban-pill-btn kanban-pill-btn--icon"
+              id="kanbanFilterBtn"
+              title="{{ _('kanban.board.filter') }}">
+        <i class="bi bi-funnel" aria-hidden="true"></i>
+        <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
+      </button>
+      {% if can_manage %}
+      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
+        <i class="bi bi-person-plus" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon kanban-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">
+        <i class="bi bi-bookmark" aria-hidden="true"></i>
+      </button>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="kanban-lists-scroll" id="kanbanLists"></div>
+</div>
+
+{# Card detail modal #}
+<div class="modal fade" id="kanbanCardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl kanban-card-modal-dialog">
+    <div class="modal-content kanban-card-modal">
+      <div class="kanban-card-modal__cover" id="cardModalCover"></div>
+      <div class="modal-header border-0 align-items-start kanban-card-modal__header">
+        <div class="flex-grow-1 min-width-0">
+          <div class="kanban-card-list-select-wrap mb-2 dropdown">
+            <button type="button"
+                    class="btn kanban-card-list-select dropdown-toggle"
+                    id="cardModalListBtn"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                    {% if not can_edit %}disabled{% endif %}>
+              —
+            </button>
+            <ul class="dropdown-menu kanban-pill-menu" id="cardModalListMenu"></ul>
+            <input type="hidden" id="cardModalListSelect" value="">
+          </div>
+          <div class="kanban-card-title-row">
+            <button type="button" class="kanban-complete-btn" id="cardCompleteBtn" title="{{ _('kanban.card.complete') }}" {% if not can_edit %}disabled{% endif %} aria-pressed="false">
+              <i class="bi bi-circle" aria-hidden="true"></i>
+            </button>
+            <input type="text" class="form-control form-control-lg kanban-card-title-input" id="cardModalTitle" {% if not can_edit %}readonly{% endif %}>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+          {% if can_edit %}
+          <div class="dropdown">
+            <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="cardMoreMenuBtn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+              <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <label class="dropdown-item mb-0" style="cursor:pointer;">
+                  <i class="bi bi-image me-2"></i>{{ _('kanban.card.cover') }}
+                  <input type="file" id="cardCoverFile" accept="image/*" hidden>
+                </label>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item" id="cardClearCoverBtn">
+                  <i class="bi bi-image-alt me-2"></i>{{ _('kanban.card.remove_cover') }}
+                </button>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button type="button" class="dropdown-item text-danger" id="cardDeleteBtn">
+                  <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                </button>
+              </li>
+            </ul>
+          </div>
+          {% endif %}
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+        </div>
+      </div>
+      <div class="modal-body kanban-card-modal__body">
+        <div class="kanban-card-modal__main">
+          <div class="kanban-action-row">
+            <button type="button" class="btn kanban-pill-btn" id="cardVoteBtn">
+              <i class="bi bi-hand-thumbs-up me-1"></i>{{ _('kanban.card.vote') }}
+              <span id="cardVoteCount" class="ms-1">0</span>
+            </button>
+            {% if can_edit %}
+            <button type="button" class="btn kanban-pill-btn" id="cardAddMembers"><i class="bi bi-people me-1"></i>{{ _('kanban.card.members') }}</button>
+            <button type="button" class="btn kanban-pill-btn" id="cardAddLabel"><i class="bi bi-tag me-1"></i>{{ _('kanban.card.labels') }}</button>
+            <button type="button" class="btn kanban-pill-btn" id="cardAddDue"><i class="bi bi-calendar me-1"></i>{{ _('kanban.card.due') }}</button>
+            <button type="button" class="btn kanban-pill-btn" id="cardAddChecklist"><i class="bi bi-check2-square me-1"></i>{{ _('kanban.card.checklist') }}</button>
+            {% endif %}
+          </div>
+          <div class="kanban-meta-row" id="cardMetaRow"></div>
+          <section class="mb-3">
+            <h6><i class="bi bi-text-left me-1"></i>{{ _('kanban.card.description') }}</h6>
+            <textarea class="form-control kanban-pill-input" id="cardModalDescription" rows="4" placeholder="{{ _('kanban.card.description_ph') }}" {% if not can_edit %}readonly{% endif %}></textarea>
+          </section>
+          <section class="mb-3" id="cardPollSection" hidden>
+            <div class="kanban-poll-block">
+              <div class="kanban-poll-block__head">
+                <strong><i class="bi bi-hand-thumbs-up me-1"></i>{{ _('kanban.card.vote') }}</strong>
+                {% if can_edit %}
+                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardPollEditBtn" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardPollClearBtn" title="Entfernen"><i class="bi bi-x-lg"></i></button>
+                {% endif %}
+              </div>
+              <p class="kanban-poll-block__text mb-2" id="cardPollText"></p>
+              <button type="button" class="btn kanban-pill-btn" id="cardPollVoteBtn">
+                <i class="bi bi-hand-thumbs-up me-1"></i>
+                <span id="cardPollVoteLabel">Zustimmen</span>
+                <span class="ms-1" id="cardPollVoteCount">0</span>
+              </button>
+            </div>
+          </section>
+          <section class="mb-3" id="cardChecklists"></section>
+          <section class="mb-3">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+              <h6 class="mb-0"><i class="bi bi-paperclip me-1"></i>{{ _('kanban.card.attachments') }}</h6>
+              {% if can_edit %}
+              <div class="d-flex gap-1 flex-wrap">
+                <label class="btn btn-sm kanban-pill-btn mb-0">
+                  <i class="bi bi-upload me-1"></i>{{ _('kanban.card.attach_file') }}
+                  <input type="file" id="cardAttachFile" hidden>
+                </label>
+                <button type="button" class="btn btn-sm kanban-pill-btn" id="cardAttachLinkBtn">
+                  <i class="bi bi-link-45deg me-1"></i>{{ _('kanban.card.attach_link') }}
+                </button>
+              </div>
+              {% endif %}
+            </div>
+            <form id="cardAttachLinkForm" class="kanban-link-form mb-2" hidden>
+              <div class="d-flex flex-wrap gap-2">
+                <input type="url" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="cardAttachLinkUrl" placeholder="https://…" required>
+                <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="{{ _('kanban.card.link_title') }}" style="max-width:10rem;">
+                <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">{{ _('kanban.card.add') }}</button>
+                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardAttachLinkCancel"><i class="bi bi-x-lg"></i></button>
+              </div>
+            </form>
+            <div id="cardAttachments"></div>
+          </section>
+        </div>
+        <aside class="kanban-card-modal__side">
+          <div id="kanbanCardComments" class="comments-section kanban-comments">
+            <div class="comments-header">
+              <h6 class="mb-0"><i class="bi bi-chat-dots me-1"></i>{{ _('kanban.card.comments') }}</h6>
+            </div>
+            {% if current_user.is_authenticated %}
+            <div class="comment-form">
+              <div class="comment-input-wrapper">
+                <textarea class="comment-textarea" placeholder="{{ _('comments.form.placeholder') }}"></textarea>
+                <div class="comment-mention-suggestions"></div>
+              </div>
+              <div class="comment-form-actions mt-2">
+                <button type="button" class="btn btn-sm btn-accent comment-submit-btn">
+                  <i class="bi bi-send" aria-hidden="true"></i>
+                  <span>{{ _('comments.form.submit') }}</span>
+                </button>
+              </div>
+            </div>
+            {% endif %}
+            <ul class="comments-list mt-2"></ul>
+          </div>
+          <h6 class="mt-3">{{ _('kanban.card.activity') }}</h6>
+          <div id="kanbanCardActivity" class="kanban-activity-feed"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Poll create/edit modal #}
+<div class="modal fade" id="kanbanPollModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.card.vote') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="kanbanPollInput">Abstimmungstext</label>
+        <textarea class="form-control kanban-pill-input" id="kanbanPollInput" rows="3" placeholder="Worum soll abgestimmt werden?"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-accent kanban-pill-btn" id="kanbanPollSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Share modal #}
+<div class="modal fade" id="kanbanShareModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.board.share') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="kanbanShareForm" class="kanban-share-create row g-2 align-items-end mb-3">
+          <div class="col-md-3">
+            <label class="form-label small mb-1" for="kanbanShareMode">{{ _('kanban.share.mode') }}</label>
+            <select class="form-select kanban-pill-input" id="kanbanShareMode" name="mode">
+              <option value="view">{{ _('kanban.share.mode_view') }}</option>
+              <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
+            </select>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label small mb-1" for="kanbanSharePassword">{{ _('kanban.share.password') }}</label>
+            <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-accent kanban-pill-btn w-100">{{ _('kanban.share.create') }}</button>
+          </div>
+        </form>
+        <div class="table-responsive kanban-share-table-wrap">
+          <table class="table table-sm align-middle mb-0 kanban-share-table">
+            <thead>
+              <tr>
+                <th>{{ _('kanban.share.col_created_by') }}</th>
+                <th>{{ _('kanban.share.col_link') }}</th>
+                <th>{{ _('kanban.share.col_password') }}</th>
+                <th>{{ _('kanban.share.col_mode') }}</th>
+                <th class="text-end">{{ _('kanban.share.col_actions') }}</th>
+              </tr>
+            </thead>
+            <tbody id="kanbanShareList">
+              <tr><td colspan="5" class="text-muted small">{{ _('kanban.share.empty') }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Edit share modal #}
+<div class="modal fade" id="kanbanShareEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <form id="kanbanShareEditForm">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ _('kanban.share.edit_title') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body d-grid gap-2">
+          <input type="hidden" id="kanbanShareEditId" name="share_id">
+          <div>
+            <label class="form-label" for="kanbanShareEditMode">{{ _('kanban.share.mode') }}</label>
+            <select class="form-select kanban-pill-input" id="kanbanShareEditMode" name="mode">
+              <option value="view">{{ _('kanban.share.mode_view') }}</option>
+              <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="kanbanShareEditPassword">{{ _('kanban.share.password') }}</label>
+            <input class="form-control kanban-pill-input" id="kanbanShareEditPassword" name="password" type="text" placeholder="{{ _('kanban.share.password_new') }}" autocomplete="new-password">
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" id="kanbanShareClearPassword" name="clear_password">
+              <label class="form-check-label" for="kanbanShareClearPassword">{{ _('kanban.share.clear_password') }}</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+          <button type="submit" class="btn btn-accent kanban-pill-btn">{{ _('common.save') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Filter modal #}
+<div class="modal fade" id="kanbanFilterModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content kanban-modal kanban-filter-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.board.filter') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body" id="kanbanFilterPanel">
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.filter.keyword') }}</h6>
+          <input type="search" class="form-control form-control-sm kanban-pill-input" id="kanbanFilterKeyword" placeholder="{{ _('kanban.filter.keyword_ph') }}" autocomplete="off">
+          <p class="kanban-filter-hint">{{ _('kanban.filter.keyword_hint') }}</p>
+        </section>
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.card.members') }}</h6>
+          <label class="kanban-filter-check"><input type="checkbox" id="kanbanFilterNoMembers"> {{ _('kanban.filter.no_members') }}</label>
+          <label class="kanban-filter-check"><input type="checkbox" id="kanbanFilterAssignedMe"> {{ _('kanban.filter.assigned_me') }}</label>
+          <div class="kanban-filter-members" id="kanbanFilterMembers"></div>
+        </section>
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.filter.status') }}</h6>
+          <label class="kanban-filter-check"><input type="checkbox" id="kanbanFilterCompleted"> {{ _('kanban.filter.completed') }}</label>
+          <label class="kanban-filter-check"><input type="checkbox" id="kanbanFilterNotCompleted"> {{ _('kanban.filter.not_completed') }}</label>
+        </section>
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.filter.due') }}</h6>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="" checked> {{ _('kanban.filter.due_any') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="none"> {{ _('kanban.filter.due_none') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="overdue"> {{ _('kanban.filter.due_overdue') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="day"> {{ _('kanban.filter.due_day') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="week"> {{ _('kanban.filter.due_week') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterDue" value="month"> {{ _('kanban.filter.due_month') }}</label>
+        </section>
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.card.labels') }}</h6>
+          <label class="kanban-filter-check"><input type="checkbox" id="kanbanFilterNoLabels"> {{ _('kanban.filter.no_labels') }}</label>
+          <div class="kanban-filter-labels" id="kanbanFilterLabels"></div>
+        </section>
+        <section class="kanban-filter-section">
+          <h6>{{ _('kanban.filter.activity') }}</h6>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterActivity" value="" checked> {{ _('kanban.filter.activity_any') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterActivity" value="week"> {{ _('kanban.filter.activity_week') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterActivity" value="two_weeks"> {{ _('kanban.filter.activity_two_weeks') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterActivity" value="four_weeks"> {{ _('kanban.filter.activity_four_weeks') }}</label>
+          <label class="kanban-filter-check"><input type="radio" name="kanbanFilterActivity" value="none_four_weeks"> {{ _('kanban.filter.activity_none') }}</label>
+        </section>
+        <section class="kanban-filter-section kanban-filter-section--toggle">
+          <span>{{ _('kanban.filter.collapse_empty') }}</span>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="kanbanFilterCollapseEmpty">
+          </div>
+        </section>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanFilterReset">{{ _('kanban.filter.reset') }}</button>
+        <button type="button" class="btn btn-accent kanban-pill-btn" data-bs-dismiss="modal" id="kanbanFilterApply">{{ _('kanban.filter.apply') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Label picker #}
+<div class="modal fade" id="kanbanLabelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header"><h5 class="modal-title">{{ _('kanban.card.labels') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div id="kanbanLabelList"></div>
+        {% if can_edit %}
+        <form class="kanban-label-create" id="kanbanCreateLabelForm">
+          <div class="fw-semibold small">{{ _('kanban.card.create_label') }}</div>
+          <input type="text" class="form-control form-control-sm kanban-pill-input" name="name" maxlength="80" placeholder="{{ _('kanban.card.label_name') }}" required>
+          <div class="d-flex align-items-center gap-2">
+            <input type="color" class="form-control form-control-color" name="color" value="#ef4444" title="{{ _('kanban.card.label_color') }}" style="width:2.5rem;height:2.25rem;padding:0.15rem;">
+            <button type="submit" class="btn kanban-pill-btn btn-sm flex-grow-1">{{ _('kanban.card.add') }}</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Members picker #}
+<div class="modal fade" id="kanbanMembersModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header"><h5 class="modal-title">{{ _('kanban.card.members') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="kanbanMembersList"></div>
+    </div>
+  </div>
+</div>
+
+{# Due date #}
+<div class="modal fade" id="kanbanDueModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <form id="kanbanDueForm">
+        <div class="modal-header"><h5 class="modal-title">{{ _('kanban.card.due') }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body d-grid gap-2">
+          <label class="form-label mb-0" for="kanbanDueInput">{{ _('kanban.card.due_datetime') }}</label>
+          <input type="datetime-local" class="form-control kanban-pill-input" id="kanbanDueInput" required>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanDueClear">{{ _('kanban.card.clear_due') }}</button>
+          <button type="submit" class="btn kanban-pill-btn">{{ _('common.save') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<span id="current-user-id" data-user-id="{{ current_user.id }}" hidden></span>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.KANBAN_BOARD = {{ board_json | tojson }};
+  window.COMMENTS_I18N = {{ current_translations.get('comments', {}) | tojson }};
+  window.KANBAN_I18N = {
+    addCard: {{ _('kanban.board.add_card') | tojson }},
+    addList: {{ _('kanban.board.add_list') | tojson }},
+    listName: {{ _('kanban.board.list_name') | tojson }},
+    cardTitle: {{ _('kanban.board.card_title') | tojson }},
+    members: {{ _('kanban.card.members') | tojson }},
+    cover: {{ _('kanban.card.cover') | tojson }},
+    removeCover: {{ _('kanban.card.remove_cover') | tojson }},
+    saveTemplate: {{ _('kanban.board.save_template') | tojson }},
+    rename: {{ _('common.edit') | tojson }},
+    delete: {{ _('common.delete') | tojson }},
+    vote: {{ _('kanban.card.vote') | tojson }},
+    complete: {{ _('kanban.card.complete') | tojson }},
+    attachments: {{ _('kanban.card.attachments') | tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}"></script>
+{% endblock %}

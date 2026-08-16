@@ -106,6 +106,9 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
         {% elif request.endpoint.startswith('shortlinks.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
+        {% elif request.endpoint.startswith('kanban.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/kanban.css') }}">
         {% elif request.endpoint.startswith('music.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
         {% elif request.endpoint.startswith('media_downloader.') %}
@@ -452,6 +455,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_kanban') and (not current_user.is_authenticated or has_module_access(current_user, 'module_kanban')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="kanban" data-nav-priority="9.6">
+                <a href="{{ url_for('kanban.index') }}" class="nav-link {% if request.endpoint and 'kanban' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-kanban me-2"></i>
+                    {{ _('layout.nav.kanban') }}
+                </a>
+            </li>
+            {% endif %}
             {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="booking" data-nav-priority="10">
                 <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
@@ -652,6 +663,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_kanban') and (not current_user.is_authenticated or has_module_access(current_user, 'module_kanban')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('kanban.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'kanban' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-kanban"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.kanban') }}</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
                 <li class="nav-item">
                     <a href="{{ url_for('booking.requests') }}" class="nav-link more-menu-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
@@ -733,10 +752,10 @@
                     'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
                     'email.index', 'email.folder_view',
                     'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
-                    'shortlinks.index', 'booking.requests', 'music.index', 'media_downloader.index', 'settings.index',
+                    'shortlinks.index', 'kanban.index', 'kanban.board', 'booking.requests', 'music.index', 'media_downloader.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('kanban.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
                 {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
