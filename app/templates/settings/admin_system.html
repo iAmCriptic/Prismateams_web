@@ -138,6 +138,26 @@
             </div>
         </section>
 
+        <section class="settings-admin-system-card" aria-labelledby="system-section-indexing">
+            <div class="settings-admin-system-card-head">
+                <h2 id="system-section-indexing" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_indexing') }}</h2>
+                <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.indexing_help') }}" aria-label="{{ _('settings.admin.system.indexing_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="search_indexing_enabled" name="search_indexing_enabled" {% if search_indexing_enabled %}checked{% endif %}>
+                <label class="form-check-label" for="search_indexing_enabled">{{ _('settings.admin.system.indexing_label') }}</label>
+            </div>
+            <p class="form-text mb-2">{{ _('settings.admin.system.indexing_hint') }}</p>
+            <p class="form-text mb-0 settings-admin-system-indexing-links">
+                <a href="{{ url_for('robots_txt') }}" target="_blank" rel="noopener">robots.txt</a>
+                <span aria-hidden="true">·</span>
+                <a href="{{ url_for('sitemap_xml') }}" target="_blank" rel="noopener">sitemap.xml</a>
+            </p>
+        </section>
+
         <div class="settings-admin-system-actions">
             <button type="submit" class="btn btn-accent settings-admin-system-submit">{{ _('settings.admin.system.save_button') }}</button>
         </div>

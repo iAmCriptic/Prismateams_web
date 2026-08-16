@@ -20,6 +20,7 @@
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="{{ _('layout.meta.description') }}">
+    <meta name="robots" content="{{ robots_meta|default('noindex, nofollow') }}">
     {% if _theme_oled %}
     <meta name="theme-color" content="#000000">
     <meta name="msapplication-TileColor" content="#000000">

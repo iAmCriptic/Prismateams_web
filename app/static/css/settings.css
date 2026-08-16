@@ -3662,6 +3662,17 @@ body:has(.settings-integrations-help-modal.show) .settings-integrations-help-mod
     font-weight: 600;
 }
 
+.settings-admin-system-indexing-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.settings-admin-system-indexing-links a {
+    color: inherit;
+}
+
 [data-bs-theme="dark"] .settings-admin-system {
     --sas-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
     --sas-elevated: var(--bs-body-bg, #212529);

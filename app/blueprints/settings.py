@@ -1993,6 +1993,21 @@ def admin_system():
             for guest in guests:
                 if guest.guest_username:
                     guest.email = f"{guest.guest_username}@{guest_email_domain}"
+
+        from app.utils.search_indexing import SETTING_DESCRIPTION as INDEXING_DESC
+        from app.utils.search_indexing import SETTING_KEY as INDEXING_KEY
+        indexing_enabled = request.form.get('search_indexing_enabled') == 'on'
+        indexing_setting = SystemSettings.query.filter_by(key=INDEXING_KEY).first()
+        if indexing_setting:
+            indexing_setting.value = str(indexing_enabled)
+            if not indexing_setting.description:
+                indexing_setting.description = INDEXING_DESC
+        else:
+            db.session.add(SystemSettings(
+                key=INDEXING_KEY,
+                value=str(indexing_enabled),
+                description=INDEXING_DESC,
+            ))
         
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
@@ -2000,6 +2015,7 @@ def admin_system():
     
     # Get current settings
     from app.utils.guest_accounts import get_guest_email_domain
+    from app.utils.search_indexing import is_search_indexing_enabled
 
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
@@ -2013,6 +2029,7 @@ def admin_system():
     color_gradient = gradient_setting.value if gradient_setting else ''
     portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
     guest_email_domain = get_guest_email_domain()
+    search_indexing_enabled = is_search_indexing_enabled()
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -2021,6 +2038,7 @@ def admin_system():
                          color_gradient=color_gradient,
                          portal_timezone=portal_timezone,
                          guest_email_domain=guest_email_domain,
+                         search_indexing_enabled=search_indexing_enabled,
                          timezone_choices=get_timezone_choices())
 
 

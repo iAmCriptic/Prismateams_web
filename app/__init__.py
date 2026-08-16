@@ -715,6 +715,13 @@ def create_app(config_name='default'):
             mobile_nav_left = resolve_nav_link(mobile_nav_slots['left'], current_user)
             mobile_nav_right = resolve_nav_link(mobile_nav_slots['right'], current_user)
 
+        robots_meta = 'noindex, nofollow'
+        try:
+            from app.utils.search_indexing import robots_meta_content
+            robots_meta = robots_meta_content()
+        except Exception:
+            pass
+
         return {
             'app_name': app_name,
             'app_logo': app_logo,
@@ -730,6 +737,7 @@ def create_app(config_name='default'):
             'mobile_nav_slots': mobile_nav_slots,
             'mobile_nav_left': mobile_nav_left,
             'mobile_nav_right': mobile_nav_right,
+            'robots_meta': robots_meta,
         }
     
     @app.template_filter('decode_email_header')
@@ -1120,6 +1128,36 @@ def create_app(config_name='default'):
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
         response.headers['Service-Worker-Allowed'] = '/'
+        return response
+
+    @app.route('/robots.txt')
+    def robots_txt():
+        from flask import Response
+        from app.utils.search_indexing import build_robots_txt
+        response = Response(build_robots_txt(), mimetype='text/plain; charset=utf-8')
+        response.headers['Cache-Control'] = 'public, max-age=300'
+        return response
+
+    @app.route('/sitemap.xml')
+    def sitemap_xml():
+        from flask import Response
+        from app.utils.search_indexing import build_sitemap_xml
+        response = Response(build_sitemap_xml(), mimetype='application/xml; charset=utf-8')
+        response.headers['Cache-Control'] = 'public, max-age=300'
+        return response
+
+    @app.after_request
+    def apply_search_indexing_headers(response):
+        if request.endpoint in ('robots_txt', 'sitemap_xml'):
+            return response
+        mimetype = response.mimetype or ''
+        if 'html' not in mimetype:
+            return response
+        try:
+            from app.utils.search_indexing import robots_meta_content
+            response.headers.setdefault('X-Robots-Tag', robots_meta_content())
+        except Exception:
+            pass
         return response
     
     # Schema-Init: immer (außer Reloader-Parent / explizitem Skip).
@@ -1645,6 +1683,8 @@ def create_app(config_name='default'):
 
                 from app.utils.bot_protection import ensure_default_settings
                 ensure_default_settings()
+                from app.utils.search_indexing import ensure_default_settings as ensure_indexing_settings
+                ensure_indexing_settings()
                 
                 try:
                     inspector = inspect(db.engine)
