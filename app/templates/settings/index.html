@@ -243,6 +243,14 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if is_module_enabled('module_excalidraw') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}">
+                            <i class="bi bi-pencil-square"></i>
+                            <span>{{ _('layout.nav.excalidraw') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if is_module_enabled('module_calendar') %}
                     <li>
                         <a href="{{ url_for('settings.admin_calendar_settings') }}">

@@ -205,6 +205,11 @@
         <i class="bi bi-link-45deg me-2"></i>{{ _('layout.nav.shortlinks') }}
     </a>
     {% endif %}
+    {% if is_module_enabled('module_excalidraw') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}" class="nav-link mod-nav-link{% if visibility_module == 'excalidraw' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-pencil-square me-2"></i>{{ _('layout.nav.excalidraw') }}
+    </a>
+    {% endif %}
     {% if is_module_enabled('module_calendar') %}
     <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}

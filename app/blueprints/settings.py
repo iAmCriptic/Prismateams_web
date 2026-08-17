@@ -854,6 +854,7 @@ def create_user():
                 'module_assessment',
                 'module_shortlinks',
                 'module_kanban',
+                'module_excalidraw',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -1175,6 +1176,7 @@ def edit_guest_user(user_id):
             'module_assessment',
             'module_shortlinks',
             'module_kanban',
+            'module_excalidraw',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
@@ -2925,6 +2927,11 @@ VISIBILITY_SETTINGS_MODULES = {
         'label_key': 'layout.nav.shortlinks',
         'icon': 'bi-link-45deg',
     },
+    'excalidraw': {
+        'module_key': 'module_excalidraw',
+        'label_key': 'layout.nav.excalidraw',
+        'icon': 'bi-pencil-square',
+    },
 }
 
 
@@ -4146,6 +4153,7 @@ def admin_roles_user_update(user_id):
             'module_assessment',
             'module_shortlinks',
             'module_kanban',
+            'module_excalidraw',
         ]
         
         # Aktualisiere Modul-Rollen

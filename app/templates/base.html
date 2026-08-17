@@ -106,6 +106,9 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
         {% elif request.endpoint.startswith('wiki.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
+        {% elif request.endpoint.startswith('excalidraw.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
         {% elif request.endpoint.startswith('shortlinks.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
         {% elif request.endpoint.startswith('kanban.') %}

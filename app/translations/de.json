@@ -13,6 +13,7 @@
       "credentials": "Zugangsdaten",
       "manuals": "Handbücher",
       "canvas": "Canvas",
+      "excalidraw": "Excalidraw",
       "inventory": "Inventar",
       "wiki": "Wiki",
       "music": "Musik",
@@ -1223,7 +1224,8 @@
         "save": "Änderungen speichern",
         "cancel": "Zurück",
         "flash_updated": "Module-Einstellungen wurden aktualisiert.",
-        "module_kanban": "Kanban"
+        "module_kanban": "Kanban",
+        "module_excalidraw": "Excalidraw"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -1579,7 +1581,8 @@
           "music": "Musik",
           "media_downloader": "Media Downloader",
           "assessment": "Bewertung",
-          "shortlinks": "Kurzlinks"
+          "shortlinks": "Kurzlinks",
+          "excalidraw": "Excalidraw"
         },
         "helps": {
           "settings": "Systemeinstellungen, Modul-Flags und Whitelist.",
@@ -1599,7 +1602,8 @@
           "music": "Musik-Einstellungen, Wünsche und Queue (ohne Provider-Secrets wo möglich).",
           "media_downloader": "Download-Job-Metadaten.",
           "assessment": "Bewertung: Listen, Kriterien, Evaluationen und zugehörige Daten.",
-          "shortlinks": "Kurzlinks."
+          "shortlinks": "Kurzlinks.",
+          "excalidraw": "Zeichnungen, Szenen und Versionen."
         }
       },
       "whitelist": {
