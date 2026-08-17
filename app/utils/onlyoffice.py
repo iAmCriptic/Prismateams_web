@@ -33,6 +33,39 @@ def is_onlyoffice_enabled():
     return current_app.config.get('ONLYOFFICE_ENABLED', False)
 
 
+def get_file_mtime(file_path):
+    """Return integer mtime for a file path, or 0 if unavailable."""
+    if not file_path:
+        return 0
+    try:
+        if os.path.isfile(file_path):
+            return int(os.path.getmtime(file_path))
+    except OSError:
+        pass
+    return 0
+
+
+def build_onlyoffice_document_key(prefix, resource_id, version_token, file_path):
+    """
+    Build a stable OnlyOffice document key for the current file revision.
+
+    The key stays the same while co-editing one revision (same version_token + mtime)
+    and changes after a successful save updates the file on disk.
+    """
+    mtime = get_file_mtime(file_path)
+    raw = f"{prefix}_{resource_id}_{version_token}_{mtime}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def resolve_storage_path(file_path):
+    """Resolve a stored relative path to an absolute filesystem path."""
+    if not file_path:
+        return None
+    if os.path.isabs(file_path):
+        return file_path
+    return os.path.join(os.getcwd(), file_path)
+
+
 def get_onlyoffice_version():
     """Return Document Server version string, or None if unreachable."""
     if not is_onlyoffice_enabled() or not REQUESTS_AVAILABLE:

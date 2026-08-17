@@ -4238,11 +4238,9 @@ def edit_onlyoffice(file_id):
     file_type = get_onlyoffice_file_type(file_ext)
     
     # Generate unique document key for versioning
-    # IMPORTANT: For co-editing to work, all users opening the same file version must have the same key
-    # The key should only change when a new version is saved (version_number increases)
-    import hashlib
-    key_string = f"{file.id}_{file.version_number}"
-    document_key = hashlib.md5(key_string.encode()).hexdigest()
+    from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
+    file_path = resolve_storage_path(file.file_path)
+    document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
     # Generate access token for OnlyOffice to access the document
     from app.utils.onlyoffice import generate_onlyoffice_access_token
@@ -4436,11 +4434,9 @@ def share_edit_onlyoffice(token):
     file_type = get_onlyoffice_file_type(file_ext)
     
     # Generate unique document key for versioning
-    # IMPORTANT: For co-editing to work, all users opening the same file version must have the same key
-    # The key should only change when a new version is saved (version_number increases)
-    import hashlib
-    key_string = f"{file.id}_{file.version_number}"
-    document_key = hashlib.md5(key_string.encode()).hexdigest()
+    from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
+    file_path = resolve_storage_path(file.file_path)
+    document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
     # Build document URL with token and file_id (guest_name ist in Session)
     # Share endpoints don't need additional token as they use share_token
@@ -5012,6 +5008,96 @@ def _download_onlyoffice_saved_content(saved_file_url):
         return None
 
 
+def _onlyoffice_save_callback_file(file, saved_content, increment_version=True):
+    """Persist document bytes received from an OnlyOffice callback."""
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}_{file.original_name}"
+    filepath = os.path.join('uploads', 'files', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    with open(filepath, 'wb') as f:
+        f.write(saved_content)
+
+    absolute_filepath = os.path.abspath(filepath)
+
+    if increment_version:
+        version = FileVersion(
+            file_id=file.id,
+            version_number=file.version_number,
+            file_path=os.path.abspath(file.file_path),
+            file_size=file.file_size,
+            uploaded_by=file.uploaded_by
+        )
+        db.session.add(version)
+
+        versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+            FileVersion.version_number.desc()
+        ).all()
+        if len(versions) >= MAX_FILE_VERSIONS:
+            oldest = versions[-1]
+            if os.path.exists(oldest.file_path):
+                os.remove(oldest.file_path)
+            db.session.delete(oldest)
+
+        file.file_path = absolute_filepath
+        file.file_size = os.path.getsize(absolute_filepath)
+        file.version_number += 1
+        file.updated_at = datetime.utcnow()
+        db.session.commit()
+        logging.info(
+            "ONLYOFFICE: File %s saved (new version %s)",
+            file.id,
+            file.version_number,
+        )
+    else:
+        old_file_path = file.file_path
+        file.file_path = absolute_filepath
+        file.file_size = os.path.getsize(absolute_filepath)
+        file.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        if old_file_path != absolute_filepath and os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except Exception as e:
+                logging.warning("Could not delete old file %s: %s", old_file_path, e)
+
+        logging.info(
+            "ONLYOFFICE: File %s updated in place (version %s)",
+            file.id,
+            file.version_number,
+        )
+
+    try:
+        send_file_notification(file.id, 'modified')
+    except Exception as e:
+        logging.error("Fehler beim Senden der Datei-Benachrichtigung: %s", e)
+
+
+def _onlyoffice_handle_save_callback(file, payload):
+    """
+    Handle OnlyOffice callback statuses that include saved document content.
+
+    Status 2 = document ready for saving (user closed editor)
+    Status 6 = force save while editing
+    """
+    status = payload.get('status')
+    if status not in (2, 6):
+        return False
+
+    saved_file_url = payload.get('url')
+    if not saved_file_url:
+        logging.warning("ONLYOFFICE callback: status %s without download URL for file %s", status, file.id)
+        return False
+
+    saved_content = _download_onlyoffice_saved_content(saved_file_url)
+    if not saved_content:
+        return False
+
+    _onlyoffice_save_callback_file(file, saved_content, increment_version=True)
+    return True
+
+
 @files_bp.route('/onlyoffice-callback', methods=['POST', 'OPTIONS'])
 def onlyoffice_callback():
     """Handle callbacks from ONLYOFFICE Document Server."""
@@ -5030,77 +5116,14 @@ def onlyoffice_callback():
         key = data.get('key')
         logging.info(f"ONLYOFFICE callback received - status: {status}, key: {key}")
 
-        if status in [4, 6]:
+        if status in (2, 6):
             file_id = request.args.get('file_id')
             if file_id:
                 try:
                     file_id = int(file_id)
                     file = File.query.get(file_id)
                     if file:
-                        time_since_update = (datetime.utcnow() - file.updated_at).total_seconds() if file.updated_at else 999
-
-                        if status == 4 and time_since_update < 10:
-                            logging.info(f"ONLYOFFICE: Skipping auto-save for file {file_id} (recently updated, likely initial load)")
-                            return _onlyoffice_cors_response({'error': 0})[0]
-
-                        saved_file_url = data.get('url')
-                        if saved_file_url:
-                            saved_content = _download_onlyoffice_saved_content(saved_file_url)
-                            if saved_content:
-                                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                                filename = f"{timestamp}_{file.original_name}"
-                                filepath = os.path.join('uploads', 'files', filename)
-                                os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-                                with open(filepath, 'wb') as f:
-                                    f.write(saved_content)
-
-                                absolute_filepath = os.path.abspath(filepath)
-
-                                if status == 6:
-                                    version = FileVersion(
-                                        file_id=file.id,
-                                        version_number=file.version_number,
-                                        file_path=os.path.abspath(file.file_path),
-                                        file_size=file.file_size,
-                                        uploaded_by=file.uploaded_by
-                                    )
-                                    db.session.add(version)
-
-                                    versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-                                        FileVersion.version_number.desc()
-                                    ).all()
-                                    if len(versions) >= MAX_FILE_VERSIONS:
-                                        oldest = versions[-1]
-                                        if os.path.exists(oldest.file_path):
-                                            os.remove(oldest.file_path)
-                                        db.session.delete(oldest)
-
-                                    file.file_path = absolute_filepath
-                                    file.file_size = os.path.getsize(absolute_filepath)
-                                    file.version_number += 1
-                                    file.updated_at = datetime.utcnow()
-                                    db.session.commit()
-                                    logging.info(f"ONLYOFFICE: File {file_id} force saved (new version {file.version_number})")
-                                else:
-                                    old_file_path = file.file_path
-                                    file.file_path = absolute_filepath
-                                    file.file_size = os.path.getsize(absolute_filepath)
-                                    file.updated_at = datetime.utcnow()
-                                    db.session.commit()
-
-                                    if old_file_path != absolute_filepath and os.path.exists(old_file_path):
-                                        try:
-                                            os.remove(old_file_path)
-                                        except Exception as e:
-                                            logging.warning(f"Could not delete old file {old_file_path}: {e}")
-
-                                    logging.info(f"ONLYOFFICE: File {file_id} auto-saved (version {file.version_number} updated)")
-
-                                try:
-                                    send_file_notification(file.id, 'modified')
-                                except Exception as e:
-                                    logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+                        _onlyoffice_handle_save_callback(file, data)
                 except (ValueError, TypeError) as e:
                     logging.error(f"ONLYOFFICE callback: Invalid file_id: {e}")
                 except Exception as e:
@@ -5160,31 +5183,8 @@ def share_onlyoffice_callback(token):
         status = data.get('status')
         
         logging.info(f"ONLYOFFICE share callback received - status: {status}")
-        
-        # Status values:
-        # 0 - document is being edited
-        # 1 - document is ready for saving (informational, don't save yet)
-        # 2 - document saving error has occurred
-        # 3 - document is closed with no changes
-        # 4 - document is being edited, but the current document state is saved (auto-save) - SAVE THIS for collaborative editing
-        # 6 - document is being edited, but the current document state is saved (force save) - SAVE THIS
-        # 7 - error has occurred while force saving the document
-        
-        # IMPORTANT: Save on status 6 (force save) and status 4 (auto-save)
-        # Status 4 enables collaborative editing without manual saving
-        # Status 1 is informational and should NOT trigger a save (would cause version conflicts)
-        if status in [4, 6]:
-            # IMPORTANT: Prevent saving during initial load to avoid "Version wurde geändert" messages
-            # Check if file was recently opened (within last 10 seconds)
-            # This prevents callbacks during initial document load from causing version conflicts
-            time_since_update = (datetime.utcnow() - file.updated_at).total_seconds() if file.updated_at else 999
-            
-            # If file was updated very recently (less than 10 seconds ago), it might be from initial load
-            # Only skip auto-save (status 4), but always allow force save (status 6)
-            if status == 4 and time_since_update < 10:
-                logging.info(f"ONLYOFFICE: Skipping auto-save for shared file {file.id} (recently updated, likely initial load)")
-                return _onlyoffice_cors_response({'error': 0})[0]
-            
+
+        if status in (2, 6):
             saved_file_url = data.get('url')
             
             if saved_file_url:
@@ -5205,8 +5205,7 @@ def share_onlyoffice_callback(token):
                         )
                         db.session.add(anonymous_user)
                         db.session.flush()
-                    
-                    # Save new version
+
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     filename = f"{timestamp}_{file.original_name}"
                     filepath = os.path.join('uploads', 'files', filename)
@@ -5218,60 +5217,39 @@ def share_onlyoffice_callback(token):
                     
                     absolute_filepath = os.path.abspath(filepath)
                     
-                    # IMPORTANT: For collaborative editing, we need to be careful about version increments
-                    # Status 6 (force save) always increments version and creates version history
-                    # Status 4 (auto-save) should NOT increment version to avoid "Version wurde geändert" messages
+                    version = FileVersion(
+                        file_id=file.id,
+                        version_number=file.version_number,
+                        file_path=os.path.abspath(file.file_path),
+                        file_size=file.file_size,
+                        uploaded_by=file.uploaded_by
+                    )
+                    db.session.add(version)
                     
-                    if status == 6:
-                        # Force save: Create new version with history
-                        # Save current version to history
-                        version = FileVersion(
-                            file_id=file.id,
-                            version_number=file.version_number,
-                            file_path=os.path.abspath(file.file_path),
-                            file_size=file.file_size,
-                            uploaded_by=file.uploaded_by
-                        )
-                        db.session.add(version)
-                        
-                        # Delete oldest version if needed
-                        versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-                            FileVersion.version_number.desc()
-                        ).all()
-                        
-                        if len(versions) >= MAX_FILE_VERSIONS:
-                            oldest = versions[-1]
-                            if os.path.exists(oldest.file_path):
-                                os.remove(oldest.file_path)
-                            db.session.delete(oldest)
-                        
-                        file.file_path = absolute_filepath
-                        file.file_size = os.path.getsize(absolute_filepath)
-                        file.version_number += 1
-                        file.uploaded_by = anonymous_user.id
-                        file.updated_at = datetime.utcnow()
-                        
-                        db.session.commit()
-                        
-                        logging.info(f"ONLYOFFICE: Shared file {file.id} force saved (new version {file.version_number}) by guest {guest_name}")
-                    else:
-                        # Auto-save (status 4): Update file in place without version increment
-                        old_file_path = file.file_path
-                        file.file_path = absolute_filepath
-                        file.file_size = os.path.getsize(absolute_filepath)
-                        file.updated_at = datetime.utcnow()
-                        # Keep same version_number and uploaded_by for auto-save
-                        
-                        db.session.commit()
-                        
-                        # Delete old file if it's different (but keep versions)
-                        if old_file_path != absolute_filepath and os.path.exists(old_file_path):
-                            try:
-                                os.remove(old_file_path)
-                            except Exception as e:
-                                logging.warning(f"Could not delete old file {old_file_path}: {e}")
-                        
-                        logging.info(f"ONLYOFFICE: Shared file {file.id} auto-saved (version {file.version_number} updated) by guest {guest_name}")
+                    versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+                        FileVersion.version_number.desc()
+                    ).all()
+                    
+                    if len(versions) >= MAX_FILE_VERSIONS:
+                        oldest = versions[-1]
+                        if os.path.exists(oldest.file_path):
+                            os.remove(oldest.file_path)
+                        db.session.delete(oldest)
+                    
+                    file.file_path = absolute_filepath
+                    file.file_size = os.path.getsize(absolute_filepath)
+                    file.version_number += 1
+                    file.uploaded_by = anonymous_user.id
+                    file.updated_at = datetime.utcnow()
+                    
+                    db.session.commit()
+                    
+                    logging.info(
+                        "ONLYOFFICE: Shared file %s saved (version %s) by guest %s",
+                        file.id,
+                        file.version_number,
+                        guest_name,
+                    )
         
         return _onlyoffice_cors_response({'error': 0})[0]
         

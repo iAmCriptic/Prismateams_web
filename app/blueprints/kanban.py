@@ -1045,7 +1045,6 @@ def edit_onlyoffice(attachment_id):
     """Open a Kanban attachment in OnlyOffice (auto-save via callback)."""
     from types import SimpleNamespace
     from urllib.parse import quote
-    import hashlib
     import logging
 
     from app.utils.i18n import get_current_language
@@ -1054,6 +1053,7 @@ def edit_onlyoffice(attachment_id):
         get_onlyoffice_file_type,
         generate_onlyoffice_access_token,
         generate_onlyoffice_token,
+        build_onlyoffice_document_key,
     )
 
     if not is_onlyoffice_enabled():
@@ -1079,8 +1079,9 @@ def edit_onlyoffice(attachment_id):
 
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
-    mtime = int(os.path.getmtime(att.storage_path))
-    document_key = hashlib.md5(f"kanban_att_{att.id}_{att.file_size}_{mtime}".encode()).hexdigest()
+    document_key = build_onlyoffice_document_key(
+        'kanban_att', att.id, att.file_size or 0, att.storage_path
+    )
     access_token = generate_onlyoffice_access_token(att.id, current_user.id)
 
     public_url = (current_app.config.get('ONLYOFFICE_PUBLIC_URL') or '').strip()
@@ -1139,7 +1140,14 @@ def edit_onlyoffice(attachment_id):
 
     token = generate_onlyoffice_token(editor_config)
     return_url = url_for('kanban.board', board_id=board.id, card=card.id)
-    file_proxy = SimpleNamespace(id=att.id, name=name)
+    file_proxy = SimpleNamespace(
+        id=att.id,
+        name=name,
+        created_at=att.created_at,
+        updated_at=att.created_at,
+        folder_id=None,
+        uploader=att.uploader,
+    )
 
     logging.info("Kanban OnlyOffice document_url=%s callback=%s", document_url, callback_url)
 
@@ -1223,7 +1231,7 @@ def onlyoffice_callback(attachment_id):
 
     payload = signed_payload if isinstance(signed_payload, dict) else data
     status = payload.get('status')
-    # 2 = ready for saving, 6 = force save
+    # 2 = ready for saving (close), 6 = force save while editing
     if status in (2, 6):
         saved_url = payload.get('url')
         if saved_url:

@@ -5,9 +5,29 @@ from app.models.comment import Comment, CommentMention
 from app.models.user import User
 from app.utils.notifications import send_push_notification
 from app.utils.i18n import translate
+from app.utils.access_control import has_module_access
+from app.utils.kanban_access import can_view_board
 from datetime import datetime
 
 comments_bp = Blueprint('comments', __name__, url_prefix='/api/comments')
+
+
+def _check_kanban_comment_access(card_id):
+    """Validate module and board permissions for kanban card comments."""
+    from app.models.kanban import KanbanCard
+
+    if not has_module_access(current_user, 'module_kanban'):
+        return None, (jsonify({'error': translate('comments.errors.no_permission')}), 403)
+
+    card = KanbanCard.query.get(card_id)
+    if not card:
+        return None, (jsonify({'error': translate('comments.errors.invalid_content_type')}), 404)
+
+    board = card.list.board if card.list else None
+    if not board or not can_view_board(current_user, board, allow_closed=True):
+        return None, (jsonify({'error': translate('comments.errors.no_permission')}), 403)
+
+    return card, None
 
 
 def process_mentions(comment_text, comment_id):
@@ -101,6 +121,11 @@ def get_comments(content_type, content_id):
     """Holt alle Kommentare für ein Objekt."""
     if content_type not in ['file', 'wiki', 'kanban_card']:
         return jsonify({'error': translate('comments.errors.invalid_content_type')}), 400
+
+    if content_type == 'kanban_card':
+        _card, error = _check_kanban_comment_access(content_id)
+        if error:
+            return error
     
     # Lade alle Kommentare (nur Top-Level, ohne Replies)
     comments = Comment.query.filter_by(
@@ -161,6 +186,11 @@ def create_comment(content_type, content_id):
     """Erstellt einen neuen Kommentar."""
     if content_type not in ['file', 'wiki', 'kanban_card']:
         return jsonify({'error': translate('comments.errors.invalid_content_type')}), 400
+
+    if content_type == 'kanban_card':
+        _card, error = _check_kanban_comment_access(content_id)
+        if error:
+            return error
     
     # Prüfe ob Kommentare für .md Dateien deaktiviert sind
     if content_type == 'file':
