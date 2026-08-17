@@ -54,6 +54,8 @@ class WikiPage(db.Model):
     
     category_id = db.Column(db.Integer, db.ForeignKey('wiki_categories.id'), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    visibility = db.Column(db.String(20), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     
     version_number = db.Column(db.Integer, default=1, nullable=False)
     

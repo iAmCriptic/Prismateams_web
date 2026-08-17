@@ -39,6 +39,87 @@ _onlyoffice_dump_logs() {
     docker logs --tail 60 "${ONLYOFFICE_CONTAINER}" 2>&1 || true
 }
 
+# Host-Fonts für PDF/Druck im Document Server (Volume …/fonts).
+# Ohne diese Dateien listet der Browser-Editor Schriften, Rendering schlägt aber fehl.
+_onlyoffice_ensure_font_repos() {
+    if command -v add-apt-repository >/dev/null 2>&1; then
+        add-apt-repository -y universe >/dev/null 2>&1 || true
+        add-apt-repository -y multiverse >/dev/null 2>&1 || true
+    fi
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq || log_warning "apt-get update für Schriftarten fehlgeschlagen"
+}
+
+_onlyoffice_install_host_fonts() {
+    log_info "Installiere Schriftarten für OnlyOffice (Microsoft Core Fonts, Carlito/Caladea)..."
+    _onlyoffice_ensure_font_repos
+
+    echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+    echo "ttf-mscorefonts-installer msttcorefonts/present-mscorefonts-eula note" | debconf-set-selections
+
+    local extra_ok=1
+    if ! apt-get install -y -qq \
+        fonts-crosextra-carlito fonts-crosextra-caladea \
+        fonts-liberation fonts-liberation2 fonts-dejavu-core cabextract; then
+        extra_ok=0
+        log_warning "Libre-/Ersatz-Schriftarten konnten nicht vollständig installiert werden"
+    fi
+
+    # mscorefonts lädt TTFs von SourceForge – kann fehlschlagen, Rest bleibt nutzbar
+    if ! apt-get install -y -qq ttf-mscorefonts-installer; then
+        log_warning "ttf-mscorefonts-installer fehlgeschlagen (EULA/Download) – Arial/Times ggf. unvollständig"
+    fi
+
+    if [ "$extra_ok" -eq 1 ]; then
+        log_success "Host-Schriftarten installiert (Carlito = Calibri-kompatibel)"
+    fi
+}
+
+_onlyoffice_copy_fonts_to_volume() {
+    local dest="${ONLYOFFICE_DATA_ROOT}/fonts"
+    mkdir -p "$dest"
+    log_info "Kopiere Schriftarten nach ${dest}..."
+
+    local copied=0
+    local dir
+    for dir in \
+        /usr/share/fonts/truetype/msttcorefonts \
+        /usr/share/fonts/truetype/liberation \
+        /usr/share/fonts/truetype/liberation2 \
+        /usr/share/fonts/truetype/crosextra \
+        /usr/share/fonts/truetype/carlito \
+        /usr/share/fonts/truetype/caladea \
+        /usr/share/fonts/truetype/dejavu; do
+        if [ -d "$dir" ]; then
+            while IFS= read -r -d '' fontfile; do
+                if cp -n "$fontfile" "$dest/" 2>/dev/null; then
+                    copied=$((copied + 1))
+                fi
+            done < <(find "$dir" -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -print0 2>/dev/null)
+        fi
+    done
+
+    if [ "$copied" -gt 0 ]; then
+        log_success "${copied} Schriftdateien im OnlyOffice-Fonts-Volume"
+    else
+        log_warning "Keine Schriftdateien zum Kopieren gefunden – PDF-Rendering kann Schrift-Substitution nutzen"
+    fi
+}
+
+_onlyoffice_generate_allfonts() {
+    if ! _onlyoffice_container_running; then
+        log_warning "Font-Index nicht erzeugt – Container läuft nicht"
+        return 0
+    fi
+    log_info "Erzeuge OnlyOffice-Font-Index (documentserver-generate-allfonts.sh, kann 1–2 Min. dauern)..."
+    if docker exec "${ONLYOFFICE_CONTAINER}" /usr/bin/documentserver-generate-allfonts.sh; then
+        log_success "OnlyOffice-Font-Index aktualisiert"
+    else
+        log_warning "documentserver-generate-allfonts.sh fehlgeschlagen – später manuell ausführen"
+        log_warning "  docker exec ${ONLYOFFICE_CONTAINER} /usr/bin/documentserver-generate-allfonts.sh"
+    fi
+}
+
 step_onlyoffice() {
     if ! is_yes "$INSTALL_ONLYOFFICE"; then
         print_manual_onlyoffice_hint
@@ -93,6 +174,9 @@ step_onlyoffice() {
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/logs"
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/lib"
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/fonts"
+
+    _onlyoffice_install_host_fonts
+    _onlyoffice_copy_fonts_to_volume
 
     if _onlyoffice_port_in_use "${ONLYOFFICE_HOST_PORT}"; then
         if ! _onlyoffice_container_running; then
@@ -174,6 +258,13 @@ step_onlyoffice() {
             _onlyoffice_dump_logs
             return 1
         fi
+    fi
+
+    if [ "$OO_READY" -eq 1 ]; then
+        _onlyoffice_generate_allfonts
+    else
+        log_warning "Font-Index übersprungen (Docs noch nicht bereit) – später:"
+        log_warning "  docker exec ${ONLYOFFICE_CONTAINER} /usr/bin/documentserver-generate-allfonts.sh"
     fi
 
     log_info "OnlyOffice JWT_SECRET = ONLYOFFICE_SECRET_KEY (für .env)"

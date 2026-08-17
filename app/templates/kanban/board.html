@@ -29,6 +29,9 @@
         <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
       </button>
       {% if can_manage %}
+      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
+        <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+      </button>
       <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
         <i class="bi bi-person-plus" aria-hidden="true"></i>
       </button>
@@ -114,6 +117,10 @@
             {% endif %}
           </div>
           <div class="kanban-meta-row" id="cardMetaRow"></div>
+          <section class="mb-3" id="cardCustomFields" hidden>
+            <h6><i class="bi bi-ui-checks-grid me-1"></i>{{ _('kanban.custom_fields.title') }}</h6>
+            <div class="kanban-custom-fields-grid" id="cardCustomFieldsGrid"></div>
+          </section>
           <section class="mb-3">
             <h6><i class="bi bi-text-left me-1"></i>{{ _('kanban.card.description') }}</h6>
             <textarea class="form-control kanban-pill-input" id="cardModalDescription" rows="4" placeholder="{{ _('kanban.card.description_ph') }}" {% if not can_edit %}readonly{% endif %}></textarea>
@@ -205,6 +212,48 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-accent kanban-pill-btn" id="kanbanPollSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Custom fields manage modal #}
+<div class="modal fade" id="kanbanCustomFieldsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.custom_fields.title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="kanbanCustomFieldForm" class="kanban-custom-field-form mb-3">
+          <input type="hidden" id="kanbanCfEditId" value="">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label small mb-1" for="kanbanCfLabel">{{ _('kanban.custom_fields.label') }}</label>
+              <input type="text" class="form-control kanban-pill-input" id="kanbanCfLabel" name="label" maxlength="200" placeholder="{{ _('kanban.custom_fields.label_ph') }}" required autocomplete="off">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small mb-1" for="kanbanCfType">{{ _('kanban.custom_fields.type') }}</label>
+              <select class="form-select kanban-pill-input" id="kanbanCfType" name="field_type">
+                <option value="text">{{ _('kanban.custom_fields.type_text') }}</option>
+                <option value="select">{{ _('kanban.custom_fields.type_select') }}</option>
+                <option value="date">{{ _('kanban.custom_fields.type_date') }}</option>
+                <option value="time">{{ _('kanban.custom_fields.type_time') }}</option>
+                <option value="checkbox">{{ _('kanban.custom_fields.type_checkbox') }}</option>
+              </select>
+            </div>
+            <div class="col-md-5">
+              <button type="submit" class="btn btn-accent kanban-pill-btn" id="kanbanCfSubmit">{{ _('kanban.custom_fields.add') }}</button>
+              <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanCfCancelEdit" hidden>{{ _('common.cancel') }}</button>
+            </div>
+          </div>
+          <div class="mt-2" id="kanbanCfOptionsWrap" hidden>
+            <label class="form-label small mb-1" for="kanbanCfOptions">{{ _('kanban.custom_fields.options') }}</label>
+            <textarea class="form-control kanban-pill-input" id="kanbanCfOptions" name="options" rows="3" placeholder="{{ _('kanban.custom_fields.options_ph') }}"></textarea>
+          </div>
+        </form>
+        <div id="kanbanCustomFieldsList" class="kanban-cf-manage-list"></div>
       </div>
     </div>
   </div>
@@ -425,7 +474,24 @@
     delete: {{ _('common.delete') | tojson }},
     vote: {{ _('kanban.card.vote') | tojson }},
     complete: {{ _('kanban.card.complete') | tojson }},
-    attachments: {{ _('kanban.card.attachments') | tojson }}
+    attachments: {{ _('kanban.card.attachments') | tojson }},
+    checklistName: {{ _('kanban.card.checklist_name') | tojson }},
+    add: {{ _('kanban.card.add') | tojson }},
+    cancel: {{ _('common.cancel') | tojson }},
+    download: {{ _('kanban.card.download') | tojson }},
+    view: {{ _('kanban.card.view') | tojson }},
+    setCover: {{ _('kanban.card.cover') | tojson }},
+    customFields: {{ _('kanban.custom_fields.title') | tojson }},
+    customFieldSelect: {{ _('kanban.custom_fields.select_ph') | tojson }},
+    customFieldEmpty: {{ _('kanban.custom_fields.empty') | tojson }},
+    customFieldDeleteConfirm: {{ _('kanban.custom_fields.delete_confirm') | tojson }},
+    customFieldAdd: {{ _('kanban.custom_fields.add') | tojson }},
+    customFieldSave: {{ _('kanban.custom_fields.save') | tojson }},
+    typeText: {{ _('kanban.custom_fields.type_text') | tojson }},
+    typeSelect: {{ _('kanban.custom_fields.type_select') | tojson }},
+    typeDate: {{ _('kanban.custom_fields.type_date') | tojson }},
+    typeTime: {{ _('kanban.custom_fields.type_time') | tojson }},
+    typeCheckbox: {{ _('kanban.custom_fields.type_checkbox') | tojson }}
   };
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>

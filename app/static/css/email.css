@@ -780,6 +780,18 @@ body {
     background-color: var(--portal-bg, #f0f2f5) !important;
 }
 
+@media (min-width: 992px) {
+    .email-content[data-module="email"] {
+        min-height: calc(100vh - var(--top-navbar-height, 64px) - 1.5rem);
+        min-height: calc(100dvh - var(--top-navbar-height, 64px) - 1.5rem);
+    }
+
+    .email-folder-sidebar.mod-sidebar {
+        min-height: calc(100vh - var(--top-navbar-height, 64px) - 3rem);
+        min-height: calc(100dvh - var(--top-navbar-height, 64px) - 3rem);
+    }
+}
+
 [data-bs-theme="dark"] .email-content[data-module="email"] {
     background-color: #1a1a1a !important;
 }

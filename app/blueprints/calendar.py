@@ -14,6 +14,9 @@ from app.utils.multi_calendars import (
     can_create_in_calendar,
     can_delete_event,
     can_edit_event,
+    create_extra_calendar,
+    default_calendar_for_user,
+    delete_extra_calendar,
     display_color_for_event,
     ensure_imported_calendar_for_source,
     events_query_for_calendars,
@@ -24,8 +27,13 @@ from app.utils.multi_calendars import (
     is_calendar_export_enabled,
     is_calendar_import_enabled,
     is_calendar_multi_enabled,
+    is_calendar_personal_enabled,
+    is_calendar_team_enabled,
     list_sidebar_calendars,
+    list_writable_calendars,
     parse_calendar_ids_param,
+    update_calendar_meta,
+    user_calendar_team_ids,
 )
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -54,15 +62,15 @@ def sanitize_event_color(raw_color):
 
 
 def _selected_calendar_ids_from_request(user):
-    """Parse ?calendars= from query; default = personal only when multi on."""
+    """Parse ?calendars= from query; default = personal (or public) when multi on."""
     multi = is_calendar_multi_enabled()
     if not multi:
         return []
-    personal = get_or_create_personal_calendar(user)
+    default = default_calendar_for_user(user)
     raw = request.args.get('calendars')
-    ids = parse_calendar_ids_param(raw, default_ids=[personal.id])
-    if not ids:
-        ids = [personal.id]
+    ids = parse_calendar_ids_param(raw, default_ids=[default.id] if default else [])
+    if not ids and default:
+        ids = [default.id]
     return ids
 
 
@@ -71,33 +79,45 @@ def _sidebar_context(user, selected_ids=None):
     if not multi:
         return {
             'calendar_multi_enabled': False,
+            'calendar_personal_enabled': is_calendar_personal_enabled(),
+            'calendar_team_enabled': is_calendar_team_enabled(),
             'calendar_export_enabled': is_calendar_export_enabled(),
             'calendar_import_enabled': is_calendar_import_enabled(),
             'sidebar_calendars': None,
             'selected_calendar_ids': [],
             'focus_calendar_id': None,
             'can_create_focus': True,
+            'user_calendar_teams': [],
         }
     sidebar = list_sidebar_calendars(user)
     if selected_ids is None:
         selected_ids = _selected_calendar_ids_from_request(user)
-    personal = sidebar['personal']
+    default = sidebar.get('personal') or sidebar.get('public')
     focus_raw = request.args.get('focus', type=int)
-    focus_id = focus_raw or (selected_ids[0] if selected_ids else personal.id)
-    focus_cal = Calendar.query.get(focus_id) or personal
+    focus_id = focus_raw or (selected_ids[0] if selected_ids else (default.id if default else None))
+    focus_cal = Calendar.query.get(focus_id) if focus_id else default
+    from app.models.team import Team
+    team_ids = list(user_calendar_team_ids(user))
+    teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all() if team_ids else []
     return {
         'calendar_multi_enabled': True,
+        'calendar_personal_enabled': is_calendar_personal_enabled(),
+        'calendar_team_enabled': is_calendar_team_enabled(),
         'calendar_export_enabled': is_calendar_export_enabled(),
         'calendar_import_enabled': is_calendar_import_enabled(),
         'sidebar_calendars': {
-            'personal': calendar_to_dict(sidebar['personal'], user),
-            'public': calendar_to_dict(sidebar['public'], user),
-            'events': calendar_to_dict(sidebar['events'], user),
-            'others': [calendar_to_dict(c, user) for c in sidebar['others']],
+            'personal': calendar_to_dict(sidebar['personal'], user) if sidebar.get('personal') else None,
+            'personals': [calendar_to_dict(c, user) for c in sidebar.get('personals') or []],
+            'public': calendar_to_dict(sidebar['public'], user) if sidebar.get('public') else None,
+            'publics': [calendar_to_dict(c, user) for c in sidebar.get('publics') or []],
+            'events': calendar_to_dict(sidebar['events'], user) if sidebar.get('events') else None,
+            'teams': [calendar_to_dict(c, user) for c in sidebar.get('teams') or []],
+            'others': [calendar_to_dict(c, user) for c in sidebar.get('others') or []],
         },
         'selected_calendar_ids': selected_ids,
-        'focus_calendar_id': focus_cal.id,
-        'can_create_focus': can_create_in_calendar(user, focus_cal),
+        'focus_calendar_id': focus_cal.id if focus_cal else None,
+        'can_create_focus': can_create_in_calendar(user, focus_cal) if focus_cal else True,
+        'user_calendar_teams': [{'id': t.id, 'name': t.name} for t in teams],
     }
 
 
@@ -417,17 +437,18 @@ def create_event():
     personal_calendar_id = None
     public_calendar_id = None
     if multi:
-        personal = get_or_create_personal_calendar(current_user)
+        writable = list_writable_calendars(current_user)
+        default = default_calendar_for_user(current_user)
         public = get_public_calendar()
-        writable = [personal, public]
-        personal_calendar_id = personal.id
+        personal = get_or_create_personal_calendar(current_user) if is_calendar_personal_enabled() else None
+        personal_calendar_id = personal.id if personal else None
         public_calendar_id = public.id
-        # Standard: eigener Kalender. Explizit ?calendar_id= nur wenn writable.
+        writable_ids = {c.id for c in writable}
         focus = request.args.get('calendar_id', type=int) or request.form.get('calendar_id', type=int)
-        if focus in (personal.id, public.id):
+        if focus in writable_ids:
             default_calendar_id = focus
         else:
-            default_calendar_id = personal.id
+            default_calendar_id = default.id if default else public.id
 
     def _create_template(**extra):
         invite_payload = [
@@ -1256,6 +1277,66 @@ def export_calendar():
             'Content-Type': 'text/calendar; charset=utf-8'
         }
     )
+
+
+@calendar_bp.route('/calendars/create', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def create_calendar():
+    """Create an extra personal, team or public calendar."""
+    name = request.form.get('name', '').strip()
+    calendar_type = request.form.get('calendar_type', '').strip().lower()
+    color = request.form.get('color', '').strip() or None
+    team_id = request.form.get('team_id', '').strip() or None
+    cal, err = create_extra_calendar(
+        current_user,
+        name,
+        calendar_type,
+        color=color,
+        team_id=team_id,
+    )
+    if err:
+        flash(translate(f'calendar.flash.calendar_{err}'), 'danger')
+        return redirect(url_for('calendar.index'))
+    db.session.commit()
+    flash(translate('calendar.flash.calendar_created', name=cal.name), 'success')
+    return redirect(url_for('calendar.index', calendars=cal.id))
+
+
+@calendar_bp.route('/calendars/<int:calendar_id>/update', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def update_calendar(calendar_id):
+    cal = Calendar.query.get_or_404(calendar_id)
+    name = request.form.get('name')
+    color = request.form.get('color')
+    hidden_raw = request.form.get('hidden_from_others')
+    hidden = None
+    if request.form.get('meta_form') == '1':
+        hidden = hidden_raw in ('1', 'on', 'true', 'True')
+    elif hidden_raw is not None:
+        hidden = hidden_raw in ('1', 'on', 'true', 'True')
+    if not update_calendar_meta(current_user, cal, name=name, color=color, hidden_from_others=hidden):
+        flash(translate('calendar.flash.no_manage_permission'), 'danger')
+        return redirect(url_for('calendar.index'))
+    db.session.commit()
+    flash(translate('calendar.flash.calendar_updated'), 'success')
+    return redirect(url_for('calendar.index'))
+
+
+@calendar_bp.route('/calendars/<int:calendar_id>/delete', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def delete_user_calendar(calendar_id):
+    cal = Calendar.query.get_or_404(calendar_id)
+    if cal.calendar_type == 'imported':
+        return delete_imported_calendar(calendar_id)
+    if not delete_extra_calendar(current_user, cal):
+        flash(translate('calendar.flash.cannot_delete_calendar'), 'danger')
+        return redirect(url_for('calendar.index'))
+    db.session.commit()
+    flash(translate('calendar.flash.calendar_deleted'), 'success')
+    return redirect(url_for('calendar.index'))
 
 
 @calendar_bp.route('/calendar/<int:calendar_id>/delete', methods=['POST'])

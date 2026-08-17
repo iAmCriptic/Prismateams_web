@@ -173,27 +173,34 @@ def build_chat_nav_items(user):
     epoch = datetime.min
 
     main = [c for c in chats if c.is_main_chat][:1]  # only one Haupt-Chat in the nav
+    team_chats = sorted(
+        [c for c in chats if not c.is_main_chat and c.team_id],
+        key=lambda c: (c.name or '').lower(),
+    )
+    team_ids = {c.id for c in team_chats}
     pinned = sorted(
-        [c for c in chats if not c.is_main_chat and c.id in pinned_ids],
+        [c for c in chats if not c.is_main_chat and c.id not in team_ids and c.id in pinned_ids],
         key=lambda c: pin_order[c.id][0],
     )
     rest = sorted(
-        [c for c in chats if not c.is_main_chat and c.id not in pinned_ids],
+        [c for c in chats if not c.is_main_chat and c.id not in team_ids and c.id not in pinned_ids],
         key=lambda c: last_times.get(c.id) or epoch,
         reverse=True,
     )
-    ordered = main + pinned + rest
+    ordered = main + team_chats + pinned + rest
 
     items = []
     for chat in ordered:
         membership = membership_by_chat.get(chat.id)
+        is_team = bool(chat.team_id)
         items.append({
             'chat': chat,
             'nav_id': 1 if chat.is_main_chat else chat.id,
             'member_count': len(chat.members) if chat.members is not None else 0,
             'unread_count': _unread_count_for_membership(membership, user.id) if membership else 0,
-            'is_pinned': chat.id in pinned_ids and not chat.is_main_chat,
-            'can_pin': not chat.is_main_chat,
+            'is_pinned': chat.id in pinned_ids and not chat.is_main_chat and not is_team,
+            'can_pin': not chat.is_main_chat and not is_team,
+            'is_team_chat': is_team,
         })
     return items
 
@@ -211,6 +218,8 @@ def toggle_chat_pin(user, chat_id):
         return False, False, 'Chat nicht gefunden.', 0
     if chat.is_main_chat:
         return False, False, 'Der Haupt-Chat kann nicht angepinnt werden.', 0
+    if chat.team_id:
+        return False, False, 'Team-Chats können nicht angepinnt werden.', 0
 
     membership = ChatMember.query.filter_by(chat_id=chat.id, user_id=user.id).first()
     if not membership:

@@ -37,8 +37,10 @@ from app.models.kanban import (
     KanbanCardAssignee,
     KanbanCardLabel,
     KanbanCardVote,
+    KanbanCardFieldValue,
     KanbanChecklist,
     KanbanChecklistItem,
+    KanbanCustomField,
     KanbanLabel,
     KanbanList,
 )
@@ -78,6 +80,8 @@ BOARD_BACKGROUNDS = [
     {'key': 'sunset', 'css': 'linear-gradient(135deg, #c2410c, #f59e0b)'},
     {'key': 'berry', 'css': 'linear-gradient(135deg, #9f1239, #e11d48)'},
 ]
+
+CUSTOM_FIELD_TYPES = ('text', 'select', 'date', 'time', 'checkbox')
 
 
 def _emit_board(board_id: int, event_type: str, data: dict):
@@ -215,6 +219,45 @@ def _serialize_card_summary(card: KanbanCard) -> dict:
     }
 
 
+def _parse_custom_field_options(raw, field_type: str) -> str | None:
+    if field_type != 'select':
+        return None
+    opts: list[str] = []
+    if isinstance(raw, list):
+        opts = [str(x).strip() for x in raw if str(x).strip()]
+    else:
+        text = (raw or '').strip()
+        if text:
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, list):
+                    opts = [str(x).strip() for x in parsed if str(x).strip()]
+                else:
+                    opts = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            except Exception:
+                opts = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return json.dumps(opts)
+
+
+def _serialize_custom_field(field: KanbanCustomField) -> dict:
+    options = []
+    if field.options:
+        try:
+            parsed = json.loads(field.options)
+            if isinstance(parsed, list):
+                options = [str(x) for x in parsed]
+        except Exception:
+            options = [ln.strip() for ln in field.options.splitlines() if ln.strip()]
+    return {
+        'id': field.id,
+        'field_type': field.field_type,
+        'label': field.label,
+        'position': field.position,
+        'options': options,
+        'placeholder': field.placeholder,
+    }
+
+
 def _serialize_card_detail(card: KanbanCard) -> dict:
     data = _serialize_card_summary(card)
     data.update({
@@ -231,6 +274,7 @@ def _serialize_card_detail(card: KanbanCard) -> dict:
             for cl in card.checklists
         ],
         'attachments': [_serialize_attachment(a) for a in card.attachments],
+        'custom_field_values': {str(fv.field_id): fv.value for fv in card.field_values},
         'board_id': card.list.board_id if card.list else None,
         'list_title': card.list.title if card.list else None,
     })
@@ -276,6 +320,7 @@ def _serialize_board(board: KanbanBoard, *, full: bool = False) -> dict:
         ]
         data['can_edit'] = can_edit_board(current_user, board)
         data['can_manage'] = can_manage_board(current_user, board)
+        data['custom_fields'] = [_serialize_custom_field(f) for f in board.custom_fields]
     return data
 
 
@@ -297,6 +342,13 @@ def _require_board_edit(board_id: int):
     return board, None
 
 
+def _require_board_manage(board_id: int):
+    board = KanbanBoard.query.get_or_404(board_id)
+    if not can_manage_board(current_user, board):
+        return None, (jsonify({'error': 'Forbidden'}), 403)
+    return board, None
+
+
 def _track_view(board: KanbanBoard):
     view = KanbanBoardView.query.filter_by(board_id=board.id, user_id=current_user.id).first()
     now = portal_now_naive()
@@ -311,6 +363,22 @@ def _share_guest_ok(token: str) -> bool:
     return bool(session.get(f'share_auth_{token}'))
 
 
+def _user_kanban_teams(user):
+    """Teams the user may assign boards to / see as sidebar folders."""
+    if VISIBILITY_TEAM not in get_allowed_visibilities():
+        return []
+    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
+        return Team.query.order_by(Team.name).all()
+    team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()]
+    if not team_ids:
+        return []
+    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+
+
+def _user_may_use_team(user, team_id: int) -> bool:
+    return any(t.id == team_id for t in _user_kanban_teams(user))
+
+
 # ── Pages ──────────────────────────────────────────────────────────────
 
 @kanban_bp.route('/')
@@ -320,6 +388,12 @@ def index():
     section = (request.args.get('section') or 'all').strip().lower()
     if section not in ('all', 'recent', 'private', 'team', 'public'):
         section = 'all'
+    filter_team_id = None
+    if section == 'team':
+        try:
+            filter_team_id = int(request.args.get('team_id') or 0) or None
+        except (TypeError, ValueError):
+            filter_team_id = None
     boards = (
         accessible_boards_query(current_user, include_closed=False)
         .order_by(KanbanBoard.updated_at.desc())
@@ -331,7 +405,6 @@ def index():
         .limit(8)
         .all()
     )
-    recent_ids = {v.board_id for v in recent_views}
     recent_boards = []
     for v in recent_views:
         if v.board and not v.board.closed_at and can_view_board(current_user, v.board):
@@ -341,14 +414,23 @@ def index():
     team_boards = [b for b in boards if b.visibility == VISIBILITY_TEAM] if VISIBILITY_TEAM in get_allowed_visibilities() else []
     public_boards = [b for b in boards if b.visibility == VISIBILITY_PUBLIC] if VISIBILITY_PUBLIC in get_allowed_visibilities() else []
 
-    teams = []
-    if VISIBILITY_TEAM in get_allowed_visibilities():
-        if getattr(current_user, 'is_admin', False):
-            teams = Team.query.order_by(Team.name).all()
+    teams = _user_kanban_teams(current_user)
+    team_board_groups = []
+    for team in teams:
+        group_boards = [b for b in team_boards if b.team_id == team.id]
+        if group_boards:
+            team_board_groups.append({'team': team, 'boards': group_boards})
+    ungrouped_team_boards = [b for b in team_boards if not b.team_id]
+    if ungrouped_team_boards:
+        team_board_groups.append({'team': None, 'boards': ungrouped_team_boards})
+
+    selected_team_boards = team_boards
+    if filter_team_id:
+        if not any(t.id == filter_team_id for t in teams):
+            filter_team_id = None
+            section = 'all'
         else:
-            team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=current_user.id).all()]
-            if team_ids:
-                teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+            selected_team_boards = [b for b in team_boards if b.team_id == filter_team_id]
 
     templates = KanbanBoardTemplate.query.filter(
         db.or_(
@@ -365,11 +447,14 @@ def index():
         if can_manage_board(current_user, b)
     }
 
+    active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
+
     return render_template(
         'kanban/index.html',
         recent_boards=recent_boards,
         private_boards=private_boards,
-        team_boards=team_boards,
+        team_boards=selected_team_boards,
+        team_board_groups=team_board_groups,
         public_boards=public_boards,
         allowed_visibilities=get_allowed_visibilities(),
         teams=teams,
@@ -378,7 +463,8 @@ def index():
         show_closed_link=True,
         manageable_ids=manageable_ids,
         section_filter=section,
-        active_nav=section,
+        filter_team_id=filter_team_id,
+        active_nav=active_nav,
     )
 
 
@@ -398,6 +484,7 @@ def closed_boards():
         'kanban/closed.html',
         boards=boards,
         allowed_visibilities=get_allowed_visibilities(),
+        teams=_user_kanban_teams(current_user),
         active_nav='closed',
         create_modal=False,
     )
@@ -444,12 +531,18 @@ def api_create_board():
         return jsonify({'error': 'Title required'}), 400
 
     visibility = (data.get('visibility') or VISIBILITY_PRIVATE).strip().lower()
+    team_id = data.get('team_id')
+    if visibility.startswith('team:'):
+        try:
+            team_id = int(visibility.split(':', 1)[1])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid team'}), 400
+        visibility = VISIBILITY_TEAM
     if visibility not in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC):
         visibility = VISIBILITY_PRIVATE
     if not visibility_allowed(visibility):
         return jsonify({'error': 'Visibility not allowed'}), 400
 
-    team_id = data.get('team_id')
     if team_id in ('', None):
         team_id = None
     else:
@@ -463,6 +556,8 @@ def api_create_board():
             return jsonify({'error': 'Team required'}), 400
         if not Team.query.get(team_id):
             return jsonify({'error': 'Team not found'}), 404
+        if not _user_may_use_team(current_user, team_id):
+            return jsonify({'error': 'Forbidden'}), 403
     else:
         team_id = None
 
@@ -869,6 +964,31 @@ def api_create_checklist(card_id):
     return jsonify({'success': True, 'card': payload}), 201
 
 
+@kanban_bp.route('/api/checklists/<int:checklist_id>', methods=['PATCH', 'DELETE'])
+@login_required
+@check_module_access('module_kanban')
+def api_checklist(checklist_id):
+    cl = KanbanChecklist.query.get_or_404(checklist_id)
+    card = cl.card
+    board = card.list.board
+    if not can_edit_board(current_user, board):
+        return jsonify({'error': 'Forbidden'}), 403
+    if request.method == 'DELETE':
+        db.session.delete(cl)
+        db.session.commit()
+        payload = _serialize_card_detail(card)
+        _emit_board(board.id, 'card_updated', payload)
+        return jsonify({'success': True, 'card': payload})
+    data = request.get_json(silent=True) or {}
+    if 'title' in data:
+        title = (data.get('title') or '').strip()
+        cl.title = title or cl.title
+    db.session.commit()
+    payload = _serialize_card_detail(card)
+    _emit_board(board.id, 'card_updated', payload)
+    return jsonify({'success': True, 'card': payload})
+
+
 @kanban_bp.route('/api/checklists/<int:checklist_id>/items', methods=['POST'])
 @login_required
 @check_module_access('module_kanban')
@@ -909,6 +1029,116 @@ def api_checklist_item(item_id):
         item.done = bool(data['done'])
     if 'text' in data:
         item.text = (data['text'] or item.text).strip() or item.text
+    db.session.commit()
+    payload = _serialize_card_detail(card)
+    _emit_board(board.id, 'card_updated', payload)
+    return jsonify({'success': True, 'card': payload})
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/custom-fields', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_board_custom_fields(board_id):
+    if request.method == 'GET':
+        board, err = _require_board_view(board_id)
+        if err:
+            return err
+        return jsonify({
+            'success': True,
+            'custom_fields': [_serialize_custom_field(f) for f in board.custom_fields],
+        })
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    field_type = (data.get('field_type') or 'text').strip().lower()
+    if field_type not in CUSTOM_FIELD_TYPES:
+        return jsonify({'error': 'Invalid field type'}), 400
+    label = (data.get('label') or '').strip()
+    if not label:
+        return jsonify({'error': 'Label required'}), 400
+    field = KanbanCustomField(
+        board_id=board.id,
+        field_type=field_type,
+        label=label[:200],
+        position=len(board.custom_fields),
+        options=_parse_custom_field_options(data.get('options'), field_type),
+        placeholder=(data.get('placeholder') or '').strip()[:255] or None,
+    )
+    db.session.add(field)
+    db.session.commit()
+    payload = _serialize_custom_field(field)
+    _emit_board(board.id, 'custom_field_created', payload)
+    return jsonify({'success': True, 'custom_field': payload, 'custom_fields': [_serialize_custom_field(f) for f in board.custom_fields]}), 201
+
+
+@kanban_bp.route('/api/custom-fields/<int:field_id>', methods=['PATCH', 'DELETE'])
+@login_required
+@check_module_access('module_kanban')
+def api_custom_field(field_id):
+    field = KanbanCustomField.query.get_or_404(field_id)
+    board, err = _require_board_manage(field.board_id)
+    if err:
+        return err
+    if request.method == 'DELETE':
+        db.session.delete(field)
+        db.session.commit()
+        fields = [_serialize_custom_field(f) for f in board.custom_fields]
+        _emit_board(board.id, 'custom_field_deleted', {'id': field_id})
+        return jsonify({'success': True, 'custom_fields': fields})
+    data = request.get_json(silent=True) or {}
+    if 'label' in data:
+        label = (data.get('label') or '').strip()
+        if label:
+            field.label = label[:200]
+    if 'field_type' in data:
+        field_type = (data.get('field_type') or field.field_type).strip().lower()
+        if field_type not in CUSTOM_FIELD_TYPES:
+            return jsonify({'error': 'Invalid field type'}), 400
+        field.field_type = field_type
+    if 'placeholder' in data:
+        field.placeholder = (data.get('placeholder') or '').strip()[:255] or None
+    if 'options' in data or 'field_type' in data:
+        field.options = _parse_custom_field_options(data.get('options', field.options), field.field_type)
+    if 'position' in data:
+        try:
+            field.position = int(data['position'])
+        except (TypeError, ValueError):
+            pass
+    db.session.commit()
+    payload = _serialize_custom_field(field)
+    _emit_board(board.id, 'custom_field_updated', payload)
+    return jsonify({
+        'success': True,
+        'custom_field': payload,
+        'custom_fields': [_serialize_custom_field(f) for f in board.custom_fields],
+    })
+
+
+@kanban_bp.route('/api/cards/<int:card_id>/custom-field-values', methods=['PUT'])
+@login_required
+@check_module_access('module_kanban')
+def api_set_card_custom_field_value(card_id):
+    card = KanbanCard.query.get_or_404(card_id)
+    board = card.list.board
+    if not can_edit_board(current_user, board):
+        return jsonify({'error': 'Forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        field_id = int(data.get('field_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'field_id required'}), 400
+    field = KanbanCustomField.query.filter_by(id=field_id, board_id=board.id).first_or_404()
+    raw = data.get('value')
+    if field.field_type == 'checkbox':
+        value = 'true' if raw in (True, 'true', '1', 1, 'on') else 'false'
+    else:
+        value = '' if raw is None else str(raw).strip()
+    existing = KanbanCardFieldValue.query.filter_by(card_id=card.id, field_id=field.id).first()
+    if existing:
+        existing.value = value
+    else:
+        db.session.add(KanbanCardFieldValue(card_id=card.id, field_id=field.id, value=value))
     db.session.commit()
     payload = _serialize_card_detail(card)
     _emit_board(board.id, 'card_updated', payload)
@@ -1174,6 +1404,7 @@ def edit_onlyoffice(attachment_id):
         theme_dark=bool(getattr(current_user, 'dark_mode', False)),
         theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         onlyoffice_ui_theme=editor_config["editorConfig"]["customization"]["uiTheme"],
+        forcesave_url=url_for('kanban.onlyoffice_forcesave', attachment_id=att.id),
     )
 
 
@@ -1261,6 +1492,36 @@ def onlyoffice_callback(attachment_id):
                     logging.error('Kanban OnlyOffice write failed: %s', exc)
 
     return _kanban_oo_cors({'error': 0})[0]
+
+
+@kanban_bp.route('/api/onlyoffice-forcesave/<int:attachment_id>', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def onlyoffice_forcesave(attachment_id):
+    """Force-save an open Kanban OnlyOffice attachment."""
+    import logging
+
+    from app.utils.onlyoffice import send_onlyoffice_command
+
+    if not is_onlyoffice_enabled():
+        return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
+
+    att = KanbanAttachment.query.get_or_404(attachment_id)
+    board = att.card.list.board
+    if not can_view_board(current_user, board):
+        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    key = (payload.get('key') or '').strip()
+    if not key or len(key) > 128:
+        return jsonify({'success': False, 'error': 'invalid_key'}), 400
+
+    ok, error_code, detail = send_onlyoffice_command('forcesave', key)
+    logging.info(
+        'Kanban OnlyOffice forcesave attachment=%s ok=%s error_code=%s detail=%s',
+        attachment_id, ok, error_code, detail,
+    )
+    return jsonify({'success': ok, 'error_code': error_code, 'detail': detail})
 
 
 @kanban_bp.route('/attachments/<int:attachment_id>/preview')

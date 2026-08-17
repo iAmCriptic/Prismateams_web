@@ -115,15 +115,25 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.
 
 ```bash
 # OnlyOffice aktualisieren (falls installiert)
+# Fonts-Volume beibehalten, sonst fehlen Schriften nach dem Image-Update (PDF/Druck).
 sudo docker stop onlyoffice-documentserver
 sudo docker rm onlyoffice-documentserver
 sudo docker pull onlyoffice/documentserver:latest
-sudo docker run -i -t -d -p 8080:80 --restart=always \
+sudo docker run -d --restart=always \
     --name onlyoffice-documentserver \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -p 127.0.0.1:8080:80 \
     -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -e JWT_ENABLED=true \
     -e JWT_SECRET=dein-jwt-secret-key-hier \
-    onlyoffice/documentserver
+    -e JWT_HEADER=Authorization \
+    -e ALLOW_PRIVATE_IP_ADDRESS=true \
+    onlyoffice/documentserver:latest
+
+# Font-Index nach Image-Update neu erzeugen (kann 1–2 Minuten dauern)
+sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
 
 # Excalidraw aktualisieren (falls installiert)
 sudo docker stop excalidraw excalidraw-room

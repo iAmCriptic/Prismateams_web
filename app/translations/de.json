@@ -27,7 +27,35 @@
       "notifications_short": "Info",
       "home": "Home",
       "booking": "Buchungen",
-      "kanban": "Kanban"
+      "kanban": "Kanban",
+      "events": "Veranstaltungen",
+      "shortlinks": "Kurzlinks",
+      "assessment": "Bewertung"
+    },
+    "brand": {
+      "separator": "–",
+      "module_fallback": "Portal"
+    },
+    "search": {
+      "slot_label": "Suche"
+    },
+    "launcher": {
+      "open": "Module öffnen",
+      "title": "Module",
+      "favorites": "Meine Favoriten",
+      "edit": "Favoriten bearbeiten",
+      "done": "Fertig",
+      "hint": "Apps per Drag and Drop verschieben",
+      "empty_favorites": "Noch keine Favoriten"
+    },
+    "rail": {
+      "label": "Favoriten"
+    },
+    "account": {
+      "open": "Konto",
+      "greeting": "Hallo {name}!",
+      "manage_profile": "Profil verwalten",
+      "storage_usage": "{used} von {quota} belegt ({percent}%)"
     },
     "notification_center": {
       "open": "Benachrichtigungen öffnen",
@@ -1804,7 +1832,7 @@
         },
         "calendar_settings": {
           "title": "Kalender-Einstellungen",
-          "description": "Mehrere Kalender, Import und Export konfigurieren"
+          "description": "Private, Team- und Public-Kalender, Import und Export"
         },
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
@@ -1863,6 +1891,8 @@
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
         "private_folders_label": "Private Ordner aktivieren",
         "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
+        "team_folders_label": "Team-Ablagen aktivieren",
+        "team_folders_help": "Jedes Team erhält eine eigene Datei-Ablage in der Sidebar. Sichtbar und bearbeitbar nur für Teammitglieder. Dateien können weiterhin intern und per Link freigegeben werden.",
         "document_format_label": "Standardformat für neue Dokumente",
         "document_format_help": "Legt fest, welche Dateitypen beim Erstellen über „Neu“ angelegt werden. Bestehende Dateien bleiben unverändert.",
         "document_format_office": "Office-Formate (DOCX, XLSX, PPTX)",
@@ -1904,10 +1934,14 @@
         "page_title": "Kalender-Einstellungen - Administration",
         "breadcrumb": "Kalender-Einstellungen",
         "heading": "Kalender-Einstellungen",
-        "subtitle": "Multi-Kalender, Import und Export für das Kalender-Modul steuern.",
+        "subtitle": "Private, Team- und Public-Kalender sowie Import und Export steuern.",
         "section_title": "Kalender-Funktionen",
         "multi_label": "Mehrere Kalender nutzen",
         "multi_help": "Jeder Benutzer erhält einen eigenen Kalender. Es gibt einen Public-Kalender für alle. Andere Kalender können angesehen, aber Termine nur im eigenen und im Public-Kalender erstellt werden.",
+        "personal_label": "Private Kalender",
+        "personal_help": "Jeder Benutzer erhält eigene Kalender. Andere sehen sie, sofern der Kalender nicht versteckt ist.",
+        "team_label": "Team-Kalender",
+        "team_help": "Jedes Team erhält einen gemeinsamen Kalender. Alle Mitglieder können Termine anlegen und bearbeiten.",
         "export_label": "Kalender-Export erlauben",
         "export_help": "Wenn deaktiviert, können Kalender weder als ICS exportiert noch in externe Apps eingebunden werden.",
         "import_label": "Kalender-Import erlauben",
@@ -1980,6 +2014,17 @@
         "allow_public": "Öffentliche Boards (gesamtes Portal)",
         "save": "Speichern",
         "flash_saved": "Kanban-Einstellungen gespeichert."
+      },
+      "visibility": {
+        "page_title": "{module} – Sichtbarkeit",
+        "subtitle": "Erlaubte Bereiche für Privat, Team und Public festlegen",
+        "visibility_title": "Bereiche",
+        "visibility_lead": "Welche Bereiche Nutzer anlegen und in der Übersicht sehen dürfen. Bestehende Einträge bleiben für Ersteller und Teammitglieder sichtbar.",
+        "allow_private": "Privater Bereich (nur Ersteller)",
+        "allow_team": "Team-Bereiche (ein Ordner pro Team)",
+        "allow_public": "Öffentlicher Bereich (gesamtes Portal)",
+        "save": "Speichern",
+        "flash_saved": "Sichtbarkeitseinstellungen gespeichert."
       }
     },
     "mailboxes": {
@@ -2137,7 +2182,8 @@
       "main_chat_cannot_edit": "Der Haupt-Chat kann nicht bearbeitet werden",
       "private_chat_cannot_edit": "Private Chats können nicht bearbeitet werden",
       "updated": "Chat erfolgreich aktualisiert",
-      "deleted": "Chat erfolgreich gelöscht"
+      "deleted": "Chat erfolgreich gelöscht",
+      "team_chat_cannot_delete": "Der Team-Chat kann nicht gelöscht werden."
     },
     "errors": {
       "main_chat_not_found": "Haupt-Chat nicht gefunden",
@@ -2146,6 +2192,7 @@
       "main_chat_cannot_edit": "Der Haupt-Chat kann nicht bearbeitet werden",
       "private_chat_cannot_edit": "Private Chats können nicht bearbeitet werden",
       "main_chat_cannot_delete": "Der Haupt-Chat kann nicht gelöscht werden",
+      "team_chat_cannot_delete": "Der Team-Chat kann nicht gelöscht werden",
       "not_member": "Sie sind kein Mitglied dieses Chats"
     },
     "common": {
@@ -2156,6 +2203,7 @@
       "heading": "Chats",
       "subtitle": "Verwalten Sie Ihre Team-Chats und Direktnachrichten",
       "new_chat": "Neuer Chat",
+      "team_chats": "Team-Chats",
       "main_badge": "Haupt-Chat",
       "main_description": "Team-weiter Chat für alle Mitglieder",
       "open": "Öffnen",
@@ -2236,7 +2284,8 @@
       "back_to_chat": "Zurück zum Chat",
       "members": {
         "label": "Mitglieder",
-        "help": "Wählen Sie die Teilnehmer dieses Gruppen-Chats. Sie selbst bleiben immer Mitglied."
+        "help": "Wählen Sie die Teilnehmer dieses Gruppen-Chats. Sie selbst bleiben immer Mitglied.",
+        "team_help": "Die Mitglieder dieses Chats folgen dem Team und können hier nicht geändert werden."
       },
       "avatar": {
         "label": "Gruppenbild",
@@ -2333,6 +2382,7 @@
         "ablage": "Meine Ablage",
         "freigaben": "Freigaben",
         "public": "Public",
+        "team": "Team",
         "trash": "Papierkorb",
         "menu": "Menü öffnen"
       },
@@ -2363,6 +2413,8 @@
         "title": "Intern freigeben",
         "share_all": "Mit allen teilen",
         "share_user": "Mit Person teilen",
+        "share_team": "Mit Team teilen",
+        "team_prefix": "Team",
         "permission_view": "Betrachten",
         "permission_edit": "Bearbeiten",
         "remove": "Entfernen",
@@ -2600,7 +2652,9 @@
       "pdf_error": "PDF konnte in diesem Browser nicht eingebettet werden. Bitte herunterladen."
     },
     "onlyoffice": {
-      "back_button_label": "Zurück"
+      "back_button_label": "Zurück",
+      "saving": "Speichern…",
+      "unsaved_changes": "Wirklich verlassen? Ungespeicherte Änderungen gehen verloren."
     }
   },
   "email": {
@@ -3498,6 +3552,16 @@
       "export_disabled": "Kalender-Export ist deaktiviert.",
       "import_disabled": "Kalender-Import ist deaktiviert.",
       "cannot_delete_calendar": "Dieser Kalender kann nicht gelöscht werden.",
+      "calendar_created": "Kalender \"{name}\" wurde angelegt.",
+      "calendar_updated": "Kalender wurde aktualisiert.",
+      "calendar_deleted": "Kalender wurde gelöscht.",
+      "calendar_name_required": "Bitte einen Kalendernamen angeben.",
+      "calendar_invalid_type": "Ungültiger Kalendertyp.",
+      "calendar_personal_disabled": "Private Kalender sind nicht aktiviert.",
+      "calendar_team_disabled": "Team-Kalender sind nicht aktiviert.",
+      "calendar_team_required": "Bitte ein Team wählen.",
+      "calendar_team_forbidden": "Keine Berechtigung für dieses Team.",
+      "no_manage_permission": "Keine Berechtigung, diesen Kalender zu bearbeiten.",
       "participation_status": "Teilnahme an \"{event_title}\": {status}",
       "accepted": "zugesagt",
       "declined": "abgesagt"
@@ -3509,16 +3573,34 @@
     "sidebar": {
       "brand": "Kalender",
       "new_event": "Neuer Termin",
+      "new_calendar": "Neuer Kalender",
       "reset": "Zurücksetzen",
       "my_calendar": "Mein Kalender",
       "public": "Public",
       "events": "Veranstaltungen",
+      "group_personal": "Meine Kalender",
+      "group_team": "Teams",
+      "group_public": "Public",
+      "group_events": "Veranstaltungen",
       "search": "Personen suchen…",
       "others": "Andere Kalender",
+      "edit": "Einstellungen",
+      "hide": "Kalender verstecken",
+      "show": "Kalender einblenden",
+      "hidden": "Vor anderen versteckt",
+      "delete": "Löschen",
       "delete_import": "Löschen",
       "delete_confirm": "Importierten Kalender und alle Termine löschen?",
+      "delete_calendar_confirm": "Kalender löschen? Termine werden in den Standard-Kalender verschoben.",
       "pick_calendars": "Kalender",
-      "menu": "Kalender-Menü öffnen"
+      "menu": "Kalender-Menü öffnen",
+      "form": {
+        "name": "Name",
+        "type": "Typ",
+        "team": "Team",
+        "color": "Farbe",
+        "create": "Anlegen"
+      }
     },
     "feed": {
       "page_title": "In eigenen Kalender integrieren",
@@ -5434,6 +5516,24 @@
       "filter": "Filtern",
       "save_template": "Als Vorlage"
     },
+    "custom_fields": {
+      "title": "Benutzerdefinierte Felder",
+      "label": "Feldname",
+      "label_ph": "z. B. Ort",
+      "type": "Typ",
+      "type_text": "Freitext",
+      "type_select": "Dropdown",
+      "type_date": "Datum",
+      "type_time": "Uhrzeit",
+      "type_checkbox": "Haken",
+      "options": "Dropdown-Optionen",
+      "options_ph": "Eine Option pro Zeile",
+      "add": "Hinzufügen",
+      "save": "Speichern",
+      "empty": "Noch keine Felder. Lege oben welche an.",
+      "select_ph": "Auswählen …",
+      "delete_confirm": "Dieses Feld und alle Werte auf Karten löschen?"
+    },
     "card": {
       "description": "Beschreibung",
       "description_ph": "Detaillierte Beschreibung hinzufügen…",
@@ -5446,7 +5546,10 @@
       "label_name": "Labelname",
       "label_color": "Farbe",
       "checklist": "Checkliste",
+      "checklist_name": "Checklistenname",
       "attachment": "Anhang",
+      "download": "Download",
+      "view": "Ansehen",
       "comments": "Kommentare und Aktivität",
       "vote": "Abstimmen",
       "archive": "Archivieren",
@@ -5492,6 +5595,22 @@
       "reopen": "Wieder öffnen",
       "delete": "Löschen",
       "empty": "Keine geschlossenen Boards."
+    }
+  },
+  "visibility": {
+    "nav": {
+      "all": "Alle",
+      "private": "Privat",
+      "team": "Team",
+      "public": "Public"
+    },
+    "form": {
+      "label": "Bereich",
+      "private": "Privat",
+      "public": "Public"
+    },
+    "flash": {
+      "access_denied": "Kein Zugriff auf diesen Eintrag."
     }
   }
 }

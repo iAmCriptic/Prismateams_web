@@ -122,7 +122,21 @@ def create_empty_document(filepath: str, file_type: str) -> str:
     if file_type in ('docx', 'xlsx', 'pptx'):
         if file_type == 'docx':
             from docx import Document
-            Document().save(filepath)
+            from docx.oxml.ns import qn
+            from docx.shared import Pt
+
+            doc = Document()
+            style = doc.styles['Normal']
+            font = style.font
+            font.name = 'Calibri'
+            font.size = Pt(11)
+            rpr = style.element.get_or_add_rPr()
+            rfonts = rpr.get_or_add_rFonts()
+            rfonts.set(qn('w:ascii'), 'Calibri')
+            rfonts.set(qn('w:hAnsi'), 'Calibri')
+            rfonts.set(qn('w:eastAsia'), 'Calibri')
+            rfonts.set(qn('w:cs'), 'Calibri')
+            doc.save(filepath)
         elif file_type == 'xlsx':
             from openpyxl import Workbook
             Workbook().save(filepath)

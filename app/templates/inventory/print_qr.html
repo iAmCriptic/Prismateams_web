@@ -6,7 +6,7 @@
 {% block inventory_heading_icon %}bi-printer{% endblock %}
 {% block inventory_heading %}{{ _('inventory.print_qr.heading') }}{% endblock %}
 
-{% block inventory_toolbar_center %}
+{% block navbar_search %}
 <div class="inventory-search" role="search">
     <label class="inventory-search-field" for="qrSearchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
@@ -20,6 +20,8 @@
     </label>
 </div>
 {% endblock %}
+
+{% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
 <div class="inventory-search" role="search">

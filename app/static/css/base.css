@@ -5,6 +5,7 @@
     --accent-style: #0d6efd;
     /* Angenehmes Light-Mode-Grau (nicht Schneeweiß) */
     --portal-bg: #f0f2f5;
+    --top-navbar-height: 64px;
     /* Tatsächliche Bottom-Nav-Höhe (ohne FAB-Puffer) — für Overlays die auf der Nav sitzen */
     --portal-mobile-nav-height: calc(3.6rem + env(safe-area-inset-bottom, 0px));
     /* Fixed Bottom-Nav + Home-FAB-Überstand + Puffer + iOS Safe-Area.
@@ -743,17 +744,19 @@ body {
         padding-bottom: var(--portal-mobile-nav-clearance);
     }
     
-    /* Wenn Desktop-Layout erzwungen wird, Sidebar anzeigen */
+    /* Wenn Desktop-Layout erzwungen wird, Top-Navbar anzeigen */
     body.force-desktop-layout .main-content {
-        margin-left: 280px;
+        margin-left: 0;
+        padding-top: var(--top-navbar-height, 64px);
+        padding-right: var(--favorites-rail-width, 56px);
         padding-bottom: 0;
     }
     
     body.force-desktop-layout .mobile-nav {
         display: none !important;
     }
-    
-    body.force-desktop-layout .sidebar {
+
+    body.force-desktop-layout .top-navbar {
         display: flex !important;
     }
     
@@ -775,13 +778,15 @@ body {
 /* Desktop (ab 992px) */
 @media (min-width: 992px) {
     .main-content {
-        margin-left: 280px;
+        margin-left: 0;
+        padding-top: var(--top-navbar-height, 64px);
+        padding-right: var(--favorites-rail-width, 56px);
         padding-bottom: 0;
     }
 }
 
 /* Force Desktop Layout - auch auf Tablets */
-body.force-desktop-layout .sidebar {
+body.force-desktop-layout .top-navbar {
     display: flex !important;
 }
 
@@ -790,12 +795,20 @@ body.force-desktop-layout .mobile-nav {
 }
 
 body.force-desktop-layout .main-content {
-    margin-left: 280px;
+    margin-left: 0;
+    padding-top: var(--top-navbar-height, 64px);
+    padding-right: var(--favorites-rail-width, 56px);
     padding-bottom: 0;
 }
 
+body.force-desktop-layout .favorites-rail {
+    display: flex !important;
+}
+
 /* Force Mobile Layout */
-body.force-mobile-layout .sidebar {
+body.force-mobile-layout .top-navbar,
+body.force-mobile-layout .sidebar,
+body.force-mobile-layout .favorites-rail {
     display: none !important;
 }
 
@@ -806,12 +819,16 @@ body.force-mobile-layout .mobile-nav.d-lg-none {
 
 body.force-mobile-layout .main-content {
     margin-left: 0;
+    padding-top: 0;
+    padding-right: 0;
     padding-bottom: var(--portal-mobile-nav-clearance);
 }
 
 /* Phones: never keep a forced desktop chrome (prevents “zoomed” clipped layout) */
 @media (max-width: 767.98px) {
-    body.force-desktop-layout .sidebar {
+    body.force-desktop-layout .top-navbar,
+    body.force-desktop-layout .sidebar,
+    body.force-desktop-layout .favorites-rail {
         display: none !important;
     }
 
@@ -821,6 +838,8 @@ body.force-mobile-layout .main-content {
 
     body.force-desktop-layout .main-content {
         margin-left: 0 !important;
+        padding-top: 0 !important;
+        padding-right: 0 !important;
         padding-bottom: var(--portal-mobile-nav-clearance) !important;
     }
 }
@@ -1943,9 +1962,11 @@ a.more-menu-link.active,
     display: none;
 }
 @media (min-width: 992px) {
+    body:has(#desktopTopNav) .app-flash-banner,
     body:has(#desktopSidebar) .app-flash-banner {
-        left: calc(280px + 0.75rem);
-        right: 0.75rem;
+        left: 0.75rem;
+        right: calc(var(--favorites-rail-width, 56px) + 0.75rem);
+        top: calc(var(--top-navbar-height, 64px) + 0.75rem);
         max-width: 30rem;
     }
     body:has(.wiki-file-viewer) .app-flash-banner,

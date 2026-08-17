@@ -91,25 +91,44 @@ def import_chat_pins(data: List[Dict], chat_map: Dict[str, int], user_map: Dict[
 
 
 def export_calendars() -> List[Dict]:
-    return [{
-        'name': c.name,
-        'calendar_type': c.calendar_type,
-        'owner_email': _user_email(c.owner_id),
-        'color': c.color,
-        'created_at': c.created_at.isoformat() if c.created_at else None,
-        '_export_id': c.id,
-    } for c in Calendar.query.all()]
+    from app.models.team import Team
+    out = []
+    for c in Calendar.query.all():
+        team_name = None
+        if getattr(c, 'team_id', None):
+            team = Team.query.get(c.team_id)
+            if team:
+                team_name = team.name
+        out.append({
+            'name': c.name,
+            'calendar_type': c.calendar_type,
+            'owner_email': _user_email(c.owner_id),
+            'team_name': team_name,
+            'color': c.color,
+            'is_default': bool(getattr(c, 'is_default', False)),
+            'hidden_from_others': bool(getattr(c, 'hidden_from_others', False)),
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+            '_export_id': c.id,
+        })
+    return out
 
 
 def import_calendars(data: List[Dict], user_map: Dict[str, int], current_user_id=None) -> Dict[int, int]:
     """Map: backup calendar id -> local id"""
+    from app.models.team import Team
     id_map = {}
     for row in data:
         owner_id = _resolve_user(row.get('owner_email'), user_map, current_user_id)
+        team_id = None
+        if row.get('team_name'):
+            team = Team.query.filter_by(name=row.get('team_name')).first()
+            if team:
+                team_id = team.id
         existing = Calendar.query.filter_by(
             name=row.get('name'),
             calendar_type=row.get('calendar_type', 'personal'),
             owner_id=owner_id,
+            team_id=team_id,
         ).first()
         if existing:
             cal = existing
@@ -118,10 +137,17 @@ def import_calendars(data: List[Dict], user_map: Dict[str, int], current_user_id
                 name=row.get('name') or 'Kalender',
                 calendar_type=row.get('calendar_type') or 'personal',
                 owner_id=owner_id,
+                team_id=team_id,
                 color=row.get('color') or '#0d6efd',
+                is_default=bool(row.get('is_default', False)),
+                hidden_from_others=bool(row.get('hidden_from_others', False)),
             )
             db.session.add(cal)
             db.session.flush()
+        if row.get('is_default'):
+            cal.is_default = True
+        if row.get('hidden_from_others') is not None:
+            cal.hidden_from_others = bool(row.get('hidden_from_others'))
         if row.get('_export_id') is not None:
             id_map[int(row['_export_id'])] = cal.id
     return id_map
@@ -205,6 +231,7 @@ def export_resource_acls() -> List[Dict]:
             'resource_type': a.resource_type,
             'folder_name': folder.name if folder else None,
             'grantee_email': _user_email(a.grantee_user_id),
+            'grantee_team_id': getattr(a, 'grantee_team_id', None),
             'permission': a.permission,
             'created_by_email': _user_email(a.created_by),
         })
@@ -237,6 +264,7 @@ def import_resource_acls(data: List[Dict], folder_map: Dict[str, int], user_map:
                 resource_type='folder',
                 resource_id=rid,
                 grantee_user_id=grantee,
+                grantee_team_id=row.get('grantee_team_id'),
                 permission=row.get('permission') or 'view',
                 created_by=creator,
             ))
@@ -270,6 +298,8 @@ def export_contacts() -> List[Dict]:
         'email': c.email,
         'phone': c.phone,
         'notes': c.notes,
+        'visibility': getattr(c, 'visibility', 'public'),
+        'team_id': getattr(c, 'team_id', None),
         'created_by_email': _user_email(c.created_by),
         'created_at': c.created_at.isoformat() if c.created_at else None,
     } for c in Contact.query.all()]
@@ -290,6 +320,10 @@ def import_contacts(data: List[Dict], user_map: Dict[str, int], current_user_id=
             existing.phone = row.get('phone')
             existing.notes = row.get('notes')
             existing.salutation = row.get('salutation')
+            if row.get('visibility'):
+                existing.visibility = row['visibility']
+            if 'team_id' in row:
+                existing.team_id = row.get('team_id')
         else:
             db.session.add(Contact(
                 salutation=row.get('salutation'),
@@ -299,6 +333,8 @@ def import_contacts(data: List[Dict], user_map: Dict[str, int], current_user_id=
                 phone=row.get('phone'),
                 notes=row.get('notes'),
                 created_by=created_by,
+                visibility=row.get('visibility') or 'public',
+                team_id=row.get('team_id'),
             ))
 
 
@@ -1012,6 +1048,8 @@ def export_short_links() -> List[Dict]:
         'max_clicks': s.max_clicks,
         'click_count': s.click_count,
         'created_by_email': _user_email(s.created_by),
+        'visibility': getattr(s, 'visibility', 'private'),
+        'team_id': getattr(s, 'team_id', None),
         'created_at': s.created_at.isoformat() if s.created_at else None,
     } for s in ShortLink.query.all()]
 
@@ -1032,6 +1070,10 @@ def import_short_links(data: List[Dict], user_map: Dict[str, int], current_user_
             existing.max_clicks = row.get('max_clicks')
             if row.get('expires_at'):
                 existing.expires_at = datetime.fromisoformat(row['expires_at'])
+            if row.get('visibility'):
+                existing.visibility = row['visibility']
+            if 'team_id' in row:
+                existing.team_id = row.get('team_id')
         else:
             link = ShortLink(
                 slug=slug,
@@ -1041,6 +1083,8 @@ def import_short_links(data: List[Dict], user_map: Dict[str, int], current_user_
                 max_clicks=row.get('max_clicks'),
                 click_count=row.get('click_count') or 0,
                 created_by=creator,
+                visibility=row.get('visibility') or 'private',
+                team_id=row.get('team_id'),
             )
             if row.get('expires_at'):
                 link.expires_at = datetime.fromisoformat(row['expires_at'])

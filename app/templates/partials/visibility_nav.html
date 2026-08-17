@@ -1,0 +1,35 @@
+{# Shared Private / Team / Public sidebar links.
+   Pass allowed/teams/nav explicitly — imported macros have no caller context. #}
+{% macro visibility_space_links(endpoint, query_base={}, dismiss_attr='', allowed=None, teams=None, nav=None) %}
+{% set vis_allowed = allowed if allowed is sequence else allowed_visibilities|default([]) %}
+{% set vis_teams = teams if teams is sequence else visibility_teams|default([]) %}
+{% set vis_nav = nav if nav else active_nav|default('all') %}
+{% if 'private' in vis_allowed %}
+<a class="nav-link mod-nav-link {% if vis_nav == 'private' %}active{% endif %}"
+   href="{{ url_for(endpoint, view='private', **query_base) }}"
+   {{ dismiss_attr|safe }}>
+    <i class="bi bi-lock me-2"></i>{{ _('visibility.nav.private') }}
+</a>
+{% endif %}
+{% if 'team' in vis_allowed %}
+{% for t in vis_teams %}
+<a class="nav-link mod-nav-link {% if vis_nav == 'team-' ~ t.id %}active{% endif %}"
+   href="{{ url_for(endpoint, view='team', team_id=t.id, **query_base) }}"
+   {{ dismiss_attr|safe }}>
+    {% if t.color %}
+    <span class="d-inline-block rounded-circle me-2 flex-shrink-0" style="width:.65rem;height:.65rem;background:{{ t.color }};" aria-hidden="true"></span>
+    {% else %}
+    <i class="bi bi-people me-2" aria-hidden="true"></i>
+    {% endif %}
+    <span class="text-truncate">{{ t.name }}</span>
+</a>
+{% endfor %}
+{% endif %}
+{% if 'public' in vis_allowed %}
+<a class="nav-link mod-nav-link {% if vis_nav == 'public' %}active{% endif %}"
+   href="{{ url_for(endpoint, view='public', **query_base) }}"
+   {{ dismiss_attr|safe }}>
+    <i class="bi bi-globe2 me-2"></i>{{ _('visibility.nav.public') }}
+</a>
+{% endif %}
+{% endmacro %}

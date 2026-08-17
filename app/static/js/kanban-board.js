@@ -5,6 +5,7 @@
   const board = window.KANBAN_BOARD;
   board.lists = board.lists || [];
   board.labels = board.labels || [];
+  board.custom_fields = board.custom_fields || [];
 
   const canEdit = app.dataset.canEdit === '1';
   const canManage = app.dataset.canManage === '1';
@@ -110,6 +111,210 @@
       if (c) return c;
     }
     return null;
+  }
+
+  function fieldTypeIcon(type) {
+    if (type === 'select') return 'bi-list-ul';
+    if (type === 'date') return 'bi-calendar3';
+    if (type === 'time') return 'bi-clock';
+    if (type === 'checkbox') return 'bi-check2-square';
+    return 'bi-fonts';
+  }
+
+  function fieldTypeLabel(type) {
+    const map = {
+      text: i18n.typeText || 'Freitext',
+      select: i18n.typeSelect || 'Dropdown',
+      date: i18n.typeDate || 'Datum',
+      time: i18n.typeTime || 'Uhrzeit',
+      checkbox: i18n.typeCheckbox || 'Haken',
+    };
+    return map[type] || type;
+  }
+
+  function customFieldInputHtml(field, value, readonly) {
+    const val = value == null ? '' : String(value);
+    const ph = esc(field.placeholder || '');
+    const disabled = readonly ? 'disabled' : '';
+    const data = `data-field-id="${field.id}" data-field-type="${esc(field.field_type)}"`;
+    if (field.field_type === 'select') {
+      const opts = (field.options || []).map((o) =>
+        `<option value="${esc(o)}" ${o === val ? 'selected' : ''}>${esc(o)}</option>`
+      ).join('');
+      return `<select class="form-select form-select-sm kanban-pill-input" ${data} ${disabled}>
+        <option value="">${esc(i18n.customFieldSelect || 'Auswählen …')}</option>
+        ${opts}
+      </select>`;
+    }
+    if (field.field_type === 'date') {
+      return `<input type="date" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" ${disabled}>`;
+    }
+    if (field.field_type === 'time') {
+      return `<input type="time" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" ${disabled}>`;
+    }
+    if (field.field_type === 'checkbox') {
+      const checked = val === 'true' || val === '1' ? 'checked' : '';
+      return `<input type="checkbox" class="form-check-input" ${data} ${checked} ${disabled}>`;
+    }
+    return `<input type="text" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" placeholder="${ph}" ${disabled} autocomplete="off">`;
+  }
+
+  function renderCardCustomFields(card) {
+    const section = document.getElementById('cardCustomFields');
+    const grid = document.getElementById('cardCustomFieldsGrid');
+    const fields = board.custom_fields || [];
+    if (!section || !grid) return;
+    if (!fields.length) {
+      section.hidden = true;
+      grid.innerHTML = '';
+      return;
+    }
+    section.hidden = false;
+    const values = (card && card.custom_field_values) || {};
+    grid.innerHTML = fields.map((f) => {
+      const v = values[String(f.id)] ?? values[f.id] ?? '';
+      return `<div class="kanban-custom-field">
+        <label class="kanban-custom-field__label"><i class="bi ${fieldTypeIcon(f.field_type)}"></i> ${esc(f.label)}</label>
+        ${customFieldInputHtml(f, v, !canEdit)}
+      </div>`;
+    }).join('');
+    if (!canEdit) return;
+    grid.querySelectorAll('[data-field-id]').forEach((el) => {
+      el.addEventListener('change', () => saveCustomFieldValue(el));
+    });
+  }
+
+  async function saveCustomFieldValue(el) {
+    if (!currentCardId) return;
+    const fieldId = Number(el.getAttribute('data-field-id'));
+    const value = el.type === 'checkbox' ? (el.checked ? 'true' : 'false') : el.value;
+    try {
+      const r = await api(`/kanban/api/cards/${currentCardId}/custom-field-values`, {
+        method: 'PUT',
+        body: { field_id: fieldId, value },
+      });
+      if (r.card) {
+        currentCardDetail = r.card;
+        upsertCardLocal(r.card);
+      }
+    } catch (err) {
+      alert(err.message || 'Fehler');
+    }
+  }
+
+  function showNewChecklistForm() {
+    const clRoot = document.getElementById('cardChecklists');
+    if (!clRoot || !currentCardId) return;
+    let form = clRoot.querySelector('.kanban-new-checklist-form');
+    if (!form) {
+      form = document.createElement('form');
+      form.className = 'kanban-new-checklist-form kanban-checklist';
+      form.innerHTML = `
+        <input class="form-control form-control-sm kanban-pill-input" name="title" maxlength="200"
+               placeholder="${esc(i18n.checklistName || 'Checklistenname')}" autocomplete="off" required>
+        <div class="d-flex gap-2 mt-2">
+          <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">${esc(i18n.add || 'Hinzufügen')}</button>
+          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-cancel-new-cl>${esc(i18n.cancel || 'Abbrechen')}</button>
+        </div>`;
+      clRoot.prepend(form);
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const titleInput = form.querySelector('input[name=title]');
+        const title = (titleInput && titleInput.value || '').trim();
+        if (!title) return;
+        try {
+          await api(`/kanban/api/cards/${currentCardId}/checklists`, { method: 'POST', body: { title } });
+          openCard(currentCardId);
+        } catch (err) {
+          alert(err.message || 'Fehler');
+        }
+      });
+      form.querySelector('[data-cancel-new-cl]')?.addEventListener('click', () => form.remove());
+    }
+    const input = form.querySelector('input[name=title]');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  function setCustomFields(fields) {
+    board.custom_fields = fields || [];
+    if (currentCardDetail) renderCardCustomFields(currentCardDetail);
+  }
+
+  function renderCustomFieldsManageList() {
+    const root = document.getElementById('kanbanCustomFieldsList');
+    if (!root) return;
+    const fields = board.custom_fields || [];
+    if (!fields.length) {
+      root.innerHTML = `<p class="text-muted small mb-0">${esc(i18n.customFieldEmpty || 'Noch keine Felder.')}</p>`;
+      return;
+    }
+    root.innerHTML = fields.map((f) => `
+      <div class="kanban-cf-manage-row" data-field-id="${f.id}">
+        <i class="bi ${fieldTypeIcon(f.field_type)}"></i>
+        <div class="kanban-cf-manage-row__meta">
+          <div class="fw-semibold">${esc(f.label)}</div>
+          <div class="kanban-cf-manage-row__type">${esc(fieldTypeLabel(f.field_type))}</div>
+        </div>
+        <div class="kanban-cf-manage-row__actions">
+          <button type="button" class="btn btn-sm kanban-pill-btn" data-edit-cf="${f.id}">${esc(i18n.rename || 'Bearbeiten')}</button>
+          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-cf="${f.id}">${esc(i18n.delete || 'Löschen')}</button>
+        </div>
+      </div>`).join('');
+    root.querySelectorAll('[data-edit-cf]').forEach((btn) => {
+      btn.addEventListener('click', () => startCustomFieldEdit(Number(btn.getAttribute('data-edit-cf'))));
+    });
+    root.querySelectorAll('[data-del-cf]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(i18n.customFieldDeleteConfirm || 'Feld löschen?')) return;
+        try {
+          const r = await api(`/kanban/api/custom-fields/${btn.getAttribute('data-del-cf')}`, { method: 'DELETE' });
+          setCustomFields(r.custom_fields);
+          renderCustomFieldsManageList();
+        } catch (err) {
+          alert(err.message || 'Fehler');
+        }
+      });
+    });
+  }
+
+  function resetCustomFieldForm() {
+    const form = document.getElementById('kanbanCustomFieldForm');
+    if (form) form.reset();
+    const idEl = document.getElementById('kanbanCfEditId');
+    if (idEl) idEl.value = '';
+    const submit = document.getElementById('kanbanCfSubmit');
+    if (submit) submit.textContent = i18n.customFieldAdd || 'Hinzufügen';
+    document.getElementById('kanbanCfCancelEdit')?.toggleAttribute('hidden', true);
+    syncCustomFieldOptionsVisibility();
+  }
+
+  function startCustomFieldEdit(fieldId) {
+    const field = (board.custom_fields || []).find((f) => f.id === fieldId);
+    if (!field) return;
+    document.getElementById('kanbanCfEditId').value = String(field.id);
+    document.getElementById('kanbanCfLabel').value = field.label || '';
+    document.getElementById('kanbanCfType').value = field.field_type || 'text';
+    document.getElementById('kanbanCfOptions').value = (field.options || []).join('\n');
+    const submit = document.getElementById('kanbanCfSubmit');
+    if (submit) submit.textContent = i18n.customFieldSave || 'Speichern';
+    document.getElementById('kanbanCfCancelEdit')?.toggleAttribute('hidden', false);
+    syncCustomFieldOptionsVisibility();
+    document.getElementById('kanbanCfLabel')?.focus();
+  }
+
+  function syncCustomFieldOptionsVisibility() {
+    const type = document.getElementById('kanbanCfType')?.value;
+    const wrap = document.getElementById('kanbanCfOptionsWrap');
+    if (wrap) wrap.hidden = type !== 'select';
+  }
+
+  function openCustomFieldsModal() {
+    renderCustomFieldsManageList();
+    resetCustomFieldForm();
+    getModal('kanbanCustomFieldsModal')?.show();
   }
 
   function destroySortables() {
@@ -512,20 +717,33 @@
       }</div></div>
       ${card.due_date ? `<div><strong>Datum</strong><div>${esc(formatDueDisplay(card.due_date))}</div></div>` : ''}
     `;
+    renderCardCustomFields(card);
 
     const clRoot = document.getElementById('cardChecklists');
-    clRoot.innerHTML = (card.checklists || []).map((cl) => `
+    clRoot.innerHTML = (card.checklists || []).map((cl) => {
+      const done = (cl.items || []).filter((it) => it.done).length;
+      const total = (cl.items || []).length;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      return `
       <div class="kanban-checklist" data-checklist-id="${cl.id}">
-        <strong>${esc(cl.title)}</strong>
+        <div class="kanban-checklist-head">
+          <input class="form-control form-control-sm kanban-pill-input kanban-checklist-title" data-checklist-id="${cl.id}" value="${esc(cl.title)}" maxlength="200" ${canEdit ? '' : 'readonly'}>
+          ${canEdit ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-checklist="${cl.id}">${esc(i18n.delete || 'Löschen')}</button>` : ''}
+        </div>
+        <div class="kanban-checklist-progress">
+          <span>${pct}%</span>
+          <div class="kanban-checklist-progress__bar"><div style="width:${pct}%"></div></div>
+        </div>
         ${(cl.items || []).map((it) => `
           <label class="kanban-checklist-item">
             <input type="checkbox" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
             <span>${esc(it.text)}</span>
           </label>`).join('')}
         ${canEdit ? `<form class="kanban-add-item-form mt-2" data-checklist-id="${cl.id}">
-          <input class="form-control form-control-sm kanban-pill-input" name="text" placeholder="Item…">
+          <input class="form-control form-control-sm kanban-pill-input" name="text" placeholder="Item…" autocomplete="off">
         </form>` : ''}
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     clRoot.querySelectorAll('input[type=checkbox][data-item-id]').forEach((cb) => {
       cb.addEventListener('change', async () => {
@@ -554,19 +772,60 @@
         }
       });
     });
+    clRoot.querySelectorAll('.kanban-checklist-title').forEach((inp) => {
+      inp.addEventListener('change', async () => {
+        const title = inp.value.trim();
+        if (!title) return;
+        try {
+          const r = await api(`/kanban/api/checklists/${inp.dataset.checklistId}`, {
+            method: 'PATCH', body: { title },
+          });
+          if (r.card) upsertCardLocal(r.card);
+        } catch (err) {
+          alert(err.message || 'Fehler');
+        }
+      });
+    });
+    clRoot.querySelectorAll('[data-del-checklist]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(i18n.delete || 'Löschen?')) return;
+        try {
+          await api(`/kanban/api/checklists/${btn.getAttribute('data-del-checklist')}`, { method: 'DELETE' });
+          openCard(cardId);
+        } catch (err) {
+          alert(err.message || 'Fehler');
+        }
+      });
+    });
 
     const attRoot = document.getElementById('cardAttachments');
-    attRoot.innerHTML = (card.attachments || []).map((a) => `
+    attRoot.innerHTML = (card.attachments || []).map((a) => {
+      const viewUrl = a.is_link ? a.url : (a.preview_url || a.url);
+      const actions = [];
+      if (!a.is_link) {
+        actions.push(`<a class="btn btn-sm kanban-pill-btn" href="${esc(a.url)}" download>${esc(i18n.download || 'Download')}</a>`);
+      }
+      actions.push(`<a class="btn btn-sm kanban-pill-btn" href="${esc(viewUrl)}" target="_blank" rel="noopener">${esc(i18n.view || 'Ansehen')}</a>`);
+      if (a.onlyoffice_url) {
+        actions.push(`<a class="btn btn-sm kanban-pill-btn" href="${esc(a.onlyoffice_url)}"><i class="bi bi-pencil-square me-1"></i>OnlyOffice</a>`);
+      }
+      if (canEdit && a.is_image) {
+        actions.push(`<button type="button" class="btn btn-sm kanban-pill-btn" data-set-cover="${a.id}">${esc(i18n.setCover || 'Titelbild')}</button>`);
+      }
+      if (canEdit) {
+        actions.push(`<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-att="${a.id}"><i class="bi bi-trash me-1"></i>${esc(i18n.delete || 'Löschen')}</button>`);
+      }
+      return `
       <div class="kanban-attach-row">
-        ${a.is_link
-          ? `<i class="bi bi-link-45deg"></i>`
-          : (a.is_image ? `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt="">` : `<i class="bi bi-file-earmark"></i>`)}
-        <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
-        ${a.onlyoffice_url ? `<a class="btn btn-sm kanban-pill-btn" href="${esc(a.onlyoffice_url)}"><i class="bi bi-pencil-square me-1"></i>OnlyOffice</a>` : ''}
-        ${canEdit && a.is_image ? `<button type="button" class="btn btn-sm kanban-pill-btn" data-set-cover="${a.id}">Titelbild</button>` : ''}
-        ${!a.is_link && (a.is_pdf || a.is_image) ? `<a class="btn btn-sm kanban-pill-btn" href="${esc(a.preview_url)}" target="_blank">Vorschau</a>` : ''}
-        ${canEdit ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-att="${a.id}"><i class="bi bi-trash"></i></button>` : ''}
-      </div>`).join('') || '<p class="text-muted small">Keine Anhänge</p>';
+        <div class="kanban-attach-row__info">
+          ${a.is_link
+            ? `<i class="bi bi-link-45deg"></i>`
+            : (a.is_image ? `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt="">` : `<i class="bi bi-file-earmark"></i>`)}
+          <a class="kanban-attach-row__name" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+        </div>
+        <div class="kanban-attach-row__actions">${actions.join('')}</div>
+      </div>`;
+    }).join('') || '<p class="text-muted small">Keine Anhänge</p>';
 
     attRoot.querySelectorAll('[data-set-cover]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -611,7 +870,8 @@
       const commentsList = commentsRoot.querySelector('.comments-list');
       if (commentsList) commentsList.innerHTML = '';
       if (window.CommentSystem) {
-        commentSystem = new CommentSystem('kanban_card', cardId, 'kanbanCardComments');
+        commentSystem = new window.CommentSystem('kanban_card', cardId, 'kanbanCardComments');
+        window.commentSystem = commentSystem;
       }
     }
 
@@ -892,16 +1152,9 @@
     }
   });
 
-  document.getElementById('cardAddChecklist')?.addEventListener('click', async () => {
+  document.getElementById('cardAddChecklist')?.addEventListener('click', () => {
     if (!currentCardId) return;
-    const title = prompt('Checkliste', 'Checkliste');
-    if (!title) return;
-    try {
-      await api(`/kanban/api/cards/${currentCardId}/checklists`, { method: 'POST', body: { title } });
-      openCard(currentCardId);
-    } catch (err) {
-      alert(err.message || 'Fehler');
-    }
+    showNewChecklistForm();
   });
 
   document.getElementById('cardAddDue')?.addEventListener('click', () => {
@@ -1155,6 +1408,35 @@
       });
     });
   }
+
+  document.getElementById('kanbanCustomFieldsBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openCustomFieldsModal();
+  });
+
+  document.getElementById('kanbanCfType')?.addEventListener('change', syncCustomFieldOptionsVisibility);
+
+  document.getElementById('kanbanCfCancelEdit')?.addEventListener('click', () => resetCustomFieldForm());
+
+  document.getElementById('kanbanCustomFieldForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = (document.getElementById('kanbanCfEditId')?.value || '').trim();
+    const label = (document.getElementById('kanbanCfLabel')?.value || '').trim();
+    const fieldType = document.getElementById('kanbanCfType')?.value || 'text';
+    const options = document.getElementById('kanbanCfOptions')?.value || '';
+    if (!label) return;
+    const body = { label, field_type: fieldType, options };
+    try {
+      const r = editId
+        ? await api(`/kanban/api/custom-fields/${editId}`, { method: 'PATCH', body })
+        : await api(`/kanban/api/boards/${boardId}/custom-fields`, { method: 'POST', body });
+      setCustomFields(r.custom_fields);
+      renderCustomFieldsManageList();
+      resetCustomFieldForm();
+    } catch (err) {
+      alert(err.message || 'Fehler');
+    }
+  });
 
   document.getElementById('kanbanShareBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -1442,7 +1724,8 @@
       };
       ['kanban:card_created', 'kanban:card_updated', 'kanban:card_moved', 'kanban:card_deleted',
         'kanban:list_created', 'kanban:list_updated', 'kanban:list_deleted', 'kanban:lists_reordered',
-        'kanban:board_updated', 'kanban:label_created', 'kanban:members_updated'].forEach((name) => {
+        'kanban:board_updated', 'kanban:label_created', 'kanban:members_updated',
+        'kanban:custom_field_created', 'kanban:custom_field_updated', 'kanban:custom_field_deleted'].forEach((name) => {
         es.addEventListener(name, (ev) => {
           if (ignoreSSE) return;
           try { handleLiveEvent({ event: name, data: JSON.parse(ev.data) }); } catch (_) {}
@@ -1457,6 +1740,10 @@
     if (event.includes('label_created') && data.id) {
       board.labels = board.labels || [];
       if (!board.labels.some((l) => l.id === data.id)) board.labels.push(data);
+      return;
+    }
+    if (event.includes('custom_field')) {
+      refreshBoard();
       return;
     }
     if (event.includes('members_updated')) {
@@ -1487,6 +1774,7 @@
         board.lists = data.lists;
         board.labels = data.labels || board.labels;
         board.members = data.members || board.members;
+        if (data.custom_fields) board.custom_fields = data.custom_fields;
         renderBoardMembers();
         renderBoard();
       }

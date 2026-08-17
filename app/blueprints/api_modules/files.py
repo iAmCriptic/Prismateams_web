@@ -73,6 +73,7 @@ from app.utils.public_share import (
     serialize_share_settings,
     upsert_share_link,
 )
+from app.utils.private_files import can_view_file, can_view_folder
 
 
 def _generate_unique_dropbox_token():
@@ -106,7 +107,8 @@ def register_files_routes(api_bp, require_api_auth):
     @login_required
     def get_files():
         folder_id = request.args.get("folder_id", type=int)
-        files = File.query.filter_by(folder_id=folder_id, is_current=True).order_by(File.name).all()
+        files = File.query.filter_by(folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).order_by(File.name).all()
+        files = [file for file in files if can_view_file(file, current_user)]
         return jsonify([{
             "id": file.id,
             "name": file.name,
@@ -121,7 +123,13 @@ def register_files_routes(api_bp, require_api_auth):
     @login_required
     def get_folders():
         parent_id = request.args.get("parent_id", type=int)
-        folders = Folder.query.filter_by(parent_id=parent_id).order_by(Folder.name).all()
+        folders = Folder.query.filter_by(parent_id=parent_id).filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
+        folders = [
+            folder for folder in folders
+            if not folder.is_personal_root
+            and not getattr(folder, "is_team_root", False)
+            and can_view_folder(folder, current_user)
+        ]
         return jsonify([{
             "id": folder.id,
             "name": folder.name,

@@ -206,6 +206,20 @@ class User(UserMixin, db.Model):
         if not isinstance(mobile_nav, dict):
             mobile_nav = {'left': 'chat', 'right': 'calendar'}
 
+        favorites = config.get('desktop_nav_favorites')
+        if not isinstance(favorites, list):
+            favorites = []
+        seen_favs = set()
+        desktop_nav_favorites = []
+        for raw in favorites:
+            if not isinstance(raw, str):
+                continue
+            key = raw.strip()
+            if not key or key in seen_favs:
+                continue
+            seen_favs.add(key)
+            desktop_nav_favorites.append(key)
+
         widgets = config.get('widgets')
         if not isinstance(widgets, list):
             widgets = None
@@ -251,6 +265,7 @@ class User(UserMixin, db.Model):
             'enabled_widgets': [w['type'] for w in normalized],
             'quick_access_links': quick_access,
             'mobile_nav_slots': mobile_nav,
+            'desktop_nav_favorites': desktop_nav_favorites,
         }
 
     def set_dashboard_config(self, config):

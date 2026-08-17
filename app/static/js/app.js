@@ -943,7 +943,7 @@ class ServerPushManager {
     }
 
     isPortalLayoutVisible() {
-        return !!(document.getElementById('desktopSidebar') || document.getElementById('mobileNav'));
+        return !!(document.getElementById('desktopTopNav') || document.getElementById('desktopSidebar') || document.getElementById('mobileNav'));
     }
 
     isPushPromptContextPage() {

@@ -6,6 +6,22 @@
 {% block inventory_heading_icon %}{% if is_retired_folder_view %}bi-trash3-fill{% else %}bi-box-seam{% endif %}{% endblock %}
 {% block inventory_heading %}{% if is_retired_folder_view %}Papierkorb{% else %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endif %}{% endblock %}
 
+{% block navbar_search %}
+<div class="inventory-search" role="search">
+    <label class="inventory-search-field" for="searchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="searchInput"
+               data-inv-filter="searchInput"
+               class="inventory-search-input"
+               placeholder="{{ _('inventory.stock.search.placeholder') }}"
+               aria-label="{{ _('inventory.stock.search.label') }}"
+               autocomplete="off"
+               enterkeyhint="search">
+    </label>
+</div>
+{% endblock %}
+
 {% block inventory_mobile_actions %}
 {% if show_new %}
 <div class="dropdown">
@@ -22,21 +38,7 @@
 
 {% block inventory_toolbar_extra %}{% endblock %}
 
-{% block inventory_toolbar_center %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="searchInput">
-        <i class="bi bi-search" aria-hidden="true"></i>
-        <input type="search"
-               id="searchInput"
-               data-inv-filter="searchInput"
-               class="inventory-search-input"
-               placeholder="{{ _('inventory.stock.search.placeholder') }}"
-               aria-label="{{ _('inventory.stock.search.label') }}"
-               autocomplete="off"
-               enterkeyhint="search">
-    </label>
-</div>
-{% endblock %}
+{% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
 <div class="inventory-search" role="search">

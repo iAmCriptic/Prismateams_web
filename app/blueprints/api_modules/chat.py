@@ -168,6 +168,8 @@ def _serialize_chat(chat, unread_count=None):
         "group_avatar_url": url_for("chat.serve_media", filename=f"avatars/{chat.group_avatar}", _external=True) if chat.group_avatar else None,
         "is_main_chat": chat.is_main_chat,
         "is_direct_message": chat.is_direct_message,
+        "is_team_chat": bool(chat.team_id),
+        "team_id": chat.team_id,
         "created_by": chat.created_by,
         "created_at": chat.created_at.isoformat() if chat.created_at else None,
         "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
@@ -758,6 +760,8 @@ def register_chat_routes(api_bp, require_api_auth):
 
         if chat.is_main_chat:
             return jsonify({"success": False, "error": translate("chat.errors.main_chat_cannot_delete")}), 400
+        if chat.team_id:
+            return jsonify({"success": False, "error": translate("chat.errors.team_chat_cannot_delete")}), 400
 
         db.session.delete(chat)
         db.session.commit()

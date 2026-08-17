@@ -47,6 +47,7 @@ def _guest_account_form_options():
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
+        ('module_excalidraw', 'Excalidraw'),
     ]
     from app.utils.public_share import get_assignable_public_shares
     assignable_shares = get_assignable_public_shares()
@@ -421,7 +422,8 @@ def admin_users():
         ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
-        ('module_kanban', 'Kanban')
+        ('module_kanban', 'Kanban'),
+        ('module_excalidraw', 'Excalidraw')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -1365,8 +1367,14 @@ def delete_user(user_id):
 
     # Clear team leadership and memberships before deleting user
     from app.models.team import Team, TeamMember
+    from app.utils.team_chat import sync_team_chat_members
     Team.query.filter_by(leader_id=user_id).update({'leader_id': None})
+    former_team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user_id).all()]
     TeamMember.query.filter_by(user_id=user_id).delete()
+    for tid in former_team_ids:
+        team = Team.query.get(tid)
+        if team:
+            sync_team_chat_members(team)
     
     db.session.delete(user)
     db.session.commit()
@@ -1523,6 +1531,9 @@ def create_team():
         if leader_id:
             _ensure_team_member(team.id, leader_id)
 
+        from app.utils.team_chat import ensure_team_chat
+        ensure_team_chat(team, created_by=current_user.id)
+
         db.session.commit()
         flash(translate('settings.admin.teams.flash_created', name=team.name), 'success')
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -1560,6 +1571,8 @@ def admin_team_detail(team_id):
                     continue
                 db.session.add(TeamMember(team_id=team.id, user_id=uid))
                 added += 1
+            from app.utils.team_chat import ensure_team_chat
+            ensure_team_chat(team, created_by=current_user.id)
             db.session.commit()
             flash(translate('settings.admin.teams.flash_members_added', count=added), 'success')
             return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -1568,6 +1581,8 @@ def admin_team_detail(team_id):
             raw_id = request.form.get('user_id', '').strip()
             if raw_id.isdigit():
                 TeamMember.query.filter_by(team_id=team.id, user_id=int(raw_id)).delete()
+                from app.utils.team_chat import sync_team_chat_members
+                sync_team_chat_members(team)
                 db.session.commit()
                 flash(translate('settings.admin.teams.flash_member_removed'), 'success')
             return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -1631,6 +1646,8 @@ def edit_team(team_id):
         team.description = description
         team.color = color
         team.leader_id = leader_id
+        from app.utils.private_files import sync_team_root_name
+        sync_team_root_name(team)
 
         if remove_image and team.image:
             _delete_team_image_file(team.image)
@@ -1649,6 +1666,14 @@ def edit_team(team_id):
         if leader_id:
             _ensure_team_member(team.id, leader_id)
 
+        from app.utils.team_chat import ensure_team_chat, sync_team_chat_name
+        from app.models.calendar import Calendar as CalModel
+        ensure_team_chat(team, created_by=current_user.id)
+        sync_team_chat_name(team)
+        for cal in CalModel.query.filter_by(calendar_type='team', team_id=team.id, is_default=True).all():
+            if cal.name != team.name:
+                cal.name = team.name
+
         db.session.commit()
         flash(translate('settings.admin.teams.flash_updated', name=team.name), 'success')
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -1665,10 +1690,23 @@ def delete_team(team_id):
         return redirect(url_for('settings.index'))
 
     from app.models.team import Team
+    from app.models.calendar import Calendar as CalModel, CalendarEvent
+    from app.utils.private_files import soft_delete_team_tree
+    from app.utils.team_chat import unlink_team_chat
+    from app.utils.multi_calendars import get_public_calendar
     team = Team.query.get_or_404(team_id)
     name = team.name
     if team.image:
         _delete_team_image_file(team.image)
+    soft_delete_team_tree(team.id, current_user.id)
+    unlink_team_chat(team.id)
+    public = get_public_calendar()
+    for cal in CalModel.query.filter_by(calendar_type='team', team_id=team.id).all():
+        CalendarEvent.query.filter_by(calendar_id=cal.id).update(
+            {CalendarEvent.calendar_id: public.id},
+            synchronize_session=False,
+        )
+        db.session.delete(cal)
     db.session.delete(team)
     db.session.commit()
     flash(translate('settings.admin.teams.flash_deleted', name=name), 'success')
@@ -1721,6 +1759,13 @@ def set_user_teams(user_id):
 
     for tid in valid_ids - existing_ids:
         db.session.add(TeamMember(team_id=tid, user_id=user.id))
+
+    from app.utils.team_chat import ensure_team_chat, sync_team_chat_members
+    for tid in (existing_ids | valid_ids):
+        team = Team.query.get(tid)
+        if team:
+            ensure_team_chat(team, created_by=current_user.id)
+            sync_team_chat_members(team)
 
     db.session.commit()
     flash(translate('settings.admin.teams.flash_user_teams_updated', name=user.full_name), 'success')
@@ -2256,12 +2301,14 @@ def admin_file_settings():
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
         private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
+        team_folders_enabled = request.form.get('files_team_folders_enabled') == 'on'
         document_format = (request.form.get('files_document_format') or FORMAT_OFFICE).strip().lower()
         if document_format not in (FORMAT_OFFICE, FORMAT_OPENDOCUMENT):
             document_format = FORMAT_OFFICE
         _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
         _upsert_text('files_sharing_enabled', str(sharing_enabled))
         _upsert_text('files_private_folders_enabled', str(private_folders_enabled))
+        _upsert_text('files_team_folders_enabled', str(team_folders_enabled))
         _upsert_text(
             SETTING_DOCUMENT_FORMAT,
             document_format,
@@ -2301,10 +2348,12 @@ def admin_file_settings():
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
+    team_setting = SystemSettings.query.filter_by(key='files_team_folders_enabled').first()
 
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
+    files_team_folders_enabled = (team_setting and str(team_setting.value).lower() == 'true') or False
     files_document_format = get_document_format() or FORMAT_OFFICE
 
     max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
@@ -2344,6 +2393,7 @@ def admin_file_settings():
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=files_private_folders_enabled,
+        files_team_folders_enabled=files_team_folders_enabled,
         files_document_format=files_document_format,
         max_file_value=max_file_value,
         max_file_unit=max_file_unit,
@@ -2373,10 +2423,14 @@ def admin_calendar_settings():
         return redirect(url_for('settings.index'))
 
     if request.method == 'POST':
-        multi_enabled = request.form.get('calendar_multi_enabled') == 'on'
+        personal_enabled = request.form.get('calendar_personal_enabled') == 'on'
+        team_enabled = request.form.get('calendar_team_enabled') == 'on'
         export_enabled = request.form.get('calendar_export_enabled') == 'on'
         import_enabled = request.form.get('calendar_import_enabled') == 'on'
+        multi_enabled = personal_enabled or team_enabled
 
+        _upsert_bool_setting('calendar_personal_enabled', personal_enabled)
+        _upsert_bool_setting('calendar_team_enabled', team_enabled)
         _upsert_bool_setting('calendar_multi_enabled', multi_enabled)
         _upsert_bool_setting('calendar_export_enabled', export_enabled)
         _upsert_bool_setting('calendar_import_enabled', import_enabled)
@@ -2385,21 +2439,20 @@ def admin_calendar_settings():
         if multi_enabled:
             try:
                 from app.utils.multi_calendars import (
+                    backfill_space_calendars,
                     ensure_imported_calendar_for_source,
                     get_or_create_events_calendar,
-                    get_or_create_personal_calendar,
                     get_public_calendar,
                 )
                 from app.models.calendar import CalendarEvent, CalendarSyncSource
-                from app.models.user import User as _User
 
+                backfill_space_calendars()
                 public = get_public_calendar()
                 events_cal = get_or_create_events_calendar()
                 CalendarEvent.query.filter(CalendarEvent.calendar_id.is_(None)).update(
                     {CalendarEvent.calendar_id: public.id},
                     synchronize_session=False,
                 )
-                # Module entries that were on Public while multi was off → Veranstaltungen
                 booking_or_event_ids = set()
                 for row in CalendarEvent.query.filter(
                     CalendarEvent.calendar_id == public.id,
@@ -2422,8 +2475,6 @@ def admin_calendar_settings():
                         {CalendarEvent.calendar_id: events_cal.id},
                         synchronize_session=False,
                     )
-                for u in _User.query.filter_by(is_active=True).all():
-                    get_or_create_personal_calendar(u)
                 for source in CalendarSyncSource.query.all():
                     cal = ensure_imported_calendar_for_source(source)
                     CalendarEvent.query.filter_by(sync_source_id=source.id).update(
@@ -2451,11 +2502,13 @@ def admin_calendar_settings():
     from app.utils.multi_calendars import (
         is_calendar_export_enabled,
         is_calendar_import_enabled,
-        is_calendar_multi_enabled,
+        is_calendar_personal_enabled,
+        is_calendar_team_enabled,
     )
     return render_template(
         'settings/admin_calendar_settings.html',
-        calendar_multi_enabled=is_calendar_multi_enabled(),
+        calendar_personal_enabled=is_calendar_personal_enabled(),
+        calendar_team_enabled=is_calendar_team_enabled(),
         calendar_export_enabled=is_calendar_export_enabled(),
         calendar_import_enabled=is_calendar_import_enabled(),
     )
@@ -2843,6 +2896,74 @@ def admin_kanban_settings():
         allow_private=_setting_bool(SETTING_ALLOW_PRIVATE, True),
         allow_team=_setting_bool(SETTING_ALLOW_TEAM, True),
         allow_public=_setting_bool(SETTING_ALLOW_PUBLIC, True),
+    )
+
+
+VISIBILITY_SETTINGS_MODULES = {
+    'credentials': {
+        'module_key': 'module_credentials',
+        'label_key': 'layout.nav.credentials',
+        'icon': 'bi-key',
+    },
+    'manuals': {
+        'module_key': 'module_manuals',
+        'label_key': 'layout.nav.manuals',
+        'icon': 'bi-book',
+    },
+    'contacts': {
+        'module_key': 'module_contacts',
+        'label_key': 'layout.nav.contacts',
+        'icon': 'bi-people',
+    },
+    'wiki': {
+        'module_key': 'module_wiki',
+        'label_key': 'layout.nav.wiki',
+        'icon': 'bi-journal-text',
+    },
+    'shortlinks': {
+        'module_key': 'module_shortlinks',
+        'label_key': 'layout.nav.shortlinks',
+        'icon': 'bi-link-45deg',
+    },
+}
+
+
+@settings_bp.route('/admin/visibility/<module>', methods=['GET', 'POST'])
+@login_required
+def admin_module_visibility(module):
+    """Private / Team / Public switches for credentials, manuals, contacts, wiki, shortlinks."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    meta = VISIBILITY_SETTINGS_MODULES.get(module)
+    if not meta:
+        abort(404)
+
+    from app.utils.bot_protection import upsert_setting
+    from app.utils.common import is_module_enabled
+    from app.utils.module_visibility import _setting_bool, setting_key
+
+    if not is_module_enabled(meta['module_key']):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        upsert_setting(setting_key(module, 'private'), str(request.form.get('allow_private') == 'on').lower(), f'{module}: Privat')
+        upsert_setting(setting_key(module, 'team'), str(request.form.get('allow_team') == 'on').lower(), f'{module}: Team')
+        upsert_setting(setting_key(module, 'public'), str(request.form.get('allow_public') == 'on').lower(), f'{module}: Public')
+        db.session.commit()
+        flash(translate('settings.admin.visibility.flash_saved'), 'success')
+        return _settings_redirect('settings.admin_module_visibility', module=module)
+
+    return render_template(
+        'settings/admin_module_visibility.html',
+        module=module,
+        module_label=translate(meta['label_key']),
+        module_icon=meta['icon'],
+        allow_private=_setting_bool(setting_key(module, 'private'), True),
+        allow_team=_setting_bool(setting_key(module, 'team'), True),
+        allow_public=_setting_bool(setting_key(module, 'public'), True),
     )
 
 
@@ -4118,7 +4239,8 @@ def admin_roles_default():
         ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
-        ('module_kanban', 'Kanban')
+        ('module_kanban', 'Kanban'),
+        ('module_excalidraw', 'Excalidraw')
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

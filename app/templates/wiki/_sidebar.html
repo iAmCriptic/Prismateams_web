@@ -84,11 +84,20 @@
 </div>
 {% endmacro %}
 
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 {% macro wiki_folder_nav(dismiss_offcanvas=false) %}
 {% set active_favorites = active_favorites|default(favorites_only|default(false)) %}
 {% set show_favorites_nav = show_favorites_nav|default(false) %}
+{% set active_nav = active_nav|default('all') %}
+{% set wiki_query = {
+    'q': search_query or none,
+    'sort': sort_by,
+    'dir': sort_dir,
+    'category': selected_category or none,
+    'tag': selected_tag or none,
+} %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link mod-nav-link {% if not active_favorites %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if not active_favorites and active_nav == 'all' %}active{% endif %}"
        href="{{ url_for('wiki.index', q=search_query or none, sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none) }}"
        {% if dismiss_offcanvas %}data-wiki-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-journal-text me-2"></i>{{ _('wiki.index.folders.all') }}
@@ -101,13 +110,14 @@
         <i class="bi bi-star-fill me-2"></i>{{ _('wiki.index.folders.favorites') }}
     </a>
     {% endif %}
+    {{ visibility_space_links('wiki.index', wiki_query, 'data-wiki-dismiss-offcanvas="1"' if dismiss_offcanvas else '', allowed_visibilities, visibility_teams, active_nav) }}
 </nav>
 {% endmacro %}
 
 {% macro wiki_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
 {% if include_new %}
 <div class="mod-sidebar-new-wrap w-100">
-    <a href="{{ url_for('wiki.create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-wiki-dismiss-offcanvas="1"{% endif %}>
+    <a href="{% if active_nav|default('all') == 'private' %}{{ url_for('wiki.create', view='private') }}{% elif active_nav|default('all') == 'public' %}{{ url_for('wiki.create', view='public') }}{% elif active_nav|default('all') and (active_nav|default('all')).startswith('team-') %}{{ url_for('wiki.create', view='team', team_id=filter_team_id) }}{% else %}{{ url_for('wiki.create') }}{% endif %}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-wiki-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-plus-lg me-2"></i>{{ _('wiki.index.new_button') }}
     </a>
 </div>

@@ -2,34 +2,93 @@
 
 {% block title %}{{ _('contacts.index.page_title') }}{% endblock %}
 
+{% block navbar_search %}
+<form method="GET" class="contacts-search" role="search" id="contactsSearchForm">
+    {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
+    {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
+    <input type="hidden" name="sort" value="{{ current_sort }}">
+    <input type="hidden" name="dir" value="{{ current_dir }}">
+    <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
+    <input type="hidden" name="name" value="{{ current_filters.name }}">
+    <input type="hidden" name="email" value="{{ current_filters.email }}">
+    <input type="hidden" name="phone" value="{{ current_filters.phone }}">
+    <input type="hidden" name="notes" value="{{ current_filters.notes }}">
+    <i class="bi bi-search contacts-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="contactsSearchInput"
+           value="{{ search_query }}"
+           class="form-control contacts-search-input"
+           placeholder="{{ _('contacts.index.search.placeholder') }}"
+           aria-label="{{ _('contacts.index.search.button') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('contacts.index', sort=current_sort, dir=current_dir, salutation=current_filters.salutation or None, name=current_filters.name or None, email=current_filters.email or None, phone=current_filters.phone or None, notes=current_filters.notes or None, view=('favorites' if active_favorites|default(false) else None)) }}"
+       class="btn contacts-search-clear"
+       id="contactsSearchClear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
 {% block content %}
 {% set has_filter_state = current_filters.salutation or current_filters.name or current_filters.email or current_filters.phone or current_filters.notes %}
-{% set create_url = url_for('contacts.create') %}
 {% set active_favorites = active_favorites|default(false) %}
 {% set favorite_ids = favorite_ids|default([]) %}
 {% set show_favorites_nav = show_favorites_nav|default(false) %}
-{% set view_param = 'favorites' if active_favorites else '' %}
-{% if active_favorites %}
-{% set active_folder_label = _('contacts.index.folders.favorites') %}
+{% set active_nav = active_nav|default('all') %}
+{% set filter_team_id = filter_team_id|default(none) %}
+{% set space_view = active_nav in ['private', 'public'] or (active_nav and active_nav.startswith('team-')) %}
+{% if space_view and filter_team_id %}
+{% set create_url = url_for('contacts.create', view='team', team_id=filter_team_id) %}
+{% elif space_view %}
+{% set create_url = url_for('contacts.create', view=active_nav) %}
 {% else %}
-{% set active_folder_label = _('contacts.index.folders.all') %}
+{% set create_url = url_for('contacts.create') %}
 {% endif %}
+{% if active_favorites %}
+{% set view_param = 'favorites' %}
+{% elif active_nav == 'private' %}
+{% set view_param = 'private' %}
+{% elif active_nav == 'public' %}
+{% set view_param = 'public' %}
+{% elif space_view %}
+{% set view_param = 'team' %}
+{% else %}
+{% set view_param = '' %}
+{% endif %}
+{% set contacts_query_base = {
+    'sort': current_sort,
+    'dir': current_dir,
+    'salutation': current_filters.salutation or none,
+    'name': current_filters.name or none,
+    'email': current_filters.email or none,
+    'phone': current_filters.phone or none,
+    'notes': current_filters.notes or none,
+    'q': search_query or none,
+} %}
 
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 {% macro contacts_folder_nav(dismiss_offcanvas=false) %}
-{% if show_favorites_nav %}
 <nav class="mod-sidebar-nav nav flex-column gap-1 mb-3" data-contacts-folder-nav>
-    <a class="nav-link mod-nav-link {% if not active_favorites %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if not active_favorites and active_nav == 'all' %}active{% endif %}"
        href="{{ url_for('contacts.index') }}"
        {% if dismiss_offcanvas %}data-contacts-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
     </a>
+    {% if show_favorites_nav %}
     <a class="nav-link mod-nav-link {% if active_favorites %}active{% endif %}"
        href="{{ url_for('contacts.index', view='favorites') }}"
        {% if dismiss_offcanvas %}data-contacts-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
     </a>
+    {% endif %}
+    {{ visibility_space_links('contacts.index', {}, 'data-contacts-dismiss-offcanvas="1"' if dismiss_offcanvas else '', allowed_visibilities, visibility_teams, active_nav) }}
 </nav>
-{% endif %}
 {% endmacro %}
 
 {% macro contacts_view_toggle(suffix='', extra_class='') %}
@@ -45,7 +104,8 @@
 
 {% macro contacts_search_form(id_suffix='') %}
 <form method="GET" class="contacts-search" role="search" id="contactsSearchForm{{ id_suffix }}">
-    {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+    {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
+    {% if view_param == 'team' and filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <input type="hidden" name="sort" value="{{ current_sort }}">
     <input type="hidden" name="dir" value="{{ current_dir }}">
     <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
@@ -82,7 +142,8 @@
             <i class="bi bi-sort-alpha-down me-1"></i>{{ _('contacts.index.sort.menu_button') }}
         </div>
         <form method="GET" class="mod-sidebar-form d-grid gap-2">
-            {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+            {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
+    {% if view_param == 'team' and filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
             <input type="hidden" name="q" value="{{ search_query }}">
             <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
             <input type="hidden" name="name" value="{{ current_filters.name }}">
@@ -118,7 +179,8 @@
             <i class="bi bi-funnel me-1"></i>{{ _('contacts.index.filters.menu_button') }}
         </div>
         <form method="GET" class="mod-sidebar-form d-grid gap-2">
-            {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+            {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
+    {% if view_param == 'team' and filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
             <input type="hidden" name="q" value="{{ search_query }}">
             <input type="hidden" name="sort" value="{{ current_sort }}">
             <input type="hidden" name="dir" value="{{ current_dir }}">
@@ -424,13 +486,10 @@
     </div>
 
     <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
-        <div class="col-lg-3 min-width-0">
+        <div class="col min-width-0">
             <h1 class="h4 mb-0 text-truncate">{{ active_folder_label }}</h1>
         </div>
-        <div class="col-lg-6">
-            {{ contacts_search_form('') }}
-        </div>
-        <div class="col-lg-3">
+        <div class="col-auto">
             <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
                 {{ contacts_view_toggle('') }}
             </div>

@@ -6,8 +6,8 @@ from flask_login import current_user, login_required
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.utils.common import portal_now_naive
 from app.utils.multi_calendars import (
+    default_calendar_for_user,
     events_query_for_calendars,
-    get_or_create_personal_calendar,
     is_calendar_multi_enabled,
     parse_calendar_ids_param,
 )
@@ -19,11 +19,12 @@ def register_calendar_routes(api_bp, require_api_auth):
     def get_events():
         multi = is_calendar_multi_enabled()
         if multi:
-            personal = get_or_create_personal_calendar(current_user)
+            default = default_calendar_for_user(current_user)
+            default_ids = [default.id] if default else []
             selected = parse_calendar_ids_param(
                 request.args.get('calendars'),
-                default_ids=[personal.id],
-            ) or [personal.id]
+                default_ids=default_ids,
+            ) or default_ids
             events = events_query_for_calendars(current_user, selected).order_by(CalendarEvent.start_time).all()
         else:
             events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
@@ -77,10 +78,10 @@ def register_calendar_routes(api_bp, require_api_auth):
             week_from_now = now + timedelta(days=7)
             multi = is_calendar_multi_enabled()
             if multi and current_user.is_authenticated:
-                personal = get_or_create_personal_calendar(current_user)
+                default = default_calendar_for_user(current_user)
                 upcoming_count = events_query_for_calendars(
                     current_user,
-                    [personal.id],
+                    [default.id] if default else [],
                     [
                         CalendarEvent.start_time > now,
                         CalendarEvent.start_time <= week_from_now,

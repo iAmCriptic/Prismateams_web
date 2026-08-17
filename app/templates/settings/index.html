@@ -203,6 +203,46 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if is_module_enabled('module_credentials') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='credentials') }}">
+                            <i class="bi bi-key"></i>
+                            <span>{{ _('layout.nav.credentials') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_manuals') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='manuals') }}">
+                            <i class="bi bi-book"></i>
+                            <span>{{ _('layout.nav.manuals') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_contacts') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='contacts') }}">
+                            <i class="bi bi-person-lines-fill"></i>
+                            <span>{{ _('layout.nav.contacts') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_wiki') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='wiki') }}">
+                            <i class="bi bi-journal-text"></i>
+                            <span>{{ _('layout.nav.wiki') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_shortlinks') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='shortlinks') }}">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>{{ _('layout.nav.shortlinks') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if is_module_enabled('module_calendar') %}
                     <li>
                         <a href="{{ url_for('settings.admin_calendar_settings') }}">

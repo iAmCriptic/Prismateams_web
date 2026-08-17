@@ -263,14 +263,9 @@
   // Create board modal
   var form = qs('#createBoardForm');
   if (form) {
-    var vis = qs('#boardVisibility');
-    var teamWrap = qs('#boardTeamWrap');
     var templateWrap = qs('#boardTemplateWrap');
     var templateSelect = qs('#boardTemplate');
 
-    function syncTeam() {
-      if (teamWrap) teamWrap.style.display = vis && vis.value === 'team' ? '' : 'none';
-    }
     function syncCreateMode() {
       var mode = (form.querySelector('input[name="create_mode"]:checked') || {}).value || 'empty';
       if (templateWrap) templateWrap.style.display = mode === 'template' ? '' : 'none';
@@ -278,10 +273,6 @@
         templateSelect.required = mode === 'template';
         if (mode !== 'template') templateSelect.value = '';
       }
-    }
-    if (vis) {
-      vis.addEventListener('change', syncTeam);
-      syncTeam();
     }
     qsa('input[name="create_mode"]', form).forEach(function (radio) {
       radio.addEventListener('change', syncCreateMode);
@@ -302,7 +293,13 @@
       var mode = fd.get('create_mode') || 'empty';
       var payload = Object.fromEntries(fd.entries());
       delete payload.create_mode;
-      if (!payload.team_id) delete payload.team_id;
+      var visVal = String(payload.visibility || '');
+      if (visVal.indexOf('team:') === 0) {
+        payload.visibility = 'team';
+        payload.team_id = visVal.slice(5);
+      } else {
+        delete payload.team_id;
+      }
       if (mode !== 'template' || !payload.template_id) {
         delete payload.template_id;
       }

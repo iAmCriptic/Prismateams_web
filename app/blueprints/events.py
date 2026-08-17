@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from app import db
 from app.models.calendar import CalendarEvent
 from app.models.contact import Contact
+from app.utils.module_visibility import accessible_query
 from app.models.event import (
     Event,
     EventAppointment,
@@ -214,7 +215,7 @@ def people_overview():
 @check_module_access('module_events')
 def create_event():
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-    contacts = Contact.query.order_by(Contact.name).all()
+    contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
     folders = Folder.query.order_by(Folder.name).all()
     products = Product.query.order_by(Product.name).all()
 
@@ -368,7 +369,9 @@ def _store_form_data(event_obj, req):
     existing_contact_keys = set()
     selected_contact_ids = req.form.getlist('contact_ids')
     if selected_contact_ids:
-        for contact in Contact.query.filter(Contact.id.in_(selected_contact_ids)).all():
+        for contact in accessible_query(current_user, Contact, 'contacts').filter(
+            Contact.id.in_(selected_contact_ids)
+        ).all():
             contact_key = (
                 (contact.name or '').strip().lower(),
                 (contact.phone or '').strip(),
@@ -451,7 +454,7 @@ def edit_event(event_id):
     _refresh_archive_state()
     event_obj = Event.query.get_or_404(event_id)
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-    contacts = Contact.query.order_by(Contact.name).all()
+    contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
     folders = Folder.query.order_by(Folder.name).all()
     products = Product.query.order_by(Product.name).all()
 

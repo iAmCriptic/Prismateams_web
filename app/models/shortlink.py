@@ -7,6 +7,8 @@ class ShortLink(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    visibility = db.Column(db.String(20), nullable=False, default='private')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     target_url = db.Column(db.String(2048), nullable=False)
     slug = db.Column(db.String(64), nullable=False, unique=True, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)

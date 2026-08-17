@@ -2,6 +2,36 @@
 
 {% block title %}URL-Shortener{% endblock %}
 
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('shortlinks.index') }}" class="shortlinks-search" role="search" id="shortlinksSearchForm">
+    <input type="hidden" name="sort" value="{{ sort_by|default('created') }}">
+    <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
+    {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
+    {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
+    <i class="bi bi-search shortlinks-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="shortlinksSearchInput"
+           value="{{ search_query|default('') }}"
+           class="form-control shortlinks-search-input"
+           placeholder="Kürzel oder Ziel-URL…"
+           aria-label="Suche"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('shortlinks.index', sort=sort_by|default('created'), dir=sort_dir|default('desc'), status=status_filter or None, expiry=expiry_filter or None, password=password_filter or None, clicks=clicks_filter or None) }}"
+       class="btn shortlinks-search-clear"
+       id="shortlinksSearchClear"
+       aria-label="Suche löschen">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
 {% block content %}
 {% from 'shortlinks/_sidebar.html' import shortlinks_sidebar_chrome with context %}
 {% set create_url = url_for('shortlinks.create') %}
@@ -89,13 +119,9 @@
     </div>
 
     <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
-        <div class="col-lg-3 min-width-0">
+        <div class="col min-width-0">
             <h1 class="h4 mb-0 text-truncate">Kurzlinks</h1>
         </div>
-        <div class="col-lg-6">
-            {{ shortlinks_search_form('') }}
-        </div>
-        <div class="col-lg-3"></div>
     </div>
 
     {% if links %}

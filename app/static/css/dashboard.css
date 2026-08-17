@@ -26,6 +26,12 @@
 }
 
 @media (min-width: 992px) {
+    .dashboard-shell > .mod-sidebar {
+        top: calc(var(--top-navbar-height, 64px) + 0.75rem);
+    }
+}
+
+@media (min-width: 992px) {
     /* Kein Seiten-Scroll: Viewport füllen, nur rechter Bereich scrollt bei Bedarf */
     body:has(.dashboard-shell) {
         overflow: hidden;

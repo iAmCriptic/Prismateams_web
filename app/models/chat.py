@@ -12,6 +12,7 @@ class Chat(db.Model):
     description = db.Column(db.Text, nullable=True)  # Beschreibung des Chats
     is_main_chat = db.Column(db.Boolean, default=False, nullable=False)
     is_direct_message = db.Column(db.Boolean, default=False, nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, unique=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -19,7 +20,12 @@ class Chat(db.Model):
     # Relationships
     members = db.relationship('ChatMember', back_populates='chat', cascade='all, delete-orphan')
     messages = db.relationship('ChatMessage', back_populates='chat', cascade='all, delete-orphan', order_by='ChatMessage.created_at')
-    
+    team = db.relationship('Team', backref=db.backref('team_chat', uselist=False), foreign_keys=[team_id])
+
+    @property
+    def is_team_chat(self):
+        return self.team_id is not None
+
     def __repr__(self):
         return f'<Chat {self.name}>'
 

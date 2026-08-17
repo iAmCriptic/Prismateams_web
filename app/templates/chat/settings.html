@@ -89,7 +89,7 @@
                         </a>
                     </div>
 
-                    {% if not chat.is_main_chat %}
+                    {% if not chat.is_main_chat and not chat.team_id %}
                     <div class="chat-settings-danger" id="chat-delete">
                         <h2 class="chat-settings-danger-title">{{ _('chat.settings.delete.title') }}</h2>
                         <p class="chat-settings-danger-help">{{ _('chat.settings.delete.help') }}</p>
@@ -104,6 +104,9 @@
 
             <section class="chat-create-group-members" id="chat-members" aria-label="{{ _('chat.settings.members.label') }}">
                 <h2 class="chat-create-section-title">{{ _('chat.settings.members.label') }}</h2>
+                {% if chat.team_id %}
+                <p class="chat-create-section-hint">{{ _('chat.settings.members.team_help') }}</p>
+                {% else %}
                 <p class="chat-create-section-hint">{{ _('chat.settings.members.help') }}</p>
                 <div class="chat-create-search">
                     <i class="bi bi-search" aria-hidden="true"></i>
@@ -111,7 +114,26 @@
                            placeholder="{{ _('chat.create.search.placeholder') }}"
                            autocomplete="off" enterkeyhint="search">
                 </div>
+                {% endif %}
                 <div class="chat-create-member-list" id="members-list" data-member-filter-list>
+                    {% if chat.team_id %}
+                    {% for user in members %}
+                    <div class="chat-create-member"
+                         data-search="{{ (user.full_name ~ ' ' ~ user.email)|lower }}">
+                        <span class="chat-create-member-avatar">
+                            {% if user.profile_picture %}
+                            <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" alt="">
+                            {% else %}
+                            <span class="chat-create-member-initial">{{ user.full_name[0].upper() }}</span>
+                            {% endif %}
+                        </span>
+                        <span class="chat-create-member-meta">
+                            <span class="chat-create-member-name">{{ user.full_name }}</span>
+                            <span class="chat-create-member-email">{{ user.email }}</span>
+                        </span>
+                    </div>
+                    {% endfor %}
+                    {% else %}
                     {% for user in users %}
                     {% if user.id != current_user.id %}
                     <label class="chat-create-member chat-create-member--selectable"
@@ -141,6 +163,7 @@
                     <div class="chat-create-empty text-muted d-none" data-member-filter-empty>
                         {{ _('chat.create.search.empty') }}
                     </div>
+                    {% endif %}
                 </div>
             </section>
         </div>
@@ -155,7 +178,7 @@
         </div>
     </form>
 
-    {% if not chat.is_main_chat %}
+    {% if not chat.is_main_chat and not chat.team_id %}
     <form method="POST" id="chat-delete-form" action="{{ chat_delete_url }}"
           onsubmit="return confirm({{ _('chat.settings.delete.confirm')|tojson }});" hidden></form>
     {% endif %}

@@ -25,6 +25,7 @@ AVAILABLE_MODULES = [
     'module_assessment',
     'module_shortlinks',
     'module_kanban',
+    'module_excalidraw',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

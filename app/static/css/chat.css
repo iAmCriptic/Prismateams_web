@@ -685,7 +685,7 @@
     }
     
     .chat-container {
-        height: calc(100vh - 240px); /* Account for header (~140px + margin) and input (~80px) */
+        height: calc(100vh - 240px - var(--top-navbar-height, 64px)); /* Header, Input, Top-Navbar */
         border-radius: 0.75rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         background-color: white;
@@ -694,15 +694,15 @@
         flex-direction: row;
         border: 1px solid var(--chat-muted-border);
         margin-bottom: 80px; /* Space for fixed input */
-        max-height: calc(100vh - 240px);
+        max-height: calc(100vh - 240px - var(--top-navbar-height, 64px));
         position: relative;
     }
     
     /* Optimize container height on smaller screens to ensure input is visible */
     @media (max-height: 900px) {
         .chat-container {
-            height: calc(100vh - 220px) !important; /* Header ~140px + Input ~80px */
-            max-height: calc(100vh - 220px) !important;
+            height: calc(100vh - 220px - var(--top-navbar-height, 64px)) !important;
+            max-height: calc(100vh - 220px - var(--top-navbar-height, 64px)) !important;
             min-height: 400px;
             margin-bottom: 80px !important;
         }
@@ -710,8 +710,8 @@
     
     @media (max-height: 800px) {
         .chat-container {
-            height: calc(100vh - 200px) !important; /* Header ~120px + Input ~70px */
-            max-height: calc(100vh - 200px) !important;
+            height: calc(100vh - 200px - var(--top-navbar-height, 64px)) !important;
+            max-height: calc(100vh - 200px - var(--top-navbar-height, 64px)) !important;
             min-height: 350px;
             margin-bottom: 70px !important;
         }
@@ -719,8 +719,8 @@
     
     @media (max-height: 700px) {
         .chat-container {
-            height: calc(100vh - 180px) !important; /* Header ~100px + Input ~60px */
-            max-height: calc(100vh - 180px) !important;
+            height: calc(100vh - 180px - var(--top-navbar-height, 64px)) !important;
+            max-height: calc(100vh - 180px - var(--top-navbar-height, 64px)) !important;
             min-height: 300px;
             margin-bottom: 60px !important;
         }
@@ -1728,6 +1728,15 @@
     border-radius: 0.4rem;
     color: #fff;
     background: var(--accent-style, var(--accent-color, #0d6efd));
+}
+
+.chat-nav-group-label {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.65rem 0.75rem 0.15rem;
 }
 
 .chat-nav-meta {

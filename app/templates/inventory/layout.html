@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block navbar_search %}{{ super() }}{% endblock %}
+
 {% set ep = request.endpoint or '' %}
 {% set inv_nav = {
   'overview': ep == 'inventory.dashboard',
@@ -177,7 +179,7 @@
                 {% block inventory_toolbar_extra %}{% endblock %}
             </div>
             {% if show_toolbar_center %}
-            <div class="inventory-toolbar-center flex-grow-1 d-flex justify-content-center min-width-0 px-2">
+            <div class="inventory-toolbar-center d-none">
                 {% block inventory_toolbar_center %}{% endblock %}
             </div>
             {% endif %}

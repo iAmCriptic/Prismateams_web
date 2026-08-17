@@ -7,12 +7,51 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 {% endblock %}
 
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('wiki.index') }}" class="wiki-search" role="search" id="wikiSearchForm">
+    {% if active_favorites|default(false) %}<input type="hidden" name="view" value="favorites">{% elif request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
+    {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="dir" value="{{ sort_dir }}">
+    {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+    {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
+    <i class="bi bi-search wiki-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="wikiSearchInput"
+           value="{{ search_query }}"
+           class="form-control wiki-search-input"
+           placeholder="{{ _('wiki.index.search.placeholder') }}"
+           aria-label="{{ _('wiki.index.search.submit') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('wiki.index', sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none, view=('favorites' if active_favorites|default(false) else none)) }}"
+       class="btn wiki-search-clear"
+       id="wikiSearchClear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
 {% block content %}
 {% from 'wiki/_sidebar.html' import wiki_sidebar_chrome with context %}
-{% set create_url = url_for('wiki.create') %}
 {% set active_favorites = active_favorites|default(favorites_only|default(false)) %}
 {% set favorite_ids = favorite_ids|default([]) %}
 {% set show_favorites_nav = show_favorites_nav|default(false) %}
+{% set active_nav = active_nav|default('all') %}
+{% set filter_team_id = filter_team_id|default(none) %}
+{% set space_view = active_nav in ['private', 'public'] or (active_nav and active_nav.startswith('team-')) %}
+{% if space_view and filter_team_id %}
+{% set create_url = url_for('wiki.create', view='team', team_id=filter_team_id) %}
+{% elif space_view %}
+{% set create_url = url_for('wiki.create', view=active_nav) %}
+{% else %}
+{% set create_url = url_for('wiki.create') %}
+{% endif %}
 {% set heading_label = _('wiki.index.folders.favorites') if active_favorites else _('wiki.index.heading') %}
 
 {% macro wiki_view_toggle(suffix='', extra_class='') %}
@@ -28,7 +67,10 @@
 
 {% macro wiki_search_form(id_suffix='') %}
 <form method="GET" action="{{ url_for('wiki.index') }}" class="wiki-search" role="search" id="wikiSearchForm{{ id_suffix }}">
-    {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+    {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% elif active_nav in ['private', 'public', 'team'] or (active_nav and active_nav.startswith('team-')) %}
+    <input type="hidden" name="view" value="{{ 'team' if active_nav.startswith('team-') else active_nav }}">
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    {% endif %}
     <input type="hidden" name="sort" value="{{ sort_by }}">
     <input type="hidden" name="dir" value="{{ sort_dir }}">
     {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
@@ -273,13 +315,10 @@
     </div>
 
     <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
-        <div class="col-lg-3 min-width-0">
+        <div class="col min-width-0">
             <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
         </div>
-        <div class="col-lg-6">
-            {{ wiki_search_form('') }}
-        </div>
-        <div class="col-lg-3">
+        <div class="col-auto">
             <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
                 {{ wiki_view_toggle('') }}
             </div>

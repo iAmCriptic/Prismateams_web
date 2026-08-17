@@ -33,6 +33,12 @@ class KanbanBoard(db.Model):
         order_by='KanbanList.position',
     )
     labels = db.relationship('KanbanLabel', back_populates='board', cascade='all, delete-orphan')
+    custom_fields = db.relationship(
+        'KanbanCustomField',
+        back_populates='board',
+        cascade='all, delete-orphan',
+        order_by='KanbanCustomField.position',
+    )
     activities = db.relationship(
         'KanbanActivity',
         back_populates='board',
@@ -124,6 +130,11 @@ class KanbanCard(db.Model):
         order_by='KanbanAttachment.created_at.desc()',
     )
     votes = db.relationship('KanbanCardVote', back_populates='card', cascade='all, delete-orphan')
+    field_values = db.relationship(
+        'KanbanCardFieldValue',
+        back_populates='card',
+        cascade='all, delete-orphan',
+    )
 
     @property
     def is_archived(self):
@@ -295,4 +306,41 @@ class KanbanBoardView(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint('board_id', 'user_id', name='unique_kanban_board_view'),
+    )
+
+
+class KanbanCustomField(db.Model):
+    """Board-level custom field definition (text, select, date, time, checkbox)."""
+    __tablename__ = 'kanban_custom_fields'
+
+    id = db.Column(db.Integer, primary_key=True)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    field_type = db.Column(db.String(20), nullable=False, default='text')
+    label = db.Column(db.String(200), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    options = db.Column(db.Text, nullable=True)  # JSON list for select
+    placeholder = db.Column(db.String(255), nullable=True)
+
+    board = db.relationship('KanbanBoard', back_populates='custom_fields')
+    values = db.relationship(
+        'KanbanCardFieldValue',
+        back_populates='field',
+        cascade='all, delete-orphan',
+    )
+
+
+class KanbanCardFieldValue(db.Model):
+    """Per-card value for a board custom field."""
+    __tablename__ = 'kanban_card_field_values'
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
+    field_id = db.Column(db.Integer, db.ForeignKey('kanban_custom_fields.id', ondelete='CASCADE'), nullable=False)
+    value = db.Column(db.Text, nullable=True)
+
+    card = db.relationship('KanbanCard', back_populates='field_values')
+    field = db.relationship('KanbanCustomField', back_populates='values')
+
+    __table_args__ = (
+        db.UniqueConstraint('card_id', 'field_id', name='unique_kanban_card_field_value'),
     )

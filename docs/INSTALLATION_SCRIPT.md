@@ -158,11 +158,15 @@ Das Skript installiert **ONLYOFFICE Docs (Document Server)** (`onlyoffice/docume
 
 Bei Installation setzt das Skript:
 
-1. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
-2. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s)
-3. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
-4. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
-5. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+1. Host-Schriftarten: `ttf-mscorefonts-installer` (EULA non-interactive), Carlito/Caladea (Calibri-/Cambria-kompatibel), Liberation, DejaVu – Kopie nach `/var/lib/onlyoffice/DocumentServer/fonts`
+2. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`, **`fonts` → `/usr/share/fonts/truetype/custom`**), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
+3. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s)
+4. `docker exec … documentserver-generate-allfonts.sh` (Font-Index für PDF/Druck)
+5. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
+6. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
+7. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+
+Ohne die Host-Fonts listet der Browser-Editor Schriften, serverseitiges Rendering (PDF/Druck) schlägt aber fehl. Details und manuelle Schritte: [INSTALLATION.md – Schritt 5, Schriftarten](INSTALLATION.md#schriftarten-für-rendering--pdf--druck).
 
 Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen).
 

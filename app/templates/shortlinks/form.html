@@ -89,6 +89,10 @@
                                placeholder="mein-link">
                         <div class="form-text">Leer lassen für zufälliges Kürzel. Erlaubt: Buchstaben, Zahlen, - und _ (3–64 Zeichen).</div>
                     </div>
+                    <div class="shortlinks-form-field">
+                        {% from 'partials/visibility_select.html' import visibility_select with context %}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+                    </div>
                 </div>
             </section>
 

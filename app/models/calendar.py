@@ -3,18 +3,22 @@ from app import db
 
 
 class Calendar(db.Model):
-    """Kalender-Container: personal, public, events oder imported (Sync)."""
+    """Kalender-Container: personal, public, events, imported oder team."""
     __tablename__ = 'calendars'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
-    calendar_type = db.Column(db.String(20), nullable=False, index=True)  # personal | public | events | imported
+    calendar_type = db.Column(db.String(20), nullable=False, index=True)  # personal | public | events | imported | team
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, unique=True)
     color = db.Column(db.String(7), nullable=False, default='#0d6efd')
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+    hidden_from_others = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_calendars', lazy='dynamic'))
+    team = db.relationship('Team', foreign_keys=[team_id], backref=db.backref('calendars', lazy='dynamic'))
     sync_source = db.relationship(
         'CalendarSyncSource',
         back_populates='calendar',

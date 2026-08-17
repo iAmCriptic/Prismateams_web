@@ -294,6 +294,7 @@ def create_app(config_name='default'):
         if (
             endpoint.startswith('files.onlyoffice') or
             endpoint.startswith('files.share_onlyoffice') or
+            endpoint.startswith('kanban.onlyoffice') or
             request.path.startswith('/onlyoffice') or
             '/onlyoffice-callback' in request.path
         ):
@@ -689,6 +690,7 @@ def create_app(config_name='default'):
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
+                'excalidraw': 'excalidraw.index',
                 'shortlinks': 'shortlinks.index',
                 'settings': 'settings.index',
                 'assessment': 'assessment.general.home'
@@ -705,15 +707,33 @@ def create_app(config_name='default'):
         mobile_nav_slots = None
         mobile_nav_left = None
         mobile_nav_right = None
+        desktop_nav_modules = []
+        desktop_nav_favorites = []
+        current_nav_module = None
+        nav_storage_usage = None
         # Assessment-Scope: keine Portal-Mobile-Nav (nur Modul-Sidebar inkl. Logout).
         if current_user.is_authenticated and session.get('user_scope') != 'assessment':
+            from flask import request as _req
             from app.utils.navigation import (
+                get_current_nav_module,
+                get_desktop_nav_modules,
                 get_mobile_nav_slots,
+                get_nav_favorites,
                 resolve_nav_link,
             )
             mobile_nav_slots = get_mobile_nav_slots(current_user)
             mobile_nav_left = resolve_nav_link(mobile_nav_slots['left'], current_user)
             mobile_nav_right = resolve_nav_link(mobile_nav_slots['right'], current_user)
+            desktop_nav_modules = get_desktop_nav_modules(current_user)
+            desktop_nav_favorites = get_nav_favorites(current_user)
+            current_nav_module = get_current_nav_module(_req.endpoint, current_user)
+            try:
+                from app.utils.file_storage_limits import usage_payload_for_user
+                payload = usage_payload_for_user(current_user.id)
+                if payload.get('quota_enabled'):
+                    nav_storage_usage = payload
+            except Exception:
+                nav_storage_usage = None
 
         robots_meta = 'noindex, nofollow'
         try:
@@ -737,6 +757,10 @@ def create_app(config_name='default'):
             'mobile_nav_slots': mobile_nav_slots,
             'mobile_nav_left': mobile_nav_left,
             'mobile_nav_right': mobile_nav_right,
+            'desktop_nav_modules': desktop_nav_modules,
+            'desktop_nav_favorites': desktop_nav_favorites,
+            'current_nav_module': current_nav_module,
+            'nav_storage_usage': nav_storage_usage,
             'robots_meta': robots_meta,
         }
     
@@ -997,6 +1021,7 @@ def create_app(config_name='default'):
     from app.blueprints.events import events_bp
     from app.blueprints.media_downloader import media_downloader_bp
     from app.blueprints.kanban import kanban_bp
+    from app.blueprints.excalidraw import excalidraw_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -1024,6 +1049,7 @@ def create_app(config_name='default'):
     app.register_blueprint(events_bp, url_prefix='/events')
     app.register_blueprint(media_downloader_bp)
     app.register_blueprint(kanban_bp, url_prefix='/kanban')
+    app.register_blueprint(excalidraw_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -1195,6 +1221,7 @@ def create_app(config_name='default'):
                     KanbanLabel, KanbanCardLabel, KanbanCardAssignee,
                     KanbanChecklist, KanbanChecklistItem, KanbanAttachment,
                     KanbanCardVote, KanbanActivity, KanbanBoardTemplate, KanbanBoardView,
+                    KanbanCustomField, KanbanCardFieldValue,
                 )
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
                 from app.models.event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
@@ -1253,6 +1280,36 @@ def create_app(config_name='default'):
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE folders ADD COLUMN color VARCHAR(16)"))
                             print("[OK] folders.color hinzugefügt")
+                        if 'team_id' not in columns:
+                            print("[INFO] Ergänze folders.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE folders ADD COLUMN team_id INTEGER NULL"))
+                            print("[OK] folders.team_id hinzugefügt")
+                        if 'is_team_root' not in columns:
+                            print("[INFO] Ergänze folders.is_team_root ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE folders ADD COLUMN is_team_root BOOLEAN NOT NULL DEFAULT 0"
+                                ))
+                            print("[OK] folders.is_team_root hinzugefügt")
+
+                    if 'files' in inspector.get_table_names():
+                        file_cols = {col['name'] for col in inspector.get_columns('files')}
+                        if 'team_id' not in file_cols:
+                            print("[INFO] Ergänze files.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE files ADD COLUMN team_id INTEGER NULL"))
+                            print("[OK] files.team_id hinzugefügt")
+
+                    if 'resource_acl' in inspector.get_table_names():
+                        acl_cols = {col['name'] for col in inspector.get_columns('resource_acl')}
+                        if 'grantee_team_id' not in acl_cols:
+                            print("[INFO] Ergänze resource_acl.grantee_team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE resource_acl ADD COLUMN grantee_team_id INTEGER NULL"
+                                ))
+                            print("[OK] resource_acl.grantee_team_id hinzugefügt")
 
                     if 'kanban_cards' in inspector.get_table_names():
                         kanban_cols = {col['name'] for col in inspector.get_columns('kanban_cards')}
@@ -1420,6 +1477,48 @@ def create_app(config_name='default'):
                                 ))
                             print("[OK] calendar_events.calendar_id hinzugefügt")
 
+                    if 'calendars' in inspector.get_table_names():
+                        cal_cols = {col['name'] for col in inspector.get_columns('calendars')}
+                        cal_alters = []
+                        if 'team_id' not in cal_cols:
+                            cal_alters.append("ALTER TABLE calendars ADD COLUMN team_id INTEGER NULL")
+                        if 'is_default' not in cal_cols:
+                            cal_alters.append("ALTER TABLE calendars ADD COLUMN is_default BOOLEAN NOT NULL DEFAULT 0")
+                        if 'hidden_from_others' not in cal_cols:
+                            cal_alters.append("ALTER TABLE calendars ADD COLUMN hidden_from_others BOOLEAN NOT NULL DEFAULT 0")
+                        if cal_alters:
+                            print("[INFO] Ergänze calendars Team-/Default-Spalten ...")
+                            with db.engine.begin() as connection:
+                                for stmt in cal_alters:
+                                    connection.execute(text(stmt))
+                            print("[OK] calendars Team-/Default-Spalten ergänzt")
+
+                    if 'chats' in inspector.get_table_names():
+                        chat_cols = {col['name'] for col in inspector.get_columns('chats')}
+                        if 'team_id' not in chat_cols:
+                            print("[INFO] Ergänze chats.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE chats ADD COLUMN team_id INTEGER NULL"))
+                            print("[OK] chats.team_id hinzugefügt")
+                        chat_indexes = inspector.get_indexes('chats')
+                        has_team_unique = any(
+                            ix.get('unique') and ix.get('column_names') == ['team_id']
+                            for ix in chat_indexes
+                        ) or any(
+                            u.get('column_names') == ['team_id']
+                            for u in inspector.get_unique_constraints('chats')
+                        )
+                        if not has_team_unique:
+                            print("[INFO] Lege Unique-Index chats.team_id an ...")
+                            try:
+                                with db.engine.begin() as connection:
+                                    connection.execute(text(
+                                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_chats_team_id ON chats(team_id)"
+                                    ))
+                                print("[OK] Unique-Index chats.team_id angelegt")
+                            except Exception as idx_error:
+                                print(f"[WARNUNG] Unique-Index chats.team_id: {idx_error}")
+
                     # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
                     table_names = set(inspector.get_table_names())
                     if 'events' in table_names:
@@ -1476,6 +1575,33 @@ def create_app(config_name='default'):
                                     "WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
                                 ))
                             print("[OK] contacts.sort_name hinzugefügt und initialisiert")
+
+                    visibility_tables = (
+                        ('credentials', 'public'),
+                        ('contacts', 'public'),
+                        ('wiki_pages', 'public'),
+                        ('manuals', 'public'),
+                        ('short_links', 'private'),
+                    )
+                    current_tables = set(inspector.get_table_names())
+                    for vis_table, vis_default in visibility_tables:
+                        if vis_table not in current_tables:
+                            continue
+                        vis_cols = {col['name'] for col in inspector.get_columns(vis_table)}
+                        if 'visibility' not in vis_cols:
+                            print(f"[INFO] Ergänze {vis_table}.visibility ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    f"ALTER TABLE {vis_table} ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT '{vis_default}'"
+                                ))
+                            print(f"[OK] {vis_table}.visibility hinzugefügt")
+                        if 'team_id' not in vis_cols:
+                            print(f"[INFO] Ergänze {vis_table}.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    f"ALTER TABLE {vis_table} ADD COLUMN team_id INTEGER NULL"
+                                ))
+                            print(f"[OK] {vis_table}.team_id hinzugefügt")
 
                     # E-Mail-Manager-Großupdate: Farbpunkt/Keyword-Sync-Spalten ergänzen
                     if 'email_messages' in inspector.get_table_names():
@@ -1799,6 +1925,39 @@ def create_app(config_name='default'):
                                     db.session.add(member)
                     except Exception as e:
                         print(f"WARNING: Could not update main chat members: {e}")
+
+                try:
+                    from app.models.settings import SystemSettings as _Sys
+                    if not _Sys.query.filter_by(key='calendar_personal_enabled').first():
+                        multi = _Sys.query.filter_by(key='calendar_multi_enabled').first()
+                        val = 'True' if multi and str(multi.value).lower() == 'true' else 'False'
+                        db.session.add(_Sys(key='calendar_personal_enabled', value=val, description='Private Kalender aktiv'))
+                    if not _Sys.query.filter_by(key='calendar_team_enabled').first():
+                        db.session.add(_Sys(key='calendar_team_enabled', value='False', description='Team-Kalender aktiv'))
+                except Exception as e:
+                    print(f"WARNING: Kalender-Settings konnten nicht migriert werden: {e}")
+
+                try:
+                    inspector = inspect(db.engine)
+                    chat_cols = {c['name'] for c in inspector.get_columns('chats')} if 'chats' in inspector.get_table_names() else set()
+                    if 'team_id' in chat_cols:
+                        from app.utils.team_chat import ensure_all_team_chats
+                        ensure_all_team_chats()
+                except Exception as e:
+                    print(f"WARNING: Team-Chats konnten nicht angelegt werden: {e}")
+
+                try:
+                    inspector = inspect(db.engine)
+                    cal_cols = {c['name'] for c in inspector.get_columns('calendars')} if 'calendars' in inspector.get_table_names() else set()
+                    if 'is_default' in cal_cols:
+                        from app.utils.multi_calendars import backfill_space_calendars
+                        from app.models.calendar import Calendar as _Cal
+                        first_public = _Cal.query.filter_by(calendar_type='public').order_by(_Cal.id.asc()).first()
+                        if first_public and not first_public.is_default:
+                            first_public.is_default = True
+                        backfill_space_calendars()
+                except Exception as e:
+                    print(f"WARNING: Kalender-Backfill fehlgeschlagen: {e}")
                 
                 db.session.commit()
                 

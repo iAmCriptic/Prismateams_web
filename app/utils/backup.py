@@ -516,6 +516,8 @@ def export_credentials() -> List[Dict]:
                 'password': decrypted_password,  # Entschlüsselt
                 'notes': cred.notes,
                 'favicon_url': cred.favicon_url,
+                'visibility': getattr(cred, 'visibility', 'public'),
+                'team_id': getattr(cred, 'team_id', None),
                 'created_by_email': User.query.get(cred.created_by).email if User.query.get(cred.created_by) else None,
                 'created_at': cred.created_at.isoformat() if cred.created_at else None,
                 'updated_at': cred.updated_at.isoformat() if cred.updated_at else None
@@ -536,6 +538,8 @@ def export_manuals() -> List[Dict]:
             'title': m.title,
             'filename': m.filename,
             'file_size': m.file_size,
+            'visibility': getattr(m, 'visibility', 'public'),
+            'team_id': getattr(m, 'team_id', None),
             'uploaded_by_email': User.query.get(m.uploaded_by).email if User.query.get(m.uploaded_by) else None,
             'uploaded_at': m.uploaded_at.isoformat() if m.uploaded_at else None
         }
@@ -579,10 +583,16 @@ def export_chats() -> List[Dict]:
             'description': c.description,
             'is_main_chat': c.is_main_chat,
             'is_direct_message': c.is_direct_message,
+            'team_name': None,
             'created_by_email': User.query.get(c.created_by).email if c.created_by and User.query.get(c.created_by) else None,
             'created_at': c.created_at.isoformat() if c.created_at else None,
             'updated_at': c.updated_at.isoformat() if c.updated_at else None
         }
+        if getattr(c, 'team_id', None):
+            from app.models.team import Team
+            team = Team.query.get(c.team_id)
+            if team:
+                chat_data['team_name'] = team.name
         
         # Exportiere Gruppenbild als Base64 wenn vorhanden
         if c.group_avatar:
@@ -803,6 +813,8 @@ def export_wiki_pages() -> List[Dict]:
             'category_name': p.category.name if p.category else None,
             'created_by_email': User.query.get(p.created_by).email if User.query.get(p.created_by) else None,
             'version_number': p.version_number,
+            'visibility': getattr(p, 'visibility', 'public'),
+            'team_id': getattr(p, 'team_id', None),
             'tags': [tag.name for tag in p.tags],
             'created_at': p.created_at.isoformat() if p.created_at else None,
             'updated_at': p.updated_at.isoformat() if p.updated_at else None
@@ -2037,13 +2049,19 @@ def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_u
             # Aktualisiere bestehendes Manual
             existing.filename = m_data.get('filename', existing.filename)
             existing.file_size = m_data.get('file_size', existing.file_size)
+            if m_data.get('visibility'):
+                existing.visibility = m_data['visibility']
+            if 'team_id' in m_data:
+                existing.team_id = m_data.get('team_id')
         else:
             # Neues Manual
             manual = Manual(
                 title=m_data['title'],
                 filename=m_data.get('filename', m_data['title'] + '.pdf'),
                 file_size=m_data.get('file_size', 0),
-                uploaded_by=uploaded_by_id
+                uploaded_by=uploaded_by_id,
+                visibility=m_data.get('visibility') or 'public',
+                team_id=m_data.get('team_id'),
             )
             
             # Importiere PDF-Datei wenn vorhanden
@@ -2217,6 +2235,22 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
             db.session.add(chat)
             db.session.flush()
             chat_map[name] = chat.id
+
+    from app.models.team import Team
+    for c_data in chats_data:
+        team_name = c_data.get('team_name')
+        chat_name = c_data.get('name')
+        if not team_name or not chat_name or chat_name not in chat_map:
+            continue
+        team = Team.query.filter_by(name=team_name).first()
+        if not team:
+            continue
+        chat = Chat.query.get(chat_map[chat_name])
+        if chat and not chat.is_main_chat and not chat.team_id:
+            existing_bound = Chat.query.filter_by(team_id=team.id).first()
+            if existing_bound:
+                continue
+            chat.team_id = team.id
     
     return chat_map
 
@@ -2387,6 +2421,10 @@ def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], c
             existing.website_name = c_data['website_name']
             existing.notes = c_data.get('notes')
             existing.favicon_url = c_data.get('favicon_url')
+            if c_data.get('visibility'):
+                existing.visibility = c_data['visibility']
+            if 'team_id' in c_data:
+                existing.team_id = c_data.get('team_id')
             if c_data.get('password'):
                 existing.set_password(c_data['password'], key)
         else:
@@ -2397,7 +2435,9 @@ def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], c
                 username=c_data['username'],
                 notes=c_data.get('notes'),
                 favicon_url=c_data.get('favicon_url'),
-                created_by=created_by_id
+                created_by=created_by_id,
+                visibility=c_data.get('visibility') or 'public',
+                team_id=c_data.get('team_id'),
             )
             if c_data.get('password'):
                 credential.set_password(c_data['password'], key)
@@ -2729,6 +2769,10 @@ def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_
             existing.content = p_data.get('content', p_data.get('file_content', ''))
             existing.category_id = category_id
             existing.version_number = p_data.get('version_number', 1)
+            if p_data.get('visibility'):
+                existing.visibility = p_data['visibility']
+            if 'team_id' in p_data:
+                existing.team_id = p_data.get('team_id')
             if p_data.get('updated_at'):
                 existing.updated_at = datetime.fromisoformat(p_data['updated_at'])
             page_map[p_data['slug']] = existing.id
@@ -2759,7 +2803,9 @@ def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_
                 file_path=absolute_filepath or '',
                 category_id=category_id,
                 created_by=created_by_id,
-                version_number=p_data.get('version_number', 1)
+                version_number=p_data.get('version_number', 1),
+                visibility=p_data.get('visibility') or 'public',
+                team_id=p_data.get('team_id'),
             )
             if p_data.get('created_at'):
                 page.created_at = datetime.fromisoformat(p_data['created_at'])

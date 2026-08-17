@@ -181,6 +181,32 @@ curl -s http://127.0.0.1:8080/welcome/ | head
 
 **Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` in der `.env` leer lassen.
 
+#### Schriftarten für Rendering / PDF / Druck
+
+Der Editor zeigt im Browser oft Schriften an, die auf dem Document Server fehlen. PDF, Druck und serverseitiges Rendering brauchen die TTF/OTF-Dateien im Fonts-Volume (`/var/lib/onlyoffice/DocumentServer/fonts`). Ohne sie bricht das Rendering zusammen oder es wird falsch substituiert.
+
+```bash
+# Microsoft Core Fonts (Arial, Times New Roman, …) + Calibri-/Cambria-Ersatz
+sudo apt update
+echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+sudo apt install -y ttf-mscorefonts-installer fonts-crosextra-carlito fonts-crosextra-caladea \
+  fonts-liberation fonts-liberation2 fonts-dejavu-core cabextract
+
+# In das persistente OnlyOffice-Volume kopieren (überlebt Container-Updates)
+sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
+sudo find /usr/share/fonts/truetype/{msttcorefonts,liberation,liberation2,crosextra,carlito,caladea,dejavu} \
+  -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) \
+  -exec cp -n {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+
+# Font-Index im Container neu erzeugen (kann 1–2 Minuten dauern)
+sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
+```
+
+**Hinweise:**
+- **Carlito** ist metric-kompatibel zu **Calibri** (echte `Calibri.ttf` liegt nicht in den Ubuntu-Repos). Original-Calibri-TTFs können Sie zusätzlich nach `/var/lib/onlyoffice/DocumentServer/fonts` legen und das Generate-Skript erneut ausführen.
+- Browser-Cache leeren (Strg+F5 bzw. Cmd+Shift+R). Ab OnlyOffice Docs 8.2 oft nicht mehr nötig.
+- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern die übrigen Pakete reichen oft für Carlito/Liberation, der Installer sollte trotzdem fortgesetzt werden.
+
 ### Schritt 6: Optionale Installation - Excalidraw
 
 **⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie Excalidraw für das Canvas-Modul verwenden möchten. Wenn nicht, setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`-Datei.

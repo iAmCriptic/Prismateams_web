@@ -1,7 +1,15 @@
-{# Shared Kanban overview sidebar. Expects optional active_nav: all|recent|private|team|public|closed #}
+{# Shared Kanban overview sidebar. Expects optional active_nav: all|recent|private|team-<id>|public|closed #}
 {% set active_nav = active_nav|default('all') %}
 {% set create_modal = create_modal|default(true) %}
 {% set allowed_vis = allowed_visibilities|default(['private', 'team', 'public']) %}
+{% set teams = teams|default([]) %}
+{% macro team_nav_icon(t) -%}
+{%- if t.color -%}
+<span class="kanban-team-dot" style="background:{{ t.color }};" aria-hidden="true"></span>
+{%- else -%}
+<i class="bi bi-people me-2" aria-hidden="true"></i>
+{%- endif -%}
+{%- endmacro %}
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
   <div class="mod-sidebar-brand">
     <i class="bi bi-kanban" aria-hidden="true"></i>
@@ -25,7 +33,9 @@
     <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('kanban.index', section='private') }}"><i class="bi bi-lock me-2"></i>{{ _('kanban.index.private') }}</a>
     {% endif %}
     {% if 'team' in allowed_vis %}
-    <a class="nav-link mod-nav-link{% if active_nav == 'team' %} active{% endif %}" href="{{ url_for('kanban.index', section='team') }}"><i class="bi bi-people me-2"></i>{{ _('kanban.index.team') }}</a>
+    {% for t in teams %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team-' ~ t.id %} active{% endif %}" href="{{ url_for('kanban.index', section='team', team_id=t.id) }}">{{ team_nav_icon(t) }}{{ t.name }}</a>
+    {% endfor %}
     {% endif %}
     {% if 'public' in allowed_vis %}
     <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('kanban.index', section='public') }}"><i class="bi bi-globe2 me-2"></i>{{ _('kanban.index.public') }}</a>
@@ -55,7 +65,9 @@
     <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('kanban.index', section='private') }}">{{ _('kanban.index.private') }}</a>
     {% endif %}
     {% if 'team' in allowed_vis %}
-    <a class="nav-link mod-nav-link{% if active_nav == 'team' %} active{% endif %}" href="{{ url_for('kanban.index', section='team') }}">{{ _('kanban.index.team') }}</a>
+    {% for t in teams %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team-' ~ t.id %} active{% endif %}" href="{{ url_for('kanban.index', section='team', team_id=t.id) }}">{{ t.name }}</a>
+    {% endfor %}
     {% endif %}
     {% if 'public' in allowed_vis %}
     <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('kanban.index', section='public') }}">{{ _('kanban.index.public') }}</a>

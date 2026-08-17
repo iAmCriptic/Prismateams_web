@@ -36,13 +36,17 @@ body:has(.setup-container) {
 
 body.setup-scope .sidebar,
 body.setup-scope .mobile-nav,
+body.setup-scope #desktopTopNav,
 body.setup-scope #desktopSidebar,
+body.setup-scope #desktopFavoritesRail,
 body.setup-scope #mobileNav,
 body.setup-scope #moreMenu,
 body.setup-scope .pwa-install-prompt,
 body:has(.setup-container) .sidebar,
 body:has(.setup-container) .mobile-nav,
+body:has(.setup-container) #desktopTopNav,
 body:has(.setup-container) #desktopSidebar,
+body:has(.setup-container) #desktopFavoritesRail,
 body:has(.setup-container) #mobileNav,
 body:has(.setup-container) .pwa-install-prompt {
     display: none !important;
@@ -845,7 +849,9 @@ body.embed-scope .embed-main {
 
 body.embed-scope .sidebar,
 body.embed-scope .mobile-nav,
+body.embed-scope #desktopTopNav,
 body.embed-scope #desktopSidebar,
+body.embed-scope #desktopFavoritesRail,
 body.embed-scope #mobileNav,
 body.embed-scope #moreMenu,
 body.embed-scope .pwa-install-prompt,

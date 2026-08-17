@@ -1465,6 +1465,7 @@ body:has(.files-shell) {
 
 .files-toolbar-actions .files-view-toggle {
     flex: 0 0 auto;
+    margin-left: auto;
 }
 
 .files-toolbar-actions .files-toolbar-new {
@@ -2317,10 +2318,14 @@ body:has(.files-shell) {
 }
 
 /* ===== Externe Freigabe / Briefkasten ===== */
+body:has(.share-shell) #desktopTopNav,
 body:has(.share-shell) #desktopSidebar,
+body:has(.share-shell) #desktopFavoritesRail,
 body:has(.share-shell) #mobileNav,
 body:has(.share-shell) .mobile-menu-toggle,
+body:has(.dropbox-shell) #desktopTopNav,
 body:has(.dropbox-shell) #desktopSidebar,
+body:has(.dropbox-shell) #desktopFavoritesRail,
 body:has(.dropbox-shell) #mobileNav,
 body:has(.dropbox-shell) .mobile-menu-toggle {
     display: none !important;
@@ -2331,6 +2336,7 @@ body:has(.dropbox-shell) main.main-content,
 body:has(.share-shell) main,
 body:has(.dropbox-shell) main {
     margin-left: 0 !important;
+    padding-right: 0 !important;
     width: 100% !important;
 }
 

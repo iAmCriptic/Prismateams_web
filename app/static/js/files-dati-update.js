@@ -1133,9 +1133,14 @@
             return;
         }
         list.innerHTML = entries.map(e => {
-            const label = e.share_all ? (i18n.share_all || 'Mit allen') : (e.grantee_name || ('#' + e.grantee_user_id));
+            const isTeam = !!e.grantee_team_id;
+            const label = e.share_all
+                ? (i18n.share_all || 'Mit allen')
+                : (isTeam
+                    ? ((i18n.team_prefix || 'Team') + ': ' + (e.grantee_team_name || e.grantee_name || ('#' + e.grantee_team_id)))
+                    : (e.grantee_name || ('#' + e.grantee_user_id)));
             const perm = e.permission === 'edit' ? (i18n.permission_edit || 'edit') : (i18n.permission_view || 'view');
-            const gid = e.share_all ? 'all' : e.grantee_user_id;
+            const gid = e.share_all ? 'all' : (isTeam ? ('team:' + e.grantee_team_id) : String(e.grantee_user_id));
             return `<div class="list-group-item d-flex justify-content-between align-items-center px-0">
                 <span>${label} <span class="badge bg-secondary">${perm}</span></span>
                 <button type="button" class="btn btn-sm btn-outline-danger" data-acl-remove="${gid}">${i18n.remove || 'Entfernen'}</button>
@@ -1144,7 +1149,14 @@
         list.querySelectorAll('[data-acl-remove]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const raw = btn.getAttribute('data-acl-remove');
-                const body = { grantee_user_id: raw === 'all' ? null : Number(raw) };
+                let body;
+                if (raw === 'all') {
+                    body = { grantee_user_id: null };
+                } else if (raw && raw.startsWith('team:')) {
+                    body = { grantee_team_id: Number(raw.slice(5)) };
+                } else {
+                    body = { grantee_user_id: Number(raw) };
+                }
                 await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -1187,6 +1199,17 @@
                     `<option value="${u.id}">${u.full_name || u.username || ('#' + u.id)}</option>`
                 ).join('') || '<option value="">—</option>';
             }
+            const teamSelect = document.getElementById('aclTeamSelect');
+            const teamWrap = document.getElementById('aclTeamShareWrap');
+            const teams = data.teams || [];
+            if (teamWrap) {
+                teamWrap.hidden = teams.length === 0;
+            }
+            if (teamSelect) {
+                teamSelect.innerHTML = teams.map(t =>
+                    `<option value="${t.id}">${t.name || ('#' + t.id)}</option>`
+                ).join('') || '<option value="">—</option>';
+            }
             renderAclEntries(data.entries || []);
             if (window.bootstrap && bootstrap.Modal) {
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -1211,6 +1234,9 @@
                     if (window.FILES_VIEW && !formData.has('view')) {
                         formData.append('view', window.FILES_VIEW);
                     }
+                    if (window.FILES_TEAM_ID && !formData.has('team_id')) {
+                        formData.append('team_id', window.FILES_TEAM_ID);
+                    }
                     return submitUploadFormDataWithToast(formData, fileNames);
                 };
             }
@@ -1218,6 +1244,7 @@
 
         const shareAllBtn = document.getElementById('aclShareAllBtn');
         const shareUserBtn = document.getElementById('aclShareUserBtn');
+        const shareTeamBtn = document.getElementById('aclShareTeamBtn');
         if (shareAllBtn) {
             shareAllBtn.addEventListener('click', async () => {
                 const perm = document.getElementById('aclPermSelect')?.value || 'view';
@@ -1238,6 +1265,26 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ grantee_user_id: Number(uid), permission: perm })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.success === false) {
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(data.error || 'Freigabe fehlgeschlagen.', 'danger');
+                    }
+                    return;
+                }
+                openInternalShare(aclState.type, aclState.id);
+            });
+        }
+        if (shareTeamBtn) {
+            shareTeamBtn.addEventListener('click', async () => {
+                const tid = document.getElementById('aclTeamSelect')?.value;
+                const perm = document.getElementById('aclPermSelect')?.value || 'view';
+                if (!tid) return;
+                const res = await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ grantee_team_id: Number(tid), permission: perm })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || data.success === false) {
@@ -1312,6 +1359,13 @@
                 inp.name = 'view';
                 inp.value = window.FILES_VIEW;
                 form.appendChild(inp);
+            }
+            if (window.FILES_TEAM_ID && !form.querySelector('input[name="team_id"]')) {
+                const tinp = document.createElement('input');
+                tinp.type = 'hidden';
+                tinp.name = 'team_id';
+                tinp.value = window.FILES_TEAM_ID;
+                form.appendChild(tinp);
             }
         });
 

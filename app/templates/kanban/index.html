@@ -111,11 +111,11 @@
 </tr>
 {% endmacro %}
 
-{% macro section(title_key, boards, section_key) %}
+{% macro section(title, boards, section_key) %}
 {% if boards %}
 <section class="kanban-section mb-4" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}">
-  <h2 class="kanban-section__title">{{ _(title_key) }}</h2>
-  <div class="row g-3" data-view-grid id="kanbanGrid-{{ title_key|replace('.', '-') }}">
+  <h2 class="kanban-section__title">{{ title }}</h2>
+  <div class="row g-3" data-view-grid id="kanbanGrid-{{ section_key }}">
     {% for b in boards %}{{ board_grid_card(b) }}{% endfor %}
   </div>
   <div class="mod-list-table-wrap" data-view-list style="display:none;">
@@ -162,32 +162,43 @@
       </div>
     </div>
 
-    {% set all_empty = not recent_boards and not private_boards and not team_boards and not public_boards %}
+    {% set team_board_groups = team_board_groups|default([]) %}
+    {% set all_empty = not recent_boards and not private_boards and not team_board_groups and not public_boards %}
     {% if all_empty %}
     <p class="text-muted">{{ _('kanban.index.empty') }}</p>
     {% else %}
       {% if not section_filter or section_filter == 'all' %}
-        {{ section('kanban.index.recent', recent_boards, 'recent') }}
-        {{ section('kanban.index.private', private_boards, 'private') }}
-        {{ section('kanban.index.team', team_boards, 'team') }}
-        {{ section('kanban.index.public', public_boards, 'public') }}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {% for group in team_board_groups %}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+        {% endfor %}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
       {% elif section_filter == 'recent' %}
-        {{ section('kanban.index.recent', recent_boards, 'recent') }}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
         {% if not recent_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'private' %}
-        {{ section('kanban.index.private', private_boards, 'private') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
         {% if not private_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'team' %}
-        {{ section('kanban.index.team', team_boards, 'team') }}
+        {% set ns = namespace(title=_('kanban.index.team')) %}
+        {% for t in teams %}
+          {% if filter_team_id and t.id == filter_team_id %}
+            {% set ns.title = t.name %}
+          {% endif %}
+        {% endfor %}
+        {{ section(ns.title, team_boards, 'team') }}
         {% if not team_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'public' %}
-        {{ section('kanban.index.public', public_boards, 'public') }}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
         {% if not public_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% else %}
-        {{ section('kanban.index.recent', recent_boards, 'recent') }}
-        {{ section('kanban.index.private', private_boards, 'private') }}
-        {{ section('kanban.index.team', team_boards, 'team') }}
-        {{ section('kanban.index.public', public_boards, 'public') }}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {% for group in team_board_groups %}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+        {% endfor %}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
       {% endif %}
     {% endif %}
   </div>
@@ -209,18 +220,17 @@
           <div>
             <label class="form-label" for="boardVisibility">{{ _('kanban.index.visibility') }}</label>
             <select class="form-select files-pill-input" id="boardVisibility" name="visibility">
-              {% for v in allowed_visibilities %}
-              <option value="{{ v }}">{{ _('kanban.index.vis_' + v) }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div id="boardTeamWrap" style="display:none;">
-            <label class="form-label" for="boardTeam">{{ _('kanban.index.team_label') }}</label>
-            <select class="form-select files-pill-input" id="boardTeam" name="team_id">
-              <option value="">—</option>
+              {% if 'private' in allowed_visibilities %}
+              <option value="private">{{ _('kanban.index.vis_private') }}</option>
+              {% endif %}
+              {% if 'team' in allowed_visibilities %}
               {% for t in teams %}
-              <option value="{{ t.id }}">{{ t.name }}</option>
+              <option value="team:{{ t.id }}">{{ t.name }}</option>
               {% endfor %}
+              {% endif %}
+              {% if 'public' in allowed_visibilities %}
+              <option value="public">{{ _('kanban.index.vis_public') }}</option>
+              {% endif %}
             </select>
           </div>
           <div>

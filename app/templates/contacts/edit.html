@@ -3,7 +3,9 @@
 {% block title %}{{ _('contacts.form.edit.page_title') }}{% endblock %}
 
 {% block content %}
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 {% set create_url = url_for('contacts.create') %}
+{% set active_nav = active_nav|default('all') %}
 <div class="contacts-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -15,16 +17,17 @@
             <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
         </a>
     </div>
-    {% if show_favorites_nav|default(false) %}
     <nav class="mod-sidebar-nav nav flex-column gap-1">
         <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
             <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
         </a>
+        {% if show_favorites_nav|default(false) %}
         <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
             <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
         </a>
+        {% endif %}
+        {{ visibility_space_links('contacts.index', {}, '', allowed_visibilities, visibility_teams, active_nav) }}
     </nav>
-    {% endif %}
 </aside>
 
 <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
@@ -36,22 +39,17 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        {% if show_favorites_nav|default(false) %}
         <nav class="mod-sidebar-nav nav flex-column gap-1">
             <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
                 <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
             </a>
+            {% if show_favorites_nav|default(false) %}
             <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
                 <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
             </a>
+            {% endif %}
+            {{ visibility_space_links('contacts.index', {}, 'data-contacts-dismiss-offcanvas="1"', allowed_visibilities, visibility_teams, active_nav) }}
         </nav>
-        {% else %}
-        <nav class="mod-sidebar-nav nav flex-column gap-1">
-            <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
-                <i class="bi bi-arrow-left me-2"></i>{{ _('contacts.form.back') }}
-            </a>
-        </nav>
-        {% endif %}
     </div>
 </div>
 
