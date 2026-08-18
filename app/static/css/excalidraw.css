@@ -96,13 +96,18 @@
     width: 100%;
     height: 100dvh;
     background: var(--bs-body-bg, #fff);
-    z-index: 1050;
+    /* Do NOT set z-index here — it would create a new stacking context
+       that traps Excalidraw's portals (menus, dialogs) inside, preventing them
+       from rendering above the header bar. */
 }
 
 .excalidraw-editor-content {
     flex: 1 1 auto;
     min-height: 0;
+    /* Keep position:relative so that #excalidraw-root with position:absolute is contained here.
+       Excalidraw's modal portals mount to document.body, so they are NOT clipped by this. */
     position: relative;
+    overflow: hidden;
 }
 
 .excalidraw-editor-content .excalidraw,
@@ -110,6 +115,14 @@
 #excalidraw-root {
     width: 100%;
     height: 100%;
+}
+
+/* Ensure Excalidraw's own modal/popover portals always render on top */
+.excalidraw-modal-container,
+.excalidraw .Island,
+.excalidraw .popover,
+.excalidraw .context-menu {
+    z-index: 99999 !important;
 }
 
 .excalidraw-collab-banner {

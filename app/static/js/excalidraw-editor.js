@@ -181,38 +181,18 @@ async function goBack() {
 
 function renderChildren() {
     const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
-    const DefaultSidebar = (Excalidraw && Excalidraw.DefaultSidebar) || ExcalidrawLib.DefaultSidebar;
     const WelcomeScreen = (Excalidraw && Excalidraw.WelcomeScreen) || ExcalidrawLib.WelcomeScreen;
 
     const children = [];
 
+    // Render MainMenu with no children so Excalidraw uses ALL its own default items.
+    // Passing custom children breaks Excalidraw's internal state management for popovers.
     if (MainMenu) {
-        const DefaultItems = MainMenu.DefaultItems || {};
-        const items = [];
-        if (DefaultItems.LoadScene) items.push(React.createElement(DefaultItems.LoadScene, { key: 'load' }));
-        if (DefaultItems.SaveToActiveFile) items.push(React.createElement(DefaultItems.SaveToActiveFile, { key: 'save' }));
-        if (DefaultItems.SaveAsImage) items.push(React.createElement(DefaultItems.SaveAsImage, { key: 'saveImage' }));
-        if (DefaultItems.Export) items.push(React.createElement(DefaultItems.Export, { key: 'export' }));
-        if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
-        if (DefaultItems.Separator) items.push(React.createElement(DefaultItems.Separator, { key: 'sep1' }));
-        if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
-        if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
-        if (DefaultItems.Separator) items.push(React.createElement(DefaultItems.Separator, { key: 'sep2' }));
-        if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
-
-        children.push(React.createElement(MainMenu, { key: 'mainMenu' }, ...items));
+        children.push(React.createElement(MainMenu, { key: 'mainMenu' }));
     }
 
-    if (DefaultSidebar) {
-        children.push(React.createElement(DefaultSidebar, { key: 'defaultSidebar' }));
-    }
-
-    if (WelcomeScreen && WelcomeScreen.Hints) {
-        const hintItems = [];
-        if (WelcomeScreen.Hints.MenuHint) hintItems.push(React.createElement(WelcomeScreen.Hints.MenuHint, { key: 'menuHint' }));
-        if (WelcomeScreen.Hints.ToolbarHint) hintItems.push(React.createElement(WelcomeScreen.Hints.ToolbarHint, { key: 'toolbarHint' }));
-        if (WelcomeScreen.Hints.HelpHint) hintItems.push(React.createElement(WelcomeScreen.Hints.HelpHint, { key: 'helpHint' }));
-        children.push(React.createElement(WelcomeScreen, { key: 'welcomeScreen' }, ...hintItems));
+    if (WelcomeScreen) {
+        children.push(React.createElement(WelcomeScreen, { key: 'welcomeScreen' }));
     }
 
     return children;
@@ -339,12 +319,21 @@ async function boot() {
     if (closeBtn) closeBtn.addEventListener('click', goBack);
 
     document.addEventListener('keydown', (event) => {
+        // Ctrl+S / Cmd+S: save
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
             event.preventDefault();
             saveScene(true);
         }
+        // Escape: only navigate back if NO Excalidraw dialog/menu is open.
+        // We detect this by checking whether the active element is inside #excalidraw-root
+        // or if an excalidraw overlay/popover is present in the DOM.
         if (event.key === 'Escape') {
-            goBack();
+            const excalidrawRoot = document.getElementById('excalidraw-root');
+            const hasOpenDialog = excalidrawRoot &&
+                excalidrawRoot.querySelector('.excalidraw-modal-container, [data-testid="modal-container"], .Dialog, .Island[role="dialog"], .Island[role="menuitem"], .context-menu, .popover');
+            if (!hasOpenDialog) {
+                goBack();
+            }
         }
     });
 
