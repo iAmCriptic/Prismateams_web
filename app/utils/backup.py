@@ -64,6 +64,8 @@ from app.utils.backup_extensions import (
     export_media_download_jobs, import_media_download_jobs,
     export_assessment_bundle, import_assessment_bundle,
     export_short_links, import_short_links,
+    export_excalidraw_drawings, import_excalidraw_drawings,
+    export_excalidraw_drawing_versions, import_excalidraw_drawing_versions,
 )
 
 
@@ -90,6 +92,7 @@ CATEGORY_DEFINITIONS = [
     {'key': 'media_downloader', 'icon': 'bi-download', 'label_key': 'settings.admin.backup.categories.media_downloader', 'help_key': 'settings.admin.backup.helps.media_downloader'},
     {'key': 'assessment', 'icon': 'bi-clipboard2-check', 'label_key': 'settings.admin.backup.categories.assessment', 'help_key': 'settings.admin.backup.helps.assessment'},
     {'key': 'shortlinks', 'icon': 'bi-link-45deg', 'label_key': 'settings.admin.backup.categories.shortlinks', 'help_key': 'settings.admin.backup.helps.shortlinks'},
+    {'key': 'excalidraw', 'icon': 'bi-pencil-square', 'label_key': 'settings.admin.backup.categories.excalidraw', 'help_key': 'settings.admin.backup.helps.excalidraw'},
 ]
 
 # Rückwärtskompatibel: key -> DE-Label (Fallback wenn i18n fehlt)
@@ -112,6 +115,7 @@ SUPPORTED_CATEGORIES = {
     'media_downloader': 'Media Downloader',
     'assessment': 'Bewertung',
     'shortlinks': 'Kurzlinks',
+    'excalidraw': 'Excalidraw',
 }
 
 
@@ -273,6 +277,9 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data'].update(export_assessment_bundle())
     if _category_selected(categories, 'shortlinks'):
         backup_data['data']['short_links'] = export_short_links()
+    if _category_selected(categories, 'excalidraw'):
+        backup_data['data']['excalidraw_drawings'] = export_excalidraw_drawings()
+        backup_data['data']['excalidraw_drawing_versions'] = export_excalidraw_drawing_versions()
     
     # Backup-Datei schreiben
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -1430,6 +1437,17 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         if _category_selected(categories, 'shortlinks') and 'short_links' in backup_data_dict:
             import_short_links(backup_data_dict['short_links'], user_map, current_user_id)
             results['imported'].append('shortlinks')
+
+        if _category_selected(categories, 'excalidraw'):
+            room_map = {}
+            if 'excalidraw_drawings' in backup_data_dict:
+                room_map = import_excalidraw_drawings(backup_data_dict['excalidraw_drawings'], user_map, current_user_id)
+                results['imported'].append('excalidraw_drawings')
+            if 'excalidraw_drawing_versions' in backup_data_dict:
+                import_excalidraw_drawing_versions(
+                    backup_data_dict['excalidraw_drawing_versions'], room_map, user_map, current_user_id
+                )
+                results['imported'].append('excalidraw_drawing_versions')
         
         db.session.commit()
 

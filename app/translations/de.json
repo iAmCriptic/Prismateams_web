@@ -3147,6 +3147,79 @@
       }
     }
   },
+  "excalidraw": {
+    "index": {
+      "page_title": "Excalidraw - Team Portal",
+      "heading": "Excalidraw",
+      "new_button": "Neue Zeichnung",
+      "upload_button": "Upload .excalidraw",
+      "search": {
+        "placeholder": "Zeichnungen suchen..."
+      },
+      "view_toggle": {
+        "label": "Ansicht",
+        "list": "Liste",
+        "grid": "Kacheln"
+      },
+      "list": {
+        "name": "Name",
+        "author": "Erstellt von",
+        "updated": "Aktualisiert"
+      },
+      "card": {
+        "open": "Öffnen",
+        "download": "Herunterladen",
+        "rename": "Umbenennen",
+        "delete": "Löschen",
+        "delete_confirm": "Diese Zeichnung wirklich löschen?",
+        "created_by": "Von {name}",
+        "updated_at": "Aktualisiert {date}"
+      },
+      "empty": {
+        "default": "Noch keine Zeichnungen.",
+        "filtered": "Keine Zeichnungen für diese Suche.",
+        "hint": "Erstellen Sie Ihre erste Zeichnung."
+      },
+      "nav": {
+        "menu": "Menü",
+        "all": "Alle"
+      }
+    },
+    "create": {
+      "name_placeholder": "Name der Zeichnung",
+      "alerts": {
+        "name_required": "Bitte geben Sie einen Namen ein."
+      },
+      "submit": "Erstellen",
+      "cancel": "Abbrechen"
+    },
+    "upload": {
+      "missing": "Bitte wählen Sie eine .excalidraw-Datei.",
+      "invalid_type": "Es können nur .excalidraw-Dateien hochgeladen werden.",
+      "invalid_json": "Die Datei ist keine gültige Excalidraw-Zeichnung."
+    },
+    "edit": {
+      "page_title_suffix": "Excalidraw",
+      "saving": "Speichern…",
+      "saved": "Gespeichert",
+      "collab_on": "Live-Kollaboration",
+      "collab_off": "Lokale Bearbeitung — Kollaborationsserver nicht erreichbar",
+      "readonly": "Nur Ansicht"
+    },
+    "save": {
+      "invalid": "Die Zeichnung konnte nicht gespeichert werden.",
+      "too_large": "Die Zeichnung ist zu groß zum Speichern."
+    },
+    "download": {
+      "missing": "Die Zeichnungsdatei fehlt."
+    },
+    "flash": {
+      "created": "Zeichnung \"{name}\" wurde erstellt.",
+      "uploaded": "Zeichnung \"{name}\" wurde hochgeladen.",
+      "renamed": "Zeichnung umbenannt in \"{name}\".",
+      "deleted": "Zeichnung \"{name}\" wurde gelöscht."
+    }
+  },
   "canvas": {
     "index": {
       "page_title": "Canvas - Team Portal",

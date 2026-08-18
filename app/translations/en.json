@@ -2661,6 +2661,79 @@
       "file_type_not_supported": "File type not supported"
     }
   },
+  "excalidraw": {
+    "index": {
+      "page_title": "Excalidraw - Team Portal",
+      "heading": "Excalidraw",
+      "new_button": "New drawing",
+      "upload_button": "Upload .excalidraw",
+      "search": {
+        "placeholder": "Search drawings..."
+      },
+      "view_toggle": {
+        "label": "View",
+        "list": "List",
+        "grid": "Grid"
+      },
+      "list": {
+        "name": "Name",
+        "author": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download",
+        "rename": "Rename",
+        "delete": "Delete",
+        "delete_confirm": "Delete this drawing?",
+        "created_by": "By {name}",
+        "updated_at": "Updated {date}"
+      },
+      "empty": {
+        "default": "No drawings yet.",
+        "filtered": "No drawings match this search.",
+        "hint": "Create your first drawing."
+      },
+      "nav": {
+        "menu": "Menu",
+        "all": "All"
+      }
+    },
+    "create": {
+      "name_placeholder": "Drawing name",
+      "alerts": {
+        "name_required": "Please enter a name."
+      },
+      "submit": "Create",
+      "cancel": "Cancel"
+    },
+    "upload": {
+      "missing": "Please choose an .excalidraw file.",
+      "invalid_type": "Only .excalidraw files can be uploaded.",
+      "invalid_json": "The file is not a valid Excalidraw drawing."
+    },
+    "edit": {
+      "page_title_suffix": "Excalidraw",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "collab_on": "Live collaboration",
+      "collab_off": "Editing locally — collaboration server unavailable",
+      "readonly": "View only"
+    },
+    "save": {
+      "invalid": "The drawing could not be saved.",
+      "too_large": "The drawing is too large to save."
+    },
+    "download": {
+      "missing": "The drawing file is missing."
+    },
+    "flash": {
+      "created": "Drawing \"{name}\" has been created.",
+      "uploaded": "Drawing \"{name}\" has been uploaded.",
+      "renamed": "Drawing renamed to \"{name}\".",
+      "deleted": "Drawing \"{name}\" has been deleted."
+    }
+  },
   "canvas": {
     "index": {
       "page_title": "Canvas - Team Portal",

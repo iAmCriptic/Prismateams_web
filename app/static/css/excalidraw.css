@@ -1,0 +1,138 @@
+/* Excalidraw module — landing + editor chrome */
+
+.excalidraw-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+}
+
+.excalidraw-view-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.excalidraw-view-toggle__btn:hover {
+    color: var(--bs-body-color);
+}
+
+.excalidraw-view-toggle__btn.active,
+.excalidraw-view-toggle__btn.is-active {
+    background: var(--accent-color, #0d6efd);
+    color: #fff;
+}
+
+.excalidraw-search {
+    position: relative;
+    min-width: 12rem;
+    max-width: 22rem;
+    width: 100%;
+}
+
+.excalidraw-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--bs-secondary-color);
+    pointer-events: none;
+}
+
+.excalidraw-search-input {
+    padding-left: 2.15rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.excalidraw-card {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.excalidraw-card-preview {
+    height: 8.5rem;
+    background: color-mix(in srgb, var(--bs-body-color) 4%, var(--bs-body-bg));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.excalidraw-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.excalidraw-card-preview-icon {
+    font-size: 2rem;
+    opacity: 0.35;
+}
+
+.excalidraw-inline-create {
+    display: none;
+}
+
+.excalidraw-inline-create.is-open {
+    display: flex;
+}
+
+.excalidraw-editor-container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    background: var(--bs-body-bg, #fff);
+    z-index: 1050;
+}
+
+.excalidraw-editor-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+}
+
+.excalidraw-editor-content .excalidraw,
+.excalidraw-editor-content .excalidraw-wrapper,
+#excalidraw-root {
+    width: 100%;
+    height: 100%;
+}
+
+.excalidraw-collab-banner {
+    flex: 0 0 auto;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    background: color-mix(in srgb, #ffc107 18%, transparent);
+    color: inherit;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+}
+
+.excalidraw-collab-banner.is-on {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.excalidraw-save-status {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+    .excalidraw-editor-actions .btn-label {
+        display: none;
+    }
+}

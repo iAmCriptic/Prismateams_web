@@ -139,6 +139,21 @@ gather_information() {
         INSTALL_DOCKER="j"
     fi
 
+    if is_yes "$INSTALL_DOCKER"; then
+        prompt_yes_no INSTALL_EXCALIDRAW "Excalidraw-Room (Live-Kollaboration) installieren?" "j"
+        if ! is_yes "$INSTALL_EXCALIDRAW"; then
+            print_manual_excalidraw_hint
+        fi
+    else
+        INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-n}"
+        if ! is_yes "$INSTALL_EXCALIDRAW"; then
+            print_manual_excalidraw_hint
+        fi
+    fi
+    if is_yes "$INSTALL_EXCALIDRAW"; then
+        INSTALL_DOCKER="j"
+    fi
+
     log_info ""
     log_info "=== Media Downloader ==="
     prompt_yes_no INSTALL_MEDIA_DOWNLOADER "Media Downloader (FFmpeg) installieren?" "n"
@@ -274,6 +289,7 @@ confirm_plan() {
     echo "  MySQL:          $(is_yes "$SETUP_MYSQL" && echo "ja ($DB_NAME / $DB_USER)" || echo "manuell")"
     echo "  Redis:          $(is_yes "$SETUP_REDIS" && echo "ja" || echo "manuell")"
     echo "  OnlyOffice:     $(is_yes "$INSTALL_ONLYOFFICE" && echo "ja" || echo "nein")"
+    echo "  Excalidraw:     $(is_yes "$INSTALL_EXCALIDRAW" && echo "ja" || echo "nein")"
     echo "  FFmpeg:         $(is_yes "$INSTALL_MEDIA_DOWNLOADER" && echo "ja" || echo "nein")"
     echo "  .env-Modus:     $ENV_MODE"
     echo

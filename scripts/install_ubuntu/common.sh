@@ -328,6 +328,20 @@ print_manual_custom_port_hint() {
     fi
 }
 
+print_manual_excalidraw_hint() {
+    echo
+    log_manual "=== Excalidraw Room (Kollaboration) manuell einrichten ==="
+    log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
+    log_manual "  2. Container (nur Loopback):"
+    log_manual "       docker pull excalidraw/excalidraw-room:latest"
+    log_manual "       docker run -d --name excalidraw-room --restart=always \\"
+    log_manual "         -p 127.0.0.1:8082:80 -e PORT=80 \\"
+    log_manual "         excalidraw/excalidraw-room:latest"
+    log_manual "  3. In .env: EXCALIDRAW_ENABLED=True, EXCALIDRAW_ROOM_URL=/excalidraw-room"
+    log_manual "  4. Nginx: Location /excalidraw-room/ -> 127.0.0.1:8082/ mit WebSocket-Upgrade"
+    echo
+}
+
 init_defaults() {
     GUNICORN_PORT="${GUNICORN_PORT:-}"
     GUNICORN_WORKERS="${GUNICORN_WORKERS:-}"
@@ -341,6 +355,7 @@ init_defaults() {
     SETUP_SSL="${SETUP_SSL:-}"
     LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
     INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-}"
+    INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-}"
     INSTALL_MEDIA_DOWNLOADER="${INSTALL_MEDIA_DOWNLOADER:-}"
     MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
     MEDIA_DOWNLOADER_PLAYER_CLIENT="${MEDIA_DOWNLOADER_PLAYER_CLIENT:-}"

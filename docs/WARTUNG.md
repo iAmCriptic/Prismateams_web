@@ -41,8 +41,7 @@ sudo journalctl -u redis-server -f
 # OnlyOffice Logs (falls installiert)
 sudo docker logs -f onlyoffice-documentserver
 
-# Excalidraw Logs (falls installiert)
-sudo docker logs -f excalidraw
+# Excalidraw-Room Logs (falls installiert)
 sudo docker logs -f excalidraw-room
 ```
 
@@ -59,8 +58,7 @@ sudo systemctl status teamportal
 # OnlyOffice neu starten (falls installiert)
 sudo docker restart onlyoffice-documentserver
 
-# Excalidraw neu starten (falls installiert)
-sudo docker restart excalidraw
+# Excalidraw-Room neu starten (falls installiert)
 sudo docker restart excalidraw-room
 ```
 
@@ -136,14 +134,10 @@ sudo docker run -d --restart=always \
 sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
 
 # Excalidraw aktualisieren (falls installiert)
-sudo docker stop excalidraw excalidraw-room
-sudo docker rm excalidraw excalidraw-room
-sudo docker pull excalidraw/excalidraw:latest
+sudo docker stop excalidraw-room
+sudo docker rm excalidraw-room
 sudo docker pull excalidraw/excalidraw-room:latest
-sudo docker run -i -t -d -p 8081:80 --restart=always \
-    --name excalidraw \
-    excalidraw/excalidraw:latest
-sudo docker run -i -t -d -p 8082:80 --restart=always \
+sudo docker run -d -p 127.0.0.1:8082:80 --restart=always \
     --name excalidraw-room \
     -e PORT=80 \
     excalidraw/excalidraw-room:latest
@@ -190,7 +184,7 @@ sudo systemctl restart teamportal
 
 ```bash
 # 1. Container stoppen
-sudo docker stop excalidraw excalidraw-room
+sudo docker stop excalidraw-room
 
 # 2. .env-Datei bearbeiten
 sudo nano /var/www/teamportal/.env
@@ -198,7 +192,7 @@ sudo nano /var/www/teamportal/.env
 
 # 3. Nginx-Konfiguration bearbeiten
 sudo nano /etc/nginx/sites-available/teamportal
-# Entfernen Sie die /excalidraw und /excalidraw-room Location-Blöcke
+# Entfernen Sie den /excalidraw-room/ Location-Block
 
 # 4. Nginx neu laden
 sudo nginx -t
@@ -275,7 +269,7 @@ Excalidraw ist relativ leichtgewichtig, benötigt aber WebSocket-Support für Ec
 
 ```bash
 # Container-Status prüfen
-sudo docker stats excalidraw excalidraw-room
+sudo docker stats excalidraw-room
 ```
 
 **Empfohlene Systemanforderungen für Excalidraw:**

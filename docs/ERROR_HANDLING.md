@@ -145,38 +145,27 @@ sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allf
 
 Danach Browser hart neu laden (Strg+F5). **Carlito** ersetzt Calibri (echte Calibri-TTFs optional zusätzlich in denselben Ordner). Beim Container-Update das Fonts-Volume nicht vergessen – siehe [WARTUNG.md](WARTUNG.md#docker-container-aktualisieren-falls-installiert).
 
-## Excalidraw lädt nicht (falls installiert)
+## Excalidraw-Kollaboration funktioniert nicht (falls Room installiert)
 
 ```bash
-# Prüfe ob Container laufen
-sudo docker ps | grep excalidraw
+# Prüfe ob der Room-Container läuft
+sudo docker ps | grep excalidraw-room
 
 # Prüfe Container-Logs
-sudo docker logs excalidraw
 sudo docker logs excalidraw-room
 
-# Prüfe Ports
-sudo netstat -tlnp | grep 8081
-sudo netstat -tlnp | grep 8082
+# Prüfe Loopback-Port
+sudo ss -ltn | grep 8082
 
 # Container neu starten
-sudo docker restart excalidraw
 sudo docker restart excalidraw-room
 ```
 
-## Excalidraw-Room funktioniert nicht (falls installiert)
-
-- Stellen Sie sicher, dass WebSocket-Support in Nginx aktiviert ist
+- Stellen Sie sicher, dass WebSocket-Support in Nginx aktiviert ist (`location /excalidraw-room/`)
 - Prüfen Sie die Nginx-Logs: `sudo tail -f /var/log/nginx/error.log`
-- Prüfen Sie die Room-Server-Logs: `sudo docker logs excalidraw-room`
-- Nginx-Konfiguration: [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren)
-
-## Canvas-Modul kann nicht aktiviert werden (falls Excalidraw installiert)
-
 - Prüfen Sie ob `EXCALIDRAW_ENABLED=True` in `.env` gesetzt ist
-- Prüfen Sie ob Excalidraw unter `/excalidraw` erreichbar ist
+- Zeichnen und Speichern funktionieren auch ohne Room-Server; nur Live-Kollaboration braucht ihn
 - Starten Sie die Anwendung neu: `sudo systemctl restart teamportal`
-- Führen Sie ggf. eine Migration aus: siehe [WARTUNG.md – Migrationen](WARTUNG.md#datenbank-migrationen-ausführen)
 
 ## Redis-Probleme
 

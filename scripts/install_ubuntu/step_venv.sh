@@ -28,7 +28,7 @@ step_uploads() {
     cd "$INSTALL_DIR" || return 1
 
     mkdir -p instance
-    mkdir -p uploads/{files,chat,manuals,profile_pics,inventory/product_images,inventory/product_documents,system,attachments,booking_forms,bookings,email_attachments,veranstaltungen,wiki}
+    mkdir -p uploads/{files,chat,manuals,profile_pics,inventory/product_images,inventory/product_documents,system,attachments,booking_forms,bookings,email_attachments,veranstaltungen,wiki,excalidraw,excalidraw/thumbs}
     mkdir -p uploads/chat/avatars
 
     chown -R www-data:www-data instance uploads
