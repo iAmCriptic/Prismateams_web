@@ -142,6 +142,9 @@
 </div>
 <script>
 window.process = window.process || { env: { NODE_ENV: 'production' } };
+// Set the asset path so Excalidraw can lazy-load its webpack chunks (menus, dialogs etc.)
+// MUST be set before the Excalidraw bundle is loaded.
+window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/';
 window.EXCALIDRAW_EDITOR_CONFIG = {
     sceneUrl: {{ scene_url|tojson }},
     returnUrl: {{ return_url|tojson }},
