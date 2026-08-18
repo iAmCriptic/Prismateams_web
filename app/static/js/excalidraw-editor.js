@@ -195,12 +195,12 @@ function renderChildren() {
         children.push(React.createElement(MainMenu, { key: 'mainMenu' }, ...items));
     }
 
-    if (WelcomeScreen) {
-        children.push(
-            React.createElement(WelcomeScreen, { key: 'welcomeScreen' },
-                React.createElement(WelcomeScreen.Hints, { key: 'hints', menu: true, toolbar: true })
-            )
-        );
+    if (WelcomeScreen && WelcomeScreen.Hints) {
+        const hintItems = [];
+        if (WelcomeScreen.Hints.MenuHint) hintItems.push(React.createElement(WelcomeScreen.Hints.MenuHint, { key: 'menuHint' }));
+        if (WelcomeScreen.Hints.ToolbarHint) hintItems.push(React.createElement(WelcomeScreen.Hints.ToolbarHint, { key: 'toolbarHint' }));
+        if (WelcomeScreen.Hints.HelpHint) hintItems.push(React.createElement(WelcomeScreen.Hints.HelpHint, { key: 'helpHint' }));
+        children.push(React.createElement(WelcomeScreen, { key: 'welcomeScreen' }, ...hintItems));
     }
 
     return children;
