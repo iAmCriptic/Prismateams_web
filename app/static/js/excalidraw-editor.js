@@ -2,8 +2,10 @@ const React = window.React;
 const ReactDOM = window.ReactDOM;
 const ExcalidrawLib = window.ExcalidrawLib || {};
 const Excalidraw = ExcalidrawLib.Excalidraw || ExcalidrawLib.default;
-if (Excalidraw && ExcalidrawLib.MainMenu) {
-    Excalidraw.MainMenu = ExcalidrawLib.MainMenu;
+if (Excalidraw) {
+    if (!Excalidraw.MainMenu && ExcalidrawLib.MainMenu) Excalidraw.MainMenu = ExcalidrawLib.MainMenu;
+    if (!Excalidraw.DefaultSidebar && ExcalidrawLib.DefaultSidebar) Excalidraw.DefaultSidebar = ExcalidrawLib.DefaultSidebar;
+    if (!Excalidraw.WelcomeScreen && ExcalidrawLib.WelcomeScreen) Excalidraw.WelcomeScreen = ExcalidrawLib.WelcomeScreen;
 }
 const exportToBlob = ExcalidrawLib.exportToBlob;
 const getSceneVersion = ExcalidrawLib.getSceneVersion;
@@ -184,23 +186,25 @@ function renderChildren() {
 
     const children = [];
 
-    let menuElement = null;
     if (MainMenu) {
         const DefaultItems = MainMenu.DefaultItems || {};
         const items = [];
-        if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
+        if (DefaultItems.LoadScene) items.push(React.createElement(DefaultItems.LoadScene, { key: 'load' }));
+        if (DefaultItems.SaveToActiveFile) items.push(React.createElement(DefaultItems.SaveToActiveFile, { key: 'save' }));
         if (DefaultItems.SaveAsImage) items.push(React.createElement(DefaultItems.SaveAsImage, { key: 'saveImage' }));
         if (DefaultItems.Export) items.push(React.createElement(DefaultItems.Export, { key: 'export' }));
-        if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
+        if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
+        if (DefaultItems.Separator) items.push(React.createElement(DefaultItems.Separator, { key: 'sep1' }));
         if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
+        if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
+        if (DefaultItems.Separator) items.push(React.createElement(DefaultItems.Separator, { key: 'sep2' }));
         if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
-        menuElement = React.createElement(MainMenu, { key: 'mainMenu' }, ...items);
+
+        children.push(React.createElement(MainMenu, { key: 'mainMenu' }, ...items));
     }
 
-    if (DefaultSidebar && menuElement) {
-        children.push(React.createElement(DefaultSidebar, { key: 'defaultSidebar' }, menuElement));
-    } else if (menuElement) {
-        children.push(menuElement);
+    if (DefaultSidebar) {
+        children.push(React.createElement(DefaultSidebar, { key: 'defaultSidebar' }));
     }
 
     if (WelcomeScreen && WelcomeScreen.Hints) {
@@ -316,8 +320,8 @@ async function boot() {
         UIOptions: {
             dockedSidebarBreakpoint: 0,
             canvasActions: {
-                loadScene: false,
-                saveToActiveFile: false,
+                loadScene: true,
+                saveToActiveFile: true,
                 toggleTheme: true,
                 export: { saveFileToDisk: true },
                 saveAsImage: true,
