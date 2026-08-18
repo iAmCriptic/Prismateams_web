@@ -166,6 +166,53 @@ async function goBack() {
     window.location.href = CONFIG.returnUrl || '/excalidraw/';
 }
 
+function renderMainMenu() {
+    const MainMenu = ExcalidrawLib.MainMenu;
+    if (!MainMenu) return null;
+    const DefaultItems = MainMenu.DefaultItems || {};
+    const items = [];
+    if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
+    if (DefaultItems.SaveAsImage) items.push(React.createElement(DefaultItems.SaveAsImage, { key: 'saveImage' }));
+    if (DefaultItems.Export) items.push(React.createElement(DefaultItems.Export, { key: 'export' }));
+    if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
+    if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
+    if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
+    return React.createElement(MainMenu, null, ...items);
+}
+
+function updateActiveUsersHeader(collaboratorsMap) {
+    const container = document.getElementById('excalidrawActiveUsers');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!collaboratorsMap || collaboratorsMap.size === 0) return;
+
+    collaboratorsMap.forEach((user) => {
+        if (!user || !user.username) return;
+        const badge = document.createElement('span');
+        badge.className = 'badge rounded-pill text-white d-inline-flex align-items-center gap-1 shadow-sm px-2 py-1 me-1';
+        badge.style.backgroundColor = (user.color && user.color.stroke) || '#0d6efd';
+        badge.style.fontSize = '0.78rem';
+        badge.title = `${user.username} (aktiv)`;
+        const safeName = String(user.username).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        badge.innerHTML = `<i class="bi bi-person-fill"></i><span>${safeName}</span>`;
+        container.appendChild(badge);
+    });
+}
+
+function onCollaboratorsChange(collaboratorsMap) {
+    if (api && typeof api.updateScene === 'function') {
+        api.updateScene({ collaborators: collaboratorsMap });
+    }
+    updateActiveUsersHeader(collaboratorsMap);
+}
+
+function onPointerUpdate(payload) {
+    const collab = window.PrismateamsExcalidrawCollab;
+    if (collab && collab.started && payload && payload.pointer) {
+        collab.broadcastPointer(payload.pointer, payload.button, payload.pointersMap ? Object.keys(payload.pointersMap) : undefined);
+    }
+}
+
 async function boot() {
     const rootEl = document.getElementById('excalidraw-root');
     if (!rootEl) return;
@@ -202,6 +249,7 @@ async function boot() {
     root.render(React.createElement(Excalidraw, {
         initialData,
         onChange,
+        onPointerUpdate,
         theme,
         name: CONFIG.name,
         viewModeEnabled: !CONFIG.canEdit,
@@ -213,7 +261,7 @@ async function boot() {
             },
         },
         excalidrawAPI: (nextApi) => { api = nextApi; },
-    }));
+    }, renderMainMenu()));
 
     const closeBtn = document.getElementById('excalidrawCloseBtn');
     if (closeBtn) closeBtn.addEventListener('click', goBack);
@@ -242,8 +290,12 @@ async function boot() {
             roomUrl: CONFIG.roomUrl,
             roomId: CONFIG.roomId,
             roomKey: CONFIG.roomKey,
+            username: CONFIG.username,
+            userColor: CONFIG.userColor,
+            userId: CONFIG.userId,
             getScene: () => ({ elements: lastElements, files: lastFiles }),
             applyScene: applyRemoteScene,
+            onCollaboratorsChange: onCollaboratorsChange,
             onStatus: (status) => setBanner(status === 'on'),
         });
         if (!ok) setBanner(false);

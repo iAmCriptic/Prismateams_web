@@ -78,16 +78,23 @@
             this.options = null;
             this.started = false;
             this.gotInit = false;
+            this.collaboratorsMap = new Map();
+            this.presenceTimer = null;
+            this.user = { id: null, name: 'User', color: '#0d6efd' };
+            this.onCollaboratorsChange = null;
         }
 
         async start(options) {
             this.stop();
             this.options = options || {};
-            const { roomUrl, roomId, roomKey, onStatus } = this.options;
+            const { roomUrl, roomId, roomKey, onStatus, username, userColor, userId, onCollaboratorsChange } = this.options;
             if (!global.io || !roomId || !roomKey) {
                 if (onStatus) onStatus('off');
                 return false;
             }
+            this.user = { id: userId, name: username || 'User', color: userColor || '#0d6efd' };
+            this.onCollaboratorsChange = onCollaboratorsChange;
+
             try {
                 this.key = await importKey(roomKey);
             } catch (err) {
@@ -123,6 +130,9 @@
                         if (onStatus) onStatus('on');
                         resolve(true);
                     }
+                    this.broadcastPresence();
+                    if (this.presenceTimer) clearInterval(this.presenceTimer);
+                    this.presenceTimer = setInterval(() => this.broadcastPresence(), 4000);
                     window.setTimeout(() => {
                         if (!this.gotInit && this.options.getScene) {
                             const scene = this.options.getScene();
@@ -153,12 +163,82 @@
 
         _handleMessage(message) {
             if (!message || !message.type) return;
+            const payload = message.payload || {};
+            const socketId = payload.socketId || message.senderId;
+
             if (message.type === 'INIT' || message.type === 'SCENE') {
                 this.gotInit = true;
-                if (this.options.applyScene && message.payload) {
-                    this.options.applyScene(message.payload);
+                if (this.options.applyScene && payload) {
+                    this.options.applyScene(payload);
+                }
+            } else if (message.type === 'PRESENCE') {
+                if (socketId && payload.username && socketId !== this.socket?.id) {
+                    const colorHex = payload.userColor || '#0d6efd';
+                    const existing = this.collaboratorsMap.get(socketId) || {};
+                    this.collaboratorsMap.set(socketId, {
+                        ...existing,
+                        username: payload.username,
+                        color: { background: colorHex + '22', stroke: colorHex },
+                        userColor: colorHex,
+                        lastSeen: Date.now(),
+                    });
+                    this._notifyCollaborators();
+                }
+            } else if (message.type === 'POINTER') {
+                if (socketId && socketId !== this.socket?.id) {
+                    const colorHex = payload.userColor || '#0d6efd';
+                    const existing = this.collaboratorsMap.get(socketId) || {};
+                    this.collaboratorsMap.set(socketId, {
+                        ...existing,
+                        username: payload.username || existing.username || 'User',
+                        color: { background: colorHex + '22', stroke: colorHex },
+                        userColor: colorHex,
+                        pointer: payload.pointer || existing.pointer,
+                        button: payload.button || 'up',
+                        selectedElementIds: payload.selectedElementIds || existing.selectedElementIds,
+                        lastSeen: Date.now(),
+                    });
+                    this._notifyCollaborators();
+                }
+            } else if (message.type === 'LEAVE') {
+                if (socketId) {
+                    this.collaboratorsMap.delete(socketId);
+                    this._notifyCollaborators();
                 }
             }
+        }
+
+        _notifyCollaborators() {
+            const now = Date.now();
+            for (const [id, collab] of this.collaboratorsMap.entries()) {
+                if (now - (collab.lastSeen || 0) > 12000) {
+                    this.collaboratorsMap.delete(id);
+                }
+            }
+            if (typeof this.onCollaboratorsChange === 'function') {
+                this.onCollaboratorsChange(this.collaboratorsMap);
+            }
+        }
+
+        broadcastPresence() {
+            if (!this.started || !this.socket) return;
+            this.broadcast('PRESENCE', {
+                userColor: this.user.color,
+                username: this.user.name,
+                socketId: this.socket.id,
+            }, true);
+        }
+
+        broadcastPointer(pointer, button, selectedElementIds) {
+            if (!this.started || !this.socket) return;
+            this.broadcast('POINTER', {
+                pointer,
+                button,
+                selectedElementIds,
+                username: this.user.name,
+                userColor: this.user.color,
+                socketId: this.socket.id,
+            }, true);
         }
 
         async broadcast(type, payload, volatile) {
@@ -177,8 +257,16 @@
         }
 
         stop() {
+            if (this.presenceTimer) {
+                clearInterval(this.presenceTimer);
+                this.presenceTimer = null;
+            }
+            if (this.started && this.socket) {
+                this.broadcast('LEAVE', { socketId: this.socket.id }, true);
+            }
             this.started = false;
             this.gotInit = false;
+            this.collaboratorsMap.clear();
             if (this.socket) {
                 try { this.socket.disconnect(); } catch (err) { /* ignore */ }
             }
