@@ -1,6 +1,9 @@
-import React from 'https://esm.sh/react@18.3.1';
-import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-import { Excalidraw, exportToBlob, getSceneVersion } from 'https://esm.sh/@excalidraw/excalidraw@0.17.6';
+const React = window.React;
+const ReactDOM = window.ReactDOM;
+const ExcalidrawLib = window.ExcalidrawLib || {};
+const Excalidraw = ExcalidrawLib.Excalidraw || ExcalidrawLib.default;
+const exportToBlob = ExcalidrawLib.exportToBlob;
+const getSceneVersion = ExcalidrawLib.getSceneVersion;
 
 const CONFIG = window.EXCALIDRAW_EDITOR_CONFIG || {};
 
@@ -167,6 +170,12 @@ async function boot() {
     const rootEl = document.getElementById('excalidraw-root');
     if (!rootEl) return;
 
+    if (!React || !ReactDOM || !Excalidraw) {
+        console.error('Excalidraw dependencies missing:', { React: !!React, ReactDOM: !!ReactDOM, Excalidraw: !!Excalidraw });
+        rootEl.innerHTML = '<div class="alert alert-danger m-3 p-4">Excalidraw Editor konnte nicht geladen werden. Bitte prüfen Sie die Konsolen-Logs oder laden Sie die Seite neu.</div>';
+        return;
+    }
+
     let initialData = {
         type: 'excalidraw',
         version: 2,
@@ -188,6 +197,7 @@ async function boot() {
     lastSavedVersion = typeof getSceneVersion === 'function' ? getSceneVersion(lastElements) : 0;
 
     const theme = CONFIG.themeDark ? 'dark' : 'light';
+    const createRoot = ReactDOM.createRoot ? ((el) => ReactDOM.createRoot(el)) : ((el) => ({ render: (c) => ReactDOM.render(c, el) }));
     const root = createRoot(rootEl);
     root.render(React.createElement(Excalidraw, {
         initialData,

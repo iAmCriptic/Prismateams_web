@@ -1,8 +1,11 @@
 #!/bin/bash
-# Excalidraw Room Server via Docker (live collaboration for the Excalidraw module)
+# Excalidraw Integration (Prismateams Web)
 #
-# Image: excalidraw/excalidraw-room:latest
-# Bound to 127.0.0.1:8082 — Nginx proxies /excalidraw-room with WebSocket upgrade.
+# ARCHITEKTUR-HINWEIS:
+# - Der Excalidraw Zeichnungs-Editor ist nativ im Flask-Portal integriert.
+#   Alle Frontend-Bibliotheken (React, ReactDOM, Excalidraw, Socket.IO) liegen lokal unter app/static/vendor/.
+# - Das Docker-Image excalidraw/excalidraw-room:latest dient als optionaler WebSocket-Backend-Server für Live-Kollaboration.
+# - Port: 127.0.0.1:8082 — Nginx/Apache leiten /excalidraw-room per WebSocket weiter.
 
 EXCALIDRAW_ROOM_IMAGE="${EXCALIDRAW_ROOM_IMAGE:-excalidraw/excalidraw-room:latest}"
 EXCALIDRAW_ROOM_HOST_PORT="${EXCALIDRAW_ROOM_HOST_PORT:-8082}"

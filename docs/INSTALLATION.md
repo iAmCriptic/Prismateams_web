@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
@@ -209,12 +209,14 @@ sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allf
 
 ### Schritt 6: Optionale Installation - Excalidraw Room
 
-**⚠️ OPTIONAL:** Nur nötig für **Live-Kollaboration** im Excalidraw-Modul. Zeichnen und automatisches Speichern funktionieren ohne Docker. Wenn der Room-Server fehlt, setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`.
+**⚠️ ARCHITEKTUR & UMD-ASSETS:** Der Excalidraw-Zeichnungs-Editor ist **nativ in Flask** integriert. Alle benötigten Bibliotheken (React, ReactDOM, Excalidraw, Socket.IO) liegen lokal unter `app/static/vendor/` im Repository – der Editor benötigt somit **keinen externen CDN-Zugriff** und keinen separaten Docker-Container für die Standard-Nutzung.
 
-Der Editor läuft im Portal (kein Iframe der öffentlichen Excalidraw-SPA). `/excalidraw` ist die Flask-Modul-URL und darf **nicht** auf einen Docker-Client zeigen.
+**⚠️ DOCKER (OPTIONAL):** Docker ist **nur für Live-Kollaboration** (echtzeit-gemeinsames Zeichnen mehrerer Benutzer) nötig. Zeichnen, Versionierung und automatisches Speichern funktionieren auch ohne Docker. Wenn der Room-Server fehlt, funktioniert das Zeichnen lokal; setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`, falls Sie Kollaboration deaktivieren möchten.
+
+Der Editor läuft nativ im Portal unter `/excalidraw` (kein Iframe der öffentlichen Excalidraw-SPA).
 
 ```bash
-# Excalidraw-Room nur auf Loopback (Port 8082)
+# Excalidraw-Room nur auf Loopback (Port 8082) für Live-Kollaboration
 sudo docker pull excalidraw/excalidraw-room:latest
 sudo docker run -d --restart=always \
     --name excalidraw-room \
