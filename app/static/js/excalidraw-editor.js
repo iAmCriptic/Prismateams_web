@@ -225,11 +225,21 @@ function updateActiveUsersHeader(collaboratorsMap) {
     });
 }
 
+let updateSceneFrame = null;
+let pendingCollaborators = null;
+
 function onCollaboratorsChange(collaboratorsMap) {
-    if (api && typeof api.updateScene === 'function') {
-        api.updateScene({ collaborators: collaboratorsMap });
-    }
+    pendingCollaborators = collaboratorsMap;
     updateActiveUsersHeader(collaboratorsMap);
+    if (!updateSceneFrame) {
+        updateSceneFrame = requestAnimationFrame(() => {
+            updateSceneFrame = null;
+            if (api && typeof api.updateScene === 'function' && pendingCollaborators) {
+                api.updateScene({ collaborators: pendingCollaborators });
+            }
+            pendingCollaborators = null;
+        });
+    }
 }
 
 function onPointerUpdate(payload) {
