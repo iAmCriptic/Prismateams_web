@@ -179,10 +179,12 @@ async function goBack() {
 
 function renderChildren() {
     const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
+    const DefaultSidebar = (Excalidraw && Excalidraw.DefaultSidebar) || ExcalidrawLib.DefaultSidebar;
     const WelcomeScreen = (Excalidraw && Excalidraw.WelcomeScreen) || ExcalidrawLib.WelcomeScreen;
 
     const children = [];
 
+    let menuElement = null;
     if (MainMenu) {
         const DefaultItems = MainMenu.DefaultItems || {};
         const items = [];
@@ -192,7 +194,13 @@ function renderChildren() {
         if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
         if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
         if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
-        children.push(React.createElement(MainMenu, { key: 'mainMenu' }, ...items));
+        menuElement = React.createElement(MainMenu, { key: 'mainMenu' }, ...items);
+    }
+
+    if (DefaultSidebar && menuElement) {
+        children.push(React.createElement(DefaultSidebar, { key: 'defaultSidebar' }, menuElement));
+    } else if (menuElement) {
+        children.push(menuElement);
     }
 
     if (WelcomeScreen && WelcomeScreen.Hints) {
@@ -306,6 +314,7 @@ async function boot() {
         name: CONFIG.name,
         viewModeEnabled: !CONFIG.canEdit,
         UIOptions: {
+            dockedSidebarBreakpoint: 0,
             canvasActions: {
                 loadScene: false,
                 saveToActiveFile: false,
