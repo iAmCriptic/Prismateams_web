@@ -2,6 +2,9 @@ const React = window.React;
 const ReactDOM = window.ReactDOM;
 const ExcalidrawLib = window.ExcalidrawLib || {};
 const Excalidraw = ExcalidrawLib.Excalidraw || ExcalidrawLib.default;
+if (Excalidraw && ExcalidrawLib.MainMenu) {
+    Excalidraw.MainMenu = ExcalidrawLib.MainMenu;
+}
 const exportToBlob = ExcalidrawLib.exportToBlob;
 const getSceneVersion = ExcalidrawLib.getSceneVersion;
 
@@ -17,6 +20,9 @@ let saving = false;
 let dirty = false;
 let leaving = false;
 let applyingRemote = false;
+let pointerThrottleFrame = null;
+let pendingPointer = null;
+let sceneBroadcastTimer = null;
 const SAVE_DELAY_MS = 3000;
 
 const statusEl = () => document.getElementById('excalidrawSaveStatus');
@@ -136,9 +142,11 @@ function applyRemoteScene(payload) {
             api.addFiles(payload.files);
         }
     } finally {
-        window.setTimeout(() => { applyingRemote = false; }, 50);
+        window.setTimeout(() => { applyingRemote = false; }, 30);
     }
 }
+
+let lastBroadcastSelection = null;
 
 function onChange(elements, appState, files) {
     lastElements = elements;
@@ -148,10 +156,17 @@ function onChange(elements, appState, files) {
     scheduleSave();
     const collab = window.PrismateamsExcalidrawCollab;
     if (collab && collab.started) {
-        if (onChange._t) window.clearTimeout(onChange._t);
-        onChange._t = window.setTimeout(() => {
-            collab.broadcastScene(elements, files);
-        }, 250);
+        if (!sceneBroadcastTimer) {
+            sceneBroadcastTimer = window.setTimeout(() => {
+                sceneBroadcastTimer = null;
+                collab.broadcastScene(lastElements, lastFiles);
+            }, 60);
+        }
+        const currentSelectionStr = JSON.stringify(appState ? (appState.selectedElementIds || {}) : {});
+        if (currentSelectionStr !== lastBroadcastSelection) {
+            lastBroadcastSelection = currentSelectionStr;
+            collab.broadcastPointer({ x: 0, y: 0 }, 'up', appState.selectedElementIds || {});
+        }
     }
 }
 
@@ -167,7 +182,7 @@ async function goBack() {
 }
 
 function renderMainMenu() {
-    const MainMenu = ExcalidrawLib.MainMenu;
+    const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
     if (!MainMenu) return null;
     const DefaultItems = MainMenu.DefaultItems || {};
     const items = [];
@@ -207,9 +222,25 @@ function onCollaboratorsChange(collaboratorsMap) {
 }
 
 function onPointerUpdate(payload) {
-    const collab = window.PrismateamsExcalidrawCollab;
-    if (collab && collab.started && payload && payload.pointer) {
-        collab.broadcastPointer(payload.pointer, payload.button, payload.pointersMap ? Object.keys(payload.pointersMap) : undefined);
+    if (!payload || !payload.pointer) return;
+    pendingPointer = payload;
+    if (!pointerThrottleFrame) {
+        pointerThrottleFrame = requestAnimationFrame(() => {
+            pointerThrottleFrame = null;
+            if (!pendingPointer) return;
+            const collab = window.PrismateamsExcalidrawCollab;
+            if (collab && collab.started) {
+                const selectedElementIds = (lastAppState && lastAppState.selectedElementIds)
+                    ? lastAppState.selectedElementIds
+                    : {};
+                collab.broadcastPointer(
+                    pendingPointer.pointer,
+                    pendingPointer.button,
+                    selectedElementIds
+                );
+            }
+            pendingPointer = null;
+        });
     }
 }
 
@@ -258,6 +289,10 @@ async function boot() {
                 loadScene: false,
                 saveToActiveFile: false,
                 toggleTheme: true,
+                export: { saveFileToDisk: true },
+                saveAsImage: true,
+                clearCanvas: true,
+                changeViewBackgroundColor: true,
             },
         },
         excalidrawAPI: (nextApi) => { api = nextApi; },

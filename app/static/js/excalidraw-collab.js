@@ -191,11 +191,11 @@
                     this.collaboratorsMap.set(socketId, {
                         ...existing,
                         username: payload.username || existing.username || 'User',
-                        color: { background: colorHex + '22', stroke: colorHex },
+                        color: { background: colorHex + '25', stroke: colorHex },
                         userColor: colorHex,
-                        pointer: payload.pointer || existing.pointer,
+                        pointer: payload.pointer || existing.pointer || { x: 0, y: 0 },
                         button: payload.button || 'up',
-                        selectedElementIds: payload.selectedElementIds || existing.selectedElementIds,
+                        selectedElementIds: payload.selectedElementIds || {},
                         lastSeen: Date.now(),
                     });
                     this._notifyCollaborators();
