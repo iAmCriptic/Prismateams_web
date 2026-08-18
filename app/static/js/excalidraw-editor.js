@@ -132,15 +132,11 @@ function applyRemoteScene(payload) {
     try {
         const elements = payload.elements || [];
         lastElements = elements;
-        if (payload.files) lastFiles = payload.files;
-        api.updateScene({
-            elements,
-            appState: lastAppState,
-            collaborators: api.getAppState ? api.getAppState().collaborators : undefined,
-        });
-        if (payload.files && api.addFiles) {
-            api.addFiles(payload.files);
+        if (payload.files) {
+            lastFiles = payload.files;
+            if (api.addFiles) api.addFiles(payload.files);
         }
+        api.updateScene({ elements });
     } finally {
         window.setTimeout(() => { applyingRemote = false; }, 30);
     }
@@ -181,18 +177,33 @@ async function goBack() {
     window.location.href = CONFIG.returnUrl || '/excalidraw/';
 }
 
-function renderMainMenu() {
+function renderChildren() {
     const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
-    if (!MainMenu) return null;
-    const DefaultItems = MainMenu.DefaultItems || {};
-    const items = [];
-    if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
-    if (DefaultItems.SaveAsImage) items.push(React.createElement(DefaultItems.SaveAsImage, { key: 'saveImage' }));
-    if (DefaultItems.Export) items.push(React.createElement(DefaultItems.Export, { key: 'export' }));
-    if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
-    if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
-    if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
-    return React.createElement(MainMenu, null, ...items);
+    const WelcomeScreen = (Excalidraw && Excalidraw.WelcomeScreen) || ExcalidrawLib.WelcomeScreen;
+
+    const children = [];
+
+    if (MainMenu) {
+        const DefaultItems = MainMenu.DefaultItems || {};
+        const items = [];
+        if (DefaultItems.ClearCanvas) items.push(React.createElement(DefaultItems.ClearCanvas, { key: 'clear' }));
+        if (DefaultItems.SaveAsImage) items.push(React.createElement(DefaultItems.SaveAsImage, { key: 'saveImage' }));
+        if (DefaultItems.Export) items.push(React.createElement(DefaultItems.Export, { key: 'export' }));
+        if (DefaultItems.ChangeCanvasBackground) items.push(React.createElement(DefaultItems.ChangeCanvasBackground, { key: 'bg' }));
+        if (DefaultItems.ToggleTheme) items.push(React.createElement(DefaultItems.ToggleTheme, { key: 'theme' }));
+        if (DefaultItems.Help) items.push(React.createElement(DefaultItems.Help, { key: 'help' }));
+        children.push(React.createElement(MainMenu, { key: 'mainMenu' }, ...items));
+    }
+
+    if (WelcomeScreen) {
+        children.push(
+            React.createElement(WelcomeScreen, { key: 'welcomeScreen' },
+                React.createElement(WelcomeScreen.Hints, { key: 'hints', menu: true, toolbar: true })
+            )
+        );
+    }
+
+    return children;
 }
 
 function updateActiveUsersHeader(collaboratorsMap) {
@@ -294,9 +305,12 @@ async function boot() {
                 clearCanvas: true,
                 changeViewBackgroundColor: true,
             },
+            tools: {
+                image: true,
+            },
         },
         excalidrawAPI: (nextApi) => { api = nextApi; },
-    }, renderMainMenu()));
+    }, ...renderChildren()));
 
     const closeBtn = document.getElementById('excalidrawCloseBtn');
     if (closeBtn) closeBtn.addEventListener('click', goBack);
