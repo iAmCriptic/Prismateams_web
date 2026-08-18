@@ -164,10 +164,14 @@ window.EXCALIDRAW_EDITOR_CONFIG = {
 };
 </script>
 <script src="{{ url_for('static', filename='vendor/react/react.production.min.js') }}"></script>
+<script>window.React || document.write('<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"><\/script>');</script>
 <script src="{{ url_for('static', filename='vendor/react/react-dom.production.min.js') }}"></script>
+<script>window.ReactDOM || document.write('<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"><\/script>');</script>
 <script src="{{ url_for('static', filename='vendor/excalidraw/excalidraw.production.min.js') }}"></script>
+<script>window.ExcalidrawLib || document.write('<script src="https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js"><\/script>');</script>
 <script src="{{ url_for('static', filename='vendor/socket.io/socket.io.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/excalidraw-collab.js') }}"></script>
-<script src="{{ url_for('static', filename='js/excalidraw-editor.js') }}"></script>
+<script>window.io || document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');</script>
+<script src="{{ url_for('static', filename='js/excalidraw-collab.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+<script src="{{ url_for('static', filename='js/excalidraw-editor.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 </body>
 </html>

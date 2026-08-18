@@ -44,7 +44,11 @@ step_excalidraw() {
         return 1
     fi
 
-    log_info "=== Excalidraw Room Server ==="
+    log_info "=== Excalidraw Integration ==="
+    if [ -f "${INSTALL_DIR}/scripts/download_excalidraw_vendor.py" ]; then
+        log_info "Prüfe lokale Excalidraw UMD Vendor-Bibliotheken..."
+        python3 "${INSTALL_DIR}/scripts/download_excalidraw_vendor.py" 2>/dev/null || log_warning "Vendor-Download Skript fehlgeschlagen (nutze CDN-Fallback)"
+    fi
     docker pull "${EXCALIDRAW_ROOM_IMAGE}" || log_warning "Image-Pull fehlgeschlagen, versuche vorhandenen Cache"
 
     if _excalidraw_port_in_use "${EXCALIDRAW_ROOM_HOST_PORT}"; then

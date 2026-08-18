@@ -14,25 +14,56 @@
         return out;
     }
 
+    function fallbackTransform(u8, keyBytes, iv) {
+        const out = new Uint8Array(u8.length);
+        for (let i = 0; i < u8.length; i += 1) {
+            const k = keyBytes[i % keyBytes.length] ^ iv[i % iv.length];
+            out[i] = u8[i] ^ k;
+        }
+        return out;
+    }
+
     async function importKey(roomKey) {
         const raw = hexToBytes(roomKey);
-        const keyBytes = raw.length >= 16 ? raw.slice(0, 32) : new TextEncoder().encode(roomKey).slice(0, 16);
-        const padded = new Uint8Array(16);
-        padded.set(keyBytes.slice(0, 16));
-        return crypto.subtle.importKey('raw', padded, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        const keyBytes = raw.length >= 16 ? raw.slice(0, 32) : new TextEncoder().encode(roomKey || 'default').slice(0, 16);
+        if (global.crypto && global.crypto.subtle) {
+            try {
+                const padded = new Uint8Array(16);
+                padded.set(keyBytes.slice(0, 16));
+                return await global.crypto.subtle.importKey('raw', padded, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+            } catch (err) {
+                console.warn('SubtleCrypto importKey failed, using fallback:', err);
+            }
+        }
+        return { fallback: true, keyBytes };
     }
 
     async function encryptJson(key, obj) {
-        const iv = crypto.getRandomValues(new Uint8Array(12));
         const encoded = new TextEncoder().encode(JSON.stringify(obj));
-        const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+        const getRandomValues = (global.crypto && typeof global.crypto.getRandomValues === 'function')
+            ? (arr) => global.crypto.getRandomValues(arr)
+            : (arr) => { for (let i = 0; i < arr.length; i += 1) arr[i] = Math.floor(Math.random() * 256); return arr; };
+        const iv = getRandomValues(new Uint8Array(12));
+
+        if (key && key.fallback) {
+            const cipher = fallbackTransform(encoded, key.keyBytes, iv);
+            return { cipher, iv };
+        }
+
+        const cipher = await global.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
         return { cipher: new Uint8Array(cipher), iv };
     }
 
     async function decryptJson(key, cipher, iv) {
         const ivView = iv instanceof Uint8Array ? iv : new Uint8Array(iv);
         const data = cipher instanceof Uint8Array ? cipher : new Uint8Array(cipher);
-        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivView }, key, data);
+
+        if (key && key.fallback) {
+            const plainBytes = fallbackTransform(data, key.keyBytes, ivView);
+            return JSON.parse(new TextDecoder().decode(plainBytes));
+        }
+
+        const plain = await global.crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivView }, key, data);
         return JSON.parse(new TextDecoder().decode(plain));
     }
 
