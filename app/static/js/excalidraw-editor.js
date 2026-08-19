@@ -290,6 +290,7 @@ async function boot() {
         onChange,
         onPointerUpdate,
         theme,
+        langCode: CONFIG.langCode || 'de-DE',
         name: CONFIG.name,
         viewModeEnabled: !CONFIG.canEdit,
         UIOptions: {

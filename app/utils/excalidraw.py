@@ -27,6 +27,15 @@ UPLOAD_SUBDIR = os.path.join('uploads', 'excalidraw')
 THUMB_SUBDIR = os.path.join(UPLOAD_SUBDIR, 'thumbs')
 EXCALIDRAW_PACKAGE_VERSION = '0.18.1'
 
+# Portal language codes (de, en, …) → Excalidraw langCode values
+EXCALIDRAW_LANG_MAP = {
+    'de': 'de-DE',
+    'en': 'en',
+    'es': 'es-ES',
+    'pt': 'pt-PT',
+    'ru': 'ru-RU',
+}
+
 
 def get_excalidraw_package_version():
     return EXCALIDRAW_PACKAGE_VERSION
@@ -34,6 +43,12 @@ def get_excalidraw_package_version():
 
 def get_excalidraw_cdn_base():
     return f'https://unpkg.com/@excalidraw/excalidraw@{EXCALIDRAW_PACKAGE_VERSION}/dist/prod/'
+
+
+def get_excalidraw_lang_code(portal_language: str | None = None) -> str:
+    """Map team-portal language to Excalidraw langCode."""
+    prefix = (portal_language or 'de').split('-')[0].lower()[:2]
+    return EXCALIDRAW_LANG_MAP.get(prefix, 'en')
 
 
 def get_excalidraw_esm_module_url():

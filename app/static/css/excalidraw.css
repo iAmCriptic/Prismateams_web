@@ -116,7 +116,7 @@
     /* Keep position:relative so that #excalidraw-root with position:absolute is contained here.
        Excalidraw's modal portals mount to document.body, so they are NOT clipped by this. */
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .excalidraw-editor-content .excalidraw,
@@ -129,6 +129,37 @@
 /* Do not override Excalidraw popover/modal stacking globally.
    Excalidraw manages menu layering itself; forced z-index values
    can break pointer routing for nested menus. */
+
+/*
+ * Bootstrap 5 also defines .dropdown-menu and .popover globally.
+ * Excalidraw reuses those class names but toggles visibility via
+ * Radix data-state, not Bootstrap's .show class — without isolation
+ * hamburger/library/shape submenus stay invisible (opacity:0 / display:none).
+ */
+.excalidraw .dropdown-menu,
+.excalidraw .popover {
+    display: revert;
+    opacity: revert;
+    visibility: revert;
+    pointer-events: auto;
+    position: absolute;
+    transform: none;
+    max-width: none;
+    background: unset;
+    border: unset;
+    box-shadow: unset;
+}
+
+.excalidraw [data-state="open"],
+.excalidraw [data-state="open"].dropdown-menu,
+.excalidraw [data-state="open"].popover,
+.excalidraw .dropdown-menu[data-state="open"],
+.excalidraw .popover[data-state="open"] {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
 
 .excalidraw-collab-banner {
     flex: 0 0 auto;

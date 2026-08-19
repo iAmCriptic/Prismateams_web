@@ -24,6 +24,7 @@ from app.utils.excalidraw import (
     MAX_VERSIONS,
     download_name,
     get_excalidraw_editor_asset_urls,
+    get_excalidraw_lang_code,
     get_excalidraw_room_url,
     is_excalidraw_collab_enabled,
     new_scene_path,
@@ -33,7 +34,7 @@ from app.utils.excalidraw import (
     save_thumbnail_data,
     write_scene_file,
 )
-from app.utils.i18n import _
+from app.utils.i18n import _, get_current_language
 from app.utils.module_visibility import (
     accessible_query,
     apply_section_filter,
@@ -282,6 +283,7 @@ def edit(drawing_id):
         excalidraw_cdn_base=assets['cdn_base'],
         excalidraw_module_url=assets['module_url'],
         excalidraw_module_fallback=assets['module_fallback'],
+        excalidraw_lang_code=get_excalidraw_lang_code(get_current_language()),
     )
 
 
