@@ -2,11 +2,6 @@ const React = window.React;
 const ReactDOM = window.ReactDOM;
 const ExcalidrawLib = window.ExcalidrawLib || {};
 const Excalidraw = ExcalidrawLib.Excalidraw || ExcalidrawLib.default;
-if (Excalidraw) {
-    if (!Excalidraw.MainMenu && ExcalidrawLib.MainMenu) Excalidraw.MainMenu = ExcalidrawLib.MainMenu;
-    if (!Excalidraw.DefaultSidebar && ExcalidrawLib.DefaultSidebar) Excalidraw.DefaultSidebar = ExcalidrawLib.DefaultSidebar;
-    if (!Excalidraw.WelcomeScreen && ExcalidrawLib.WelcomeScreen) Excalidraw.WelcomeScreen = ExcalidrawLib.WelcomeScreen;
-}
 const exportToBlob = ExcalidrawLib.exportToBlob;
 const getSceneVersion = ExcalidrawLib.getSceneVersion;
 
@@ -198,25 +193,6 @@ async function goBack() {
 
 window.excalidrawGoBack = goBack;
 
-function renderChildren() {
-    const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
-    const WelcomeScreen = (Excalidraw && Excalidraw.WelcomeScreen) || ExcalidrawLib.WelcomeScreen;
-
-    const children = [];
-
-    // Render MainMenu with no children so Excalidraw uses ALL its own default items.
-    // Passing custom children breaks Excalidraw's internal state management for popovers.
-    if (MainMenu) {
-        children.push(React.createElement(MainMenu, { key: 'mainMenu' }));
-    }
-
-    if (WelcomeScreen) {
-        children.push(React.createElement(WelcomeScreen, { key: 'welcomeScreen' }));
-    }
-
-    return children;
-}
-
 function updateActiveUsersHeader(collaboratorsMap) {
     const container = document.getElementById('excalidrawActiveUsers');
     if (!container) return;
@@ -332,7 +308,7 @@ async function boot() {
             },
         },
         excalidrawAPI: (nextApi) => { api = nextApi; },
-    }, ...renderChildren()));
+    }));
 
     document.addEventListener('keydown', (event) => {
         // Ctrl+S / Cmd+S: save
