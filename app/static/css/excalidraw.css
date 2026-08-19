@@ -126,13 +126,9 @@
     height: 100%;
 }
 
-/* Ensure Excalidraw's own modal/popover portals always render on top */
-.excalidraw-modal-container,
-.excalidraw .Island,
-.excalidraw .popover,
-.excalidraw .context-menu {
-    z-index: 99999 !important;
-}
+/* Do not override Excalidraw popover/modal stacking globally.
+   Excalidraw manages menu layering itself; forced z-index values
+   can break pointer routing for nested menus. */
 
 .excalidraw-collab-banner {
     flex: 0 0 auto;

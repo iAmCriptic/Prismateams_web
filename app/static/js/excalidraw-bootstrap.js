@@ -1,15 +1,19 @@
 /**
- * ESM bootstrap for Excalidraw 0.18.1.
- * Loads React + Excalidraw via esm.sh (bare imports in the npm ESM bundle
- * cannot be resolved from local vendor/index.js without an import map).
+ * ESM bootstrap for Excalidraw 0.18.1 using bundled module URLs with fallback.
  */
 const BOOT = window.EXCALIDRAW_BOOTSTRAP || {};
 const VERSION = BOOT.version || '0.18.1';
 
-const REACT_URL = BOOT.reactUrl || 'https://esm.sh/react@18.3.1';
-const REACT_DOM_URL = BOOT.reactDomUrl || 'https://esm.sh/react-dom@18.3.1';
-const EXCALIDRAW_MODULE_URL = BOOT.moduleUrl
-    || `https://esm.sh/@excalidraw/excalidraw@${VERSION}?external=react,react-dom`;
+const REACT_URLS = BOOT.reactUrls || [
+    'https://esm.sh/react@18.3.1',
+];
+const REACT_DOM_URLS = BOOT.reactDomUrls || [
+    'https://esm.sh/react-dom@18.3.1',
+];
+const EXCALIDRAW_MODULE_URLS = BOOT.excalidrawModuleUrls || [
+    `https://esm.sh/@excalidraw/excalidraw@${VERSION}?external=react,react-dom&bundle`,
+    `https://esm.sh/@excalidraw/excalidraw@${VERSION}?external=react,react-dom`,
+];
 const COLLAB_URL = BOOT.collabUrl;
 const EDITOR_URL = BOOT.editorUrl;
 
@@ -27,24 +31,25 @@ async function importModule(url) {
     return import(/* webpackIgnore: true */ url);
 }
 
+async function importFromFallbacks(urls, name) {
+    let lastError = null;
+    for (const url of urls) {
+        if (!url) continue;
+        try {
+            return await importModule(url);
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    throw new Error(`${name} failed to load (${lastError ? lastError.message : 'no URL'})`);
+}
+
 async function start() {
     const [React, ReactDOM] = await Promise.all([
-        importModule(REACT_URL),
-        importModule(REACT_DOM_URL),
+        importFromFallbacks(REACT_URLS, 'React'),
+        importFromFallbacks(REACT_DOM_URLS, 'ReactDOM'),
     ]);
-
-    let ExcalidrawLib;
-    try {
-        ExcalidrawLib = await importModule(EXCALIDRAW_MODULE_URL);
-    } catch (err) {
-        const fallback = BOOT.moduleFallback
-            || `https://esm.sh/@excalidraw/excalidraw@${VERSION}`;
-        console.warn('Excalidraw module failed, using fallback', err);
-        if (BOOT.assetFallback) {
-            window.EXCALIDRAW_ASSET_PATH = BOOT.assetFallback;
-        }
-        ExcalidrawLib = await importModule(fallback);
-    }
+    const ExcalidrawLib = await importFromFallbacks(EXCALIDRAW_MODULE_URLS, 'Excalidraw module');
 
     window.React = React.default || React;
     window.ReactDOM = ReactDOM.default || ReactDOM;

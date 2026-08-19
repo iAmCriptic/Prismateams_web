@@ -39,7 +39,7 @@ def get_excalidraw_cdn_base():
 def get_excalidraw_esm_module_url():
     return (
         f'https://esm.sh/@excalidraw/excalidraw@{EXCALIDRAW_PACKAGE_VERSION}'
-        '?external=react,react-dom'
+        '?external=react,react-dom&bundle'
     )
 
 
