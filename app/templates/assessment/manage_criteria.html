@@ -6,7 +6,7 @@
 {% block assessment_content %}
 {{ assessment_page_header('Kriterienverwaltung', icon='ui-checks-grid') }}
 
-    <div class="assessment-panel mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
+    <div class="assessment-panel mb-3" id="listPickerWrap">
             <label class="form-label">Bewertungsliste</label>
             <select class="form-select" id="listSelect">
                 {% for lst in evaluation_lists %}
@@ -149,7 +149,8 @@
         fd.append('list_id', document.getElementById('listSelect').value);
         const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
         const data = await res.json();
-        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        const msg = data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.');
+        if (window.AssessmentUI) window.AssessmentUI.notify(msg, data.success ? 'success' : 'danger');
         if (!data.success) return;
         e.target.reset();
         loadCriteria();

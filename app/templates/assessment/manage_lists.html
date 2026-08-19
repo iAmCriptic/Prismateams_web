@@ -1,5 +1,5 @@
 {% extends "assessment/layout.html" %}
-{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
+{% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Bewertungslisten - Bewertung{% endblock %}
 {% block assessment_heading_icon %}bi-list-ul{% endblock %}
 {% block assessment_heading %}{{ _('assessment.nav.lists') }}{% endblock %}
@@ -45,31 +45,7 @@
             </form>
     </div>
 
-    <div class="assessment-panel mb-4" id="excelListPickerWrap">
-            <h2 class="assessment-panel-title mb-3"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Excel-Import pro Bewertungsliste</h2>
-            <label class="form-label" for="excelListSelect">Bewertungsliste</label>
-            <select class="form-select mb-0" id="excelListSelect"></select>
-    </div>
-
-    {{ assessment_excel_upload(
-        'Kriterien importieren',
-        'listsCriteriaExcelForm',
-        'criteria',
-        'Pflicht-Spalten: <code>Name</code>, <code>Maximale Punktzahl</code>, <code>Beschreibung</code>',
-        'Gilt für die gewählte Bewertungsliste.'
-    ) }}
-
-    <div id="listsSubjectsExcelWrap" hidden>
-        {{ assessment_excel_upload(
-            'Bewertungsziele importieren (Custom-Listen)',
-            'listsSubjectsExcelForm',
-            'subjects',
-            'Pflicht-Spalten: <code>Name</code>, <code>Beschreibung</code>',
-            'Nur für Listen im Modus „Eigene Ziele“.'
-        ) }}
-    </div>
-
-    <h2 class="assessment-panel-title mb-2">Vorhandene Listen</h2>
+    <h2 class="assessment-panel-title mb-2">Vorhandene Listen</h2
     <div class="mod-list-table-wrap">
         <table class="table mod-list-table align-middle mb-0">
             <thead>
@@ -107,33 +83,11 @@
             `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
     }
 
-    function syncExcelListSelect() {
-        const sel = document.getElementById('excelListSelect');
-        const wrap = document.getElementById('excelListPickerWrap');
-        if (!sel) return;
-        const prev = sel.value;
-        sel.innerHTML = (loadedLists || []).map(l =>
-            `<option value="${l.id}" data-mode="${l.subject_mode}">${escapeHtml(l.name)}</option>`
-        ).join('');
-        if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
-        if (wrap) wrap.hidden = (loadedLists || []).length <= 1;
-        toggleSubjectsExcel();
-    }
-
-    function toggleSubjectsExcel() {
-        const sel = document.getElementById('excelListSelect');
-        const wrap = document.getElementById('listsSubjectsExcelWrap');
-        if (!sel || !wrap) return;
-        const opt = sel.selectedOptions[0];
-        wrap.hidden = !opt || opt.dataset.mode !== 'custom';
-    }
-
     async function loadLists() {
         const res = await fetch('/assessment/api/lists');
         const data = await res.json();
         loadedLists = data.lists || [];
         listsById = Object.fromEntries(loadedLists.map(l => [String(l.id), l]));
-        syncExcelListSelect();
         document.getElementById('rows').innerHTML = loadedLists.map(l => {
             const actions = [
                 { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${l.id}"`, hover: true },
@@ -218,31 +172,6 @@
         }
         const delBtn = e.target.closest('[data-delete]');
         if (delBtn) deleteList(Number(delBtn.dataset.delete));
-    });
-
-    document.getElementById('excelListSelect')?.addEventListener('change', toggleSubjectsExcel);
-
-    document.getElementById('listsCriteriaExcelForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const listId = document.getElementById('excelListSelect')?.value;
-        if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
-        const fd = new FormData(e.target);
-        fd.append('list_id', listId);
-        const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
-        const data = await res.json();
-        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-        if (data.success) e.target.reset();
-    });
-
-    document.getElementById('listsSubjectsExcelForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const listId = document.getElementById('excelListSelect')?.value;
-        if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
-        const fd = new FormData(e.target);
-        const res = await fetch(`/assessment/api/import/subjects?list_id=${listId}`, { method: 'POST', body: fd });
-        const data = await res.json();
-        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-        if (data.success) e.target.reset();
     });
 
     loadStandTypes();

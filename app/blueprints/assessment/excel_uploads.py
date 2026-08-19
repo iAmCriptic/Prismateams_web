@@ -17,6 +17,8 @@ from app.models.assessment import (
 )
 from app.utils.assessment_auth import assessment_role_required
 
+from .helpers import get_or_create_default_stand_type
+
 excel_uploads_bp = Blueprint("excel_uploads", __name__)
 
 SAMPLE_SPECS = {
@@ -112,18 +114,19 @@ def download_sample(which):
 @excel_uploads_bp.route("/api/import/stands", methods=["POST"])
 @assessment_role_required(["Administrator"])
 def import_stands():
-    ws, error, code = _read_workbook(request.files.get("file"), ["Standname", "Beschreibung", "Raum", "Stand-Typ"])
+    ws, error, code = _read_workbook(request.files.get("file"), ["Standname", "Beschreibung"])
     if error:
         return jsonify({"success": False, "message": error}), code or 400
 
     added, updated, errors, rooms_created = 0, 0, [], 0
-    default_type = AssessmentStandType.query.order_by(AssessmentStandType.id.asc()).first()
+    default_type = get_or_create_default_stand_type()
 
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Standname"))
-        if not name:
+        description = _clean(row.get("Beschreibung"))
+        if not name or not description:
+            errors.append(f"Zeile {index}: Standname und Beschreibung sind erforderlich.")
             continue
-        description = _clean(row.get("Beschreibung")) or None
         room_name = _clean(row.get("Raum")) or None
         type_name = _clean(row.get("Stand-Typ")) or None
 
@@ -136,15 +139,13 @@ def import_stands():
                 db.session.flush()
                 rooms_created += 1
 
-        stand_type = None
+        stand_type = default_type
         if type_name:
             stand_type = AssessmentStandType.query.filter_by(name=type_name).first()
             if not stand_type:
                 stand_type = AssessmentStandType(name=type_name)
                 db.session.add(stand_type)
                 db.session.flush()
-        elif default_type:
-            stand_type = default_type
 
         existing = AssessmentStand.query.filter_by(name=name).first()
         if existing:
@@ -168,6 +169,8 @@ def import_stands():
     message = f"Stände importiert: {added} hinzugefügt, {updated} aktualisiert."
     if rooms_created:
         message += f" {rooms_created} Räume automatisch erstellt."
+    if errors:
+        message += f" {len(errors)} Zeile(n) übersprungen."
     return jsonify({"success": True, "message": message, "errors": errors})
 
 

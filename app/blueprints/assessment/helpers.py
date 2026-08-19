@@ -2,11 +2,13 @@ from datetime import datetime
 
 from flask import abort, request
 
+from app import db
 from app.models.assessment import (
     AssessmentAppSetting,
     AssessmentList,
     AssessmentListSubject,
     AssessmentStand,
+    AssessmentStandType,
     AssessmentUser,
 )
 from app.utils.assessment_auth import get_assessment_identity
@@ -35,6 +37,15 @@ def set_setting(key, value):
 
 def utcnow():
     return datetime.utcnow()
+
+
+def get_or_create_default_stand_type():
+    default_type = AssessmentStandType.query.filter_by(name="Allgemein").first()
+    if not default_type:
+        default_type = AssessmentStandType(name="Allgemein", sort_order=0)
+        db.session.add(default_type)
+        db.session.flush()
+    return default_type
 
 
 def actor_is_admin(actor=None):

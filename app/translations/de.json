@@ -5259,7 +5259,8 @@
       "heading": "Bewertung abgeben",
       "subtitle": "Liste wählen, Ziel bewerten, Speichern.",
       "target": "Bewertungsziel",
-      "stand": "Stand"
+      "stand": "Stand",
+      "stand_description": "Standbeschreibung anzeigen"
     },
     "my_evaluations": {
       "page_title": "Meine Bewertungen",

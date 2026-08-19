@@ -390,3 +390,32 @@ body.assessment-scope-solo .mod-sidebar {
 .assessment-page .mod-list-name > .bi {
     flex-shrink: 0;
 }
+
+.assessment-target-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.assessment-target-row .inv-pill-select,
+.assessment-target-row .form-select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.assessment-target-info {
+    flex-shrink: 0;
+    padding: 0.35rem 0.45rem;
+    line-height: 1;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+}
+
+.assessment-target-info:hover,
+.assessment-target-info:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.assessment-target-info[hidden] {
+    display: none !important;
+}

@@ -5414,7 +5414,8 @@
       "heading": "Submit evaluation",
       "subtitle": "Choose a list, score a target, save.",
       "target": "Evaluation target",
-      "stand": "Stand"
+      "stand": "Stand",
+      "stand_description": "Show stand description"
     },
     "my_evaluations": {
       "page_title": "My evaluations",

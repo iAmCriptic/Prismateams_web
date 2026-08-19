@@ -21,7 +21,9 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Stand-Typ</label>
-                        <select class="form-select" name="stand_type_id" id="standTypeSelect" required></select>
+                        <select class="form-select" name="stand_type_id" id="standTypeSelect">
+                            <option value="">Allgemein</option>
+                        </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Raum</label>
@@ -41,7 +43,7 @@
         'Stände per Excel hochladen',
         'excelForm',
         'stands',
-        'Spalten: <code>Standname</code>, <code>Beschreibung</code>, <code>Raum</code>, <code>Stand-Typ</code>'
+        'Pflicht-Spalten: <code>Standname</code>, <code>Beschreibung</code>. Optional: <code>Raum</code>, <code>Stand-Typ</code> (leer = Allgemein).'
     ) }}
 
     <h2 class="assessment-panel-title mb-2"><i class="bi bi-list-check me-2"></i>Vorhandene Stände</h2>
@@ -82,8 +84,10 @@
         standsById = Object.fromEntries(stands.map(s => [String(s.id), s]));
         document.getElementById('roomSelect').innerHTML = '<option value="">(Kein Raum)</option>' +
             rooms.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
-        document.getElementById('standTypeSelect').innerHTML = standTypes.map(t =>
-            `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+        document.getElementById('standTypeSelect').innerHTML = '<option value="">Allgemein</option>' +
+            standTypes
+                .filter(t => (t.name || '').toLowerCase() !== 'allgemein')
+                .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
         document.getElementById('rows').innerHTML = stands.map(s => `
             <tr class="mod-list-row">
                 <td>${buildNameCell('bi-shop', s.name)}</td>
@@ -102,7 +106,8 @@
         document.getElementById('standName').value = s.name;
         document.getElementById('standDescription').value = s.description || '';
         document.getElementById('roomSelect').value = s.room_id || '';
-        document.getElementById('standTypeSelect').value = s.stand_type_id || '';
+        const isGeneral = !s.stand_type_id || (s.stand_type_name || '').toLowerCase() === 'allgemein';
+        document.getElementById('standTypeSelect').value = isGeneral ? '' : String(s.stand_type_id);
         saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
         resetBtn.hidden = false;
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -151,7 +156,8 @@
         const fd = new FormData(e.target);
         const res = await fetch('/assessment/api/import/stands', { method: 'POST', body: fd });
         const data = await res.json();
-        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        const msg = data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.');
+        if (window.AssessmentUI) window.AssessmentUI.notify(msg, data.success ? 'success' : 'danger');
         if (!data.success) return;
         e.target.reset();
         loadData();
