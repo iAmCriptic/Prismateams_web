@@ -5057,12 +5057,13 @@ def about():
     # OnlyOffice Status prüfen
     from app.utils.onlyoffice import is_onlyoffice_enabled, get_onlyoffice_version
     from app.utils.media_downloader import is_media_downloader_compatible, get_ffmpeg_version
-    from app.utils.excalidraw import is_excalidraw_collab_enabled
+    from app.utils.excalidraw import is_excalidraw_collab_enabled, get_excalidraw_package_version
     onlyoffice_enabled = is_onlyoffice_enabled()
     onlyoffice_version = get_onlyoffice_version() if onlyoffice_enabled else None
     media_downloader_compatible = is_media_downloader_compatible()
     ffmpeg_version = get_ffmpeg_version() if media_downloader_compatible else None
     excalidraw_enabled = is_excalidraw_collab_enabled()
+    excalidraw_version = get_excalidraw_package_version() if excalidraw_enabled else None
 
     return render_template(
         'settings/about.html',
@@ -5075,6 +5076,7 @@ def about():
         media_downloader_compatible=media_downloader_compatible,
         ffmpeg_version=ffmpeg_version,
         excalidraw_enabled=excalidraw_enabled,
+        excalidraw_version=excalidraw_version,
     )
 
 

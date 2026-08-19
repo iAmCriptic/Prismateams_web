@@ -23,6 +23,7 @@ from app.utils.excalidraw import (
     EMPTY_SCENE,
     MAX_VERSIONS,
     download_name,
+    get_excalidraw_package_version,
     get_excalidraw_room_url,
     is_excalidraw_collab_enabled,
     new_scene_path,
@@ -274,6 +275,10 @@ def edit(drawing_id):
         username=username,
         user_color=user_color,
         user_id=current_user.id,
+        excalidraw_version=get_excalidraw_package_version(),
+        excalidraw_css_url=url_for('static', filename='vendor/excalidraw/prod/index.css'),
+        excalidraw_asset_path=url_for('static', filename='vendor/excalidraw/prod/'),
+        excalidraw_module_url=url_for('static', filename='vendor/excalidraw/prod/index.js'),
     )
 
 

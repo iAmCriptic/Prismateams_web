@@ -113,7 +113,8 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.
 
 ```bash
 # OnlyOffice aktualisieren (falls installiert)
-# Fonts-Volume beibehalten, sonst fehlen Schriften nach dem Image-Update (PDF/Druck).
+# Fonts-Volume beibehalten (nur mscorefonts, keine Carlito-/Liberation-Duplikate).
+# Der neue Container indexiert das Volume beim Start selbst.
 sudo docker stop onlyoffice-documentserver
 sudo docker rm onlyoffice-documentserver
 sudo docker pull onlyoffice/documentserver:latest
@@ -130,8 +131,9 @@ sudo docker run -d --restart=always \
     -e ALLOW_PRIVATE_IP_ADDRESS=true \
     onlyoffice/documentserver:latest
 
-# Font-Index nach Image-Update neu erzeugen (kann 1–2 Minuten dauern)
-sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
+# Font-Index: der neue Container indexiert das Fonts-Volume beim Start selbst.
+# documentserver-generate-allfonts.sh nicht extra gegen den laufenden Editor ausführen
+# (zerstört Calibri→Carlito). Nur mscorefonts im Volume, keine Carlito-/Liberation-Duplikate.
 
 # Excalidraw aktualisieren (falls installiert)
 sudo docker stop excalidraw-room

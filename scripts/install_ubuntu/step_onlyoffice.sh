@@ -40,7 +40,10 @@ _onlyoffice_dump_logs() {
 }
 
 # Host-Fonts für PDF/Druck im Document Server (Volume …/fonts).
-# Ohne diese Dateien listet der Browser-Editor Schriften, Rendering schlägt aber fehl.
+# Nur Microsoft Core Fonts kopieren (Arial, Times New Roman, …) – die fehlen im Image.
+# Carlito/Liberation/DejaVu liegen bereits im Document-Server-Image. Dieselben Familien
+# zusätzlich ins Custom-Volume zu legen zerlegt font_selection.bin (Calibri→Carlito)
+# und führt zu Open-Fehlern in Word/Excel/PowerPoint.
 _onlyoffice_ensure_font_repos() {
     if command -v add-apt-repository >/dev/null 2>&1; then
         add-apt-repository -y universe >/dev/null 2>&1 || true
@@ -51,72 +54,43 @@ _onlyoffice_ensure_font_repos() {
 }
 
 _onlyoffice_install_host_fonts() {
-    log_info "Installiere Schriftarten für OnlyOffice (Microsoft Core Fonts, Carlito/Caladea)..."
+    log_info "Installiere Microsoft Core Fonts für OnlyOffice (Arial, Times New Roman, …)..."
     _onlyoffice_ensure_font_repos
 
     echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
     echo "ttf-mscorefonts-installer msttcorefonts/present-mscorefonts-eula note" | debconf-set-selections
 
-    local extra_ok=1
-    if ! apt-get install -y -qq \
-        fonts-crosextra-carlito fonts-crosextra-caladea \
-        fonts-liberation fonts-liberation2 fonts-dejavu-core cabextract; then
-        extra_ok=0
-        log_warning "Libre-/Ersatz-Schriftarten konnten nicht vollständig installiert werden"
-    fi
-
-    # mscorefonts lädt TTFs von SourceForge – kann fehlschlagen, Rest bleibt nutzbar
-    if ! apt-get install -y -qq ttf-mscorefonts-installer; then
+    # mscorefonts lädt TTFs von SourceForge – kann fehlschlagen; Carlito bleibt im Image
+    if apt-get install -y -qq ttf-mscorefonts-installer cabextract; then
+        log_success "Host-Schriftarten installiert (mscorefonts); Calibri rendert OnlyOffice als Carlito"
+    else
         log_warning "ttf-mscorefonts-installer fehlgeschlagen (EULA/Download) – Arial/Times ggf. unvollständig"
-    fi
-
-    if [ "$extra_ok" -eq 1 ]; then
-        log_success "Host-Schriftarten installiert (Carlito = Calibri-kompatibel)"
+        log_warning "OnlyOffice nutzt dann die im Image enthaltenen Ersatzschriften (Carlito/Liberation)"
     fi
 }
 
 _onlyoffice_copy_fonts_to_volume() {
     local dest="${ONLYOFFICE_DATA_ROOT}/fonts"
     mkdir -p "$dest"
-    log_info "Kopiere Schriftarten nach ${dest}..."
+    log_info "Bereite OnlyOffice-Fonts-Volume vor (nur mscorefonts, keine Duplikate)..."
+
+    # Alte Kopien von Carlito/Liberation/DejaVu entfernen – sonst bleibt ein kaputter Index
+    find "$dest" -maxdepth 1 -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete 2>/dev/null || true
 
     local copied=0
-    local dir
-    for dir in \
-        /usr/share/fonts/truetype/msttcorefonts \
-        /usr/share/fonts/truetype/liberation \
-        /usr/share/fonts/truetype/liberation2 \
-        /usr/share/fonts/truetype/crosextra \
-        /usr/share/fonts/truetype/carlito \
-        /usr/share/fonts/truetype/caladea \
-        /usr/share/fonts/truetype/dejavu; do
-        if [ -d "$dir" ]; then
-            while IFS= read -r -d '' fontfile; do
-                if cp -n "$fontfile" "$dest/" 2>/dev/null; then
-                    copied=$((copied + 1))
-                fi
-            done < <(find "$dir" -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -print0 2>/dev/null)
-        fi
-    done
+    local src="/usr/share/fonts/truetype/msttcorefonts"
+    if [ -d "$src" ]; then
+        while IFS= read -r -d '' fontfile; do
+            if cp "$fontfile" "$dest/" 2>/dev/null; then
+                copied=$((copied + 1))
+            fi
+        done < <(find "$src" -type f \( -iname '*.ttf' -o -iname '*.otf' \) -print0 2>/dev/null)
+    fi
 
     if [ "$copied" -gt 0 ]; then
-        log_success "${copied} Schriftdateien im OnlyOffice-Fonts-Volume"
+        log_success "${copied} Microsoft-Core-Schriften im OnlyOffice-Fonts-Volume"
     else
-        log_warning "Keine Schriftdateien zum Kopieren gefunden – PDF-Rendering kann Schrift-Substitution nutzen"
-    fi
-}
-
-_onlyoffice_generate_allfonts() {
-    if ! _onlyoffice_container_running; then
-        log_warning "Font-Index nicht erzeugt – Container läuft nicht"
-        return 0
-    fi
-    log_info "Erzeuge OnlyOffice-Font-Index (documentserver-generate-allfonts.sh, kann 1–2 Min. dauern)..."
-    if docker exec "${ONLYOFFICE_CONTAINER}" /usr/bin/documentserver-generate-allfonts.sh; then
-        log_success "OnlyOffice-Font-Index aktualisiert"
-    else
-        log_warning "documentserver-generate-allfonts.sh fehlgeschlagen – später manuell ausführen"
-        log_warning "  docker exec ${ONLYOFFICE_CONTAINER} /usr/bin/documentserver-generate-allfonts.sh"
+        log_warning "Keine mscorefonts zum Kopieren gefunden – OnlyOffice nutzt Image-Fonts (Carlito für Calibri)"
     fi
 }
 
@@ -260,12 +234,11 @@ step_onlyoffice() {
         fi
     fi
 
-    if [ "$OO_READY" -eq 1 ]; then
-        _onlyoffice_generate_allfonts
-    else
-        log_warning "Font-Index übersprungen (Docs noch nicht bereit) – später:"
-        log_warning "  docker exec ${ONLYOFFICE_CONTAINER} /usr/bin/documentserver-generate-allfonts.sh"
-    fi
+    # Font-Index: Der Container-Entrypoint indexiert /usr/share/fonts/truetype/custom
+    # beim Start selbst. documentserver-generate-allfonts.sh danach nicht live ausführen –
+    # das überschreibt AllFonts.js/font_selection.bin während docservice läuft und
+    # bricht Calibri→Carlito (Open-Fehler in Word/Excel/PowerPoint).
+    # Zusätzliche TTFs später: ins Volume legen, dann `docker restart onlyoffice-documentserver`.
 
     log_info "OnlyOffice JWT_SECRET = ONLYOFFICE_SECRET_KEY (für .env)"
     log_success "OnlyOffice Document Server installiert (${ONLYOFFICE_IMAGE})"

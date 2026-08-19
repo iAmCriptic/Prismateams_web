@@ -41,6 +41,9 @@ instance/
 uploads/
 static/uploads/
 
+# Downloaded Excalidraw/React/Socket.IO vendor assets (scripts/download_excalidraw_vendor.py)
+app/static/vendor/
+
 # IDE
 .vscode/
 .idea/

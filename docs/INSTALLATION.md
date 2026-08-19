@@ -183,33 +183,36 @@ curl -s http://127.0.0.1:8080/welcome/ | head
 
 #### Schriftarten für Rendering / PDF / Druck
 
-Der Editor zeigt im Browser oft Schriften an, die auf dem Document Server fehlen. PDF, Druck und serverseitiges Rendering brauchen die TTF/OTF-Dateien im Fonts-Volume (`/var/lib/onlyoffice/DocumentServer/fonts`). Ohne sie bricht das Rendering zusammen oder es wird falsch substituiert.
+PDF, Druck und serverseitiges Rendering brauchen TTF/OTF-Dateien, die das Document-Server-Image **nicht** mitbringt. Das sind vor allem die Microsoft Core Fonts (Arial, Times New Roman, Courier New, Georgia, Verdana). **Carlito, Caladea, Liberation und DejaVu** liegen bereits im Image – dieselben Familien zusätzlich ins Custom-Volume zu kopieren zerlegt den Font-Index (`font_selection.bin`, Calibri→Carlito) und führt zu Open-Fehlern in Word, Excel und PowerPoint.
 
 ```bash
-# Microsoft Core Fonts (Arial, Times New Roman, …) + Calibri-/Cambria-Ersatz
+# Nur Microsoft Core Fonts (fehlen im Image)
 sudo apt update
 echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
-sudo apt install -y ttf-mscorefonts-installer fonts-crosextra-carlito fonts-crosextra-caladea \
-  fonts-liberation fonts-liberation2 fonts-dejavu-core cabextract
+sudo apt install -y ttf-mscorefonts-installer cabextract
 
-# In das persistente OnlyOffice-Volume kopieren (überlebt Container-Updates)
+# Volume leeren und nur mscorefonts kopieren (überlebt Container-Updates)
 sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
-sudo find /usr/share/fonts/truetype/{msttcorefonts,liberation,liberation2,crosextra,carlito,caladea,dejavu} \
-  -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) \
-  -exec cp -n {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+  \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
+sudo find /usr/share/fonts/truetype/msttcorefonts \
+  -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
+  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
 
-# Font-Index im Container neu erzeugen (kann 1–2 Minuten dauern)
-sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
+# Font-Index: Container neu starten (Entrypoint indexiert das Volume selbst).
+# documentserver-generate-allfonts.sh nicht gegen einen laufenden Editor ausführen.
+sudo docker restart onlyoffice-documentserver
 ```
 
 **Hinweise:**
-- **Carlito** ist metric-kompatibel zu **Calibri** (echte `Calibri.ttf` liegt nicht in den Ubuntu-Repos). Original-Calibri-TTFs können Sie zusätzlich nach `/var/lib/onlyoffice/DocumentServer/fonts` legen und das Generate-Skript erneut ausführen.
+- **Carlito** (im Image) ist metric-kompatibel zu **Calibri**. Neue Dateien behalten den OOXML-Namen Calibri; OnlyOffice rendert sie als Carlito.
+- Echte `Calibri.ttf` können Sie zusätzlich ins Fonts-Volume legen und den Container **neu starten** (kein Live-Generate-allfonts).
 - Browser-Cache leeren (Strg+F5 bzw. Cmd+Shift+R). Ab OnlyOffice Docs 8.2 oft nicht mehr nötig.
-- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern die übrigen Pakete reichen oft für Carlito/Liberation, der Installer sollte trotzdem fortgesetzt werden.
+- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern nutzt OnlyOffice die Image-Fonts weiter.
 
 ### Schritt 6: Optionale Installation - Excalidraw Room
 
-**⚠️ ARCHITEKTUR & UMD-ASSETS:** Der Excalidraw-Zeichnungs-Editor ist **nativ in Flask** integriert. Alle benötigten Bibliotheken (React, ReactDOM, Excalidraw, Socket.IO) liegen lokal unter `app/static/vendor/` im Repository – der Editor benötigt somit **keinen externen CDN-Zugriff** und keinen separaten Docker-Container für die Standard-Nutzung.
+**⚠️ ARCHITEKTUR & VENDOR-ASSETS:** Der Excalidraw-Zeichnungs-Editor ist **nativ in Flask** integriert. React, ReactDOM, Excalidraw 0.18.1 und Socket.IO werden beim Install (`scripts/download_excalidraw_vendor.py`) nach `app/static/vendor/` geladen und gehören **nicht** ins Git-Repository. Fehlen lokale Dateien, nutzt der Editor CDN-Fallbacks (unpkg/esm.sh). Docker ist für den Editor selbst nicht nötig.
 
 **⚠️ DOCKER (OPTIONAL):** Docker ist **nur für Live-Kollaboration** (echtzeit-gemeinsames Zeichnen mehrerer Benutzer) nötig. Zeichnen, Versionierung und automatisches Speichern funktionieren auch ohne Docker. Wenn der Room-Server fehlt, funktioniert das Zeichnen lokal; setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`, falls Sie Kollaboration deaktivieren möchten.
 

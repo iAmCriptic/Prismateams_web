@@ -59,6 +59,9 @@
                     <span class="settings-about-meta-value">
                         {% if excalidraw_enabled %}
                         <span class="badge rounded-pill text-bg-success">{{ _('settings.about.excalidraw_active') }}</span>
+                        {% if excalidraw_version %}
+                        <span class="settings-about-meta-value--mono ms-2">{{ excalidraw_version }}</span>
+                        {% endif %}
                         {% else %}
                         <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.excalidraw_inactive') }}</span>
                         {% endif %}

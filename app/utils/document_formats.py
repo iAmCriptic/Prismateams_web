@@ -128,6 +128,8 @@ def create_empty_document(filepath: str, file_type: str) -> str:
             doc = Document()
             style = doc.styles['Normal']
             font = style.font
+            # OOXML-Standardname bleibt Calibri (Word/Excel-kompatibel). OnlyOffice hat
+            # keine echte Calibri und rendert sie über den eingebauten Carlito-Ersatz.
             font.name = 'Calibri'
             font.size = Pt(11)
             rpr = style.element.get_or_add_rPr()

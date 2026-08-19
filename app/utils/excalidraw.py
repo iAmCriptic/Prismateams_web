@@ -25,6 +25,11 @@ MAX_SCENE_BYTES = 50 * 1024 * 1024
 MAX_VERSIONS = 5
 UPLOAD_SUBDIR = os.path.join('uploads', 'excalidraw')
 THUMB_SUBDIR = os.path.join(UPLOAD_SUBDIR, 'thumbs')
+EXCALIDRAW_PACKAGE_VERSION = '0.18.1'
+
+
+def get_excalidraw_package_version():
+    return EXCALIDRAW_PACKAGE_VERSION
 
 
 def is_excalidraw_collab_enabled():

@@ -555,15 +555,21 @@ body:has(.kanban-board-page) {
 
 .kanban-card-modal__cover {
   min-height: 0;
+  max-height: calc((100vh - 1.5rem) * 0.2);
   overflow: hidden;
   background: #2a2d36;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .kanban-card-modal__cover:empty {
   display: none;
 }
 .kanban-card-modal__cover img {
-  width: 100%;
+  max-width: 100%;
+  max-height: calc((100vh - 1.5rem) * 0.2);
+  width: auto;
   height: auto;
   display: block;
   object-fit: contain;
@@ -947,6 +953,10 @@ body:has(.kanban-board-page) {
     height: 100vh;
     margin: 0;
     max-width: 100%;
+  }
+  .kanban-card-modal__cover,
+  .kanban-card-modal__cover img {
+    max-height: 20vh;
   }
   .kanban-card-modal {
     border-radius: 0;

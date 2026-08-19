@@ -3,7 +3,8 @@
 #
 # ARCHITEKTUR-HINWEIS:
 # - Der Excalidraw Zeichnungs-Editor ist nativ im Flask-Portal integriert.
-#   Alle Frontend-Bibliotheken (React, ReactDOM, Excalidraw, Socket.IO) liegen lokal unter app/static/vendor/.
+#   Frontend-Bibliotheken (React, ReactDOM, Excalidraw, Socket.IO) werden nach
+#   app/static/vendor/ heruntergeladen (nicht im Git-Repo).
 # - Das Docker-Image excalidraw/excalidraw-room:latest dient als optionaler WebSocket-Backend-Server für Live-Kollaboration.
 # - Port: 127.0.0.1:8082 — Nginx/Apache leiten /excalidraw-room per WebSocket weiter.
 

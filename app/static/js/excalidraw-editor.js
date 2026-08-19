@@ -365,4 +365,4 @@ async function boot() {
     }
 }
 
-boot();
+window.excalidrawEditorBoot = boot;

@@ -127,23 +127,24 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## OnlyOffice: Schriften fehlen / PDF sieht falsch aus (falls installiert)
 
-Der Browser-Editor listet oft Schriften, die der Document Server nicht als Dateien hat. PDF, Druck und Konvertierung brauchen TTFs im Volume `/var/lib/onlyoffice/DocumentServer/fonts`.
+PDF, Druck und Konvertierung brauchen TTFs, die das Image nicht mitbringt (Microsoft Core Fonts). **Carlito/Liberation nicht** ins Custom-Volume kopieren – Duplikate zerlegen `font_selection.bin` und führen zu „Fehler beim Öffnen der Datei“.
 
 ```bash
 sudo apt update
 echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
-sudo apt install -y ttf-mscorefonts-installer fonts-crosextra-carlito fonts-crosextra-caladea \
-  fonts-liberation fonts-liberation2 fonts-dejavu-core cabextract
+sudo apt install -y ttf-mscorefonts-installer cabextract
 
 sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
-sudo find /usr/share/fonts/truetype/{msttcorefonts,liberation,liberation2,crosextra,carlito,caladea,dejavu} \
-  -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) \
-  -exec cp -n {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+  \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
+sudo find /usr/share/fonts/truetype/msttcorefonts \
+  -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
+  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
 
-sudo docker exec onlyoffice-documentserver /usr/bin/documentserver-generate-allfonts.sh
+sudo docker restart onlyoffice-documentserver
 ```
 
-Danach Browser hart neu laden (Strg+F5). **Carlito** ersetzt Calibri (echte Calibri-TTFs optional zusätzlich in denselben Ordner). Beim Container-Update das Fonts-Volume nicht vergessen – siehe [WARTUNG.md](WARTUNG.md#docker-container-aktualisieren-falls-installiert).
+Danach Browser hart neu laden (Strg+F5). **Carlito** (im Image) ersetzt Calibri. Echte Calibri-TTFs optional ins selbe Volume, dann Container neu starten – nicht `documentserver-generate-allfonts.sh` gegen den laufenden Editor. Beim Container-Update das Fonts-Volume nicht vergessen – siehe [WARTUNG.md](WARTUNG.md#docker-container-aktualisieren-falls-installiert).
 
 ## Excalidraw-Kollaboration funktioniert nicht (falls Room installiert)
 

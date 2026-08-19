@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
+    <link rel="stylesheet" href="{{ excalidraw_css_url }}" onerror="this.onerror=null;this.href='https://unpkg.com/@excalidraw/excalidraw@{{ excalidraw_version }}/dist/prod/index.css';">
     <style>
         :root {
             --accent-color: {{ accent_color|default('#0d6efd') }};
@@ -142,9 +143,10 @@
 </div>
 <script>
 window.process = window.process || { env: { NODE_ENV: 'production' } };
-// Set the asset path so Excalidraw can lazy-load its webpack chunks (menus, dialogs etc.)
-// MUST be set before the Excalidraw bundle is loaded.
-window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/';
+window.EXCALIDRAW_ASSET_PATH = [
+    {{ excalidraw_asset_path|tojson }},
+    'https://unpkg.com/@excalidraw/excalidraw@{{ excalidraw_version }}/dist/prod/'
+];
 window.EXCALIDRAW_EDITOR_CONFIG = {
     sceneUrl: {{ scene_url|tojson }},
     returnUrl: {{ return_url|tojson }},
@@ -166,16 +168,20 @@ window.EXCALIDRAW_EDITOR_CONFIG = {
         collabOff: {{ _('excalidraw.edit.collab_off')|tojson }}
     }
 };
+window.EXCALIDRAW_BOOTSTRAP = {
+    moduleUrl: {{ excalidraw_module_url|tojson }},
+    moduleFallback: 'https://unpkg.com/@excalidraw/excalidraw@{{ excalidraw_version }}/dist/prod/index.js',
+    assetFallback: 'https://unpkg.com/@excalidraw/excalidraw@{{ excalidraw_version }}/dist/prod/',
+    reactUrl: 'https://esm.sh/react@18.3.1',
+    reactDomUrl: 'https://esm.sh/react-dom@18.3.1',
+    collabUrl: {{ (url_for('static', filename='js/excalidraw-collab.js') ~ '?v=' ~ config.ABOUT_BUILD_NUMBER)|tojson }},
+    editorUrl: {{ (url_for('static', filename='js/excalidraw-editor.js') ~ '?v=' ~ config.ABOUT_BUILD_NUMBER)|tojson }},
+    socketIoUrl: {{ url_for('static', filename='vendor/socket.io/socket.io.min.js')|tojson }},
+    socketIoFallback: 'https://cdn.socket.io/4.7.5/socket.io.min.js'
+};
 </script>
-<script src="{{ url_for('static', filename='vendor/react/react.production.min.js') }}"></script>
-<script>window.React || document.write('<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"><\/script>');</script>
-<script src="{{ url_for('static', filename='vendor/react/react-dom.production.min.js') }}"></script>
-<script>window.ReactDOM || document.write('<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"><\/script>');</script>
-<script src="{{ url_for('static', filename='vendor/excalidraw/excalidraw.production.min.js') }}"></script>
-<script>window.ExcalidrawLib || document.write('<script src="https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js"><\/script>');</script>
 <script src="{{ url_for('static', filename='vendor/socket.io/socket.io.min.js') }}"></script>
 <script>window.io || document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');</script>
-<script src="{{ url_for('static', filename='js/excalidraw-collab.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
-<script src="{{ url_for('static', filename='js/excalidraw-editor.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/excalidraw-bootstrap.mjs') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 </body>
 </html>
