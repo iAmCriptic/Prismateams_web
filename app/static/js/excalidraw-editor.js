@@ -171,13 +171,32 @@ function onChange(elements, appState, files) {
 async function goBack() {
     if (leaving) return;
     leaving = true;
+
+    let navigated = false;
+    const navigate = () => {
+        if (navigated) return;
+        navigated = true;
+        const collab = window.PrismateamsExcalidrawCollab;
+        if (collab) collab.stop();
+        window.location.href = CONFIG.returnUrl || '/excalidraw/';
+    };
+
+    const timeout = window.setTimeout(navigate, 5000);
     if (CONFIG.canEdit) {
-        await saveScene(true);
+        try {
+            await Promise.race([
+                saveScene(true),
+                new Promise((resolve) => window.setTimeout(resolve, 4500)),
+            ]);
+        } catch (err) {
+            console.warn('Excalidraw save on close failed', err);
+        }
     }
-    const collab = window.PrismateamsExcalidrawCollab;
-    if (collab) collab.stop();
-    window.location.href = CONFIG.returnUrl || '/excalidraw/';
+    window.clearTimeout(timeout);
+    navigate();
 }
+
+window.excalidrawGoBack = goBack;
 
 function renderChildren() {
     const MainMenu = (Excalidraw && Excalidraw.MainMenu) || ExcalidrawLib.MainMenu;
@@ -314,9 +333,6 @@ async function boot() {
         },
         excalidrawAPI: (nextApi) => { api = nextApi; },
     }, ...renderChildren()));
-
-    const closeBtn = document.getElementById('excalidrawCloseBtn');
-    if (closeBtn) closeBtn.addEventListener('click', goBack);
 
     document.addEventListener('keydown', (event) => {
         // Ctrl+S / Cmd+S: save

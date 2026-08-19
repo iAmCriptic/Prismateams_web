@@ -23,7 +23,7 @@ from app.utils.excalidraw import (
     EMPTY_SCENE,
     MAX_VERSIONS,
     download_name,
-    get_excalidraw_package_version,
+    get_excalidraw_editor_asset_urls,
     get_excalidraw_room_url,
     is_excalidraw_collab_enabled,
     new_scene_path,
@@ -259,6 +259,7 @@ def edit(drawing_id):
         f'{(current_user.id * 13) % 180 + 50:02x}'
     )
 
+    assets = get_excalidraw_editor_asset_urls()
     return render_template(
         'excalidraw/edit.html',
         drawing=drawing,
@@ -275,10 +276,12 @@ def edit(drawing_id):
         username=username,
         user_color=user_color,
         user_id=current_user.id,
-        excalidraw_version=get_excalidraw_package_version(),
-        excalidraw_css_url=url_for('static', filename='vendor/excalidraw/prod/index.css'),
-        excalidraw_asset_path=url_for('static', filename='vendor/excalidraw/prod/'),
-        excalidraw_module_url=url_for('static', filename='vendor/excalidraw/prod/index.js'),
+        excalidraw_version=assets['version'],
+        excalidraw_css_url=assets['css_url'],
+        excalidraw_asset_path=assets['asset_path'],
+        excalidraw_cdn_base=assets['cdn_base'],
+        excalidraw_module_url=assets['module_url'],
+        excalidraw_module_fallback=assets['module_fallback'],
     )
 
 

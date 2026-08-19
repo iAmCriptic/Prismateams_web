@@ -1,14 +1,15 @@
 /**
- * ESM bootstrap for Excalidraw 0.18.1 — loads React + Excalidraw module,
- * sets window globals expected by excalidraw-editor.js, then starts the editor.
+ * ESM bootstrap for Excalidraw 0.18.1.
+ * Loads React + Excalidraw via esm.sh (bare imports in the npm ESM bundle
+ * cannot be resolved from local vendor/index.js without an import map).
  */
 const BOOT = window.EXCALIDRAW_BOOTSTRAP || {};
+const VERSION = BOOT.version || '0.18.1';
 
 const REACT_URL = BOOT.reactUrl || 'https://esm.sh/react@18.3.1';
 const REACT_DOM_URL = BOOT.reactDomUrl || 'https://esm.sh/react-dom@18.3.1';
 const EXCALIDRAW_MODULE_URL = BOOT.moduleUrl
-    || BOOT.moduleFallback
-    || 'https://unpkg.com/@excalidraw/excalidraw@0.18.1/dist/prod/index.js';
+    || `https://esm.sh/@excalidraw/excalidraw@${VERSION}?external=react,react-dom`;
 const COLLAB_URL = BOOT.collabUrl;
 const EDITOR_URL = BOOT.editorUrl;
 
@@ -22,27 +23,27 @@ async function loadClassicScript(src) {
     });
 }
 
+async function importModule(url) {
+    return import(/* webpackIgnore: true */ url);
+}
+
 async function start() {
-    let moduleUrl = EXCALIDRAW_MODULE_URL;
     const [React, ReactDOM] = await Promise.all([
-        import(REACT_URL),
-        import(REACT_DOM_URL),
+        importModule(REACT_URL),
+        importModule(REACT_DOM_URL),
     ]);
 
     let ExcalidrawLib;
     try {
-        ExcalidrawLib = await import(moduleUrl);
+        ExcalidrawLib = await importModule(EXCALIDRAW_MODULE_URL);
     } catch (err) {
-        if (BOOT.moduleFallback && moduleUrl !== BOOT.moduleFallback) {
-            console.warn('Local Excalidraw module failed, using CDN fallback', err);
-            if (BOOT.assetFallback) {
-                window.EXCALIDRAW_ASSET_PATH = BOOT.assetFallback;
-            }
-            moduleUrl = BOOT.moduleFallback;
-            ExcalidrawLib = await import(moduleUrl);
-        } else {
-            throw err;
+        const fallback = BOOT.moduleFallback
+            || `https://esm.sh/@excalidraw/excalidraw@${VERSION}`;
+        console.warn('Excalidraw module failed, using fallback', err);
+        if (BOOT.assetFallback) {
+            window.EXCALIDRAW_ASSET_PATH = BOOT.assetFallback;
         }
+        ExcalidrawLib = await importModule(fallback);
     }
 
     window.React = React.default || React;

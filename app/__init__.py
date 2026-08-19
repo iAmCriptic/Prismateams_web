@@ -75,8 +75,11 @@ def _should_run_migrations_after_update(app):
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
     import os
+    import mimetypes
     basedir = os.path.abspath(os.path.dirname(__file__))
     app = Flask(__name__, static_folder=os.path.join(basedir, 'static'))
+    mimetypes.add_type('text/javascript', '.mjs')
+    mimetypes.add_type('text/javascript', '.js')
     app.url_map.strict_slashes = False
 
     # Gmail/IMAP-Ordner: Namen mit "/" und "&" (modUTF7) sicher in URLs

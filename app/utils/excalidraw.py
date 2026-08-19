@@ -32,6 +32,50 @@ def get_excalidraw_package_version():
     return EXCALIDRAW_PACKAGE_VERSION
 
 
+def get_excalidraw_cdn_base():
+    return f'https://unpkg.com/@excalidraw/excalidraw@{EXCALIDRAW_PACKAGE_VERSION}/dist/prod/'
+
+
+def get_excalidraw_esm_module_url():
+    return (
+        f'https://esm.sh/@excalidraw/excalidraw@{EXCALIDRAW_PACKAGE_VERSION}'
+        '?external=react,react-dom'
+    )
+
+
+def local_excalidraw_vendor_available():
+    try:
+        static_folder = current_app.static_folder or ''
+    except RuntimeError:
+        return False
+    prod = os.path.join(static_folder, 'vendor', 'excalidraw', 'prod')
+    return os.path.isfile(os.path.join(prod, 'index.css')) and os.path.isfile(
+        os.path.join(prod, 'index.js')
+    )
+
+
+def get_excalidraw_editor_asset_urls():
+    """Return CSS/module/asset URLs. Prefer local vendor, otherwise CDN."""
+    from flask import url_for
+
+    cdn = get_excalidraw_cdn_base()
+    version = EXCALIDRAW_PACKAGE_VERSION
+    if local_excalidraw_vendor_available():
+        css_url = url_for('static', filename='vendor/excalidraw/prod/index.css')
+        local_assets = url_for('static', filename='vendor/excalidraw/prod/')
+    else:
+        css_url = cdn + 'index.css'
+        local_assets = cdn
+    return {
+        'version': version,
+        'css_url': css_url,
+        'asset_path': local_assets,
+        'cdn_base': cdn,
+        'module_url': get_excalidraw_esm_module_url(),
+        'module_fallback': f'https://esm.sh/@excalidraw/excalidraw@{version}',
+    }
+
+
 def is_excalidraw_collab_enabled():
     try:
         return bool(current_app.config.get('EXCALIDRAW_ENABLED', False))

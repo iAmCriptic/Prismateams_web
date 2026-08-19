@@ -101,6 +101,15 @@
        from rendering above the header bar. */
 }
 
+/* Header/collab bar sit above Excalidraw's fixed canvas layer */
+.excalidraw-editor-container .onlyoffice-viewer-header,
+.excalidraw-editor-container .excalidraw-collab-banner {
+    position: relative;
+    z-index: 20;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
 .excalidraw-editor-content {
     flex: 1 1 auto;
     min-height: 0;
