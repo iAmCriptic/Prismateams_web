@@ -2,14 +2,66 @@
 
 {% block title %}{{ _('manuals.index.page_title') }}{% endblock %}
 
+{% block navbar_search %}
+<form method="GET" class="manuals-search" role="search" id="manualsSearchForm">
+    {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}
+    <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="manualsSearchInput"
+           value="{{ search_query|default('') }}"
+           class="form-control manuals-search-input"
+           placeholder="{{ _('manuals.index.search.placeholder') }}"
+           aria-label="{{ _('manuals.index.search.button') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('manuals.index', folder_id=active_folder_id) if active_folder_id else url_for('manuals.index') }}"
+       class="btn manuals-search-clear"
+       id="manualsSearchClear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
 {% block content %}
 {% set active_folder_id = active_folder_id|default(none) %}
 {% set active_folder = active_folder|default(none) %}
 {% set search_query = search_query|default('') %}
-{% set upload_url = url_for('manuals.upload', folder_id=active_folder_id) if active_folder_id else url_for('manuals.upload') %}
+{% set active_nav = active_nav|default('all') %}
+{% set filter_team_id = filter_team_id|default(none) %}
+{% set space_view = active_nav in ['private', 'public'] or (active_nav and active_nav.startswith('team-')) %}
+{% if space_view and filter_team_id %}
+{% set upload_url = url_for('manuals.upload', view='team', team_id=filter_team_id, folder_id=active_folder_id) %}
+{% elif space_view %}
+{% set upload_url = url_for('manuals.upload', view=active_nav, folder_id=active_folder_id) %}
+{% elif active_folder_id %}
+{% set upload_url = url_for('manuals.upload', folder_id=active_folder_id) %}
+{% else %}
+{% set upload_url = url_for('manuals.upload') %}
+{% endif %}
+{% if active_nav == 'private' %}
+{% set active_folder_label = _('visibility.nav.private') %}
+{% elif active_nav == 'public' %}
+{% set active_folder_label = _('visibility.nav.public') %}
+{% elif space_view %}
+{% set active_folder_label = _('visibility.nav.team') %}
+{% else %}
 {% set active_folder_label = active_folder.name if active_folder else _('manuals.index.folders.root') %}
+{% endif %}
 {% set can_manage = current_user.is_admin %}
-{% set manuals_clear_url = url_for('manuals.index', folder_id=active_folder_id) if active_folder_id else url_for('manuals.index') %}
+{% if space_view and filter_team_id %}
+{% set manuals_clear_url = url_for('manuals.index', view='team', team_id=filter_team_id) %}
+{% elif space_view %}
+{% set manuals_clear_url = url_for('manuals.index', view=active_nav) %}
+{% elif active_folder_id %}
+{% set manuals_clear_url = url_for('manuals.index', folder_id=active_folder_id) %}
+{% else %}
+{% set manuals_clear_url = url_for('manuals.index') %}
+{% endif %}
 
 {% macro manuals_search_form(id_suffix='') %}
 <form method="GET" class="manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
@@ -110,15 +162,17 @@
 </div>
 {% endmacro %}
 
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 {% macro manuals_folder_nav(nav_suffix='', dismiss_offcanvas=false) %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link mod-nav-link {% if not active_folder_id %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if not active_folder_id and active_nav == 'all' %}active{% endif %}"
        href="{{ url_for('manuals.index') }}"
        data-folder-dropzone
        data-folder-id=""
        {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-house-door me-2"></i>{{ _('manuals.index.folders.root') }}
     </a>
+    {{ visibility_space_links('manuals.index', {}, 'data-manuals-dismiss-offcanvas="1"' if dismiss_offcanvas else '', allowed_visibilities, visibility_teams, active_nav) }}
     {% for folder in folders %}
     {% set edit_form_id = 'manualsFolderEdit' ~ nav_suffix ~ folder.id %}
     <div class="manuals-folder-nav-item" data-folder-nav-item data-folder-id="{{ folder.id }}">
@@ -351,13 +405,10 @@
     </div>
 
     <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
-        <div class="col-lg-3 min-width-0">
+        <div class="col min-width-0">
             <h1 class="h4 mb-0 text-truncate">{{ active_folder_label }}</h1>
         </div>
-        <div class="col-lg-6">
-            {{ manuals_search_form('') }}
-        </div>
-        <div class="col-lg-3">
+        <div class="col-auto">
             <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
                 {{ manuals_view_toggle('') }}
             </div>

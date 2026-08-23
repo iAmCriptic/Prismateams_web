@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
 </p>
 
@@ -181,37 +181,54 @@ curl -s http://127.0.0.1:8080/welcome/ | head
 
 **Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` in der `.env` leer lassen.
 
-### Schritt 6: Optionale Installation - Excalidraw
+#### Schriftarten für Rendering / PDF / Druck
 
-**⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie Excalidraw für das Canvas-Modul verwenden möchten. Wenn nicht, setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`-Datei.
-
-#### 6.1 Excalidraw Client installieren
+PDF, Druck und serverseitiges Rendering brauchen TTF/OTF-Dateien, die das Document-Server-Image **nicht** mitbringt. Das sind vor allem die Microsoft Core Fonts (Arial, Times New Roman, Courier New, Georgia, Verdana). **Carlito, Caladea, Liberation und DejaVu** liegen bereits im Image – dieselben Familien zusätzlich ins Custom-Volume zu kopieren zerlegt den Font-Index (`font_selection.bin`, Calibri→Carlito) und führt zu Open-Fehlern in Word, Excel und PowerPoint.
 
 ```bash
-# Excalidraw Client Container starten (Port 8081)
-sudo docker run -i -t -d -p 8081:80 --restart=always \
-    --name excalidraw \
-    excalidraw/excalidraw:latest
+# Nur Microsoft Core Fonts (fehlen im Image)
+sudo apt update
+echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+sudo apt install -y ttf-mscorefonts-installer cabextract
 
-# Prüfen ob Excalidraw läuft
-sudo docker ps | grep excalidraw
-curl http://localhost:8081/
+# Volume leeren und nur mscorefonts kopieren (überlebt Container-Updates)
+sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
+sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+  \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
+sudo find /usr/share/fonts/truetype/msttcorefonts \
+  -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
+  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+
+# Font-Index: Container neu starten (Entrypoint indexiert das Volume selbst).
+# documentserver-generate-allfonts.sh nicht gegen einen laufenden Editor ausführen.
+sudo docker restart onlyoffice-documentserver
 ```
 
-#### 6.2 Excalidraw-Room Server installieren
+**Hinweise:**
+- **Carlito** (im Image) ist metric-kompatibel zu **Calibri**. Neue Dateien behalten den OOXML-Namen Calibri; OnlyOffice rendert sie als Carlito.
+- Echte `Calibri.ttf` können Sie zusätzlich ins Fonts-Volume legen und den Container **neu starten** (kein Live-Generate-allfonts).
+- Browser-Cache leeren (Strg+F5 bzw. Cmd+Shift+R). Ab OnlyOffice Docs 8.2 oft nicht mehr nötig.
+- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern nutzt OnlyOffice die Image-Fonts weiter.
 
-Der Excalidraw-Room Server ist für Echtzeit-Kollaboration notwendig.
+### Schritt 6: Optionale Installation - Excalidraw Room
+
+**⚠️ ARCHITEKTUR & VENDOR-ASSETS:** Der Excalidraw-Zeichnungs-Editor ist **nativ in Flask** integriert. React, ReactDOM, Excalidraw 0.18.1 und Socket.IO werden beim Install (`scripts/download_excalidraw_vendor.py`) nach `app/static/vendor/` geladen und gehören **nicht** ins Git-Repository. Fehlen lokale Dateien, nutzt der Editor CDN-Fallbacks (unpkg/esm.sh). Docker ist für den Editor selbst nicht nötig.
+
+**⚠️ DOCKER (OPTIONAL):** Docker ist **nur für Live-Kollaboration** (echtzeit-gemeinsames Zeichnen mehrerer Benutzer) nötig. Zeichnen, Versionierung und automatisches Speichern funktionieren auch ohne Docker. Wenn der Room-Server fehlt, funktioniert das Zeichnen lokal; setzen Sie `EXCALIDRAW_ENABLED=False` in der `.env`, falls Sie Kollaboration deaktivieren möchten.
+
+Der Editor läuft nativ im Portal unter `/excalidraw` (kein Iframe der öffentlichen Excalidraw-SPA).
 
 ```bash
-# Excalidraw-Room Container starten (Port 8082)
-sudo docker run -i -t -d -p 8082:80 --restart=always \
+# Excalidraw-Room nur auf Loopback (Port 8082) für Live-Kollaboration
+sudo docker pull excalidraw/excalidraw-room:latest
+sudo docker run -d --restart=always \
     --name excalidraw-room \
+    -p 127.0.0.1:8082:80 \
     -e PORT=80 \
     excalidraw/excalidraw-room:latest
 
-# Prüfen ob Excalidraw-Room läuft
 sudo docker ps | grep excalidraw-room
-curl http://localhost:8082/
+curl -I http://127.0.0.1:8082/
 ```
 
 ### Schritt 6b: Optionale Installation - Media Downloader
@@ -312,7 +329,7 @@ REDIS_URL=redis://localhost:6379/0
 **Weitere optionale `.env`-Variablen (nicht in `env.example`):**
 
 - **OnlyOffice:** `ONLYOFFICE_DOCUMENT_SERVER_URL`, `ONLYOFFICE_SECRET_KEY`, `ONLYOFFICE_PUBLIC_URL`
-- **Excalidraw:** `EXCALIDRAW_URL`, `EXCALIDRAW_ROOM_URL`, `EXCALIDRAW_PUBLIC_URL`
+- **Excalidraw:** `EXCALIDRAW_ROOM_URL` (Standard `/excalidraw-room`)
 - **Redis:** `REDIS_URL` (Standard: `redis://localhost:6379/0`)
 - **Portal-Fallbacks:** `APP_NAME`, `APP_LOGO` (optional, wenn nicht über Setup/System-Einstellungen gesetzt)
 - **E-Mail (SMTP):** `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USE_SSL`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SENDER_NAME`
@@ -603,46 +620,21 @@ server {
     }
 
     # Excalidraw Room Server (OPTIONAL - nur wenn installiert)
-    # WICHTIG: Muss VOR /excalidraw kommen!
-    # Entfernen Sie diesen Block, wenn Excalidraw NICHT installiert ist
-    location /excalidraw-room {
-        proxy_pass http://127.0.0.1:8082;
+    # Prefix wird entfernt, damit Socket.IO unter /socket.io ankommt
+    location /excalidraw-room/ {
+        proxy_pass http://127.0.0.1:8082/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support (wichtig für Echtzeit-Kollaboration)
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
-        # Timeouts für WebSocket-Verbindungen
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
-    }
-
-    # Excalidraw Client (OPTIONAL - nur wenn installiert)
-    # Entfernen Sie diesen Block, wenn Excalidraw NICHT installiert ist
-    location /excalidraw {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        
-        # Timeouts
-        proxy_connect_timeout 600;
-        proxy_send_timeout 600;
-        proxy_read_timeout 600;
-        send_timeout 600;
+        proxy_buffering off;
     }
 
     # Statische Dateien (MUSS VOR / kommen!)
@@ -729,7 +721,7 @@ server {
 
 **Wichtig:** 
 - Entfernen Sie die OnlyOffice-Location-Blöcke (`/onlyoffice`), wenn OnlyOffice NICHT installiert ist
-- Entfernen Sie die Excalidraw-Location-Blöcke (`/excalidraw` und `/excalidraw-room`), wenn Excalidraw NICHT installiert ist
+- Entfernen Sie den Excalidraw-Location-Block (`/excalidraw-room/`), wenn der Room-Server NICHT installiert ist
 - Ersetzen Sie `ihre-domain.de` mit Ihrer tatsächlichen Domain oder IP-Adresse
 
 ```bash
@@ -860,7 +852,7 @@ Der frühere **Lageplan-Editor** und die **Besucherbewertung / Besucherrangliste
 
 - **Excalidraw Dokumentation:** https://docs.excalidraw.com
 - **OnlyOffice Dokumentation:** https://api.onlyoffice.com/
-- **Docker Hub Excalidraw:** https://hub.docker.com/r/excalidraw/excalidraw
+- **Docker Hub Excalidraw Room:** https://hub.docker.com/r/excalidraw/excalidraw-room
 - **Docker Hub OnlyOffice:** https://hub.docker.com/r/onlyoffice/documentserver
 
 ## Support

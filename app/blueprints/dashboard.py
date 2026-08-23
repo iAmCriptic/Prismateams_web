@@ -4,7 +4,7 @@ from app.models.calendar import CalendarEvent, Calendar
 from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
 from app.models.file import File
-from app.models.credential import Credential
+from app.models.credential import Credential, CredentialFavorite
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
@@ -13,6 +13,7 @@ from app.models.user import User
 from app import db
 from app.utils.common import is_module_enabled, check_for_updates, portal_now_naive
 from app.utils.i18n import translate
+from app.utils.module_visibility import accessible_query, can_view_item
 from config import ABOUT_RELEASE_VERSION
 from app.utils.multi_calendars import (
     events_query_for_calendars,
@@ -51,7 +52,7 @@ AVAILABLE_LINK_KEYS = [
     'contacts', 'inventory', 'inventory_stock', 'inventory_quick_scan',
     'inventory_checkout', 'inventory_borrows', 'inventory_sets',
     'inventory_tool', 'inventory_print_qr', 'inventory_statistics',
-    'wiki', 'shortlinks', 'booking', 'music', 'media_downloader',
+    'wiki', 'shortlinks', 'kanban', 'excalidraw', 'booking', 'music', 'media_downloader',
     'assessment', 'assessment_evaluate', 'assessment_my_evaluations',
     'assessment_ranking', 'assessment_inspections', 'assessment_warnings',
     'settings', 'profile', 'logout',
@@ -66,13 +67,15 @@ SIMPLE_WIDGET_TYPES = [
 def _flatten_sidebar_calendars(user):
     groups = list_sidebar_calendars(user)
     cals = []
-    for key in ('personal', 'public', 'events', 'others'):
+    seen = set()
+    for key in ('personals', 'teams', 'publics', 'events', 'others', 'personal', 'public'):
         item = groups.get(key)
-        if key == 'others':
-            for cal in (item or []):
-                cals.append(calendar_to_dict(cal, user))
-        elif item is not None:
-            cals.append(calendar_to_dict(item, user))
+        rows = item if isinstance(item, list) else ([item] if item is not None else [])
+        for cal in rows:
+            if cal.id in seen:
+                continue
+            seen.add(cal.id)
+            cals.append(calendar_to_dict(cal, user))
     return cals
 
 
@@ -151,16 +154,30 @@ def _load_widget_payload(user, widgets):
     favorite_credentials = []
     if 'passwoerter' in enabled_types and is_module_enabled('module_credentials'):
         try:
-            favorite_credentials = Credential.query.filter_by(
-                is_favorite=True
-            ).order_by(Credential.updated_at.desc()).limit(2).all()
+            fav_ids = [
+                row.credential_id
+                for row in CredentialFavorite.query.filter_by(user_id=user.id).all()
+            ]
+            if fav_ids:
+                favorite_credentials = (
+                    accessible_query(user, Credential, 'credentials')
+                    .filter(Credential.id.in_(fav_ids))
+                    .order_by(Credential.updated_at.desc())
+                    .limit(2)
+                    .all()
+                )
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Passwort-Favoriten: {e}")
 
     recent_wiki_pages = []
     if 'neue_wikieintraege' in enabled_types and is_module_enabled('module_wiki'):
         try:
-            recent_wiki_pages = WikiPage.query.order_by(WikiPage.updated_at.desc()).limit(3).all()
+            recent_wiki_pages = (
+                accessible_query(user, WikiPage, 'wiki')
+                .order_by(WikiPage.updated_at.desc())
+                .limit(3)
+                .all()
+            )
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Wiki-Seiten: {e}")
 
@@ -170,7 +187,11 @@ def _load_widget_payload(user, widgets):
             favorites = WikiFavorite.query.filter_by(
                 user_id=user.id
             ).order_by(WikiFavorite.created_at.desc()).limit(5).all()
-            my_wiki_favorites = [fav.wiki_page for fav in favorites if fav.wiki_page]
+            my_wiki_favorites = [
+                fav.wiki_page
+                for fav in favorites
+                if fav.wiki_page and can_view_item(user, fav.wiki_page, 'wiki')
+            ]
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Wiki-Favoriten: {e}")
 
@@ -223,7 +244,11 @@ def _load_widget_payload(user, widgets):
             contact_ids = w.get('contact_ids') or []
             contacts = []
             if contact_ids:
-                found = Contact.query.filter(Contact.id.in_(contact_ids)).all()
+                found = (
+                    accessible_query(user, Contact, 'contacts')
+                    .filter(Contact.id.in_(contact_ids))
+                    .all()
+                )
                 by_id = {c.id: c for c in found}
                 contacts = [by_id[i] for i in contact_ids if i in by_id]
             payload[wid] = {'contacts': contacts}
@@ -421,7 +446,11 @@ def edit():
             selected_contact_ids.extend(w.get('contact_ids') or [])
     selected_contacts = []
     if selected_contact_ids:
-        found = Contact.query.filter(Contact.id.in_(selected_contact_ids)).all()
+        found = (
+            accessible_query(current_user, Contact, 'contacts')
+            .filter(Contact.id.in_(selected_contact_ids))
+            .all()
+        )
         by_id = {c.id: c for c in found}
         selected_contacts = list(by_id.values())
 

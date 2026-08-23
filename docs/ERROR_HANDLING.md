@@ -125,38 +125,48 @@ sudo nginx -t && sudo systemctl reload nginx
 - Prüfen Sie die OnlyOffice-Logs: `sudo docker logs onlyoffice-documentserver`
 - Wenn OnlyOffice ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` in der `.env` leer
 
-## Excalidraw lädt nicht (falls installiert)
+## OnlyOffice: Schriften fehlen / PDF sieht falsch aus (falls installiert)
+
+PDF, Druck und Konvertierung brauchen TTFs, die das Image nicht mitbringt (Microsoft Core Fonts). **Carlito/Liberation nicht** ins Custom-Volume kopieren – Duplikate zerlegen `font_selection.bin` und führen zu „Fehler beim Öffnen der Datei“.
 
 ```bash
-# Prüfe ob Container laufen
-sudo docker ps | grep excalidraw
+sudo apt update
+echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+sudo apt install -y ttf-mscorefonts-installer cabextract
+
+sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
+sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+  \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
+sudo find /usr/share/fonts/truetype/msttcorefonts \
+  -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
+  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+
+sudo docker restart onlyoffice-documentserver
+```
+
+Danach Browser hart neu laden (Strg+F5). **Carlito** (im Image) ersetzt Calibri. Echte Calibri-TTFs optional ins selbe Volume, dann Container neu starten – nicht `documentserver-generate-allfonts.sh` gegen den laufenden Editor. Beim Container-Update das Fonts-Volume nicht vergessen – siehe [WARTUNG.md](WARTUNG.md#docker-container-aktualisieren-falls-installiert).
+
+## Excalidraw-Kollaboration funktioniert nicht (falls Room installiert)
+
+```bash
+# Prüfe ob der Room-Container läuft
+sudo docker ps | grep excalidraw-room
 
 # Prüfe Container-Logs
-sudo docker logs excalidraw
 sudo docker logs excalidraw-room
 
-# Prüfe Ports
-sudo netstat -tlnp | grep 8081
-sudo netstat -tlnp | grep 8082
+# Prüfe Loopback-Port
+sudo ss -ltn | grep 8082
 
 # Container neu starten
-sudo docker restart excalidraw
 sudo docker restart excalidraw-room
 ```
 
-## Excalidraw-Room funktioniert nicht (falls installiert)
-
-- Stellen Sie sicher, dass WebSocket-Support in Nginx aktiviert ist
+- Stellen Sie sicher, dass WebSocket-Support in Nginx aktiviert ist (`location /excalidraw-room/`)
 - Prüfen Sie die Nginx-Logs: `sudo tail -f /var/log/nginx/error.log`
-- Prüfen Sie die Room-Server-Logs: `sudo docker logs excalidraw-room`
-- Nginx-Konfiguration: [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren)
-
-## Canvas-Modul kann nicht aktiviert werden (falls Excalidraw installiert)
-
 - Prüfen Sie ob `EXCALIDRAW_ENABLED=True` in `.env` gesetzt ist
-- Prüfen Sie ob Excalidraw unter `/excalidraw` erreichbar ist
+- Zeichnen und Speichern funktionieren auch ohne Room-Server; nur Live-Kollaboration braucht ihn
 - Starten Sie die Anwendung neu: `sudo systemctl restart teamportal`
-- Führen Sie ggf. eine Migration aus: siehe [WARTUNG.md – Migrationen](WARTUNG.md#datenbank-migrationen-ausführen)
 
 ## Redis-Probleme
 

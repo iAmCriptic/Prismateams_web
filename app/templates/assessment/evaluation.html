@@ -16,7 +16,14 @@
             </div>
             <div class="mb-3">
                 <label class="form-label" id="targetLabel" for="target">{{ _('assessment.evaluate.target') }}</label>
-                <select class="form-select" id="target" data-inv-pill-select></select>
+                <div class="assessment-target-row">
+                    <select class="form-select" id="target" data-inv-pill-select></select>
+                    <button type="button" class="btn btn-link assessment-target-info" id="targetInfoBtn" hidden
+                            aria-label="{{ _('assessment.evaluate.stand_description') }}"
+                            title="{{ _('assessment.evaluate.stand_description') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
             <div id="criteria" class="row g-3"></div>
             <button class="btn btn-accent mt-3 w-100 w-md-auto" type="button" id="saveEvalBtn">{{ _('assessment.common.save') }}</button>
@@ -29,11 +36,54 @@
 (function () {
     let criteria = [];
     let currentList = null;
+    let currentTargets = [];
+    let targetInfoPopover = null;
     const escapeHtml = window.AssessmentUI ? window.AssessmentUI.escapeHtml : (s) => String(s ?? '');
+    const notify = (message, category) => {
+        if (window.AssessmentUI && window.AssessmentUI.notify) {
+            window.AssessmentUI.notify(message, category);
+        } else if (window.showAppBanner) {
+            window.showAppBanner(message, category);
+        }
+    };
 
     function syncPrint() {
         if (window.AssessmentUI) {
             window.AssessmentUI.syncPrintLinks({ list_id: document.getElementById('listSelect').value });
+        }
+    }
+
+    function disposeTargetInfo() {
+        const btn = document.getElementById('targetInfoBtn');
+        if (targetInfoPopover) {
+            try { targetInfoPopover.dispose(); } catch (e) { /* ignore */ }
+            targetInfoPopover = null;
+        }
+        if (btn) {
+            btn.removeAttribute('data-bs-content');
+            btn.hidden = true;
+        }
+    }
+
+    function syncTargetInfo() {
+        const btn = document.getElementById('targetInfoBtn');
+        const targetSel = document.getElementById('target');
+        if (!btn || !targetSel) return;
+        disposeTargetInfo();
+        const selected = currentTargets.find((t) => String(t.id) === String(targetSel.value));
+        const desc = selected && selected.description ? String(selected.description).trim() : '';
+        if (!desc) return;
+        btn.hidden = false;
+        if (window.bootstrap && bootstrap.Popover) {
+            targetInfoPopover = new bootstrap.Popover(btn, {
+                trigger: 'click',
+                placement: 'left',
+                html: false,
+                content: desc,
+                container: 'body',
+            });
+        } else {
+            btn.setAttribute('title', desc);
         }
     }
 
@@ -43,7 +93,9 @@
         const res = await fetch(`/assessment/api/evaluate?list_id=${listId}`);
         const data = await res.json();
         if (!data.success) {
-            document.getElementById('status').textContent = data.message || '{{ _("assessment.common.load_error") }}';
+            const msg = data.message || '{{ _("assessment.common.load_error") }}';
+            document.getElementById('status').textContent = msg;
+            notify(msg, 'danger');
             return;
         }
         currentList = data.list;
@@ -51,12 +103,11 @@
         document.getElementById('targetLabel').textContent = isStand
             ? '{{ _("assessment.evaluate.stand") }}'
             : '{{ _("assessment.evaluate.target") }}';
-        const targets = isStand ? (data.stands || []) : (data.subjects || []);
+        currentTargets = isStand ? (data.stands || []) : (data.subjects || []);
         const targetSel = document.getElementById('target');
-        targetSel.innerHTML = targets.map(t => {
-            const extra = isStand && t.stand_type_name ? ` (${t.stand_type_name})` : '';
-            return `<option value="${t.id}">${escapeHtml(t.name)}${escapeHtml(extra)}</option>`;
-        }).join('');
+        targetSel.innerHTML = currentTargets.map(t =>
+            `<option value="${t.id}">${escapeHtml(t.name)}</option>`
+        ).join('');
         criteria = data.criteria || [];
         document.getElementById('criteria').innerHTML = criteria.map(c => `
             <div class="col-12 col-md-6">
@@ -66,6 +117,7 @@
         `).join('');
         document.getElementById('status').textContent = '';
         if (window.AssessmentUI) window.AssessmentUI.enhancePills(document.querySelector('.assessment-panel'));
+        syncTargetInfo();
     }
 
     async function submitEval() {
@@ -79,10 +131,13 @@
         }
         const res = await fetch('/assessment/api/evaluate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
         const data = await res.json();
-        document.getElementById('status').textContent = data.message || (data.success ? '{{ _("assessment.common.saved") }}' : '{{ _("assessment.common.error") }}');
+        const msg = data.message || (data.success ? '{{ _("assessment.common.saved") }}' : '{{ _("assessment.common.error") }}');
+        document.getElementById('status').textContent = '';
+        notify(msg, data.success ? 'success' : 'danger');
     }
 
     document.getElementById('listSelect').addEventListener('change', loadData);
+    document.getElementById('target').addEventListener('change', syncTargetInfo);
     document.getElementById('saveEvalBtn').addEventListener('click', submitEval);
     loadData();
 })();

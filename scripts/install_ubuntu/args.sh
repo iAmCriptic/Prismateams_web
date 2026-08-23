@@ -40,6 +40,8 @@ Optionale Dienste:
   --skip-docker              Docker + OnlyOffice überspringen
   --skip-onlyoffice          OnlyOffice überspringen
   --onlyoffice               OnlyOffice installieren
+  --skip-excalidraw          Excalidraw-Room überspringen
+  --excalidraw               Excalidraw-Room installieren
   --skip-media-downloader    FFmpeg/Media Downloader überspringen
   --ffmpeg                   FFmpeg installieren
 
@@ -147,6 +149,7 @@ parse_arguments() {
             --skip-docker)
                 INSTALL_DOCKER="n"
                 INSTALL_ONLYOFFICE="n"
+                INSTALL_EXCALIDRAW="n"
                 shift
                 ;;
             --skip-onlyoffice)
@@ -156,6 +159,14 @@ parse_arguments() {
             --onlyoffice)
                 INSTALL_ONLYOFFICE="j"
                 INSTALL_DOCKER="j"
+                shift
+                ;;
+            --skip-excalidraw)
+                INSTALL_EXCALIDRAW="n"
+                shift
+                ;;
+            --excalidraw)
+                INSTALL_EXCALIDRAW="j"
                 INSTALL_DOCKER="j"
                 shift
                 ;;

@@ -13,6 +13,8 @@ class Contact(db.Model):
     email = db.Column(db.String(255), nullable=False, index=True)
     phone = db.Column(db.String(50), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

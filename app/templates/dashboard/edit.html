@@ -134,6 +134,12 @@
                         <i class="bi bi-link-45deg"></i><span>Kurzlinks</span>
                     </label>
                     {% endif %}
+                    {% if is_module_enabled('module_kanban') %}
+                    <label class="dashboard-edit-qa-item" for="link_kanban">
+                        <input class="form-check-input" type="checkbox" name="link_kanban" id="link_kanban" {% if 'kanban' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-kanban"></i><span>{{ _('layout.nav.kanban') }}</span>
+                    </label>
+                    {% endif %}
                     {% if is_module_enabled('module_booking') %}
                     <label class="dashboard-edit-qa-item" for="link_booking">
                         <input class="form-check-input" type="checkbox" name="link_booking" id="link_booking" {% if 'booking' in quick_access_links %}checked{% endif %}>

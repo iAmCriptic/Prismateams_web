@@ -7,6 +7,16 @@ from app.models.user import User
 from app.utils.markdown import process_markdown
 from app.utils.common import is_module_enabled, format_datetime
 from app.utils.access_control import check_module_access
+from app.utils.module_visibility import (
+    accessible_query,
+    apply_section_filter,
+    apply_visibility_from_form,
+    can_edit_item,
+    can_view_item,
+    parse_section_args,
+    visibility_form_context,
+    visibility_nav_context,
+)
 from datetime import datetime
 import os
 import re
@@ -29,7 +39,8 @@ def _wiki_sidebar_context():
     favorites = WikiFavorite.query.filter_by(user_id=current_user.id).all()
     my_wiki_favorites = [fav.wiki_page for fav in favorites if fav.wiki_page]
     favorite_ids = [fav.wiki_page_id for fav in favorites]
-    return {
+    section, filter_team_id = parse_section_args('wiki', current_user)
+    ctx = {
         'categories': WikiCategory.query.order_by(WikiCategory.name).all(),
         'tags': WikiTag.query.order_by(WikiTag.name).all(),
         'my_wiki_favorites': my_wiki_favorites,
@@ -44,6 +55,25 @@ def _wiki_sidebar_context():
         'active_favorites': False,
         'current_wiki_page_id': None,
     }
+    ctx.update(visibility_nav_context('wiki', current_user, section, filter_team_id))
+    return ctx
+
+
+def _wiki_form_kwargs(page=None):
+    section, filter_team_id = parse_section_args('wiki', current_user)
+    pre_section = section if section in ('private', 'public', 'team') else None
+    return visibility_form_context(
+        'wiki',
+        current_user,
+        item=page,
+        preselect_section=pre_section,
+        preselect_team_id=filter_team_id,
+    )
+
+
+def _wiki_denied():
+    flash(_('visibility.flash.access_denied'), 'danger')
+    return redirect(url_for('wiki.index'))
 
 
 def _prune_wiki_versions(wiki_page_id):
@@ -73,7 +103,8 @@ def index():
     category_id = request.args.get('category', type=int)
     tag_id = request.args.get('tag', type=int)
     view = (request.args.get('view') or '').strip().lower()
-    favorites_only = request.args.get('favorites', type=int) == 1 or view == 'favorites'
+    section, filter_team_id = parse_section_args('wiki', current_user)
+    favorites_only = request.args.get('favorites', type=int) == 1 or section == 'favorites'
     sort_by = request.args.get('sort', 'updated')  # updated, created, title
     sort_dir = request.args.get('dir', 'desc')
     if sort_dir not in ('asc', 'desc'):
@@ -82,7 +113,7 @@ def index():
         sort_by = 'updated'
     
     # Basis-Query
-    query = WikiPage.query
+    query = accessible_query(current_user, WikiPage, 'wiki')
     favorite_rows = WikiFavorite.query.filter_by(user_id=current_user.id).all()
     favorite_ids = [fav.wiki_page_id for fav in favorite_rows]
     show_favorites_nav = bool(favorite_ids)
@@ -92,8 +123,9 @@ def index():
         if favorite_ids:
             query = query.filter(WikiPage.id.in_(favorite_ids))
         else:
-            # Wenn keine Favoriten vorhanden, leere Liste zurückgeben
-            query = query.filter(WikiPage.id == -1)  # Immer leer
+            query = query.filter(WikiPage.id == -1)
+    elif section in ('private', 'team', 'public'):
+        query = apply_section_filter(query, WikiPage, section, filter_team_id)
     
     # Suche
     if search_query:
@@ -129,6 +161,7 @@ def index():
     
     pages = query.all()
     sidebar = _wiki_sidebar_context()
+    nav = visibility_nav_context('wiki', current_user, section, filter_team_id)
     
     return render_template('wiki/index.html',
                          pages=pages,
@@ -144,7 +177,8 @@ def index():
                          favorite_ids=favorite_ids,
                          show_favorites_nav=show_favorites_nav,
                          my_wiki_favorites=sidebar['my_wiki_favorites'],
-                         current_wiki_page_id=None)
+                         current_wiki_page_id=None,
+                         **nav)
 
 
 @wiki_bp.route('/view/<slug>')
@@ -156,6 +190,8 @@ def view(slug):
         return redirect(url_for('dashboard.index'))
     
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not can_view_item(current_user, page, 'wiki'):
+        return _wiki_denied()
 
     # Markdown verarbeiten
     processed_content = process_markdown(page.content, wiki_mode=True)
@@ -182,6 +218,8 @@ def view_version(slug, version_number):
         return redirect(url_for('dashboard.index'))
 
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not can_view_item(current_user, page, 'wiki'):
+        return _wiki_denied()
     version = WikiPageVersion.query.filter_by(
         wiki_page_id=page.id,
         version_number=version_number
@@ -222,7 +260,7 @@ def create():
         if not title:
             flash(_('wiki.create.alerts.title_required'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
-            return render_template('wiki/create.html', categories=categories, content=content)
+            return render_template('wiki/create.html', categories=categories, content=content, **_wiki_form_kwargs())
         
         # Wenn eine neue Kategorie erstellt werden soll
         if new_category_name:
@@ -247,7 +285,7 @@ def create():
         if existing_page:
             flash(_('wiki.flash.duplicate_title'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
-            return render_template('wiki/create.html', categories=categories, title=title, content=content)
+            return render_template('wiki/create.html', categories=categories, title=title, content=content, **_wiki_form_kwargs())
         
         # Erstelle Datei
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -271,6 +309,7 @@ def create():
             category_id=category_id,
             created_by=current_user.id
         )
+        apply_visibility_from_form(page, 'wiki', current_user)
         
         db.session.add(page)
         
@@ -290,7 +329,7 @@ def create():
         return redirect(url_for('wiki.view', slug=slug))
     
     categories = WikiCategory.query.order_by(WikiCategory.name).all()
-    return render_template('wiki/create.html', categories=categories)
+    return render_template('wiki/create.html', categories=categories, **_wiki_form_kwargs())
 
 
 @wiki_bp.route('/edit/<slug>', methods=['GET', 'POST'])
@@ -302,6 +341,8 @@ def edit(slug):
         return redirect(url_for('dashboard.index'))
     
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not can_edit_item(current_user, page, 'wiki'):
+        return _wiki_denied()
     
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -314,7 +355,7 @@ def edit(slug):
             flash(_('wiki.edit.alerts.title_required'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             tags = [tag.name for tag in page.tags]
-            return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
+            return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags), **_wiki_form_kwargs(page))
         
         # Wenn eine neue Kategorie erstellt werden soll
         if new_category_name:
@@ -353,7 +394,7 @@ def edit(slug):
                 flash(_('wiki.flash.duplicate_title'), 'danger')
                 categories = WikiCategory.query.order_by(WikiCategory.name).all()
                 tags = [tag.name for tag in page.tags]
-                return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
+                return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags), **_wiki_form_kwargs(page))
             page.slug = new_slug
         
         page.title = title
@@ -361,6 +402,7 @@ def edit(slug):
         page.category_id = category_id
         page.version_number += 1
         page.updated_at = datetime.utcnow()
+        apply_visibility_from_form(page, 'wiki', current_user)
         
         # Aktualisiere Datei
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -393,7 +435,7 @@ def edit(slug):
     
     categories = WikiCategory.query.order_by(WikiCategory.name).all()
     tags = [tag.name for tag in page.tags]
-    return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
+    return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags), **_wiki_form_kwargs(page))
 
 
 @wiki_bp.route('/delete/<slug>', methods=['POST'])
@@ -405,6 +447,8 @@ def delete(slug):
         return redirect(url_for('dashboard.index'))
     
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not can_edit_item(current_user, page, 'wiki'):
+        return _wiki_denied()
     
     # Lösche Datei
     if os.path.exists(page.file_path):
@@ -443,6 +487,8 @@ def api_history(slug):
         return jsonify({'error': _('wiki.api.module_disabled')}), 403
 
     page = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not can_view_item(current_user, page, 'wiki'):
+        return jsonify({'error': _('visibility.flash.access_denied')}), 403
     versions = WikiPageVersion.query.filter_by(wiki_page_id=page.id).order_by(
         WikiPageVersion.version_number.desc()
     ).all()
@@ -481,7 +527,7 @@ def search():
         return jsonify({'results': []})
     
     search_filter = f'%{query}%'
-    pages = WikiPage.query.filter(
+    pages = accessible_query(current_user, WikiPage, 'wiki').filter(
         db.or_(
             WikiPage.title.ilike(search_filter),
             WikiPage.content.ilike(search_filter),
@@ -508,6 +554,8 @@ def toggle_favorite(page_id):
         return jsonify({'error': _('wiki.api.module_disabled')}), 403
     
     page = WikiPage.query.get_or_404(page_id)
+    if not can_view_item(current_user, page, 'wiki'):
+        return jsonify({'error': _('visibility.flash.access_denied')}), 403
     
     if request.method == 'POST':
         # Prüfe ob bereits favorisiert

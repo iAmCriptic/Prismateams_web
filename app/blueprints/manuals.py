@@ -5,6 +5,16 @@ from app import db
 from app.models.manual import Manual, ManualFolder
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.module_visibility import (
+    accessible_query,
+    apply_section_filter,
+    apply_visibility_from_form,
+    can_edit_item,
+    can_view_item,
+    parse_section_args,
+    visibility_form_context,
+    visibility_nav_context,
+)
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
@@ -55,18 +65,38 @@ def redirect_to_folder(folder_id=None):
     return redirect(url_for('manuals.index'))
 
 
+def _manuals_denied():
+    flash(translate('visibility.flash.access_denied'), 'danger')
+    return redirect(url_for('manuals.index'))
+
+
+def _manuals_form_kwargs():
+    section, filter_team_id = parse_section_args('manuals', current_user)
+    pre_section = section if section in ('private', 'public', 'team') else None
+    return visibility_form_context(
+        'manuals',
+        current_user,
+        preselect_section=pre_section,
+        preselect_team_id=filter_team_id,
+    )
+
+
 @manuals_bp.route('/')
 @login_required
 @check_module_access('module_manuals')
 def index():
     """List manuals for the active folder (root when folder_id is empty)."""
     folders = ManualFolder.query.order_by(ManualFolder.position.asc(), ManualFolder.name.asc()).all()
-    active_folder_id = parse_folder_id(request.args.get('folder_id'))
+    section, filter_team_id = parse_section_args('manuals', current_user)
+    space_view = section in ('private', 'team', 'public')
+    active_folder_id = None if space_view else parse_folder_id(request.args.get('folder_id'))
     active_folder = ManualFolder.query.get(active_folder_id) if active_folder_id else None
     search_query = (request.args.get('q') or '').strip()
 
-    manuals_query = Manual.query.order_by(Manual.uploaded_at.desc())
-    if active_folder_id is None:
+    manuals_query = accessible_query(current_user, Manual, 'manuals').order_by(Manual.uploaded_at.desc())
+    if space_view:
+        manuals_query = apply_section_filter(manuals_query, Manual, section, filter_team_id)
+    elif active_folder_id is None:
         manuals_query = manuals_query.filter(Manual.folder_id.is_(None))
     else:
         manuals_query = manuals_query.filter(Manual.folder_id == active_folder_id)
@@ -81,6 +111,7 @@ def index():
         )
 
     manuals = manuals_query.all()
+    nav = visibility_nav_context('manuals', current_user, section, filter_team_id)
 
     return render_template(
         'manuals/index.html',
@@ -89,6 +120,7 @@ def index():
         active_folder_id=active_folder_id,
         active_folder=active_folder,
         search_query=search_query,
+        **nav,
     )
 
 
@@ -113,6 +145,7 @@ def upload():
                 'manuals/upload.html',
                 folders=folders,
                 selected_folder_id=selected_folder_id,
+                **_manuals_form_kwargs(),
             )
 
         file = request.files['file']
@@ -124,6 +157,7 @@ def upload():
                 'manuals/upload.html',
                 folders=folders,
                 selected_folder_id=selected_folder_id,
+                **_manuals_form_kwargs(),
             )
 
         if not title:
@@ -135,6 +169,7 @@ def upload():
                 'manuals/upload.html',
                 folders=folders,
                 selected_folder_id=selected_folder_id,
+                **_manuals_form_kwargs(),
             )
 
         filename = secure_filename(file.filename)
@@ -154,6 +189,7 @@ def upload():
             folder_id=selected_folder_id,
             uploaded_by=current_user.id
         )
+        apply_visibility_from_form(manual, 'manuals', current_user)
 
         db.session.add(manual)
         db.session.commit()
@@ -165,6 +201,7 @@ def upload():
         'manuals/upload.html',
         folders=folders,
         selected_folder_id=selected_folder_id,
+        **_manuals_form_kwargs(),
     )
 
 
@@ -174,6 +211,8 @@ def upload():
 def view(manual_id):
     """View a manual in the embedded PDF viewer."""
     manual = Manual.query.get_or_404(manual_id)
+    if not can_view_item(current_user, manual, 'manuals'):
+        return _manuals_denied()
     file_path = resolve_manual_file_path(manual)
 
     if not os.path.exists(file_path):
@@ -200,6 +239,8 @@ def view(manual_id):
 def raw(manual_id):
     """Serve raw PDF bytes for the viewer iframe."""
     manual = Manual.query.get_or_404(manual_id)
+    if not can_view_item(current_user, manual, 'manuals'):
+        return _manuals_denied()
     file_path = resolve_manual_file_path(manual)
 
     if not os.path.exists(file_path):
@@ -215,6 +256,8 @@ def raw(manual_id):
 def download(manual_id):
     """Download a manual."""
     manual = Manual.query.get_or_404(manual_id)
+    if not can_view_item(current_user, manual, 'manuals'):
+        return _manuals_denied()
     file_path = resolve_manual_file_path(manual)
 
     if not os.path.exists(file_path):

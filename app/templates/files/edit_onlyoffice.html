@@ -251,7 +251,7 @@
                 <a href="{{ oo_download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" title="{{ _('files.view.close') }}">
+                <button type="button" id="onlyofficeCloseBtn" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
             </div>
@@ -265,10 +265,23 @@
 <script>
 let docEditor;
 let isEditorReady = false;
+let hasUnsavedChanges = false;
+let isLeaving = false;
 let apiLoadAttempts = 0;
 const MAX_API_LOAD_ATTEMPTS = 50; // 5 seconds total (50 * 100ms)
 const PRESENCE_ENABLED = {{ 'true' if presence_enabled|default(false) else 'false' }};
 const PRESENCE_FILE_ID = {{ file.id }};
+const DOCUMENT_KEY = {{ (document_key or '')|tojson }};
+const FORCESAVE_URL = {{ (forcesave_url|default(''))|tojson }};
+const UNSAVED_LEAVE_MESSAGE = {{ _('files.onlyoffice.unsaved_changes')|tojson }};
+const SAVING_LABEL = {{ _('files.onlyoffice.saving')|tojson }};
+{% if return_url %}
+const RETURN_URL = {{ return_url|tojson }};
+{% elif file.folder_id %}
+const RETURN_URL = {{ url_for("files.browse_folder", folder_id=file.folder_id)|tojson }};
+{% else %}
+const RETURN_URL = {{ url_for("files.index")|tojson }};
+{% endif %}
 let ooPresenceSessionKey = null;
 let ooPresenceTimer = null;
 
@@ -386,7 +399,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
         width: "100%",
-        height: "100%"
+        height: "100%",
+        events: {
+            onAppReady: function() {
+                isEditorReady = true;
+            },
+            onDocumentReady: function() {
+                isEditorReady = true;
+            },
+            onDocumentStateChange: function(event) {
+                hasUnsavedChanges = !!(event && event.data);
+            },
+            onError: function(error) {
+                console.error('ONLYOFFICE Error:', error);
+            },
+            onWarning: function(warning) {
+                console.warn('OnlyOffice warning:', warning);
+            },
+            onRequestClose: function() {
+                goBack();
+            }
+        }
     };
 
     startOoPresence();
@@ -416,141 +449,106 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Wait for ONLYOFFICE API to load
     waitForOnlyOfficeAPI(function() {
-        // Initialize editor
         try {
             console.log('Initializing OnlyOffice editor...');
             docEditor = new DocsAPI.DocEditor("onlyoffice-editor", config);
-            
-            // Check if docEditor is available
             if (!docEditor) {
                 console.error('OnlyOffice editor object is null');
-                console.error('Fehler beim Initialisieren des Editors: Editor-Objekt konnte nicht erstellt werden.');
-                return;
             }
-            
-            // Wait a bit for events to be available (OnlyOffice needs time to initialize)
-            // OnlyOffice may need more time to fully initialize, especially when loading documents
-            let eventsCheckAttempts = 0;
-            const maxEventsCheckAttempts = 100; // 10 seconds total (100 * 100ms) - increased for slower connections
-            
-            function checkEventsAvailability() {
-                if (docEditor && docEditor.events) {
-                    console.log('OnlyOffice editor events available');
-                    setupEventHandlers();
-                } else {
-                    eventsCheckAttempts++;
-                    if (eventsCheckAttempts >= maxEventsCheckAttempts) {
-                        console.error('OnlyOffice editor events object is null after waiting');
-                        console.error('Fehler beim Initialisieren des Editors: Editor-Events konnten nicht initialisiert werden. Bitte laden Sie die Seite neu.');
-                        // Don't show error to user - editor might still work
-                        // Try to setup handlers anyway after a delay
-                        setTimeout(function() {
-                            if (docEditor && docEditor.events) {
-                                console.log('OnlyOffice editor events became available after timeout');
-                                setupEventHandlers();
-                            }
-                        }, 2000);
-                        return;
-                    }
-                    // Check again in 100ms
-                    setTimeout(checkEventsAvailability, 100);
-                }
-            }
-            
-            // Start checking for events availability
-            checkEventsAvailability();
         } catch (error) {
             console.error('Error initializing ONLYOFFICE editor:', error);
-            console.error('Fehler beim Initialisieren des Editors: ' + error.message);
         }
     });
 });
 
-function setupEventHandlers() {
-    if (!docEditor || !docEditor.events) {
-        return;
+function markCloseButtonSaving() {
+    const closeBtn = document.getElementById('onlyofficeCloseBtn');
+    if (!closeBtn) return;
+    closeBtn.disabled = true;
+    const label = closeBtn.querySelector('.btn-label');
+    if (label) {
+        label.textContent = SAVING_LABEL;
     }
-    
-    console.log('OnlyOffice editor initialized successfully');
-            
-    // Editor event handlers
-    docEditor.events.on("onDocumentReady", function() {
-        console.log('OnlyOffice document ready');
-        isEditorReady = true;
-    });
-    
-    docEditor.events.on("onInfo", function(data) {
-        console.log('ONLYOFFICE Info:', data);
-        // Handle version change notification
-        if (data && data.event === 'documentStateChange' && data.data && data.data.version) {
-            console.log('Document version changed:', data.data.version);
+}
+
+function destroyEditorAndLeave() {
+    if (ooPresenceTimer) {
+        clearInterval(ooPresenceTimer);
+        ooPresenceTimer = null;
+    }
+    if (PRESENCE_ENABLED && ooPresenceSessionKey) {
+        ooPresenceSend('leave');
+    }
+    if (docEditor) {
+        try {
+            docEditor.destroyEditor();
+        } catch (e) {
+            console.error('Error destroying OnlyOffice editor:', e);
         }
-    });
-    
-    docEditor.events.on("onError", function(error) {
-        console.error('ONLYOFFICE Error:', error);
-        // Log errors to console only, no user-facing error messages
-        if (error && typeof error === 'object') {
-            if (error.message) {
-                console.error('Error message:', error.message);
-            } else if (error.error) {
-                console.error('Error:', error.error);
-            } else {
-                console.error('Error details:', JSON.stringify(error));
-            }
-        } else if (error) {
-            console.error('Error:', String(error));
-        }
-    });
-    
-    docEditor.events.on("onRequestDocument", function() {
-        console.log('OnlyOffice requesting document from:', config.document.url);
-        console.log('Full document URL:', config.document.url);
-    });
-    
-    // Track document state changes
-    docEditor.events.on("onDocumentStateChange", function(data) {
-        console.log('OnlyOffice document state changed:', data);
-    });
-    
-    // Track warnings
-    docEditor.events.on("onWarning", function(warning) {
-        console.warn('OnlyOffice warning:', warning);
-    });
-    
-    docEditor.events.on("onRequestSave", function() {
-        console.log('OnlyOffice saving document...');
+        docEditor = null;
+    }
+    window.location.href = RETURN_URL;
+}
+
+function requestForceSave() {
+    if (!FORCESAVE_URL || !DOCUMENT_KEY) {
+        return Promise.resolve();
+    }
+    return fetch(FORCESAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ key: DOCUMENT_KEY }),
+        keepalive: true
+    }).catch(function(err) {
+        console.error('OnlyOffice forcesave failed:', err);
     });
 }
 
 function goBack() {
-    if (isEditorReady && docEditor) {
-        // Try to save if editor is ready
-        try {
-            docEditor.downloadAs();
-        } catch (e) {
-            console.error('Error saving before leaving:', e);
-        }
+    if (isLeaving) {
+        return;
     }
-    
-    // Redirect back using return_url
-    {% if return_url %}
-    window.location.href = '{{ return_url }}';
-    {% elif file.folder_id %}
-    window.location.href = '{{ url_for("files.browse_folder", folder_id=file.folder_id) }}';
-    {% else %}
-    window.location.href = '{{ url_for("files.index") }}';
-    {% endif %}
+    isLeaving = true;
+    hasUnsavedChanges = false;
+    markCloseButtonSaving();
+
+    let left = false;
+    const leave = function() {
+        if (left) {
+            return;
+        }
+        left = true;
+        destroyEditorAndLeave();
+    };
+    const timeout = setTimeout(leave, 5000);
+
+    requestForceSave().then(function() {
+        setTimeout(function() {
+            clearTimeout(timeout);
+            leave();
+        }, 400);
+    });
 }
 
-// Warn before leaving if editor has unsaved changes
 window.addEventListener('beforeunload', function(e) {
-    if (isEditorReady && docEditor) {
-        // Check if there are unsaved changes
-        // Note: This is a simplified check - ONLYOFFICE handles saving internally
-        e.preventDefault();
-        e.returnValue = '';
+    if (isLeaving) {
+        return;
     }
+    if (!isEditorReady) {
+        return;
+    }
+    if (FORCESAVE_URL && DOCUMENT_KEY) {
+        try {
+            navigator.sendBeacon(FORCESAVE_URL, new Blob([JSON.stringify({
+                key: DOCUMENT_KEY
+            })], { type: 'application/json' }));
+        } catch (err) {
+            requestForceSave();
+        }
+    }
+    e.preventDefault();
+    e.returnValue = UNSAVED_LEAVE_MESSAGE;
+    return UNSAVED_LEAVE_MESSAGE;
 });
 
 // Keyboard shortcut: Escape to go back

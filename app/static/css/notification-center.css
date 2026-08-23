@@ -77,8 +77,9 @@
 
 @media (min-width: 992px) {
     .notification-center-panel {
-        top: 4.25rem;
-        left: 1rem;
+        top: calc(var(--top-navbar-height, 64px) + 0.4rem);
+        left: auto;
+        right: calc(var(--favorites-rail-width, 56px) + 1rem);
         bottom: auto;
         width: min(400px, calc(100% - 2rem));
     }

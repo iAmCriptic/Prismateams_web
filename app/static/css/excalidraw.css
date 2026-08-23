@@ -1,0 +1,187 @@
+/* Excalidraw module — landing + editor chrome */
+
+.excalidraw-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+}
+
+.excalidraw-view-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.excalidraw-view-toggle__btn:hover {
+    color: var(--bs-body-color);
+}
+
+.excalidraw-view-toggle__btn.active,
+.excalidraw-view-toggle__btn.is-active {
+    background: var(--accent-color, #0d6efd);
+    color: #fff;
+}
+
+.excalidraw-search {
+    position: relative;
+    min-width: 12rem;
+    max-width: 22rem;
+    width: 100%;
+}
+
+.excalidraw-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--bs-secondary-color);
+    pointer-events: none;
+}
+
+.excalidraw-search-input {
+    padding-left: 2.15rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.excalidraw-card {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.excalidraw-card-preview {
+    height: 8.5rem;
+    background: color-mix(in srgb, var(--bs-body-color) 4%, var(--bs-body-bg));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.excalidraw-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.excalidraw-card-preview-icon {
+    font-size: 2rem;
+    opacity: 0.35;
+}
+
+.excalidraw-inline-create {
+    display: none;
+}
+
+.excalidraw-inline-create.is-open {
+    display: flex;
+}
+
+.excalidraw-editor-container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    background: var(--bs-body-bg, #fff);
+    /* Do NOT set z-index here — it would create a new stacking context
+       that traps Excalidraw's portals (menus, dialogs) inside, preventing them
+       from rendering above the header bar. */
+}
+
+/* Header/collab bar sit above Excalidraw's fixed canvas layer */
+.excalidraw-editor-container .onlyoffice-viewer-header,
+.excalidraw-editor-container .excalidraw-collab-banner {
+    position: relative;
+    z-index: 20;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.excalidraw-editor-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Keep position:relative so that #excalidraw-root with position:absolute is contained here.
+       Excalidraw's modal portals mount to document.body, so they are NOT clipped by this. */
+    position: relative;
+    overflow: visible;
+}
+
+.excalidraw-editor-content .excalidraw,
+.excalidraw-editor-content .excalidraw-wrapper,
+#excalidraw-root {
+    width: 100%;
+    height: 100%;
+}
+
+/* Do not override Excalidraw popover/modal stacking globally.
+   Excalidraw manages menu layering itself; forced z-index values
+   can break pointer routing for nested menus. */
+
+/*
+ * Bootstrap 5 also defines .dropdown-menu and .popover globally.
+ * Excalidraw reuses those class names but toggles visibility via
+ * Radix data-state, not Bootstrap's .show class — without isolation
+ * hamburger/library/shape submenus stay invisible (opacity:0 / display:none).
+ */
+.excalidraw .dropdown-menu,
+.excalidraw .popover {
+    display: revert;
+    opacity: revert;
+    visibility: revert;
+    pointer-events: auto;
+    position: absolute;
+    transform: none;
+    max-width: none;
+    background: unset;
+    border: unset;
+    box-shadow: unset;
+}
+
+.excalidraw [data-state="open"],
+.excalidraw [data-state="open"].dropdown-menu,
+.excalidraw [data-state="open"].popover,
+.excalidraw .dropdown-menu[data-state="open"],
+.excalidraw .popover[data-state="open"] {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+.excalidraw-collab-banner {
+    flex: 0 0 auto;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    background: color-mix(in srgb, #ffc107 18%, transparent);
+    color: inherit;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+}
+
+.excalidraw-collab-banner.is-on {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.excalidraw-save-status {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+    .excalidraw-editor-actions .btn-label {
+        display: none;
+    }
+}

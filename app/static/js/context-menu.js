@@ -440,7 +440,7 @@
         if (toggle.closest('[data-pt-no-action-sheet]')) return false;
         if (toggle.hasAttribute('data-mobile-modal') || toggle.closest('[data-mobile-modal]')) return false;
         if (toggle.closest('.dropdown-submenu')) return false;
-        if (toggle.closest('#mobileNav, #desktopSidebar, .navbar')) return false;
+        if (toggle.closest('#mobileNav, #desktopTopNav, #desktopSidebar, #desktopFavoritesRail, .navbar, .top-navbar, .favorites-rail')) return false;
         // Offcanvas-Inhalte: Ordner-⋮ sind Edit-Buttons ohne Dropdown — nicht abfangen
         if (toggle.closest('.offcanvas') && !toggle.closest('.dropdown')) return false;
         if (

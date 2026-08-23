@@ -12,6 +12,16 @@ from app import db
 from app.models.shortlink import ShortLink
 from app.utils.access_control import check_module_access
 from app.utils.common import portal_now_naive
+from app.utils.i18n import translate
+from app.utils.module_visibility import (
+    accessible_query,
+    apply_section_filter,
+    apply_visibility_from_form,
+    can_edit_item,
+    parse_section_args,
+    visibility_form_context,
+    visibility_nav_context,
+)
 
 shortlinks_bp = Blueprint('shortlinks', __name__)
 
@@ -90,6 +100,23 @@ def _not_max_clicks_clause():
     return or_(ShortLink.max_clicks.is_(None), ShortLink.click_count < ShortLink.max_clicks)
 
 
+def _shortlinks_form_kwargs(link=None):
+    section, filter_team_id = parse_section_args('shortlinks', current_user)
+    pre_section = section if section in ('private', 'public', 'team') else None
+    return visibility_form_context(
+        'shortlinks',
+        current_user,
+        item=link,
+        preselect_section=pre_section,
+        preselect_team_id=filter_team_id,
+    )
+
+
+def _shortlinks_denied():
+    flash(translate('visibility.flash.access_denied'), 'danger')
+    return redirect(url_for('shortlinks.index'))
+
+
 @shortlinks_bp.route('/shortlinks')
 @login_required
 @check_module_access('module_shortlinks')
@@ -104,8 +131,11 @@ def index():
 
     now = portal_now_naive()
     soon = now + timedelta(days=EXPIRING_SOON_DAYS)
+    section, filter_team_id = parse_section_args('shortlinks', current_user)
 
-    query = ShortLink.query.filter_by(created_by=current_user.id)
+    query = accessible_query(current_user, ShortLink, 'shortlinks')
+    if section in ('private', 'team', 'public'):
+        query = apply_section_filter(query, ShortLink, section, filter_team_id)
 
     if search_query:
         like = f'%{search_query}%'
@@ -170,6 +200,7 @@ def index():
         query = query.order_by(col.asc() if sort_dir == 'asc' else col.desc())
 
     links = query.all()
+    nav = visibility_nav_context('shortlinks', current_user, section, filter_team_id)
     return render_template(
         'shortlinks/index.html',
         links=links,
@@ -180,6 +211,7 @@ def index():
         expiry_filter=expiry_filter,
         password_filter=password_filter,
         clicks_filter=clicks_filter,
+        **nav,
     )
 
 
@@ -196,18 +228,18 @@ def create():
 
         if not target_url:
             flash('Bitte eine Ziel-URL angeben.', 'danger')
-            return render_template('shortlinks/form.html', link=None)
+            return render_template('shortlinks/form.html', link=None, **_shortlinks_form_kwargs())
         if expires_at == 'invalid':
             flash('Ungültiges Ablaufdatum.', 'danger')
-            return render_template('shortlinks/form.html', link=None)
+            return render_template('shortlinks/form.html', link=None, **_shortlinks_form_kwargs())
         if max_clicks == 'invalid':
             flash('Maximale Aufrufe müssen eine positive Zahl sein.', 'danger')
-            return render_template('shortlinks/form.html', link=None)
+            return render_template('shortlinks/form.html', link=None, **_shortlinks_form_kwargs())
 
         slug, error = _build_unique_slug(custom_slug if custom_slug else None)
         if error:
             flash(error, 'danger')
-            return render_template('shortlinks/form.html', link=None)
+            return render_template('shortlinks/form.html', link=None, **_shortlinks_form_kwargs())
 
         link = ShortLink(
             created_by=current_user.id,
@@ -217,19 +249,22 @@ def create():
             expires_at=expires_at,
             max_clicks=max_clicks,
         )
+        apply_visibility_from_form(link, 'shortlinks', current_user)
         db.session.add(link)
         db.session.commit()
         flash('Kurzlink wurde erstellt.', 'success')
         return redirect(url_for('shortlinks.index'))
 
-    return render_template('shortlinks/form.html', link=None)
+    return render_template('shortlinks/form.html', link=None, **_shortlinks_form_kwargs())
 
 
 @shortlinks_bp.route('/shortlinks/<int:link_id>/edit', methods=['GET', 'POST'])
 @login_required
 @check_module_access('module_shortlinks')
 def edit(link_id):
-    link = ShortLink.query.filter_by(id=link_id, created_by=current_user.id).first_or_404()
+    link = ShortLink.query.get_or_404(link_id)
+    if not can_edit_item(current_user, link, 'shortlinks'):
+        return _shortlinks_denied()
     if request.method == 'POST':
         target_url = _normalize_target_url(request.form.get('target_url'))
         custom_slug = (request.form.get('slug') or '').strip()
@@ -240,25 +275,26 @@ def edit(link_id):
 
         if not target_url:
             flash('Bitte eine Ziel-URL angeben.', 'danger')
-            return render_template('shortlinks/form.html', link=link)
+            return render_template('shortlinks/form.html', link=link, **_shortlinks_form_kwargs(link))
         if expires_at == 'invalid':
             flash('Ungültiges Ablaufdatum.', 'danger')
-            return render_template('shortlinks/form.html', link=link)
+            return render_template('shortlinks/form.html', link=link, **_shortlinks_form_kwargs(link))
         if max_clicks == 'invalid':
             flash('Maximale Aufrufe müssen eine positive Zahl sein.', 'danger')
-            return render_template('shortlinks/form.html', link=link)
+            return render_template('shortlinks/form.html', link=link, **_shortlinks_form_kwargs(link))
 
         if custom_slug != link.slug:
             slug, error = _build_unique_slug(custom_slug if custom_slug else None)
             if error:
                 flash(error, 'danger')
-                return render_template('shortlinks/form.html', link=link)
+                return render_template('shortlinks/form.html', link=link, **_shortlinks_form_kwargs(link))
             link.slug = slug
 
         link.target_url = target_url
         link.expires_at = expires_at
         link.max_clicks = max_clicks
         link.is_active = is_active
+        apply_visibility_from_form(link, 'shortlinks', current_user)
         if password.strip():
             link.password_hash = generate_password_hash(password)
         elif request.form.get('clear_password') == 'on':
@@ -268,14 +304,16 @@ def edit(link_id):
         flash('Kurzlink wurde aktualisiert.', 'success')
         return redirect(url_for('shortlinks.index'))
 
-    return render_template('shortlinks/form.html', link=link)
+    return render_template('shortlinks/form.html', link=link, **_shortlinks_form_kwargs(link))
 
 
 @shortlinks_bp.route('/shortlinks/<int:link_id>/delete', methods=['POST'])
 @login_required
 @check_module_access('module_shortlinks')
 def delete(link_id):
-    link = ShortLink.query.filter_by(id=link_id, created_by=current_user.id).first_or_404()
+    link = ShortLink.query.get_or_404(link_id)
+    if not can_edit_item(current_user, link, 'shortlinks'):
+        return _shortlinks_denied()
     db.session.delete(link)
     db.session.commit()
     flash('Kurzlink wurde gelöscht.', 'success')

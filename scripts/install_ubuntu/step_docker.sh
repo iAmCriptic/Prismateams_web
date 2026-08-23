@@ -2,7 +2,7 @@
 # Docker (für OnlyOffice Document Server)
 
 step_docker() {
-    if ! is_yes "$INSTALL_ONLYOFFICE" && ! is_yes "$INSTALL_DOCKER"; then
+    if ! is_yes "$INSTALL_ONLYOFFICE" && ! is_yes "$INSTALL_EXCALIDRAW" && ! is_yes "$INSTALL_DOCKER"; then
         log_info "Docker nicht benötigt"
         return 2
     fi

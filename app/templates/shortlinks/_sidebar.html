@@ -94,13 +94,27 @@
 </div>
 {% endmacro %}
 
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
+{% macro shortlinks_folder_nav(dismiss_offcanvas=false) %}
+{% set active_nav = active_nav|default('all') %}
+<nav class="mod-sidebar-nav nav flex-column gap-1 mb-3">
+    <a class="nav-link mod-nav-link {% if active_nav == 'all' %}active{% endif %}"
+       href="{{ url_for('shortlinks.index') }}"
+       {% if dismiss_offcanvas %}data-shortlinks-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-link-45deg me-2"></i>{{ _('visibility.nav.all') }}
+    </a>
+    {{ visibility_space_links('shortlinks.index', {}, 'data-shortlinks-dismiss-offcanvas="1"' if dismiss_offcanvas else '', allowed_visibilities, visibility_teams, active_nav) }}
+</nav>
+{% endmacro %}
+
 {% macro shortlinks_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
 {% if include_new %}
 <div class="mod-sidebar-new-wrap w-100">
-    <a href="{{ url_for('shortlinks.create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-shortlinks-dismiss-offcanvas="1"{% endif %}>
+    <a href="{% if active_nav|default('all') == 'private' %}{{ url_for('shortlinks.create', view='private') }}{% elif active_nav|default('all') == 'public' %}{{ url_for('shortlinks.create', view='public') }}{% elif active_nav|default('all') and (active_nav|default('all')).startswith('team-') %}{{ url_for('shortlinks.create', view='team', team_id=filter_team_id) }}{% else %}{{ url_for('shortlinks.create') }}{% endif %}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-shortlinks-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-plus-lg me-2"></i>Neu
     </a>
 </div>
 {% endif %}
+{{ shortlinks_folder_nav(dismiss_offcanvas) }}
 {{ shortlinks_sidebar_tools(id_suffix) }}
 {% endmacro %}

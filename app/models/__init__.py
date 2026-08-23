@@ -41,6 +41,25 @@ from .assessment import (
 )
 from .media_downloader import MediaDownloadJob
 from .team import Team, TeamMember
+from .excalidraw import ExcalidrawDrawing, ExcalidrawDrawingVersion
+from .kanban import (
+    KanbanBoard,
+    KanbanBoardMember,
+    KanbanList,
+    KanbanCard,
+    KanbanLabel,
+    KanbanCardLabel,
+    KanbanCardAssignee,
+    KanbanChecklist,
+    KanbanChecklistItem,
+    KanbanAttachment,
+    KanbanCardVote,
+    KanbanActivity,
+    KanbanBoardTemplate,
+    KanbanBoardView,
+    KanbanCustomField,
+    KanbanCardFieldValue,
+)
 
 __all__ = [
     'User', 'UserSession',
@@ -73,6 +92,12 @@ __all__ = [
     'AssessmentAppSetting',
     'MediaDownloadJob',
     'Team', 'TeamMember',
+    'KanbanBoard', 'KanbanBoardMember', 'KanbanList', 'KanbanCard',
+    'KanbanLabel', 'KanbanCardLabel', 'KanbanCardAssignee',
+    'KanbanChecklist', 'KanbanChecklistItem', 'KanbanAttachment',
+    'KanbanCardVote', 'KanbanActivity', 'KanbanBoardTemplate', 'KanbanBoardView',
+    'KanbanCustomField', 'KanbanCardFieldValue',
+    'ExcalidrawDrawing', 'ExcalidrawDrawingVersion',
 ]
 
 

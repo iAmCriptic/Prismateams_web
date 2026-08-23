@@ -4,7 +4,12 @@
 
 <nav class="chat-nav-list" aria-label="{{ _('chat.index.heading') }}">
     {% if nav_items %}
+        {% set ns = namespace(team_heading_shown=false) %}
         {% for item in nav_items %}
+            {% if item.is_team_chat and not ns.team_heading_shown %}
+                {% set ns.team_heading_shown = true %}
+                <div class="chat-nav-group-label">{{ _('chat.index.team_chats') }}</div>
+            {% endif %}
             {% include 'chat/_chat_nav_item.html' %}
         {% endfor %}
     {% else %}

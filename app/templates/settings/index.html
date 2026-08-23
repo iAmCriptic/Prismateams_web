@@ -126,6 +126,12 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{{ url_for('settings.admin_legal') }}">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>{{ _('settings.admin.cards.legal.title') }}</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ url_for('settings.admin_modules') }}">
                             <i class="bi bi-grid-3x3-gap"></i>
                             <span>{{ _('settings.admin.cards.modules.title') }}</span>
@@ -186,6 +192,62 @@
                         <a href="{{ url_for('settings.admin_inventory_settings') }}">
                             <i class="bi bi-box-seam"></i>
                             <span>{{ _('settings.sidebar.inventory') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_kanban') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_kanban_settings') }}">
+                            <i class="bi bi-kanban"></i>
+                            <span>{{ _('settings.sidebar.kanban') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_credentials') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='credentials') }}">
+                            <i class="bi bi-key"></i>
+                            <span>{{ _('layout.nav.credentials') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_manuals') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='manuals') }}">
+                            <i class="bi bi-book"></i>
+                            <span>{{ _('layout.nav.manuals') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_contacts') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='contacts') }}">
+                            <i class="bi bi-person-lines-fill"></i>
+                            <span>{{ _('layout.nav.contacts') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_wiki') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='wiki') }}">
+                            <i class="bi bi-journal-text"></i>
+                            <span>{{ _('layout.nav.wiki') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_shortlinks') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='shortlinks') }}">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>{{ _('layout.nav.shortlinks') }}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if is_module_enabled('module_excalidraw') %}
+                    <li>
+                        <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}">
+                            <i class="bi bi-pencil-square"></i>
+                            <span>{{ _('layout.nav.excalidraw') }}</span>
                         </a>
                     </li>
                     {% endif %}

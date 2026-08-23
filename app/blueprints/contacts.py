@@ -5,6 +5,16 @@ from app.models.contact import Contact, ContactFavorite
 from app.models.email import EmailMessage
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.module_visibility import (
+    accessible_query,
+    apply_section_filter,
+    apply_visibility_from_form,
+    can_edit_item,
+    can_view_item,
+    parse_section_args,
+    visibility_form_context,
+    visibility_nav_context,
+)
 from sqlalchemy import or_, asc, desc
 import re
 import logging
@@ -37,13 +47,29 @@ def get_user_favorite_ids(user_id):
     return {row[0] for row in rows}
 
 
-def contacts_sidebar_context():
+def contacts_sidebar_context(item=None):
     """Shared sidebar flags for contacts pages."""
     favorite_ids = get_user_favorite_ids(current_user.id)
-    return {
+    section, filter_team_id = parse_section_args('contacts', current_user)
+    pre_section = section if section in ('private', 'public', 'team') else None
+    ctx = {
         'favorite_ids': favorite_ids,
         'show_favorites_nav': bool(favorite_ids),
     }
+    ctx.update(visibility_nav_context('contacts', current_user, section, filter_team_id))
+    ctx.update(visibility_form_context(
+        'contacts',
+        current_user,
+        item=item,
+        preselect_section=pre_section,
+        preselect_team_id=filter_team_id,
+    ))
+    return ctx
+
+
+def _contacts_denied():
+    flash(translate('visibility.flash.access_denied'), 'danger')
+    return redirect(url_for('contacts.index'))
 
 
 @contacts_bp.route('/')
@@ -65,17 +91,20 @@ def index():
     filter_notes = request.args.get('notes', '').strip()
     filter_salutation = request.args.get('salutation', '').strip()
     search_query = request.args.get('q', '').strip()
-    active_favorites = request.args.get('view', '').strip() == 'favorites'
+    section, filter_team_id = parse_section_args('contacts', current_user)
+    active_favorites = section == 'favorites'
     favorite_ids = get_user_favorite_ids(current_user.id)
     show_favorites_nav = bool(favorite_ids)
 
     if active_favorites and not favorite_ids:
         return redirect(url_for('contacts.index'))
 
-    contacts_query = Contact.query
+    contacts_query = accessible_query(current_user, Contact, 'contacts')
 
     if active_favorites:
         contacts_query = contacts_query.filter(Contact.id.in_(favorite_ids))
+    elif section in ('private', 'team', 'public'):
+        contacts_query = apply_section_filter(contacts_query, Contact, section, filter_team_id)
 
     if search_query:
         contacts_query = contacts_query.filter(
@@ -102,6 +131,7 @@ def index():
     sort_column = CONTACT_SORT_FIELDS[sort_field]
     order_by_clause = asc(sort_column) if sort_dir == 'asc' else desc(sort_column)
     contacts = contacts_query.order_by(order_by_clause, asc(Contact.name), asc(Contact.email)).all()
+    nav = visibility_nav_context('contacts', current_user, section, filter_team_id)
 
     return render_template(
         'contacts/index.html',
@@ -119,6 +149,7 @@ def index():
         active_favorites=active_favorites,
         favorite_ids=favorite_ids,
         show_favorites_nav=show_favorites_nav,
+        **nav,
     )
 
 
@@ -186,6 +217,7 @@ def create():
             notes=notes if notes else None,
             created_by=current_user.id
         )
+        apply_visibility_from_form(contact, 'contacts', current_user)
         
         try:
             db.session.add(contact)
@@ -215,6 +247,8 @@ def create():
 def edit(contact_id):
     """Kontakt bearbeiten."""
     contact = Contact.query.get_or_404(contact_id)
+    if not can_edit_item(current_user, contact, 'contacts'):
+        return _contacts_denied()
     
     if request.method == 'POST':
         salutation = request.form.get('salutation', '').strip()
@@ -232,7 +266,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
         
         if not email:
             flash(translate('contacts.flash.email_required'), 'danger')
@@ -242,7 +276,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
         
         if not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
@@ -252,7 +286,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
         
         # Prüfe auf Duplikat (wenn E-Mail geändert wurde)
         if email != contact.email:
@@ -267,6 +301,7 @@ def edit(contact_id):
         contact.email = email
         contact.phone = phone if phone else None
         contact.notes = notes if notes else None
+        apply_visibility_from_form(contact, 'contacts', current_user)
         
         try:
             db.session.commit()
@@ -276,9 +311,9 @@ def edit(contact_id):
             db.session.rollback()
             logging.error(f"Fehler beim Aktualisieren des Kontakts: {e}")
             flash(translate('contacts.flash.update_error'), 'danger')
-            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
     
-    return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
+    return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
 
 
 @contacts_bp.route('/<int:contact_id>/delete', methods=['POST'])
@@ -287,6 +322,8 @@ def edit(contact_id):
 def delete(contact_id):
     """Kontakt löschen."""
     contact = Contact.query.get_or_404(contact_id)
+    if not can_edit_item(current_user, contact, 'contacts'):
+        return _contacts_denied()
     
     try:
         ContactFavorite.query.filter_by(contact_id=contact.id).delete()
@@ -307,6 +344,8 @@ def delete(contact_id):
 def toggle_favorite(contact_id):
     """Toggle per-user contact favorite status."""
     contact = Contact.query.get_or_404(contact_id)
+    if not can_view_item(current_user, contact, 'contacts'):
+        return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
     existing = ContactFavorite.query.filter_by(
         user_id=current_user.id,
         contact_id=contact.id,
@@ -345,7 +384,7 @@ def search():
     seen_emails = set()
     
     # 1. Suche in gespeicherten Kontakten
-    contacts = Contact.query.filter(
+    contacts = accessible_query(current_user, Contact, 'contacts').filter(
         or_(
             Contact.salutation.ilike(f'%{query}%'),
             Contact.name.ilike(f'%{query}%'),

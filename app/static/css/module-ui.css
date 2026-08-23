@@ -50,6 +50,12 @@
     z-index: 40;
 }
 
+@media (min-width: 992px) {
+    .mod-sidebar {
+        top: calc(var(--top-navbar-height, 64px) + 0.75rem);
+    }
+}
+
 .mod-sidebar-brand {
     display: flex;
     align-items: center;

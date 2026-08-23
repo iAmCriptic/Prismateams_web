@@ -616,5 +616,6 @@ class CommentSystem {
 }
 
 // Globale Instanz für Zugriff von onclick-Handlern
+window.CommentSystem = CommentSystem;
 window.commentSystem = null;
 

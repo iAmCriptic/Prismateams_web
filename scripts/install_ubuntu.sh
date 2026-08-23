@@ -40,6 +40,8 @@ fi
 # shellcheck source=/dev/null
 . "${LIB_DIR}/step_onlyoffice.sh"
 # shellcheck source=/dev/null
+. "${LIB_DIR}/step_excalidraw.sh"
+# shellcheck source=/dev/null
 . "${LIB_DIR}/step_ffmpeg.sh"
 # shellcheck source=/dev/null
 . "${LIB_DIR}/step_repo.sh"
@@ -92,6 +94,7 @@ main() {
     run_step "redis" "Redis" step_redis optional
     run_step "docker" "Docker" step_docker optional
     run_step "onlyoffice" "OnlyOffice" step_onlyoffice optional
+    run_step "excalidraw" "Excalidraw Room" step_excalidraw optional
     run_step "ffmpeg" "FFmpeg" step_ffmpeg optional
     run_step "repo" "Repository" step_repo critical
     run_step "venv" "Python-venv" step_venv critical

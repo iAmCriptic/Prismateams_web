@@ -13,6 +13,7 @@
       "credentials": "Credentials",
       "manuals": "Manuals",
       "canvas": "Canvas",
+      "excalidraw": "Excalidraw",
       "inventory": "Inventory",
       "wiki": "Wiki",
       "music": "Music",
@@ -26,7 +27,36 @@
       "notifications": "Notifications",
       "notifications_short": "Alerts",
       "home": "Home",
-      "booking": "Bookings"
+      "booking": "Bookings",
+      "kanban": "Kanban",
+      "events": "Events",
+      "shortlinks": "Short links",
+      "assessment": "Assessment"
+    },
+    "brand": {
+      "separator": "–",
+      "module_fallback": "Portal"
+    },
+    "search": {
+      "slot_label": "Search"
+    },
+    "launcher": {
+      "open": "Open modules",
+      "title": "Modules",
+      "favorites": "My favorites",
+      "edit": "Edit favorites",
+      "done": "Done",
+      "hint": "Move apps by drag and drop",
+      "empty_favorites": "No favorites yet"
+    },
+    "rail": {
+      "label": "Favorites"
+    },
+    "account": {
+      "open": "Account",
+      "greeting": "Hi {name}!",
+      "manage_profile": "Manage profile",
+      "storage_usage": "{used} of {quota} used ({percent}%)"
     },
     "notification_center": {
       "open": "Open notifications",
@@ -120,6 +150,19 @@
       "2fa_code": "2FA code",
       "2fa_code_help": "Enter the 6-digit code from your authenticator app.",
       "forgot_password": "Forgot password?"
+    },
+    "legal": {
+      "nav_label": "Legal",
+      "terms": "Terms of Service",
+      "privacy": "Privacy policy",
+      "imprint": "Legal notice",
+      "terms_title": "Terms of Service",
+      "terms_heading": "Terms of Service",
+      "privacy_title": "Privacy policy",
+      "privacy_heading": "Privacy policy",
+      "imprint_title": "Legal notice",
+      "imprint_heading": "Legal notice",
+      "back_to_login": "Back to login"
     },
     "register": {
       "title": "Register",
@@ -738,7 +781,9 @@
         "account": "Account",
         "modules": "Module settings"
       },
-      "team_lead_heading": "Team lead"
+      "team_lead_heading": "Team lead",
+      "kanban": "Kanban",
+      "kanban_desc": "Visibility Private / Team / Public for boards"
     },
     "appearance": {
       "page_title": "Appearance - Settings",
@@ -1178,7 +1223,9 @@
         "module_shortlinks": "Short links",
         "save": "Save changes",
         "cancel": "Back",
-        "flash_updated": "Module settings have been updated."
+        "flash_updated": "Module settings have been updated.",
+        "module_kanban": "Kanban",
+        "module_excalidraw": "Excalidraw"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1391,6 +1438,10 @@
           "title": "System settings",
           "description": "Manage global system configuration"
         },
+        "legal": {
+          "title": "Privacy & legal notice",
+          "description": "Edit legal texts shown on the login screen"
+        },
         "modules": {
           "title": "Modules",
           "description": "Enable or disable modules"
@@ -1413,7 +1464,7 @@
         },
         "calendar_settings": {
           "title": "Calendar Settings",
-          "description": "Configure multiple calendars, import and export"
+          "description": "Private, team and public calendars, import and export"
         },
         "registration_options": {
           "title": "Bot protection",
@@ -1472,6 +1523,8 @@
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
+        "team_folders_label": "Enable team folders",
+        "team_folders_help": "Each team gets its own file folder in the sidebar. Visible and editable only for team members. Files can still be shared internally and via links.",
         "document_format_label": "Default format for new documents",
         "document_format_help": "Controls which file types are created via “New”. Existing files are unchanged.",
         "document_format_office": "Office formats (DOCX, XLSX, PPTX)",
@@ -1513,10 +1566,14 @@
         "page_title": "Calendar Settings - Administration",
         "breadcrumb": "Calendar Settings",
         "heading": "Calendar Settings",
-        "subtitle": "Control multi-calendar, import and export for the calendar module.",
+        "subtitle": "Control private, team and public calendars as well as import and export.",
         "section_title": "Calendar Features",
         "multi_label": "Use multiple calendars",
         "multi_help": "Each user gets a personal calendar. There is a public calendar for everyone. Others can be viewed, but events can only be created in your own and the public calendar.",
+        "personal_label": "Private calendars",
+        "personal_help": "Each user gets their own calendars. Others can see them unless a calendar is hidden.",
+        "team_label": "Team calendars",
+        "team_help": "Each team gets a shared calendar. All members can create and edit events.",
         "export_label": "Allow calendar export",
         "export_help": "When disabled, calendars cannot be exported as ICS or subscribed in external apps.",
         "import_label": "Allow calendar import",
@@ -1529,12 +1586,16 @@
         "page_title": "System Settings - Administration",
         "breadcrumb_system": "System Settings",
         "heading": "System Settings",
-        "subtitle": "Global portal defaults for name, logo, branding, timezone, and guest domain.",
+        "subtitle": "Global portal defaults for name, logo, branding, timezone, guest domain, and search engines.",
         "section_title": "Portal Settings",
         "section_portal": "Portal",
         "section_branding": "Branding",
         "section_timezone": "Timezone",
         "section_guest_domain": "Guest accounts",
+        "section_indexing": "Search engines",
+        "indexing_label": "Allow Google to index this site",
+        "indexing_help": "Controls whether search engines may find the public pages. Internal areas always stay blocked.",
+        "indexing_hint": "On: login, registration, imprint, privacy policy and terms may appear in Google. Off: robots.txt and meta tags block all crawlers.",
         "portal_name_label": "Portal Name",
         "portal_name_placeholder": "e.g. Prismateams",
         "portal_name_help": "The name of the portal that is displayed in various places.",
@@ -1571,6 +1632,23 @@
         "flash_logo_removed": "Portal logo has been removed.",
         "flash_logo_too_large": "Logo too large ({size:.1f} MB). Maximum 5 MB allowed.",
         "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG."
+      },
+      "legal": {
+        "page_title": "Legal notice & terms - Administration",
+        "heading": "Legal notice & terms",
+        "subtitle": "Texts for the public pages linked from the login screen. Prefilled with generic templates — please adapt them to your organisation.",
+        "terms_heading": "Terms of Service",
+        "terms_label": "Terms of Service text",
+        "terms_help": "Shown publicly at /nutzungsbedingungen. Replace placeholders such as [Name der Organisation].",
+        "privacy_heading": "Privacy policy",
+        "privacy_label": "Privacy policy text",
+        "privacy_help": "Shown publicly at /datenschutz. Replace placeholders such as [Name der Organisation].",
+        "imprint_heading": "Legal notice",
+        "imprint_label": "Legal notice text",
+        "imprint_help": "Shown publicly at /impressum. Replace the placeholders with your correct details.",
+        "preview": "Preview",
+        "save": "Save changes",
+        "flash_saved": "Legal settings have been saved."
       },
       "booking_forms": {
         "page_title": "Booking forms - Administration",
@@ -1816,7 +1894,8 @@
           "music": "Music",
           "media_downloader": "Media Downloader",
           "assessment": "Assessment",
-          "shortlinks": "Short links"
+          "shortlinks": "Short links",
+          "excalidraw": "Excalidraw"
         },
         "helps": {
           "settings": "System settings, module flags and whitelist.",
@@ -1836,7 +1915,8 @@
           "music": "Music settings, wishes and queue (without provider secrets where possible).",
           "media_downloader": "Download job metadata.",
           "assessment": "Assessment: lists, criteria, evaluations and related data.",
-          "shortlinks": "Short links."
+          "shortlinks": "Short links.",
+          "excalidraw": "Drawings, scenes and versions."
         }
       },
       "whitelist": {
@@ -1926,6 +2006,29 @@
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
         "flash_user_teams_updated": "Teams for {name} were updated."
+      },
+      "kanban": {
+        "page_title": "Kanban settings",
+        "heading": "Kanban",
+        "subtitle": "Configure allowed board visibility modes",
+        "visibility_title": "Visibility",
+        "visibility_lead": "Which board types users may create and discover in the overview. Members keep access to boards they already belong to.",
+        "allow_private": "Private boards (members + share links)",
+        "allow_team": "Team boards",
+        "allow_public": "Public boards (entire portal)",
+        "save": "Save",
+        "flash_saved": "Kanban settings saved."
+      },
+      "visibility": {
+        "page_title": "{module} – Visibility",
+        "subtitle": "Choose which private, team and public areas are available",
+        "visibility_title": "Areas",
+        "visibility_lead": "Which areas users may create and see in the overview. Existing items stay visible to their owners and team members.",
+        "allow_private": "Private area (owner only)",
+        "allow_team": "Team areas (one folder per team)",
+        "allow_public": "Public area (entire portal)",
+        "save": "Save",
+        "flash_saved": "Visibility settings saved."
       }
     },
     "mailboxes": {
@@ -2078,6 +2181,7 @@
       "heading": "Chats",
       "subtitle": "Manage your team chats and direct messages",
       "new_chat": "New Chat",
+      "team_chats": "Team chats",
       "main_badge": "Main Chat",
       "main_description": "Team-wide chat for all members",
       "open": "Open",
@@ -2158,7 +2262,8 @@
       "back_to_chat": "Back to chat",
       "members": {
         "label": "Members",
-        "help": "Choose who participates in this group chat. You always remain a member."
+        "help": "Choose who participates in this group chat. You always remain a member.",
+        "team_help": "Members of this chat follow the team and cannot be changed here."
       },
       "avatar": {
         "label": "Group photo",
@@ -2255,7 +2360,8 @@
       "main_chat_cannot_edit": "The main chat cannot be edited",
       "private_chat_cannot_edit": "Private chats cannot be edited",
       "updated": "Chat successfully updated",
-      "deleted": "Chat successfully deleted"
+      "deleted": "Chat successfully deleted",
+      "team_chat_cannot_delete": "The team chat cannot be deleted."
     },
     "errors": {
       "main_chat_not_found": "Main chat not found",
@@ -2264,6 +2370,7 @@
       "main_chat_cannot_edit": "The main chat cannot be edited",
       "private_chat_cannot_edit": "Private chats cannot be edited",
       "main_chat_cannot_delete": "The main chat cannot be deleted",
+      "team_chat_cannot_delete": "The team chat cannot be deleted",
       "not_member": "You are not a member of this chat"
     }
   },
@@ -2276,6 +2383,7 @@
         "ablage": "My Drive",
         "freigaben": "Shared",
         "public": "Public",
+        "team": "Team",
         "trash": "Trash",
         "menu": "Open menu"
       },
@@ -2306,6 +2414,8 @@
         "title": "Share internally",
         "share_all": "Share with everyone",
         "share_user": "Share with person",
+        "share_team": "Share with team",
+        "team_prefix": "Team",
         "permission_view": "View",
         "permission_edit": "Edit",
         "remove": "Remove",
@@ -2543,10 +2653,85 @@
       "pdf_error": "This browser could not embed the PDF. Please download it instead."
     },
     "onlyoffice": {
-      "back_button_label": "Back"
+      "back_button_label": "Back",
+      "saving": "Saving…",
+      "unsaved_changes": "Leave this page? Unsaved changes will be lost."
     },
     "errors": {
       "file_type_not_supported": "File type not supported"
+    }
+  },
+  "excalidraw": {
+    "index": {
+      "page_title": "Excalidraw - Team Portal",
+      "heading": "Excalidraw",
+      "new_button": "New drawing",
+      "upload_button": "Upload .excalidraw",
+      "search": {
+        "placeholder": "Search drawings..."
+      },
+      "view_toggle": {
+        "label": "View",
+        "list": "List",
+        "grid": "Grid"
+      },
+      "list": {
+        "name": "Name",
+        "author": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download",
+        "rename": "Rename",
+        "delete": "Delete",
+        "delete_confirm": "Delete this drawing?",
+        "created_by": "By {name}",
+        "updated_at": "Updated {date}"
+      },
+      "empty": {
+        "default": "No drawings yet.",
+        "filtered": "No drawings match this search.",
+        "hint": "Create your first drawing."
+      },
+      "nav": {
+        "menu": "Menu",
+        "all": "All"
+      }
+    },
+    "create": {
+      "name_placeholder": "Drawing name",
+      "alerts": {
+        "name_required": "Please enter a name."
+      },
+      "submit": "Create",
+      "cancel": "Cancel"
+    },
+    "upload": {
+      "missing": "Please choose an .excalidraw file.",
+      "invalid_type": "Only .excalidraw files can be uploaded.",
+      "invalid_json": "The file is not a valid Excalidraw drawing."
+    },
+    "edit": {
+      "page_title_suffix": "Excalidraw",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "collab_on": "Live collaboration",
+      "collab_off": "Editing locally — collaboration server unavailable",
+      "readonly": "View only"
+    },
+    "save": {
+      "invalid": "The drawing could not be saved.",
+      "too_large": "The drawing is too large to save."
+    },
+    "download": {
+      "missing": "The drawing file is missing."
+    },
+    "flash": {
+      "created": "Drawing \"{name}\" has been created.",
+      "uploaded": "Drawing \"{name}\" has been uploaded.",
+      "renamed": "Drawing renamed to \"{name}\".",
+      "deleted": "Drawing \"{name}\" has been deleted."
     }
   },
   "canvas": {
@@ -3179,6 +3364,16 @@
       "export_disabled": "Calendar export is disabled.",
       "import_disabled": "Calendar import is disabled.",
       "cannot_delete_calendar": "This calendar cannot be deleted.",
+      "calendar_created": "Calendar \"{name}\" was created.",
+      "calendar_updated": "Calendar was updated.",
+      "calendar_deleted": "Calendar was deleted.",
+      "calendar_name_required": "Please enter a calendar name.",
+      "calendar_invalid_type": "Invalid calendar type.",
+      "calendar_personal_disabled": "Private calendars are not enabled.",
+      "calendar_team_disabled": "Team calendars are not enabled.",
+      "calendar_team_required": "Please select a team.",
+      "calendar_team_forbidden": "You do not have access to this team.",
+      "no_manage_permission": "You cannot edit this calendar.",
       "participation_status": "Participation for \"{event_title}\": {status}",
       "accepted": "accepted",
       "declined": "declined"
@@ -3190,16 +3385,34 @@
     "sidebar": {
       "brand": "Calendar",
       "new_event": "New event",
+      "new_calendar": "New calendar",
       "reset": "Reset",
       "my_calendar": "My calendar",
       "public": "Public",
       "events": "Events",
+      "group_personal": "My calendars",
+      "group_team": "Teams",
+      "group_public": "Public",
+      "group_events": "Events",
       "search": "Search people…",
       "others": "Other calendars",
+      "edit": "Settings",
+      "hide": "Hide calendar",
+      "show": "Show calendar",
+      "hidden": "Hidden from others",
+      "delete": "Delete",
       "delete_import": "Delete",
       "delete_confirm": "Delete imported calendar and all events?",
+      "delete_calendar_confirm": "Delete this calendar? Events will be moved to the default calendar.",
       "pick_calendars": "Calendars",
-      "menu": "Open calendar menu"
+      "menu": "Open calendar menu",
+      "form": {
+        "name": "Name",
+        "type": "Type",
+        "team": "Team",
+        "color": "Color",
+        "create": "Create"
+      }
     },
     "feed": {
       "page_title": "Integrate into your calendar",
@@ -5201,7 +5414,8 @@
       "heading": "Submit evaluation",
       "subtitle": "Choose a list, score a target, save.",
       "target": "Evaluation target",
-      "stand": "Stand"
+      "stand": "Stand",
+      "stand_description": "Show stand description"
     },
     "my_evaluations": {
       "page_title": "My evaluations",
@@ -5309,6 +5523,172 @@
       "page_title": "Settings – Assessment",
       "heading": "Assessment module settings",
       "subtitle": "Texts, ranking and appearance"
+    }
+  },
+  "kanban": {
+    "flash": {
+      "no_access": "No access to this board.",
+      "board_closed": "This board is closed."
+    },
+    "share": {
+      "wrong_password": "Wrong password.",
+      "password_prompt": "Enter password",
+      "submit": "Open",
+      "unavailable": "Share unavailable",
+      "mode": "Permission",
+      "mode_view": "View only",
+      "mode_edit": "Edit",
+      "password": "Password",
+      "password_optional": "Password (optional)",
+      "password_new": "New password (empty = unchanged)",
+      "clear_password": "Remove password",
+      "create": "Create link",
+      "empty": "No share links yet.",
+      "col_created_by": "Created by",
+      "col_link": "Link",
+      "col_password": "Password",
+      "col_mode": "Mode",
+      "col_actions": "Actions",
+      "edit_title": "Edit share",
+      "copy": "Copy",
+      "copied": "Copied",
+      "no_password": "—",
+      "delete_confirm": "Delete this share link?"
+    },
+    "index": {
+      "title": "Kanban Boards",
+      "new": "New",
+      "recent": "Recently viewed",
+      "private": "Private boards",
+      "team": "Team boards",
+      "public": "Public boards",
+      "create_title": "New board",
+      "board_title": "Title",
+      "visibility": "Visibility",
+      "team_label": "Team",
+      "template": "Template",
+      "choose_template": "Choose a template…",
+      "create_from": "Create from",
+      "create_empty": "Empty board",
+      "create_from_template": "From template",
+      "no_templates": "no templates yet",
+      "background": "Background",
+      "create": "Create board",
+      "empty": "No boards yet.",
+      "closed_link": "Show closed boards",
+      "nav_all": "All boards",
+      "list_view": "List",
+      "grid_view": "Grid",
+      "vis_private": "Private",
+      "vis_team": "Team",
+      "vis_public": "Public"
+    },
+    "board": {
+      "add_list": "Add list",
+      "list_name": "Enter list name …",
+      "add_card": "Add a card",
+      "card_title": "Card title …",
+      "share": "Share",
+      "settings": "Settings",
+      "close_board": "Close board",
+      "filter": "Filter",
+      "save_template": "Save as template"
+    },
+    "custom_fields": {
+      "title": "Custom fields",
+      "label": "Field name",
+      "label_ph": "e.g. Location",
+      "type": "Type",
+      "type_text": "Text",
+      "type_select": "Dropdown",
+      "type_date": "Date",
+      "type_time": "Time",
+      "type_checkbox": "Checkbox",
+      "options": "Dropdown options",
+      "options_ph": "One option per line",
+      "add": "Add",
+      "save": "Save",
+      "empty": "No fields yet. Add some above.",
+      "select_ph": "Select …",
+      "delete_confirm": "Delete this field and all values on cards?"
+    },
+    "card": {
+      "description": "Description",
+      "description_ph": "Add a detailed description…",
+      "members": "Members",
+      "labels": "Labels",
+      "due": "Date",
+      "due_datetime": "Due date",
+      "clear_due": "Remove date",
+      "create_label": "New label",
+      "label_name": "Label name",
+      "label_color": "Color",
+      "checklist": "Checklist",
+      "checklist_name": "Checklist name",
+      "attachment": "Attachment",
+      "download": "Download",
+      "view": "View",
+      "comments": "Comments and activity",
+      "vote": "Vote",
+      "archive": "Archive",
+      "add": "Add",
+      "cover": "Cover",
+      "remove_cover": "Remove cover",
+      "complete": "Mark as complete",
+      "attachments": "Attachments",
+      "attach_file": "File",
+      "attach_link": "Link",
+      "link_title": "Title (optional)",
+      "activity": "Activity"
+    },
+    "filter": {
+      "keyword": "Keyword",
+      "keyword_ph": "Enter a keyword …",
+      "keyword_hint": "Search cards, members, labels and more.",
+      "no_members": "No members",
+      "assigned_me": "Cards assigned to me",
+      "status": "Card status",
+      "completed": "Marked as complete",
+      "not_completed": "Not marked as complete",
+      "due": "Due date",
+      "due_any": "Any due date",
+      "due_none": "No due dates",
+      "due_overdue": "Overdue",
+      "due_day": "Due within the next day",
+      "due_week": "Due within the next week",
+      "due_month": "Due within the next month",
+      "no_labels": "No labels",
+      "activity": "Activity",
+      "activity_any": "Any activity",
+      "activity_week": "Active in the last week",
+      "activity_two_weeks": "Active in the last two weeks",
+      "activity_four_weeks": "Active in the last four weeks",
+      "activity_none": "No activity in the last four weeks",
+      "collapse_empty": "Collapse lists without matching cards",
+      "reset": "Clear filters",
+      "apply": "Apply"
+    },
+    "closed": {
+      "title": "Closed boards",
+      "reopen": "Reopen",
+      "delete": "Delete",
+      "empty": "No closed boards."
+    }
+  },
+  "visibility": {
+    "nav": {
+      "all": "All",
+      "private": "Private",
+      "team": "Team",
+      "public": "Public"
+    },
+    "form": {
+      "label": "Area",
+      "private": "Private",
+      "public": "Public"
+    },
+    "flash": {
+      "access_denied": "You do not have access to this item."
     }
   }
 }

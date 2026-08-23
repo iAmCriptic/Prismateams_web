@@ -47,6 +47,7 @@ write_install_report() {
         echo "MySQL: ${SETUP_MYSQL:-}"
         echo "Redis: ${SETUP_REDIS:-}"
         echo "OnlyOffice: ${INSTALL_ONLYOFFICE:-}"
+        echo "Excalidraw: ${INSTALL_EXCALIDRAW:-}"
         echo "FFmpeg: ${INSTALL_MEDIA_DOWNLOADER:-}"
         echo ".env-Modus: ${ENV_MODE:-}"
         echo
@@ -158,6 +159,7 @@ print_summary() {
 
     if ! is_yes "${SETUP_WEBSERVER:-n}"; then print_manual_webserver_hint; fi
     if ! is_yes "${INSTALL_ONLYOFFICE:-n}"; then print_manual_onlyoffice_hint; fi
+    if ! is_yes "${INSTALL_EXCALIDRAW:-n}"; then print_manual_excalidraw_hint; fi
     if ! is_yes "${INSTALL_MEDIA_DOWNLOADER:-n}"; then print_manual_media_downloader_hint; fi
     if ! is_yes "${SETUP_GUNICORN:-n}"; then print_manual_gunicorn_hint; fi
     if ! is_yes "${SETUP_MYSQL:-n}"; then print_manual_mysql_hint; fi

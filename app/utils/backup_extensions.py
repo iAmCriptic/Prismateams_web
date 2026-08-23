@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -21,6 +22,7 @@ from app.models import (
     AssessmentCriterion, AssessmentEvaluation, AssessmentEvaluationScore,
     AssessmentVisitorEvaluation, AssessmentVisitorEvaluationScore,
     AssessmentWarning, AssessmentRoomInspection, AssessmentAppSetting,
+    ExcalidrawDrawing, ExcalidrawDrawingVersion,
 )
 from app.models.role import UserModuleRole
 from app.models.booking import (
@@ -91,25 +93,44 @@ def import_chat_pins(data: List[Dict], chat_map: Dict[str, int], user_map: Dict[
 
 
 def export_calendars() -> List[Dict]:
-    return [{
-        'name': c.name,
-        'calendar_type': c.calendar_type,
-        'owner_email': _user_email(c.owner_id),
-        'color': c.color,
-        'created_at': c.created_at.isoformat() if c.created_at else None,
-        '_export_id': c.id,
-    } for c in Calendar.query.all()]
+    from app.models.team import Team
+    out = []
+    for c in Calendar.query.all():
+        team_name = None
+        if getattr(c, 'team_id', None):
+            team = Team.query.get(c.team_id)
+            if team:
+                team_name = team.name
+        out.append({
+            'name': c.name,
+            'calendar_type': c.calendar_type,
+            'owner_email': _user_email(c.owner_id),
+            'team_name': team_name,
+            'color': c.color,
+            'is_default': bool(getattr(c, 'is_default', False)),
+            'hidden_from_others': bool(getattr(c, 'hidden_from_others', False)),
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+            '_export_id': c.id,
+        })
+    return out
 
 
 def import_calendars(data: List[Dict], user_map: Dict[str, int], current_user_id=None) -> Dict[int, int]:
     """Map: backup calendar id -> local id"""
+    from app.models.team import Team
     id_map = {}
     for row in data:
         owner_id = _resolve_user(row.get('owner_email'), user_map, current_user_id)
+        team_id = None
+        if row.get('team_name'):
+            team = Team.query.filter_by(name=row.get('team_name')).first()
+            if team:
+                team_id = team.id
         existing = Calendar.query.filter_by(
             name=row.get('name'),
             calendar_type=row.get('calendar_type', 'personal'),
             owner_id=owner_id,
+            team_id=team_id,
         ).first()
         if existing:
             cal = existing
@@ -118,10 +139,17 @@ def import_calendars(data: List[Dict], user_map: Dict[str, int], current_user_id
                 name=row.get('name') or 'Kalender',
                 calendar_type=row.get('calendar_type') or 'personal',
                 owner_id=owner_id,
+                team_id=team_id,
                 color=row.get('color') or '#0d6efd',
+                is_default=bool(row.get('is_default', False)),
+                hidden_from_others=bool(row.get('hidden_from_others', False)),
             )
             db.session.add(cal)
             db.session.flush()
+        if row.get('is_default'):
+            cal.is_default = True
+        if row.get('hidden_from_others') is not None:
+            cal.hidden_from_others = bool(row.get('hidden_from_others'))
         if row.get('_export_id') is not None:
             id_map[int(row['_export_id'])] = cal.id
     return id_map
@@ -205,6 +233,7 @@ def export_resource_acls() -> List[Dict]:
             'resource_type': a.resource_type,
             'folder_name': folder.name if folder else None,
             'grantee_email': _user_email(a.grantee_user_id),
+            'grantee_team_id': getattr(a, 'grantee_team_id', None),
             'permission': a.permission,
             'created_by_email': _user_email(a.created_by),
         })
@@ -237,6 +266,7 @@ def import_resource_acls(data: List[Dict], folder_map: Dict[str, int], user_map:
                 resource_type='folder',
                 resource_id=rid,
                 grantee_user_id=grantee,
+                grantee_team_id=row.get('grantee_team_id'),
                 permission=row.get('permission') or 'view',
                 created_by=creator,
             ))
@@ -270,6 +300,8 @@ def export_contacts() -> List[Dict]:
         'email': c.email,
         'phone': c.phone,
         'notes': c.notes,
+        'visibility': getattr(c, 'visibility', 'public'),
+        'team_id': getattr(c, 'team_id', None),
         'created_by_email': _user_email(c.created_by),
         'created_at': c.created_at.isoformat() if c.created_at else None,
     } for c in Contact.query.all()]
@@ -290,6 +322,10 @@ def import_contacts(data: List[Dict], user_map: Dict[str, int], current_user_id=
             existing.phone = row.get('phone')
             existing.notes = row.get('notes')
             existing.salutation = row.get('salutation')
+            if row.get('visibility'):
+                existing.visibility = row['visibility']
+            if 'team_id' in row:
+                existing.team_id = row.get('team_id')
         else:
             db.session.add(Contact(
                 salutation=row.get('salutation'),
@@ -299,6 +335,8 @@ def import_contacts(data: List[Dict], user_map: Dict[str, int], current_user_id=
                 phone=row.get('phone'),
                 notes=row.get('notes'),
                 created_by=created_by,
+                visibility=row.get('visibility') or 'public',
+                team_id=row.get('team_id'),
             ))
 
 
@@ -1012,6 +1050,8 @@ def export_short_links() -> List[Dict]:
         'max_clicks': s.max_clicks,
         'click_count': s.click_count,
         'created_by_email': _user_email(s.created_by),
+        'visibility': getattr(s, 'visibility', 'private'),
+        'team_id': getattr(s, 'team_id', None),
         'created_at': s.created_at.isoformat() if s.created_at else None,
     } for s in ShortLink.query.all()]
 
@@ -1032,6 +1072,10 @@ def import_short_links(data: List[Dict], user_map: Dict[str, int], current_user_
             existing.max_clicks = row.get('max_clicks')
             if row.get('expires_at'):
                 existing.expires_at = datetime.fromisoformat(row['expires_at'])
+            if row.get('visibility'):
+                existing.visibility = row['visibility']
+            if 'team_id' in row:
+                existing.team_id = row.get('team_id')
         else:
             link = ShortLink(
                 slug=slug,
@@ -1041,7 +1085,145 @@ def import_short_links(data: List[Dict], user_map: Dict[str, int], current_user_
                 max_clicks=row.get('max_clicks'),
                 click_count=row.get('click_count') or 0,
                 created_by=creator,
+                visibility=row.get('visibility') or 'private',
+                team_id=row.get('team_id'),
             )
             if row.get('expires_at'):
                 link.expires_at = datetime.fromisoformat(row['expires_at'])
             db.session.add(link)
+
+
+def export_excalidraw_drawings() -> List[Dict]:
+    rows = []
+    for drawing in ExcalidrawDrawing.query.order_by(ExcalidrawDrawing.id).all():
+        item = {
+            'name': drawing.name,
+            'created_by_email': _user_email(drawing.created_by),
+            'visibility': drawing.visibility,
+            'team_id': drawing.team_id,
+            'room_id': drawing.room_id,
+            'room_key': drawing.room_key,
+            'version_number': drawing.version_number,
+            'created_at': drawing.created_at.isoformat() if drawing.created_at else None,
+            'updated_at': drawing.updated_at.isoformat() if drawing.updated_at else None,
+            'file_content': None,
+            'thumbnail_b64': None,
+        }
+        if drawing.file_path and os.path.exists(drawing.file_path):
+            try:
+                with open(drawing.file_path, 'r', encoding='utf-8') as handle:
+                    item['file_content'] = handle.read()
+            except OSError as exc:
+                current_app.logger.error('Excalidraw backup read failed for %s: %s', drawing.file_path, exc)
+        if drawing.thumbnail_path and os.path.exists(drawing.thumbnail_path):
+            try:
+                with open(drawing.thumbnail_path, 'rb') as handle:
+                    item['thumbnail_b64'] = base64.b64encode(handle.read()).decode('ascii')
+            except OSError:
+                pass
+        rows.append(item)
+    return rows
+
+
+def export_excalidraw_drawing_versions() -> List[Dict]:
+    rows = []
+    for version in ExcalidrawDrawingVersion.query.order_by(ExcalidrawDrawingVersion.id).all():
+        drawing = ExcalidrawDrawing.query.get(version.drawing_id)
+        item = {
+            'drawing_name': drawing.name if drawing else None,
+            'drawing_room_id': drawing.room_id if drawing else None,
+            'version_number': version.version_number,
+            'created_by_email': _user_email(version.created_by),
+            'created_at': version.created_at.isoformat() if version.created_at else None,
+            'file_content': None,
+        }
+        if version.file_path and os.path.exists(version.file_path):
+            try:
+                with open(version.file_path, 'r', encoding='utf-8') as handle:
+                    item['file_content'] = handle.read()
+            except OSError:
+                pass
+        rows.append(item)
+    return rows
+
+
+def import_excalidraw_drawings(data: List[Dict], user_map: Dict[str, int], current_user_id=None) -> Dict[str, int]:
+    from app.utils.excalidraw import ensure_upload_dirs, new_scene_path, thumbnail_path_for, write_scene_file, EMPTY_SCENE
+    ensure_upload_dirs()
+    room_map = {}
+    for row in data or []:
+        creator = _resolve_user(row.get('created_by_email'), user_map, current_user_id)
+        if not creator:
+            continue
+        room_id = row.get('room_id') or ExcalidrawDrawing.generate_room_id()
+        existing = ExcalidrawDrawing.query.filter_by(room_id=room_id).first()
+        drawing = existing or ExcalidrawDrawing(
+            name=row.get('name') or 'Drawing',
+            file_path='',
+            created_by=creator,
+            room_id=room_id,
+            room_key=row.get('room_key') or ExcalidrawDrawing.generate_room_key(),
+            visibility=row.get('visibility') or 'public',
+            team_id=row.get('team_id'),
+            version_number=row.get('version_number') or 1,
+        )
+        if existing:
+            drawing.name = row.get('name') or drawing.name
+            drawing.visibility = row.get('visibility') or drawing.visibility
+            drawing.team_id = row.get('team_id')
+            if row.get('room_key'):
+                drawing.room_key = row['room_key']
+        else:
+            db.session.add(drawing)
+            db.session.flush()
+        content = row.get('file_content')
+        try:
+            scene = json.loads(content) if content else dict(EMPTY_SCENE)
+        except Exception:
+            scene = dict(EMPTY_SCENE)
+        path = new_scene_path(drawing.id, drawing.name)
+        try:
+            write_scene_file(path, scene if isinstance(scene, dict) else dict(EMPTY_SCENE))
+            drawing.file_path = path
+        except ValueError:
+            pass
+        thumb_b64 = row.get('thumbnail_b64')
+        if thumb_b64:
+            try:
+                thumb_path = thumbnail_path_for(drawing.id)
+                with open(thumb_path, 'wb') as handle:
+                    handle.write(base64.b64decode(thumb_b64))
+                drawing.thumbnail_path = thumb_path
+            except Exception:
+                pass
+        room_map[room_id] = drawing.id
+    return room_map
+
+
+def import_excalidraw_drawing_versions(data: List[Dict], room_map: Dict[str, int], user_map: Dict[str, int], current_user_id=None):
+    from app.utils.excalidraw import new_scene_path, write_scene_file, EMPTY_SCENE
+    for row in data or []:
+        drawing_id = room_map.get(row.get('drawing_room_id'))
+        if not drawing_id:
+            continue
+        creator = _resolve_user(row.get('created_by_email'), user_map, current_user_id) or current_user_id
+        if not creator:
+            continue
+        content = row.get('file_content')
+        try:
+            scene = json.loads(content) if content else dict(EMPTY_SCENE)
+        except Exception:
+            scene = dict(EMPTY_SCENE)
+        drawing = ExcalidrawDrawing.query.get(drawing_id)
+        path = new_scene_path(drawing_id, drawing.name if drawing else 'drawing')
+        try:
+            write_scene_file(path, scene if isinstance(scene, dict) else dict(EMPTY_SCENE))
+        except ValueError:
+            continue
+        db.session.add(ExcalidrawDrawingVersion(
+            drawing_id=drawing_id,
+            version_number=row.get('version_number') or 1,
+            file_path=path,
+            created_by=creator,
+        ))
+

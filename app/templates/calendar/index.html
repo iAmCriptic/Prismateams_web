@@ -2,6 +2,11 @@
 
 {% block title %}{{ _('calendar.index.page_title') }}{% endblock %}
 
+{% block navbar_search %}
+{% from 'calendar/_chrome.html' import calendar_search with context %}
+{{ calendar_search('') }}
+{% endblock %}
+
 {% block content %}
 {% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu, calendar_view_pills, calendar_search with context %}
 
@@ -32,7 +37,8 @@
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
             {{ calendar_more_menu(align_end=true) }}
             {% if sc %}
-            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn mod-new-btn btn-sm">
+            {% set new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
+            <a href="{{ url_for('calendar.create_event', calendar_id=new_cal_id) if new_cal_id else url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
             {% endif %}
@@ -63,12 +69,6 @@
     </div>
 </div>
 {% endif %}
-
-<div class="row mb-3 page-toolbar-row align-items-center g-2 d-none d-lg-flex">
-    <div class="col-12">
-        {{ calendar_search('') }}
-    </div>
-</div>
 
 <div class="row mb-3 page-toolbar-row align-items-start g-2 d-lg-none">
     <div class="col-12">
@@ -215,7 +215,7 @@
 <script>
 const CAL_I18N = {{ current_translations.get('calendar', {}).get('index', {})|tojson }};
 const CAL_MULTI = {{ calendar_multi_enabled|tojson }};
-const CAL_PERSONAL_ID = {{ (sc.personal.id if sc else none)|tojson }};
+const CAL_PERSONAL_ID = {{ (sc.personal.id if sc and sc.personal else (sc.public.id if sc and sc.public else none))|tojson }};
 const CAL_SELECTED_IDS = {{ selected_calendar_ids|tojson }};
 const CAL_STORAGE_KEY = 'pt_calendar_selected_ids';
 const CURRENT_LANG = "{{ current_language }}";
@@ -513,6 +513,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    const newCalType = document.getElementById('newCalType');
+    const newCalTeamWrap = document.getElementById('newCalTeamWrap');
+    if (newCalType && newCalTeamWrap) {
+        const syncTeam = () => newCalTeamWrap.classList.toggle('d-none', newCalType.value !== 'team');
+        newCalType.addEventListener('change', syncTeam);
+        syncTeam();
+    }
+    document.querySelectorAll('.calendar-edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const form = document.getElementById('calendarMetaForm');
+            const modalEl = document.getElementById('calendarMetaModal');
+            if (!form || !modalEl) return;
+            const id = btn.getAttribute('data-calendar-id');
+            form.action = {{ url_for('calendar.update_calendar', calendar_id=0)|tojson }}.replace('/calendars/0/', '/calendars/' + id + '/');
+            document.getElementById('editCalName').value = btn.getAttribute('data-calendar-name') || '';
+            document.getElementById('editCalColor').value = btn.getAttribute('data-calendar-color') || '#0d6efd';
+            const hideWrap = document.getElementById('editCalHideWrap');
+            const hideInput = document.getElementById('editCalHide');
+            const canHide = btn.getAttribute('data-calendar-can-hide') === '1';
+            hideWrap.classList.toggle('d-none', !canHide);
+            hideInput.checked = btn.getAttribute('data-calendar-hidden') === '1';
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+    });
 
     // View Toggle
     const monthView = document.getElementById('monthView');

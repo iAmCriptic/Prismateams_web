@@ -789,7 +789,7 @@ def update_chat(chat_id):
             chat.group_avatar = None
     
     # Update group chat members when submitted from settings form
-    if not chat.is_direct_message and not chat.is_main_chat and request.method == 'POST':
+    if not chat.is_direct_message and not chat.is_main_chat and not chat.team_id and request.method == 'POST':
         selected_member_ids = set()
         for member_id in request.form.getlist('members'):
             try:
@@ -858,12 +858,17 @@ def delete_chat(chat_id):
     
     chat = Chat.query.get_or_404(actual_chat_id)
     
-    # Prevent deletion of main chat
+    # Prevent deletion of main chat or bound team chat
     if chat.is_main_chat:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': translate('chat.errors.main_chat_cannot_delete')}), 400
         flash('Der Haupt-Chat kann nicht gelöscht werden', 'danger')
         return redirect(url_for('chat.view_chat', chat_id=1))
+    if chat.team_id:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': translate('chat.errors.team_chat_cannot_delete')}), 400
+        flash(translate('chat.flash.team_chat_cannot_delete'), 'danger')
+        return redirect(url_for('chat.view_chat', chat_id=chat_id))
     
     # Check if user is a member (Mitgliedschaft wurde bereits geprüft in view_chat, aber hier sicherstellen)
     membership = ChatMember.query.filter_by(

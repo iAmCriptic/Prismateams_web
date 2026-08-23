@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}{{ _('kanban.index.title') }}{% endblock %}
+
+{% block content %}
+{% macro board_bg(b) -%}
+{%- for bg in backgrounds -%}
+{%- if bg.key == (b.background or 'teal') -%}{{ bg.css }}{%- endif -%}
+{%- endfor -%}
+{%- endmacro %}
+
+{% macro board_actions_dropdown(b, manage) %}
+{% if manage %}
+<div class="dropdown">
+  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
+    <i class="bi bi-three-dots-vertical"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+    <li>
+      <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" onclick="event.stopPropagation();">
+        <i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}
+      </a>
+    </li>
+    <li>
+      <button type="button" class="dropdown-item" data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
+              onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;">
+        <i class="bi bi-pencil me-2"></i>Umbenennen
+      </button>
+    </li>
+    <li>
+      <button type="button" class="dropdown-item" data-kanban-color="{{ b.id }}" data-kanban-bg="{{ b.background or 'teal' }}" data-kanban-title="{{ b.title|e }}"
+              onclick="event.preventDefault(); event.stopPropagation(); window.kanbanOpenColor && window.kanbanOpenColor(this); return false;">
+        <i class="bi bi-palette me-2"></i>Farbe ändern
+      </button>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+      <button type="button" class="dropdown-item text-danger" data-kanban-close="{{ b.id }}"
+              onclick="event.preventDefault(); event.stopPropagation(); window.kanbanCloseBoard && window.kanbanCloseBoard(this); return false;">
+        <i class="bi bi-x-circle me-2"></i>{{ _('kanban.board.close_board') }}
+      </button>
+    </li>
+  </ul>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro board_grid_card(b) %}
+{% set manage = b.id in manageable_ids %}
+{% set board_url = url_for('kanban.board', board_id=b.id) %}
+<div class="col-12 col-md-6 col-lg-3" data-board-wrapper="{{ b.id }}">
+  <div class="card folder-item kanban-board-card h-100 position-relative"
+       role="link"
+       tabindex="0"
+       data-href="{{ board_url }}"
+       onclick="location.href=this.dataset.href;">
+    <div class="card-body d-flex flex-column">
+      <div class="files-grid-preview text-center mb-3 kanban-grid-cover" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
+        {% if b.cover_path %}
+        <img src="{{ b.cover_path }}" alt="" class="kanban-grid-cover__img">
+        {% else %}
+        <i class="bi bi-kanban text-white" aria-hidden="true"></i>
+        {% endif %}
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
+        <div class="flex-grow-1 min-width-0">
+          <h6 class="mb-1 files-item-name" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
+          <div class="small text-muted">{{ _('kanban.index.vis_' + b.visibility) }}{% if b.team %} · {{ b.team.name }}{% endif %}</div>
+        </div>
+        <div class="d-flex align-items-start gap-1 kanban-board-actions" onclick="event.stopPropagation();">
+          {% if manage %}
+          <div class="files-grid-hover-actions">
+            <a class="btn btn-sm btn-link" href="{{ board_url }}?share=1" title="{{ _('kanban.board.share') }}" onclick="event.stopPropagation(); return true;"><i class="bi bi-share"></i></a>
+            <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
+                    data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
+                    onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
+          </div>
+          {% endif %}
+          {{ board_actions_dropdown(b, manage) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro board_list_row(b) %}
+{% set manage = b.id in manageable_ids %}
+<tr class="mod-list-row" data-board-wrapper="{{ b.id }}">
+  <td class="files-list-name-cell">
+    <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
+      <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
+      <span class="files-item-name-text" title="{{ b.title }}">{{ b.title }}</span>
+    </a>
+  </td>
+  <td class="d-none d-md-table-cell text-muted">{{ _('kanban.index.vis_' + b.visibility) }}</td>
+  <td class="d-none d-md-table-cell text-muted">{% if b.team %}{{ b.team.name }}{% else %}—{% endif %}</td>
+  <td class="d-none d-lg-table-cell text-muted">{% if b.updated_at %}{{ b.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
+  <td class="text-end">
+    <div class="mod-list-actions position-relative" onclick="event.stopPropagation();">
+      <div class="mod-list-hover-actions">
+        {% if manage %}
+        <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
+        <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
+                data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
+                onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
+        {% endif %}
+      </div>
+      {{ board_actions_dropdown(b, manage) }}
+    </div>
+  </td>
+</tr>
+{% endmacro %}
+
+{% macro section(title, boards, section_key) %}
+{% if boards %}
+<section class="kanban-section mb-4" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}">
+  <h2 class="kanban-section__title">{{ title }}</h2>
+  <div class="row g-3" data-view-grid id="kanbanGrid-{{ section_key }}">
+    {% for b in boards %}{{ board_grid_card(b) }}{% endfor %}
+  </div>
+  <div class="mod-list-table-wrap" data-view-list style="display:none;">
+    <table class="table align-middle mb-0 mod-list-table">
+      <thead>
+        <tr>
+          <th scope="col">{{ _('kanban.index.board_title') }}</th>
+          <th class="d-none d-md-table-cell" scope="col">{{ _('kanban.index.visibility') }}</th>
+          <th class="d-none d-md-table-cell" scope="col">{{ _('kanban.index.team_label') }}</th>
+          <th class="d-none d-lg-table-cell" scope="col">Aktualisiert</th>
+          <th class="text-end" scope="col" style="width:7rem;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in boards %}{{ board_list_row(b) }}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endmacro %}
+
+<div class="kanban-shell files-shell">
+  {% include 'kanban/_sidebar.html' %}
+
+  <div class="mod-main kanban-main">
+    <div class="mod-mobile-topbar d-lg-none">
+      <button type="button" class="btn mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#kanbanMobileNav"><i class="bi bi-list"></i></button>
+      <span class="mod-mobile-title">{{ _('kanban.index.title') }}</span>
+      <button type="button" class="btn files-pill-new btn-accent" data-bs-toggle="modal" data-bs-target="#createBoardModal"><i class="bi bi-plus-lg"></i></button>
+    </div>
+
+    <div class="page-toolbar-row kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h1 class="h4 mb-0 d-none d-lg-block">{{ _('kanban.index.title') }}</h1>
+      <div class="kanban-toolbar-actions ms-auto">
+        <div class="files-view-toggle" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
+          <button type="button" class="files-view-toggle__btn" id="kanbanListViewBtn" title="{{ _('kanban.index.list_view') }}">
+            <i class="bi bi-list"></i>
+          </button>
+          <button type="button" class="files-view-toggle__btn active is-active" id="kanbanGridViewBtn" title="{{ _('kanban.index.grid_view') }}">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {% set team_board_groups = team_board_groups|default([]) %}
+    {% set all_empty = not recent_boards and not private_boards and not team_board_groups and not public_boards %}
+    {% if all_empty %}
+    <p class="text-muted">{{ _('kanban.index.empty') }}</p>
+    {% else %}
+      {% if not section_filter or section_filter == 'all' %}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {% for group in team_board_groups %}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+        {% endfor %}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+      {% elif section_filter == 'recent' %}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
+        {% if not recent_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
+      {% elif section_filter == 'private' %}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {% if not private_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
+      {% elif section_filter == 'team' %}
+        {% set ns = namespace(title=_('kanban.index.team')) %}
+        {% for t in teams %}
+          {% if filter_team_id and t.id == filter_team_id %}
+            {% set ns.title = t.name %}
+          {% endif %}
+        {% endfor %}
+        {{ section(ns.title, team_boards, 'team') }}
+        {% if not team_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
+      {% elif section_filter == 'public' %}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+        {% if not public_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
+      {% else %}
+        {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {% for group in team_board_groups %}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+        {% endfor %}
+        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="createBoardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <form id="createBoardForm">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ _('kanban.index.create_title') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body d-grid gap-3">
+          <div>
+            <label class="form-label" for="boardTitle">{{ _('kanban.index.board_title') }}</label>
+            <input class="form-control files-pill-input" id="boardTitle" name="title" required maxlength="200">
+          </div>
+          <div>
+            <label class="form-label" for="boardVisibility">{{ _('kanban.index.visibility') }}</label>
+            <select class="form-select files-pill-input" id="boardVisibility" name="visibility">
+              {% if 'private' in allowed_visibilities %}
+              <option value="private">{{ _('kanban.index.vis_private') }}</option>
+              {% endif %}
+              {% if 'team' in allowed_visibilities %}
+              {% for t in teams %}
+              <option value="team:{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+              {% endif %}
+              {% if 'public' in allowed_visibilities %}
+              <option value="public">{{ _('kanban.index.vis_public') }}</option>
+              {% endif %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">{{ _('kanban.index.create_from') }}</label>
+            <div class="d-flex flex-column gap-2">
+              <label class="kanban-create-mode">
+                <input type="radio" name="create_mode" value="empty" checked>
+                <span>{{ _('kanban.index.create_empty') }}</span>
+              </label>
+              <label class="kanban-create-mode">
+                <input type="radio" name="create_mode" value="template" {% if not templates %}disabled{% endif %}>
+                <span>{{ _('kanban.index.create_from_template') }}{% if not templates %} <small class="text-muted">({{ _('kanban.index.no_templates') }})</small>{% endif %}</span>
+              </label>
+            </div>
+          </div>
+          <div id="boardTemplateWrap" style="display:none;">
+            <label class="form-label" for="boardTemplate">{{ _('kanban.index.template') }}</label>
+            <select class="form-select files-pill-input" id="boardTemplate" name="template_id">
+              <option value="">{{ _('kanban.index.choose_template') }}</option>
+              {% for tmpl in templates %}
+              <option value="{{ tmpl.id }}">{{ tmpl.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">{{ _('kanban.index.background') }}</label>
+            <div class="kanban-bg-picker">
+              {% for bg in backgrounds %}
+              <button type="button" class="kanban-bg-swatch{% if loop.first %} is-active{% endif %}" data-bg="{{ bg.key }}" style="background:{{ bg.css }};" aria-label="{{ bg.key }}"></button>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="background" id="boardBackground" value="{{ backgrounds[0].key }}">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-accent files-pill-new">{{ _('kanban.index.create') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Farbe ändern #}
+<div class="modal fade" id="kanbanColorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">Farbe ändern</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2" id="kanbanColorModalTitle"></p>
+        <div class="kanban-bg-picker" id="kanbanColorPicker">
+          {% for bg in backgrounds %}
+          <button type="button" class="kanban-bg-swatch" data-bg="{{ bg.key }}" style="background:{{ bg.css }};" aria-label="{{ bg.key }}"></button>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="kanbanColorBoardId" value="">
+        <input type="hidden" id="kanbanColorSelected" value="">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-accent files-pill-new" id="kanbanColorSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+{% endblock %}

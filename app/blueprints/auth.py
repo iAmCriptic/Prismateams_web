@@ -1045,4 +1045,45 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
+@auth_bp.route('/datenschutz')
+def privacy():
+    """Öffentliche Datenschutzerklärung."""
+    from app.utils.legal_pages import get_legal_content
+    return render_template(
+        'auth/legal_page.html',
+        page_title=translate('auth.legal.privacy_title'),
+        page_heading=translate('auth.legal.privacy_heading'),
+        content=get_legal_content('privacy'),
+        **_auth_template_kwargs(),
+    )
+
+
+@auth_bp.route('/impressum')
+def imprint():
+    """Öffentliches Impressum."""
+    from app.utils.legal_pages import get_legal_content
+    return render_template(
+        'auth/legal_page.html',
+        page_title=translate('auth.legal.imprint_title'),
+        page_heading=translate('auth.legal.imprint_heading'),
+        content=get_legal_content('imprint'),
+        **_auth_template_kwargs(),
+    )
+
+
+@auth_bp.route('/nutzungsbedingungen')
+@auth_bp.route('/terms')
+def terms():
+    """Öffentliche Nutzungsbedingungen."""
+    from app.utils.legal_pages import get_legal_content
+    return render_template(
+        'auth/legal_page.html',
+        page_title=translate('auth.legal.terms_title'),
+        page_heading=translate('auth.legal.terms_heading'),
+        content=get_legal_content('terms'),
+        **_auth_template_kwargs(),
+    )
+
+
+
 

@@ -1,9 +1,14 @@
-from flask import jsonify, url_for
+from flask import jsonify, request, url_for
 from flask_login import current_user, login_required
 
 from app.models.role import UserModuleRole
 from app.utils.access_control import has_module_access
 from app.utils.common import is_module_enabled
+from app.utils.navigation import (
+    NAV_FAVORITES_CONFIG_KEY,
+    get_nav_favorites,
+    normalize_nav_favorite_keys,
+)
 
 
 def register_meta_routes(api_bp, require_api_auth):
@@ -69,6 +74,8 @@ def register_meta_routes(api_bp, require_api_auth):
             "module_media_downloader",
             "module_assessment",
             "module_shortlinks",
+            "module_kanban",
+            "module_excalidraw",
         ]
 
         global_active, user_accessible, module_details = [], [], []
@@ -93,6 +100,26 @@ def register_meta_routes(api_bp, require_api_auth):
             "global_active_modules": global_active,
             "user_accessible_modules": user_accessible,
             "modules": module_details,
+        }), 200
+
+    @api_bp.route("/nav/favorites", methods=["GET", "POST"])
+    @login_required
+    def nav_favorites():
+        if current_user.__class__.__name__ == 'AssessmentUser' or not hasattr(current_user, 'get_dashboard_config'):
+            return jsonify({'success': False, 'error': 'unsupported'}), 400
+
+        if request.method == 'POST':
+            payload = request.get_json(silent=True) or {}
+            raw_keys = payload.get('favorites', [])
+            keys = normalize_nav_favorite_keys(raw_keys, current_user)
+            config = current_user.get_dashboard_config()
+            config[NAV_FAVORITES_CONFIG_KEY] = keys
+            current_user.set_dashboard_config(config)
+
+        favorites = get_nav_favorites(current_user)
+        return jsonify({
+            'success': True,
+            'favorites': [item['key'] for item in favorites],
         }), 200
 
     @api_bp.route("/appearance/me", methods=["GET"])

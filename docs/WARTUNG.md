@@ -41,8 +41,7 @@ sudo journalctl -u redis-server -f
 # OnlyOffice Logs (falls installiert)
 sudo docker logs -f onlyoffice-documentserver
 
-# Excalidraw Logs (falls installiert)
-sudo docker logs -f excalidraw
+# Excalidraw-Room Logs (falls installiert)
 sudo docker logs -f excalidraw-room
 ```
 
@@ -59,8 +58,7 @@ sudo systemctl status teamportal
 # OnlyOffice neu starten (falls installiert)
 sudo docker restart onlyoffice-documentserver
 
-# Excalidraw neu starten (falls installiert)
-sudo docker restart excalidraw
+# Excalidraw-Room neu starten (falls installiert)
 sudo docker restart excalidraw-room
 ```
 
@@ -115,25 +113,33 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.
 
 ```bash
 # OnlyOffice aktualisieren (falls installiert)
+# Fonts-Volume beibehalten (nur mscorefonts, keine Carlito-/Liberation-Duplikate).
+# Der neue Container indexiert das Volume beim Start selbst.
 sudo docker stop onlyoffice-documentserver
 sudo docker rm onlyoffice-documentserver
 sudo docker pull onlyoffice/documentserver:latest
-sudo docker run -i -t -d -p 8080:80 --restart=always \
+sudo docker run -d --restart=always \
     --name onlyoffice-documentserver \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -p 127.0.0.1:8080:80 \
     -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -e JWT_ENABLED=true \
     -e JWT_SECRET=dein-jwt-secret-key-hier \
-    onlyoffice/documentserver
+    -e JWT_HEADER=Authorization \
+    -e ALLOW_PRIVATE_IP_ADDRESS=true \
+    onlyoffice/documentserver:latest
+
+# Font-Index: der neue Container indexiert das Fonts-Volume beim Start selbst.
+# documentserver-generate-allfonts.sh nicht extra gegen den laufenden Editor ausführen
+# (zerstört Calibri→Carlito). Nur mscorefonts im Volume, keine Carlito-/Liberation-Duplikate.
 
 # Excalidraw aktualisieren (falls installiert)
-sudo docker stop excalidraw excalidraw-room
-sudo docker rm excalidraw excalidraw-room
-sudo docker pull excalidraw/excalidraw:latest
+sudo docker stop excalidraw-room
+sudo docker rm excalidraw-room
 sudo docker pull excalidraw/excalidraw-room:latest
-sudo docker run -i -t -d -p 8081:80 --restart=always \
-    --name excalidraw \
-    excalidraw/excalidraw:latest
-sudo docker run -i -t -d -p 8082:80 --restart=always \
+sudo docker run -d -p 127.0.0.1:8082:80 --restart=always \
     --name excalidraw-room \
     -e PORT=80 \
     excalidraw/excalidraw-room:latest
@@ -180,7 +186,7 @@ sudo systemctl restart teamportal
 
 ```bash
 # 1. Container stoppen
-sudo docker stop excalidraw excalidraw-room
+sudo docker stop excalidraw-room
 
 # 2. .env-Datei bearbeiten
 sudo nano /var/www/teamportal/.env
@@ -188,7 +194,7 @@ sudo nano /var/www/teamportal/.env
 
 # 3. Nginx-Konfiguration bearbeiten
 sudo nano /etc/nginx/sites-available/teamportal
-# Entfernen Sie die /excalidraw und /excalidraw-room Location-Blöcke
+# Entfernen Sie den /excalidraw-room/ Location-Block
 
 # 4. Nginx neu laden
 sudo nginx -t
@@ -265,7 +271,7 @@ Excalidraw ist relativ leichtgewichtig, benötigt aber WebSocket-Support für Ec
 
 ```bash
 # Container-Status prüfen
-sudo docker stats excalidraw excalidraw-room
+sudo docker stats excalidraw-room
 ```
 
 **Empfohlene Systemanforderungen für Excalidraw:**

@@ -158,11 +158,14 @@ Das Skript installiert **ONLYOFFICE Docs (Document Server)** (`onlyoffice/docume
 
 Bei Installation setzt das Skript:
 
-1. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
-2. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s)
-3. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
-4. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
-5. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+1. Host-Schriftarten: `ttf-mscorefonts-installer` (EULA non-interactive) – nur Arial/Times/… nach `/var/lib/onlyoffice/DocumentServer/fonts`. Carlito/Liberation/DejaVu nicht kopieren (liegen im Image; Duplikate zerstören Calibri→Carlito)
+2. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`, **`fonts` → `/usr/share/fonts/truetype/custom`**), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
+3. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s). Der Entrypoint indexiert das Fonts-Volume beim Start – kein Live-`documentserver-generate-allfonts.sh`
+4. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
+5. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
+6. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+
+Ohne mscorefonts fehlen Arial/Times in PDF/Druck; Calibri bleibt über Carlito im Image nutzbar. Details: [INSTALLATION.md – Schritt 5, Schriftarten](INSTALLATION.md#schriftarten-für-rendering--pdf--druck).
 
 Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen).
 

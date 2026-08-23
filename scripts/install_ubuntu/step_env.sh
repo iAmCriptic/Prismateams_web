@@ -149,6 +149,13 @@ step_env() {
         set_env_var "ONLYOFFICE_ENABLED" "False" .env
     fi
 
+    if is_yes "$INSTALL_EXCALIDRAW"; then
+        set_env_var "EXCALIDRAW_ENABLED" "True" .env
+        set_env_var "EXCALIDRAW_ROOM_URL" "/excalidraw-room" .env
+    else
+        set_env_var "EXCALIDRAW_ENABLED" "False" .env
+    fi
+
     # Redis
     if is_yes "$SETUP_REDIS"; then
         set_env_var "REDIS_ENABLED" "True" .env

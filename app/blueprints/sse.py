@@ -3,7 +3,7 @@ Server-Sent Events (SSE) Blueprint für Live-Updates.
 Funktioniert perfekt mit mehreren Gunicorn-Workern ohne Session-Probleme.
 """
 
-from flask import Blueprint, Response, stream_with_context, current_app, request, has_app_context
+from flask import Blueprint, Response, stream_with_context, current_app, request, has_app_context, jsonify
 from flask_login import current_user, login_required
 import json
 import time
@@ -219,3 +219,40 @@ def emit_email_sync_status(user_id, event_type, data):
     """Sendet ein E-Mail-Sync-Status-Update an einen bestimmten Benutzer."""
     channel = f'email:sync:user:{user_id}'
     return publish_event(channel, f'email:{event_type}', data)
+
+
+def emit_kanban_update(board_id, event_type, data):
+    """Sendet ein Kanban-Board-Update an alle verbundenen Clients des Boards."""
+    channel = f'kanban:board:{board_id}'
+    return publish_event(channel, f'kanban:{event_type}', data)
+
+
+@sse_bp.route('/events/kanban/<int:board_id>')
+@login_required
+def kanban_events(board_id):
+    """SSE-Endpoint für Kanban-Board-Live-Updates."""
+    from app.models.kanban import KanbanBoard
+    from app.utils.kanban_access import can_view_board
+
+    board = KanbanBoard.query.get_or_404(board_id)
+    if not can_view_board(current_user, board) and not (
+        board.closed_at and getattr(current_user, 'is_admin', False)
+    ):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    channels = [f'kanban:board:{board_id}']
+
+    def generate():
+        yield from event_stream(channels, current_user.id)
+
+    response = Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            'Access-Control-Allow-Origin': '*',
+        },
+    )
+    return response

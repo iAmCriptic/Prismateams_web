@@ -472,9 +472,12 @@ def _seed_setting(db, key: str, value: str, description: str = "") -> bool:
 def step_seed_settings(db, report: MigrationReport) -> None:
     seeds = [
         ("calendar_multi_enabled", "False", "Multi-Kalender aktiv"),
+        ("calendar_personal_enabled", "False", "Private Kalender aktiv"),
+        ("calendar_team_enabled", "False", "Team-Kalender aktiv"),
         ("calendar_export_enabled", "True", "Kalender-Export aktiv"),
         ("calendar_import_enabled", "True", "Kalender-Import aktiv"),
         ("files_private_folders_enabled", "False", "Private Ordner aktiv"),
+        ("files_team_folders_enabled", "False", "Team-Ablagen aktiv"),
         ("files_max_file_size_bytes", "104857600", "Max. Dateigröße Bytes"),
         ("files_storage_quota_enabled", "false", "Speicherkontingente aktiv"),
         ("files_storage_quota_bytes", "16106127360", "Standard-Kontingent Bytes"),
@@ -483,6 +486,21 @@ def step_seed_settings(db, report: MigrationReport) -> None:
         ("email_multi_enabled", "False", "Multi-Postfach aktiv"),
         ("email_max_private_mailboxes", "3", "Max. private Postfächer pro Nutzer"),
         ("email_compose_html_design_default", "True", "Standard: HTML-Design beim Verfassen"),
+        ("credentials_allow_private", "true", "Zugangsdaten: Privat"),
+        ("credentials_allow_team", "true", "Zugangsdaten: Team"),
+        ("credentials_allow_public", "true", "Zugangsdaten: Public"),
+        ("manuals_allow_private", "true", "Handbücher: Privat"),
+        ("manuals_allow_team", "true", "Handbücher: Team"),
+        ("manuals_allow_public", "true", "Handbücher: Public"),
+        ("contacts_allow_private", "true", "Kontakte: Privat"),
+        ("contacts_allow_team", "true", "Kontakte: Team"),
+        ("contacts_allow_public", "true", "Kontakte: Public"),
+        ("wiki_allow_private", "true", "Wiki: Privat"),
+        ("wiki_allow_team", "true", "Wiki: Team"),
+        ("wiki_allow_public", "true", "Wiki: Public"),
+        ("shortlinks_allow_private", "true", "Kurzlinks: Privat"),
+        ("shortlinks_allow_team", "true", "Kurzlinks: Team"),
+        ("shortlinks_allow_public", "true", "Kurzlinks: Public"),
     ]
     created = 0
     for key, value, desc in seeds:
@@ -685,6 +703,31 @@ def step_backfill_events_calendar(db, report: MigrationReport) -> None:
             )
             moved += result.rowcount or 0
         report.note_ok(f"{moved} Termine -> Veranstaltungen-Kalender")
+
+
+def step_backfill_module_visibility(db, report: MigrationReport) -> None:
+    engine = db.engine
+    tables = (
+        ("credentials", "public"),
+        ("contacts", "public"),
+        ("wiki_pages", "public"),
+        ("manuals", "public"),
+        ("short_links", "private"),
+    )
+    with engine.begin() as conn:
+        for table_name, default_vis in tables:
+            if not _column_exists(engine, table_name, "visibility"):
+                continue
+            result = conn.execute(
+                text(
+                    f"UPDATE {_safe_ident(table_name)} SET visibility=:vis "
+                    f"WHERE visibility IS NULL OR TRIM(visibility) = ''"
+                ),
+                {"vis": default_vis},
+            )
+            report.note_ok(
+                f"{table_name}.visibility Backfill ({result.rowcount or 0} Zeilen → {default_vis})"
+            )
 
 
 def step_backfill_credential_favorites(db, report: MigrationReport) -> None:
@@ -1064,6 +1107,12 @@ def migrate(*, force: bool = False) -> bool:
             _run_step(
                 "15 Credential-Favoriten",
                 step_backfill_credential_favorites,
+                report,
+                db,
+            )
+            _run_step(
+                "15b Modul-Visibility Backfill",
+                step_backfill_module_visibility,
                 report,
                 db,
             )

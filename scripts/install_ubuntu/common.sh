@@ -252,19 +252,27 @@ print_manual_onlyoffice_hint() {
     log_manual "  Offiziell: https://github.com/ONLYOFFICE/Docker-DocumentServer"
     log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
     log_manual "  2. Volumes: mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}"
-    log_manual "  3. Container:"
+    log_manual "  3. Schriftarten (PDF/Druck): nur ttf-mscorefonts-installer (Arial/Times/…)"
+    log_manual "     TTFs nach /var/lib/onlyoffice/DocumentServer/fonts kopieren."
+    log_manual "     Carlito/Liberation NICHT kopieren (liegen im Image; Duplikate zerlegen Calibri)"
+    log_manual "  4. Container:"
     log_manual "       docker pull onlyoffice/documentserver:latest"
     log_manual "       docker run -d --name onlyoffice-documentserver --restart=always \\"
     log_manual "         -p 127.0.0.1:8080:80 \\"
     log_manual "         -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \\"
     log_manual "         -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \\"
     log_manual "         -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \\"
+    log_manual "         -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \\"
     log_manual "         -e JWT_ENABLED=true -e JWT_SECRET=IHR-SECRET \\"
     log_manual "         -e ALLOW_PRIVATE_IP_ADDRESS=true \\"
     log_manual "         onlyoffice/documentserver:latest"
-    log_manual "  4. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice,"
+    log_manual "  5. Font-Index: Container startet den Index selbst. Spaeter neue TTFs:"
+    log_manual "     docker restart onlyoffice-documentserver (kein Live-generate-allfonts)"
+    log_manual "  6. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice,"
     log_manual "     ONLYOFFICE_SECRET_KEY=<gleicher JWT_SECRET>"
-    log_manual "  5. Webserver-Proxy fuer /onlyoffice und /cache auf 127.0.0.1:8080"
+    log_manual "  7. Webserver-Proxy fuer /onlyoffice und /cache auf 127.0.0.1:8080"
+    echo
+    log_manual "Details: docs/INSTALLATION.md (Schritt 5, Schriftarten)"
     echo
 }
 
@@ -321,6 +329,20 @@ print_manual_custom_port_hint() {
     fi
 }
 
+print_manual_excalidraw_hint() {
+    echo
+    log_manual "=== Excalidraw Room (Kollaboration) manuell einrichten ==="
+    log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
+    log_manual "  2. Container (nur Loopback):"
+    log_manual "       docker pull excalidraw/excalidraw-room:latest"
+    log_manual "       docker run -d --name excalidraw-room --restart=always \\"
+    log_manual "         -p 127.0.0.1:8082:80 -e PORT=80 \\"
+    log_manual "         excalidraw/excalidraw-room:latest"
+    log_manual "  3. In .env: EXCALIDRAW_ENABLED=True, EXCALIDRAW_ROOM_URL=/excalidraw-room"
+    log_manual "  4. Nginx: Location /excalidraw-room/ -> 127.0.0.1:8082/ mit WebSocket-Upgrade"
+    echo
+}
+
 init_defaults() {
     GUNICORN_PORT="${GUNICORN_PORT:-}"
     GUNICORN_WORKERS="${GUNICORN_WORKERS:-}"
@@ -334,6 +356,7 @@ init_defaults() {
     SETUP_SSL="${SETUP_SSL:-}"
     LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
     INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-}"
+    INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-}"
     INSTALL_MEDIA_DOWNLOADER="${INSTALL_MEDIA_DOWNLOADER:-}"
     MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
     MEDIA_DOWNLOADER_PLAYER_CLIENT="${MEDIA_DOWNLOADER_PLAYER_CLIENT:-}"

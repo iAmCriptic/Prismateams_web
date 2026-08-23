@@ -17,22 +17,29 @@ from app.utils.file_storage_limits import (
     usage_payload_for_user,
 )
 from app.utils.private_files import (
+    apply_space_to_folder_tree,
     can_edit_file,
     can_edit_folder,
+    can_manage_acl,
     can_view_file,
     can_view_folder,
     ensure_personal_root,
+    ensure_team_root,
     folder_is_under_personal_root,
     hard_delete_file_disk_and_db,
     hard_delete_folder_recursive,
+    is_files_spaces_enabled,
     is_private_folders_enabled,
+    is_team_folders_enabled,
     list_acl_for_resource,
     list_folder_favorites,
     list_view_contents,
     normalize_view,
+    parse_team_id,
     remove_acl,
     resolve_default_parent_for_view,
     resolve_space_for_parent,
+    resolve_team_id_for_parent,
     restore_file,
     restore_folder,
     serialize_acl_row,
@@ -40,6 +47,8 @@ from app.utils.private_files import (
     soft_delete_folder,
     toggle_folder_favorite,
     upsert_acl,
+    user_file_teams,
+    user_may_use_file_team,
     FOLDER_FAVORITES_MAX,
 )
 from app.models.public_share import PublicShare
@@ -458,8 +467,10 @@ def _get_safe_folder_url(folder_id, accessible_folder_ids=None, view=None):
     if not folder_id:
         return url_for('files.index', **view_kwargs)
 
-    # Persönlicher Stamm = virtuelle Ablage-Root → Index
-    if folder is not None and getattr(folder, 'is_personal_root', False):
+    # Persönlicher Stamm / Team-Stamm = virtuelle Root → Index
+    if folder is not None and (
+        getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False)
+    ):
         return url_for('files.index', **view_kwargs)
 
     if _is_guest_user():
@@ -472,19 +483,53 @@ def _get_safe_folder_url(folder_id, accessible_folder_ids=None, view=None):
     return url_for('files.browse_folder', folder_id=folder_id, **view_kwargs)
 
 
-def _files_view_kwargs(view=None, folder=None):
-    """Preserve ?view= for redirects after file/folder mutations."""
+def _files_view_kwargs(view=None, folder=None, team_id=None):
+    """Preserve ?view= (and team_id) for redirects after file/folder mutations."""
     if _is_guest_user():
         return {}
     private_enabled = is_private_folders_enabled()
+    team_enabled = is_team_folders_enabled()
     raw = view if view is not None else (request.form.get('view') or request.args.get('view'))
     if not raw:
         raw = session.get('files_last_view')
     if not raw and folder is not None:
         space = (getattr(folder, 'space', None) or 'public').lower()
-        raw = 'ablage' if space == 'personal' else 'public'
-    files_view = normalize_view(raw, private_enabled=private_enabled)
-    return {'view': files_view} if files_view else {}
+        if space == 'personal':
+            raw = 'ablage'
+        elif space == 'team':
+            raw = 'team'
+        else:
+            raw = 'public'
+    files_view = normalize_view(raw, private_enabled=private_enabled, team_enabled=team_enabled)
+    kwargs = {'view': files_view} if files_view else {}
+    if files_view == 'team':
+        tid = parse_team_id(team_id) if team_id is not None else _request_team_id(folder)
+        if tid:
+            kwargs['team_id'] = tid
+    return kwargs
+
+
+def _request_team_id(folder=None):
+    raw = request.form.get('team_id') or request.args.get('team_id') or session.get('files_last_team_id')
+    team_id = parse_team_id(raw)
+    if not team_id and folder is not None:
+        team_id = getattr(folder, 'team_id', None)
+    return team_id
+
+
+def _resolve_create_parent(files_view, folder_id, team_id=None):
+    """Resolve parent folder for create/upload at a view root."""
+    if folder_id:
+        return folder_id, Folder.query.get(folder_id)
+    if files_view == 'ablage' and is_private_folders_enabled():
+        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
+        return folder_id, Folder.query.get(folder_id) if folder_id else None
+    if files_view == 'team' and is_team_folders_enabled() and team_id:
+        if not user_may_use_file_team(current_user, team_id):
+            return None, None
+        folder_id = resolve_default_parent_for_view('team', current_user.id, team_id=team_id)
+        return folder_id, Folder.query.get(folder_id) if folder_id else None
+    return None, None
 
 
 def _files_context_url(folder_id=None, folder=None):
@@ -505,8 +550,11 @@ def _files_context_url(folder_id=None, folder=None):
 
     view_kwargs = _files_view_kwargs(folder=target_folder)
 
-    # Ablage-Root: persönlicher Stammordner ist virtuell → /files?view=ablage
-    if target_folder is not None and getattr(target_folder, 'is_personal_root', False):
+    # Ablage-/Team-Root: Stammordner ist virtuell
+    if target_folder is not None and (
+        getattr(target_folder, 'is_personal_root', False)
+        or getattr(target_folder, 'is_team_root', False)
+    ):
         return url_for('files.index', **view_kwargs)
 
     if target_id:
@@ -544,24 +592,47 @@ def browse_folder(folder_id):
     accessible_folder_ids = set()
     is_guest = _is_guest_user()
     private_enabled = is_private_folders_enabled() and not is_guest
+    team_enabled = is_team_folders_enabled() and not is_guest
+    spaces_enabled = (private_enabled or team_enabled)
+    files_team_id = parse_team_id(request.args.get('team_id')) if not is_guest else None
     # Gäste behalten die alte Root-Ansicht ohne Sidebar-Nav
     if is_guest:
         files_view = None
     else:
-        files_view = normalize_view(request.args.get('view'), private_enabled=private_enabled)
+        files_view = normalize_view(
+            request.args.get('view'),
+            private_enabled=private_enabled,
+            team_enabled=team_enabled,
+        )
 
-    # Öffentliche Ordner (z.B. Buchung) landen ohne ?view= default in Ablage → kein Zugriff.
-    # Bei Private-Mode auf Public-Ansicht umleiten, wenn Ordner nicht unter persönlicher Ablage liegt.
-    if private_enabled and files_view == 'ablage' and not request.args.get('view'):
+    # Öffentliche / Team-Ordner landen ohne ?view= default in Ablage → kein Zugriff.
+    if not is_guest and not request.args.get('view') and folder_id:
         target = Folder.query.get(folder_id)
         if target and target.deleted_at is None:
-            personal_root = ensure_personal_root(current_user.id)
-            if not folder_is_under_personal_root(target, personal_root.id):
-                return redirect(url_for('files.browse_folder', folder_id=folder_id, view='public'))
+            if team_enabled and ((getattr(target, 'space', None) or '') == 'team' or getattr(target, 'is_team_root', False)):
+                tid = getattr(target, 'team_id', None)
+                if tid:
+                    return redirect(url_for('files.browse_folder', folder_id=folder_id, view='team', team_id=tid))
+            if private_enabled and files_view == 'ablage':
+                personal_root = ensure_personal_root(current_user.id)
+                if not folder_is_under_personal_root(target, personal_root.id):
+                    return redirect(url_for('files.browse_folder', folder_id=folder_id, view='public'))
+
+    if files_view == 'team':
+        if not files_team_id:
+            files_team_id = parse_team_id(session.get('files_last_team_id'))
+        if not user_may_use_file_team(current_user, files_team_id):
+            flash('Sie haben keinen Zugriff auf diese Team-Ablage.', 'danger')
+            fallback = 'ablage' if private_enabled else 'public'
+            return redirect(url_for('files.index', view=fallback))
 
     if not is_guest and files_view:
         session['files_last_view'] = files_view
         session['files_last_folder_id'] = folder_id
+        if files_view == 'team' and files_team_id:
+            session['files_last_team_id'] = files_team_id
+        elif files_view != 'team':
+            session.pop('files_last_team_id', None)
 
     # Gast-Accounts: Nur Freigabelinks anzeigen
     if is_guest:
@@ -609,16 +680,21 @@ def browse_folder(folder_id):
         # Sortiere
         subfolders = sorted(subfolders, key=lambda x: x.name)
         files = sorted(files, key=lambda x: x.name)
-    elif private_enabled:
+    elif spaces_enabled:
         if files_view == 'ablage':
             ensure_personal_root(current_user.id)
-        result = list_view_contents(files_view, folder_id, current_user)
+        if files_view == 'team' and files_team_id:
+            ensure_team_root(files_team_id, current_user.id)
+        result = list_view_contents(files_view, folder_id, current_user, team_id=files_team_id)
         current_folder, subfolders, files, _view_key = result
         if current_folder == 'forbidden':
             flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
-            return redirect(url_for('files.index', view=files_view))
+            view_kwargs = {'view': files_view}
+            if files_view == 'team' and files_team_id:
+                view_kwargs['team_id'] = files_team_id
+            return redirect(url_for('files.index', **view_kwargs))
     else:
-        # Ohne Private-Ordner: Public-Baum + optional Papierkorb (Sidebar bleibt)
+        # Ohne Private-/Team-Ordner: Public-Baum + optional Papierkorb (Sidebar bleibt)
         current_folder = None
         if files_view == 'trash':
             subfolders = (
@@ -626,6 +702,7 @@ def browse_folder(folder_id):
                     Folder.deleted_at.isnot(None),
                     Folder.created_by == current_user.id,
                     Folder.is_personal_root.is_(False),
+                    Folder.is_team_root.is_(False),
                 )
                 .order_by(Folder.deleted_at.desc())
                 .all()
@@ -645,6 +722,9 @@ def browse_folder(folder_id):
                 if current_folder.deleted_at is not None:
                     flash('Dieser Ordner wurde gelöscht.', 'warning')
                     return redirect(url_for('files.index', view=files_view or 'public'))
+                if (getattr(current_folder, 'space', None) or '') == 'team' or getattr(current_folder, 'is_team_root', False):
+                    flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
+                    return redirect(url_for('files.index', view='public'))
 
             # Get subfolders
             if folder_id:
@@ -652,12 +732,15 @@ def browse_folder(folder_id):
                     Folder.parent_id == folder_id,
                     Folder.deleted_at.is_(None),
                     Folder.is_personal_root.is_(False),
+                    Folder.is_team_root.is_(False),
                 ).order_by(Folder.name).all()
             else:
                 subfolders = Folder.query.filter(
                     Folder.parent_id.is_(None),
                     Folder.deleted_at.is_(None),
                     Folder.is_personal_root.is_(False),
+                    Folder.is_team_root.is_(False),
+                    Folder.space != 'team',
                 ).order_by(Folder.name).all()
 
             if folder_id:
@@ -671,6 +754,7 @@ def browse_folder(folder_id):
                     File.folder_id.is_(None),
                     File.is_current.is_(True),
                     File.deleted_at.is_(None),
+                    File.space != 'team',
                 ).order_by(File.name).all()
 
             if files is None:
@@ -679,14 +763,22 @@ def browse_folder(folder_id):
     # Build breadcrumbs starting from root to current folder
     breadcrumb_folders = []
     view_kwargs = {'view': files_view} if files_view else {}
+    if files_view == 'team' and files_team_id:
+        view_kwargs['team_id'] = files_team_id
     if current_folder and current_folder != 'forbidden':
         ancestors = []
         node = current_folder
         personal_root_id = None
+        team_root_id = None
         if private_enabled and files_view == 'ablage':
             personal_root_id = ensure_personal_root(current_user.id).id
+        if team_enabled and files_view == 'team' and files_team_id:
+            team_root = ensure_team_root(files_team_id, current_user.id)
+            team_root_id = team_root.id if team_root else None
         while node:
             if personal_root_id and node.id == personal_root_id:
+                break
+            if team_root_id and node.id == team_root_id:
                 break
             ancestors.append(node)
             node = node.parent
@@ -740,6 +832,11 @@ def browse_folder(folder_id):
         folder_favorites = list_folder_favorites(current_user, url_for)
         favorite_folder_ids = {f['id'] for f in folder_favorites}
 
+    nav_teams = user_file_teams(current_user) if team_enabled else []
+    files_team_name = None
+    if files_view == 'team' and files_team_id:
+        files_team_name = next((t.name for t in nav_teams if t.id == files_team_id), None)
+
     return render_template(
         'files/index.html',
         current_folder=current_folder if current_folder != 'forbidden' else None,
@@ -750,6 +847,10 @@ def browse_folder(folder_id):
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=private_enabled,
+        files_team_folders_enabled=team_enabled,
+        files_nav_teams=nav_teams,
+        files_team_id=files_team_id,
+        files_team_name=files_team_name,
         files_view=files_view,
         create_types=create_types,
         onlyoffice_available=onlyoffice_available,
@@ -794,6 +895,7 @@ def create_folder():
     folder_name = request.form.get('folder_name', '').strip()
     parent_id = request.form.get('parent_id')
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    team_id = _request_team_id()
     
     if not folder_name:
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
@@ -801,35 +903,42 @@ def create_folder():
     
     parent_id = int(parent_id) if parent_id else None
     private_enabled = is_private_folders_enabled()
-    if private_enabled and files_view == 'trash':
+    team_enabled = is_team_folders_enabled()
+    if (private_enabled or team_enabled) and files_view == 'trash':
         flash('Im Papierkorb können keine Ordner erstellt werden.', 'warning')
         return redirect(url_for('files.index', view='trash'))
 
-    parent_folder = Folder.query.get(parent_id) if parent_id else None
-    if private_enabled and not parent_id and files_view == 'ablage':
-        parent_id = resolve_default_parent_for_view('ablage', current_user.id)
-        parent_folder = Folder.query.get(parent_id)
+    parent_id, parent_folder = _resolve_create_parent(files_view, parent_id, team_id)
+    if files_view == 'team' and team_enabled and not parent_folder:
+        flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
 
-    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+    if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
+    resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
     
     new_folder = Folder(
         name=folder_name,
         parent_id=parent_id,
         created_by=current_user.id,
         space=space,
+        team_id=resolved_team_id,
         is_personal_root=False,
+        is_team_root=False,
     )
     db.session.add(new_folder)
     db.session.commit()
     
     flash(f'Ordner "{folder_name}" wurde erstellt.', 'success')
-    view_kwargs = {'view': files_view} if files_view else {}
+    view_kwargs = _files_view_kwargs(files_view, folder=parent_folder or new_folder, team_id=resolved_team_id)
     
-    if parent_id and not (private_enabled and files_view == 'ablage' and parent_folder and parent_folder.is_personal_root):
+    if parent_id and not (
+        (parent_folder and parent_folder.is_personal_root and files_view == 'ablage')
+        or (parent_folder and getattr(parent_folder, 'is_team_root', False) and files_view == 'team')
+    ):
         return redirect(url_for('files.browse_folder', folder_id=parent_id, **view_kwargs))
     return redirect(url_for('files.index', **view_kwargs))
 
@@ -883,6 +992,9 @@ def rename_folder(folder_id):
         return redirect(request.referrer or url_for('files.index'))
     
     folder = Folder.query.get_or_404(folder_id)
+    if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
+        flash('Dieser Stammordner kann nicht umbenannt werden.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
     new_name = request.form.get('new_name', '').strip()
     
     if not new_name:
@@ -986,6 +1098,31 @@ def move_item():
                 'error': translate('files.index.errors.move_target_not_found')
             }), 404
 
+    files_view = normalize_view(
+        payload.get('view') or request.args.get('view') or session.get('files_last_view')
+    )
+    move_team_id = parse_team_id(payload.get('team_id')) or _request_team_id(target_folder)
+    if target_folder_id is None:
+        if files_view == 'ablage' and is_private_folders_enabled():
+            personal_root = ensure_personal_root(current_user.id)
+            target_folder_id = personal_root.id
+            target_folder = personal_root
+        elif files_view == 'team' and is_team_folders_enabled() and user_may_use_file_team(current_user, move_team_id):
+            team_root = ensure_team_root(move_team_id, current_user.id)
+            if team_root:
+                target_folder_id = team_root.id
+                target_folder = team_root
+
+    if target_folder and (is_files_spaces_enabled() or (getattr(target_folder, 'space', None) == 'team')):
+        if not can_edit_folder(target_folder, current_user) and not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_guest_not_allowed')
+            }), 403
+
+    target_space = resolve_space_for_parent(target_folder, files_view or 'public')
+    target_team_id = resolve_team_id_for_parent(target_folder, files_view, move_team_id)
+
     if item_type == 'file':
         file = File.query.get(item_id)
         if not file or not file.is_current:
@@ -1010,6 +1147,8 @@ def move_item():
             }), 409
 
         file.folder_id = target_folder_id
+        file.space = target_space
+        file.team_id = target_team_id
         db.session.commit()
         return jsonify({'success': True}), 200
 
@@ -1019,6 +1158,12 @@ def move_item():
             'success': False,
             'error': translate('files.index.errors.move_item_not_found')
         }), 404
+
+    if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_invalid_request')
+        }), 400
 
     if folder.id == target_folder_id:
         return jsonify({
@@ -1036,6 +1181,7 @@ def move_item():
         return jsonify({'success': True, 'no_change': True}), 200
 
     folder.parent_id = target_folder_id
+    apply_space_to_folder_tree(folder, target_space, target_team_id)
     db.session.commit()
     return jsonify({'success': True}), 200
 
@@ -1057,9 +1203,13 @@ def create_file():
     files_view = normalize_view(
         request.form.get('view') or request.args.get('view') or session.get('files_last_view')
     )
+    team_id = _request_team_id()
     private_enabled = is_private_folders_enabled()
-    if private_enabled and not folder_id and files_view == 'ablage':
-        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
+    team_enabled = is_team_folders_enabled()
+    folder_id, parent_folder = _resolve_create_parent(files_view, folder_id, team_id)
+    if files_view == 'team' and team_enabled and not parent_folder:
+        flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
 
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
@@ -1082,11 +1232,13 @@ def create_file():
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
-    parent_folder = Folder.query.get(folder_id) if folder_id else None
-    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+    if not parent_folder and folder_id:
+        parent_folder = Folder.query.get(folder_id)
+    if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
+    resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
 
     # Create file
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1114,6 +1266,7 @@ def create_file():
         version_number=1,
         is_current=True,
         space=space,
+        team_id=resolved_team_id,
     )
     db.session.add(new_file)
     db.session.commit()
@@ -1166,9 +1319,13 @@ def create_office_file():
     files_view = normalize_view(
         request.form.get('view') or request.args.get('view') or session.get('files_last_view')
     )
+    team_id = _request_team_id()
     private_enabled = is_private_folders_enabled()
-    if private_enabled and not folder_id and files_view == 'ablage':
-        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
+    team_enabled = is_team_folders_enabled()
+    folder_id, parent_folder = _resolve_create_parent(files_view, folder_id, team_id)
+    if files_view == 'team' and team_enabled and not parent_folder:
+        flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
     
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
@@ -1194,11 +1351,13 @@ def create_office_file():
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
-    parent_folder = Folder.query.get(folder_id) if folder_id else None
-    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+    if not parent_folder and folder_id:
+        parent_folder = Folder.query.get(folder_id)
+    if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
+    resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
     
     # Create empty document
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1236,6 +1395,7 @@ def create_office_file():
         version_number=1,
         is_current=True,
         space=space,
+        team_id=resolved_team_id,
     )
     db.session.add(new_file)
     db.session.commit()
@@ -1306,8 +1466,11 @@ def upload_file():
     folder_id = int(folder_id) if folder_id else None
     conflict_strategy = request.form.get('conflict_strategy', '').strip().lower()
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
-    if is_private_folders_enabled() and not folder_id and files_view == 'ablage':
-        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
+    team_id = _request_team_id()
+    folder_id, upload_parent = _resolve_create_parent(files_view, folder_id, team_id)
+    if files_view == 'team' and is_team_folders_enabled() and not upload_parent:
+        flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
+        return _finish(request.referrer or url_for('files.index'))
     
     limits = resolve_limits_for_user(current_user.id)
     max_size = limits['max_file_size']
@@ -1366,6 +1529,7 @@ def upload_file():
                                 parent_id=current_parent_id,
                                 created_by=current_user.id,
                                 space=resolve_space_for_parent(parent_for_space, files_view or 'public'),
+                                team_id=resolve_team_id_for_parent(parent_for_space, files_view, team_id),
                             )
                             db.session.add(new_folder)
                             db.session.flush()  # Get the ID
@@ -1713,7 +1877,7 @@ def upload_conflicts():
     return jsonify({'success': True, 'conflicts': conflicts})
 
 
-def _process_file_upload(file, original_name, folder_id, user_id, space='public'):
+def _process_file_upload(file, original_name, folder_id, user_id, space='public', team_id=None):
     """Helper function to process a single file upload."""
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     filename = f"{timestamp}_{original_name}"
@@ -1729,8 +1893,10 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
 
     if folder_id:
         parent = Folder.query.get(folder_id)
-        if parent and parent.space:
-            space = parent.space
+        if parent:
+            if parent.space:
+                space = parent.space
+            team_id = getattr(parent, 'team_id', None)
     
     new_file = File(
         name=original_name,
@@ -1743,6 +1909,7 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
         version_number=1,
         is_current=True,
         space=space or 'public',
+        team_id=team_id,
     )
     db.session.add(new_file)
     return new_file
@@ -1754,6 +1921,9 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
 def serve_pdf(file_id):
     """Serve a PDF file for inline viewing (without forcing download)."""
     file = File.query.get_or_404(file_id)
+    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
@@ -1785,6 +1955,8 @@ def serve_media(file_id):
         from app.utils.access_control import guest_has_file_access
         if not guest_has_file_access(current_user, file):
             abort(403)
+    elif not can_view_file(file, current_user) and not current_user.is_admin:
+        abort(403)
     return _send_inline_media(file)
 
 
@@ -1794,6 +1966,9 @@ def serve_media(file_id):
 def download_file(file_id):
     """Download a file."""
     file = File.query.get_or_404(file_id)
+    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
@@ -1824,6 +1999,9 @@ def download_version(version_id):
     """Download a specific file version."""
     version = FileVersion.query.get_or_404(version_id)
     file = File.query.get_or_404(version.file_id)
+    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     
     # Ensure we have an absolute path
     if not os.path.isabs(version.file_path):
@@ -1866,6 +2044,9 @@ def edit_file(file_id):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
+    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     
     # Check if file is editable (text file)
     editable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
@@ -2025,6 +2206,9 @@ def view_file(file_id):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
+    elif not can_view_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     else:
         try:
             from app.utils.notifications import mark_in_app_notifications_read
@@ -2041,9 +2225,16 @@ def view_file(file_id):
     view_arg = request.args.get('view')
     if not _is_guest_user():
         private_enabled = is_private_folders_enabled()
-        files_view = normalize_view(view_arg or session.get('files_last_view'), private_enabled=private_enabled)
+        team_enabled = is_team_folders_enabled()
+        files_view = normalize_view(
+            view_arg or session.get('files_last_view'),
+            private_enabled=private_enabled,
+            team_enabled=team_enabled,
+        )
         if files_view:
             session['files_last_view'] = files_view
+        if files_view == 'team' and getattr(file, 'team_id', None):
+            session['files_last_team_id'] = file.team_id
         if file.folder_id:
             session['files_last_folder_id'] = file.folder_id
     else:
@@ -2139,17 +2330,18 @@ def delete_file(file_id):
     folder_id = file.folder_id
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
     purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
+    spaces_on = is_files_spaces_enabled()
 
-    if is_private_folders_enabled() and not can_edit_file(file, current_user) and file.uploaded_by != current_user.id:
+    if spaces_on and not can_edit_file(file, current_user) and file.uploaded_by != current_user.id:
         flash('Keine Berechtigung.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
-    if purge or (file.deleted_at is not None) or not is_private_folders_enabled():
+    if purge or (file.deleted_at is not None) or not spaces_on:
         hard_delete_file_disk_and_db(file, os)
         db.session.commit()
         flash(f'Datei "{file.original_name}" wurde endgültig gelöscht.', 'success')
-        if is_private_folders_enabled():
-            return redirect(url_for('files.index', view='trash'))
+        if spaces_on:
+            return redirect(url_for('files.index', **_files_view_kwargs('trash')))
         if folder_id:
             return redirect(url_for('files.browse_folder', folder_id=folder_id))
         return redirect(url_for('files.index'))
@@ -2158,7 +2350,7 @@ def delete_file(file_id):
     db.session.commit()
     
     flash(f'Datei "{file.original_name}" wurde in den Papierkorb verschoben.', 'success')
-    view_kwargs = {'view': files_view} if files_view else {}
+    view_kwargs = _files_view_kwargs(files_view, folder=file.folder)
     if folder_id:
         return redirect(url_for('files.browse_folder', folder_id=folder_id, **view_kwargs))
     return redirect(url_for('files.index', **view_kwargs))
@@ -2191,24 +2383,25 @@ def delete_folder(folder_id):
         return redirect(request.referrer or url_for('files.index'))
     
     folder = Folder.query.get_or_404(folder_id)
-    if folder.is_personal_root:
-        flash('Der persönliche Stammordner kann nicht gelöscht werden.', 'danger')
+    if folder.is_personal_root or getattr(folder, 'is_team_root', False):
+        flash('Dieser Stammordner kann nicht gelöscht werden.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
     parent_id = folder.parent_id
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
     purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
+    spaces_on = is_files_spaces_enabled()
 
-    if is_private_folders_enabled() and not can_edit_folder(folder, current_user) and folder.created_by != current_user.id:
+    if spaces_on and not can_edit_folder(folder, current_user) and folder.created_by != current_user.id:
         flash('Keine Berechtigung.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
 
-    if purge or (folder.deleted_at is not None) or not is_private_folders_enabled():
+    if purge or (folder.deleted_at is not None) or not spaces_on:
         hard_delete_folder_recursive(folder, os)
         db.session.commit()
         flash(f'Ordner "{folder.name}" wurde endgültig gelöscht.', 'success')
-        if is_private_folders_enabled():
-            return redirect(url_for('files.index', view='trash'))
+        if spaces_on:
+            return redirect(url_for('files.index', **_files_view_kwargs('trash')))
         if parent_id:
             return redirect(url_for('files.browse_folder', folder_id=parent_id))
         return redirect(url_for('files.index'))
@@ -2217,10 +2410,13 @@ def delete_folder(folder_id):
     db.session.commit()
     
     flash(f'Ordner "{folder.name}" wurde in den Papierkorb verschoben.', 'success')
-    view_kwargs = {'view': files_view} if files_view else {}
+    view_kwargs = _files_view_kwargs(files_view, folder=folder)
     if parent_id:
         parent = Folder.query.get(parent_id)
-        if parent and parent.is_personal_root and files_view == 'ablage':
+        if parent and (
+            (parent.is_personal_root and files_view == 'ablage')
+            or (getattr(parent, 'is_team_root', False) and files_view == 'team')
+        ):
             return redirect(url_for('files.index', **view_kwargs))
         return redirect(url_for('files.browse_folder', folder_id=parent_id, **view_kwargs))
     return redirect(url_for('files.index', **view_kwargs))
@@ -2276,35 +2472,35 @@ def _user_can_delete_file(file_obj):
         return True
     if file_obj.uploaded_by == current_user.id:
         return True
-    if is_private_folders_enabled():
-        return can_edit_file(file_obj, current_user)
-    return False
+    return can_edit_file(file_obj, current_user)
 
 
 def _user_can_delete_folder(folder):
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         return False
-    if getattr(folder, 'is_personal_root', False):
+    if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         return False
     if getattr(current_user, 'is_admin', False):
         return True
     if folder.created_by == current_user.id:
         return True
-    if is_private_folders_enabled():
-        return can_edit_folder(folder, current_user)
-    return False
+    return can_edit_folder(folder, current_user)
 
 
 def _user_can_view_file_item(file_obj):
-    if not is_private_folders_enabled():
-        return True
-    return can_view_file(file_obj, current_user) or file_obj.uploaded_by == current_user.id or current_user.is_admin
+    return (
+        can_view_file(file_obj, current_user)
+        or file_obj.uploaded_by == current_user.id
+        or current_user.is_admin
+    )
 
 
 def _user_can_view_folder_item(folder):
-    if not is_private_folders_enabled():
-        return True
-    return can_view_folder(folder, current_user) or folder.created_by == current_user.id or current_user.is_admin
+    return (
+        can_view_folder(folder, current_user)
+        or folder.created_by == current_user.id
+        or current_user.is_admin
+    )
 
 
 def _collect_folder_files_for_zip(folder, prefix, out_entries, skipped, limit=2000):
@@ -2359,7 +2555,7 @@ def api_bulk_delete():
             if not _user_can_delete_file(file_obj):
                 skipped.append(file_obj.original_name or file_obj.name)
                 continue
-            if purge or file_obj.deleted_at is not None or not is_private_folders_enabled():
+            if purge or file_obj.deleted_at is not None or not is_files_spaces_enabled():
                 hard_delete_file_disk_and_db(file_obj, os)
             else:
                 soft_delete_file(file_obj, current_user.id)
@@ -2372,7 +2568,7 @@ def api_bulk_delete():
             if not _user_can_delete_folder(folder):
                 skipped.append(folder.name)
                 continue
-            if purge or folder.deleted_at is not None or not is_private_folders_enabled():
+            if purge or folder.deleted_at is not None or not is_files_spaces_enabled():
                 hard_delete_folder_recursive(folder, os)
             else:
                 soft_delete_folder(folder, current_user.id)
@@ -2539,7 +2735,9 @@ def api_download_zip():
 @login_required
 @check_module_access('module_files')
 def resource_acl_api(resource_type, resource_id):
-    """Manage internal user/all ACL shares."""
+    """Manage internal user/team/all ACL shares."""
+    from app.models.team import Team
+
     if resource_type not in ('file', 'folder'):
         return jsonify({'success': False, 'error': 'Ungültiger Typ.'}), 400
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
@@ -2547,32 +2745,49 @@ def resource_acl_api(resource_type, resource_id):
 
     if resource_type == 'file':
         resource = File.query.get_or_404(resource_id)
-        is_owner = resource.uploaded_by == current_user.id
         if resource.deleted_at is not None:
             return jsonify({'success': False, 'error': 'Gelöschte Datei.'}), 400
         resource_space = getattr(resource, 'space', None) or 'public'
+        own_team_id = getattr(resource, 'team_id', None)
     else:
         resource = Folder.query.get_or_404(resource_id)
-        is_owner = resource.created_by == current_user.id
         if resource.deleted_at is not None or resource.is_personal_root:
             return jsonify({'success': False, 'error': 'Ungültiger Ordner.'}), 400
         resource_space = getattr(resource, 'space', None) or 'public'
+        own_team_id = getattr(resource, 'team_id', None)
+
+    can_share = can_manage_acl(resource, resource_type, current_user)
+    acl_allowed = resource_space != 'public'
 
     if request.method == 'GET':
         rows = list_acl_for_resource(resource_type, resource_id)
-        return jsonify({
-            'success': True,
-            'entries': [serialize_acl_row(r) for r in rows],
-            'is_owner': is_owner,
-            'acl_allowed': resource_space != 'public',
-            'users': [
+        teams_payload = []
+        users_payload = []
+        if can_share and acl_allowed:
+            users_payload = [
                 {'id': u.id, 'full_name': u.full_name, 'username': u.full_name}
                 for u in User.query.filter(
                     User.is_active.is_(True),
                     User.is_guest.is_(False),
                     User.id != current_user.id,
                 ).order_by(User.first_name, User.last_name).limit(200).all()
-            ] if is_owner and resource_space != 'public' else [],
+            ]
+            if is_team_folders_enabled():
+                for t in Team.query.order_by(Team.name).all():
+                    if own_team_id and t.id == own_team_id:
+                        continue
+                    teams_payload.append({
+                        'id': t.id,
+                        'name': t.name,
+                        'color': t.color,
+                    })
+        return jsonify({
+            'success': True,
+            'entries': [serialize_acl_row(r) for r in rows],
+            'is_owner': can_share,
+            'acl_allowed': acl_allowed,
+            'users': users_payload,
+            'teams': teams_payload,
         })
 
     if resource_space == 'public':
@@ -2581,11 +2796,19 @@ def resource_acl_api(resource_type, resource_id):
             'error': 'Public-Dateien können nicht intern freigegeben werden (sind bereits für alle sichtbar).',
         }), 400
 
-    if not is_owner and not current_user.is_admin:
-        return jsonify({'success': False, 'error': 'Nur Eigentümer können freigeben.'}), 403
+    if not can_share:
+        return jsonify({'success': False, 'error': 'Nur Eigentümer oder Teammitglieder können freigeben.'}), 403
 
     if request.method == 'DELETE':
         payload = request.get_json(silent=True) or {}
+        if payload.get('grantee_team_id') not in (None, '', 'null'):
+            try:
+                team_grantee = int(payload.get('grantee_team_id'))
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'Ungültiges Team.'}), 400
+            remove_acl(resource_type, resource_id, None, grantee_team_id=team_grantee)
+            db.session.commit()
+            return jsonify({'success': True})
         grantee = payload.get('grantee_user_id', '__missing__')
         if grantee == '__missing__':
             return jsonify({'success': False, 'error': 'grantee_user_id fehlt.'}), 400
@@ -2599,6 +2822,26 @@ def resource_acl_api(resource_type, resource_id):
     permission = payload.get('permission') or 'view'
     if share_all:
         upsert_acl(resource_type, resource_id, None, permission, current_user.id)
+    elif payload.get('grantee_team_id'):
+        try:
+            team_grantee = int(payload.get('grantee_team_id'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Ungültiges Team.'}), 400
+        if own_team_id and team_grantee == own_team_id:
+            return jsonify({
+                'success': False,
+                'error': 'Dieses Team hat die Ablage bereits.',
+            }), 400
+        if not Team.query.get(team_grantee):
+            return jsonify({'success': False, 'error': 'Team nicht gefunden.'}), 404
+        upsert_acl(
+            resource_type,
+            resource_id,
+            None,
+            permission,
+            current_user.id,
+            grantee_team_id=team_grantee,
+        )
     else:
         grantee_user_id = payload.get('grantee_user_id')
         if not grantee_user_id:
@@ -4224,6 +4467,9 @@ def edit_onlyoffice(file_id):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
+    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+        flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        return redirect(url_for('files.index'))
     
     # Check if file type is supported by ONLYOFFICE
     from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token
@@ -4238,11 +4484,9 @@ def edit_onlyoffice(file_id):
     file_type = get_onlyoffice_file_type(file_ext)
     
     # Generate unique document key for versioning
-    # IMPORTANT: For co-editing to work, all users opening the same file version must have the same key
-    # The key should only change when a new version is saved (version_number increases)
-    import hashlib
-    key_string = f"{file.id}_{file.version_number}"
-    document_key = hashlib.md5(key_string.encode()).hexdigest()
+    from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
+    file_path = resolve_storage_path(file.file_path)
+    document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
     # Generate access token for OnlyOffice to access the document
     from app.utils.onlyoffice import generate_onlyoffice_access_token
@@ -4378,6 +4622,7 @@ def edit_onlyoffice(file_id):
         theme_dark=theme_dark,
         theme_oled=theme_oled,
         onlyoffice_ui_theme=onlyoffice_ui_theme,
+        forcesave_url=url_for('files.onlyoffice_forcesave', file_id=file.id),
     )
 
 
@@ -4436,11 +4681,9 @@ def share_edit_onlyoffice(token):
     file_type = get_onlyoffice_file_type(file_ext)
     
     # Generate unique document key for versioning
-    # IMPORTANT: For co-editing to work, all users opening the same file version must have the same key
-    # The key should only change when a new version is saved (version_number increases)
-    import hashlib
-    key_string = f"{file.id}_{file.version_number}"
-    document_key = hashlib.md5(key_string.encode()).hexdigest()
+    from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
+    file_path = resolve_storage_path(file.file_path)
+    document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
     # Build document URL with token and file_id (guest_name ist in Session)
     # Share endpoints don't need additional token as they use share_token
@@ -4546,6 +4789,7 @@ def share_edit_onlyoffice(token):
         theme_dark=False,
         theme_oled=False,
         onlyoffice_ui_theme='theme-classic-light',
+        forcesave_url=url_for('files.share_onlyoffice_forcesave', token=token, file_id=file.id),
     )
 
 
@@ -4802,6 +5046,59 @@ def share_onlyoffice_document(token, file_id):
     return response
 
 
+def _onlyoffice_forcesave_response(document_key):
+    """Ask the Document Server to persist the current editor state (status 6)."""
+    from app.utils.onlyoffice import send_onlyoffice_command
+
+    if not current_app.config.get('ONLYOFFICE_ENABLED', False):
+        return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
+
+    key = (document_key or '').strip()
+    if not key or len(key) > 128:
+        return jsonify({'success': False, 'error': 'invalid_key'}), 400
+
+    ok, error_code, detail = send_onlyoffice_command('forcesave', key)
+    logging.info(
+        'ONLYOFFICE forcesave key=%s ok=%s error_code=%s detail=%s',
+        key, ok, error_code, detail,
+    )
+    return jsonify({'success': ok, 'error_code': error_code, 'detail': detail})
+
+
+@files_bp.route('/api/onlyoffice-forcesave/<int:file_id>', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def onlyoffice_forcesave(file_id):
+    """Force-save an open OnlyOffice document for a logged-in user."""
+    file = File.query.get_or_404(file_id)
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    return _onlyoffice_forcesave_response(payload.get('key'))
+
+
+@files_bp.route('/share/<token>/api/onlyoffice-forcesave/<int:file_id>', methods=['POST'])
+def share_onlyoffice_forcesave(token, file_id):
+    """Force-save an open OnlyOffice document for a share guest."""
+    item, guest_name, _share = _check_share_access(token)
+    if not item or not guest_name:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    if isinstance(item, Folder):
+        file = _resolve_shared_file(item, file_id)
+        if not file:
+            return jsonify({'success': False, 'error': 'File not found in share'}), 404
+    else:
+        if item.id != file_id:
+            return jsonify({'success': False, 'error': 'File ID mismatch'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    return _onlyoffice_forcesave_response(payload.get('key'))
+
+
 @files_bp.route('/api/onlyoffice-save/<int:file_id>', methods=['POST'])
 @login_required
 def onlyoffice_save(file_id):
@@ -5012,6 +5309,96 @@ def _download_onlyoffice_saved_content(saved_file_url):
         return None
 
 
+def _onlyoffice_save_callback_file(file, saved_content, increment_version=True):
+    """Persist document bytes received from an OnlyOffice callback."""
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}_{file.original_name}"
+    filepath = os.path.join('uploads', 'files', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    with open(filepath, 'wb') as f:
+        f.write(saved_content)
+
+    absolute_filepath = os.path.abspath(filepath)
+
+    if increment_version:
+        version = FileVersion(
+            file_id=file.id,
+            version_number=file.version_number,
+            file_path=os.path.abspath(file.file_path),
+            file_size=file.file_size,
+            uploaded_by=file.uploaded_by
+        )
+        db.session.add(version)
+
+        versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+            FileVersion.version_number.desc()
+        ).all()
+        if len(versions) >= MAX_FILE_VERSIONS:
+            oldest = versions[-1]
+            if os.path.exists(oldest.file_path):
+                os.remove(oldest.file_path)
+            db.session.delete(oldest)
+
+        file.file_path = absolute_filepath
+        file.file_size = os.path.getsize(absolute_filepath)
+        file.version_number += 1
+        file.updated_at = datetime.utcnow()
+        db.session.commit()
+        logging.info(
+            "ONLYOFFICE: File %s saved (new version %s)",
+            file.id,
+            file.version_number,
+        )
+    else:
+        old_file_path = file.file_path
+        file.file_path = absolute_filepath
+        file.file_size = os.path.getsize(absolute_filepath)
+        file.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        if old_file_path != absolute_filepath and os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except Exception as e:
+                logging.warning("Could not delete old file %s: %s", old_file_path, e)
+
+        logging.info(
+            "ONLYOFFICE: File %s updated in place (version %s)",
+            file.id,
+            file.version_number,
+        )
+
+    try:
+        send_file_notification(file.id, 'modified')
+    except Exception as e:
+        logging.error("Fehler beim Senden der Datei-Benachrichtigung: %s", e)
+
+
+def _onlyoffice_handle_save_callback(file, payload):
+    """
+    Handle OnlyOffice callback statuses that include saved document content.
+
+    Status 2 = document ready for saving (user closed editor)
+    Status 6 = force save while editing
+    """
+    status = payload.get('status')
+    if status not in (2, 6):
+        return False
+
+    saved_file_url = payload.get('url')
+    if not saved_file_url:
+        logging.warning("ONLYOFFICE callback: status %s without download URL for file %s", status, file.id)
+        return False
+
+    saved_content = _download_onlyoffice_saved_content(saved_file_url)
+    if not saved_content:
+        return False
+
+    _onlyoffice_save_callback_file(file, saved_content, increment_version=True)
+    return True
+
+
 @files_bp.route('/onlyoffice-callback', methods=['POST', 'OPTIONS'])
 def onlyoffice_callback():
     """Handle callbacks from ONLYOFFICE Document Server."""
@@ -5030,77 +5417,14 @@ def onlyoffice_callback():
         key = data.get('key')
         logging.info(f"ONLYOFFICE callback received - status: {status}, key: {key}")
 
-        if status in [4, 6]:
+        if status in (2, 6):
             file_id = request.args.get('file_id')
             if file_id:
                 try:
                     file_id = int(file_id)
                     file = File.query.get(file_id)
                     if file:
-                        time_since_update = (datetime.utcnow() - file.updated_at).total_seconds() if file.updated_at else 999
-
-                        if status == 4 and time_since_update < 10:
-                            logging.info(f"ONLYOFFICE: Skipping auto-save for file {file_id} (recently updated, likely initial load)")
-                            return _onlyoffice_cors_response({'error': 0})[0]
-
-                        saved_file_url = data.get('url')
-                        if saved_file_url:
-                            saved_content = _download_onlyoffice_saved_content(saved_file_url)
-                            if saved_content:
-                                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                                filename = f"{timestamp}_{file.original_name}"
-                                filepath = os.path.join('uploads', 'files', filename)
-                                os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-                                with open(filepath, 'wb') as f:
-                                    f.write(saved_content)
-
-                                absolute_filepath = os.path.abspath(filepath)
-
-                                if status == 6:
-                                    version = FileVersion(
-                                        file_id=file.id,
-                                        version_number=file.version_number,
-                                        file_path=os.path.abspath(file.file_path),
-                                        file_size=file.file_size,
-                                        uploaded_by=file.uploaded_by
-                                    )
-                                    db.session.add(version)
-
-                                    versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-                                        FileVersion.version_number.desc()
-                                    ).all()
-                                    if len(versions) >= MAX_FILE_VERSIONS:
-                                        oldest = versions[-1]
-                                        if os.path.exists(oldest.file_path):
-                                            os.remove(oldest.file_path)
-                                        db.session.delete(oldest)
-
-                                    file.file_path = absolute_filepath
-                                    file.file_size = os.path.getsize(absolute_filepath)
-                                    file.version_number += 1
-                                    file.updated_at = datetime.utcnow()
-                                    db.session.commit()
-                                    logging.info(f"ONLYOFFICE: File {file_id} force saved (new version {file.version_number})")
-                                else:
-                                    old_file_path = file.file_path
-                                    file.file_path = absolute_filepath
-                                    file.file_size = os.path.getsize(absolute_filepath)
-                                    file.updated_at = datetime.utcnow()
-                                    db.session.commit()
-
-                                    if old_file_path != absolute_filepath and os.path.exists(old_file_path):
-                                        try:
-                                            os.remove(old_file_path)
-                                        except Exception as e:
-                                            logging.warning(f"Could not delete old file {old_file_path}: {e}")
-
-                                    logging.info(f"ONLYOFFICE: File {file_id} auto-saved (version {file.version_number} updated)")
-
-                                try:
-                                    send_file_notification(file.id, 'modified')
-                                except Exception as e:
-                                    logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+                        _onlyoffice_handle_save_callback(file, data)
                 except (ValueError, TypeError) as e:
                     logging.error(f"ONLYOFFICE callback: Invalid file_id: {e}")
                 except Exception as e:
@@ -5160,31 +5484,8 @@ def share_onlyoffice_callback(token):
         status = data.get('status')
         
         logging.info(f"ONLYOFFICE share callback received - status: {status}")
-        
-        # Status values:
-        # 0 - document is being edited
-        # 1 - document is ready for saving (informational, don't save yet)
-        # 2 - document saving error has occurred
-        # 3 - document is closed with no changes
-        # 4 - document is being edited, but the current document state is saved (auto-save) - SAVE THIS for collaborative editing
-        # 6 - document is being edited, but the current document state is saved (force save) - SAVE THIS
-        # 7 - error has occurred while force saving the document
-        
-        # IMPORTANT: Save on status 6 (force save) and status 4 (auto-save)
-        # Status 4 enables collaborative editing without manual saving
-        # Status 1 is informational and should NOT trigger a save (would cause version conflicts)
-        if status in [4, 6]:
-            # IMPORTANT: Prevent saving during initial load to avoid "Version wurde geändert" messages
-            # Check if file was recently opened (within last 10 seconds)
-            # This prevents callbacks during initial document load from causing version conflicts
-            time_since_update = (datetime.utcnow() - file.updated_at).total_seconds() if file.updated_at else 999
-            
-            # If file was updated very recently (less than 10 seconds ago), it might be from initial load
-            # Only skip auto-save (status 4), but always allow force save (status 6)
-            if status == 4 and time_since_update < 10:
-                logging.info(f"ONLYOFFICE: Skipping auto-save for shared file {file.id} (recently updated, likely initial load)")
-                return _onlyoffice_cors_response({'error': 0})[0]
-            
+
+        if status in (2, 6):
             saved_file_url = data.get('url')
             
             if saved_file_url:
@@ -5205,8 +5506,7 @@ def share_onlyoffice_callback(token):
                         )
                         db.session.add(anonymous_user)
                         db.session.flush()
-                    
-                    # Save new version
+
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     filename = f"{timestamp}_{file.original_name}"
                     filepath = os.path.join('uploads', 'files', filename)
@@ -5218,60 +5518,39 @@ def share_onlyoffice_callback(token):
                     
                     absolute_filepath = os.path.abspath(filepath)
                     
-                    # IMPORTANT: For collaborative editing, we need to be careful about version increments
-                    # Status 6 (force save) always increments version and creates version history
-                    # Status 4 (auto-save) should NOT increment version to avoid "Version wurde geändert" messages
+                    version = FileVersion(
+                        file_id=file.id,
+                        version_number=file.version_number,
+                        file_path=os.path.abspath(file.file_path),
+                        file_size=file.file_size,
+                        uploaded_by=file.uploaded_by
+                    )
+                    db.session.add(version)
                     
-                    if status == 6:
-                        # Force save: Create new version with history
-                        # Save current version to history
-                        version = FileVersion(
-                            file_id=file.id,
-                            version_number=file.version_number,
-                            file_path=os.path.abspath(file.file_path),
-                            file_size=file.file_size,
-                            uploaded_by=file.uploaded_by
-                        )
-                        db.session.add(version)
-                        
-                        # Delete oldest version if needed
-                        versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-                            FileVersion.version_number.desc()
-                        ).all()
-                        
-                        if len(versions) >= MAX_FILE_VERSIONS:
-                            oldest = versions[-1]
-                            if os.path.exists(oldest.file_path):
-                                os.remove(oldest.file_path)
-                            db.session.delete(oldest)
-                        
-                        file.file_path = absolute_filepath
-                        file.file_size = os.path.getsize(absolute_filepath)
-                        file.version_number += 1
-                        file.uploaded_by = anonymous_user.id
-                        file.updated_at = datetime.utcnow()
-                        
-                        db.session.commit()
-                        
-                        logging.info(f"ONLYOFFICE: Shared file {file.id} force saved (new version {file.version_number}) by guest {guest_name}")
-                    else:
-                        # Auto-save (status 4): Update file in place without version increment
-                        old_file_path = file.file_path
-                        file.file_path = absolute_filepath
-                        file.file_size = os.path.getsize(absolute_filepath)
-                        file.updated_at = datetime.utcnow()
-                        # Keep same version_number and uploaded_by for auto-save
-                        
-                        db.session.commit()
-                        
-                        # Delete old file if it's different (but keep versions)
-                        if old_file_path != absolute_filepath and os.path.exists(old_file_path):
-                            try:
-                                os.remove(old_file_path)
-                            except Exception as e:
-                                logging.warning(f"Could not delete old file {old_file_path}: {e}")
-                        
-                        logging.info(f"ONLYOFFICE: Shared file {file.id} auto-saved (version {file.version_number} updated) by guest {guest_name}")
+                    versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+                        FileVersion.version_number.desc()
+                    ).all()
+                    
+                    if len(versions) >= MAX_FILE_VERSIONS:
+                        oldest = versions[-1]
+                        if os.path.exists(oldest.file_path):
+                            os.remove(oldest.file_path)
+                        db.session.delete(oldest)
+                    
+                    file.file_path = absolute_filepath
+                    file.file_size = os.path.getsize(absolute_filepath)
+                    file.version_number += 1
+                    file.uploaded_by = anonymous_user.id
+                    file.updated_at = datetime.utcnow()
+                    
+                    db.session.commit()
+                    
+                    logging.info(
+                        "ONLYOFFICE: Shared file %s saved (version %s) by guest %s",
+                        file.id,
+                        file.version_number,
+                        guest_name,
+                    )
         
         return _onlyoffice_cors_response({'error': 0})[0]
         

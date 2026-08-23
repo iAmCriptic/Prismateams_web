@@ -13,6 +13,7 @@
      data-can-pin="{{ '1' if item.can_pin else '0' }}"
      data-pinned="{{ '1' if item.is_pinned else '0' }}"
      data-is-main="{{ '1' if chat.is_main_chat else '0' }}"
+     data-is-team="{{ '1' if chat.team_id else '0' }}"
      data-is-dm="{{ '1' if chat.is_direct_message else '0' }}"
      data-view-url="{{ view_url }}"
      data-context-zone
@@ -47,7 +48,7 @@
                     <span>{{ _('chat.view.mobile_members') }}</span>
                 </a>
             </li>
-            {% if not chat.is_main_chat and not chat.is_direct_message %}
+            {% if not chat.is_main_chat and not chat.is_direct_message and not chat.team_id %}
             <li><hr class="dropdown-divider"></li>
             <li>
                 <a class="dropdown-item" href="{{ settings_url }}#chat-name">
@@ -68,7 +69,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if not chat.is_main_chat %}
+            {% if not chat.is_main_chat and not chat.team_id %}
             <li><hr class="dropdown-divider"></li>
             <li>
                 <a class="dropdown-item text-danger chat-nav-action" href="#" data-chat-nav-action="delete" data-chat-id="{{ pin_chat_id }}">

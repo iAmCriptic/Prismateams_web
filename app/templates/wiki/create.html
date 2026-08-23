@@ -121,6 +121,15 @@
                 <input type="text" class="wiki-meta-input" id="tags" name="tags" placeholder="{{ _('wiki.create.form.tags.placeholder') }}">
             </span>
         </label>
+        <div class="wiki-meta-chip wiki-meta-chip--category">
+            <span class="wiki-meta-chip-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
+            <span class="wiki-meta-chip-body">
+                <span class="wiki-meta-chip-label">{{ _('visibility.form.label') }}</span>
+                <span class="wiki-meta-chip-value"></span>
+                {% from 'partials/visibility_select.html' import visibility_select with context %}
+                {{ visibility_select(show_label=false, select_class='wiki-meta-input wiki-meta-select', allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+            </span>
+        </div>
     </div>
 
     <div class="markdown-editor-content">

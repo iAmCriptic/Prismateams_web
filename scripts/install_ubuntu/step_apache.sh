@@ -64,6 +64,17 @@ ProxyRequests Off
     Header always set Access-Control-Allow-Credentials "true"
 </Location>
 
+# Excalidraw Room (OPTIONAL - nur wenn installiert)
+<Location /excalidraw-room>
+    ProxyPass ws://127.0.0.1:8082/
+    ProxyPassReverse http://127.0.0.1:8082/
+    ProxyPreserveHost On
+    RequestHeader set Host "\${HTTP_HOST}"
+    RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+    RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+    RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+</Location>
+
 # Statische Dateien (MUSS VOR / kommen!)
 Alias /static ${INSTALL_DIR}/app/static
 <Directory "${INSTALL_DIR}/app/static">

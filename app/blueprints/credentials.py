@@ -5,6 +5,16 @@ from app import db
 from app.models.credential import Credential, CredentialFolder, CredentialFavorite
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.module_visibility import (
+    accessible_query,
+    apply_section_filter,
+    apply_visibility_from_form,
+    can_edit_item,
+    can_view_item,
+    parse_section_args,
+    visibility_form_context,
+    visibility_nav_context,
+)
 from cryptography.fernet import Fernet
 import os
 import requests
@@ -116,29 +126,47 @@ def set_credential_favorite(user_id, credential_id, should_favorite):
     return bool(existing)
 
 
+def _credentials_denied():
+    flash(translate('visibility.flash.access_denied'), 'danger')
+    return redirect(url_for('credentials.index'))
+
+
+def _credentials_form_kwargs(item=None):
+    section, filter_team_id = parse_section_args('credentials', current_user)
+    pre_section = section if section in ('private', 'public', 'team') else None
+    return visibility_form_context(
+        'credentials',
+        current_user,
+        item=item,
+        preselect_section=pre_section,
+        preselect_team_id=filter_team_id,
+    )
+
+
 @credentials_bp.route('/')
 @login_required
 @check_module_access('module_credentials')
 def index():
-    """List credentials for root, folder, or personal favorites view."""
+    """List credentials for root, folder, space, or personal favorites view."""
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
-    view = (request.args.get('view') or '').strip().lower()
-    active_favorites = view == 'favorites'
+    section, filter_team_id = parse_section_args('credentials', current_user)
+    active_favorites = section == 'favorites'
+    space_view = section in ('private', 'team', 'public')
     search_query = request.args.get('q', '').strip()
-    active_folder_id = None if active_favorites else parse_folder_id(request.args.get('folder_id'))
+    active_folder_id = None if active_favorites or space_view else parse_folder_id(request.args.get('folder_id'))
     active_folder = CredentialFolder.query.get(active_folder_id) if active_folder_id else None
     favorite_ids = get_user_favorite_ids(current_user.id)
     show_favorites_nav = bool(favorite_ids)
 
-    credentials_query = Credential.query.order_by(Credential.website_name.asc())
+    credentials_query = accessible_query(current_user, Credential, 'credentials').order_by(Credential.website_name.asc())
     if active_favorites:
         if favorite_ids:
             credentials_query = credentials_query.filter(Credential.id.in_(favorite_ids))
         else:
-            # Kein Favorit mehr — zurück zum Root
             return redirect(url_for('credentials.index'))
+    elif space_view:
+        credentials_query = apply_section_filter(credentials_query, Credential, section, filter_team_id)
     elif not search_query:
-        # Ohne Suche: nur aktueller Ordner / Root. Mit Suche: alle Ordner durchsuchen.
         if active_folder_id is None:
             credentials_query = credentials_query.filter(Credential.folder_id.is_(None))
         else:
@@ -156,6 +184,7 @@ def index():
         )
 
     credentials = credentials_query.all()
+    nav = visibility_nav_context('credentials', current_user, section, filter_team_id)
 
     return render_template(
         'credentials/index.html',
@@ -167,6 +196,7 @@ def index():
         favorite_ids=favorite_ids,
         show_favorites_nav=show_favorites_nav,
         search_query=search_query,
+        **nav,
     )
 
 
@@ -192,6 +222,7 @@ def create():
                 folders=folders,
                 selected_folder_id=folder_id,
                 is_favorite=is_favorite,
+                **_credentials_form_kwargs(),
             )
 
         # Get favicon
@@ -208,6 +239,7 @@ def create():
             is_favorite=False,
             created_by=current_user.id
         )
+        apply_visibility_from_form(credential, 'credentials', current_user)
 
         # Encrypt and set password
         key = get_encryption_key()
@@ -229,6 +261,7 @@ def create():
         folders=folders,
         selected_folder_id=selected_folder_id,
         is_favorite=False,
+        **_credentials_form_kwargs(),
     )
 
 
@@ -238,6 +271,8 @@ def create():
 def edit(credential_id):
     """Edit a credential entry."""
     credential = Credential.query.get_or_404(credential_id)
+    if not can_edit_item(current_user, credential, 'credentials'):
+        return _credentials_denied()
     key = get_encryption_key()
     
     if request.method == 'POST':
@@ -247,6 +282,7 @@ def edit(credential_id):
         credential.notes = request.form.get('notes', '').strip()
         credential.folder_id = parse_folder_id(request.form.get('folder_id'))
         want_favorite = request.form.get('is_favorite') == 'on'
+        apply_visibility_from_form(credential, 'credentials', current_user)
         
         new_password = request.form.get('password', '').strip()
         if new_password:
@@ -276,6 +312,7 @@ def edit(credential_id):
         password=decrypted_password,
         folders=folders,
         is_favorite=is_favorite,
+        **_credentials_form_kwargs(credential),
     )
 
 
@@ -285,6 +322,8 @@ def edit(credential_id):
 def delete(credential_id):
     """Delete a credential entry."""
     credential = Credential.query.get_or_404(credential_id)
+    if not can_edit_item(current_user, credential, 'credentials'):
+        return _credentials_denied()
     website_name = credential.website_name
     folder_id = credential.folder_id
 
@@ -302,6 +341,8 @@ def delete(credential_id):
 def view_password(credential_id):
     """View decrypted password (AJAX endpoint)."""
     credential = Credential.query.get_or_404(credential_id)
+    if not can_view_item(current_user, credential, 'credentials'):
+        return jsonify({'error': translate('visibility.flash.access_denied')}), 403
     key = get_encryption_key()
     
     try:
@@ -419,6 +460,8 @@ def move_folder_down(folder_id):
 def move_credential(credential_id):
     """Move credential into folder or root."""
     credential = Credential.query.get_or_404(credential_id)
+    if not can_edit_item(current_user, credential, 'credentials'):
+        return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
     data = request.get_json(silent=True) or {}
     credential.folder_id = parse_folder_id(data.get('folder_id'))
     db.session.commit()
@@ -431,6 +474,8 @@ def move_credential(credential_id):
 def toggle_favorite(credential_id):
     """Toggle per-user credential favorite status."""
     credential = Credential.query.get_or_404(credential_id)
+    if not can_view_item(current_user, credential, 'credentials'):
+        return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
     existing = CredentialFavorite.query.filter_by(
         user_id=current_user.id,
         credential_id=credential.id

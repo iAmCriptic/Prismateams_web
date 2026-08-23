@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('excalidraw.index.page_title') }}{% endblock %}
+
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('excalidraw.index') }}" class="excalidraw-search" role="search">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search excalidraw-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           value="{{ search_query }}"
+           class="form-control excalidraw-search-input"
+           placeholder="{{ _('excalidraw.index.search.placeholder') }}"
+           aria-label="{{ _('excalidraw.index.search.placeholder') }}"
+           autocomplete="off"
+           spellcheck="false">
+</form>
+{% endblock %}
+
+{% block content %}
+{% from 'excalidraw/_sidebar.html' import excalidraw_sidebar_chrome with context %}
+{% set heading_label = heading_label|default(_('excalidraw.index.heading')) %}
+{% set create_view = section_filter if section_filter in ('private', 'team', 'public') else none %}
+
+{% macro excalidraw_view_toggle(suffix='') %}
+<div class="excalidraw-view-toggle" role="group" aria-label="{{ _('excalidraw.index.view_toggle.label') }}">
+    <button type="button" class="excalidraw-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="excalidraw-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro drawing_menu_items(drawing) %}
+<li><a class="dropdown-item" href="{{ url_for('excalidraw.edit', drawing_id=drawing.id) }}">
+    <i class="bi bi-pencil me-2"></i>{{ _('excalidraw.index.card.open') }}
+</a></li>
+<li><a class="dropdown-item" href="{{ url_for('excalidraw.download', drawing_id=drawing.id) }}">
+    <i class="bi bi-download me-2"></i>{{ _('excalidraw.index.card.download') }}
+</a></li>
+<li>
+    <button type="button" class="dropdown-item" data-excalidraw-rename="{{ drawing.id }}" data-excalidraw-name="{{ drawing.name }}">
+        <i class="bi bi-input-cursor-text me-2"></i>{{ _('excalidraw.index.card.rename') }}
+    </button>
+</li>
+<li><hr class="dropdown-divider"></li>
+<li>
+    <form method="POST" action="{{ url_for('excalidraw.delete', drawing_id=drawing.id) }}">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('excalidraw.index.card.delete_confirm') }}">
+            <i class="bi bi-trash me-2"></i>{{ _('excalidraw.index.card.delete') }}
+        </button>
+    </form>
+</li>
+{% endmacro %}
+
+{% macro render_drawing_card(drawing) %}
+<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="dropdown">
+    <div class="card h-100 excalidraw-card" onclick="location.href='{{ url_for('excalidraw.edit', drawing_id=drawing.id) }}'" style="cursor: pointer;">
+        <div class="excalidraw-card-preview">
+            {% if drawing.thumbnail_path %}
+            <img src="{{ url_for('excalidraw.thumbnail', drawing_id=drawing.id) }}" alt="">
+            {% else %}
+            <i class="bi bi-pencil-square excalidraw-card-preview-icon" aria-hidden="true"></i>
+            {% endif %}
+        </div>
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <h5 class="card-title text-truncate mb-1" title="{{ drawing.name }}">{{ drawing.name }}</h5>
+                <div class="dropdown" onclick="event.stopPropagation()">
+                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                        {{ drawing_menu_items(drawing) }}
+                    </ul>
+                </div>
+            </div>
+            <div class="text-muted small mt-auto">
+                <div class="text-truncate">{{ drawing.creator.full_name if drawing.creator else '—' }}</div>
+                <div>{{ drawing.updated_at | localtime('%d.%m.%Y %H:%M') if drawing.updated_at else '' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_drawing_row(drawing) %}
+<tr class="mod-list-row" data-context-zone data-context-menu="dropdown">
+    <td>
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('excalidraw.edit', drawing_id=drawing.id) }}">
+            <i class="bi bi-pencil-square flex-shrink-0"></i>
+            <span class="text-truncate">{{ drawing.name }}</span>
+        </a>
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        <span class="text-truncate d-inline-block mw-100">{{ drawing.creator.full_name if drawing.creator else '—' }}</span>
+    </td>
+    <td class="d-none d-xl-table-cell text-muted">
+        {{ drawing.updated_at | localtime('%d.%m.%Y %H:%M') if drawing.updated_at else '' }}
+    </td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                    {{ drawing_menu_items(drawing) }}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro empty_state() %}
+<div class="mod-empty-state">
+    <div>
+        <i class="bi bi-pencil-square display-6 d-block mb-2 opacity-50"></i>
+        {% if search_query %}
+        {{ _('excalidraw.index.empty.filtered') }}
+        {% else %}
+        {{ _('excalidraw.index.empty.default') }}
+        <div class="text-muted small mt-1">{{ _('excalidraw.index.empty.hint') }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="wiki-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+        <span>{{ _('excalidraw.index.heading') }}</span>
+    </div>
+    {{ excalidraw_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="excalidrawMobileNav" aria-labelledby="excalidrawMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="excalidrawMobileNavLabel">
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span>{{ _('excalidraw.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ excalidraw_sidebar_chrome('-mobile', true, false) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#excalidrawMobileNav" aria-controls="excalidrawMobileNav" aria-label="{{ _('excalidraw.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    <span>{{ heading_label }}</span>
+                </h1>
+            </div>
+            <button type="button" class="btn mod-new-btn btn-sm flex-shrink-0" data-excalidraw-new>
+                <i class="bi bi-plus-lg"></i> {{ _('excalidraw.index.new_button') }}
+            </button>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            {{ excalidraw_view_toggle('Mobile') }}
+        </div>
+    </div>
+
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col min-width-0">
+            <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ excalidraw_view_toggle('') }}
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" data-excalidraw-upload>
+                    <i class="bi bi-upload me-1"></i>{{ _('excalidraw.index.upload_button') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('excalidraw.create') }}" class="excalidraw-inline-create align-items-center gap-2 mb-3" id="excalidrawCreateForm">
+        {% if create_view %}<input type="hidden" name="view" value="{{ create_view }}">{% endif %}
+        {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+        <input type="text" name="name" class="form-control files-pill-input" placeholder="{{ _('excalidraw.create.name_placeholder') }}" required maxlength="255" autocomplete="off">
+        <button type="submit" class="btn btn-accent files-pill-btn">{{ _('excalidraw.create.submit') }}</button>
+        <button type="button" class="btn btn-outline-secondary files-pill-btn" data-excalidraw-create-cancel>{{ _('excalidraw.create.cancel') }}</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('excalidraw.upload') }}" enctype="multipart/form-data" class="d-none" id="excalidrawUploadForm">
+        {% if create_view %}<input type="hidden" name="view" value="{{ create_view }}">{% endif %}
+        {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+        <input type="file" name="file" id="excalidrawUploadInput" accept=".excalidraw,application/json">
+    </form>
+
+    <div id="gridViewContainer" style="display: none;">
+        {% if drawings %}
+        <div class="row g-3">
+            {% for drawing in drawings %}
+                {{ render_drawing_card(drawing) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        {{ empty_state() }}
+        {% endif %}
+    </div>
+
+    <div id="listViewContainer" style="display: none;">
+        {% if drawings %}
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('excalidraw.index.list.name') }}</th>
+                        <th scope="col" class="d-none d-lg-table-cell">{{ _('excalidraw.index.list.author') }}</th>
+                        <th scope="col" class="d-none d-xl-table-cell">{{ _('excalidraw.index.list.updated') }}</th>
+                        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drawing in drawings %}
+                        {{ render_drawing_row(drawing) }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {{ empty_state() }}
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const RENAME_URL = {{ url_for('excalidraw.rename', drawing_id=0)|tojson }}.replace(/0$/, '');
+    const NAME_REQUIRED = {{ _('excalidraw.create.alerts.name_required')|tojson }};
+
+    function setViewMode(mode) {
+        const grid = document.getElementById('gridViewContainer');
+        const list = document.getElementById('listViewContainer');
+        const listBtns = [document.getElementById('listViewBtn'), document.getElementById('listViewBtnMobile')].filter(Boolean);
+        const gridBtns = [document.getElementById('gridViewBtn'), document.getElementById('gridViewBtnMobile')].filter(Boolean);
+        const isList = mode === 'list';
+        if (grid) grid.style.display = isList ? 'none' : '';
+        if (list) list.style.display = isList ? '' : 'none';
+        listBtns.forEach((btn) => {
+            btn.classList.toggle('active', isList);
+            btn.classList.toggle('is-active', isList);
+        });
+        gridBtns.forEach((btn) => {
+            btn.classList.toggle('active', !isList);
+            btn.classList.toggle('is-active', !isList);
+        });
+        localStorage.setItem('excalidrawViewMode', isList ? 'list' : 'grid');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        setViewMode(localStorage.getItem('excalidrawViewMode') || 'grid');
+        ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => setViewMode('list'));
+        });
+        ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => setViewMode('grid'));
+        });
+
+        const createForm = document.getElementById('excalidrawCreateForm');
+        document.querySelectorAll('[data-excalidraw-new]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (!createForm) return;
+                createForm.classList.add('is-open');
+                const input = createForm.querySelector('input[name="name"]');
+                if (input) input.focus();
+            });
+        });
+        const cancelBtn = document.querySelector('[data-excalidraw-create-cancel]');
+        if (cancelBtn && createForm) {
+            cancelBtn.addEventListener('click', () => createForm.classList.remove('is-open'));
+        }
+
+        const uploadForm = document.getElementById('excalidrawUploadForm');
+        const uploadInput = document.getElementById('excalidrawUploadInput');
+        document.querySelectorAll('[data-excalidraw-upload]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (uploadInput) uploadInput.click();
+            });
+        });
+        if (uploadInput && uploadForm) {
+            uploadInput.addEventListener('change', () => {
+                if (uploadInput.files && uploadInput.files.length) uploadForm.submit();
+            });
+        }
+
+        document.querySelectorAll('[data-excalidraw-dismiss-offcanvas]').forEach((el) => {
+            el.addEventListener('click', () => {
+                const offcanvasEl = document.getElementById('excalidrawMobileNav');
+                if (offcanvasEl && window.bootstrap) {
+                    const instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                    if (instance) instance.hide();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-confirm-delete]').forEach((btn) => {
+            btn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                const message = btn.getAttribute('data-confirm-delete');
+                const form = btn.closest('form');
+                const ok = typeof window.ptConfirm === 'function'
+                    ? await window.ptConfirm(message, { danger: true })
+                    : window.confirm(message);
+                if (ok && form) form.submit();
+            });
+        });
+
+        document.querySelectorAll('[data-excalidraw-rename]').forEach((btn) => {
+            btn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.getAttribute('data-excalidraw-rename');
+                const current = btn.getAttribute('data-excalidraw-name') || '';
+                const next = window.prompt(NAME_REQUIRED, current);
+                if (!next || !next.trim() || next.trim() === current) return;
+                const response = await fetch(RENAME_URL + id, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: next.trim() }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (data.success) {
+                    window.location.reload();
+                }
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -33,17 +33,122 @@ def is_onlyoffice_enabled():
     return current_app.config.get('ONLYOFFICE_ENABLED', False)
 
 
+def get_file_mtime(file_path):
+    """Return integer mtime for a file path, or 0 if unavailable."""
+    if not file_path:
+        return 0
+    try:
+        if os.path.isfile(file_path):
+            return int(os.path.getmtime(file_path))
+    except OSError:
+        pass
+    return 0
+
+
+def build_onlyoffice_document_key(prefix, resource_id, version_token, file_path):
+    """
+    Build a stable OnlyOffice document key for the current file revision.
+
+    The key stays the same while co-editing one revision (same version_token + mtime)
+    and changes after a successful save updates the file on disk.
+    """
+    mtime = get_file_mtime(file_path)
+    raw = f"{prefix}_{resource_id}_{version_token}_{mtime}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def resolve_storage_path(file_path):
+    """Resolve a stored relative path to an absolute filesystem path."""
+    if not file_path:
+        return None
+    if os.path.isabs(file_path):
+        return file_path
+    return os.path.join(os.getcwd(), file_path)
+
+
+def get_onlyoffice_internal_base_urls():
+    """Return Document Server base URLs the app server can reach."""
+    candidates = []
+    seen = set()
+
+    def add(url):
+        if not url:
+            return
+        normalized = url.rstrip('/')
+        key = normalized.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        candidates.append(normalized)
+
+    add('http://127.0.0.1:8080')
+    add('http://localhost:8080')
+    configured = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
+    if configured.startswith('http://') or configured.startswith('https://'):
+        add(configured)
+    return candidates
+
+
+def send_onlyoffice_command(command, document_key, userdata=None):
+    """
+    Send a command to the OnlyOffice Command Service.
+
+    Returns (ok, error_code, detail). error_code 0 = success, 4 = no changes.
+    """
+    if not command or not document_key:
+        return False, None, 'missing_params'
+    if not REQUESTS_AVAILABLE:
+        return False, None, 'requests_missing'
+
+    payload = {'c': command, 'key': document_key}
+    if userdata:
+        payload['userdata'] = str(userdata)
+
+    headers = {'Content-Type': 'application/json'}
+    body = dict(payload)
+    secret_key = (current_app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+    if secret_key and JWT_AVAILABLE:
+        try:
+            token = jwt.encode(payload, secret_key, algorithm='HS256')
+            if isinstance(token, bytes):
+                token = token.decode('utf-8')
+            body['token'] = token
+            headers['Authorization'] = f'Bearer {token}'
+        except Exception as exc:
+            current_app.logger.warning('OnlyOffice command JWT failed: %s', exc)
+
+    last_error = 'unreachable'
+    for base in get_onlyoffice_internal_base_urls():
+        url = f"{base}/coauthoring/CommandService.ashx"
+        try:
+            response = requests.post(url, json=body, headers=headers, timeout=8)
+            if not response.ok:
+                last_error = f'http_{response.status_code}'
+                continue
+            data = response.json() if response.content else {}
+            error_code = data.get('error', 0)
+            # 0 = ok, 4 = no changes applied
+            if error_code in (0, 4):
+                return True, error_code, 'ok'
+            last_error = f'error_{error_code}'
+            current_app.logger.warning(
+                'OnlyOffice command %s for key %s returned %s',
+                command, document_key, last_error,
+            )
+        except Exception:
+            current_app.logger.debug(
+                'OnlyOffice command %s failed for %s', command, url, exc_info=True
+            )
+            last_error = 'request_failed'
+    return False, None, last_error
+
+
 def get_onlyoffice_version():
     """Return Document Server version string, or None if unreachable."""
     if not is_onlyoffice_enabled() or not REQUESTS_AVAILABLE:
         return None
 
-    candidates = ['http://127.0.0.1:8080']
-    configured = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
-    if configured.startswith('http://') or configured.startswith('https://'):
-        candidates.append(configured.rstrip('/'))
-
-    for base in candidates:
+    for base in get_onlyoffice_internal_base_urls():
         version = _fetch_onlyoffice_version_from_base(base)
         if version:
             return version

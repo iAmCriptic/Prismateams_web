@@ -85,6 +85,14 @@
             </div>
         </div>
     </div>
+
+    <nav class="auth-legal-links" aria-label="{{ _('auth.legal.nav_label') }}">
+        <a href="{{ url_for('auth.terms') }}">{{ _('auth.legal.terms') }}</a>
+        <span class="auth-legal-sep" aria-hidden="true">·</span>
+        <a href="{{ url_for('auth.privacy') }}">{{ _('auth.legal.privacy') }}</a>
+        <span class="auth-legal-sep" aria-hidden="true">·</span>
+        <a href="{{ url_for('auth.imprint') }}">{{ _('auth.legal.imprint') }}</a>
+    </nav>
 </div>
 
 {% include 'auth/_auth_bg.html' %}

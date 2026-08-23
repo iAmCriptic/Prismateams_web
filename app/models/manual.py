@@ -28,6 +28,8 @@ class Manual(db.Model):
     file_path = db.Column(db.String(500), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('manual_folders.id'), nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
 
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

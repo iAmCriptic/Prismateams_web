@@ -213,6 +213,8 @@ def get_accessible_modules(user):
             'module_chat', 'module_files', 'module_calendar', 'module_events',
             'module_manuals', 'module_inventory', 'module_wiki', 'module_music',
             'module_media_downloader', 'module_assessment', 'module_shortlinks',
+            'module_kanban',
+            'module_excalidraw',
         ]
     else:
         from app.utils.common import AVAILABLE_MODULES

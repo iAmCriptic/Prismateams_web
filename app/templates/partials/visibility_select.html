@@ -1,0 +1,29 @@
+{# Visibility select for create/edit forms.
+   Pass allowed/teams/selected explicitly — imported macros have no caller context. #}
+{% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select') %}
+{% set vis_allowed = allowed if allowed is sequence else allowed_visibilities|default([]) %}
+{% set vis_teams = teams if teams is sequence else visibility_teams|default([]) %}
+{% set vis_selected = selected if selected else selected_visibility|default('') %}
+{% if vis_allowed %}
+{% if show_label %}
+<div class="{{ extra_class }}">
+    <label class="form-label" for="{{ field_id }}">{{ _('visibility.form.label') }}</label>
+{% endif %}
+    <select class="{{ select_class }}" id="{{ field_id }}" name="visibility">
+        {% if 'private' in vis_allowed %}
+        <option value="private" {% if vis_selected == 'private' %}selected{% endif %}>{{ _('visibility.form.private') }}</option>
+        {% endif %}
+        {% if 'team' in vis_allowed %}
+        {% for t in vis_teams %}
+        <option value="team:{{ t.id }}" {% if vis_selected == 'team:' ~ t.id %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+        {% endif %}
+        {% if 'public' in vis_allowed %}
+        <option value="public" {% if vis_selected == 'public' %}selected{% endif %}>{{ _('visibility.form.public') }}</option>
+        {% endif %}
+    </select>
+{% if show_label %}
+</div>
+{% endif %}
+{% endif %}
+{% endmacro %}

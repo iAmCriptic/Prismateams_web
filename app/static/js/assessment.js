@@ -160,6 +160,15 @@
         };
     }
 
+    function notify(message, category, options) {
+        const opts = Object.assign({ timeout: 6500 }, options || {});
+        if (typeof global.showAppBanner === 'function') {
+            return global.showAppBanner(String(message || ''), category || 'info', opts);
+        }
+        window.alert(String(message || ''));
+        return null;
+    }
+
     async function doubleConfirm(message1, message2, options) {
         const opts = options || {};
         const confirmFn = global.ptConfirm;
@@ -196,6 +205,7 @@
         initViewToggle,
         initBulkSelect,
         doubleConfirm,
+        notify,
         init,
     };
 })(window);

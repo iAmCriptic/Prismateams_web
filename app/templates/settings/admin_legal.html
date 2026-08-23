@@ -1,0 +1,73 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.admin.legal.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.legal.title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-system">
+    <div class="settings-admin-system-header">
+        <h1 class="settings-admin-system-title">{{ _('settings.admin.legal.heading') }}</h1>
+        <p class="settings-admin-system-subtitle">{{ _('settings.admin.legal.subtitle') }}</p>
+    </div>
+
+    <form method="POST" class="settings-admin-system-form">
+        <section class="settings-admin-system-card mb-3" aria-labelledby="legal-terms-title">
+            <div class="settings-admin-system-card-head">
+                <h2 id="legal-terms-title" class="settings-admin-system-section-title mb-0">
+                    {{ _('settings.admin.legal.terms_heading') }}
+                </h2>
+                <a href="{{ url_for('auth.terms') }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    {{ _('settings.admin.legal.preview') }}
+                </a>
+            </div>
+            <p class="form-text mb-3">{{ _('settings.admin.legal.terms_help') }}</p>
+            <div class="settings-admin-system-field mb-0">
+                <label for="terms_text" class="form-label">{{ _('settings.admin.legal.terms_label') }}</label>
+                <textarea class="form-control settings-admin-system-input" id="terms_text" name="terms_text" rows="16" spellcheck="true">{{ terms_text }}</textarea>
+            </div>
+        </section>
+
+        <section class="settings-admin-system-card mb-3" aria-labelledby="legal-privacy-title">
+            <div class="settings-admin-system-card-head">
+                <h2 id="legal-privacy-title" class="settings-admin-system-section-title mb-0">
+                    {{ _('settings.admin.legal.privacy_heading') }}
+                </h2>
+                <a href="{{ url_for('auth.privacy') }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    {{ _('settings.admin.legal.preview') }}
+                </a>
+            </div>
+            <p class="form-text mb-3">{{ _('settings.admin.legal.privacy_help') }}</p>
+            <div class="settings-admin-system-field mb-0">
+                <label for="privacy_text" class="form-label">{{ _('settings.admin.legal.privacy_label') }}</label>
+                <textarea class="form-control settings-admin-system-input" id="privacy_text" name="privacy_text" rows="16" spellcheck="true">{{ privacy_text }}</textarea>
+            </div>
+        </section>
+
+        <section class="settings-admin-system-card mb-3" aria-labelledby="legal-imprint-title">
+            <div class="settings-admin-system-card-head">
+                <h2 id="legal-imprint-title" class="settings-admin-system-section-title mb-0">
+                    {{ _('settings.admin.legal.imprint_heading') }}
+                </h2>
+                <a href="{{ url_for('auth.imprint') }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    {{ _('settings.admin.legal.preview') }}
+                </a>
+            </div>
+            <p class="form-text mb-3">{{ _('settings.admin.legal.imprint_help') }}</p>
+            <div class="settings-admin-system-field mb-0">
+                <label for="imprint_text" class="form-label">{{ _('settings.admin.legal.imprint_label') }}</label>
+                <textarea class="form-control settings-admin-system-input" id="imprint_text" name="imprint_text" rows="16" spellcheck="true">{{ imprint_text }}</textarea>
+            </div>
+        </section>
+
+        <div class="settings-admin-system-actions">
+            <button type="submit" class="btn btn-accent">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                {{ _('settings.admin.legal.save') }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

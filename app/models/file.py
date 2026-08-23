@@ -26,6 +26,8 @@ class Folder(db.Model):
 
     space = db.Column(db.String(16), nullable=False, default='public')
     is_personal_root = db.Column(db.Boolean, default=False, nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
+    is_team_root = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
@@ -73,6 +75,7 @@ class File(db.Model):
     share_mode = db.Column(db.String(16), nullable=False, default='edit')
 
     space = db.Column(db.String(16), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -123,13 +126,14 @@ class FileStorageException(db.Model):
 
 
 class ResourceACL(db.Model):
-    """Internal user/all sharing (separate from public link shares)."""
+    """Internal user/team/all sharing (separate from public link shares)."""
     __tablename__ = 'resource_acl'
 
     id = db.Column(db.Integer, primary_key=True)
     resource_type = db.Column(db.String(16), nullable=False)  # file | folder
     resource_id = db.Column(db.Integer, nullable=False)
-    grantee_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # NULL = everyone
+    grantee_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    grantee_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     permission = db.Column(db.String(16), nullable=False, default='view')  # view | edit
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -137,8 +141,15 @@ class ResourceACL(db.Model):
     grantee = db.relationship('User', foreign_keys=[grantee_user_id])
     creator = db.relationship('User', foreign_keys=[created_by])
 
+    @property
+    def share_all(self):
+        return self.grantee_user_id is None and self.grantee_team_id is None
+
     def __repr__(self):
-        return f'<ResourceACL {self.resource_type}:{self.resource_id} -> {self.grantee_user_id}>'
+        return (
+            f'<ResourceACL {self.resource_type}:{self.resource_id} '
+            f'-> user={self.grantee_user_id} team={self.grantee_team_id}>'
+        )
 
 
 class FolderFavorite(db.Model):

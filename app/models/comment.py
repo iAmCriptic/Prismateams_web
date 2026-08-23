@@ -9,7 +9,7 @@ class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Polymorphe Verknüpfung: content_type und content_id
-    content_type = db.Column(db.String(50), nullable=False)  # 'file', 'wiki', 'canvas'
+    content_type = db.Column(db.String(50), nullable=False)  # 'file', 'wiki', 'kanban_card', 'canvas'
     content_id = db.Column(db.Integer, nullable=False)
     
     # Kommentar-Inhalt
@@ -44,6 +44,9 @@ class Comment(db.Model):
         elif self.content_type == 'wiki':
             from app.models.wiki import WikiPage
             return WikiPage.query.get(self.content_id)
+        elif self.content_type == 'kanban_card':
+            from app.models.kanban import KanbanCard
+            return KanbanCard.query.get(self.content_id)
         return None
     
     def get_content_url(self):
@@ -55,6 +58,11 @@ class Comment(db.Model):
             if page:
                 return f"/wiki/view/{page.slug}"
             return "/wiki"
+        elif self.content_type == 'kanban_card':
+            card = self.get_content_object()
+            if card and card.list:
+                return f"/kanban/board/{card.list.board_id}?card={card.id}"
+            return "/kanban"
         return "/"
     
     def soft_delete(self):

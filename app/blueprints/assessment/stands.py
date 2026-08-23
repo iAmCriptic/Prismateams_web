@@ -4,6 +4,8 @@ from app import db
 from app.models.assessment import AssessmentRoom, AssessmentStand, AssessmentStandType
 from app.utils.assessment_auth import assessment_role_required, get_assessment_identity
 
+from .helpers import get_or_create_default_stand_type
+
 stands_bp = Blueprint("stands", __name__)
 
 
@@ -72,12 +74,11 @@ def api_stands(stand_id=None):
             return jsonify({"success": False, "message": "Standname ist erforderlich."}), 400
         stand_type_id = data.get("stand_type_id")
         if not stand_type_id:
-            default_type = AssessmentStandType.query.order_by(AssessmentStandType.id.asc()).first()
-            stand_type_id = default_type.id if default_type else None
+            stand_type_id = get_or_create_default_stand_type().id
         stand = AssessmentStand(
             name=name,
             description=(data.get("description") or "").strip() or None,
-            room_id=data.get("room_id"),
+            room_id=data.get("room_id") or None,
             stand_type_id=stand_type_id,
         )
         db.session.add(stand)
@@ -91,9 +92,9 @@ def api_stands(stand_id=None):
     if request.method == "PUT":
         stand.name = (data.get("name") or stand.name).strip()
         stand.description = (data.get("description") or "").strip() or None
-        stand.room_id = data.get("room_id")
+        stand.room_id = data.get("room_id") or None
         if "stand_type_id" in data:
-            stand.stand_type_id = data.get("stand_type_id")
+            stand.stand_type_id = data.get("stand_type_id") or get_or_create_default_stand_type().id
         db.session.commit()
         return jsonify({"success": True, "message": "Stand aktualisiert."})
 

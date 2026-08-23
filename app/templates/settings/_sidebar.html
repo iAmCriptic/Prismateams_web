@@ -56,6 +56,7 @@
     'settings.delete_whitelist_entry'
 ] %}
 {% set system_active = ep == 'settings.admin_system' %}
+{% set legal_active = ep == 'settings.admin_legal' %}
 {% set modules_active = ep == 'settings.admin_modules' %}
 {% set integrations_active = ep == 'settings.admin_integrations' %}
 {% set push_active = ep == 'settings.admin_push_subscriptions' %}
@@ -64,8 +65,11 @@
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
+{% set kanban_active = ep == 'settings.admin_kanban_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
+{% set visibility_active = ep == 'settings.admin_module_visibility' %}
+{% set visibility_module = request.view_args.module if visibility_active and request.view_args else '' %}
 
 <nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
     <a href="{{ url_for('settings.index') }}" class="nav-link mod-nav-link{% if start_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
@@ -129,6 +133,9 @@
     <a href="{{ url_for('settings.admin_system') }}" class="nav-link mod-nav-link{% if system_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-gear me-2"></i>{{ _('settings.admin.cards.system_settings.title') }}
     </a>
+    <a href="{{ url_for('settings.admin_legal') }}" class="nav-link mod-nav-link{% if legal_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-file-earmark-text me-2"></i>{{ _('settings.admin.cards.legal.title') }}
+    </a>
     <a href="{{ url_for('settings.admin_modules') }}" class="nav-link mod-nav-link{% if modules_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-grid-3x3-gap me-2"></i>{{ _('settings.admin.cards.modules.title') }}
     </a>
@@ -166,6 +173,41 @@
     {% if is_module_enabled('module_inventory') %}
     <a href="{{ url_for('settings.admin_inventory_settings') }}" class="nav-link mod-nav-link{% if inventory_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-seam me-2"></i>{{ _('settings.sidebar.inventory') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_kanban') %}
+    <a href="{{ url_for('settings.admin_kanban_settings') }}" class="nav-link mod-nav-link{% if kanban_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-kanban me-2"></i>{{ _('settings.sidebar.kanban') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_credentials') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='credentials') }}" class="nav-link mod-nav-link{% if visibility_module == 'credentials' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-key me-2"></i>{{ _('layout.nav.credentials') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_manuals') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='manuals') }}" class="nav-link mod-nav-link{% if visibility_module == 'manuals' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-book me-2"></i>{{ _('layout.nav.manuals') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_contacts') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='contacts') }}" class="nav-link mod-nav-link{% if visibility_module == 'contacts' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-person-lines-fill me-2"></i>{{ _('layout.nav.contacts') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_wiki') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='wiki') }}" class="nav-link mod-nav-link{% if visibility_module == 'wiki' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-journal-text me-2"></i>{{ _('layout.nav.wiki') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_shortlinks') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='shortlinks') }}" class="nav-link mod-nav-link{% if visibility_module == 'shortlinks' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-link-45deg me-2"></i>{{ _('layout.nav.shortlinks') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_excalidraw') %}
+    <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}" class="nav-link mod-nav-link{% if visibility_module == 'excalidraw' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-pencil-square me-2"></i>{{ _('layout.nav.excalidraw') }}
     </a>
     {% endif %}
     {% if is_module_enabled('module_calendar') %}
