@@ -1,38 +1,43 @@
 (function initAccountPopup() {
     const root = document.getElementById('accountMenu');
-    const toggle = document.getElementById('accountMenuBtn');
-    if (!root || !toggle) return;
+    const toggles = Array.from(document.querySelectorAll('[data-account-toggle]'));
+    if (!root || !toggles.length) return;
 
     const closeBtn = root.querySelector('[data-account-close]');
+    let lastFocus = null;
 
     function closeLauncher() {
         const launcher = document.getElementById('moduleLauncher');
-        const launcherBtn = document.getElementById('moduleLauncherBtn');
         if (launcher) launcher.classList.remove('is-open', 'is-editing');
-        if (launcherBtn) {
-            launcherBtn.classList.remove('is-open');
-            launcherBtn.setAttribute('aria-expanded', 'false');
-        }
+        document.querySelectorAll('[data-launcher-toggle]').forEach((btn) => {
+            btn.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        });
     }
 
     function setOpen(open) {
         root.classList.toggle('is-open', open);
-        toggle.classList.toggle('is-open', open);
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggles.forEach((toggle) => {
+            toggle.classList.toggle('is-open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
         if (open) closeLauncher();
     }
 
-    toggle.addEventListener('click', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        setOpen(!root.classList.contains('is-open'));
+    toggles.forEach((toggle) => {
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            lastFocus = toggle;
+            setOpen(!root.classList.contains('is-open'));
+        });
     });
 
     if (closeBtn) {
         closeBtn.addEventListener('click', function (event) {
             event.preventDefault();
             setOpen(false);
-            toggle.focus();
+            if (lastFocus) lastFocus.focus();
         });
     }
 
@@ -45,7 +50,7 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && root.classList.contains('is-open')) {
             setOpen(false);
-            toggle.focus();
+            if (lastFocus) lastFocus.focus();
         }
     });
 })();

@@ -1,7 +1,7 @@
 (function initModuleLauncher() {
     const root = document.getElementById('moduleLauncher');
-    const toggle = document.getElementById('moduleLauncherBtn');
-    if (!root || !toggle) return;
+    const toggles = Array.from(document.querySelectorAll('[data-launcher-toggle]'));
+    if (!root || !toggles.length) return;
 
     const panel = root.querySelector('.module-launcher-panel');
     const editBtn = root.querySelector('[data-launcher-edit-open]');
@@ -28,14 +28,18 @@
     function closeAccountMenu() {
         const menu = document.getElementById('accountMenu');
         if (menu) menu.classList.remove('is-open');
-        const btn = document.getElementById('accountMenuBtn');
-        if (btn) btn.setAttribute('aria-expanded', 'false');
+        document.querySelectorAll('[data-account-toggle]').forEach((btn) => {
+            btn.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        });
     }
 
     function setOpen(open) {
         root.classList.toggle('is-open', open);
-        toggle.classList.toggle('is-open', open);
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggles.forEach((toggle) => {
+            toggle.classList.toggle('is-open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
         if (open) {
             closeAccountMenu();
         } else {
@@ -177,6 +181,28 @@
         if (wrap) wrap.classList.toggle('is-empty', keys.length === 0);
     }
 
+    function syncMobileFavorites(keys) {
+        const mobileFavorites = document.getElementById('mobileNavFavorites');
+        if (!mobileFavorites) return;
+        const byKey = catalogByKey();
+        const activeKeys = keys.length ? keys : Object.keys(byKey);
+        const limited = activeKeys.slice(0, 5);
+
+        mobileFavorites.innerHTML = '';
+        limited.forEach((key) => {
+            const src = byKey[key];
+            if (!src) return;
+            const link = document.createElement('a');
+            link.className = 'mobile-nav-favorite-link' + (key === currentKey ? ' active' : '');
+            link.href = src.getAttribute('data-nav-url') || src.getAttribute('href') || '#';
+            link.setAttribute('data-nav-id', key);
+            link.setAttribute('aria-label', src.getAttribute('data-nav-label') || key);
+            const iconName = src.getAttribute('data-nav-icon') || 'bi-app';
+            link.innerHTML = '<i class="bi ' + iconName + '" aria-hidden="true"></i>';
+            mobileFavorites.appendChild(link);
+        });
+    }
+
     function applyFavoritesToView(keys) {
         const byKey = catalogByKey();
 
@@ -202,6 +228,7 @@
         });
 
         syncFavoritesRail(keys);
+        syncMobileFavorites(keys);
     }
 
     async function saveFavorites() {
@@ -224,11 +251,13 @@
         }
     }
 
-    toggle.addEventListener('click', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        lastFocus = toggle;
-        setOpen(!isOpen());
+    toggles.forEach((toggle) => {
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            lastFocus = toggle;
+            setOpen(!isOpen());
+        });
     });
 
     if (editBtn) {
@@ -264,7 +293,8 @@
 
     document.addEventListener('click', function (event) {
         if (!isOpen() || dragging) return;
-        if (root.contains(event.target) || toggle.contains(event.target)) return;
+        if (root.contains(event.target)) return;
+        if (toggles.some((toggle) => toggle.contains(event.target))) return;
         if (railAdd && (event.target === railAdd || railAdd.contains(event.target))) return;
         setOpen(false);
     });

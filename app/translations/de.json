@@ -602,7 +602,11 @@
       "email": {
         "title": "E-Mails",
         "unread_badge": "Neu",
-        "empty": "Keine E-Mails"
+        "empty": "Keine E-Mails",
+        "open": "Öffnen",
+        "reply": "Antworten",
+        "main_mailbox": "Hauptpostfach",
+        "all_mailboxes": "Alle Postfächer"
       },
       "files": {
         "title": "Letzte Dateien",
@@ -636,7 +640,7 @@
       },
       "passwords": {
         "title": "Passwörter",
-        "empty": "Keine favorisierten Passwörter",
+        "empty": "Keine Passwörter ausgewählt",
         "reveal": "Benutzername und Passwort anzeigen",
         "copy_username": "Benutzername kopieren",
         "copy_password": "Passwort kopieren",
@@ -653,7 +657,38 @@
         "empty": "Keine Kontakte",
         "call": "Anrufen",
         "mail": "E-Mail"
+      },
+      "kanban_changes": {
+        "title": "Kanban-Änderungen",
+        "empty": "Keine aktuellen Änderungen"
       }
+    },
+    "module_bar": {
+      "aria": "Module",
+      "empty": "Keine Module verfügbar"
+    },
+    "action_bar": {
+      "placeholder": "Platzhalter für kommenden Button"
+    },
+    "live": {
+      "arrange": "Anordnen",
+      "add_widget": "Widget hinzufügen",
+      "settings": "Widget-Einstellungen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "mailbox_label": "Postfach",
+      "credentials_label": "Passwörter auswählen",
+      "credentials_hint": "Keine Auswahl = Favoriten.",
+      "boards_label": "Boards",
+      "boards_hint": "Keine Auswahl = alle Boards mit Zugriff.",
+      "calendars_hint": "Keine Auswahl = alle zugänglichen Kalender.",
+      "no_options": "Keine Einträge verfügbar.",
+      "no_settings": "Für dieses Widget gibt es keine weiteren Einstellungen.",
+      "all_added": "Alle verfügbaren Widgets sind bereits hinzugefügt.",
+      "save_error": "Speichern fehlgeschlagen."
+    },
+    "guest": {
+      "use_modules": "Nutzen Sie die Modul-Leiste oben, um zu Ihren freigegebenen Bereichen zu gelangen."
     },
     "quick_access": {
       "title": "Schnellzugriff",
@@ -677,7 +712,7 @@
           },
           "emails": {
             "label": "E-Mails",
-            "description": "Zeigt die letzten E-Mails."
+            "description": "Zeigt die letzten E-Mails eines Postfachs."
           },
           "dateien": {
             "label": "Letzte Dateien",
@@ -685,7 +720,7 @@
           },
           "passwoerter": {
             "label": "Passwörter",
-            "description": "Zeigt bis zu zwei favorisierte Passwörter."
+            "description": "Zeigt ausgewählte Passwörter (oder Favoriten)."
           },
           "canvas": {
             "label": "Canvas",
@@ -710,6 +745,10 @@
           "kontakte": {
             "label": "Kontakte",
             "description": "Zeigt ausgewählte Kontakte mit Schnellaktionen."
+          },
+          "kanban_aenderungen": {
+            "label": "Kanban-Änderungen",
+            "description": "Zeigt aktuelle Aktualisierungen von Kanban-Boards mit Zugriff."
           }
         },
         "add": "Widget hinzufügen",
@@ -3170,6 +3209,8 @@
         "open": "Öffnen",
         "download": "Herunterladen",
         "rename": "Umbenennen",
+        "visibility": "Sichtbarkeit",
+        "share": "Freigeben",
         "delete": "Löschen",
         "delete_confirm": "Diese Zeichnung wirklich löschen?",
         "created_by": "Von {name}",
@@ -3181,8 +3222,7 @@
         "hint": "Erstellen Sie Ihre erste Zeichnung."
       },
       "nav": {
-        "menu": "Menü",
-        "all": "Alle"
+        "menu": "Menü"
       }
     },
     "create": {
@@ -3206,6 +3246,34 @@
       "collab_off": "Lokale Bearbeitung — Kollaborationsserver nicht erreichbar",
       "readonly": "Nur Ansicht"
     },
+    "visibility": {
+      "title": "Sichtbarkeit ändern"
+    },
+    "share": {
+      "title": "Freigeben",
+      "wrong_password": "Falsches Passwort.",
+      "password_prompt": "Passwort eingeben",
+      "submit": "Öffnen",
+      "unavailable": "Freigabe nicht verfügbar",
+      "mode": "Berechtigung",
+      "mode_view": "Nur ansehen",
+      "mode_edit": "Bearbeiten",
+      "password": "Passwort",
+      "password_optional": "Passwort (optional)",
+      "create": "Link erstellen",
+      "empty": "Noch keine Freigabelinks.",
+      "col_created_by": "Angelegt von",
+      "col_link": "Link",
+      "col_password": "Passwort",
+      "col_mode": "Modus",
+      "col_actions": "Optionen",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "no_password": "—",
+      "delete_confirm": "Freigabelink löschen?",
+      "load_error": "Freigaben konnten nicht geladen werden.",
+      "guest_name": "Gast"
+    },
     "save": {
       "invalid": "Die Zeichnung konnte nicht gespeichert werden.",
       "too_large": "Die Zeichnung ist zu groß zum Speichern."
@@ -3217,7 +3285,8 @@
       "created": "Zeichnung \"{name}\" wurde erstellt.",
       "uploaded": "Zeichnung \"{name}\" wurde hochgeladen.",
       "renamed": "Zeichnung umbenannt in \"{name}\".",
-      "deleted": "Zeichnung \"{name}\" wurde gelöscht."
+      "deleted": "Zeichnung \"{name}\" wurde gelöscht.",
+      "visibility_updated": "Sichtbarkeit von \"{name}\" wurde aktualisiert."
     }
   },
   "canvas": {
@@ -3415,9 +3484,23 @@
         "heading2": "Überschrift 2",
         "heading3": "Überschrift 3",
         "link": "Link",
-        "code": "Code",
+        "image": "Bild",
+        "code": "Inline-Code",
+        "code_block": "Code-Block",
         "list": "Liste",
-        "wikilink": "Wiki-Link"
+        "ordered_list": "Nummerierte Liste",
+        "blockquote": "Zitat",
+        "wikilink": "Wiki-Link",
+        "superscript": "Hochgestellt",
+        "subscript": "Tiefgestellt",
+        "footnote": "Fußnote",
+        "table": "Tabelle",
+        "hr": "Horizontale Linie",
+        "math_inline": "LaTeX (inline)",
+        "math_block": "LaTeX (Block)",
+        "mermaid": "Mermaid-Diagramm",
+        "more_tools": "Weitere Formatierungen",
+        "sheet_title": "Formatierungen"
       },
       "editor": {
         "placeholder": "Beginnen Sie mit dem Schreiben...",
@@ -3436,7 +3519,11 @@
         "link_text": "Link-Text",
         "code": "Code",
         "list_item": "Listenpunkt",
-        "page_name": "Seitenname"
+        "page_name": "Seitenname",
+        "quote": "Zitat",
+        "alt_text": "Alt-Text",
+        "math": "Formel",
+        "mermaid": "graph TD\n    A --> B"
       }
     },
     "edit": {
@@ -3462,7 +3549,11 @@
         "link_text": "Link-Text",
         "code": "Code",
         "list_item": "Listenpunkt",
-        "page_name": "Seitenname"
+        "page_name": "Seitenname",
+        "quote": "Zitat",
+        "alt_text": "Alt-Text",
+        "math": "Formel",
+        "mermaid": "graph TD\n    A --> B"
       }
     },
     "view": {
@@ -5260,7 +5351,11 @@
       "subtitle": "Liste wählen, Ziel bewerten, Speichern.",
       "target": "Bewertungsziel",
       "stand": "Stand",
-      "stand_description": "Standbeschreibung anzeigen"
+      "stand_description": "Standbeschreibung anzeigen",
+      "criterion_description": "Kriterienbeschreibung anzeigen",
+      "existing_hint": "Bereits bewertet ({points} Punkte). Du kannst die Werte anpassen.",
+      "update": "Aktualisieren",
+      "evaluated_tag": "bewertet"
     },
     "my_evaluations": {
       "page_title": "Meine Bewertungen",
@@ -5318,14 +5413,30 @@
     "reset": {
       "page_title": "Daten zurücksetzen - Bewertung",
       "heading": "Daten zurücksetzen",
-      "subtitle": "Bewertungen, Verwarnungen oder Inspektionen gezielt leeren",
+      "subtitle": "Ergebnisse oder Stammdaten des Bewertungstools gezielt leeren",
       "global": "— Global —",
+      "results_heading": "Ergebnisse",
+      "results_note": "Bewertungen gelten für die oben gewählte Liste. Verwarnungen und Rauminspektionen werden immer vollständig geleert.",
+      "master_heading": "Stammdaten",
+      "master_note": "Diese Aktionen gelten immer für das gesamte Bewertungstool. Portal-Konten bleiben unberührt.",
       "btn_ranking": "Bewertungen zurücksetzen",
       "btn_warnings": "Alle Verwarnungen zurücksetzen",
       "btn_inspections": "Alle Rauminspektionen zurücksetzen",
+      "btn_accounts": "Accounts",
+      "btn_stands": "Stände",
+      "btn_criteria_lists": "Kriterien & Bewertungsgruppen",
+      "btn_rooms": "Räume",
+      "hint_accounts": "Löscht alle Benutzerkonten des Bewertungstools. Portal-Konten bleiben erhalten. Dein aktuelles Bewertungs-Konto wird behalten, falls du darüber angemeldet bist.",
+      "hint_stands": "Löscht alle Stände inklusive zugehöriger Bewertungen und Verwarnungen.",
+      "hint_criteria_lists": "Löscht alle Bewertungslisten, Bewertungsziele und Kriterien inklusive zugehöriger Bewertungen.",
+      "hint_rooms": "Löscht alle Räume und Rauminspektionen. Stände bleiben erhalten, die Raumzuordnung wird entfernt.",
       "confirm_ranking": "Alle Bewertungen dieser Liste wirklich löschen?",
       "confirm_warnings": "Alle Verwarnungen wirklich löschen?",
       "confirm_inspections": "Alle Rauminspektionen wirklich löschen?",
+      "confirm_accounts": "Alle Bewertungs-Accounts wirklich löschen? Portal-Konten bleiben unberührt.",
+      "confirm_stands": "Alle Stände wirklich löschen? Zugehörige Bewertungen und Verwarnungen werden mitgelöscht.",
+      "confirm_criteria_lists": "Alle Bewertungslisten und Kriterien wirklich löschen? Zugehörige Bewertungen werden mitgelöscht.",
+      "confirm_rooms": "Alle Räume wirklich löschen? Rauminspektionen werden mitgelöscht, Stände bleiben erhalten.",
       "confirm_final": "Wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "confirm_ok": "Ja, fortfahren",
       "confirm_ok2": "Ja, endgültig löschen",
@@ -5610,7 +5721,20 @@
       "save": "Speichern",
       "empty": "Noch keine Felder. Lege oben welche an.",
       "select_ph": "Auswählen …",
-      "delete_confirm": "Dieses Feld und alle Werte auf Karten löschen?"
+      "delete_confirm": "Dieses Feld und alle Werte auf Karten löschen?",
+      "categories": "Kategorien",
+      "category": "Kategorie",
+      "category_ph": "Kategoriename",
+      "add_category": "Kategorie hinzufügen",
+      "uncategorized": "Ohne Kategorie",
+      "insert": "Felder einfügen",
+      "create_local": "Feld für diese Karte",
+      "card_empty": "Noch keine Felder auf dieser Karte.",
+      "already": "Bereits eingefügt",
+      "local": "Nur diese Karte",
+      "remove_confirm": "Feld von Karte entfernen?",
+      "no_categories": "Noch keine Kategorien.",
+      "delete_category": "Kategorie löschen?"
     },
     "card": {
       "description": "Beschreibung",
@@ -5639,6 +5763,9 @@
       "attach_file": "Datei",
       "attach_link": "Link",
       "link_title": "Titel (optional)",
+      "links": "Links",
+      "files": "Dateien",
+      "added_suffix": "hinzugefügt",
       "activity": "Aktivität"
     },
     "filter": {

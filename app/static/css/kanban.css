@@ -853,48 +853,161 @@ body:has(.kanban-board-page) {
   align-items: center;
   gap: 0.5rem;
   margin: 0.35rem 0;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
 }
-
-.kanban-attach-row {
+.kanban-checklist-item__body {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.55rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
 }
-.kanban-attach-row__info {
+.kanban-checklist-item__text {
+  font-weight: 500;
+}
+.kanban-checklist-item__meta {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  min-width: 0;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.kanban-checklist-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+.kanban-checklist-item__actions .kanban-pill-btn--icon {
+  padding: 0.2rem 0.4rem;
+}
+
+.kanban-attach-section {
+  margin-bottom: 1rem;
+}
+.kanban-attach-section__title {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-bottom: 0.4rem;
+}
+.kanban-attach-section__list {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.65rem;
+  overflow: hidden;
+}
+.kanban-attach-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.kanban-attach-row:last-child {
+  border-bottom: 0;
+}
+.kanban-attach-row.is-cover {
+  background: rgba(20, 184, 166, 0.08);
+}
+.kanban-attach-row__info {
   flex: 1;
+  min-width: 0;
 }
 .kanban-attach-row__name {
+  display: block;
+  font-weight: 600;
+  color: #6ea8fe;
+  text-decoration: underline;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.kanban-attach-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.15rem;
+}
+.kanban-attach-cover-mark {
+  color: var(--accent-color, #14b8a6);
+  font-weight: 600;
+}
 .kanban-attach-row__actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
-  margin-left: auto;
+  align-items: center;
+  gap: 0.2rem;
   flex-shrink: 0;
-}
-.kanban-attach-row__actions .btn {
-  width: 100%;
-  justify-content: flex-end;
-  white-space: nowrap;
 }
 .kanban-attach-thumb {
-  width: 48px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   object-fit: cover;
-  border-radius: 0.4rem;
-  background: #333;
+  border-radius: 0.35rem;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+.kanban-attach-thumb--icon,
+.kanban-attach-thumb--badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.kanban-attach-thumb--icon {
+  font-size: 1.1rem;
+}
+
+.kanban-cf-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.kanban-cf-cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+.kanban-cf-insert-cat {
+  margin-bottom: 1rem;
+}
+.kanban-cf-insert-cat__title {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-bottom: 0.4rem;
+}
+.kanban-cf-insert-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.kanban-cf-insert-row span {
+  flex: 1;
+}
+.kanban-custom-field__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.kanban-custom-field__row > :first-child {
+  flex: 1;
+}
+.kanban-cf-local-badge {
+  font-size: 0.65rem;
+  opacity: 0.65;
+  margin-left: 0.35rem;
+  font-weight: 400;
 }
 
 .kanban-custom-fields-grid {

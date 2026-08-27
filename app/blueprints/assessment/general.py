@@ -3,11 +3,17 @@ from flask_login import current_user
 
 from app import db
 from app.models.assessment import (
+    AssessmentCriterion,
     AssessmentEvaluation,
     AssessmentEvaluationScore,
     AssessmentList,
+    AssessmentListSubject,
+    AssessmentRoom,
     AssessmentRoomInspection,
     AssessmentStand,
+    AssessmentUser,
+    AssessmentUserList,
+    AssessmentUserRole,
     AssessmentVisitorEvaluation,
     AssessmentVisitorEvaluationScore,
     AssessmentWarning,
@@ -102,6 +108,45 @@ def manage_list_page():
     return render_template("assessment/manage_list.html", evaluation_lists=lists)
 
 
+def _wipe_evaluations(*, list_id=None, stand_ids=None):
+    eval_query = AssessmentEvaluation.query
+    visitor_query = AssessmentVisitorEvaluation.query
+    if list_id is not None:
+        eval_query = eval_query.filter_by(list_id=list_id)
+        visitor_query = visitor_query.filter_by(list_id=list_id)
+    if stand_ids is not None:
+        if not stand_ids:
+            return
+        eval_query = eval_query.filter(AssessmentEvaluation.stand_id.in_(stand_ids))
+        visitor_query = visitor_query.filter(AssessmentVisitorEvaluation.stand_id.in_(stand_ids))
+    eval_ids = [item.id for item in eval_query.all()]
+    visitor_ids = [item.id for item in visitor_query.all()]
+    if eval_ids:
+        AssessmentEvaluationScore.query.filter(
+            AssessmentEvaluationScore.evaluation_id.in_(eval_ids)
+        ).delete(synchronize_session=False)
+        AssessmentEvaluation.query.filter(AssessmentEvaluation.id.in_(eval_ids)).delete(
+            synchronize_session=False
+        )
+    if visitor_ids:
+        AssessmentVisitorEvaluationScore.query.filter(
+            AssessmentVisitorEvaluationScore.visitor_evaluation_id.in_(visitor_ids)
+        ).delete(synchronize_session=False)
+        AssessmentVisitorEvaluation.query.filter(
+            AssessmentVisitorEvaluation.id.in_(visitor_ids)
+        ).delete(synchronize_session=False)
+
+
+GLOBAL_RESET_ACTIONS = {
+    "reset_warnings",
+    "reset_room_inspections",
+    "reset_accounts",
+    "reset_stands",
+    "reset_criteria_lists",
+    "reset_rooms",
+}
+
+
 @general_bp.route("/api/reset_data", methods=["POST"])
 @assessment_role_required(["Administrator"])
 def api_reset_data():
@@ -111,6 +156,9 @@ def api_reset_data():
     if not action:
         return jsonify({"success": False, "message": "Aktion nicht angegeben."}), 400
 
+    if action in GLOBAL_RESET_ACTIONS:
+        list_id = None
+
     list_filter = {}
     if list_id:
         evaluation_list = AssessmentList.query.get(list_id)
@@ -119,30 +167,47 @@ def api_reset_data():
         list_filter = {"list_id": list_id}
 
     if action == "reset_ranking":
-        eval_query = AssessmentEvaluation.query
-        visitor_query = AssessmentVisitorEvaluation.query
-        if list_filter:
-            eval_query = eval_query.filter_by(**list_filter)
-            visitor_query = visitor_query.filter_by(**list_filter)
-        eval_ids = [e.id for e in eval_query.all()]
-        visitor_ids = [v.id for v in visitor_query.all()]
-        if eval_ids:
-            AssessmentEvaluationScore.query.filter(
-                AssessmentEvaluationScore.evaluation_id.in_(eval_ids)
-            ).delete(synchronize_session=False)
-        if visitor_ids:
-            AssessmentVisitorEvaluationScore.query.filter(
-                AssessmentVisitorEvaluationScore.visitor_evaluation_id.in_(visitor_ids)
-            ).delete(synchronize_session=False)
-        eval_query.delete(synchronize_session=False)
-        visitor_query.delete(synchronize_session=False)
+        _wipe_evaluations(list_id=list_id if list_filter else None)
     elif action == "reset_room_inspections":
-        if list_filter:
-            return jsonify({"success": False, "message": "Rauminspektionen sind nicht listenbezogen."}), 400
-        AssessmentRoomInspection.query.delete()
+        AssessmentRoomInspection.query.delete(synchronize_session=False)
     elif action == "reset_warnings":
-        # Verwarnungen sind listenunabhängig — immer alle löschen
         AssessmentWarning.query.delete(synchronize_session=False)
+    elif action == "reset_accounts":
+        actor = current_actor()
+        keep_id = actor["user_id"] if actor.get("user_type") == "ass" and actor.get("user_id") else None
+        query = AssessmentUser.query
+        if keep_id is not None:
+            query = query.filter(AssessmentUser.id != keep_id)
+        user_ids = [user.id for user in query.all()]
+        if user_ids:
+            AssessmentUserRole.query.filter(AssessmentUserRole.user_id.in_(user_ids)).delete(
+                synchronize_session=False
+            )
+            AssessmentUserList.query.filter(AssessmentUserList.user_id.in_(user_ids)).delete(
+                synchronize_session=False
+            )
+            AssessmentUser.query.filter(AssessmentUser.id.in_(user_ids)).delete(synchronize_session=False)
+    elif action == "reset_stands":
+        stand_ids = [stand.id for stand in AssessmentStand.query.all()]
+        _wipe_evaluations(stand_ids=stand_ids)
+        if stand_ids:
+            AssessmentWarning.query.filter(AssessmentWarning.stand_id.in_(stand_ids)).delete(
+                synchronize_session=False
+            )
+        AssessmentStand.query.delete(synchronize_session=False)
+    elif action == "reset_criteria_lists":
+        _wipe_evaluations()
+        AssessmentUserList.query.delete(synchronize_session=False)
+        AssessmentEvaluationScore.query.delete(synchronize_session=False)
+        AssessmentVisitorEvaluationScore.query.delete(synchronize_session=False)
+        AssessmentCriterion.query.delete(synchronize_session=False)
+        AssessmentWarning.query.update({AssessmentWarning.list_id: None, AssessmentWarning.subject_id: None}, synchronize_session=False)
+        AssessmentListSubject.query.delete(synchronize_session=False)
+        AssessmentList.query.delete(synchronize_session=False)
+    elif action == "reset_rooms":
+        AssessmentRoomInspection.query.delete(synchronize_session=False)
+        AssessmentStand.query.update({AssessmentStand.room_id: None}, synchronize_session=False)
+        AssessmentRoom.query.delete(synchronize_session=False)
     else:
         return jsonify({"success": False, "message": "Ungültige Aktion."}), 400
 

@@ -164,9 +164,9 @@
 }
 
 .module-launcher-panel {
-    position: absolute;
-    top: calc(100% + 0.4rem);
-    right: 0;
+    position: fixed;
+    top: calc(var(--top-navbar-height, 64px) + 0.45rem);
+    right: 1rem;
     width: 340px;
     max-height: min(72vh, 560px);
     overflow: auto;
@@ -379,9 +379,9 @@
 }
 
 .account-popup {
-    position: absolute;
-    top: calc(100% + 0.45rem);
-    right: 0;
+    position: fixed;
+    top: calc(var(--top-navbar-height, 64px) + 0.45rem);
+    right: 1rem;
     width: 360px;
     display: none;
     background: var(--bs-body-bg, #fff);
@@ -556,6 +556,29 @@
 
 [data-bs-theme="dark"] .module-launcher-icon {
     background: color-mix(in srgb, var(--nav-icon-color, #9aa0a6) 22%, transparent);
+}
+
+@media (max-width: 991.98px) {
+    .module-launcher-panel {
+        top: auto;
+        right: 0.65rem;
+        left: 0.65rem;
+        bottom: calc(var(--portal-mobile-nav-height, 64px) + env(safe-area-inset-bottom, 0px) + 0.55rem);
+        width: auto;
+        max-height: min(68vh, 620px);
+        border-radius: 1.1rem;
+    }
+
+    .account-popup {
+        top: auto;
+        right: 0.65rem;
+        left: 0.65rem;
+        bottom: calc(var(--portal-mobile-nav-height, 64px) + env(safe-area-inset-bottom, 0px) + 0.55rem);
+        width: auto;
+        max-height: min(68vh, 620px);
+        overflow: auto;
+        border-radius: 1.1rem;
+    }
 }
 
 .favorites-rail {

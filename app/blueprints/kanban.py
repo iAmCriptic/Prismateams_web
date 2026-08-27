@@ -7,6 +7,8 @@ import mimetypes
 import os
 import uuid
 from datetime import datetime
+from functools import wraps
+
 from flask import (
     Blueprint,
     current_app,
@@ -35,12 +37,14 @@ from app.models.kanban import (
     KanbanBoardView,
     KanbanCard,
     KanbanCardAssignee,
+    KanbanCardFieldEnabled,
     KanbanCardLabel,
     KanbanCardVote,
     KanbanCardFieldValue,
     KanbanChecklist,
     KanbanChecklistItem,
     KanbanCustomField,
+    KanbanCustomFieldCategory,
     KanbanLabel,
     KanbanList,
 )
@@ -82,6 +86,72 @@ BOARD_BACKGROUNDS = [
 ]
 
 CUSTOM_FIELD_TYPES = ('text', 'select', 'date', 'time', 'checkbox')
+
+
+def _share_token_from_request() -> str | None:
+    token = (request.headers.get('X-Share-Token') or request.args.get('share_token') or '').strip()
+    if not token:
+        token = (session.get('kanban_share_token') or '').strip()
+    return token or None
+
+
+def _get_valid_share_for_board(board_id: int) -> PublicShare | None:
+    token = _share_token_from_request()
+    if not token:
+        return None
+    share = get_share_by_token(token)
+    if not share or share.resource_type != 'kanban_board':
+        return None
+    try:
+        if int(share.resource_id) != int(board_id):
+            return None
+    except (TypeError, ValueError):
+        return None
+    if share_is_expired(share):
+        return None
+    if share.password_hash and not _share_guest_ok(token):
+        return None
+    return share
+
+
+def _actor_user_id(board: KanbanBoard | None = None) -> int | None:
+    if current_user.is_authenticated:
+        return current_user.id
+    if board and board.created_by:
+        return board.created_by
+    return None
+
+
+def _can_view_board_ctx(board: KanbanBoard) -> bool:
+    if current_user.is_authenticated:
+        if can_view_board(current_user, board):
+            return True
+        if board.closed_at and can_manage_board(current_user, board):
+            return True
+    return _get_valid_share_for_board(board.id) is not None
+
+
+def _can_edit_board_ctx(board: KanbanBoard) -> bool:
+    if current_user.is_authenticated and can_edit_board(current_user, board):
+        return True
+    share = _get_valid_share_for_board(board.id)
+    return bool(share and share.mode == 'edit')
+
+
+def _can_manage_board_ctx(board: KanbanBoard) -> bool:
+    return bool(current_user.is_authenticated and can_manage_board(current_user, board))
+
+
+def login_or_share_required(f):
+    """Allow authenticated users or a valid share token (checked later per-board)."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+        if _share_token_from_request():
+            return f(*args, **kwargs)
+        return jsonify({'error': 'Unauthorized'}), 401
+    return wrapped
 
 
 def _emit_board(board_id: int, event_type: str, data: dict):
@@ -146,12 +216,20 @@ def _attachment_url(att: KanbanAttachment) -> str:
     return url_for('kanban.download_attachment', attachment_id=att.id)
 
 
-def _serialize_attachment(att: KanbanAttachment) -> dict:
+def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None) -> dict:
     is_link = bool(att.url)
     mime = att.mime_type or ''
     name = att.original_filename or att.filename or (att.url or 'Link')
     ext = (os.path.splitext(name)[1] or '').lower().lstrip('.') if not is_link else ''
-    file_url = att.url if is_link else url_for('kanban.download_attachment', attachment_id=att.id)
+    if is_link:
+        file_url = att.url
+        preview_url = None
+    elif share_token:
+        file_url = url_for('kanban.share_download_attachment', token=share_token, attachment_id=att.id)
+        preview_url = url_for('kanban.share_preview_attachment', token=share_token, attachment_id=att.id)
+    else:
+        file_url = url_for('kanban.download_attachment', attachment_id=att.id)
+        preview_url = url_for('kanban.preview_attachment', attachment_id=att.id)
     return {
         'id': att.id,
         'filename': name,
@@ -159,15 +237,15 @@ def _serialize_attachment(att: KanbanAttachment) -> dict:
         'file_size': att.file_size,
         'url': file_url,
         'external_url': att.url,
-        'preview_url': None if is_link else url_for('kanban.preview_attachment', attachment_id=att.id),
+        'preview_url': preview_url,
         'is_link': is_link,
         'is_image': (not is_link) and (mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')),
         'is_pdf': (not is_link) and (mime == 'application/pdf' or ext == 'pdf'),
         'is_office': (not is_link) and (is_onlyoffice_file_type(ext) if ext else False),
-        'onlyoffice_enabled': is_onlyoffice_enabled(),
+        'onlyoffice_enabled': is_onlyoffice_enabled() and not share_token,
         'onlyoffice_url': (
             url_for('kanban.edit_onlyoffice', attachment_id=att.id)
-            if (not is_link) and is_onlyoffice_enabled() and ext and is_onlyoffice_file_type(ext)
+            if (not is_link) and not share_token and is_onlyoffice_enabled() and ext and is_onlyoffice_file_type(ext)
             else None
         ),
         'created_at': att.created_at.isoformat() if att.created_at else None,
@@ -184,14 +262,27 @@ def _checklist_progress(card: KanbanCard) -> dict:
     return {'done': done, 'total': total}
 
 
-def _serialize_card_summary(card: KanbanCard) -> dict:
+def _serialize_checklist_item(it: KanbanChecklistItem) -> dict:
+    return {
+        'id': it.id,
+        'text': it.text,
+        'done': it.done,
+        'position': it.position,
+        'due_date': it.due_date.isoformat() if it.due_date else None,
+        'assignee_id': it.assignee_id,
+        'assignee': _user_brief(it.assignee) if it.assignee_id else None,
+    }
+
+
+def _serialize_card_summary(card: KanbanCard, share_token: str | None = None) -> dict:
+    actor_id = _actor_user_id(card.list.board if card.list else None)
     cover = None
     if card.cover_attachment_id:
         att = next((a for a in card.attachments if a.id == card.cover_attachment_id), None)
         if not att:
             att = KanbanAttachment.query.get(card.cover_attachment_id)
         if att:
-            cover = _serialize_attachment(att)
+            cover = _serialize_attachment(att, share_token=share_token)
     comment_count = Comment.query.filter_by(
         content_type='kanban_card', content_id=card.id, is_deleted=False
     ).count()
@@ -206,6 +297,7 @@ def _serialize_card_summary(card: KanbanCard) -> dict:
         'archived': bool(card.archived_at),
         'completed': bool(card.completed_at),
         'cover': cover,
+        'cover_attachment_id': card.cover_attachment_id,
         'labels': [
             {'id': cl.label.id, 'name': cl.label.name, 'color': cl.label.color}
             for cl in card.card_labels if cl.label
@@ -215,7 +307,7 @@ def _serialize_card_summary(card: KanbanCard) -> dict:
         'attachment_count': len(card.attachments),
         'comment_count': comment_count,
         'vote_count': len(card.votes),
-        'voted_by_me': any(v.user_id == current_user.id for v in card.votes) if current_user.is_authenticated else False,
+        'voted_by_me': bool(actor_id and any(v.user_id == actor_id for v in card.votes)),
     }
 
 
@@ -250,6 +342,9 @@ def _serialize_custom_field(field: KanbanCustomField) -> dict:
             options = [ln.strip() for ln in field.options.splitlines() if ln.strip()]
     return {
         'id': field.id,
+        'board_id': field.board_id,
+        'card_id': field.card_id,
+        'category_id': field.category_id,
         'field_type': field.field_type,
         'label': field.label,
         'position': field.position,
@@ -258,30 +353,41 @@ def _serialize_custom_field(field: KanbanCustomField) -> dict:
     }
 
 
-def _serialize_card_detail(card: KanbanCard) -> dict:
-    data = _serialize_card_summary(card)
+def _serialize_card_detail(card: KanbanCard, share_token: str | None = None) -> dict:
+    token = share_token if share_token is not None else _share_token_from_request()
+    data = _serialize_card_summary(card, share_token=token)
     data.update({
         'checklists': [
             {
                 'id': cl.id,
                 'title': cl.title,
                 'position': cl.position,
-                'items': [
-                    {'id': it.id, 'text': it.text, 'done': it.done, 'position': it.position}
-                    for it in cl.items
-                ],
+                'items': [_serialize_checklist_item(it) for it in cl.items],
             }
             for cl in card.checklists
         ],
-        'attachments': [_serialize_attachment(a) for a in card.attachments],
+        'attachments': [_serialize_attachment(a, share_token=token) for a in card.attachments],
         'custom_field_values': {str(fv.field_id): fv.value for fv in card.field_values},
+        'custom_fields': [
+            _serialize_custom_field(f)
+            for f in (
+                [enabled.field for enabled in card.enabled_fields if enabled.field]
+                + list(card.local_fields)
+            )
+        ],
+        'enabled_field_ids': [e.field_id for e in card.enabled_fields],
+        'cover_attachment_id': card.cover_attachment_id,
         'board_id': card.list.board_id if card.list else None,
         'list_title': card.list.title if card.list else None,
     })
     return data
 
 
-def _serialize_list(lst: KanbanList, include_archived_cards: bool = False) -> dict:
+def _serialize_list(
+    lst: KanbanList,
+    include_archived_cards: bool = False,
+    share_token: str | None = None,
+) -> dict:
     cards = [c for c in lst.cards if include_archived_cards or not c.archived_at]
     return {
         'id': lst.id,
@@ -289,11 +395,16 @@ def _serialize_list(lst: KanbanList, include_archived_cards: bool = False) -> di
         'position': lst.position,
         'archived': bool(lst.archived_at),
         'card_count': len(cards),
-        'cards': [_serialize_card_summary(c) for c in cards],
+        'cards': [_serialize_card_summary(c, share_token=share_token) for c in cards],
     }
 
 
-def _serialize_board(board: KanbanBoard, *, full: bool = False) -> dict:
+def _serialize_board(
+    board: KanbanBoard,
+    *,
+    full: bool = False,
+    share_token: str | None = None,
+) -> dict:
     data = {
         'id': board.id,
         'title': board.title,
@@ -309,7 +420,10 @@ def _serialize_board(board: KanbanBoard, *, full: bool = False) -> dict:
         'url': url_for('kanban.board', board_id=board.id),
     }
     if full:
-        data['lists'] = [_serialize_list(l) for l in board.lists if not l.archived_at]
+        data['lists'] = [
+            _serialize_list(l, share_token=share_token)
+            for l in board.lists if not l.archived_at
+        ]
         data['labels'] = [
             {'id': lb.id, 'name': lb.name, 'color': lb.color, 'position': lb.position}
             for lb in sorted(board.labels, key=lambda x: x.position)
@@ -318,16 +432,36 @@ def _serialize_board(board: KanbanBoard, *, full: bool = False) -> dict:
             {**(_user_brief(m.user) or {}), 'role': m.role}
             for m in board.members if m.user
         ]
-        data['can_edit'] = can_edit_board(current_user, board)
-        data['can_manage'] = can_manage_board(current_user, board)
+        if share_token:
+            data['can_edit'] = True  # caller passes token only for authorized share view; refine below
+            share = get_share_by_token(share_token)
+            data['can_edit'] = bool(
+                share
+                and share.resource_type == 'kanban_board'
+                and str(share.resource_id) == str(board.id)
+                and share.mode == 'edit'
+                and not share_is_expired(share)
+            )
+            data['can_manage'] = False
+        else:
+            data['can_edit'] = _can_edit_board_ctx(board)
+            data['can_manage'] = _can_manage_board_ctx(board)
         data['custom_fields'] = [_serialize_custom_field(f) for f in board.custom_fields]
+        data['custom_field_categories'] = [
+            {'id': c.id, 'name': c.name, 'position': c.position}
+            for c in board.custom_field_categories
+        ]
+        data['share_token'] = share_token
     return data
 
 
 def _require_board_view(board_id: int):
     board = KanbanBoard.query.get_or_404(board_id)
+    if _get_valid_share_for_board(board.id):
+        return board, None
+    if not current_user.is_authenticated:
+        return None, (jsonify({'error': 'Unauthorized'}), 401)
     if not can_view_board(current_user, board) and not board.closed_at:
-        # closed boards: manage only
         if not (board.closed_at and can_manage_board(current_user, board)):
             return None, (jsonify({'error': 'Forbidden'}), 403)
     elif board.closed_at and not can_manage_board(current_user, board):
@@ -337,19 +471,25 @@ def _require_board_view(board_id: int):
 
 def _require_board_edit(board_id: int):
     board = KanbanBoard.query.get_or_404(board_id)
-    if not can_edit_board(current_user, board):
-        return None, (jsonify({'error': 'Forbidden'}), 403)
-    return board, None
+    if _can_edit_board_ctx(board):
+        return board, None
+    if not current_user.is_authenticated:
+        return None, (jsonify({'error': 'Unauthorized'}), 401)
+    return None, (jsonify({'error': 'Forbidden'}), 403)
 
 
 def _require_board_manage(board_id: int):
     board = KanbanBoard.query.get_or_404(board_id)
+    if not current_user.is_authenticated:
+        return None, (jsonify({'error': 'Unauthorized'}), 401)
     if not can_manage_board(current_user, board):
         return None, (jsonify({'error': 'Forbidden'}), 403)
     return board, None
 
 
 def _track_view(board: KanbanBoard):
+    if not current_user.is_authenticated:
+        return
     view = KanbanBoardView.query.filter_by(board_id=board.id, user_id=current_user.id).first()
     now = portal_now_naive()
     if view:
@@ -516,6 +656,8 @@ def board(board_id):
         can_edit=can_edit_board(current_user, board_obj),
         can_manage=can_manage_board(current_user, board_obj),
         onlyoffice_enabled=is_onlyoffice_enabled(),
+        share_token='',
+        is_share=False,
     )
 
 
@@ -617,15 +759,14 @@ def api_create_board():
 
 
 @kanban_bp.route('/api/boards/<int:board_id>', methods=['GET', 'PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_board(board_id):
     board, err = _require_board_view(board_id)
     if err:
         return err
 
     if request.method == 'GET':
-        return jsonify(_serialize_board(board, full=True))
+        return jsonify(_serialize_board(board, full=True, share_token=_share_token_from_request()))
 
     if request.method == 'DELETE':
         if not can_manage_board(current_user, board):
@@ -657,8 +798,7 @@ def api_board(board_id):
 # ── Lists ──────────────────────────────────────────────────────────────
 
 @kanban_bp.route('/api/boards/<int:board_id>/lists', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_create_list(board_id):
     board, err = _require_board_edit(board_id)
     if err:
@@ -672,18 +812,17 @@ def api_create_list(board_id):
     db.session.add(lst)
     _log_activity(board.id, 'list_created', title)
     db.session.commit()
-    payload = _serialize_list(lst)
+    payload = _serialize_list(lst, share_token=_share_token_from_request())
     _emit_board(board.id, 'list_created', payload)
     return jsonify({'success': True, 'list': payload}), 201
 
 
 @kanban_bp.route('/api/lists/<int:list_id>', methods=['PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_list(list_id):
     lst = KanbanList.query.get_or_404(list_id)
     board = lst.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'DELETE':
@@ -704,14 +843,13 @@ def api_list(list_id):
         except (TypeError, ValueError):
             pass
     db.session.commit()
-    payload = _serialize_list(lst)
+    payload = _serialize_list(lst, share_token=_share_token_from_request())
     _emit_board(board.id, 'list_updated', payload)
     return jsonify({'success': True, 'list': payload})
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/lists/reorder', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_reorder_lists(board_id):
     board, err = _require_board_edit(board_id)
     if err:
@@ -730,12 +868,11 @@ def api_reorder_lists(board_id):
 # ── Cards ──────────────────────────────────────────────────────────────
 
 @kanban_bp.route('/api/lists/<int:list_id>/cards', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_create_card(list_id):
     lst = KanbanList.query.get_or_404(list_id)
     board = lst.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     title = (data.get('title') or '').strip()
@@ -747,31 +884,30 @@ def api_create_card(list_id):
         title=title,
         description=(data.get('description') or '').strip() or None,
         position=max_pos + 1,
-        created_by=current_user.id,
+        created_by=_actor_user_id(board),
     )
     db.session.add(card)
     _log_activity(board.id, 'card_created', title, card_id=None)
     db.session.flush()
     _log_activity(board.id, 'card_created', title, card_id=card.id)
     db.session.commit()
-    payload = _serialize_card_summary(card)
+    payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_created', payload)
     return jsonify({'success': True, 'card': payload}), 201
 
 
 @kanban_bp.route('/api/cards/<int:card_id>', methods=['GET', 'PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_card(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_view_board(current_user, board):
+    if not _can_view_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'GET':
-        return jsonify(_serialize_card_detail(card))
+        return jsonify(_serialize_card_detail(card, share_token=_share_token_from_request()))
 
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'DELETE':
@@ -837,14 +973,13 @@ def api_card(card_id):
                 _log_activity(board.id, 'card_moved', f'{card.title} → {new_list.title}', card.id)
 
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/cards/move', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_move_card(board_id):
     board, err = _require_board_edit(board_id)
     if err:
@@ -870,7 +1005,7 @@ def api_move_card(board_id):
     for i, c in enumerate(siblings):
         c.position = i
     db.session.commit()
-    payload = _serialize_card_summary(card)
+    payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_moved', payload)
     return jsonify({'success': True, 'card': payload})
 
@@ -878,8 +1013,7 @@ def api_move_card(board_id):
 # ── Labels / Assignees / Checklists / Votes ────────────────────────────
 
 @kanban_bp.route('/api/boards/<int:board_id>/labels', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_create_label(board_id):
     board, err = _require_board_edit(board_id)
     if err:
@@ -899,12 +1033,11 @@ def api_create_label(board_id):
 
 
 @kanban_bp.route('/api/cards/<int:card_id>/labels', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_toggle_card_label(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     label_id = int(data['label_id'])
@@ -917,18 +1050,17 @@ def api_toggle_card_label(card_id):
         db.session.add(KanbanCardLabel(card_id=card.id, label_id=label.id))
         attached = True
     db.session.commit()
-    payload = _serialize_card_summary(card)
+    payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'attached': attached, 'card': payload})
 
 
 @kanban_bp.route('/api/cards/<int:card_id>/assignees', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_toggle_assignee(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     user_id = int(data['user_id'])
@@ -938,18 +1070,17 @@ def api_toggle_assignee(card_id):
     else:
         db.session.add(KanbanCardAssignee(card_id=card.id, user_id=user_id))
     db.session.commit()
-    payload = _serialize_card_summary(card)
+    payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 
 @kanban_bp.route('/api/cards/<int:card_id>/checklists', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_create_checklist(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     cl = KanbanChecklist(
@@ -959,24 +1090,23 @@ def api_create_checklist(card_id):
     )
     db.session.add(cl)
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload}), 201
 
 
 @kanban_bp.route('/api/checklists/<int:checklist_id>', methods=['PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_checklist(checklist_id):
     cl = KanbanChecklist.query.get_or_404(checklist_id)
     card = cl.card
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
         db.session.delete(cl)
         db.session.commit()
-        payload = _serialize_card_detail(card)
+        payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
         return jsonify({'success': True, 'card': payload})
     data = request.get_json(silent=True) or {}
@@ -984,18 +1114,17 @@ def api_checklist(checklist_id):
         title = (data.get('title') or '').strip()
         cl.title = title or cl.title
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 
 @kanban_bp.route('/api/checklists/<int:checklist_id>/items', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_add_checklist_item(checklist_id):
     cl = KanbanChecklist.query.get_or_404(checklist_id)
     board = cl.card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     text = (data.get('text') or '').strip()
@@ -1004,24 +1133,23 @@ def api_add_checklist_item(checklist_id):
     item = KanbanChecklistItem(checklist_id=cl.id, text=text, position=len(cl.items))
     db.session.add(item)
     db.session.commit()
-    payload = _serialize_card_detail(cl.card)
+    payload = _serialize_card_detail(cl.card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload}), 201
 
 
 @kanban_bp.route('/api/checklist-items/<int:item_id>', methods=['PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_checklist_item(item_id):
     item = KanbanChecklistItem.query.get_or_404(item_id)
     card = item.checklist.card
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
         db.session.delete(item)
         db.session.commit()
-        payload = _serialize_card_detail(card)
+        payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
         return jsonify({'success': True, 'card': payload})
     data = request.get_json(silent=True) or {}
@@ -1029,15 +1157,38 @@ def api_checklist_item(item_id):
         item.done = bool(data['done'])
     if 'text' in data:
         item.text = (data['text'] or item.text).strip() or item.text
+    if 'due_date' in data:
+        raw_due = data.get('due_date')
+        if raw_due in (None, ''):
+            item.due_date = None
+        else:
+            try:
+                item.due_date = datetime.fromisoformat(str(raw_due).replace('Z', '+00:00')).replace(tzinfo=None)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid due_date'}), 400
+    if 'assignee_id' in data:
+        raw_assignee = data.get('assignee_id')
+        if raw_assignee in (None, ''):
+            item.assignee_id = None
+        else:
+            try:
+                assignee_id = int(raw_assignee)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid assignee_id'}), 400
+            is_member = KanbanBoardMember.query.filter_by(
+                board_id=board.id, user_id=assignee_id
+            ).first()
+            if assignee_id != board.created_by and not is_member:
+                return jsonify({'error': 'Assignee is not a board member'}), 400
+            item.assignee_id = assignee_id
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/custom-fields', methods=['GET', 'POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_board_custom_fields(board_id):
     if request.method == 'GET':
         board, err = _require_board_view(board_id)
@@ -1057,8 +1208,21 @@ def api_board_custom_fields(board_id):
     label = (data.get('label') or '').strip()
     if not label:
         return jsonify({'error': 'Label required'}), 400
+    category_id = data.get('category_id')
+    if category_id not in (None, ''):
+        try:
+            category_id = int(category_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid category_id'}), 400
+        if not KanbanCustomFieldCategory.query.filter_by(
+            id=category_id, board_id=board.id
+        ).first():
+            return jsonify({'error': 'Category not found'}), 400
+    else:
+        category_id = None
     field = KanbanCustomField(
         board_id=board.id,
+        category_id=category_id,
         field_type=field_type,
         label=label[:200],
         position=len(board.custom_fields),
@@ -1072,20 +1236,92 @@ def api_board_custom_fields(board_id):
     return jsonify({'success': True, 'custom_field': payload, 'custom_fields': [_serialize_custom_field(f) for f in board.custom_fields]}), 201
 
 
-@kanban_bp.route('/api/custom-fields/<int:field_id>', methods=['PATCH', 'DELETE'])
-@login_required
-@check_module_access('module_kanban')
-def api_custom_field(field_id):
-    field = KanbanCustomField.query.get_or_404(field_id)
-    board, err = _require_board_manage(field.board_id)
+@kanban_bp.route('/api/boards/<int:board_id>/custom-field-categories', methods=['GET', 'POST'])
+@login_or_share_required
+def api_custom_field_categories(board_id):
+    if request.method == 'GET':
+        board, err = _require_board_view(board_id)
+        if err:
+            return err
+        return jsonify({
+            'success': True,
+            'categories': [
+                {'id': c.id, 'name': c.name, 'position': c.position}
+                for c in board.custom_field_categories
+            ],
+        })
+
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name required'}), 400
+    category = KanbanCustomFieldCategory(
+        board_id=board.id,
+        name=name[:200],
+        position=len(board.custom_field_categories),
+    )
+    db.session.add(category)
+    db.session.commit()
+    payload = {'id': category.id, 'name': category.name, 'position': category.position}
+    return jsonify({'success': True, 'category': payload}), 201
+
+
+@kanban_bp.route('/api/custom-field-categories/<int:category_id>', methods=['PATCH', 'DELETE'])
+@login_or_share_required
+def api_custom_field_category(category_id):
+    category = KanbanCustomFieldCategory.query.get_or_404(category_id)
+    board, err = _require_board_manage(category.board_id)
     if err:
         return err
     if request.method == 'DELETE':
+        db.session.delete(category)
+        db.session.commit()
+        return jsonify({'success': True})
+    data = request.get_json(silent=True) or {}
+    if 'name' in data:
+        name = (data.get('name') or '').strip()
+        if not name:
+            return jsonify({'error': 'Name required'}), 400
+        category.name = name[:200]
+    if 'position' in data:
+        try:
+            category.position = int(data['position'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid position'}), 400
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'category': {'id': category.id, 'name': category.name, 'position': category.position},
+    })
+
+
+@kanban_bp.route('/api/custom-fields/<int:field_id>', methods=['PATCH', 'DELETE'])
+@login_or_share_required
+def api_custom_field(field_id):
+    field = KanbanCustomField.query.get_or_404(field_id)
+    if field.card_id:
+        board, err = _require_board_edit(field.board_id)
+    else:
+        board, err = _require_board_manage(field.board_id)
+    if err:
+        return err
+    if request.method == 'DELETE':
+        card_id = field.card_id
         db.session.delete(field)
         db.session.commit()
         fields = [_serialize_custom_field(f) for f in board.custom_fields]
         _emit_board(board.id, 'custom_field_deleted', {'id': field_id})
-        return jsonify({'success': True, 'custom_fields': fields})
+        result = {'success': True, 'custom_fields': fields}
+        if card_id:
+            card = KanbanCard.query.get(card_id)
+            if card:
+                payload = _serialize_card_detail(card)
+                _emit_board(board.id, 'card_updated', payload)
+                result['card'] = payload
+        return jsonify(result)
     data = request.get_json(silent=True) or {}
     if 'label' in data:
         label = (data.get('label') or '').strip()
@@ -1098,6 +1334,20 @@ def api_custom_field(field_id):
         field.field_type = field_type
     if 'placeholder' in data:
         field.placeholder = (data.get('placeholder') or '').strip()[:255] or None
+    if 'category_id' in data:
+        raw_category = data.get('category_id')
+        if raw_category in (None, ''):
+            field.category_id = None
+        else:
+            try:
+                category_id = int(raw_category)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid category_id'}), 400
+            if not KanbanCustomFieldCategory.query.filter_by(
+                id=category_id, board_id=board.id
+            ).first():
+                return jsonify({'error': 'Category not found'}), 400
+            field.category_id = category_id
     if 'options' in data or 'field_type' in data:
         field.options = _parse_custom_field_options(data.get('options', field.options), field.field_type)
     if 'position' in data:
@@ -1115,13 +1365,87 @@ def api_custom_field(field_id):
     })
 
 
+@kanban_bp.route('/api/cards/<int:card_id>/custom-fields', methods=['POST'])
+@login_or_share_required
+def api_create_card_custom_field(card_id):
+    card = KanbanCard.query.get_or_404(card_id)
+    board = card.list.board
+    if not _can_edit_board_ctx(board):
+        return jsonify({'error': 'Forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    label = (data.get('label') or '').strip()
+    if not label:
+        return jsonify({'error': 'Label required'}), 400
+    field_type = (data.get('field_type') or 'text').strip().lower()
+    if field_type not in CUSTOM_FIELD_TYPES:
+        return jsonify({'error': 'Invalid field type'}), 400
+    field = KanbanCustomField(
+        board_id=board.id,
+        card_id=card.id,
+        label=label[:200],
+        field_type=field_type,
+        position=len(card.local_fields),
+        options=_parse_custom_field_options(data.get('options'), field_type),
+        placeholder=(data.get('placeholder') or '').strip()[:255] or None,
+    )
+    db.session.add(field)
+    db.session.commit()
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+    _emit_board(board.id, 'card_updated', payload)
+    return jsonify({'success': True, 'custom_field': _serialize_custom_field(field), 'card': payload}), 201
+
+
+@kanban_bp.route('/api/cards/<int:card_id>/custom-fields/enable', methods=['POST'])
+@login_or_share_required
+def api_enable_card_custom_field(card_id):
+    card = KanbanCard.query.get_or_404(card_id)
+    board = card.list.board
+    if not _can_edit_board_ctx(board):
+        return jsonify({'error': 'Forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        field_id = int(data.get('field_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'field_id required'}), 400
+    field = KanbanCustomField.query.filter_by(
+        id=field_id, board_id=board.id, card_id=None
+    ).first_or_404()
+    enabled = KanbanCardFieldEnabled.query.filter_by(
+        card_id=card.id, field_id=field.id
+    ).first()
+    if not enabled:
+        db.session.add(KanbanCardFieldEnabled(card_id=card.id, field_id=field.id))
+        db.session.commit()
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+    _emit_board(board.id, 'card_updated', payload)
+    return jsonify({'success': True, 'card': payload})
+
+
+@kanban_bp.route('/api/cards/<int:card_id>/custom-fields/enable/<int:field_id>', methods=['DELETE'])
+@login_or_share_required
+def api_disable_card_custom_field(card_id, field_id):
+    card = KanbanCard.query.get_or_404(card_id)
+    board = card.list.board
+    if not _can_edit_board_ctx(board):
+        return jsonify({'error': 'Forbidden'}), 403
+    enabled = KanbanCardFieldEnabled.query.filter_by(
+        card_id=card.id, field_id=field_id
+    ).first_or_404()
+    if not enabled.field or enabled.field.board_id != board.id or enabled.field.card_id is not None:
+        return jsonify({'error': 'Wrong board'}), 400
+    db.session.delete(enabled)
+    db.session.commit()
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+    _emit_board(board.id, 'card_updated', payload)
+    return jsonify({'success': True, 'card': payload})
+
+
 @kanban_bp.route('/api/cards/<int:card_id>/custom-field-values', methods=['PUT'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_set_card_custom_field_value(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     try:
@@ -1140,30 +1464,30 @@ def api_set_card_custom_field_value(card_id):
     else:
         db.session.add(KanbanCardFieldValue(card_id=card.id, field_id=field.id, value=value))
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 
 @kanban_bp.route('/api/cards/<int:card_id>/vote', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_vote_card(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_view_board(current_user, board):
+    if not _can_view_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if not (card.poll_text or '').strip():
         return jsonify({'error': 'Keine Abstimmung vorhanden'}), 400
-    existing = KanbanCardVote.query.filter_by(card_id=card.id, user_id=current_user.id).first()
+    actor_id = _actor_user_id(board)
+    existing = KanbanCardVote.query.filter_by(card_id=card.id, user_id=actor_id).first()
     if existing:
         db.session.delete(existing)
         voted = False
     else:
-        db.session.add(KanbanCardVote(card_id=card.id, user_id=current_user.id))
+        db.session.add(KanbanCardVote(card_id=card.id, user_id=actor_id))
         voted = True
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'voted': voted, 'card': payload})
 
@@ -1171,12 +1495,11 @@ def api_vote_card(card_id):
 # ── Attachments ────────────────────────────────────────────────────────
 
 @kanban_bp.route('/api/cards/<int:card_id>/attachments', methods=['POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_upload_attachment(card_id):
     card = KanbanCard.query.get_or_404(card_id)
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
 
     # Link attachment (JSON)
@@ -1198,14 +1521,18 @@ def api_upload_attachment(card_id):
             file_size=None,
             storage_path='',
             url=raw_url,
-            uploaded_by=current_user.id,
+            uploaded_by=_actor_user_id(board),
         )
         db.session.add(att)
         _log_activity(board.id, 'attachment_added', title, card.id)
         db.session.commit()
-        payload = _serialize_card_detail(card)
+        payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
-        return jsonify({'success': True, 'card': payload, 'attachment': _serialize_attachment(att)}), 201
+        return jsonify({
+            'success': True,
+            'card': payload,
+            'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
+        }), 201
 
     f = request.files.get('file')
     if not f or not f.filename:
@@ -1222,7 +1549,7 @@ def api_upload_attachment(card_id):
         mime_type=mime,
         file_size=os.path.getsize(path),
         storage_path=path,
-        uploaded_by=current_user.id,
+        uploaded_by=_actor_user_id(board),
     )
     db.session.add(att)
     db.session.flush()
@@ -1230,9 +1557,13 @@ def api_upload_attachment(card_id):
         card.cover_attachment_id = att.id
     _log_activity(board.id, 'attachment_added', original, card.id)
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
-    return jsonify({'success': True, 'card': payload, 'attachment': _serialize_attachment(att)}), 201
+    return jsonify({
+        'success': True,
+        'card': payload,
+        'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
+    }), 201
 
 
 @kanban_bp.route('/attachments/<int:attachment_id>/download')
@@ -1542,14 +1873,64 @@ def preview_attachment(attachment_id):
     return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
 
 
+def _get_share_attachment(token: str, attachment_id: int):
+    share = get_share_by_token(token)
+    if not share or share.resource_type != 'kanban_board' or share_is_expired(share):
+        return None, (jsonify({'error': 'Forbidden'}), 403)
+    if share.password_hash and not _share_guest_ok(token):
+        return None, (jsonify({'error': 'Forbidden'}), 403)
+    att = KanbanAttachment.query.get_or_404(attachment_id)
+    try:
+        share_board_id = int(share.resource_id)
+    except (TypeError, ValueError):
+        return None, (jsonify({'error': 'Forbidden'}), 403)
+    if att.card.list.board_id != share_board_id:
+        return None, (jsonify({'error': 'Forbidden'}), 403)
+    return att, None
+
+
+@kanban_bp.route('/share/<token>/attachments/<int:attachment_id>/preview')
+def share_preview_attachment(token, attachment_id):
+    att, err = _get_share_attachment(token, attachment_id)
+    if err:
+        return err
+    if att.url and not att.storage_path:
+        return redirect(att.url)
+    if not att.storage_path or not os.path.isfile(att.storage_path):
+        return jsonify({'error': 'Not found'}), 404
+    mime = att.mime_type or 'application/octet-stream'
+    if mime.startswith('image/') or mime == 'application/pdf':
+        return send_file(att.storage_path, mimetype=mime)
+    return send_file(
+        att.storage_path,
+        as_attachment=True,
+        download_name=att.original_filename or att.filename,
+    )
+
+
+@kanban_bp.route('/share/<token>/attachments/<int:attachment_id>/download')
+def share_download_attachment(token, attachment_id):
+    att, err = _get_share_attachment(token, attachment_id)
+    if err:
+        return err
+    if att.url and not att.storage_path:
+        return redirect(att.url)
+    if not att.storage_path or not os.path.isfile(att.storage_path):
+        return jsonify({'error': 'Not found'}), 404
+    return send_file(
+        att.storage_path,
+        as_attachment=True,
+        download_name=att.original_filename or att.filename,
+    )
+
+
 @kanban_bp.route('/api/attachments/<int:attachment_id>', methods=['DELETE'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_delete_attachment(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     card = att.card
     board = card.list.board
-    if not can_edit_board(current_user, board):
+    if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if card.cover_attachment_id == att.id:
         card.cover_attachment_id = None
@@ -1560,7 +1941,7 @@ def api_delete_attachment(attachment_id):
         pass
     db.session.delete(att)
     db.session.commit()
-    payload = _serialize_card_detail(card)
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
@@ -1617,8 +1998,7 @@ def api_remove_member(board_id, user_id):
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/activity')
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_board_activity(board_id):
     board, err = _require_board_view(board_id)
     if err:
@@ -1668,12 +2048,12 @@ def _activity_label(action: str) -> str:
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/filter', methods=['GET', 'POST'])
-@login_required
-@check_module_access('module_kanban')
+@login_or_share_required
 def api_filter_cards(board_id):
     board, err = _require_board_view(board_id)
     if err:
         return err
+    actor_id = _actor_user_id(board)
 
     # Accept query string or JSON body
     data = request.get_json(silent=True) or {}
@@ -1717,7 +2097,7 @@ def api_filter_cards(board_id):
                     continue
             if no_members and card.assignees:
                 continue
-            if assigned_to_me and not any(a.user_id == current_user.id for a in card.assignees):
+            if assigned_to_me and not any(a.user_id == actor_id for a in card.assignees):
                 continue
             if assignee_ids and not any(a.user_id in assignee_ids for a in card.assignees):
                 continue
@@ -1945,46 +2325,19 @@ def public_share(token):
             flash(translate('kanban.share.wrong_password'), 'danger')
         return render_template('kanban/share_auth.html', token=token, board=board)
 
+    session['kanban_share_token'] = token
+    session.modified = True
     can_edit_share = share.mode == 'edit'
     bg = next((b for b in BOARD_BACKGROUNDS if b['key'] == (board.background or 'teal')), BOARD_BACKGROUNDS[0])
-    # Build a lightweight board payload without requiring login for serialization of votes
-    lists_data = []
-    for lst in board.lists:
-        if lst.archived_at:
-            continue
-        cards = []
-        for c in lst.cards:
-            if c.archived_at:
-                continue
-            cards.append({
-                'id': c.id,
-                'list_id': c.list_id,
-                'title': c.title,
-                'description': c.description,
-                'due_date': c.due_date.isoformat() if c.due_date else None,
-                'position': c.position,
-                'labels': [
-                    {'id': cl.label.id, 'name': cl.label.name, 'color': cl.label.color}
-                    for cl in c.card_labels if cl.label
-                ],
-                'checklist': _checklist_progress(c),
-                'attachment_count': len(c.attachments),
-                'cover': None,
-            })
-        lists_data.append({
-            'id': lst.id,
-            'title': lst.title,
-            'position': lst.position,
-            'cards': cards,
-            'card_count': len(cards),
-        })
-
     return render_template(
-        'kanban/share.html',
+        'kanban/board.html',
         board=board,
-        token=token,
+        board_json=_serialize_board(board, full=True, share_token=token),
         can_edit=can_edit_share,
+        can_manage=False,
         background_css=bg['css'],
-        lists_json=lists_data,
-        share_mode=share.mode,
+        backgrounds=BOARD_BACKGROUNDS,
+        onlyoffice_enabled=False,
+        share_token=token,
+        is_share=True,
     )

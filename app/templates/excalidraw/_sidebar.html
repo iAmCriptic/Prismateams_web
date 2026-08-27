@@ -1,14 +1,16 @@
-{% from 'partials/visibility_nav.html' import visibility_space_links %}
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 {% macro excalidraw_folder_nav(dismiss_offcanvas=false) %}
-{% set active_nav = active_nav|default('all') %}
+{% set active_nav = active_nav|default('private') %}
 {% set query_base = {'q': search_query or none} %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link mod-nav-link {% if active_nav == 'all' %}active{% endif %}"
-       href="{{ url_for('excalidraw.index', q=search_query or none) }}"
-       {% if dismiss_offcanvas %}data-excalidraw-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-pencil-square me-2"></i>{{ _('excalidraw.index.nav.all') }}
-    </a>
-    {{ visibility_space_links('excalidraw.index', query_base, 'data-excalidraw-dismiss-offcanvas="1"' if dismiss_offcanvas else '') }}
+    {{ visibility_space_links(
+        'excalidraw.index',
+        query_base,
+        'data-excalidraw-dismiss-offcanvas="1"' if dismiss_offcanvas else '',
+        allowed_visibilities,
+        visibility_teams,
+        active_nav
+    ) }}
 </nav>
 {% endmacro %}
 

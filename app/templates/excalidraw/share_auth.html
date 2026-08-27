@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ _('excalidraw.share.password_prompt') }}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-center" style="min-height:60vh;">
+  <form method="POST" class="card p-4 shadow-sm" style="max-width:24rem;width:100%;">
+    <h1 class="h5">{{ drawing.name }}</h1>
+    <p class="text-muted">{{ _('excalidraw.share.password_prompt') }}</p>
+    <input type="password" name="password" class="form-control files-pill-input mb-3" required autofocus>
+    <button type="submit" class="btn btn-accent files-pill-btn w-100">{{ _('excalidraw.share.submit') }}</button>
+  </form>
+</div>
+{% endblock %}

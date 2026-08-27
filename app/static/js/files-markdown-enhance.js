@@ -23,7 +23,11 @@
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
-                processHtmlClass: 'tex2jax_process'
+                processHtmlClass: 'tex2jax_process',
+                // Assistive MathML oft Ursache für Mini-Scrollbars neben Formeln
+                renderActions: {
+                    assistiveMml: []
+                }
             }
         };
     }

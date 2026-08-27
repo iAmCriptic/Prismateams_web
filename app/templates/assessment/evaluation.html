@@ -25,6 +25,10 @@
                     </button>
                 </div>
             </div>
+            <p class="assessment-eval-hint" id="evalHint" hidden>
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                <span id="evalHintText"></span>
+            </p>
             <div id="criteria" class="row g-3"></div>
             <button class="btn btn-accent mt-3 w-100 w-md-auto" type="button" id="saveEvalBtn">{{ _('assessment.common.save') }}</button>
             <p class="text-muted mt-2 mb-0" id="status"></p>
@@ -37,7 +41,14 @@
     let criteria = [];
     let currentList = null;
     let currentTargets = [];
+    let existingEvaluations = {};
     let targetInfoPopover = null;
+    const criterionPopovers = [];
+    const criterionDescLabel = '{{ _("assessment.evaluate.criterion_description") }}';
+    const existingHintTpl = '{{ _("assessment.evaluate.existing_hint") }}';
+    const saveLabel = '{{ _("assessment.common.save") }}';
+    const updateLabel = '{{ _("assessment.evaluate.update") }}';
+    const evaluatedTag = '{{ _("assessment.evaluate.evaluated_tag") }}';
     const escapeHtml = window.AssessmentUI ? window.AssessmentUI.escapeHtml : (s) => String(s ?? '');
     const notify = (message, category) => {
         if (window.AssessmentUI && window.AssessmentUI.notify) {
@@ -65,6 +76,116 @@
         }
     }
 
+    function disposeCriterionInfo() {
+        while (criterionPopovers.length) {
+            const pop = criterionPopovers.pop();
+            try { pop.dispose(); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function criterionInfoButton(criterion) {
+        const desc = criterion && criterion.description ? String(criterion.description).trim() : '';
+        if (!desc) return '';
+        return `<button type="button" class="btn btn-link assessment-target-info assessment-criterion-info"
+                    data-criterion-info="${criterion.id}"
+                    aria-label="${escapeHtml(criterionDescLabel)}"
+                    title="${escapeHtml(criterionDescLabel)}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>`;
+    }
+
+    function initCriterionInfo() {
+        disposeCriterionInfo();
+        document.querySelectorAll('[data-criterion-info]').forEach((btn) => {
+            const criterion = criteria.find((item) => String(item.id) === String(btn.getAttribute('data-criterion-info')));
+            const desc = criterion && criterion.description ? String(criterion.description).trim() : '';
+            if (!desc) {
+                btn.hidden = true;
+                return;
+            }
+            if (window.bootstrap && bootstrap.Popover) {
+                criterionPopovers.push(new bootstrap.Popover(btn, {
+                    trigger: 'click',
+                    placement: 'top',
+                    html: true,
+                    sanitize: true,
+                    content: desc,
+                    container: 'body',
+                    customClass: 'assessment-criterion-popover',
+                }));
+            } else {
+                btn.setAttribute('title', desc.replace(/<[^>]+>/g, ''));
+            }
+        });
+    }
+
+    function currentTargetId() {
+        return String(document.getElementById('target').value || '');
+    }
+
+    function getExistingEvaluation(targetId) {
+        const id = targetId == null || targetId === '' ? currentTargetId() : targetId;
+        return existingEvaluations[String(id)] || null;
+    }
+
+    function scoreForCriterion(scores, criterionId) {
+        if (!scores) return 0;
+        const val = scores[criterionId] ?? scores[String(criterionId)];
+        return val == null || val === '' ? 0 : val;
+    }
+
+    function targetOptionLabel(target) {
+        const name = target && target.name ? String(target.name) : '';
+        return getExistingEvaluation(target && target.id) ? `${name} (${evaluatedTag})` : name;
+    }
+
+    function rebuildTargetOptions(preferredId) {
+        const targetSel = document.getElementById('target');
+        const keepId = preferredId != null ? String(preferredId) : targetSel.value;
+        targetSel.innerHTML = currentTargets.map((t) =>
+            `<option value="${t.id}">${escapeHtml(targetOptionLabel(t))}</option>`
+        ).join('');
+        if (keepId && Array.from(targetSel.options).some((opt) => opt.value === keepId)) {
+            targetSel.value = keepId;
+        }
+        if (window.AssessmentUI) window.AssessmentUI.enhancePills(document.querySelector('.assessment-panel'));
+        if (window.InventoryPillSelect) window.InventoryPillSelect.sync(targetSel);
+    }
+
+    function collectScores() {
+        const scores = {};
+        criteria.forEach((c) => {
+            const input = document.getElementById(`criterion_${c.id}`);
+            scores[String(c.id)] = Number(input ? input.value || 0 : 0);
+        });
+        return scores;
+    }
+
+    function syncExistingState(fillScores) {
+        const existing = getExistingEvaluation();
+        const saveBtn = document.getElementById('saveEvalBtn');
+        const hint = document.getElementById('evalHint');
+        const hintText = document.getElementById('evalHintText');
+        if (fillScores) {
+            criteria.forEach((c) => {
+                const input = document.getElementById(`criterion_${c.id}`);
+                if (!input) return;
+                input.value = existing ? scoreForCriterion(existing.scores, c.id) : 0;
+            });
+        }
+        if (saveBtn) saveBtn.textContent = existing ? updateLabel : saveLabel;
+        if (hint && hintText) {
+            if (existing) {
+                const total = Object.values(existing.scores || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+                hintText.textContent = existingHintTpl.replace('{points}', String(total));
+                hint.hidden = false;
+            } else {
+                hintText.textContent = '';
+                hint.hidden = true;
+            }
+        }
+    }
+
     function syncTargetInfo() {
         const btn = document.getElementById('targetInfoBtn');
         const targetSel = document.getElementById('target');
@@ -87,6 +208,11 @@
         }
     }
 
+    function onTargetChange() {
+        syncTargetInfo();
+        syncExistingState(true);
+    }
+
     async function loadData() {
         const listId = document.getElementById('listSelect').value;
         syncPrint();
@@ -99,30 +225,32 @@
             return;
         }
         currentList = data.list;
+        existingEvaluations = data.existing_evaluations || {};
         const isStand = currentList.subject_mode === 'stand';
         document.getElementById('targetLabel').textContent = isStand
             ? '{{ _("assessment.evaluate.stand") }}'
             : '{{ _("assessment.evaluate.target") }}';
         currentTargets = isStand ? (data.stands || []) : (data.subjects || []);
-        const targetSel = document.getElementById('target');
-        targetSel.innerHTML = currentTargets.map(t =>
-            `<option value="${t.id}">${escapeHtml(t.name)}</option>`
-        ).join('');
+        rebuildTargetOptions();
         criteria = data.criteria || [];
+        disposeCriterionInfo();
         document.getElementById('criteria').innerHTML = criteria.map(c => `
             <div class="col-12 col-md-6">
-                <label class="form-label" for="criterion_${c.id}">${escapeHtml(c.name)} (0-${c.max_score})</label>
+                <div class="assessment-criterion-head">
+                    <label class="form-label" for="criterion_${c.id}">${escapeHtml(c.name)} (0-${c.max_score})</label>
+                    ${criterionInfoButton(c)}
+                </div>
                 <input class="form-control assessment-pill-input" id="criterion_${c.id}" type="number" min="0" max="${c.max_score}" value="0" inputmode="numeric">
             </div>
         `).join('');
         document.getElementById('status').textContent = '';
-        if (window.AssessmentUI) window.AssessmentUI.enhancePills(document.querySelector('.assessment-panel'));
         syncTargetInfo();
+        initCriterionInfo();
+        syncExistingState(true);
     }
 
     async function submitEval() {
-        const scores = {};
-        criteria.forEach(c => scores[c.id] = Number(document.getElementById(`criterion_${c.id}`).value || 0));
+        const scores = collectScores();
         const payload = { list_id: Number(document.getElementById('listSelect').value), scores };
         if (currentList.subject_mode === 'stand') {
             payload.stand_id = Number(document.getElementById('target').value);
@@ -134,10 +262,19 @@
         const msg = data.message || (data.success ? '{{ _("assessment.common.saved") }}' : '{{ _("assessment.common.error") }}');
         document.getElementById('status').textContent = '';
         notify(msg, data.success ? 'success' : 'danger');
+        if (!data.success) return;
+        const targetId = currentTargetId();
+        const previous = getExistingEvaluation(targetId) || {};
+        existingEvaluations[targetId] = {
+            id: data.evaluation_id || previous.id,
+            scores,
+        };
+        rebuildTargetOptions(targetId);
+        syncExistingState(false);
     }
 
     document.getElementById('listSelect').addEventListener('change', loadData);
-    document.getElementById('target').addEventListener('change', syncTargetInfo);
+    document.getElementById('target').addEventListener('change', onTargetChange);
     document.getElementById('saveEvalBtn').addEventListener('click', submitEval);
     loadData();
 })();

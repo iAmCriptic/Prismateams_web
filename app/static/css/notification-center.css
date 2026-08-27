@@ -16,7 +16,7 @@
 
 .mobile-nav .notification-bell-btn .notification-badge {
     position: absolute;
-    top: 0;
+    top: 0.05rem;
     left: calc(50% + 0.35rem);
     right: auto !important;
     bottom: auto !important;

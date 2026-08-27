@@ -142,13 +142,17 @@
         body: JSON.stringify({ title: name })
       }).then(function (r) { return r.json(); }).then(function (data) {
         if (!data.success && data.error) {
-          alert(data.error);
+          if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error, 'danger');
+          else alert(data.error);
           return;
         }
         var title = (data.board && data.board.title) || name;
         cancelInlineRename();
         updateBoardTitles(id, title);
-      }).catch(function () { alert('Fehler beim Umbenennen'); });
+      }).catch(function () {
+        if (typeof window.showAppBanner === 'function') window.showAppBanner('Fehler beim Umbenennen', 'danger');
+        else alert('Fehler beim Umbenennen');
+      });
     }
 
     saveBtn.addEventListener('click', function (e) {
@@ -215,7 +219,11 @@
   window.kanbanCloseBoard = async function (btn) {
     if (!btn) return;
     var id = btn.getAttribute('data-kanban-close');
-    if (!id || !confirm('Board schließen?')) return;
+    if (!id) return;
+    var ok = typeof window.ptConfirm === 'function'
+      ? await window.ptConfirm('Board schließen?', { danger: true, confirmLabel: 'Schließen', title: 'Board schließen' })
+      : window.confirm('Board schließen?');
+    if (!ok) return;
     closeOpenDropdowns();
     try {
       var res = await fetch('/kanban/api/boards/' + id, {
@@ -227,10 +235,12 @@
       if (data.success !== false && res.ok) {
         qsa('[data-board-wrapper="' + id + '"]').forEach(function (el) { el.remove(); });
       } else {
-        alert(data.error || 'Fehler');
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
+        else alert(data.error || 'Fehler');
       }
     } catch (err) {
-      alert('Fehler');
+      if (typeof window.showAppBanner === 'function') window.showAppBanner('Fehler', 'danger');
+      else alert('Fehler');
     }
   };
 
@@ -256,7 +266,8 @@
       applyBoardColor(id, (data.board && data.board.background) || bg);
       bootstrap.Modal.getInstance(qs('#kanbanColorModal'))?.hide();
     } else {
-      alert(data.error || 'Fehler');
+      if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
+      else alert(data.error || 'Fehler');
     }
   });
 
@@ -304,7 +315,8 @@
         delete payload.template_id;
       }
       if (mode === 'template' && !payload.template_id) {
-        alert('Bitte eine Vorlage wählen');
+        if (typeof window.showAppBanner === 'function') window.showAppBanner('Bitte eine Vorlage wählen', 'warning');
+        else alert('Bitte eine Vorlage wählen');
         return;
       }
       var res = await fetch('/kanban/api/boards', {
@@ -316,7 +328,8 @@
       if (data.success && data.board) {
         window.location.href = data.board.url;
       } else {
-        alert(data.error || 'Fehler');
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
+        else alert(data.error || 'Fehler');
       }
     });
   }

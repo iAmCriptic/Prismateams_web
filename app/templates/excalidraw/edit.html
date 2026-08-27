@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 {% set _theme_dark = theme_dark|default(false) %}
 {% set _theme_oled = theme_oled|default(false) %}
+{% set is_share_guest = is_share_guest|default(false) %}
+{% set share_manage = share_manage|default(false) %}
 <html lang="{{ current_language or 'de' }}"
       data-bs-theme="{{ 'dark' if _theme_dark else 'light' }}"
       {% if _theme_oled %}data-oled-mode="true"{% endif %}>
@@ -127,12 +129,22 @@
                 {% if not can_edit %}
                 <span class="badge rounded-pill text-bg-secondary">{{ _('excalidraw.edit.readonly') }}</span>
                 {% endif %}
+                {% if share_manage and not is_share_guest %}
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="excalidrawVisibilityBtn" title="{{ _('excalidraw.index.card.visibility') }}">
+                    <i class="bi bi-eye"></i><span class="btn-label ms-1">{{ _('excalidraw.index.card.visibility') }}</span>
+                </button>
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="excalidrawShareBtn" title="{{ _('excalidraw.index.card.share') }}">
+                    <i class="bi bi-share"></i><span class="btn-label ms-1">{{ _('excalidraw.index.card.share') }}</span>
+                </button>
+                {% endif %}
                 <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
+                {% if not is_share_guest %}
                 <button type="button" id="excalidrawCloseBtn" class="btn btn-outline-secondary files-pill-btn" onclick="excalidrawLeaveEditor()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -200,5 +212,190 @@ function excalidrawLeaveEditor() {
 <script src="{{ url_for('static', filename='vendor/socket.io/socket.io.min.js') }}"></script>
 <script>window.io || document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');</script>
 <script type="module" src="{{ url_for('static', filename='js/excalidraw-bootstrap.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+
+{% set is_share_guest = is_share_guest|default(false) %}
+{% set share_manage = share_manage|default(false) %}
+{% if share_manage and not is_share_guest %}
+{% from 'partials/visibility_select.html' import visibility_select with context %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div class="modal fade" id="excalidrawVisibilityModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="excalidrawVisibilityForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _('excalidraw.visibility.title') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body">
+                    {{ visibility_select(field_id='excalidrawVisibilitySelect', allowed=allowed_visibilities, teams=visibility_teams, selected=visibility_selected or selected_visibility) }}
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary files-pill-btn" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+                    <button type="submit" class="btn btn-accent files-pill-btn">{{ _('common.save') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="excalidrawShareModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _('excalidraw.share.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <form id="excalidrawShareForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="excalidrawShareMode">{{ _('excalidraw.share.mode') }}</label>
+                        <select class="form-select files-pill-input" id="excalidrawShareMode" name="mode">
+                            <option value="view">{{ _('excalidraw.share.mode_view') }}</option>
+                            <option value="edit">{{ _('excalidraw.share.mode_edit') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1" for="excalidrawSharePassword">{{ _('excalidraw.share.password') }}</label>
+                        <input class="form-control files-pill-input" id="excalidrawSharePassword" name="password" type="text" placeholder="{{ _('excalidraw.share.password_optional') }}" autocomplete="new-password">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-accent files-pill-btn w-100">{{ _('excalidraw.share.create') }}</button>
+                    </div>
+                </form>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ _('excalidraw.share.col_created_by') }}</th>
+                                <th>{{ _('excalidraw.share.col_link') }}</th>
+                                <th>{{ _('excalidraw.share.col_password') }}</th>
+                                <th>{{ _('excalidraw.share.col_mode') }}</th>
+                                <th class="text-end">{{ _('excalidraw.share.col_actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="excalidrawShareList">
+                            <tr><td colspan="5" class="text-muted small">{{ _('excalidraw.share.empty') }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const drawingId = {{ drawing.id|tojson }};
+    const VISIBILITY_URL = {{ url_for('excalidraw.set_visibility', drawing_id=drawing.id)|tojson }};
+    const SHARES_URL = {{ url_for('excalidraw.api_drawing_shares', drawing_id=drawing.id)|tojson }};
+    const I18N = {
+        copy: {{ _('excalidraw.share.copy')|tojson }},
+        copied: {{ _('excalidraw.share.copied')|tojson }},
+        empty: {{ _('excalidraw.share.empty')|tojson }},
+        deleteConfirm: {{ _('excalidraw.share.delete_confirm')|tojson }},
+        loadError: {{ _('excalidraw.share.load_error')|tojson }},
+        noPassword: {{ _('excalidraw.share.no_password')|tojson }},
+    };
+
+    function getModal(id) {
+        const el = document.getElementById(id);
+        if (!el || !window.bootstrap) return null;
+        return bootstrap.Modal.getOrCreateInstance(el);
+    }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    async function api(url, opts) {
+        const options = opts || {};
+        const headers = Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, options.headers || {});
+        const init = { method: options.method || 'GET', headers, credentials: 'same-origin' };
+        if (options.body !== undefined) init.body = JSON.stringify(options.body);
+        const res = await fetch(url, init);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.message || res.statusText);
+        return data;
+    }
+    function renderShareRows(shares) {
+        const list = document.getElementById('excalidrawShareList');
+        if (!list) return;
+        if (!shares.length) {
+            list.innerHTML = `<tr><td colspan="5" class="text-muted small">${esc(I18N.empty)}</td></tr>`;
+            return;
+        }
+        list.innerHTML = shares.map((s) => {
+            const creator = s.created_by || {};
+            const pw = s.password || '';
+            const pwDisplay = s.has_password
+                ? `<span>${esc(pw || '••••••••')}</span>`
+                : `<span class="text-muted">${esc(I18N.noPassword)}</span>`;
+            return `<tr>
+              <td><div class="fw-semibold">${esc(creator.name || '—')}</div><div class="small text-muted">${esc(s.created_at_display || '')}</div></td>
+              <td><button type="button" class="btn btn-sm btn-outline-secondary files-pill-btn" data-copy-share="${esc(s.share_url)}"><i class="bi bi-clipboard me-1"></i>${esc(I18N.copy)}</button></td>
+              <td>${pwDisplay}</td>
+              <td><span class="badge rounded-pill text-bg-secondary">${esc(s.mode_label || s.mode)}</span></td>
+              <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" data-del-share="${s.id}"><i class="bi bi-trash"></i></button></td>
+            </tr>`;
+        }).join('');
+        list.querySelectorAll('[data-copy-share]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(btn.getAttribute('data-copy-share'));
+                    const old = btn.innerHTML;
+                    btn.innerHTML = `<i class="bi bi-check2 me-1"></i>${esc(I18N.copied)}`;
+                    setTimeout(() => { btn.innerHTML = old; }, 1200);
+                } catch (_) { alert(btn.getAttribute('data-copy-share')); }
+            });
+        });
+        list.querySelectorAll('[data-del-share]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                if (!confirm(I18N.deleteConfirm)) return;
+                try {
+                    await api(`${SHARES_URL}/${btn.getAttribute('data-del-share')}`, { method: 'DELETE' });
+                    openShareModal();
+                } catch (err) { alert(err.message || I18N.loadError); }
+            });
+        });
+    }
+    async function openShareModal() {
+        const list = document.getElementById('excalidrawShareList');
+        if (list) list.innerHTML = '<tr><td colspan="5" class="text-muted small">…</td></tr>';
+        getModal('excalidrawShareModal')?.show();
+        try {
+            const data = await api(SHARES_URL);
+            renderShareRows(data.shares || []);
+        } catch (err) {
+            if (list) list.innerHTML = `<tr><td colspan="5" class="text-danger small">${esc(err.message || I18N.loadError)}</td></tr>`;
+        }
+    }
+    document.getElementById('excalidrawVisibilityBtn')?.addEventListener('click', () => getModal('excalidrawVisibilityModal')?.show());
+    document.getElementById('excalidrawShareBtn')?.addEventListener('click', (e) => { e.preventDefault(); openShareModal(); });
+    document.getElementById('excalidrawVisibilityForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const select = document.getElementById('excalidrawVisibilitySelect');
+        if (!select) return;
+        const body = new URLSearchParams({ visibility: select.value });
+        const res = await fetch(VISIBILITY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: body.toString(),
+            credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.success) {
+            getModal('excalidrawVisibilityModal')?.hide();
+        } else {
+            alert(data.error || 'Error');
+        }
+    });
+    document.getElementById('excalidrawShareForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            await api(SHARES_URL, { method: 'POST', body: Object.fromEntries(fd.entries()) });
+            e.target.reset();
+            openShareModal();
+        } catch (err) { alert(err.message || I18N.loadError); }
+    });
+})();
+</script>
+{% endif %}
 </body>
 </html>

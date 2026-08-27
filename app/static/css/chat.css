@@ -657,35 +657,75 @@
 
 /* Desktop Chat Styles */
 @media (min-width: 768px) {
-    /* Prevent body and main content from scrolling on desktop chat page */
-    body:has(.desktop-chat-header) {
+    /* Body/Main nicht seitenweit scrollen — Shell füllt Viewport */
+    body:has(.desktop-chat-header),
+    body:has(.chat-shell) {
         overflow: hidden !important;
         height: 100vh !important;
-        position: fixed !important;
-        width: 100% !important;
+        height: 100dvh !important;
+        width: 100%;
     }
-    
-    body:has(.desktop-chat-header) .container-fluid,
-    body:has(.desktop-chat-header) .container,
-    body:has(.desktop-chat-header) main {
-        overflow: visible !important;
-        max-height: 100vh !important;
-        height: auto !important;
+
+    .main-content:has(.desktop-chat-header),
+    .main-content:has(.chat-shell) {
+        overflow: hidden !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        box-sizing: border-box !important;
     }
-    
-    /* Ensure the chat view wrapper doesn't scroll */
+
+    .main-content:has(.desktop-chat-header) > .container-fluid,
+    .main-content:has(.chat-shell) > .container-fluid {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Ensure the chat view wrapper doesn't scroll as a page */
     body:has(.desktop-chat-header) .desktop-chat-header,
     body:has(.desktop-chat-header) .chat-container {
         position: relative;
     }
-    
+
     /* Wrapper for chat header and container */
     .desktop-chat-header + .chat-container {
         margin-top: 0;
     }
-    
+
+    .chat-shell {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        align-items: stretch;
+    }
+
+    .chat-shell > .chat-main {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chat-shell .desktop-chat-header {
+        flex-shrink: 0;
+        margin-bottom: 0.75rem;
+    }
+
     .chat-container {
-        height: calc(100vh - 240px - var(--top-navbar-height, 64px)); /* Header, Input, Top-Navbar */
+        height: calc(100vh - 240px - var(--top-navbar-height, 64px));
+        max-height: calc(100vh - 240px - var(--top-navbar-height, 64px));
         border-radius: 0.75rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         background-color: white;
@@ -693,11 +733,19 @@
         display: flex;
         flex-direction: row;
         border: 1px solid var(--chat-muted-border);
-        margin-bottom: 80px; /* Space for fixed input */
-        max-height: calc(100vh - 240px - var(--top-navbar-height, 64px));
+        margin-bottom: 80px;
         position: relative;
     }
-    
+
+    /* In der Modul-Shell: Höhe aus Flex, kein Extra-Margin für fixed Input */
+    .chat-shell .chat-container {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+        max-height: none;
+        margin-bottom: 0;
+    }
+
     /* Optimize container height on smaller screens to ensure input is visible */
     @media (max-height: 900px) {
         .chat-container {
@@ -706,8 +754,15 @@
             min-height: 400px;
             margin-bottom: 80px !important;
         }
+
+        .chat-shell .chat-container {
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0;
+            margin-bottom: 0 !important;
+        }
     }
-    
+
     @media (max-height: 800px) {
         .chat-container {
             height: calc(100vh - 200px - var(--top-navbar-height, 64px)) !important;
@@ -715,8 +770,15 @@
             min-height: 350px;
             margin-bottom: 70px !important;
         }
+
+        .chat-shell .chat-container {
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0;
+            margin-bottom: 0 !important;
+        }
     }
-    
+
     @media (max-height: 700px) {
         .chat-container {
             height: calc(100vh - 180px - var(--top-navbar-height, 64px)) !important;
@@ -724,8 +786,15 @@
             min-height: 300px;
             margin-bottom: 60px !important;
         }
+
+        .chat-shell .chat-container {
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0;
+            margin-bottom: 0 !important;
+        }
     }
-    
+
     [data-bs-theme="dark"] .chat-container {
         background-color: #212529;
         border: 1px solid #495057;

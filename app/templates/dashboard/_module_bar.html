@@ -1,0 +1,22 @@
+{# Horizontale Modul-Leiste (Launcher-Style: Kreis-Icon + Label darunter). Expects: dashboard_modules #}
+<div class="dashboard-module-bar-wrap">
+    <div class="dashboard-module-bar"
+         id="dashboardModuleBar"
+         role="navigation"
+         aria-label="{{ _('dashboard.module_bar.aria') }}">
+        {% for mod in dashboard_modules %}
+        <a class="dashboard-module-chip"
+           href="{{ mod.url }}"
+           data-module-key="{{ mod.key }}"
+           data-nav-id="{{ mod.key }}"
+           title="{{ _(mod.label_key) }}">
+            <span class="dashboard-module-icon" aria-hidden="true">
+                <i class="bi {{ mod.icon }}"></i>
+            </span>
+            <span class="dashboard-module-label">{{ _(mod.label_key) }}</span>
+        </a>
+        {% else %}
+        <span class="dashboard-module-bar-empty text-muted">{{ _('dashboard.module_bar.empty') }}</span>
+        {% endfor %}
+    </div>
+</div>

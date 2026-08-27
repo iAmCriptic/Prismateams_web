@@ -50,16 +50,34 @@ def api_evaluate():
             .order_by(AssessmentCriterion.id.asc())
             .all()
         )
-        existing_query = AssessmentEvaluation.query.filter_by(
-            user_type=actor["user_type"],
-            user_id=actor["user_id"],
-            list_id=evaluation_list.id,
+        evaluations = (
+            AssessmentEvaluation.query.filter_by(
+                user_type=actor["user_type"],
+                user_id=actor["user_id"],
+                list_id=evaluation_list.id,
+            ).all()
         )
-        if evaluation_list.subject_mode == "stand":
-            targets = stands_for_list(evaluation_list)
-            existing_map = {
-                item.stand_id: item.id for item in existing_query.all() if item.stand_id
+        scores_by_eval = {}
+        eval_ids = [item.id for item in evaluations]
+        if eval_ids:
+            for row in AssessmentEvaluationScore.query.filter(
+                AssessmentEvaluationScore.evaluation_id.in_(eval_ids)
+            ).all():
+                scores_by_eval.setdefault(row.evaluation_id, {})[str(row.criterion_id)] = row.score
+
+        use_stand = evaluation_list.subject_mode == "stand"
+        existing_map = {}
+        for item in evaluations:
+            target_id = item.stand_id if use_stand else item.subject_id
+            if not target_id:
+                continue
+            existing_map[str(target_id)] = {
+                "id": item.id,
+                "scores": scores_by_eval.get(item.id, {}),
             }
+
+        if use_stand:
+            targets = stands_for_list(evaluation_list)
             target_payload = [
                 {
                     "id": s.id,
@@ -72,9 +90,6 @@ def api_evaluate():
             target_key = "stands"
         else:
             targets = subjects_for_list(evaluation_list)
-            existing_map = {
-                item.subject_id: item.id for item in existing_query.all() if item.subject_id
-            }
             target_payload = [
                 {"id": s.id, "name": s.name, "description": s.description} for s in targets
             ]
@@ -85,7 +100,15 @@ def api_evaluate():
                 "success": True,
                 "list": list_to_dict(evaluation_list),
                 target_key: target_payload,
-                "criteria": [{"id": c.id, "name": c.name, "max_score": c.max_score} for c in criteria],
+                "criteria": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "max_score": c.max_score,
+                        "description": c.description,
+                    }
+                    for c in criteria
+                ],
                 "existing_evaluations": existing_map,
             }
         )
@@ -115,6 +138,7 @@ def api_evaluate():
         evaluation = eval_query.filter_by(stand_id=stand_id).first()
     else:
         evaluation = eval_query.filter_by(subject_id=subject_id).first()
+    is_update = evaluation is not None
     if not evaluation:
         evaluation = AssessmentEvaluation(
             user_type=actor["user_type"],
@@ -151,7 +175,14 @@ def api_evaluate():
             )
 
     db.session.commit()
-    return jsonify({"success": True, "message": "Bewertung gespeichert."})
+    return jsonify(
+        {
+            "success": True,
+            "message": "Bewertung aktualisiert." if is_update else "Bewertung gespeichert.",
+            "evaluation_id": evaluation.id,
+            "updated": is_update,
+        }
+    )
 
 
 @evaluations_bp.route("/view_my_evaluations")

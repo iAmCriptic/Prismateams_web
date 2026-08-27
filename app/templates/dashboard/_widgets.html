@@ -1,16 +1,67 @@
 {# Renders all dashboard widget instances. Expects: dashboard_widgets, widget_data #}
 {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
+{% macro vis_badge(visibility) %}
+{% if visibility %}
+<span class="dash-vis-badge dash-vis-badge--{{ visibility }}" title="{{ _('visibility.nav.' ~ visibility) }}">
+    {% if visibility == 'private' %}<i class="bi bi-lock" aria-hidden="true"></i>
+    {% elif visibility == 'team' %}<i class="bi bi-people" aria-hidden="true"></i>
+    {% else %}<i class="bi bi-globe2" aria-hidden="true"></i>{% endif %}
+    <span class="visually-hidden">{{ _('visibility.nav.' ~ visibility) }}</span>
+</span>
+{% endif %}
+{% endmacro %}
+
 {% for w in dashboard_widgets %}
-{% set wid = w.id %}
-{% set wtype = w.type %}
+{% set wid = w.id if w.id is defined else w['id'] %}
+{% set wtype = w.type if w.type is defined else w['type'] %}
 {% set data = widget_data.get(wid, {}) %}
+{% set col_span = (w.w if w.w is defined else w.get('w', 1))|int %}
+{% set row_span = (w.h if w.h is defined else w.get('h', 1))|int %}
+{% set grid_v = (w.grid_v if w.grid_v is defined else w.get('grid_v', 1))|int %}
+{% set grid_x = (w.x if w.x is defined else w.get('x', 1))|int %}
+{% set grid_y = (w.y if w.y is defined else w.get('y', 1))|int %}
+{% if col_span < 1 %}{% set col_span = 1 %}{% elif col_span > 4 %}{% set col_span = 4 %}{% endif %}
+{# grid_v < 2: alte Layouts (h=1..3 bei 11rem) → verdoppeln auf neue 5.5rem-Zeilen #}
+{% if grid_v < 2 %}{% set row_span = row_span * 2 %}{% endif %}
+{% if row_span < 1 %}{% set row_span = 1 %}{% elif row_span > 6 %}{% set row_span = 6 %}{% endif %}
+{% if grid_x < 1 %}{% set grid_x = 1 %}{% elif grid_x > 4 %}{% set grid_x = 4 %}{% endif %}
+{% if grid_y < 1 %}{% set grid_y = 1 %}{% endif %}
+{% set cfg = {
+    'id': wid,
+    'type': wtype,
+    'w': col_span,
+    'h': row_span,
+    'x': grid_x,
+    'y': grid_y,
+    'grid_v': 2,
+    'calendar_ids': w.calendar_ids if w.calendar_ids is defined else w.get('calendar_ids', []),
+    'contact_ids': w.contact_ids if w.contact_ids is defined else w.get('contact_ids', []),
+    'mailbox_id': w.mailbox_id if w.mailbox_id is defined else w.get('mailbox_id', none),
+    'credential_ids': w.credential_ids if w.credential_ids is defined else w.get('credential_ids', []),
+    'board_ids': w.board_ids if w.board_ids is defined else w.get('board_ids', []),
+} %}
+{% set widget_attrs %}
+data-col-span="{{ col_span }}"
+     data-row-span="{{ row_span }}"
+     data-grid-x="{{ grid_x }}"
+     data-grid-y="{{ grid_y }}"
+     style="--dash-w: {{ col_span }}; --dash-h: {{ row_span }}; --dash-x: {{ grid_x }}; --dash-y: {{ grid_y }};"
+{% endset %}
 
 {% if wtype == 'termine' %}
 {% set events = data.get('events', []) %}
 {% set cals = data.get('calendars', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('calendar.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="termine"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('calendar.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-calendar-event" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.calendar.title') }}</span>
             {% if cals %}
@@ -21,12 +72,17 @@
             </span>
             {% endif %}
         </h3>
-        <span class="dash-widget-badge calendar-badge">{{ events|length }}</span>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge calendar-badge">{{ events|length }}</span>
+        </div>
     </div>
     {% if events %}
     <div class="dash-widget-list">
         {% for event in events %}
-        <a class="dash-widget-row" href="{{ url_for('calendar.view_event', event_id=event.id) }}" onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ url_for('calendar.view_event', event_id=event.id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ event.title }}</p>
                 <span class="dash-widget-row-meta">{{ event.start_time.strftime('%d.%m.') }}</span>
@@ -42,30 +98,44 @@
 
 {% elif wtype == 'kontakte' %}
 {% set contacts = data.get('contacts', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('contacts.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="kontakte"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('contacts.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.contacts.title') }}</span>
         </h3>
-        <span class="dash-widget-badge">{{ contacts|length }}</span>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge">{{ contacts|length }}</span>
+        </div>
     </div>
     {% if contacts %}
     <div class="dash-widget-list">
         {% for contact in contacts %}
-        <div class="dash-widget-row" onclick="event.stopPropagation(); location.href='{{ url_for('contacts.edit', contact_id=contact.id) }}';">
+        <div class="dash-widget-row" data-href="{{ url_for('contacts.edit', contact_id=contact.id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ contact.name }}</p>
+                {{ vis_badge(contact.visibility) }}
             </div>
             {% if contact.email %}
             <p class="dash-widget-row-sub">{{ contact.email }}</p>
             {% endif %}
             <div class="dash-contact-actions">
                 {% if contact.phone %}
-                <a href="tel:{{ contact.phone }}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.call') }}"><i class="bi bi-telephone"></i></a>
+                <a href="tel:{{ contact.phone }}" data-stop-nav title="{{ _('dashboard.widgets.contacts.call') }}"><i class="bi bi-telephone"></i></a>
                 {% endif %}
                 {% if contact.email %}
-                <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
+                <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" data-stop-nav title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
                 {% endif %}
             </div>
         </div>
@@ -78,18 +148,28 @@
 
 {% elif wtype == 'nachrichten' %}
 {% set unread_messages = data.get('messages', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('chat.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="nachrichten"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('chat.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-chat-dots" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.chat.title') }}</span>
         </h3>
-        <span class="dash-widget-badge notification-badge" id="chat-count-badge">0</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge notification-badge" id="chat-count-badge">{{ unread_messages|length }}</span>
+        </div>
     </div>
     {% if unread_messages %}
     <div class="dash-widget-list">
         {% for message in unread_messages[:3] %}
-        <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ message.sender.full_name }}</p>
                 <span class="dash-widget-row-meta">{{ message.created_at|localtime('%H:%M') }}</span>
@@ -105,18 +185,31 @@
 
 {% elif wtype == 'emails' %}
 {% set recent_emails = data.get('emails', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('email.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="emails"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('email.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-envelope" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.email.title') }}</span>
         </h3>
-        <span class="dash-widget-badge email-badge">{{ recent_emails|length }}</span>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge email-badge">{{ recent_emails|length }}</span>
+        </div>
     </div>
     {% if recent_emails %}
     <div class="dash-widget-list">
         {% for email in recent_emails[:3] %}
-        <a class="dash-widget-row" href="{{ url_for('email.view_email', email_id=email.id) }}" onclick="event.stopPropagation();">
+        <div class="dash-widget-row dash-widget-row--email" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ email.subject|decode_email_header }}</p>
                 {% if not email.is_read %}
@@ -124,7 +217,15 @@
                 {% endif %}
             </div>
             <p class="dash-widget-row-sub">{{ email.sender|decode_email_header }}</p>
-        </a>
+            <div class="dash-email-actions">
+                <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline dashboard-edit-pill-btn--sm" data-stop-nav>
+                    <i class="bi bi-envelope-open"></i> {{ _('dashboard.widgets.email.open') }}
+                </a>
+                <a href="{{ url_for('email.reply', email_id=email.id) }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dashboard-edit-pill-btn--sm" data-stop-nav>
+                    <i class="bi bi-reply"></i> {{ _('dashboard.widgets.email.reply') }}
+                </a>
+            </div>
+        </div>
         {% endfor %}
     </div>
     {% else %}
@@ -134,13 +235,23 @@
 
 {% elif wtype == 'dateien' %}
 {% set recent_files = data.get('files', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('files.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="dateien"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('files.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-folder" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.files.title') }}</span>
         </h3>
-        <span class="dash-widget-badge files-badge">{{ recent_files|length }}</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge files-badge">{{ recent_files|length }}</span>
+        </div>
     </div>
     {% if recent_files %}
     <div class="dash-widget-list">
@@ -156,7 +267,7 @@
         {% else %}
             {% set file_url = url_for('files.download_file', file_id=file.id) %}
         {% endif %}
-        <a class="dash-widget-row" href="{{ file_url }}" {% if onlyoffice_available and is_onlyoffice_type %}target="_blank"{% endif %} onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ file_url }}" {% if onlyoffice_available and is_onlyoffice_type %}target="_blank"{% endif %} data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ file.original_name }}</p>
                 <span class="dash-widget-row-meta">{{ file.updated_at|localdatetime('%d.%m.') }}</span>
@@ -172,21 +283,35 @@
 
 {% elif wtype == 'passwoerter' %}
 {% set favorite_credentials = data.get('credentials', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('credentials.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="passwoerter"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('credentials.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-key" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.passwords.title') }}</span>
         </h3>
-        <span class="dash-widget-badge">{{ favorite_credentials|length }}</span>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge">{{ favorite_credentials|length }}</span>
+        </div>
     </div>
     {% if favorite_credentials %}
     <div class="dash-widget-list">
         {% for credential in favorite_credentials %}
-        <div class="dash-widget-row" onclick="event.stopPropagation();">
+        <div class="dash-widget-row" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ credential.website_name }}</p>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})" title="{{ _('dashboard.widgets.passwords.reveal') }}">
+                {{ vis_badge(credential.visibility) }}
+                <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline dashboard-edit-pill-btn--icon" onclick="revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})" title="{{ _('dashboard.widgets.passwords.reveal') }}">
                     <i class="bi bi-eye"></i>
                 </button>
             </div>
@@ -202,20 +327,31 @@
 
 {% elif wtype == 'neue_wikieintraege' %}
 {% set recent_wiki_pages = data.get('pages', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('wiki.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="neue_wikieintraege"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('wiki.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-journal-text" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.wiki_new.title') }}</span>
         </h3>
-        <span class="dash-widget-badge wiki-badge">{{ recent_wiki_pages|length }}</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge wiki-badge">{{ recent_wiki_pages|length }}</span>
+        </div>
     </div>
     {% if recent_wiki_pages %}
     <div class="dash-widget-list">
         {% for page in recent_wiki_pages %}
-        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ page.title }}</p>
+                {{ vis_badge(page.visibility) }}
                 <span class="dash-widget-row-meta">{{ page.updated_at|localdatetime('%d.%m.') }}</span>
             </div>
             <p class="dash-widget-row-sub">{{ page.updated_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
@@ -229,20 +365,31 @@
 
 {% elif wtype == 'meine_wikis' %}
 {% set my_wiki_favorites = data.get('pages', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('wiki.index') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="meine_wikis"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('wiki.index') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-star-fill" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.wiki_favorites.title') }}</span>
         </h3>
-        <span class="dash-widget-badge favorites-badge">{{ my_wiki_favorites|length }}</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge favorites-badge">{{ my_wiki_favorites|length }}</span>
+        </div>
     </div>
     {% if my_wiki_favorites %}
     <div class="dash-widget-list">
         {% for page in my_wiki_favorites %}
-        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title"><i class="bi bi-star-fill text-warning me-1"></i>{{ page.title }}</p>
+                {{ vis_badge(page.visibility) }}
                 <span class="dash-widget-row-meta">{{ page.updated_at|localdatetime('%d.%m.') }}</span>
             </div>
         </a>
@@ -255,24 +402,34 @@
 
 {% elif wtype == 'meine_ausleihen' %}
 {% set my_borrow_groups = data.get('groups', []) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('inventory.dashboard') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="meine_ausleihen"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('inventory.dashboard') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.borrows.title') }}</span>
         </h3>
-        <span class="dash-widget-badge borrows-badge">{{ my_borrow_groups|length }}</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge borrows-badge">{{ my_borrow_groups|length }}</span>
+        </div>
     </div>
     {% if my_borrow_groups %}
     <div class="dash-widget-list">
         {% for group in my_borrow_groups %}
-        <div class="dash-widget-row" onclick="event.stopPropagation();">
+        <div class="dash-widget-row" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date|localdatetime('%d.%m.%Y')) }}</p>
                 {% if group.is_overdue %}<span class="badge bg-danger">{{ _('dashboard.widgets.borrows.overdue') }}</span>{% endif %}
             </div>
             <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date|localdatetime('%d.%m.%Y')) }}</p>
-            <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="btn btn-sm btn-success mt-1" onclick="event.stopPropagation();">
+            <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dashboard-edit-pill-btn--sm mt-1" data-stop-nav>
                 <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
             </a>
         </div>
@@ -286,18 +443,28 @@
 {% elif wtype == 'buchungen' %}
 {% set new_booking_requests = data.get('requests', []) %}
 {% set total_pending_bookings = data.get('total_pending', 0) %}
-<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('booking.requests') }}'">
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="buchungen"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('booking.requests') }}">
     <div class="dash-widget-header">
         <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
             <i class="bi bi-calendar-check" aria-hidden="true"></i>
             <span class="dash-widget-title-text">{{ _('dashboard.widgets.bookings.title') }}</span>
         </h3>
-        <span class="dash-widget-badge bookings-badge">{{ total_pending_bookings }}</span>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge bookings-badge">{{ total_pending_bookings }}</span>
+        </div>
     </div>
     {% if new_booking_requests %}
     <div class="dash-widget-list">
         {% for req in new_booking_requests %}
-        <a class="dash-widget-row" href="{{ url_for('booking.request_detail', request_id=req.id) }}" onclick="event.stopPropagation();">
+        <a class="dash-widget-row" href="{{ url_for('booking.request_detail', request_id=req.id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ req.event_name }}</p>
                 <span class="dash-widget-row-meta">{{ req.created_at|localdatetime('%d.%m.') }}</span>
@@ -311,6 +478,47 @@
     </div>
     {% else %}
     <div class="dash-widget-empty">{{ _('dashboard.widgets.bookings.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'kanban_aenderungen' %}
+{% set activities = data.get('activities', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="kanban_aenderungen"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('kanban.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-kanban" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.kanban_changes.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge">{{ activities|length }}</span>
+        </div>
+    </div>
+    {% if activities %}
+    <div class="dash-widget-list">
+        {% for act in activities %}
+        <a class="dash-widget-row" href="{{ url_for('kanban.board', board_id=act.board_id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ act.action_label }}{% if act.detail %}: {{ act.detail }}{% endif %}</p>
+                {{ vis_badge(act.board_visibility) }}
+                <span class="dash-widget-row-meta">{% if act.created_at %}{{ act.created_at|localtime('%H:%M') }}{% endif %}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ act.board_title }}{% if act.user_name %} · {{ act.user_name }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.kanban_changes.empty') }}</div>
     {% endif %}
 </div>
 {% endif %}

@@ -205,10 +205,14 @@
             {
                 label: labels.dashboard_manage_widgets,
                 icon: 'bi-grid',
-                href:
-                    (document.querySelector('.dashboard-page') &&
-                        document.querySelector('.dashboard-page').dataset.dashboardEditUrl) ||
-                    '/dashboard/edit'
+                onClick: () => {
+                    if (typeof window.dashboardEnterArrangeMode === 'function') {
+                        window.dashboardEnterArrangeMode();
+                    } else {
+                        const addBtn = document.getElementById('dashboardAddWidgetBtn');
+                        if (addBtn) addBtn.click();
+                    }
+                }
             }
         ]);
     }

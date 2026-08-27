@@ -189,6 +189,14 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.FilesMarkdownEnhance) {
+        window.FilesMarkdownEnhance.enhance('.markdown-content');
+    }
+});
+</script>
 <script>
 const WIKI_VIEW_I18N = {{ current_translations.get('wiki', {}).get('view', {})|tojson }};
 const WIKI_INDEX_JS = {{ current_translations.get('wiki', {}).get('index', {}).get('js', {})|tojson }};
