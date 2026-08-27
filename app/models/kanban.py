@@ -35,9 +35,17 @@ class KanbanBoard(db.Model):
     labels = db.relationship('KanbanLabel', back_populates='board', cascade='all, delete-orphan')
     custom_fields = db.relationship(
         'KanbanCustomField',
+        primaryjoin='and_(KanbanBoard.id==KanbanCustomField.board_id, KanbanCustomField.card_id.is_(None))',
         back_populates='board',
         cascade='all, delete-orphan',
         order_by='KanbanCustomField.position',
+        overlaps='local_fields,board',
+    )
+    custom_field_categories = db.relationship(
+        'KanbanCustomFieldCategory',
+        back_populates='board',
+        cascade='all, delete-orphan',
+        order_by='KanbanCustomFieldCategory.position',
     )
     activities = db.relationship(
         'KanbanActivity',
@@ -135,6 +143,18 @@ class KanbanCard(db.Model):
         back_populates='card',
         cascade='all, delete-orphan',
     )
+    enabled_fields = db.relationship(
+        'KanbanCardFieldEnabled',
+        back_populates='card',
+        cascade='all, delete-orphan',
+    )
+    local_fields = db.relationship(
+        'KanbanCustomField',
+        primaryjoin='KanbanCard.id==KanbanCustomField.card_id',
+        back_populates='card',
+        cascade='all, delete-orphan',
+        overlaps='custom_fields,board',
+    )
 
     @property
     def is_archived(self):
@@ -217,8 +237,11 @@ class KanbanChecklistItem(db.Model):
     text = db.Column(db.String(500), nullable=False)
     done = db.Column(db.Boolean, nullable=False, default=False)
     position = db.Column(db.Integer, nullable=False, default=0)
+    due_date = db.Column(db.DateTime, nullable=True)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
     checklist = db.relationship('KanbanChecklist', back_populates='items')
+    assignee = db.relationship('User', foreign_keys=[assignee_id])
 
 
 class KanbanAttachment(db.Model):
@@ -309,28 +332,82 @@ class KanbanBoardView(db.Model):
     )
 
 
+class KanbanCustomFieldCategory(db.Model):
+    """Board-level category/group for custom field templates."""
+    __tablename__ = 'kanban_custom_field_categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    board = db.relationship('KanbanBoard', back_populates='custom_field_categories')
+    fields = db.relationship(
+        'KanbanCustomField',
+        back_populates='category',
+        foreign_keys='KanbanCustomField.category_id',
+    )
+
+
 class KanbanCustomField(db.Model):
-    """Board-level custom field definition (text, select, date, time, checkbox)."""
+    """Custom field definition: board template (card_id null) or card-local (card_id set)."""
     __tablename__ = 'kanban_custom_fields'
 
     id = db.Column(db.Integer, primary_key=True)
     board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    category_id = db.Column(
+        db.Integer, db.ForeignKey('kanban_custom_field_categories.id', ondelete='SET NULL'), nullable=True
+    )
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=True)
     field_type = db.Column(db.String(20), nullable=False, default='text')
     label = db.Column(db.String(200), nullable=False)
     position = db.Column(db.Integer, nullable=False, default=0)
     options = db.Column(db.Text, nullable=True)  # JSON list for select
     placeholder = db.Column(db.String(255), nullable=True)
 
-    board = db.relationship('KanbanBoard', back_populates='custom_fields')
+    board = db.relationship(
+        'KanbanBoard',
+        back_populates='custom_fields',
+        foreign_keys=[board_id],
+        overlaps='local_fields,board',
+    )
+    category = db.relationship('KanbanCustomFieldCategory', back_populates='fields')
+    card = db.relationship(
+        'KanbanCard',
+        back_populates='local_fields',
+        foreign_keys=[card_id],
+        overlaps='custom_fields,board',
+    )
     values = db.relationship(
         'KanbanCardFieldValue',
         back_populates='field',
         cascade='all, delete-orphan',
     )
+    enabled_on_cards = db.relationship(
+        'KanbanCardFieldEnabled',
+        back_populates='field',
+        cascade='all, delete-orphan',
+    )
+
+
+class KanbanCardFieldEnabled(db.Model):
+    """Which board template fields are inserted/shown on a card."""
+    __tablename__ = 'kanban_card_field_enabled'
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
+    field_id = db.Column(db.Integer, db.ForeignKey('kanban_custom_fields.id', ondelete='CASCADE'), nullable=False)
+
+    card = db.relationship('KanbanCard', back_populates='enabled_fields')
+    field = db.relationship('KanbanCustomField', back_populates='enabled_on_cards')
+
+    __table_args__ = (
+        db.UniqueConstraint('card_id', 'field_id', name='unique_kanban_card_field_enabled'),
+    )
 
 
 class KanbanCardFieldValue(db.Model):
-    """Per-card value for a board custom field."""
+    """Per-card value for a custom field."""
     __tablename__ = 'kanban_card_field_values'
 
     id = db.Column(db.Integer, primary_key=True)

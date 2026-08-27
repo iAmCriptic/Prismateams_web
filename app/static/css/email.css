@@ -771,25 +771,15 @@ body {
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
-    /* Volle Höhe rechts — kein Farb-Übergang unten */
-    min-height: calc(100vh - 1.5rem);
-    min-height: calc(100dvh - 1.5rem);
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     /* Portal-Grau — nicht Bootstrap-Weiß */
     background-color: var(--portal-bg, #f0f2f5) !important;
-}
-
-@media (min-width: 992px) {
-    .email-content[data-module="email"] {
-        min-height: calc(100vh - var(--top-navbar-height, 64px) - 1.5rem);
-        min-height: calc(100dvh - var(--top-navbar-height, 64px) - 1.5rem);
-    }
-
-    .email-folder-sidebar.mod-sidebar {
-        min-height: calc(100vh - var(--top-navbar-height, 64px) - 3rem);
-        min-height: calc(100dvh - var(--top-navbar-height, 64px) - 3rem);
-    }
 }
 
 [data-bs-theme="dark"] .email-content[data-module="email"] {
@@ -800,39 +790,90 @@ body {
     background-color: #000000 !important;
 }
 
-/* Flex-Eltern im Portal-Layout: min-width 0 erlaubt korrektes Schrumpfen neben fester App-Sidebar */
+/* Viewport sperren: nur Listen/Bereiche scrollen — keine Seiten-Scrollbar über Favorites-Rail */
+body:has(.email-content[data-module="email"]) {
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+}
+
 .main-content:has(.email-content[data-module="email"]) {
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 .main-content > .container-fluid:has(.email-layout-desktop),
 .main-content > .container-fluid:has(.email-content[data-module="email"]) {
+    flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
     box-sizing: border-box;
     background: transparent;
-    min-height: calc(100vh - 1.5rem);
-    min-height: calc(100dvh - 1.5rem);
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
+@media (max-width: 1199.98px) {
+    .main-content:has(.email-content[data-module="email"]) {
+        padding-bottom: var(--portal-mobile-nav-clearance) !important;
+    }
+
+    /* Unter xl: Desktop-Shell ausgeblendet — Modul-Inhalt scrollt in der Shell */
+    .email-content[data-module="email"] {
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    /* lg–xl: Top-Navbar + Rail, keine Mobile-Nav */
+    .main-content:has(.email-content[data-module="email"]) {
+        padding-bottom: 0.75rem !important;
+    }
+}
+
+@media (min-width: 1200px) {
+    .main-content:has(.email-content[data-module="email"]) {
+        padding-bottom: 0.75rem !important;
+    }
+}
+
 .email-layout-desktop {
-    /* Shell flex from .mod-shell--nav; keep email fill height */
+    /* Shell flex from .mod-shell--nav; fill height, no page growth */
     flex-wrap: nowrap;
     align-items: stretch;
     flex: 1 1 auto;
-    min-height: calc(100vh - 2rem);
-    min-height: calc(100dvh - 2rem);
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
     box-sizing: border-box;
     background: transparent;
 }
 
 .email-main-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
     overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     background: transparent;
-    min-height: 100%;
 }
 
 /* Mail-Liste ohne weiße Card-Fläche — wie Dateien-Liste auf Body-Grau */
@@ -856,9 +897,23 @@ body {
 }
 
 .email-folder-sidebar.mod-sidebar {
-    align-self: flex-start;
-    min-height: calc(100vh - 3rem);
-    min-height: calc(100dvh - 3rem);
+    align-self: stretch;
+    position: relative;
+    top: auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+.email-folder-sidebar .mod-sidebar-brand,
+.email-folder-sidebar .mod-sidebar-new-wrap,
+.email-folder-sidebar .mod-sidebar-actions,
+.email-folder-sidebar > hr {
+    flex-shrink: 0;
 }
 
 [data-oled-mode="true"] .email-folder-sidebar {
@@ -872,6 +927,12 @@ body {
     min-width: 0;
     margin-top: 0.25rem;
     padding-top: 0.35rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .email-folder-node {

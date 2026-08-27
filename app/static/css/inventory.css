@@ -1274,15 +1274,15 @@ to {
     padding-left: 0.85rem;
 }
 
-/* Desktop: Seite fest; links + Filter nicht mitziehen; nur Main scrollt */
+/* Desktop: Seite fest; nur Main scrollt (auch ohne Filter-Leiste) */
 @media (min-width: 992px) {
-    body:has(.inventory-shell--filters) {
+    body:has(.inventory-shell) {
         overflow: hidden;
         height: 100vh;
         height: 100dvh;
     }
 
-    .main-content:has(.inventory-shell--filters) {
+    .main-content:has(.inventory-shell) {
         height: 100vh;
         height: 100dvh;
         max-height: 100vh;
@@ -1295,7 +1295,7 @@ to {
         box-sizing: border-box;
     }
 
-    .main-content:has(.inventory-shell--filters) > .container-fluid {
+    .main-content:has(.inventory-shell) > .container-fluid {
         flex: 1 1 auto;
         height: 100%;
         max-height: 100%;
@@ -1307,7 +1307,7 @@ to {
         padding-bottom: 1rem;
     }
 
-    .inventory-shell--filters {
+    .inventory-shell {
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;

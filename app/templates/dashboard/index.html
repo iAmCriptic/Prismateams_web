@@ -7,7 +7,7 @@
 <div class="alert portal-msg portal-msg--info fade show" role="alert" id="update-banner">
     <div class="portal-msg__body">
         <div class="portal-msg__icon" aria-hidden="true">
-            <i class="bi bi-info-circle-fill"></i>
+    <i class="bi bi-info-circle-fill"></i>
         </div>
         <div class="portal-msg__content">
             <h6 class="portal-msg__title">{{ _('dashboard.update.title') }}</h6>
@@ -39,41 +39,11 @@
 {% include 'dashboard/_whats_new_modal.html' %}
 {% endif %}
 
-<div class="dashboard-shell dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
-    <aside class="mod-sidebar">
-        <div class="mod-sidebar-brand">
-            <i class="bi bi-house-door" aria-hidden="true"></i>
-            <span>{{ _('dashboard.page_title') }}</span>
-        </div>
-        <nav class="mod-sidebar-nav" aria-label="{{ _('dashboard.quick_access.title') }}">
-            <div class="mod-sidebar-heading">{{ _('dashboard.quick_access.title') }}</div>
-            {% set qa_variant = 'sidebar' %}
-            {% include 'dashboard/_quick_access.html' %}
-        </nav>
-        <div class="mod-sidebar-footer">
-            {% if not current_user.is_guest %}
-            <button type="button"
-                    class="dashboard-sidebar-whats-new position-relative"
-                    id="whatsNewBtn"
-                    data-bs-toggle="modal"
-                    data-bs-target="#whatsNewModal"
-                    aria-label="{{ _('dashboard.whats_new.button_aria') }}">
-                <i class="bi bi-stars" aria-hidden="true"></i>
-                <span>{{ _('dashboard.whats_new.button_label') }}</span>
-                <span class="position-absolute badge rounded-pill bg-danger dashboard-whats-new-badge{% if not (show_whats_new|default(false)) %} d-none{% endif %}" id="whatsNewBadge">
-                    {{ _('dashboard.whats_new.badge') }}
-                    <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
-                </span>
-            </button>
-            <a href="{{ url_for('dashboard.edit') }}" class="mod-nav-link dashboard-sidebar-edit-link">
-                <i class="bi bi-pencil-square"></i>
-                <span>{{ _('dashboard.quick_access.edit_dashboard') }}</span>
-            </a>
-            {% endif %}
-        </div>
-    </aside>
-
-    <div class="mod-main">
+<div class="dashboard-shell dashboard-page dashboard-page--live"
+     data-dashboard-config-url="{{ url_for('dashboard.api_config') }}"
+     data-dashboard-options-url="{{ url_for('dashboard.api_options') }}"
+     data-contacts-search-url="{{ url_for('contacts.search') if has_module_access(current_user, 'module_contacts') else '' }}">
+    <div class="mod-main dashboard-main-full">
         <div class="mod-mobile-topbar d-lg-none">
             <a href="{{ url_for('dashboard.index') }}" class="dashboard-mobile-logo">
                 {% if portal_logo_filename %}
@@ -98,80 +68,106 @@
             <div class="dashboard-main-clock" id="current-time" aria-live="polite"></div>
         </div>
 
+        {% include 'dashboard/_module_bar.html' %}
+
+        <div class="dashboard-action-bar">
+            {% if not current_user.is_guest %}
+            <button type="button"
+                    class="dashboard-action-btn dashboard-action-btn--neu"
+                    id="whatsNewBtn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#whatsNewModal"
+                    aria-label="{{ _('dashboard.whats_new.button_aria') }}">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>{{ _('dashboard.whats_new.button_label') }}</span>
+                <span class="badge rounded-pill bg-danger dashboard-whats-new-badge{% if not (show_whats_new|default(false)) %} d-none{% endif %}" id="whatsNewBadge">
+                    {{ _('dashboard.whats_new.badge') }}
+                    <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
+                </span>
+            </button>
+            <span class="dashboard-action-btn dashboard-action-btn--placeholder"
+                  aria-hidden="true"
+                  title="{{ _('dashboard.action_bar.placeholder') }}"></span>
+            {% endif %}
+        </div>
+
         {% if not current_user.is_guest %}
-        <div class="dashboard-widget-grid">
+        <div class="dashboard-widget-grid" id="dashboardWidgetGrid">
             {% include 'dashboard/_widgets.html' %}
         </div>
-        {% endif %}
-
-        <div class="dashboard-mobile-qa">
-            <div class="dashboard-mobile-qa-heading">{{ _('dashboard.quick_access.title') }}</div>
-            <div class="dashboard-mobile-qa-grid">
-                {% set qa_variant = 'mobile' %}
-                {% include 'dashboard/_quick_access.html' %}
-                {% if not current_user.is_guest %}
-                <button type="button"
-                        class="dashboard-qa-tile dashboard-qa-tile--neu"
-                        data-bs-toggle="modal"
-                        data-bs-target="#whatsNewModal"
-                        aria-label="{{ _('dashboard.whats_new.button_aria') }}">
-                    <i class="bi bi-stars"></i>
-                    <span>{{ _('dashboard.whats_new.button_label') }}</span>
-                </button>
-                {% endif %}
-            </div>
+        <div class="dashboard-edit-bar">
+            <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline" id="dashboardArrangeBtn" aria-pressed="false">
+                <i class="bi bi-arrows-move" aria-hidden="true"></i>
+                <span>{{ _('dashboard.live.arrange') }}</span>
+            </button>
+            <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent" id="dashboardAddWidgetBtn">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span>{{ _('dashboard.live.add_widget') }}</span>
+            </button>
         </div>
-
-        {% if not current_user.is_guest %}
-        <div class="dashboard-main-edit">
-            <a href="{{ url_for('dashboard.edit') }}" class="btn dashboard-edit-pill-btn dashboard-edit-pill-btn--outline">
-                <i class="bi bi-pencil-square me-1"></i>{{ _('dashboard.quick_access.edit_dashboard') }}
-            </a>
+        {% elif guest_accessible_modules %}
+        <div class="dashboard-guest-hint text-muted">
+            {{ _('dashboard.guest.use_modules') }}
         </div>
         {% endif %}
     </div>
 </div>
+
+{# Settings / Add-widget modal #}
+{% if not current_user.is_guest %}
+<div class="modal fade" id="dashboardWidgetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content dashboard-widget-modal">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="dashboardWidgetModalTitle">{{ _('dashboard.live.settings') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="dashboardWidgetModalBody"></div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline" data-bs-dismiss="modal">{{ _('dashboard.live.cancel') }}</button>
+                <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent" id="dashboardWidgetModalSave">{{ _('dashboard.live.save') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const DASHBOARD_I18N = {{ current_translations.get('dashboard', {})|tojson }};
+window.DASHBOARD_I18N = {{ current_translations.get('dashboard', {})|tojson }};
+window.DASHBOARD_BOOT = {
+    widgets: {{ dashboard_widgets|tojson }},
+    options: {{ (widget_options or {})|tojson }},
+    moduleOrder: {{ (dashboard_modules|map(attribute='key')|list)|tojson }},
+    configUrl: {{ url_for('dashboard.api_config')|tojson }},
+    optionsUrl: {{ url_for('dashboard.api_options')|tojson }},
+    contactsSearchUrl: {{ (url_for('contacts.search') if has_module_access(current_user, 'module_contacts') else '')|tojson }},
+    passwordViewUrlTemplate: {{ url_for('credentials.view_password', credential_id=0)|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+const DASHBOARD_I18N = window.DASHBOARD_I18N || {};
 const dashboardCredentialCache = {};
 
-// Dashboard Live-Updates
 class DashboardUpdater {
     constructor() {
-        this.socket = null;
+        this.eventSource = null;
         this.init();
     }
-    
+
     init() {
-        // Initialisiere Socket.IO-Verbindung
         this.initSSE();
-        
-        // Kein Polling mehr - Updates kommen nur über Socket.IO Push
     }
-    
+
     initSSE() {
-        // Server-Sent Events (SSE) für Live-Updates
-        // SSE funktioniert perfekt mit mehreren Gunicorn-Workern - KEINE Session-Probleme!
         try {
             this.eventSource = new EventSource('/sse/events/dashboard');
-            
-            this.eventSource.onopen = () => {
-                console.log('Dashboard: SSE verbunden - Live-Updates aktiv');
-            };
-            
-            this.eventSource.onerror = (error) => {
-                console.warn('Dashboard: SSE Fehler - Reconnect wird versucht...');
-            };
-            
-            // Event-Listener für Dashboard-Updates
             this.eventSource.addEventListener('dashboard:chat_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('#chat-count-badge', data.count);
             });
-            
             this.eventSource.addEventListener('dashboard:email_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('.email-badge', data.count);
@@ -179,12 +175,10 @@ class DashboardUpdater {
                     window.updateEmailNavBadge(data.count);
                 }
             });
-            
             this.eventSource.addEventListener('dashboard:calendar_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('.calendar-badge', data.count);
             });
-            
             this.eventSource.addEventListener('dashboard:files_update', (e) => {
                 const data = JSON.parse(e.data);
                 const badge = document.querySelector('.files-badge');
@@ -192,16 +186,11 @@ class DashboardUpdater {
                     badge.textContent = data.files.length;
                 }
             });
-            
-            this.eventSource.addEventListener('heartbeat', (e) => {
-                // Heartbeat empfangen - Verbindung ist aktiv
-            });
-            
         } catch (error) {
             console.error('Dashboard: Fehler bei SSE-Initialisierung:', error);
         }
     }
-    
+
     updateBadge(selector, count) {
         const badge = document.querySelector(selector);
         if (badge) {
@@ -209,19 +198,10 @@ class DashboardUpdater {
             badge.style.display = count > 0 ? 'inline' : 'none';
         }
     }
-    
-    stopUpdates() {
-        if (this.eventSource) {
-            this.eventSource.close();
-            this.eventSource = null;
-        }
-    }
 }
 
-// Initialisiere Dashboard-Updater
 const dashboardUpdater = new DashboardUpdater();
 
-// Uhrzeit-Anzeige aktualisieren
 function updateClock() {
     const timeElement = document.getElementById('current-time');
     if (timeElement) {
@@ -232,12 +212,9 @@ function updateClock() {
         timeElement.textContent = `${hours}:${minutes}:${seconds}`;
     }
 }
-
-// Uhrzeit sofort aktualisieren und dann jede Sekunde
 updateClock();
 setInterval(updateClock, 1000);
 
-// What's New (v3.1.0)
 (function initWhatsNew() {
     const VERSION = {{ (whats_new_version|default('3.1.0'))|tojson }};
     const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
@@ -269,19 +246,14 @@ setInterval(updateClock, 1000);
                 const blob = new Blob([payload], { type: 'application/json' });
                 if (navigator.sendBeacon(seenUrl, blob)) return;
             }
-        } catch (e) { /* fallback unten */ }
+        } catch (e) { /* fallback */ }
         fetch(seenUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',
             keepalive: true,
             body: payload
-        }).catch(() => {
-            seenMarked = false;
-        });
+        }).catch(() => { seenMarked = false; });
     }
 
     function updateTitle(idx) {
@@ -296,21 +268,17 @@ setInterval(updateClock, 1000);
         document.querySelectorAll('.whats-new-panel').forEach(panel => {
             panel.classList.toggle('is-active', panel.dataset.panel === name);
         });
-
         const isHub = name === 'welcome' || name === 'overview';
         const idx = panelsOrder.indexOf(name);
         updateTitle(idx);
-
         const backBtn = document.getElementById('whatsNewBackBtn');
         const prevBtn = document.getElementById('whatsNewPrevBtn');
         const nextBtn = document.getElementById('whatsNewNextBtn');
         const closeBtn = document.getElementById('whatsNewCloseBtn');
-
         if (backBtn) backBtn.classList.toggle('d-none', isHub);
         if (prevBtn) prevBtn.classList.toggle('d-none', idx <= 0);
         if (nextBtn) nextBtn.classList.toggle('d-none', idx >= panelsOrder.length - 1);
         if (closeBtn) closeBtn.classList.toggle('d-none', idx !== panelsOrder.length - 1);
-
         const dots = document.getElementById('whatsNewDots');
         if (dots) {
             const progressMeta = dots.querySelector('.whats-new-progress-meta');
@@ -338,10 +306,8 @@ setInterval(updateClock, 1000);
     document.querySelectorAll('.whats-new-module-btn').forEach(btn => {
         btn.addEventListener('click', () => showPanel(btn.dataset.goto));
     });
-
     const backBtn = document.getElementById('whatsNewBackBtn');
     if (backBtn) backBtn.addEventListener('click', () => showPanel('overview'));
-
     const prevBtn = document.getElementById('whatsNewPrevBtn');
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
@@ -349,7 +315,6 @@ setInterval(updateClock, 1000);
             if (idx > 0) showPanel(panelsOrder[idx - 1]);
         });
     }
-
     const nextBtn = document.getElementById('whatsNewNextBtn');
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
@@ -357,7 +322,6 @@ setInterval(updateClock, 1000);
             if (idx < panelsOrder.length - 1) showPanel(panelsOrder[idx + 1]);
         });
     }
-
     const dots = document.getElementById('whatsNewDots');
     if (dots) {
         dots.addEventListener('click', (e) => {
@@ -365,24 +329,13 @@ setInterval(updateClock, 1000);
             if (dot) showPanel(dot.dataset.goto);
         });
     }
-
-    if (modalEl) {
-        modalEl.addEventListener('show.bs.modal', () => {
-            showPanel('welcome');
-            // Sofort als gesehen markieren – auch wenn danach nur das X geklickt wird
-            markSeen();
+    modalEl.addEventListener('show.bs.modal', () => { showPanel('welcome'); markSeen(); });
+    modalEl.addEventListener('hide.bs.modal', markSeen);
+    modalEl.addEventListener('hidden.bs.modal', markSeen);
+    if (AUTO_OPEN && typeof bootstrap !== 'undefined') {
+        requestAnimationFrame(() => {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
         });
-        modalEl.addEventListener('hide.bs.modal', markSeen);
-        modalEl.addEventListener('hidden.bs.modal', markSeen);
-
-        const closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
-        if (closeBtn) closeBtn.addEventListener('click', markSeen);
-
-        if (AUTO_OPEN && typeof bootstrap !== 'undefined') {
-            requestAnimationFrame(() => {
-                bootstrap.Modal.getOrCreateInstance(modalEl).show();
-            });
-        }
     }
 })();
 
@@ -392,29 +345,18 @@ function revealDashboardCredential(id, username) {
     const revealLabel = DASHBOARD_I18N.widgets?.passwords?.labels?.password || 'Passwort';
     const userLabel = DASHBOARD_I18N.widgets?.passwords?.labels?.username || 'Benutzername';
     const errorMessage = DASHBOARD_I18N.widgets?.passwords?.error || 'Passwort konnte nicht geladen werden.';
-
-    fetch(`{{ url_for('credentials.view_password', credential_id=0) }}`.replace('/0', '/' + id))
+    const tpl = (window.DASHBOARD_BOOT && window.DASHBOARD_BOOT.passwordViewUrlTemplate) || '/credentials/0/password';
+    fetch(tpl.replace('/0', '/' + id))
         .then(response => {
-            if (!response.ok) {
-                throw new Error('request_failed');
-            }
+            if (!response.ok) throw new Error('request_failed');
             return response.json();
         })
         .then(data => {
-            dashboardCredentialCache[id] = {
-                username,
-                password: data.password
-            };
-            if (usernameElement) {
-                usernameElement.textContent = `${userLabel}: ${username}`;
-            }
-            if (passwordElement) {
-                passwordElement.textContent = `${revealLabel}: ${data.password}`;
-            }
+            dashboardCredentialCache[id] = { username, password: data.password };
+            if (usernameElement) usernameElement.textContent = `${userLabel}: ${username}`;
+            if (passwordElement) passwordElement.textContent = `${revealLabel}: ${data.password}`;
         })
-        .catch(() => {
-            alert(errorMessage);
-        });
+        .catch(() => alert(errorMessage));
 }
 
 function copyDashboardCredentialField(id, field, usernameValue = null) {
@@ -425,122 +367,61 @@ function copyDashboardCredentialField(id, field, usernameValue = null) {
     const errorMessage = DASHBOARD_I18N.widgets?.passwords?.error || 'Passwort konnte nicht geladen werden.';
     const usernameElement = document.getElementById(`dashboard-user-${id}`);
     const passwordElement = document.getElementById(`dashboard-pwd-${id}`);
-
     const writeClipboard = (value, successMessage) => {
-        navigator.clipboard.writeText(value)
-            .then(() => {
-                alert(successMessage);
-            })
-            .catch(() => {
-                alert(errorMessage);
-            });
+        navigator.clipboard.writeText(value).then(() => alert(successMessage)).catch(() => alert(errorMessage));
     };
-
     if (field === 'username') {
         const username = usernameValue || dashboardCredentialCache[id]?.username || '';
-        if (!username) {
-            alert(errorMessage);
-            return;
-        }
-        if (usernameElement) {
-            usernameElement.textContent = `${userLabel}: ${username}`;
-        }
-        dashboardCredentialCache[id] = {
-            ...dashboardCredentialCache[id],
-            username
-        };
+        if (!username) { alert(errorMessage); return; }
+        if (usernameElement) usernameElement.textContent = `${userLabel}: ${username}`;
+        dashboardCredentialCache[id] = { ...dashboardCredentialCache[id], username };
         writeClipboard(username, copiedUsername);
         return;
     }
-
     const cachedPassword = dashboardCredentialCache[id]?.password;
     if (cachedPassword) {
-        if (passwordElement) {
-            passwordElement.textContent = `${revealLabel}: ${cachedPassword}`;
-        }
+        if (passwordElement) passwordElement.textContent = `${revealLabel}: ${cachedPassword}`;
         writeClipboard(cachedPassword, copiedPassword);
         return;
     }
-
-    fetch(`{{ url_for('credentials.view_password', credential_id=0) }}`.replace('/0', '/' + id))
+    const tpl = (window.DASHBOARD_BOOT && window.DASHBOARD_BOOT.passwordViewUrlTemplate) || '/credentials/0/password';
+    fetch(tpl.replace('/0', '/' + id))
         .then(response => {
-            if (!response.ok) {
-                throw new Error('request_failed');
-            }
+            if (!response.ok) throw new Error('request_failed');
             return response.json();
         })
         .then(data => {
-            dashboardCredentialCache[id] = {
-                ...dashboardCredentialCache[id],
-                password: data.password
-            };
-            if (passwordElement) {
-                passwordElement.textContent = `${revealLabel}: ${data.password}`;
-            }
+            dashboardCredentialCache[id] = { ...dashboardCredentialCache[id], password: data.password };
+            if (passwordElement) passwordElement.textContent = `${revealLabel}: ${data.password}`;
             writeClipboard(data.password, copiedPassword);
         })
-        .catch(() => {
-            alert(errorMessage);
-        });
+        .catch(() => alert(errorMessage));
 }
 
-// Update-Banner Funktionen
 function dismissUpdateBanner() {
     const banner = document.getElementById('update-banner');
-    if (banner) {
-        fetch('/api/dashboard/update-banner', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'dismiss' })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                banner.classList.remove('show');
-                setTimeout(() => {
-                    banner.remove();
-                }, 300);
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Schließen des Banners:', error);
-            // Banner trotzdem schließen
-            banner.classList.remove('show');
-            setTimeout(() => {
-                banner.remove();
-            }, 300);
-        });
-    }
+    if (!banner) return;
+    fetch('/api/dashboard/update-banner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dismiss' })
+    }).finally(() => {
+        banner.classList.remove('show');
+        setTimeout(() => banner.remove(), 300);
+    });
 }
 
 function disableUpdateNotifications() {
     const banner = document.getElementById('update-banner');
-    if (banner) {
-        fetch('/api/dashboard/update-banner', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'disable' })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                banner.classList.remove('show');
-                setTimeout(() => {
-                    banner.remove();
-                }, 300);
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Deaktivieren der Benachrichtigungen:', error);
-        });
-    }
+    if (!banner) return;
+    fetch('/api/dashboard/update-banner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disable' })
+    }).finally(() => {
+        banner.classList.remove('show');
+        setTimeout(() => banner.remove(), 300);
+    });
 }
 </script>
 {% endblock %}
-
-
-

@@ -57,7 +57,9 @@ from .kanban import (
     KanbanActivity,
     KanbanBoardTemplate,
     KanbanBoardView,
+    KanbanCustomFieldCategory,
     KanbanCustomField,
+    KanbanCardFieldEnabled,
     KanbanCardFieldValue,
 )
 
@@ -96,7 +98,7 @@ __all__ = [
     'KanbanLabel', 'KanbanCardLabel', 'KanbanCardAssignee',
     'KanbanChecklist', 'KanbanChecklistItem', 'KanbanAttachment',
     'KanbanCardVote', 'KanbanActivity', 'KanbanBoardTemplate', 'KanbanBoardView',
-    'KanbanCustomField', 'KanbanCardFieldValue',
+    'KanbanCustomFieldCategory', 'KanbanCustomField', 'KanbanCardFieldEnabled', 'KanbanCardFieldValue',
     'ExcalidrawDrawing', 'ExcalidrawDrawingVersion',
 ]
 

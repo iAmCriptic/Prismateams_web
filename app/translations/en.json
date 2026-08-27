@@ -598,7 +598,11 @@
       "email": {
         "title": "Emails",
         "unread_badge": "New",
-        "empty": "No emails"
+        "empty": "No emails",
+        "open": "Open",
+        "reply": "Reply",
+        "main_mailbox": "Main mailbox",
+        "all_mailboxes": "All mailboxes"
       },
       "files": {
         "title": "Recent files",
@@ -632,7 +636,7 @@
       },
       "passwords": {
         "title": "Passwords",
-        "empty": "No favorite passwords",
+        "empty": "No passwords selected",
         "reveal": "Reveal username and password",
         "copy_username": "Copy username",
         "copy_password": "Copy password",
@@ -649,7 +653,38 @@
         "empty": "No contacts",
         "call": "Call",
         "mail": "Email"
+      },
+      "kanban_changes": {
+        "title": "Kanban changes",
+        "empty": "No recent changes"
       }
+    },
+    "module_bar": {
+      "aria": "Modules",
+      "empty": "No modules available"
+    },
+    "action_bar": {
+      "placeholder": "Placeholder for upcoming button"
+    },
+    "live": {
+      "arrange": "Arrange",
+      "add_widget": "Add widget",
+      "settings": "Widget settings",
+      "save": "Save",
+      "cancel": "Cancel",
+      "mailbox_label": "Mailbox",
+      "credentials_label": "Select passwords",
+      "credentials_hint": "No selection = favourites.",
+      "boards_label": "Boards",
+      "boards_hint": "No selection = all boards you can access.",
+      "calendars_hint": "No selection = all accessible calendars.",
+      "no_options": "No entries available.",
+      "no_settings": "This widget has no additional settings.",
+      "all_added": "All available widgets have already been added.",
+      "save_error": "Could not save."
+    },
+    "guest": {
+      "use_modules": "Use the module bar above to open your available areas."
     },
     "quick_access": {
       "title": "Quick access",
@@ -673,7 +708,7 @@
           },
           "emails": {
             "label": "Emails",
-            "description": "Shows the latest emails."
+            "description": "Shows the latest emails from a mailbox."
           },
           "dateien": {
             "label": "Recent Files",
@@ -681,7 +716,7 @@
           },
           "passwoerter": {
             "label": "Passwords",
-            "description": "Shows up to two of your favorite passwords."
+            "description": "Shows selected passwords (or favourites)."
           },
           "canvas": {
             "label": "Canvas",
@@ -706,6 +741,10 @@
           "kontakte": {
             "label": "Contacts",
             "description": "Shows selected contacts with quick actions."
+          },
+          "kanban_aenderungen": {
+            "label": "Kanban changes",
+            "description": "Shows recent updates from Kanban boards you can access."
           }
         },
         "add": "Add widget",
@@ -2684,6 +2723,8 @@
         "open": "Open",
         "download": "Download",
         "rename": "Rename",
+        "visibility": "Visibility",
+        "share": "Share",
         "delete": "Delete",
         "delete_confirm": "Delete this drawing?",
         "created_by": "By {name}",
@@ -2695,8 +2736,7 @@
         "hint": "Create your first drawing."
       },
       "nav": {
-        "menu": "Menu",
-        "all": "All"
+        "menu": "Menu"
       }
     },
     "create": {
@@ -2720,6 +2760,34 @@
       "collab_off": "Editing locally — collaboration server unavailable",
       "readonly": "View only"
     },
+    "visibility": {
+      "title": "Change visibility"
+    },
+    "share": {
+      "title": "Share",
+      "wrong_password": "Wrong password.",
+      "password_prompt": "Enter password",
+      "submit": "Open",
+      "unavailable": "Share unavailable",
+      "mode": "Permission",
+      "mode_view": "View only",
+      "mode_edit": "Edit",
+      "password": "Password",
+      "password_optional": "Password (optional)",
+      "create": "Create link",
+      "empty": "No share links yet.",
+      "col_created_by": "Created by",
+      "col_link": "Link",
+      "col_password": "Password",
+      "col_mode": "Mode",
+      "col_actions": "Actions",
+      "copy": "Copy",
+      "copied": "Copied",
+      "no_password": "—",
+      "delete_confirm": "Delete share link?",
+      "load_error": "Could not load shares.",
+      "guest_name": "Guest"
+    },
     "save": {
       "invalid": "The drawing could not be saved.",
       "too_large": "The drawing is too large to save."
@@ -2731,7 +2799,8 @@
       "created": "Drawing \"{name}\" has been created.",
       "uploaded": "Drawing \"{name}\" has been uploaded.",
       "renamed": "Drawing renamed to \"{name}\".",
-      "deleted": "Drawing \"{name}\" has been deleted."
+      "deleted": "Drawing \"{name}\" has been deleted.",
+      "visibility_updated": "Visibility of \"{name}\" has been updated."
     }
   },
   "canvas": {
@@ -2929,9 +2998,23 @@
         "heading2": "Heading 2",
         "heading3": "Heading 3",
         "link": "Link",
-        "code": "Code",
+        "image": "Image",
+        "code": "Inline code",
+        "code_block": "Code block",
         "list": "List",
-        "wikilink": "Wiki link"
+        "ordered_list": "Numbered list",
+        "blockquote": "Quote",
+        "wikilink": "Wiki link",
+        "superscript": "Superscript",
+        "subscript": "Subscript",
+        "footnote": "Footnote",
+        "table": "Table",
+        "hr": "Horizontal rule",
+        "math_inline": "LaTeX (inline)",
+        "math_block": "LaTeX (block)",
+        "mermaid": "Mermaid diagram",
+        "more_tools": "More formatting",
+        "sheet_title": "Formatting"
       },
       "editor": {
         "placeholder": "Start writing...",
@@ -2950,7 +3033,11 @@
         "link_text": "Link text",
         "code": "Code",
         "list_item": "List item",
-        "page_name": "Page name"
+        "page_name": "Page name",
+        "quote": "Quote",
+        "alt_text": "Alt text",
+        "math": "Formula",
+        "mermaid": "graph TD\n    A --> B"
       }
     },
     "edit": {
@@ -2976,7 +3063,11 @@
         "link_text": "Link text",
         "code": "Code",
         "list_item": "List item",
-        "page_name": "Page name"
+        "page_name": "Page name",
+        "quote": "Quote",
+        "alt_text": "Alt text",
+        "math": "Formula",
+        "mermaid": "graph TD\n    A --> B"
       }
     },
     "view": {
@@ -5415,7 +5506,11 @@
       "subtitle": "Choose a list, score a target, save.",
       "target": "Evaluation target",
       "stand": "Stand",
-      "stand_description": "Show stand description"
+      "stand_description": "Show stand description",
+      "criterion_description": "Show criterion description",
+      "existing_hint": "Already rated ({points} points). You can edit the scores.",
+      "update": "Update",
+      "evaluated_tag": "rated"
     },
     "my_evaluations": {
       "page_title": "My evaluations",
@@ -5473,14 +5568,30 @@
     "reset": {
       "page_title": "Reset data - Assessment",
       "heading": "Reset data",
-      "subtitle": "Clear evaluations, warnings or inspections selectively",
+      "subtitle": "Clear results or master data in the assessment tool",
       "global": "— Global —",
+      "results_heading": "Results",
+      "results_note": "Evaluations apply to the list selected above. Warnings and room inspections are always cleared completely.",
+      "master_heading": "Master data",
+      "master_note": "These actions always apply to the entire assessment tool. Portal accounts are not affected.",
       "btn_ranking": "Reset evaluations",
       "btn_warnings": "Reset all warnings",
       "btn_inspections": "Reset all room inspections",
+      "btn_accounts": "Accounts",
+      "btn_stands": "Stands",
+      "btn_criteria_lists": "Criteria & evaluation groups",
+      "btn_rooms": "Rooms",
+      "hint_accounts": "Deletes all assessment-tool user accounts. Portal accounts remain. Your current assessment account is kept if you are signed in with it.",
+      "hint_stands": "Deletes all stands including related evaluations and warnings.",
+      "hint_criteria_lists": "Deletes all evaluation lists, targets and criteria including related evaluations.",
+      "hint_rooms": "Deletes all rooms and room inspections. Stands remain; their room assignment is cleared.",
       "confirm_ranking": "Really delete all evaluations for this list?",
       "confirm_warnings": "Really delete all warnings?",
       "confirm_inspections": "Really delete all room inspections?",
+      "confirm_accounts": "Really delete all assessment accounts? Portal accounts are not affected.",
+      "confirm_stands": "Really delete all stands? Related evaluations and warnings will also be deleted.",
+      "confirm_criteria_lists": "Really delete all evaluation lists and criteria? Related evaluations will also be deleted.",
+      "confirm_rooms": "Really delete all rooms? Room inspections will be deleted; stands remain.",
       "confirm_final": "Really delete permanently? This cannot be undone.",
       "confirm_ok": "Yes, continue",
       "confirm_ok2": "Yes, delete permanently",
@@ -5610,7 +5721,20 @@
       "save": "Save",
       "empty": "No fields yet. Add some above.",
       "select_ph": "Select …",
-      "delete_confirm": "Delete this field and all values on cards?"
+      "delete_confirm": "Delete this field and all values on cards?",
+      "categories": "Categories",
+      "category": "Category",
+      "category_ph": "Category name",
+      "add_category": "Add category",
+      "uncategorized": "Uncategorized",
+      "insert": "Insert fields",
+      "create_local": "Field for this card",
+      "card_empty": "No fields on this card yet.",
+      "already": "Already inserted",
+      "local": "This card only",
+      "remove_confirm": "Remove field from card?",
+      "no_categories": "No categories yet.",
+      "delete_category": "Delete category?"
     },
     "card": {
       "description": "Description",
@@ -5639,6 +5763,9 @@
       "attach_file": "File",
       "attach_link": "Link",
       "link_title": "Title (optional)",
+      "links": "Links",
+      "files": "Files",
+      "added_suffix": "added",
       "activity": "Activity"
     },
     "filter": {

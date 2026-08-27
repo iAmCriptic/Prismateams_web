@@ -290,13 +290,6 @@ def notifications():
 @login_required
 def appearance():
     """Edit appearance settings."""
-    from app.utils.navigation import (
-        get_available_mobile_nav_options,
-        get_mobile_nav_slots,
-        validate_mobile_nav_slot,
-        MOBILE_NAV_DEFAULT_SLOTS,
-    )
-
     language_codes = list(available_languages())
     selected_language = request.form.get('language') if request.method == 'POST' else current_user.language
     is_guest = hasattr(current_user, 'is_guest') and current_user.is_guest
@@ -338,20 +331,6 @@ def appearance():
             current_user.language = selected_language
             g.language = selected_language
 
-        if not is_guest:
-            nav_left = validate_mobile_nav_slot(
-                request.form.get('mobile_nav_left', MOBILE_NAV_DEFAULT_SLOTS['left']),
-                current_user,
-            )
-            nav_right = validate_mobile_nav_slot(
-                request.form.get('mobile_nav_right', MOBILE_NAV_DEFAULT_SLOTS['right']),
-                current_user,
-            )
-            if nav_left and nav_right:
-                config = current_user.get_dashboard_config()
-                config['mobile_nav_slots'] = {'left': nav_left, 'right': nav_right}
-                current_user.set_dashboard_config(config)
-
         db.session.commit()
         flash(translate('settings.appearance.flash_success'), 'success')
         return redirect(url_for('settings.appearance'))
@@ -372,15 +351,10 @@ def appearance():
             'badge_grade': _language_badge_grade(completeness) if completeness is not None else None,
         })
 
-    mobile_nav_slots = get_mobile_nav_slots(current_user)
-    mobile_nav_options = get_available_mobile_nav_options(current_user)
-
     return render_template(
         'settings/appearance.html',
         user=current_user,
         language_options=language_options,
-        mobile_nav_slots=mobile_nav_slots,
-        mobile_nav_options=mobile_nav_options,
         is_guest=is_guest,
     )
 

@@ -6,6 +6,7 @@
 {% block assessment_content %}
 {{ assessment_page_header(_('assessment.reset.heading'), _('assessment.reset.subtitle'), 'arrow-counterclockwise') }}
     <div class="assessment-panel">
+            <h2 class="assessment-panel-title mb-3">{{ _('assessment.reset.results_heading') }}</h2>
             <div class="mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
                 <label class="form-label" for="listSelect">{{ _('assessment.common.list_label') }}</label>
                 <select class="form-select" id="listSelect" data-inv-pill-select>
@@ -17,10 +18,46 @@
                     {% endfor %}
                 </select>
             </div>
+            <p class="assessment-reset-note">{{ _('assessment.reset.results_note') }}</p>
             <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-outline-danger" type="button" data-action="reset_ranking">{{ _('assessment.reset.btn_ranking') }}</button>
                 <button class="btn btn-outline-danger" type="button" data-action="reset_warnings">{{ _('assessment.reset.btn_warnings') }}</button>
                 <button class="btn btn-outline-danger" type="button" data-action="reset_room_inspections">{{ _('assessment.reset.btn_inspections') }}</button>
+            </div>
+    </div>
+
+    <div class="assessment-panel">
+            <h2 class="assessment-panel-title mb-2">{{ _('assessment.reset.master_heading') }}</h2>
+            <p class="assessment-reset-note">{{ _('assessment.reset.master_note') }}</p>
+            <div class="assessment-reset-grid">
+                <div class="assessment-reset-item">
+                    <div>
+                        <div class="fw-semibold">{{ _('assessment.reset.btn_accounts') }}</div>
+                        <p class="text-muted small mb-2 mb-md-0">{{ _('assessment.reset.hint_accounts') }}</p>
+                    </div>
+                    <button class="btn btn-outline-danger" type="button" data-action="reset_accounts">{{ _('assessment.reset.btn_accounts') }}</button>
+                </div>
+                <div class="assessment-reset-item">
+                    <div>
+                        <div class="fw-semibold">{{ _('assessment.reset.btn_stands') }}</div>
+                        <p class="text-muted small mb-2 mb-md-0">{{ _('assessment.reset.hint_stands') }}</p>
+                    </div>
+                    <button class="btn btn-outline-danger" type="button" data-action="reset_stands">{{ _('assessment.reset.btn_stands') }}</button>
+                </div>
+                <div class="assessment-reset-item">
+                    <div>
+                        <div class="fw-semibold">{{ _('assessment.reset.btn_criteria_lists') }}</div>
+                        <p class="text-muted small mb-2 mb-md-0">{{ _('assessment.reset.hint_criteria_lists') }}</p>
+                    </div>
+                    <button class="btn btn-outline-danger" type="button" data-action="reset_criteria_lists">{{ _('assessment.reset.btn_criteria_lists') }}</button>
+                </div>
+                <div class="assessment-reset-item">
+                    <div>
+                        <div class="fw-semibold">{{ _('assessment.reset.btn_rooms') }}</div>
+                        <p class="text-muted small mb-2 mb-md-0">{{ _('assessment.reset.hint_rooms') }}</p>
+                    </div>
+                    <button class="btn btn-outline-danger" type="button" data-action="reset_rooms">{{ _('assessment.reset.btn_rooms') }}</button>
+                </div>
             </div>
             <p class="text-muted mt-3 mb-0" id="status"></p>
     </div>
@@ -32,7 +69,19 @@
         reset_ranking: '{{ _("assessment.reset.confirm_ranking") }}',
         reset_warnings: '{{ _("assessment.reset.confirm_warnings") }}',
         reset_room_inspections: '{{ _("assessment.reset.confirm_inspections") }}',
+        reset_accounts: '{{ _("assessment.reset.confirm_accounts") }}',
+        reset_stands: '{{ _("assessment.reset.confirm_stands") }}',
+        reset_criteria_lists: '{{ _("assessment.reset.confirm_criteria_lists") }}',
+        reset_rooms: '{{ _("assessment.reset.confirm_rooms") }}',
     };
+    const globalActions = new Set([
+        'reset_warnings',
+        'reset_room_inspections',
+        'reset_accounts',
+        'reset_stands',
+        'reset_criteria_lists',
+        'reset_rooms',
+    ]);
     const finalMsg = '{{ _("assessment.reset.confirm_final") }}';
 
     document.querySelectorAll('button[data-action]').forEach((btn) => {
@@ -40,7 +89,9 @@
             const listId = document.getElementById('listSelect').value;
             const action = btn.dataset.action;
             if (action === 'reset_ranking' && !listId) {
-                document.getElementById('status').textContent = '{{ _("assessment.reset.need_list") }}';
+                const msg = '{{ _("assessment.reset.need_list") }}';
+                document.getElementById('status').textContent = msg;
+                if (window.AssessmentUI) window.AssessmentUI.notify(msg, 'warning');
                 return;
             }
             const ok = window.AssessmentUI
@@ -54,14 +105,19 @@
             if (!ok) return;
 
             const payload = { action };
-            if (listId && action !== 'reset_warnings') payload.list_id = Number(listId);
+            if (listId && !globalActions.has(action)) payload.list_id = Number(listId);
             const result = await fetch('/assessment/api/reset_data', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload),
             });
             const data = await result.json();
-            document.getElementById('status').textContent = data.message || (data.success ? '{{ _("assessment.common.done") }}' : '{{ _("assessment.common.error") }}');
+            const msg = data.message || (data.success ? '{{ _("assessment.common.done") }}' : '{{ _("assessment.common.error") }}');
+            document.getElementById('status').textContent = msg;
+            if (window.AssessmentUI) window.AssessmentUI.notify(msg, data.success ? 'success' : 'danger');
+            if (data.success && action === 'reset_criteria_lists') {
+                window.location.reload();
+            }
         });
     });
 })();

@@ -10,14 +10,22 @@
      data-board-id="{{ board.id }}"
      data-can-edit="{{ '1' if can_edit else '0' }}"
      data-can-manage="{{ '1' if can_manage else '0' }}"
-     data-sse-url="{{ url_for('sse.kanban_events', board_id=board.id) }}"
+     data-share-token="{{ share_token or '' }}"
+     data-is-share="{{ '1' if is_share else '0' }}"
+     data-sse-url="{% if not is_share %}{{ url_for('sse.kanban_events', board_id=board.id) }}{% endif %}"
      style="--kanban-bg: {{ background_css }};">
 
   <header class="kanban-board-topbar">
     <div class="kanban-board-topbar__left">
+      {% if not is_share %}
       <a href="{{ url_for('kanban.index') }}" class="btn kanban-pill-btn kanban-pill-btn--ghost" title="Zurück"><i class="bi bi-arrow-left"></i></a>
+      {% endif %}
       <h1 class="kanban-board-title">{{ board.title }}</h1>
+      {% if is_share %}
+      <span class="kanban-vis-chip">{{ _('kanban.share.mode_edit') if can_edit else _('kanban.share.mode_view') }}</span>
+      {% else %}
       <span class="kanban-vis-chip">{{ _('kanban.index.vis_' + board.visibility) }}</span>
+      {% endif %}
     </div>
     <div class="kanban-board-topbar__right">
       <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
@@ -226,10 +234,18 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <section class="mb-4">
+          <h6 class="mb-2">{{ _('kanban.custom_fields.categories') }}</h6>
+          <form id="kanbanCfCategoryForm" class="d-flex flex-wrap gap-2 mb-2">
+            <input type="text" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="kanbanCfCategoryName" maxlength="200" placeholder="{{ _('kanban.custom_fields.category_ph') }}" required autocomplete="off">
+            <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">{{ _('kanban.custom_fields.add_category') }}</button>
+          </form>
+          <div id="kanbanCfCategoriesList" class="kanban-cf-cat-list"></div>
+        </section>
         <form id="kanbanCustomFieldForm" class="kanban-custom-field-form mb-3">
           <input type="hidden" id="kanbanCfEditId" value="">
           <div class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label small mb-1" for="kanbanCfLabel">{{ _('kanban.custom_fields.label') }}</label>
               <input type="text" class="form-control kanban-pill-input" id="kanbanCfLabel" name="label" maxlength="200" placeholder="{{ _('kanban.custom_fields.label_ph') }}" required autocomplete="off">
             </div>
@@ -243,7 +259,13 @@
                 <option value="checkbox">{{ _('kanban.custom_fields.type_checkbox') }}</option>
               </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-3">
+              <label class="form-label small mb-1" for="kanbanCfCategory">{{ _('kanban.custom_fields.category') }}</label>
+              <select class="form-select kanban-pill-input" id="kanbanCfCategory" name="category_id">
+                <option value="">{{ _('kanban.custom_fields.uncategorized') }}</option>
+              </select>
+            </div>
+            <div class="col-md-3">
               <button type="submit" class="btn btn-accent kanban-pill-btn" id="kanbanCfSubmit">{{ _('kanban.custom_fields.add') }}</button>
               <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanCfCancelEdit" hidden>{{ _('common.cancel') }}</button>
             </div>
@@ -254,6 +276,21 @@
           </div>
         </form>
         <div id="kanbanCustomFieldsList" class="kanban-cf-manage-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Insert board custom fields onto card #}
+<div class="modal fade" id="kanbanInsertFieldsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.custom_fields.insert') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="kanbanInsertFieldsList"></div>
       </div>
     </div>
   </div>
@@ -454,7 +491,7 @@
   </div>
 </div>
 
-<span id="current-user-id" data-user-id="{{ current_user.id }}" hidden></span>
+<span id="current-user-id" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}" hidden></span>
 {% endblock %}
 
 {% block extra_js %}
@@ -487,6 +524,20 @@
     customFieldDeleteConfirm: {{ _('kanban.custom_fields.delete_confirm') | tojson }},
     customFieldAdd: {{ _('kanban.custom_fields.add') | tojson }},
     customFieldSave: {{ _('kanban.custom_fields.save') | tojson }},
+    customFieldsLabel: {{ _('kanban.custom_fields.label') | tojson }},
+    customFieldInsert: {{ _('kanban.custom_fields.insert') | tojson }},
+    customFieldCreateLocal: {{ _('kanban.custom_fields.create_local') | tojson }},
+    customFieldCardEmpty: {{ _('kanban.custom_fields.card_empty') | tojson }},
+    customFieldAlready: {{ _('kanban.custom_fields.already') | tojson }},
+    customFieldLocal: {{ _('kanban.custom_fields.local') | tojson }},
+    customFieldRemoveConfirm: {{ _('kanban.custom_fields.remove_confirm') | tojson }},
+    customFieldUncategorized: {{ _('kanban.custom_fields.uncategorized') | tojson }},
+    customFieldNoCategories: {{ _('kanban.custom_fields.no_categories') | tojson }},
+    customFieldDeleteCategory: {{ _('kanban.custom_fields.delete_category') | tojson }},
+    links: {{ _('kanban.card.links') | tojson }},
+    files: {{ _('kanban.card.files') | tojson }},
+    addedSuffix: {{ _('kanban.card.added_suffix') | tojson }},
+    due: {{ _('kanban.card.due') | tojson }},
     typeText: {{ _('kanban.custom_fields.type_text') | tojson }},
     typeSelect: {{ _('kanban.custom_fields.type_select') | tojson }},
     typeDate: {{ _('kanban.custom_fields.type_date') | tojson }},

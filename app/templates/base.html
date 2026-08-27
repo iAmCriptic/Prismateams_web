@@ -301,232 +301,44 @@
     {# Standalone auth pages (login/register/confirm-email/…) — no app chrome even when logged in #}
     {% set _is_auth_shell = force_light_theme|default(false) %}
     {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
+    {% from "partials/desktop_top_nav.html" import top_nav_brand, top_nav_actions, top_nav_favorites_rail, top_nav_shared_panels with context %}
     <!-- Mobile Bottom Navigation -->
     <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
-            {# 1: Benachrichtigungen #}
-            <div class="mobile-nav-item">
-                <button type="button" class="nav-link notification-bell-btn border-0 bg-transparent position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
+            <div class="mobile-nav-favorites" id="mobileNavFavorites">
+                {% set _current_key = current_nav_module.key if current_nav_module else '' %}
+                {% for item in (desktop_nav_favorites or [])[:5] %}
+                <a href="{{ item.url }}" class="mobile-nav-favorite-link{% if _current_key == item.key %} active{% endif %}" data-nav-id="{{ item.key }}" aria-label="{{ _(item.label_key) }}">
+                    <i class="bi {{ item.icon }}"></i>
+                </a>
+                {% endfor %}
+            </div>
+            <div class="mobile-nav-actions">
+                <button type="button" class="mobile-nav-action-btn notification-bell-btn border-0 bg-transparent position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
                     <i class="bi bi-bell"></i>
                     <span class="badge rounded-pill bg-danger notification-badge d-none">0</span>
-                    <span class="mobile-nav-label">{{ _('layout.nav.notifications_short') }}</span>
                 </button>
-            </div>
-
-            {# 2: Linker personalisierbarer Slot #}
-            <div class="mobile-nav-item">
-                {% if mobile_nav_left %}
-                <a href="{{ mobile_nav_left.url }}" class="nav-link position-relative {% if request.endpoint and mobile_nav_left.active_prefix in request.endpoint %}active{% endif %}">
-                    <i class="bi {{ mobile_nav_left.icon }}"></i>
-                    <span class="mobile-nav-label">{{ _(mobile_nav_left.label_key) }}</span>
-                </a>
-                {% endif %}
-            </div>
-
-            {# 3: Home (erhaben) #}
-            <div class="mobile-nav-item mobile-nav-item-home">
-                <a href="{{ url_for('dashboard.index') }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}" aria-label="{{ _('layout.nav.home') }}">
-                    <i class="bi bi-house-door"></i>
-                </a>
-                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">{{ _('layout.nav.home') }}</span>
-            </div>
-
-            {# 4: Rechter personalisierbarer Slot #}
-            <div class="mobile-nav-item">
-                {% if mobile_nav_right %}
-                <a href="{{ mobile_nav_right.url }}" class="nav-link position-relative {% if request.endpoint and mobile_nav_right.active_prefix in request.endpoint %}active{% endif %}">
-                    <i class="bi {{ mobile_nav_right.icon }}"></i>
-                    <span class="mobile-nav-label">{{ _(mobile_nav_right.label_key) }}</span>
-                </a>
-                {% endif %}
-            </div>
-
-            {# 5: Module #}
-            <div class="mobile-nav-item">
-                <a href="javascript:void(0)" role="button" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#moreMenu">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                    <span class="mobile-nav-label">{{ _('layout.nav.module') }}</span>
-                </a>
+                <button type="button" class="mobile-nav-action-btn" data-launcher-toggle aria-label="{{ _('layout.launcher.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="moduleLauncherPanel">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                </button>
+                <button type="button" class="mobile-nav-action-btn mobile-nav-avatar-btn" data-account-toggle aria-label="{{ _('layout.account.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="accountPopup">
+                    {% if current_user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="top-navbar-avatar">
+                    {% else %}
+                    <i class="bi bi-person-circle top-navbar-avatar-fallback"></i>
+                    {% endif %}
+                </button>
             </div>
         </div>
     </nav>
 
-    {% from "partials/desktop_top_nav.html" import top_nav_brand, top_nav_actions, top_nav_favorites_rail with context %}
     <header class="d-none d-lg-flex top-navbar" id="desktopTopNav">
         {{ top_nav_brand() }}
         <div class="top-navbar-search" role="search" aria-label="{{ _('layout.search.slot_label') }}">{% block navbar_search %}{% endblock %}</div>
         {{ top_nav_actions() }}
     </header>
-
-    <!-- More Menu Offcanvas (Mobile) -->
-    <div class="offcanvas offcanvas-end offcanvas-accent more-menu" tabindex="-1" id="moreMenu" aria-labelledby="moreMenuTitle">
-        <div class="offcanvas-header more-menu-header">
-            <h5 class="offcanvas-title more-menu-title" id="moreMenuTitle">{{ _('layout.nav.more') }}</h5>
-            <button type="button" class="more-menu-close" data-bs-dismiss="offcanvas" aria-label="Schließen">
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-            </button>
-        </div>
-        <div class="offcanvas-body more-menu-body">
-            <ul class="nav more-menu-nav flex-column">
-                {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('chat.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-chat-dots"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.chats') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('files.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-folder"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.files') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('calendar.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-calendar-event"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.calendar') }}</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('events.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-calendar2-week"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.events') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('email.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-envelope"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.email') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('contacts.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-person-lines-fill"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.contacts') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('credentials.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-key"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.credentials') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_manuals') and (not current_user.is_authenticated or has_module_access(current_user, 'module_manuals')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('manuals.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-book"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.manuals') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_inventory') and (not current_user.is_authenticated or has_module_access(current_user, 'module_inventory')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('inventory.dashboard') }}" class="nav-link more-menu-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-box-seam"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.inventory') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_wiki') and (not current_user.is_authenticated or has_module_access(current_user, 'module_wiki')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('wiki.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-journal-text"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.wiki') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_shortlinks') and (not current_user.is_authenticated or has_module_access(current_user, 'module_shortlinks')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('shortlinks.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'shortlinks' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-link-45deg"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.shortlinks') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_kanban') and (not current_user.is_authenticated or has_module_access(current_user, 'module_kanban')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('kanban.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'kanban' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-kanban"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.kanban') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('booking.requests') }}" class="nav-link more-menu-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-calendar-check"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.booking') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_music') and (not current_user.is_authenticated or has_module_access(current_user, 'module_music')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('music.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-music-note-beamed"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.music') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_media_downloader') and (not current_user.is_authenticated or has_module_access(current_user, 'module_media_downloader')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('media_downloader.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'media_downloader' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-download"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.media_downloader') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('assessment.general.home') }}" class="nav-link more-menu-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-clipboard2-check"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.assessment') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                <li class="nav-item">
-                    <a href="{{ url_for('settings.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-gear"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.settings') }}</span>
-                    </a>
-                </li>
-            </ul>
-
-            <div class="more-menu-divider" role="separator"></div>
-
-            <ul class="nav more-menu-nav more-menu-nav--account flex-column">
-                <li class="nav-item">
-                    <button type="button" class="nav-link more-menu-link" data-cookie-consent-open>
-                        <span class="more-menu-icon"><i class="bi bi-shield-check"></i></span>
-                        <span class="more-menu-label">{{ _('layout.cookie_consent.open_settings') }}</span>
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('settings.profile') }}" class="nav-link more-menu-link">
-                        <span class="more-menu-icon"><i class="bi bi-person"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.profile') }}</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('auth.logout') }}" class="nav-link more-menu-link more-menu-link--danger">
-                        <span class="more-menu-icon"><i class="bi bi-box-arrow-right"></i></span>
-                        <span class="more-menu-label">{{ _('layout.nav.logout') }}</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
     {{ top_nav_favorites_rail() }}
+    {{ top_nav_shared_panels() }}
     {% endif %}
 
     {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed and not _is_auth_shell %}
@@ -545,9 +357,9 @@
                     'email.index', 'email.folder_view',
                     'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
                     'shortlinks.index', 'kanban.index', 'kanban.board', 'booking.requests', 'music.index', 'media_downloader.index', 'settings.index',
-                    'assessment.general.home'
+                    'assessment.general.home', 'excalidraw.index'
                 ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('kanban.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('kanban.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint.startswith('excalidraw.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
                 {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
@@ -623,6 +435,32 @@
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptConfirmCancelBtn">{{ _('common.cancel') }}</button>
                     <button type="button" class="btn btn-danger" id="ptConfirmOkBtn">{{ _('common.delete') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global prompt dialog (replaces native window.prompt) -->
+    <div class="modal fade" id="ptPromptModal" tabindex="-1" aria-labelledby="ptPromptTitleText" aria-hidden="true"
+         data-i18n-ok="{{ _('common.confirm') }}"
+         data-i18n-cancel="{{ _('common.cancel') }}">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content pt-confirm-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+                        <i class="bi bi-pencil-square text-primary flex-shrink-0" aria-hidden="true"></i>
+                        <span id="ptPromptTitleText">{{ _('common.confirm') }}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2" id="ptPromptMessage"></p>
+                    <label class="visually-hidden" for="ptPromptInput" id="ptPromptInputLabel">{{ _('common.confirm') }}</label>
+                    <input type="text" class="form-control" id="ptPromptInput" autocomplete="off">
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptPromptCancelBtn">{{ _('common.cancel') }}</button>
+                    <button type="button" class="btn btn-outline-primary" id="ptPromptOkBtn">{{ _('common.confirm') }}</button>
                 </div>
             </div>
         </div>

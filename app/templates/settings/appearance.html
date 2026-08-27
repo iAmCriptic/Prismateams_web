@@ -188,38 +188,6 @@
                 </select>
             </div>
 
-            {% if not is_guest %}
-            <div class="settings-appearance-mobile-nav">
-                <div class="settings-appearance-label-row mb-2">
-                    <h3 class="settings-appearance-subsection-title mb-0">{{ _('settings.appearance.mobile_nav.title') }}</h3>
-                    <button type="button" class="settings-appearance-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.appearance.mobile_nav.description') }} {{ _('settings.appearance.mobile_nav.help') }}" aria-label="{{ _('settings.appearance.mobile_nav.description') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="settings-appearance-fields">
-                    <div class="settings-appearance-field mb-0">
-                        <label for="mobile_nav_left" class="form-label">{{ _('settings.appearance.mobile_nav.left_label') }}</label>
-                        <select class="form-select settings-appearance-input" id="mobile_nav_left" name="mobile_nav_left">
-                            {% for option in mobile_nav_options %}
-                            <option value="{{ option.key }}" {% if option.key == mobile_nav_slots.left %}selected{% endif %}>
-                                {{ _(option.label_key) }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="settings-appearance-field mb-0">
-                        <label for="mobile_nav_right" class="form-label">{{ _('settings.appearance.mobile_nav.right_label') }}</label>
-                        <select class="form-select settings-appearance-input" id="mobile_nav_right" name="mobile_nav_right">
-                            {% for option in mobile_nav_options %}
-                            <option value="{{ option.key }}" {% if option.key == mobile_nav_slots.right %}selected{% endif %}>
-                                {{ _(option.label_key) }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </section>
 
         <div class="settings-appearance-actions">

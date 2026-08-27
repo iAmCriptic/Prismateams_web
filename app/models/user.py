@@ -220,6 +220,19 @@ class User(UserMixin, db.Model):
             seen_favs.add(key)
             desktop_nav_favorites.append(key)
 
+        module_order_raw = config.get('dashboard_module_order')
+        dashboard_module_order = []
+        if isinstance(module_order_raw, list):
+            seen_mods = set()
+            for raw in module_order_raw:
+                if not isinstance(raw, str):
+                    continue
+                key = raw.strip()
+                if not key or key == 'dashboard' or key in seen_mods:
+                    continue
+                seen_mods.add(key)
+                dashboard_module_order.append(key)
+
         widgets = config.get('widgets')
         if not isinstance(widgets, list):
             widgets = None
@@ -237,6 +250,17 @@ class User(UserMixin, db.Model):
                     'type': str(wtype),
                 })
 
+        def _int_list(value, limit=None):
+            if not isinstance(value, list):
+                return []
+            out = []
+            for c in value:
+                if isinstance(c, int) or (isinstance(c, str) and c.isdigit()):
+                    out.append(int(c))
+                if limit is not None and len(out) >= limit:
+                    break
+            return out
+
         normalized = []
         for item in widgets:
             if not isinstance(item, dict):
@@ -246,18 +270,33 @@ class User(UserMixin, db.Model):
                 continue
             wid = item.get('id') or cls._new_widget_instance_id()
             entry = {'id': str(wid), 'type': str(wtype)}
+
+            # Layout size: w = columns (1-4), h = rows (1-3)
+            try:
+                entry['w'] = max(1, min(4, int(item.get('w', 1) or 1)))
+            except (TypeError, ValueError):
+                entry['w'] = 1
+            try:
+                entry['h'] = max(1, min(3, int(item.get('h', 1) or 1)))
+            except (TypeError, ValueError):
+                entry['h'] = 1
+
             if wtype == 'termine':
-                cids = item.get('calendar_ids') or []
-                if isinstance(cids, list):
-                    entry['calendar_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)]
-                else:
-                    entry['calendar_ids'] = []
+                entry['calendar_ids'] = _int_list(item.get('calendar_ids') or [])
             elif wtype == 'kontakte':
-                cids = item.get('contact_ids') or []
-                if isinstance(cids, list):
-                    entry['contact_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)][:3]
+                entry['contact_ids'] = _int_list(item.get('contact_ids') or [], limit=5)
+            elif wtype == 'emails':
+                mid = item.get('mailbox_id', None)
+                if mid is None or mid == '' or mid == 'null':
+                    entry['mailbox_id'] = None
+                elif isinstance(mid, int) or (isinstance(mid, str) and mid.isdigit()):
+                    entry['mailbox_id'] = int(mid)
                 else:
-                    entry['contact_ids'] = []
+                    entry['mailbox_id'] = None
+            elif wtype == 'passwoerter':
+                entry['credential_ids'] = _int_list(item.get('credential_ids') or [], limit=5)
+            elif wtype == 'kanban_aenderungen':
+                entry['board_ids'] = _int_list(item.get('board_ids') or [])
             normalized.append(entry)
 
         return {
@@ -266,6 +305,7 @@ class User(UserMixin, db.Model):
             'quick_access_links': quick_access,
             'mobile_nav_slots': mobile_nav,
             'desktop_nav_favorites': desktop_nav_favorites,
+            'dashboard_module_order': dashboard_module_order,
         }
 
     def set_dashboard_config(self, config):

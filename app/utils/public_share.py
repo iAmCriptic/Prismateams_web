@@ -13,11 +13,11 @@ from app import db
 from app.models.file import File, Folder
 from app.models.public_share import PublicShare, ShareAccessLog
 
-ResourceType = Literal['file', 'folder', 'kanban_board']
+ResourceType = Literal['file', 'folder', 'kanban_board', 'excalidraw_drawing']
 ShareMode = Literal['view', 'edit', 'dropbox']
 
 VALID_MODES = frozenset({'view', 'edit', 'dropbox'})
-VALID_RESOURCE_TYPES = frozenset({'file', 'folder', 'kanban_board'})
+VALID_RESOURCE_TYPES = frozenset({'file', 'folder', 'kanban_board', 'excalidraw_drawing'})
 VIEW_EDIT_MODES = frozenset({'view', 'edit'})
 
 
@@ -52,6 +52,9 @@ def resolve_resource(share: PublicShare):
     if share.resource_type == 'kanban_board':
         from app.models.kanban import KanbanBoard
         return KanbanBoard.query.get(share.resource_id)
+    if share.resource_type == 'excalidraw_drawing':
+        from app.models.excalidraw import ExcalidrawDrawing
+        return ExcalidrawDrawing.query.get(share.resource_id)
     return None
 
 
@@ -111,7 +114,7 @@ def is_resource_shared(resource_type: ResourceType, resource_id: int) -> bool:
 
 def sync_legacy_share_flags(resource_type: ResourceType, resource: File | Folder) -> None:
     """Keep legacy File/Folder share_* (and folder dropbox_*) in sync with public_shares."""
-    if resource_type == 'kanban_board':
+    if resource_type in ('kanban_board', 'excalidraw_drawing'):
         return
     shares = get_shares_for_resource(resource_type, resource.id)
     active_view_edit = [s for s in shares if s.enabled and s.mode in VIEW_EDIT_MODES]
@@ -150,6 +153,8 @@ def share_is_expired(share: PublicShare) -> bool:
 def share_url(share: PublicShare, *, external: bool = True) -> str:
     if share.resource_type == 'kanban_board':
         return url_for('kanban.public_share', token=share.token, _external=external)
+    if share.resource_type == 'excalidraw_drawing':
+        return url_for('excalidraw.public_share', token=share.token, _external=external)
     if share.mode == 'dropbox':
         return url_for('files.dropbox_upload', token=share.token, _external=external)
     return url_for('files.public_share', token=share.token, _external=external)

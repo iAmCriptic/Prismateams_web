@@ -28,7 +28,6 @@
 {% endmacro %}
 
 {% macro top_nav_actions() %}
-{% set _fav_keys = (desktop_nav_favorites or [])|map(attribute='key')|list %}
 {% set _current_key = current_nav_module.key if current_nav_module else '' %}
 <div class="top-navbar-actions">
     <button type="button" class="top-navbar-icon-btn top-navbar-bell notification-bell-btn" id="notificationBellBtn" aria-label="{{ _('layout.notification_center.open') }}">
@@ -40,105 +39,127 @@
         <i class="bi bi-gear"></i>
     </a>
 
-    <div class="module-launcher" id="moduleLauncher"
-         data-save-url="{{ url_for('api.nav_favorites') }}">
-        <button type="button" class="top-navbar-icon-btn" id="moduleLauncherBtn" aria-label="{{ _('layout.launcher.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="moduleLauncherPanel">
-            <i class="bi bi-grid-3x3-gap-fill"></i>
-        </button>
-        <div class="module-launcher-panel" id="moduleLauncherPanel" role="dialog" aria-label="{{ _('layout.launcher.title') }}">
-            <div class="module-launcher-head">
-                <h2 class="module-launcher-title">{{ _('layout.launcher.title') }}</h2>
-                <button type="button" class="top-navbar-icon-btn" data-launcher-edit-open aria-label="{{ _('layout.launcher.edit') }}" title="{{ _('layout.launcher.edit') }}">
-                    <i class="bi bi-pencil"></i>
-                </button>
-            </div>
-            <div class="module-launcher-edit-bar">
-                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-launcher-cancel>{{ _('common.cancel') }}</button>
-                <button type="button" class="btn btn-sm btn-primary rounded-pill" data-launcher-done>{{ _('layout.launcher.done') }}</button>
-            </div>
-            <p class="module-launcher-hint" data-launcher-hint hidden>{{ _('layout.launcher.hint') }}</p>
+    <button type="button"
+            class="top-navbar-icon-btn"
+            id="moduleLauncherBtn"
+            data-launcher-toggle
+            aria-label="{{ _('layout.launcher.open') }}"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls="moduleLauncherPanel">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+    </button>
 
-            <div class="d-none" data-launcher-catalog hidden>
-                {% for item in desktop_nav_modules or [] %}
-                {{ launcher_tile(item) }}
-                {% endfor %}
-            </div>
+    <button type="button"
+            class="top-navbar-icon-btn top-navbar-avatar-btn"
+            id="accountMenuBtn"
+            data-account-toggle
+            aria-label="{{ _('layout.account.open') }}"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls="accountPopup">
+        {% if current_user.profile_picture %}
+        <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="top-navbar-avatar">
+        {% else %}
+        <i class="bi bi-person-circle top-navbar-avatar-fallback"></i>
+        {% endif %}
+    </button>
+</div>
+{% endmacro %}
 
-            <div data-launcher-view>
-                <section class="module-launcher-favs{% if not _fav_keys %} is-empty{% endif %}">
-                    <h3 class="module-launcher-subhead">{{ _('layout.launcher.favorites') }}</h3>
-                    <div class="module-launcher-grid" data-launcher-fav-view>
-                        {% for item in desktop_nav_favorites or [] %}
-                        {{ launcher_tile(item) }}
-                        {% endfor %}
-                    </div>
-                </section>
-                <div class="module-launcher-grid" data-launcher-all-view>
-                    {% for item in desktop_nav_modules or [] %}
-                        {% if item.key not in _fav_keys %}
-                        {{ launcher_tile(item) }}
-                        {% endif %}
+{% macro top_nav_shared_panels() %}
+{% set _fav_keys = (desktop_nav_favorites or [])|map(attribute='key')|list %}
+<div class="module-launcher" id="moduleLauncher" data-save-url="{{ url_for('api.nav_favorites') }}">
+    <div class="module-launcher-panel" id="moduleLauncherPanel" role="dialog" aria-label="{{ _('layout.launcher.title') }}">
+        <div class="module-launcher-head">
+            <h2 class="module-launcher-title">{{ _('layout.launcher.title') }}</h2>
+            <button type="button" class="top-navbar-icon-btn" data-launcher-edit-open aria-label="{{ _('layout.launcher.edit') }}" title="{{ _('layout.launcher.edit') }}">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+        <div class="module-launcher-edit-bar">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-launcher-cancel>{{ _('common.cancel') }}</button>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill" data-launcher-done>{{ _('layout.launcher.done') }}</button>
+        </div>
+        <p class="module-launcher-hint" data-launcher-hint hidden>{{ _('layout.launcher.hint') }}</p>
+
+        <div class="d-none" data-launcher-catalog hidden>
+            {% for item in desktop_nav_modules or [] %}
+            {{ launcher_tile(item) }}
+            {% endfor %}
+        </div>
+
+        <div data-launcher-view>
+            <section class="module-launcher-favs{% if not _fav_keys %} is-empty{% endif %}">
+                <h3 class="module-launcher-subhead">{{ _('layout.launcher.favorites') }}</h3>
+                <div class="module-launcher-grid" data-launcher-fav-view>
+                    {% for item in desktop_nav_favorites or [] %}
+                    {{ launcher_tile(item) }}
                     {% endfor %}
                 </div>
-            </div>
-
-            <div class="d-none" data-launcher-edit-root>
-                <section class="module-launcher-favs">
-                    <h3 class="module-launcher-subhead">{{ _('layout.launcher.favorites') }}</h3>
-                    <div class="module-launcher-grid" data-launcher-fav-edit></div>
-                </section>
-                <div class="module-launcher-grid" data-launcher-all-edit></div>
+            </section>
+            <div class="module-launcher-grid" data-launcher-all-view>
+                {% for item in desktop_nav_modules or [] %}
+                    {% if item.key not in _fav_keys %}
+                    {{ launcher_tile(item) }}
+                    {% endif %}
+                {% endfor %}
             </div>
         </div>
-    </div>
 
-    <div class="account-menu" id="accountMenu">
-        <button type="button" class="top-navbar-icon-btn top-navbar-avatar-btn" id="accountMenuBtn" aria-label="{{ _('layout.account.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="accountPopup">
+        <div class="d-none" data-launcher-edit-root>
+            <section class="module-launcher-favs">
+                <h3 class="module-launcher-subhead">{{ _('layout.launcher.favorites') }}</h3>
+                <div class="module-launcher-grid" data-launcher-fav-edit></div>
+            </section>
+            <div class="module-launcher-grid" data-launcher-all-edit></div>
+        </div>
+    </div>
+</div>
+
+<div class="account-menu" id="accountMenu">
+    <div class="account-popup" id="accountPopup" role="dialog" aria-label="{{ _('layout.account.open') }}">
+        <div class="account-popup-top">
+            <div class="account-popup-email" title="{{ current_user.email }}">{{ current_user.email }}</div>
+            <button type="button" class="account-popup-close" data-account-close aria-label="{{ _('common.close') }}">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="account-popup-identity">
             {% if current_user.profile_picture %}
-            <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="top-navbar-avatar">
+            <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="account-popup-photo">
             {% else %}
-            <i class="bi bi-person-circle top-navbar-avatar-fallback"></i>
+            <i class="bi bi-person-circle account-popup-photo-fallback"></i>
             {% endif %}
-        </button>
-        <div class="account-popup" id="accountPopup" role="dialog" aria-label="{{ _('layout.account.open') }}">
-            <div class="account-popup-top">
-                <div class="account-popup-email" title="{{ current_user.email }}">{{ current_user.email }}</div>
-                <button type="button" class="account-popup-close" data-account-close aria-label="{{ _('common.close') }}">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            <div class="account-popup-identity">
-                {% if current_user.profile_picture %}
-                <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="account-popup-photo">
-                {% else %}
-                <i class="bi bi-person-circle account-popup-photo-fallback"></i>
-                {% endif %}
-                <p class="account-popup-hello">{{ _('layout.account.greeting', name=current_user.first_name or current_user.full_name) }}</p>
-                <a class="account-popup-manage" href="{{ url_for('settings.profile') }}">{{ _('layout.account.manage_profile') }}</a>
-            </div>
-            {% if nav_storage_usage and nav_storage_usage.quota_enabled %}
-            <div class="account-popup-storage{% if nav_storage_usage.warning %} is-warning{% endif %}">
-                <i class="bi bi-cloud" aria-hidden="true"></i>
-                <div class="account-popup-storage-copy">
-                    <div class="account-popup-storage-label">
-                        {{ _('layout.account.storage_usage', used=nav_storage_usage.used_label, quota=nav_storage_usage.quota_label, percent=nav_storage_usage.percent) }}
-                    </div>
-                    <div class="account-popup-storage-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ nav_storage_usage.percent }}">
-                        <div class="account-popup-storage-fill" style="width: {{ nav_storage_usage.percent }}%"></div>
-                    </div>
+            <p class="account-popup-hello">{{ _('layout.account.greeting', name=current_user.first_name or current_user.full_name) }}</p>
+            <a class="account-popup-manage" href="{{ url_for('settings.profile') }}">{{ _('layout.account.manage_profile') }}</a>
+        </div>
+        {% if nav_storage_usage and nav_storage_usage.quota_enabled %}
+        <div class="account-popup-storage{% if nav_storage_usage.warning %} is-warning{% endif %}">
+            <i class="bi bi-cloud" aria-hidden="true"></i>
+            <div class="account-popup-storage-copy">
+                <div class="account-popup-storage-label">
+                    {{ _('layout.account.storage_usage', used=nav_storage_usage.used_label, quota=nav_storage_usage.quota_label, percent=nav_storage_usage.percent) }}
+                </div>
+                <div class="account-popup-storage-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ nav_storage_usage.percent }}">
+                    <div class="account-popup-storage-fill" style="width: {{ nav_storage_usage.percent }}%"></div>
                 </div>
             </div>
-            {% endif %}
-            <div class="account-popup-actions">
-                <button type="button" class="account-popup-action" data-cookie-consent-open>
-                    <i class="bi bi-shield-check" aria-hidden="true"></i>
-                    <span>{{ _('layout.cookie_consent.open_settings') }}</span>
-                </button>
-                <a class="account-popup-action" href="{{ url_for('auth.logout') }}">
-                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-                    <span>{{ _('layout.nav.logout') }}</span>
-                </a>
-            </div>
+        </div>
+        {% endif %}
+        <div class="account-popup-actions">
+            <a class="account-popup-action" href="{{ url_for('settings.index') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+                <span>{{ _('layout.nav.settings') }}</span>
+            </a>
+            <button type="button" class="account-popup-action" data-cookie-consent-open>
+                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                <span>{{ _('layout.cookie_consent.open_settings') }}</span>
+            </button>
+            <a class="account-popup-action" href="{{ url_for('auth.logout') }}">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                <span>{{ _('layout.nav.logout') }}</span>
+            </a>
         </div>
     </div>
 </div>

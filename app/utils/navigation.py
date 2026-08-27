@@ -395,3 +395,60 @@ def get_nav_favorites(user):
         if resolved and resolved.get('in_launcher'):
             favorites.append(resolved)
     return favorites
+
+
+DASHBOARD_MODULE_ORDER_KEY = 'dashboard_module_order'
+
+
+def normalize_dashboard_module_order(keys, user=None):
+    """Unique launcher keys for the dashboard module bar (excludes dashboard)."""
+    if not isinstance(keys, list):
+        keys = []
+
+    seen = set()
+    ordered = []
+    for raw in keys:
+        if not isinstance(raw, str):
+            continue
+        key = raw.strip()
+        if not key or key == 'dashboard' or key in seen:
+            continue
+        entry = NAV_LINK_REGISTRY.get(key)
+        if not entry or not entry.get('in_launcher', True):
+            continue
+        if user is not None and not is_nav_link_available(key, user):
+            continue
+        seen.add(key)
+        ordered.append(key)
+
+    # Append any remaining available modules in DESKTOP_NAV_ORDER
+    for key in DESKTOP_NAV_ORDER:
+        if key == 'dashboard' or key in seen:
+            continue
+        entry = NAV_LINK_REGISTRY.get(key)
+        if not entry or not entry.get('in_launcher', True):
+            continue
+        if user is not None and not is_nav_link_available(key, user):
+            continue
+        seen.add(key)
+        ordered.append(key)
+    return ordered
+
+
+def get_dashboard_module_order_keys(user):
+    """Stored + default-filled module keys for the dashboard bar."""
+    if user is None or not hasattr(user, 'get_dashboard_config'):
+        return normalize_dashboard_module_order([], user)
+    config = user.get_dashboard_config() or {}
+    keys = config.get(DASHBOARD_MODULE_ORDER_KEY)
+    return normalize_dashboard_module_order(keys if isinstance(keys, list) else [], user)
+
+
+def get_dashboard_modules(user):
+    """Resolved modules for the dashboard horizontal module bar."""
+    modules = []
+    for key in get_dashboard_module_order_keys(user):
+        resolved = resolve_nav_link(key, user)
+        if resolved and resolved.get('in_launcher'):
+            modules.append(resolved)
+    return modules
