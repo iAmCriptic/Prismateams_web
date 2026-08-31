@@ -38,3 +38,5 @@ window.MediaDownloaderClient = {
     signOutFromYoutube,
     isYoutubeSignedIn,
 };
+
+window.dispatchEvent(new CustomEvent('media-downloader-client-ready'));

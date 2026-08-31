@@ -5571,7 +5571,10 @@
       "modal_title": "Bei YouTube anmelden",
       "instructions": "Öffnen Sie den Link, geben Sie den Code ein und bestätigen Sie den Zugriff mit Ihrem Google-Konto:",
       "open_link": "youtube.com/activate öffnen",
-      "wait_hint": "Dieses Fenster schließt sich automatisch, sobald die Anmeldung abgeschlossen ist."
+      "wait_hint": "Dieses Fenster schließt sich automatisch, sobald die Anmeldung abgeschlossen ist.",
+      "loading": "Code wird geladen…",
+      "failed": "YouTube-Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+      "unavailable": "YouTube-Anmeldung ist noch nicht bereit. Bitte Seite neu laden."
     },
     "nav": {
       "label": "Media Downloader Navigation",

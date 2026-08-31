@@ -67,6 +67,9 @@
             searchEmpty: root.dataset.i18nSearchEmpty,
             searchError: root.dataset.i18nSearchError,
             searchLoading: root.dataset.i18nSearchLoading,
+            i18nYoutubeAuthLoading: root.dataset.i18nYoutubeAuthLoading,
+            i18nYoutubeAuthFailed: root.dataset.i18nYoutubeAuthFailed,
+            i18nYoutubeAuthUnavailable: root.dataset.i18nYoutubeAuthUnavailable,
             tabMeta: {
                 download: { icon: 'bi-plus-circle', title: root.dataset.i18nTabDownload },
                 jobs: { icon: 'bi-list-ul', title: root.dataset.i18nTabJobs },
@@ -138,7 +141,31 @@
         const youtubeSignOutBtn = document.getElementById('youtubeSignOutBtn');
         const youtubeAuthStatusSignedIn = document.getElementById('youtubeAuthStatusSignedIn');
         const youtubeAuthStatusSignedOut = document.getElementById('youtubeAuthStatusSignedOut');
+        const youtubeAuthErrorEl = document.getElementById('youtubeAuthError');
         let youtubeAuthModal = null;
+        let youtubeAuthLoading = false;
+
+        function clearYoutubeAuthError() {
+            if (!youtubeAuthErrorEl) return;
+            youtubeAuthErrorEl.textContent = '';
+            youtubeAuthErrorEl.classList.add('d-none');
+        }
+
+        function showYoutubeAuthError(message) {
+            if (!youtubeAuthErrorEl || !message) return;
+            youtubeAuthErrorEl.textContent = message;
+            youtubeAuthErrorEl.classList.remove('d-none');
+        }
+
+        function setYoutubeAuthButtonLoading(loading) {
+            youtubeAuthLoading = loading;
+            if (!youtubeSignInBtn) return;
+            youtubeSignInBtn.disabled = loading;
+            const label = youtubeSignInBtn.querySelector('[data-yt-auth-label]');
+            const spinner = youtubeSignInBtn.querySelector('[data-yt-auth-spinner]');
+            if (label) label.classList.toggle('d-none', loading);
+            if (spinner) spinner.classList.toggle('d-none', !loading);
+        }
 
         function getYoutubeAuthModal() {
             if (!youtubeAuthModal && youtubeAuthModalEl && window.bootstrap?.Modal) {
@@ -163,34 +190,49 @@
             youtubeSignOutBtn?.classList.toggle('d-none', !isIn);
             youtubeAuthStatusSignedIn?.classList.toggle('d-none', !isIn);
             youtubeAuthStatusSignedOut?.classList.toggle('d-none', isIn);
+            if (isIn) clearYoutubeAuthError();
         }
 
         async function promptYoutubeSignIn() {
+            await waitForClient();
+            configureClient();
             const client = window.MediaDownloaderClient;
             if (!client?.signInToYoutube) {
-                throw new Error('youtube_auth_unavailable');
+                throw new Error(cfg.i18nYoutubeAuthUnavailable || 'YouTube-Anmeldung ist noch nicht bereit.');
             }
             return client.signInToYoutube();
         }
 
         async function handleYoutubeSignInClick() {
-            if (!youtubeSignInBtn) return;
-            youtubeSignInBtn.disabled = true;
+            if (!youtubeSignInBtn || youtubeAuthLoading) return;
+            clearYoutubeAuthError();
+            setYoutubeAuthButtonLoading(true);
             try {
+                await waitForClient();
+                configureClient();
+                showYoutubeAuthModal({
+                    userCode: cfg.i18nYoutubeAuthLoading || '…',
+                    verificationUrl: 'https://www.youtube.com/activate',
+                });
                 await promptYoutubeSignIn();
                 getYoutubeAuthModal()?.hide();
             } catch (err) {
                 console.error('[MediaDownloader] YouTube sign-in failed:', err);
+                showYoutubeAuthError(err?.message || cfg.i18nYoutubeAuthFailed || 'YouTube-Anmeldung fehlgeschlagen.');
+                getYoutubeAuthModal()?.hide();
             } finally {
-                youtubeSignInBtn.disabled = false;
+                setYoutubeAuthButtonLoading(false);
             }
         }
 
         async function handleYoutubeSignOutClick() {
+            clearYoutubeAuthError();
             try {
+                await waitForClient();
                 await window.MediaDownloaderClient?.signOutFromYoutube?.();
             } catch (err) {
                 console.error('[MediaDownloader] YouTube sign-out failed:', err);
+                showYoutubeAuthError(err?.message || cfg.i18nYoutubeAuthFailed || 'YouTube-Abmeldung fehlgeschlagen.');
             }
         }
 
@@ -1720,6 +1762,7 @@
         }
 
         waitForClient().then(() => configureClient()).catch(() => {});
+        window.addEventListener('media-downloader-client-ready', () => configureClient());
 
         const seenPoll = new Set();
         document.querySelectorAll('.media-job').forEach((el) => {
