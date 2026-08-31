@@ -283,6 +283,7 @@ print_manual_media_downloader_hint() {
     log_manual "  2. In .env: FFMPEG_PATH=$(command -v ffmpeg 2>/dev/null || echo /usr/bin/ffmpeg)"
     log_manual "  3. Modul aktivieren: Einstellungen -> Administration -> Module -> Media Downloader"
     log_manual "  4. Downloads laufen im Browser; Konvertierung serverseitig per FFmpeg"
+    log_manual "  5. youtubei.js Bundle: python3 scripts/download_youtubei_vendor.py (CDN-Fallback wenn fehlend)"
     echo
 }
 

@@ -17,6 +17,11 @@ step_ffmpeg() {
         FFMPEG_PATH="$(command -v ffmpeg)"
         log_success "FFmpeg installiert: $(ffmpeg -version | head -n 1)"
         log_info "FFMPEG_PATH=$FFMPEG_PATH"
+        if [ -f "${INSTALL_DIR}/scripts/download_youtubei_vendor.py" ]; then
+            log_info "Prüfe youtubei.js Browser-Bundle für Media Downloader..."
+            python3 "${INSTALL_DIR}/scripts/download_youtubei_vendor.py" \
+                || log_warning "youtubei.js Vendor-Download fehlgeschlagen (Browser nutzt CDN-Fallback)"
+        fi
         return 0
     fi
 

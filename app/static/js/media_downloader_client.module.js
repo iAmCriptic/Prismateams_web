@@ -4,7 +4,11 @@
  */
 
 /** Pre-bundled browser build (esbuild). esm.sh chunks break with "Class extends value undefined". */
-const YTJS_MODULE_URL = new URL('../vendor/youtubei.js/browser.js', import.meta.url).href;
+const YTJS_VERSION = '18.0.0';
+const YTJS_LOCAL_URL = new URL('../vendor/youtubei.js/browser.js', import.meta.url).href;
+const YTJS_CDN_URL = `https://unpkg.com/youtubei.js@${YTJS_VERSION}/bundle/browser.js`;
+
+let youtubeJsModulePromise = null;
 
 const PLAYLIST_LIST_PREFIXES = ['PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU'];
 
@@ -241,7 +245,17 @@ export function canonicalizePlaylistUrl(url) {
 }
 
 async function importYoutubeJs() {
-    return import(/* webpackIgnore: true */ YTJS_MODULE_URL);
+    if (!youtubeJsModulePromise) {
+        youtubeJsModulePromise = (async () => {
+            try {
+                return await import(/* webpackIgnore: true */ YTJS_LOCAL_URL);
+            } catch (localErr) {
+                console.warn('[MediaDownloader] Local youtubei.js unavailable, using CDN fallback', localErr);
+                return import(/* webpackIgnore: true */ YTJS_CDN_URL);
+            }
+        })();
+    }
+    return youtubeJsModulePromise;
 }
 
 async function ensurePlatform() {
