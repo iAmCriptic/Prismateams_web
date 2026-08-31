@@ -276,6 +276,17 @@
             </div>
         </div>
 
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="youtubeAuthBar">
+            <span class="badge bg-secondary" id="youtubeAuthStatusSignedOut">{{ _('media_downloader.youtube_auth.signed_out') }}</span>
+            <span class="badge bg-success d-none" id="youtubeAuthStatusSignedIn">{{ _('media_downloader.youtube_auth.signed_in') }}</span>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="youtubeSignInBtn">
+                <i class="bi bi-youtube me-1" aria-hidden="true"></i>{{ _('media_downloader.youtube_auth.sign_in') }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="youtubeSignOutBtn">
+                {{ _('media_downloader.youtube_auth.sign_out') }}
+            </button>
+        </div>
+
         <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm" class="media-download-form">
             {# —— Box 1: Link / Suche —— #}
             <div class="media-form-card">
@@ -446,6 +457,27 @@
         </div>
     </div>
 </div>
+</div>
+
+<div class="modal fade" id="youtubeAuthModal" tabindex="-1" aria-labelledby="youtubeAuthModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="youtubeAuthModalLabel">{{ _('media_downloader.youtube_auth.modal_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">{{ _('media_downloader.youtube_auth.instructions') }}</p>
+                <p class="display-6 text-center fw-bold font-monospace mb-3" id="youtubeAuthUserCode"></p>
+                <div class="d-grid">
+                    <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="youtubeAuthVerifyLink">
+                        {{ _('media_downloader.youtube_auth.open_link') }}
+                    </a>
+                </div>
+                <p class="text-muted small mt-3 mb-0">{{ _('media_downloader.youtube_auth.wait_hint') }}</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

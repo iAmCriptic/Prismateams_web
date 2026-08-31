@@ -18,6 +18,9 @@ const {
     getPlaylistEntries,
     mapClientError,
     ClientDownloadError,
+    signInToYoutube,
+    signOutFromYoutube,
+    isYoutubeSignedIn,
 } = await import(/* webpackIgnore: true */ clientUrl);
 
 window.MediaDownloaderClient = {
@@ -31,4 +34,7 @@ window.MediaDownloaderClient = {
     getPlaylistEntries,
     mapClientError,
     ClientDownloadError,
+    signInToYoutube,
+    signOutFromYoutube,
+    isYoutubeSignedIn,
 };
