@@ -88,8 +88,7 @@
                     </div>
                 </div>
                 <div class="surveys-card-actions">
-                    <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn btn-sm btn-outline-primary surveys-btn-pill">{{ _('surveys.index.edit') }}</a>
-                    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm btn-outline-secondary surveys-btn-pill">{{ _('surveys.index.results') }}</a>
+                    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm surveys-btn-pill surveys-btn-accent">{{ _('surveys.index.results') }}</a>
                 </div>
             </article>
             {% endfor %}

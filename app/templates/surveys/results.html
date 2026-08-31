@@ -46,15 +46,15 @@
 
             </a>
 
-            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn btn-outline-secondary surveys-btn-pill">
+            <a href="{{ url_for('surveys.export_csv', survey_id=survey.id) }}" class="btn btn-outline-secondary surveys-btn-pill">
 
-                <i class="bi bi-pencil"></i> {{ _('surveys.index.edit') }}
+                <i class="bi bi-download"></i> {{ _('surveys.results.export_csv') }}
 
             </a>
 
-            <a href="{{ url_for('surveys.export_csv', survey_id=survey.id) }}" class="btn btn-primary surveys-btn-pill">
+            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn surveys-btn-pill surveys-btn-accent">
 
-                <i class="bi bi-download"></i> {{ _('surveys.results.export_csv') }}
+                <i class="bi bi-pencil"></i> {{ _('surveys.index.edit') }}
 
             </a>
 
@@ -114,6 +114,8 @@
 
         <h2 class="h5 mb-3">{{ _('surveys.results.by_question') }}</h2>
 
+        {% from 'surveys/_result_chart.html' import surveys_result_chart %}
+
         {% for stat in summary.question_stats %}
 
         <div class="surveys-result-widget mb-3">
@@ -122,59 +124,7 @@
 
             <p class="text-muted small">{{ _('surveys.results.answered', count=stat.answered_count, total=stat.response_count) }}</p>
 
-
-
-            {% if stat.distribution %}
-
-            <div class="surveys-bar-chart">
-
-                {% for item in stat.distribution %}
-
-                <div class="surveys-bar-row">
-
-                    <span class="surveys-bar-label">{{ item.label }}</span>
-
-                    <div class="surveys-bar-track">
-
-                        <div class="surveys-bar-fill" style="width: {{ item.percent }}%"></div>
-
-                    </div>
-
-                    <span class="surveys-bar-count">{{ item.count }} ({{ item.percent }}%)</span>
-
-                </div>
-
-                {% endfor %}
-
-            </div>
-
-            {% elif stat.average is defined %}
-
-            <p>{{ _('surveys.results.avg') }}: <strong>{{ stat.average }}</strong>
-
-            {% if stat.median is defined %} · {{ _('surveys.results.median') }}: {{ stat.median }}{% endif %}
-
-            · Min: {{ stat.min }} · Max: {{ stat.max }}</p>
-
-            {% elif stat.text_answers %}
-
-            <ul class="list-unstyled mb-0 small">
-
-                {% for text in stat.text_answers[:10] %}
-
-                <li class="border-bottom py-1">{{ text }}</li>
-
-                {% endfor %}
-
-                {% if stat.text_answers|length > 10 %}
-
-                <li class="text-muted pt-1">+ {{ stat.text_answers|length - 10 }} weitere</li>
-
-                {% endif %}
-
-            </ul>
-
-            {% endif %}
+            {{ surveys_result_chart(stat) }}
 
         </div>
 

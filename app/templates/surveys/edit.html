@@ -64,13 +64,13 @@
 
             </a>
 
-            <button type="button" class="btn btn-outline-primary surveys-btn-pill" data-bs-toggle="modal" data-bs-target="#surveyShareModal">
+            <button type="button" class="btn btn-outline-secondary surveys-btn-pill" id="surveyShareBtn" data-bs-toggle="modal" data-bs-target="#surveyShareModal">
 
                 <i class="bi bi-share"></i> {{ _('surveys.builder.share') }}
 
             </button>
 
-            <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-primary surveys-btn-pill">
+            <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn surveys-btn-pill surveys-btn-accent">
 
                 <i class="bi bi-bar-chart"></i> {{ _('surveys.index.results') }}
 
@@ -130,19 +130,7 @@
 
 
 
-                <div class="surveys-builder-actions d-flex flex-wrap gap-2 mt-3">
-
-                    <div class="dropdown">
-
-                        <button type="button" class="btn btn-primary surveys-btn-pill dropdown-toggle" data-bs-toggle="dropdown">
-
-                            <i class="bi bi-plus-lg"></i> {{ _('surveys.builder.add_question') }}
-
-                        </button>
-
-                        <ul class="dropdown-menu surveys-pill-dropdown" id="surveyAddQuestionMenu"></ul>
-
-                    </div>
+                <div class="surveys-builder-actions d-flex flex-wrap gap-2 mt-2 mb-2">
 
                     <button type="button" class="btn btn-outline-secondary surveys-btn-pill" id="surveyAddPageBtn">
 

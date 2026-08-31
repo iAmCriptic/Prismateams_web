@@ -1,0 +1,76 @@
+{% macro surveys_result_chart(stat) %}
+{% if stat.chart_type == 'pie' and stat.pie_segments %}
+<div class="surveys-chart surveys-chart--pie">
+    <div class="surveys-pie-wrap">
+        <div class="surveys-pie" style="background: conic-gradient({{ stat.pie_gradient }});" role="img" aria-label="{{ _('surveys.results.pie_chart') }}"></div>
+    </div>
+    <ul class="surveys-pie-legend list-unstyled mb-0">
+        {% for seg in stat.pie_segments %}
+        <li class="surveys-pie-legend-item">
+            <span class="surveys-pie-swatch" style="background: {{ seg.color }};"></span>
+            <span class="surveys-pie-legend-label">{{ seg.label }}</span>
+            <span class="surveys-pie-legend-value">{{ seg.count }} ({{ seg.percent }}%)</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% elif stat.chart_type == 'bar' and stat.distribution %}
+<div class="surveys-chart surveys-chart--bar">
+    <div class="surveys-bar-chart">
+        {% for item in stat.distribution %}
+        <div class="surveys-bar-row">
+            <span class="surveys-bar-label">{{ item.label }}</span>
+            <div class="surveys-bar-track">
+                <div class="surveys-bar-fill" style="width: {{ item.percent }}%"></div>
+            </div>
+            <span class="surveys-bar-count">{{ item.count }} ({{ item.percent }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% elif stat.chart_type == 'stars_avg' and stat.average is defined %}
+<div class="surveys-chart surveys-chart--avg">
+    <div class="surveys-avg-display">
+        <div class="surveys-avg-value">{{ '%.1f'|format(stat.average) }}</div>
+        <div class="surveys-avg-stars" aria-hidden="true">
+            {% set max_stars = stat.max_stars|default(5) %}
+            {% set rounded = (stat.average + 0.5)|int %}
+            {% for i in range(1, max_stars + 1) %}
+            <i class="bi {% if i <= rounded %}bi-star-fill{% else %}bi-star{% endif %}"></i>
+            {% endfor %}
+        </div>
+        <div class="surveys-avg-caption">{{ _('surveys.results.avg') }} · {{ _('surveys.results.of_max', max=max_stars) }}</div>
+    </div>
+</div>
+
+{% elif stat.chart_type == 'slider_avg' and stat.average is defined %}
+<div class="surveys-chart surveys-chart--avg">
+    <div class="surveys-avg-display">
+        <div class="surveys-avg-value">{{ stat.average }}</div>
+        <div class="surveys-avg-caption">{{ _('surveys.results.avg') }}</div>
+        {% if stat.min is defined and stat.max is defined %}
+        <div class="surveys-avg-range text-muted small">{{ _('surveys.results.range') }}: {{ stat.min }} – {{ stat.max }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% elif stat.average is defined %}
+<div class="surveys-chart surveys-chart--avg">
+    <p class="mb-0">{{ _('surveys.results.avg') }}: <strong>{{ stat.average }}</strong>
+    {% if stat.median is defined %} · {{ _('surveys.results.median') }}: {{ stat.median }}{% endif %}
+    {% if stat.min is defined %} · Min: {{ stat.min }} · Max: {{ stat.max }}{% endif %}</p>
+</div>
+
+{% elif stat.text_answers %}
+<ul class="list-unstyled mb-0 small">
+    {% for text in stat.text_answers[:10] %}
+    <li class="border-bottom py-1">{{ text }}</li>
+    {% endfor %}
+    {% if stat.text_answers|length > 10 %}
+    <li class="text-muted pt-1">+ {{ stat.text_answers|length - 10 }} weitere</li>
+    {% endif %}
+</ul>
+{% endif %}
+{% endmacro %}

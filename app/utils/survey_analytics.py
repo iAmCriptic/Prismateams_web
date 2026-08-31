@@ -13,6 +13,35 @@ from app.models.survey import SurveyQuestion
 
 NUMERIC_TYPES = {'number', 'slider', 'rating_stars'}
 
+PIE_COLORS = (
+    '#3b82f6', '#8b5cf6', '#ec4899', '#f97316',
+    '#eab308', '#22c55e', '#14b8a6', '#6366f1',
+)
+
+
+def _pie_segments(distribution: list[dict]) -> list[dict]:
+    if not distribution:
+        return []
+    total = sum(item.get('count', 0) for item in distribution) or 1
+    segments = []
+    cursor = 0.0
+    for idx, item in enumerate(distribution):
+        share = 100 * item.get('count', 0) / total
+        if share <= 0:
+            continue
+        start = cursor
+        end = cursor + share
+        segments.append({
+            **item,
+            'color': PIE_COLORS[idx % len(PIE_COLORS)],
+            'start_percent': round(start, 2),
+            'end_percent': round(end, 2),
+        })
+        cursor = end
+    if segments and cursor < 100:
+        segments[-1]['end_percent'] = 100.0
+    return segments
+
 
 def _answer_values(answers, question_id: int):
     for ans in answers:
@@ -80,6 +109,14 @@ def analyze_question(question: SurveyQuestion, responses) -> dict:
                 'percent': round(100 * count / total, 1),
             })
         result['distribution'] = distribution
+        result['chart_type'] = 'pie' if qtype == 'single_choice' else 'bar'
+        if qtype == 'single_choice':
+            segments = _pie_segments(distribution)
+            result['pie_segments'] = segments
+            result['pie_gradient'] = ', '.join(
+                f"{seg['color']} {seg['start_percent']}% {seg['end_percent']}%"
+                for seg in segments
+            )
         return result
 
     if qtype in NUMERIC_TYPES:
@@ -90,6 +127,14 @@ def analyze_question(question: SurveyQuestion, responses) -> dict:
             result['median'] = median(nums)
             result['min'] = min(nums)
             result['max'] = max(nums)
+        if qtype == 'rating_stars':
+            result['chart_type'] = 'stars_avg'
+            cfg = question.get_config()
+            result['max_stars'] = int(cfg.get('max_stars') or 5)
+        elif qtype == 'slider':
+            result['chart_type'] = 'slider_avg'
+        else:
+            result['chart_type'] = 'numeric'
         return result
 
     if qtype == 'file_upload':

@@ -29,7 +29,6 @@
         title: document.getElementById('surveyTitleInput'),
         desc: document.getElementById('surveyDescInput'),
         addPage: document.getElementById('surveyAddPageBtn'),
-        addMenu: document.getElementById('surveyAddQuestionMenu'),
         saveStatus: document.getElementById('surveySaveStatus'),
         layoutMode: document.getElementById('settingLayoutMode'),
         requireEmail: document.getElementById('settingRequireEmail'),
@@ -75,6 +74,7 @@
     }
 
     function syncStructureFromSettings() {
+        const pageUi = structure.settings?.page_ui;
         structure.layout_mode = els.layoutMode ? els.layoutMode.value : 'scroll';
         structure.settings = {
             require_email_verification: els.requireEmail?.checked || false,
@@ -86,21 +86,121 @@
             show_submit_another_link: els.anotherLink?.checked !== false,
             disable_autosave: els.disableAutosave?.checked || false,
         };
+        if (pageUi) structure.settings.page_ui = pageUi;
     }
 
-    function renderAddMenu() {
-        if (!els.addMenu) return;
-        els.addMenu.innerHTML = '';
+    function syncPageUiFromSettings() {
+        const pageUi = (structure.settings || {}).page_ui || {};
+        (structure.pages || []).forEach((page) => {
+            if (page.show_title !== undefined || page.show_description !== undefined) {
+                page.show_title = !!page.show_title;
+                page.show_description = !!page.show_description;
+            } else {
+                const ui = pageUi[String(page.id)] || {};
+                page.show_title = !!ui.show_title;
+                page.show_description = !!ui.show_description;
+            }
+        });
+    }
+
+    function syncPageUiToSettings() {
+        const pageUi = {};
+        (structure.pages || []).forEach((page) => {
+            pageUi[String(page.id)] = {
+                show_title: !!page.show_title,
+                show_description: !!page.show_description,
+            };
+        });
+        structure.settings = structure.settings || {};
+        structure.settings.page_ui = pageUi;
+    }
+
+    function buildAddMenu(page) {
+        const menu = document.createElement('ul');
+        menu.className = 'dropdown-menu surveys-pill-dropdown';
+
         (structure.question_types || Object.keys(TYPE_LABELS)).forEach((type) => {
             const li = document.createElement('li');
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'dropdown-item';
             btn.textContent = TYPE_LABELS[type] || type;
-            btn.addEventListener('click', () => addQuestion(type));
+            btn.addEventListener('click', () => addQuestion(type, page.id));
             li.appendChild(btn);
-            els.addMenu.appendChild(li);
+            menu.appendChild(li);
         });
+
+        const divider = document.createElement('li');
+        divider.innerHTML = '<hr class="dropdown-divider">';
+        menu.appendChild(divider);
+
+        if (!page.show_title) {
+            const titleLi = document.createElement('li');
+            const titleBtn = document.createElement('button');
+            titleBtn.type = 'button';
+            titleBtn.className = 'dropdown-item';
+            titleBtn.innerHTML = '<i class="bi bi-type-h1 me-2"></i>Titel hinzufügen';
+            titleBtn.addEventListener('click', () => enablePageTitle(page));
+            titleLi.appendChild(titleBtn);
+            menu.appendChild(titleLi);
+        }
+
+        if (!page.show_description) {
+            const descLi = document.createElement('li');
+            const descBtn = document.createElement('button');
+            descBtn.type = 'button';
+            descBtn.className = 'dropdown-item';
+            descBtn.innerHTML = '<i class="bi bi-text-paragraph me-2"></i>Beschreibung hinzufügen';
+            descBtn.addEventListener('click', () => enablePageDescription(page));
+            descLi.appendChild(descBtn);
+            menu.appendChild(descLi);
+        }
+
+        return menu;
+    }
+
+    function renderPageAddActions(page) {
+        const actions = document.createElement('div');
+        actions.className = 'surveys-page-actions';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'dropdown';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-primary surveys-btn-pill dropdown-toggle';
+        btn.setAttribute('data-bs-toggle', 'dropdown');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.innerHTML = '<i class="bi bi-plus-lg"></i> Frage hinzufügen';
+
+        dropdown.appendChild(btn);
+        dropdown.appendChild(buildAddMenu(page));
+        actions.appendChild(dropdown);
+        return actions;
+    }
+
+    function enablePageTitle(page, focus) {
+        page.show_title = true;
+        renderPages();
+        scheduleSave();
+        if (focus !== false) {
+            requestAnimationFrame(() => {
+                const input = document.querySelector(`[data-page-title-id="${page.id}"]`);
+                if (input) input.focus();
+            });
+        }
+    }
+
+    function enablePageDescription(page, focus) {
+        page.show_description = true;
+        renderPages();
+        scheduleSave();
+        if (focus !== false) {
+            requestAnimationFrame(() => {
+                const input = document.querySelector(`[data-page-desc-id="${page.id}"]`);
+                if (input) input.focus();
+            });
+        }
     }
 
     function renderPages() {
@@ -110,19 +210,42 @@
             const pageEl = document.createElement('div');
             pageEl.className = 'surveys-page-card';
             pageEl.dataset.pageId = page.id;
-            pageEl.draggable = true;
 
             const header = document.createElement('div');
-            header.className = 'd-flex align-items-center gap-2 mb-2';
-            header.innerHTML = `<span class="text-muted small">Seite ${pIdx + 1}</span>`;
-            const titleInput = document.createElement('input');
-            titleInput.type = 'text';
-            titleInput.className = 'form-control form-control-sm';
-            titleInput.value = page.title || '';
-            titleInput.placeholder = 'Seitentitel';
-            titleInput.addEventListener('input', () => { page.title = titleInput.value; scheduleSave(); });
-            header.appendChild(titleInput);
+            header.className = 'surveys-page-header';
+            const pageLabel = document.createElement('span');
+            pageLabel.className = 'surveys-page-label';
+            pageLabel.textContent = `Seite ${pIdx + 1}`;
+            header.appendChild(pageLabel);
             pageEl.appendChild(header);
+
+            if (page.show_title) {
+                const titleWrap = document.createElement('div');
+                titleWrap.className = 'surveys-page-title-wrap';
+                const titleInput = document.createElement('input');
+                titleInput.type = 'text';
+                titleInput.className = 'form-control surveys-page-title-input';
+                titleInput.dataset.pageTitleId = page.id;
+                titleInput.value = page.title || '';
+                titleInput.placeholder = 'Seitentitel';
+                titleInput.addEventListener('input', () => { page.title = titleInput.value; scheduleSave(); });
+                titleWrap.appendChild(titleInput);
+                pageEl.appendChild(titleWrap);
+            }
+
+            if (page.show_description) {
+                const descWrap = document.createElement('div');
+                descWrap.className = 'surveys-page-desc-wrap';
+                const descInput = document.createElement('textarea');
+                descInput.className = 'form-control surveys-page-desc-input';
+                descInput.dataset.pageDescId = page.id;
+                descInput.rows = 2;
+                descInput.value = page.description || '';
+                descInput.placeholder = 'Seitenbeschreibung';
+                descInput.addEventListener('input', () => { page.description = descInput.value; scheduleSave(); });
+                descWrap.appendChild(descInput);
+                pageEl.appendChild(descWrap);
+            }
 
             const qList = document.createElement('div');
             qList.className = 'surveys-questions-list';
@@ -130,6 +253,7 @@
                 qList.appendChild(renderQuestionCard(page, q, qIdx));
             });
             pageEl.appendChild(qList);
+            pageEl.appendChild(renderPageAddActions(page));
             els.pages.appendChild(pageEl);
         });
         bindDnD();
@@ -138,73 +262,126 @@
     function renderQuestionCard(page, q, qIdx) {
         const card = document.createElement('div');
         card.className = 'surveys-question-card';
-        card.draggable = true;
         card.dataset.questionId = q.id;
         card.dataset.pageId = page.id;
 
-        const top = document.createElement('div');
-        top.className = 'd-flex align-items-center justify-content-between gap-2 mb-2';
-        top.innerHTML = `<span class="surveys-question-type-badge">${TYPE_LABELS[q.question_type] || q.question_type}</span>`;
+        const toolbar = document.createElement('div');
+        toolbar.className = 'surveys-question-toolbar';
+        toolbar.innerHTML = `
+            <span class="surveys-question-drag" title="Ziehen zum Sortieren" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+            <span class="surveys-question-type-badge">${TYPE_LABELS[q.question_type] || q.question_type}</span>
+            <span class="surveys-question-toolbar-spacer"></span>
+        `;
+
+        const reqLabel = document.createElement('label');
+        reqLabel.className = 'surveys-question-required';
+        const reqInput = document.createElement('input');
+        reqInput.type = 'checkbox';
+        reqInput.checked = !!q.is_required;
+        reqInput.addEventListener('change', () => { q.is_required = reqInput.checked; scheduleSave(); });
+        reqLabel.appendChild(reqInput);
+        reqLabel.appendChild(document.createTextNode('Pflicht'));
+        toolbar.appendChild(reqLabel);
+
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.className = 'btn btn-sm btn-link text-danger p-0';
+        delBtn.className = 'surveys-question-delete';
+        delBtn.title = 'Frage löschen';
         delBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        delBtn.addEventListener('click', () => {
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             page.questions = page.questions.filter((x) => x.id !== q.id);
             renderPages();
             scheduleSave();
         });
-        top.appendChild(delBtn);
-        card.appendChild(top);
+        toolbar.appendChild(delBtn);
+        card.appendChild(toolbar);
+
+        const inner = document.createElement('div');
+        inner.className = 'surveys-question-card-inner';
 
         const label = document.createElement('input');
         label.type = 'text';
-        label.className = 'form-control form-control-sm mb-2';
+        label.className = 'form-control surveys-question-label-input';
         label.value = q.label || '';
         label.placeholder = 'Fragentitel';
         label.addEventListener('input', () => { q.label = label.value; scheduleSave(); });
-        card.appendChild(label);
+        inner.appendChild(label);
 
-        const reqWrap = document.createElement('div');
-        reqWrap.className = 'form-check form-switch surveys-pill-switch';
-        reqWrap.innerHTML = `<input class="form-check-input" type="checkbox" id="req_${q.id}"><label class="form-check-label" for="req_${q.id}">Pflichtfeld</label>`;
-        const reqInput = reqWrap.querySelector('input');
-        reqInput.checked = !!q.is_required;
-        reqInput.addEventListener('change', () => { q.is_required = reqInput.checked; scheduleSave(); });
-        card.appendChild(reqWrap);
+        const desc = document.createElement('textarea');
+        desc.className = 'form-control surveys-question-desc-input';
+        desc.rows = 1;
+        desc.value = q.description || '';
+        desc.placeholder = 'Beschreibung oder Hilfetext (optional)';
+        desc.addEventListener('input', () => { q.description = desc.value; scheduleSave(); });
+        inner.appendChild(desc);
 
         if (q.question_type === 'single_choice' || q.question_type === 'multiple_choice') {
-            card.appendChild(renderOptionsEditor(q));
+            inner.appendChild(renderOptionsEditor(q));
         }
         if (q.question_type === 'slider') {
-            card.appendChild(renderSliderConfig(q));
+            inner.appendChild(renderSliderConfig(q));
         }
 
+        card.appendChild(inner);
         return card;
     }
 
     function renderOptionsEditor(q) {
         const wrap = document.createElement('div');
-        wrap.className = 'mt-2';
+        wrap.className = 'surveys-question-options';
+        const title = document.createElement('div');
+        title.className = 'surveys-question-options-title';
+        title.textContent = 'Antwortoptionen';
+        wrap.appendChild(title);
+
         if (!q.config) q.config = defaultConfig(q.question_type);
         if (!q.config.options) q.config.options = [];
+        const isMulti = q.question_type === 'multiple_choice';
+
         q.config.options.forEach((opt, idx) => {
             const row = document.createElement('div');
-            row.className = 'input-group input-group-sm mb-1';
+            row.className = 'surveys-option-row';
+            const marker = document.createElement('span');
+            marker.className = `surveys-option-marker ${isMulti ? 'surveys-option-marker--check' : 'surveys-option-marker--radio'}`;
+            row.appendChild(marker);
+
             const inp = document.createElement('input');
             inp.type = 'text';
             inp.className = 'form-control';
             inp.value = opt.label || '';
+            inp.placeholder = `Option ${idx + 1}`;
             inp.addEventListener('input', () => { opt.label = inp.value; opt.id = opt.id || String(idx + 1); scheduleSave(); });
             row.appendChild(inp);
+
+            if (q.config.options.length > 2) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'surveys-option-remove';
+                removeBtn.title = 'Option entfernen';
+                removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                removeBtn.addEventListener('click', () => {
+                    q.config.options.splice(idx, 1);
+                    renderPages();
+                    scheduleSave();
+                });
+                row.appendChild(removeBtn);
+            }
             wrap.appendChild(row);
         });
+
         const addOpt = document.createElement('button');
         addOpt.type = 'button';
-        addOpt.className = 'btn btn-sm btn-outline-secondary surveys-btn-pill mt-1';
-        addOpt.textContent = '+ Option';
-        addOpt.addEventListener('click', () => {
-            q.config.options.push({ id: String(q.config.options.length + 1), label: `Option ${q.config.options.length + 1}` });
+        addOpt.className = 'btn btn-sm btn-link surveys-option-add p-0';
+        addOpt.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Option hinzufügen';
+        addOpt.addEventListener('mousedown', (e) => e.stopPropagation());
+        addOpt.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!q.config) q.config = defaultConfig(q.question_type);
+            if (!q.config.options) q.config.options = [];
+            const nextNum = q.config.options.length + 1;
+            q.config.options.push({ id: String(nextNum), label: `Option ${nextNum}` });
             renderPages();
             scheduleSave();
         });
@@ -215,11 +392,11 @@
     function renderSliderConfig(q) {
         if (!q.config) q.config = defaultConfig('slider');
         const wrap = document.createElement('div');
-        wrap.className = 'row g-2 mt-2';
+        wrap.className = 'surveys-slider-config';
+        const labels = { min: 'Minimum', max: 'Maximum', step: 'Schritt' };
         ['min', 'max', 'step'].forEach((key) => {
             const col = document.createElement('div');
-            col.className = 'col-4';
-            col.innerHTML = `<label class="form-label small">${key}</label><input type="number" class="form-control form-control-sm" data-key="${key}" value="${q.config[key] ?? ''}">`;
+            col.innerHTML = `<label class="form-label">${labels[key] || key}</label><input type="number" class="form-control form-control-sm" data-key="${key}" value="${q.config[key] ?? ''}">`;
             col.querySelector('input').addEventListener('input', (e) => {
                 q.config[key] = e.target.value === '' ? null : Number(e.target.value);
                 scheduleSave();
@@ -229,11 +406,11 @@
         return wrap;
     }
 
-    function addQuestion(type) {
+    function addQuestion(type, pageId) {
         if (!structure.pages || !structure.pages.length) {
-            structure.pages = [{ id: tempId(), title: 'Seite 1', page_order: 0, questions: [] }];
+            structure.pages = [{ id: tempId(), title: 'Seite 1', page_order: 0, questions: [], show_title: false, show_description: false }];
         }
-        const page = structure.pages[structure.pages.length - 1];
+        const page = structure.pages.find((p) => p.id === pageId) || structure.pages[structure.pages.length - 1];
         page.questions = page.questions || [];
         page.questions.push({
             id: tempId(),
@@ -256,6 +433,8 @@
             description: '',
             page_order: structure.pages.length,
             questions: [],
+            show_title: false,
+            show_description: false,
         });
         renderPages();
         scheduleSave();
@@ -263,18 +442,28 @@
 
     function bindDnD() {
         let dragged = null;
+
         document.querySelectorAll('.surveys-question-card').forEach((card) => {
-            card.addEventListener('dragstart', (e) => {
+            const handle = card.querySelector('.surveys-question-drag');
+            if (!handle) return;
+
+            handle.setAttribute('draggable', 'true');
+
+            handle.addEventListener('dragstart', (e) => {
                 dragged = card;
                 card.classList.add('is-dragging');
+                e.dataTransfer.effectAllowed = 'move';
             });
-            card.addEventListener('dragend', () => {
+
+            handle.addEventListener('dragend', () => {
                 card.classList.remove('is-dragging');
                 dragged = null;
+                document.querySelectorAll('.surveys-question-card.drag-over').forEach((el) => el.classList.remove('drag-over'));
             });
+
             card.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                card.classList.add('drag-over');
+                if (dragged && dragged !== card) card.classList.add('drag-over');
             });
             card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
             card.addEventListener('drop', (e) => {
@@ -314,6 +503,7 @@
         structure.title = els.title?.value || structure.title;
         structure.description = els.desc?.value || '';
         syncStructureFromSettings();
+        syncPageUiToSettings();
         fetch(root.dataset.structureUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -323,6 +513,7 @@
             .then((data) => {
                 if (data.ok && data.structure) {
                     structure = data.structure;
+                    syncPageUiFromSettings();
                     if (els.saveStatus) els.saveStatus.textContent = 'Gespeichert';
                     setTimeout(() => { if (els.saveStatus) els.saveStatus.textContent = ''; }, 2000);
                 } else if (els.saveStatus) {
@@ -357,7 +548,20 @@
         if (shareCopy) {
             shareCopy.addEventListener('click', () => {
                 const inp = document.getElementById('shareModalLinkInput');
-                if (inp) navigator.clipboard.writeText(inp.value);
+                if (inp && inp.value) {
+                    navigator.clipboard.writeText(inp.value).then(() => {
+                        shareCopy.innerHTML = '<i class="bi bi-check-lg"></i>';
+                        setTimeout(() => { shareCopy.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+                    });
+                }
+            });
+        }
+
+        const shareBtn = document.getElementById('surveyShareBtn');
+        const shareModalEl = document.getElementById('surveyShareModal');
+        if (shareBtn && shareModalEl && window.bootstrap && window.bootstrap.Modal) {
+            shareBtn.addEventListener('click', () => {
+                window.bootstrap.Modal.getOrCreateInstance(shareModalEl).show();
             });
         }
 
@@ -395,8 +599,11 @@
 
         if (els.copyLink) {
             els.copyLink.addEventListener('click', () => {
-                if (els.publicLink) {
-                    navigator.clipboard.writeText(els.publicLink.value);
+                if (els.publicLink && els.publicLink.value) {
+                    navigator.clipboard.writeText(els.publicLink.value).then(() => {
+                        els.copyLink.innerHTML = '<i class="bi bi-check-lg"></i>';
+                        setTimeout(() => { els.copyLink.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+                    });
                 }
             });
         }
@@ -503,11 +710,11 @@
     }
 
     if (!structure.pages || !structure.pages.length) {
-        structure.pages = [{ id: tempId(), title: 'Seite 1', page_order: 0, questions: [] }];
+        structure.pages = [{ id: tempId(), title: 'Seite 1', page_order: 0, questions: [], show_title: false, show_description: false }];
     }
 
     syncSettingsFromStructure();
-    renderAddMenu();
+    syncPageUiFromSettings();
     renderPages();
     bindSettings();
     if (window.InventoryPillSelect) {

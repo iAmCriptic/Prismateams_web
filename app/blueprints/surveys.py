@@ -182,6 +182,7 @@ def _create_default_page(survey: Survey):
 
 
 def _survey_structure_payload(survey: Survey) -> dict:
+    page_ui = survey.get_settings().get('page_ui') or {}
     pages = []
     for page in survey.pages:
         questions = []
@@ -195,11 +196,14 @@ def _survey_structure_payload(survey: Survey) -> dict:
                 'question_order': q.question_order,
                 'config': q.get_config(),
             })
+        ui = page_ui.get(str(page.id), {})
         pages.append({
             'id': page.id,
             'title': page.title,
             'description': page.description,
             'page_order': page.page_order,
+            'show_title': bool(ui.get('show_title')),
+            'show_description': bool(ui.get('show_description', page.description)),
             'questions': questions,
         })
     return {
@@ -233,6 +237,7 @@ def _apply_structure(survey: Survey, data: dict):
     existing_pages = {p.id: p for p in survey.pages}
     seen_page_ids = set()
     pages_data = data.get('pages') or []
+    page_ui: dict[str, dict] = {}
 
     if not pages_data:
         if not survey.pages:
@@ -249,6 +254,11 @@ def _apply_structure(survey: Survey, data: dict):
         page.description = page_data.get('description')
         page.page_order = page_data.get('page_order', idx)
         db.session.flush()
+        if page.id:
+            page_ui[str(page.id)] = {
+                'show_title': bool(page_data.get('show_title')),
+                'show_description': bool(page_data.get('show_description')),
+            }
         if page_data.get('id'):
             page_id_map[page_data['id']] = page.id
         if page.id:
@@ -284,6 +294,11 @@ def _apply_structure(survey: Survey, data: dict):
     for pid, page in existing_pages.items():
         if pid not in seen_page_ids:
             db.session.delete(page)
+
+    if page_ui:
+        settings = survey.get_settings()
+        settings['page_ui'] = page_ui
+        survey.set_settings(settings)
 
     def _remap_id(val, mapping):
         if val is None:
