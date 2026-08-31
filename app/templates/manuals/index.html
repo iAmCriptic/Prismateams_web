@@ -718,7 +718,8 @@ function moveManual(manualId, folderId) {
             window.location.reload();
         })
         .catch(() => {
-            alert(MANUALS_I18N.messages?.move_error || '');
+            if (typeof window.ptAlert === 'function') window.ptAlert(MANUALS_I18N.messages?.move_error || '', 'danger');
+            else window.alert(MANUALS_I18N.messages?.move_error || '');
         });
 }
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ survey.title }} – {{ _('surveys.public.verify_title') }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+    {% include 'auth/_auth_bg.html' %}
+</head>
+<body class="survey-public-body">
+<div class="survey-public-shell">
+    <div class="survey-public-panel" style="max-width: 420px;">
+        <h1 class="h5 mb-2">{{ _('surveys.public.verify_title') }}</h1>
+        <p class="text-muted small mb-3">{{ _('surveys.public.verify_hint') }}</p>
+        <form method="POST" action="{{ url_for('surveys.public_verify_email', token=token) }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{ _('surveys.public.email_label') }}</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            {% include 'auth/_bot_protection.html' %}
+            <button type="submit" class="btn btn-primary surveys-btn-pill w-100">{{ _('surveys.public.send_code') }}</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

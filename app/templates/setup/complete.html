@@ -325,7 +325,8 @@ let emailCount = 1;
 
 document.getElementById('add-email').addEventListener('click', function() {
     if (emailCount >= 5) {
-        alert('Sie können maximal 5 E-Mail-Adressen hinzufügen.');
+        if (typeof window.ptAlert === 'function') window.ptAlert('Sie können maximal 5 E-Mail-Adressen hinzufügen.', 'warning');
+        else window.alert('Sie können maximal 5 E-Mail-Adressen hinzufügen.');
         return;
     }
     

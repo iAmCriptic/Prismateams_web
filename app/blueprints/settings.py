@@ -26,6 +26,19 @@ from sqlalchemy import or_
 settings_bp = Blueprint('settings', __name__)
 
 
+@settings_bp.context_processor
+def inject_settings_search_catalog():
+    """JSON catalog for settings sidebar search."""
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return {}
+    if not request.endpoint or not str(request.endpoint).startswith('settings.'):
+        return {}
+    from app.utils.settings_catalog import build_settings_catalog
+    catalog = build_settings_catalog(current_user)
+    return {'settings_search_catalog_json': json.dumps(catalog, ensure_ascii=False)}
+
+
 def _settings_redirect(endpoint, **values):
     """Redirect unter Beibehaltung von embed=1 (Setup-Modal)."""
     if request.args.get('embed') or request.form.get('embed'):
@@ -44,10 +57,12 @@ def _guest_account_form_options():
         ('module_wiki', 'Wiki'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
+        ('module_file_converter', 'Dateikonverter'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
         ('module_excalidraw', 'Excalidraw'),
+        ('module_surveys', 'Umfragen'),
     ]
     from app.utils.public_share import get_assignable_public_shares
     assignable_shares = get_assignable_public_shares()
@@ -394,10 +409,12 @@ def admin_users():
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
+        ('module_file_converter', 'Dateikonverter'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
-        ('module_excalidraw', 'Excalidraw')
+        ('module_excalidraw', 'Excalidraw'),
+        ('module_surveys', 'Umfragen')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -825,10 +842,12 @@ def create_user():
                 'module_wiki',
                 'module_music',
                 'module_media_downloader',
+                'module_file_converter',
                 'module_assessment',
                 'module_shortlinks',
                 'module_kanban',
                 'module_excalidraw',
+                'module_surveys',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -1147,10 +1166,12 @@ def edit_guest_user(user_id):
             'module_wiki',
             'module_music',
             'module_media_downloader',
+            'module_file_converter',
             'module_assessment',
             'module_shortlinks',
             'module_kanban',
             'module_excalidraw',
+            'module_surveys',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
@@ -1456,6 +1477,82 @@ def admin_teams():
         return redirect(url_for('settings.index'))
 
     return render_template('settings/admin_teams.html', teams=teams, is_team_leader_view=not current_user.is_admin)
+
+
+@settings_bp.route('/team-settings', methods=['GET', 'POST'])
+@login_required
+def team_settings():
+    """Team leaders: enable/disable team sections per team."""
+    from app.models.team import Team
+    from app.utils.multi_mailboxes import can_manage_team, get_led_teams, user_is_team_leader
+    from app.utils.team_module_settings import (
+        TEAM_SECTION_MODULES,
+        get_team_section_states,
+        set_team_section_enabled,
+    )
+
+    if current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    if not user_is_team_leader(current_user):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    teams = get_led_teams(current_user)
+    if not teams:
+        flash(translate('settings.team_settings.flash_no_teams'), 'warning')
+        return redirect(url_for('settings.index'))
+
+    team_id = request.args.get('team_id', type=int) or request.form.get('team_id', type=int)
+    if team_id:
+        team = next((t for t in teams if t.id == team_id), None)
+    else:
+        team = teams[0]
+    if not team or not can_manage_team(current_user, team.id):
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.team_settings'))
+
+    module_labels = {
+        'wiki': translate('layout.nav.wiki'),
+        'credentials': translate('layout.nav.credentials'),
+        'manuals': translate('layout.nav.manuals'),
+        'contacts': translate('layout.nav.contacts'),
+        'shortlinks': translate('layout.nav.shortlinks'),
+        'excalidraw': translate('layout.nav.excalidraw'),
+        'kanban': translate('settings.sidebar.kanban'),
+        'calendar': translate('settings.admin.cards.calendar_settings.title'),
+        'files': translate('settings.admin.cards.file_settings.title'),
+        'email': translate('settings.sidebar.email_module'),
+        'chat': translate('settings.team_settings.module_chat'),
+    }
+
+    if request.method == 'POST':
+        for module_key in TEAM_SECTION_MODULES:
+            enabled = request.form.get(f'team_module_{module_key}') == 'on'
+            set_team_section_enabled(team.id, module_key, enabled)
+        db.session.commit()
+        flash(translate('settings.team_settings.flash_saved'), 'success')
+        return redirect(url_for('settings.team_settings', team_id=team.id))
+
+    states = get_team_section_states(team.id)
+    modules = []
+    for key in TEAM_SECTION_MODULES:
+        from app.utils.common import is_module_enabled
+        mod = TEAM_SECTION_MODULES[key]
+        if not is_module_enabled(mod):
+            continue
+        modules.append({
+            'key': key,
+            'label': module_labels.get(key, key),
+            'enabled': states.get(key, True),
+        })
+
+    return render_template(
+        'settings/team_settings.html',
+        teams=teams,
+        team=team,
+        modules=modules,
+    )
 
 
 @settings_bp.route('/admin/teams/create', methods=['GET', 'POST'])
@@ -2120,6 +2217,7 @@ def admin_registration():
         login_enabled = request.form.get('portal_bot_protection_login') == 'on'
         share_edit_enabled = request.form.get('portal_bot_protection_share_edit') == 'on'
         mailbox_enabled = request.form.get('portal_bot_protection_mailbox') == 'on'
+        surveys_enabled = request.form.get('portal_bot_protection_surveys') == 'on'
 
         recaptcha_site_key = request.form.get('portal_recaptcha_site_key', '').strip()
         recaptcha_secret_key = request.form.get('portal_recaptcha_secret_key', '').strip()
@@ -2138,6 +2236,7 @@ def admin_registration():
             'login_enabled': login_enabled,
             'share_edit_enabled': share_edit_enabled,
             'mailbox_enabled': mailbox_enabled,
+            'surveys_enabled': surveys_enabled,
             'recaptcha_version': recaptcha_version,
             'recaptcha_site_key': recaptcha_site_key,
             'recaptcha_secret_key': recaptcha_secret_key,
@@ -2155,6 +2254,7 @@ def admin_registration():
         upsert_setting(SETTING_KEYS['login_enabled'], 'true' if login_enabled else 'false')
         upsert_setting(SETTING_KEYS['share_edit_enabled'], 'true' if share_edit_enabled else 'false')
         upsert_setting(SETTING_KEYS['mailbox_enabled'], 'true' if mailbox_enabled else 'false')
+        upsert_setting(SETTING_KEYS['surveys_enabled'], 'true' if surveys_enabled else 'false')
         upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
         upsert_setting(SETTING_KEYS['recaptcha_site_key'], recaptcha_site_key)
         upsert_setting(SETTING_KEYS['recaptcha_secret_key'], recaptcha_secret_key)
@@ -2276,15 +2376,11 @@ def admin_file_settings():
 
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
-        private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
-        team_folders_enabled = request.form.get('files_team_folders_enabled') == 'on'
         document_format = (request.form.get('files_document_format') or FORMAT_OFFICE).strip().lower()
         if document_format not in (FORMAT_OFFICE, FORMAT_OPENDOCUMENT):
             document_format = FORMAT_OFFICE
         _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
         _upsert_text('files_sharing_enabled', str(sharing_enabled))
-        _upsert_text('files_private_folders_enabled', str(private_folders_enabled))
-        _upsert_text('files_team_folders_enabled', str(team_folders_enabled))
         _upsert_text(
             SETTING_DOCUMENT_FORMAT,
             document_format,
@@ -2399,29 +2495,27 @@ def admin_calendar_settings():
         return redirect(url_for('settings.index'))
 
     if request.method == 'POST':
-        personal_enabled = request.form.get('calendar_personal_enabled') == 'on'
-        team_enabled = request.form.get('calendar_team_enabled') == 'on'
         export_enabled = request.form.get('calendar_export_enabled') == 'on'
         import_enabled = request.form.get('calendar_import_enabled') == 'on'
-        multi_enabled = personal_enabled or team_enabled
 
-        _upsert_bool_setting('calendar_personal_enabled', personal_enabled)
-        _upsert_bool_setting('calendar_team_enabled', team_enabled)
-        _upsert_bool_setting('calendar_multi_enabled', multi_enabled)
         _upsert_bool_setting('calendar_export_enabled', export_enabled)
         _upsert_bool_setting('calendar_import_enabled', import_enabled)
         db.session.commit()
 
+        from app.utils.multi_calendars import (
+            backfill_space_calendars,
+            ensure_imported_calendar_for_source,
+            fold_events_calendar_into_public,
+            get_or_create_events_calendar,
+            get_public_calendar,
+            is_calendar_personal_enabled,
+            is_calendar_team_enabled,
+        )
+        from app.models.calendar import CalendarEvent, CalendarSyncSource
+
+        multi_enabled = is_calendar_personal_enabled() or is_calendar_team_enabled()
         if multi_enabled:
             try:
-                from app.utils.multi_calendars import (
-                    backfill_space_calendars,
-                    ensure_imported_calendar_for_source,
-                    get_or_create_events_calendar,
-                    get_public_calendar,
-                )
-                from app.models.calendar import CalendarEvent, CalendarSyncSource
-
                 backfill_space_calendars()
                 public = get_public_calendar()
                 events_cal = get_or_create_events_calendar()
@@ -2460,17 +2554,14 @@ def admin_calendar_settings():
                 db.session.commit()
             except Exception as exc:
                 db.session.rollback()
-                import logging
-                logging.error(f'Fehler beim Aktivieren Multi-Kalender: {exc}')
+                current_app.logger.error('Fehler beim Aktivieren Multi-Kalender: %s', exc)
         else:
             try:
-                from app.utils.multi_calendars import fold_events_calendar_into_public
                 fold_events_calendar_into_public()
                 db.session.commit()
             except Exception as exc:
                 db.session.rollback()
-                import logging
-                logging.error(f'Fehler beim Deaktivieren Multi-Kalender: {exc}')
+                current_app.logger.error('Fehler beim Deaktivieren Multi-Kalender: %s', exc)
 
         flash(translate('settings.admin.calendar_settings.flash_updated'), 'success')
         return _settings_redirect('settings.admin_calendar_settings')
@@ -2500,25 +2591,50 @@ def admin_modules():
     
     if request.method == 'POST':
         from app.utils.common import AVAILABLE_MODULES
-        # Module-Einstellungen speichern
+        from app.utils.bot_protection import upsert_setting
+        from app.utils.module_visibility_settings import (
+            SETTING_ALLOW_PRIVATE,
+            SETTING_ALLOW_PUBLIC,
+            SETTING_ALLOW_TEAM,
+            sync_legacy_visibility_keys,
+        )
+
         modules = {key: request.form.get(key) == 'on' for key in AVAILABLE_MODULES}
-        
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
             if module_setting:
                 module_setting.value = str(enabled)
             else:
                 db.session.add(SystemSettings(key=module_key, value=str(enabled), description=f'Modul {module_key} aktiviert'))
-        
+
+        allow_private = request.form.get('modules_allow_private') == 'on'
+        allow_team = request.form.get('modules_allow_team') == 'on'
+        allow_public = request.form.get('modules_allow_public') == 'on'
+        upsert_setting(SETTING_ALLOW_PRIVATE, str(allow_private).lower(), 'Module: Private Varianten')
+        upsert_setting(SETTING_ALLOW_TEAM, str(allow_team).lower(), 'Module: Team-Varianten')
+        upsert_setting(SETTING_ALLOW_PUBLIC, str(allow_public).lower(), 'Module: Public-Varianten')
+        sync_legacy_visibility_keys(allow_private, allow_team, allow_public)
+
         db.session.commit()
         flash(translate('settings.admin.admin_modules.flash_updated'), 'success')
         return redirect(url_for('settings.admin_modules'))
     
     # Get module settings
     from app.utils.common import is_module_enabled, AVAILABLE_MODULES
+    from app.utils.module_visibility_settings import (
+        is_global_private_enabled,
+        is_global_public_enabled,
+        is_global_team_enabled,
+    )
     module_flags = {f'{key}_enabled': is_module_enabled(key) for key in AVAILABLE_MODULES}
     
-    return render_template('settings/admin_modules.html', **module_flags)
+    return render_template(
+        'settings/admin_modules.html',
+        modules_allow_private=is_global_private_enabled(),
+        modules_allow_team=is_global_team_enabled(),
+        modules_allow_public=is_global_public_enabled(),
+        **module_flags,
+    )
 
 
 @settings_bp.route('/admin/integrations', methods=['GET', 'POST'])
@@ -2540,6 +2656,23 @@ def admin_integrations():
 
     if request.method == 'POST':
         save_integrations_from_form(request.form)
+        from app.models.music import MusicSettings
+
+        spotify_client_id = request.form.get('spotify_client_id', '').strip()
+        spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
+        deezer_app_id = request.form.get('deezer_app_id', '').strip()
+
+        for key, value, desc in (
+            ('spotify_client_id', spotify_client_id, 'Spotify OAuth Client ID'),
+            ('spotify_client_secret', spotify_client_secret, 'Spotify Client Secret'),
+            ('deezer_app_id', deezer_app_id, 'Deezer App-ID'),
+        ):
+            row = MusicSettings.query.filter_by(key=key).first()
+            if row:
+                row.value = value
+            else:
+                db.session.add(MusicSettings(key=key, value=value, description=desc))
+
         db.session.commit()
         flash(translate('settings.integrations.flash_saved'), 'success')
         return _settings_redirect('settings.admin_integrations')
@@ -2547,69 +2680,36 @@ def admin_integrations():
     google = get_google_credentials()
     microsoft = get_microsoft_credentials()
     from app.utils.integrations import google_oauth_redirect_uri
+    from app.models.music import MusicSettings
+    from app.utils.music_oauth import is_provider_connected
+
+    spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
+    spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
+    deezer_app_id = MusicSettings.query.filter_by(key='deezer_app_id').first()
+    spotify_connected = is_provider_connected(current_user.id, 'spotify')
+    youtube_connected = is_provider_connected(current_user.id, 'youtube')
+
     return render_template(
         'settings/admin_integrations.html',
         google=google,
         microsoft=microsoft,
         google_redirect=google_oauth_redirect_uri(),
         microsoft_redirect=url_for('settings.mailbox_oauth_callback', provider='microsoft', _external=True),
+        spotify_client_id=spotify_client_id.value if spotify_client_id else '',
+        spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
+        deezer_app_id=deezer_app_id.value if deezer_app_id else '',
+        spotify_connected=spotify_connected,
+        youtube_connected=youtube_connected,
+        spotify_redirect_uri=url_for('music.spotify_callback', _external=True),
+        youtube_redirect_uri=google_oauth_redirect_uri(),
     )
 
 
 @settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
 @login_required
 def admin_push_subscriptions():
-    """Web-Push-Abonnements verwalten (admin only)."""
-    if not current_user.is_admin:
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-
-    from app.models.notification import PushSubscription
-    from app.models.user import User
-
-    if request.method == 'POST':
-        action = request.form.get('action')
-        subscription_id = request.form.get('subscription_id', type=int)
-        user_id = request.form.get('user_id', type=int)
-
-        if action == 'deactivate' and subscription_id:
-            sub = PushSubscription.query.get(subscription_id)
-            if sub:
-                sub.is_active = False
-                db.session.commit()
-                flash(translate('settings.admin.push_subscriptions.flash_deactivated'), 'success')
-        elif action == 'delete' and subscription_id:
-            sub = PushSubscription.query.get(subscription_id)
-            if sub:
-                db.session.delete(sub)
-                db.session.commit()
-                flash(translate('settings.admin.push_subscriptions.flash_deleted'), 'success')
-        elif action == 'deactivate_user' and user_id:
-            subs = PushSubscription.query.filter_by(user_id=user_id, is_active=True).all()
-            for sub in subs:
-                sub.is_active = False
-            db.session.commit()
-            flash(translate('settings.admin.push_subscriptions.flash_user_deactivated', count=len(subs)), 'success')
-
-        return redirect(url_for('settings.admin_push_subscriptions'))
-
-    subscriptions = (
-        PushSubscription.query
-        .join(User, PushSubscription.user_id == User.id)
-        .order_by(PushSubscription.last_used.desc())
-        .all()
-    )
-    users_by_id = {}
-    if subscriptions:
-        user_ids = {s.user_id for s in subscriptions}
-        users_by_id = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
-
-    return render_template(
-        'settings/admin_push_subscriptions.html',
-        subscriptions=subscriptions,
-        users_by_id=users_by_id,
-        active_count=sum(1 for s in subscriptions if s.is_active),
-    )
+    """Legacy route — admin push page removed."""
+    return redirect(url_for('settings.admin_system'))
 
 
 def _admin_backup_ctx():
@@ -2846,33 +2946,8 @@ def admin_inventory_settings():
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])
 @login_required
 def admin_kanban_settings():
-    """Kanban-Modul-Einstellungen (admin only)."""
-    if not current_user.is_admin:
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-
-    from app.utils.bot_protection import upsert_setting
-    from app.utils.kanban_access import (
-        SETTING_ALLOW_PRIVATE,
-        SETTING_ALLOW_TEAM,
-        SETTING_ALLOW_PUBLIC,
-        _setting_bool,
-    )
-
-    if request.method == 'POST':
-        upsert_setting(SETTING_ALLOW_PRIVATE, str(request.form.get('allow_private') == 'on').lower(), 'Kanban: Private Boards')
-        upsert_setting(SETTING_ALLOW_TEAM, str(request.form.get('allow_team') == 'on').lower(), 'Kanban: Team Boards')
-        upsert_setting(SETTING_ALLOW_PUBLIC, str(request.form.get('allow_public') == 'on').lower(), 'Kanban: Public Boards')
-        db.session.commit()
-        flash(translate('settings.admin.kanban.flash_saved'), 'success')
-        return _settings_redirect('settings.admin_kanban_settings')
-
-    return render_template(
-        'settings/admin_kanban_settings.html',
-        allow_private=_setting_bool(SETTING_ALLOW_PRIVATE, True),
-        allow_team=_setting_bool(SETTING_ALLOW_TEAM, True),
-        allow_public=_setting_bool(SETTING_ALLOW_PUBLIC, True),
-    )
+    """Legacy route — visibility moved to module settings."""
+    return redirect(url_for('settings.admin_modules'))
 
 
 VISIBILITY_SETTINGS_MODULES = {
@@ -2906,46 +2981,19 @@ VISIBILITY_SETTINGS_MODULES = {
         'label_key': 'layout.nav.excalidraw',
         'icon': 'bi-pencil-square',
     },
+    'surveys': {
+        'module_key': 'module_surveys',
+        'label_key': 'layout.nav.surveys',
+        'icon': 'bi-ui-checks-grid',
+    },
 }
 
 
 @settings_bp.route('/admin/visibility/<module>', methods=['GET', 'POST'])
 @login_required
 def admin_module_visibility(module):
-    """Private / Team / Public switches for credentials, manuals, contacts, wiki, shortlinks."""
-    if not current_user.is_admin:
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-
-    meta = VISIBILITY_SETTINGS_MODULES.get(module)
-    if not meta:
-        abort(404)
-
-    from app.utils.bot_protection import upsert_setting
-    from app.utils.common import is_module_enabled
-    from app.utils.module_visibility import _setting_bool, setting_key
-
-    if not is_module_enabled(meta['module_key']):
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-
-    if request.method == 'POST':
-        upsert_setting(setting_key(module, 'private'), str(request.form.get('allow_private') == 'on').lower(), f'{module}: Privat')
-        upsert_setting(setting_key(module, 'team'), str(request.form.get('allow_team') == 'on').lower(), f'{module}: Team')
-        upsert_setting(setting_key(module, 'public'), str(request.form.get('allow_public') == 'on').lower(), f'{module}: Public')
-        db.session.commit()
-        flash(translate('settings.admin.visibility.flash_saved'), 'success')
-        return _settings_redirect('settings.admin_module_visibility', module=module)
-
-    return render_template(
-        'settings/admin_module_visibility.html',
-        module=module,
-        module_label=translate(meta['label_key']),
-        module_icon=meta['icon'],
-        allow_private=_setting_bool(setting_key(module, 'private'), True),
-        allow_team=_setting_bool(setting_key(module, 'team'), True),
-        allow_public=_setting_bool(setting_key(module, 'public'), True),
-    )
+    """Legacy route — visibility moved to module settings."""
+    return redirect(url_for('settings.admin_modules'))
 
 
 @settings_bp.route('/admin/email-module')
@@ -3783,6 +3831,10 @@ def team_mailboxes(team_id):
     if not can_manage_team(current_user, team.id):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
+    from app.utils.team_module_settings import is_team_section_enabled
+    if not is_team_section_enabled(team.id, 'email'):
+        flash(translate('settings.team_settings.flash_email_disabled'), 'warning')
+        return redirect(url_for('settings.team_settings', team_id=team.id))
     if not is_email_multi_enabled():
         flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -3922,11 +3974,9 @@ def admin_music():
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
-    from app.models.music import MusicSettings, MusicProviderToken
-    from app.utils.music_oauth import is_provider_connected
+    from app.models.music import MusicSettings
     
     if request.method == 'POST':
-        # Speichere Provider-Aktivierung
         enabled_providers = []
         available_providers = ['spotify', 'youtube', 'deezer', 'musicbrainz']
         for provider in available_providers:
@@ -3934,49 +3984,16 @@ def admin_music():
                 enabled_providers.append(provider)
         MusicSettings.set_enabled_providers(enabled_providers)
         
-        # Speichere Provider-Reihenfolge
         provider_order_json = request.form.get('provider_order', '')
         if provider_order_json:
-            import json
+            import json as _json
             try:
-                provider_order = json.loads(provider_order_json)
-                # Filtere nur aktivierte Provider
+                provider_order = _json.loads(provider_order_json)
                 provider_order = [p for p in provider_order if p in enabled_providers]
                 MusicSettings.set_provider_order(provider_order)
-            except:
+            except Exception:
                 pass
-        
-        # Spotify Settings (OAuth Client ID/Secret für Benutzer-Login)
-        spotify_client_id = request.form.get('spotify_client_id', '').strip()
-        spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
-        
-        spotify_id_setting = MusicSettings.query.filter_by(key='spotify_client_id').first()
-        if spotify_id_setting:
-            spotify_id_setting.value = spotify_client_id
-        else:
-            spotify_id_setting = MusicSettings(key='spotify_client_id', value=spotify_client_id, description='Spotify OAuth Client ID')
-            db.session.add(spotify_id_setting)
-        
-        spotify_secret_setting = MusicSettings.query.filter_by(key='spotify_client_secret').first()
-        if spotify_secret_setting:
-            spotify_secret_setting.value = spotify_client_secret
-        else:
-            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify Client Secret')
-            db.session.add(spotify_secret_setting)
-        
-        # YouTube/Google-Keys liegen unter Einstellungen → Verknüpfungen
 
-        # Deezer Settings (App-ID optional, aber empfohlen für Rate Limits)
-        deezer_app_id = request.form.get('deezer_app_id', '').strip()
-        
-        deezer_app_id_setting = MusicSettings.query.filter_by(key='deezer_app_id').first()
-        if deezer_app_id_setting:
-            deezer_app_id_setting.value = deezer_app_id
-        else:
-            deezer_app_id_setting = MusicSettings(key='deezer_app_id', value=deezer_app_id, description='Deezer App-ID (optional, aber empfohlen für höhere Rate Limits)')
-            db.session.add(deezer_app_id_setting)
-        
-        # Provider-Badge-Anzeige Einstellung
         show_provider_badges = request.form.get('show_provider_badges') == 'on'
         MusicSettings.set_show_provider_badges(show_provider_badges)
         
@@ -3987,32 +4004,11 @@ def admin_music():
     # GET: Zeige Einstellungsseite
     enabled_providers = MusicSettings.get_enabled_providers()
     provider_order = MusicSettings.get_provider_order()
-    
-    spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
-    spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
-    deezer_app_id = MusicSettings.query.filter_by(key='deezer_app_id').first()
-    # Prüfe Verbindungsstatus (nur für OAuth-basierte Provider)
-    spotify_connected = is_provider_connected(current_user.id, 'spotify') if current_user.is_authenticated else False
-    youtube_connected = is_provider_connected(current_user.id, 'youtube') if current_user.is_authenticated else False
-    
-    # Redirect URIs
-    spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
-    from app.utils.integrations import google_oauth_redirect_uri
-    youtube_redirect_uri = google_oauth_redirect_uri()
-    
-    # Hole Einstellung für Provider-Badge-Anzeige (auch im GET-Fall)
     show_provider_badges = MusicSettings.get_show_provider_badges()
     
     return render_template('settings/admin_music.html',
                          enabled_providers=enabled_providers,
                          provider_order=provider_order,
-                         spotify_client_id=spotify_client_id.value if spotify_client_id else '',
-                         spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
-                         deezer_app_id=deezer_app_id.value if deezer_app_id else '',
-                         spotify_connected=spotify_connected,
-                         youtube_connected=youtube_connected,
-                         spotify_redirect_uri=spotify_redirect_uri,
-                         youtube_redirect_uri=youtube_redirect_uri,
                          show_provider_badges=show_provider_badges)
 
 
@@ -4124,10 +4120,12 @@ def admin_roles_user_update(user_id):
             'module_booking',
             'module_music',
             'module_media_downloader',
+            'module_file_converter',
             'module_assessment',
             'module_shortlinks',
             'module_kanban',
             'module_excalidraw',
+            'module_surveys',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -4219,10 +4217,12 @@ def admin_roles_default():
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
+        ('module_file_converter', 'Dateikonverter'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
-        ('module_excalidraw', 'Excalidraw')
+        ('module_excalidraw', 'Excalidraw'),
+        ('module_surveys', 'Umfragen')
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
@@ -5031,11 +5031,14 @@ def about():
     # OnlyOffice Status prüfen
     from app.utils.onlyoffice import is_onlyoffice_enabled, get_onlyoffice_version
     from app.utils.media_downloader import is_media_downloader_compatible, get_ffmpeg_version
+    from app.utils.file_converter import is_libreoffice_available, get_libreoffice_version
     from app.utils.excalidraw import is_excalidraw_collab_enabled, get_excalidraw_package_version
     onlyoffice_enabled = is_onlyoffice_enabled()
     onlyoffice_version = get_onlyoffice_version() if onlyoffice_enabled else None
     media_downloader_compatible = is_media_downloader_compatible()
     ffmpeg_version = get_ffmpeg_version() if media_downloader_compatible else None
+    libreoffice_available = is_libreoffice_available()
+    libreoffice_version = get_libreoffice_version() if libreoffice_available else None
     excalidraw_enabled = is_excalidraw_collab_enabled()
     excalidraw_version = get_excalidraw_package_version() if excalidraw_enabled else None
 
@@ -5049,6 +5052,8 @@ def about():
         onlyoffice_version=onlyoffice_version,
         media_downloader_compatible=media_downloader_compatible,
         ffmpeg_version=ffmpeg_version,
+        libreoffice_available=libreoffice_available,
+        libreoffice_version=libreoffice_version,
         excalidraw_enabled=excalidraw_enabled,
         excalidraw_version=excalidraw_version,
     )

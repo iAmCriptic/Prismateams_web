@@ -10,6 +10,15 @@
         <p class="settings-admin-calendar-subtitle">{{ _('settings.admin.calendar_settings.subtitle') }}</p>
     </div>
 
+    <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+        <div class="portal-msg__body">
+            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+            <div class="portal-msg__content">
+                <p class="portal-msg__text mb-0">{{ _('settings.admin.calendar_settings.visibility_moved') }}</p>
+            </div>
+        </div>
+    </div>
+
     <form method="POST" class="settings-admin-calendar-form">
         <section class="settings-admin-calendar-card" aria-labelledby="calendar-features-title">
             <div class="settings-admin-calendar-card-head">
@@ -20,30 +29,6 @@
             </div>
 
             <div class="settings-admin-calendar-list">
-                <div class="settings-admin-calendar-row">
-                    <div class="settings-admin-calendar-row-main">
-                        <div class="form-check form-switch settings-admin-calendar-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="calendar_personal_enabled" name="calendar_personal_enabled" {% if calendar_personal_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_personal_enabled">
-                                <span class="settings-admin-calendar-name">{{ _('settings.admin.calendar_settings.personal_label') }}</span>
-                            </label>
-                        </div>
-                        <p class="settings-admin-calendar-meta mb-0">{{ _('settings.admin.calendar_settings.personal_help') }}</p>
-                    </div>
-                </div>
-
-                <div class="settings-admin-calendar-row">
-                    <div class="settings-admin-calendar-row-main">
-                        <div class="form-check form-switch settings-admin-calendar-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="calendar_team_enabled" name="calendar_team_enabled" {% if calendar_team_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_team_enabled">
-                                <span class="settings-admin-calendar-name">{{ _('settings.admin.calendar_settings.team_label') }}</span>
-                            </label>
-                        </div>
-                        <p class="settings-admin-calendar-meta mb-0">{{ _('settings.admin.calendar_settings.team_help') }}</p>
-                    </div>
-                </div>
-
                 <div class="settings-admin-calendar-row">
                     <div class="settings-admin-calendar-row-main">
                         <div class="form-check form-switch settings-admin-calendar-switch mb-0">

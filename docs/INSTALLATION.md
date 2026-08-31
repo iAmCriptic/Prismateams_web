@@ -54,6 +54,7 @@ Schritt-für-Schritt-Installation von **Prismateams 3.0.1** auf Ubuntu Server (A
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
 - **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
 - **Media Downloader** ist **OPTIONAL** (benötigt FFmpeg, kein Docker)
+- **Dateikonverter** ist **OPTIONAL** (Audio/Bilder/PDF ohne Extra-Tools; Dokumente benötigen LibreOffice)
 - Wenn Sie diese Features **NICHT** benötigen, können Sie die entsprechenden Schritte überspringen
 - In der `.env`-Datei müssen Sie dann `ONLYOFFICE_ENABLED=False` und/oder `EXCALIDRAW_ENABLED=False` setzen
 - Die Nginx-Konfiguration muss entsprechend angepasst werden (optionalen Location-Blöcke entfernen)
@@ -236,7 +237,7 @@ curl -I http://127.0.0.1:8082/
 **⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie YouTube-/YouTube-Music-Downloads im Portal nutzen möchten.
 
 ```bash
-# FFmpeg installieren (von yt-dlp für Konvertierung benötigt)
+# FFmpeg installieren (für serverseitige Konvertierung nach Browser-Download)
 sudo apt install -y ffmpeg
 
 # Installation prüfen
@@ -245,30 +246,32 @@ ffmpeg -version
 
 **Hinweise:**
 - Kein Docker oder Nginx-Proxy erforderlich
-- Python-Paket `yt-dlp` wird über `requirements.txt` im Virtual Environment installiert
+- **Downloads** erfolgen im Browser des Nutzers (youtubei.js) — YouTube-Bot-Sperren des Servers werden umgangen
+- **Konvertierung** (MP3/MP4) erfolgt serverseitig via FFmpeg
 - **Aktivierung im Portal:** Einstellungen → Administration → Module → **Media Downloader**
 - Heruntergeladene Dateien werden standardmäßig nach **1 Stunde** automatisch gelöscht (`MEDIA_DOWNLOADER_RETENTION_HOURS` in `.env`, optional)
 - **Playlists:** YouTube- und YouTube-Music-Playlists können über die Weboberfläche als Batch heruntergeladen werden; parallel laufende Downloads begrenzt `MEDIA_DOWNLOADER_MAX_CONCURRENT` (Standard: 2)
-- **Player-Clients (Standard):** yt-dlp nutzt `ios,web_creator,mweb` (`MEDIA_DOWNLOADER_PLAYER_CLIENT`), um Bot-/Sign-in-Checks auf Rechenzentrums-IPs oft ohne Cookies zu umgehen
 - **Rechtlicher Hinweis:** Nutzer sind für die Einhaltung von Urheberrecht und Plattform-Nutzungsbedingungen verantwortlich
+- Bei altersbeschränkten Videos muss der Nutzer im selben Browser bei YouTube angemeldet sein
 
-#### Optional: YouTube-Cookies (nur bei Bedarf)
+### Schritt 6c: Optionale Installation - Dateikonverter (LibreOffice)
 
-Cookies sind **kein Standard**. Sie helfen bei altersbeschränkten Videos oder wenn YouTube trotz Player-Clients blockiert.
+**⚠️ OPTIONAL:** Für Audio-, Bild- und PDF-Konvertierung reichen FFmpeg (bereits für Media Downloader) bzw. die Python-Pakete Pillow/`pypdf`/`img2pdf`. **LibreOffice** wird nur für Office-Dokumente (DOCX, XLSX, PPTX, ODT, …) benötigt.
 
-1. Auf einem Desktop-PC bei YouTube anmelden und Cookies als Netscape-`cookies.txt` exportieren (z. B. Browser-Erweiterung „Get cookies.txt LOCALLY“ / yt-dlp-Doku).
-2. Datei sicher auf den Server legen, z. B. `/etc/prismateams/yt-cookies.txt`:
-   ```bash
-   sudo mkdir -p /etc/prismateams
-   sudo install -m 600 -o www-data -g www-data ./cookies.txt /etc/prismateams/yt-cookies.txt
-   ```
-3. In `.env` setzen:
-   ```env
-   MEDIA_DOWNLOADER_COOKIES_FILE=/etc/prismateams/yt-cookies.txt
-   ```
-4. Dienst neu starten: `sudo systemctl restart teamportal`
+```bash
+# LibreOffice installieren (headless Konvertierung)
+sudo apt install -y libreoffice-writer libreoffice-calc libreoffice-impress
 
-**Rotation:** Cookies bleiben nicht „für immer“. Bei Logout, Passwortwechsel oder Session-Ablauf (oft Wochen bis Monate) erscheinen Fehler wie Bot-Check / 403 / Altersfreigabe — dann `cookies.txt` neu exportieren und ersetzen.
+# Installation prüfen
+soffice --version
+```
+
+**Hinweise:**
+- Optionaler Pfad über `LIBREOFFICE_PATH` in der `.env`, falls `soffice` nicht im PATH liegt
+- **Aktivierung im Portal:** Einstellungen → Administration → Module → **Dateikonverter**
+- Konvertierte Dateien werden standardmäßig nach **24 Stunden** gelöscht (`FILE_CONVERTER_RETENTION_HOURS`)
+- Parallel laufende Jobs begrenzt `FILE_CONVERTER_MAX_CONCURRENT` (Standard: 2)
+- Ohne LibreOffice bleiben Audio-/Bild-/PDF-Funktionen nutzbar; Dokument-Optionen fehlen dann in der UI
 
 ### Schritt 7: Konfiguration (.env-Datei)
 
@@ -336,7 +339,8 @@ REDIS_URL=redis://localhost:6379/0
 - **E-Mail-Speicherlimits:** `EMAIL_HTML_MAX_LENGTH`, `EMAIL_TEXT_MAX_LENGTH`, `EMAIL_HTML_STORAGE_TYPE`
 - **IMAP:** `IMAP_SERVER`, `IMAP_PORT`, `IMAP_USE_SSL`
 - **Uploads:** `UPLOAD_FOLDER` (Dateigrößenlimits werden in den Datei-Einstellungen verwaltet)
-- **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`, `MEDIA_DOWNLOADER_PLAYER_CLIENT` (Default `ios,web_creator,mweb`), optional `MEDIA_DOWNLOADER_COOKIES_FILE`
+- **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
+- **Dateikonverter:** `FILE_CONVERTER_RETENTION_HOURS`, `FILE_CONVERTER_MAX_CONCURRENT`, `LIBREOFFICE_PATH`
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
   - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
   - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
@@ -795,6 +799,7 @@ sudo ufw status
 - **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
 - **Excalidraw installieren:** Optional, für Canvas-Modul
 - **Media Downloader installieren:** Optional, FFmpeg installieren und Modul in Admin aktivieren
+- **Dateikonverter installieren:** Optional, LibreOffice für Dokumente; Audio/Bilder/PDF ohne LibreOffice nutzbar
 
 ### Wichtige Hinweise
 

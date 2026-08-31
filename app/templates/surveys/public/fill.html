@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+
+<html lang="de">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ survey.title }}{% if is_preview %} – {{ _('surveys.builder.preview') }}{% endif %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
+
+    {% include 'auth/_auth_bg.html' %}
+
+</head>
+
+<body class="survey-public-body{% if is_preview %} survey-public-preview{% endif %}">
+
+<div class="survey-public-shell">
+
+    <div class="survey-public-panel">
+
+        {% if is_preview %}
+
+        <div class="survey-preview-banner d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+
+            <span><i class="bi bi-eye"></i> {{ _('surveys.public.preview_banner') }}</span>
+
+            {% if preview_back_url %}
+
+            <a href="{{ preview_back_url }}" class="btn btn-sm btn-outline-secondary surveys-btn-pill">{{ _('surveys.builder.back') }}</a>
+
+            {% endif %}
+
+        </div>
+
+        {% endif %}
+
+
+
+        {% if survey.header_image_path %}
+
+        <img src="{% if header_image_url %}{{ header_image_url }}{% else %}{{ url_for('surveys.public_header', token=token) }}{% endif %}" alt="" class="survey-public-header-img">
+
+        {% endif %}
+
+        <h1 class="survey-public-title">{{ survey.title }}</h1>
+
+        {% if survey.description %}<p class="survey-public-desc">{{ survey.description }}</p>{% endif %}
+
+
+
+        {% if settings.show_progress_bar and layout_mode == 'pages' and all_pages|length > 1 %}
+
+        <div class="survey-progress mb-4">
+
+            <div class="survey-progress-bar" style="width: {{ ((current_page_index + 1) / all_pages|length * 100)|round }}%"></div>
+
+        </div>
+
+        {% endif %}
+
+
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+        {% for category, message in messages %}
+
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-3">{{ message }}</div>
+
+        {% endfor %}
+
+        {% endif %}
+
+        {% endwith %}
+
+
+
+        {% if is_preview %}
+
+        <div id="surveyPreviewContent">
+
+            {% from 'surveys/_question_field.html' import render_question %}
+
+            {% for item in pages_with_questions %}
+
+            {% set page = item.page %}
+
+            <section class="survey-public-page" data-page-id="{{ page.id }}">
+
+                {% if page.title and layout_mode == 'pages' %}<h2 class="h5 mb-3">{{ page.title }}</h2>{% endif %}
+
+                {% if page.description %}<p class="text-muted small">{{ page.description }}</p>{% endif %}
+
+                {% for question in item.questions %}
+
+                {{ render_question(question) }}
+
+                {% endfor %}
+
+            </section>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <form method="POST" action="{{ url_for('surveys.public_submit', token=token) }}" enctype="multipart/form-data" id="surveyFillForm">
+
+            {% from 'surveys/_question_field.html' import render_question %}
+
+            {% for item in pages_with_questions %}
+
+            {% set page = item.page %}
+
+            <section class="survey-public-page" data-page-id="{{ page.id }}">
+
+                {% if page.title and layout_mode == 'pages' %}<h2 class="h5 mb-3">{{ page.title }}</h2>{% endif %}
+
+                {% if page.description %}<p class="text-muted small">{{ page.description }}</p>{% endif %}
+
+                {% for question in item.questions %}
+
+                {{ render_question(question) }}
+
+                {% endfor %}
+
+            </section>
+
+            {% endfor %}
+
+            {% include 'auth/_bot_protection.html' %}
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+
+                {% if layout_mode == 'pages' and current_page_index > 0 %}
+
+                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index) }}" class="btn btn-outline-secondary surveys-btn-pill">{{ _('surveys.public.prev') }}</a>
+
+                {% endif %}
+
+                {% if layout_mode == 'pages' and current_page_index < all_pages|length - 1 %}
+
+                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index + 2) }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.public.next') }}</a>
+
+                {% else %}
+
+                <button type="submit" class="btn btn-primary surveys-btn-pill">{{ _('surveys.public.submit') }}</button>
+
+                {% endif %}
+
+            </div>
+
+        </form>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% if not is_preview %}
+
+<script type="application/json" id="surveyLogicData">{{ logic_rules|tojson }}</script>
+
+<script src="{{ url_for('static', filename='js/survey_fill.js') }}"></script>
+
+{% endif %}
+
+</body>
+
+</html>
+

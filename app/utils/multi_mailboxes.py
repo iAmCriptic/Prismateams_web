@@ -272,7 +272,16 @@ def get_accessible_mailboxes(user, permission: str = 'read') -> list:
         return []
 
     mailboxes = q.filter(or_(*clauses)).order_by(Mailbox.mailbox_type, Mailbox.display_name).all()
-    return [mb for mb in mailboxes if user_has_mailbox_access(user, mb, permission)]
+    from app.utils.team_module_settings import is_team_section_enabled
+    return [
+        mb for mb in mailboxes
+        if user_has_mailbox_access(user, mb, permission)
+        and (
+            mb.mailbox_type != 'team'
+            or not mb.team_id
+            or is_team_section_enabled(mb.team_id, 'email')
+        )
+    ]
 
 
 def get_mailbox_for_user(user, mailbox_id: Optional[int], permission: str = 'read') -> Optional[Mailbox]:

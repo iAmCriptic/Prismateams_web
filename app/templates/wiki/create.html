@@ -168,14 +168,22 @@ function savePage() {
     const saveBtn = document.getElementById('saveBtn');
 
     if (!title) {
-        alert(WIKI_CREATE_ALERTS.title_required || 'Please enter a title.');
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(WIKI_CREATE_ALERTS.title_required || 'Please enter a title.', 'warning');
+        } else {
+            window.alert(WIKI_CREATE_ALERTS.title_required || 'Please enter a title.');
+        }
         document.getElementById('title').focus();
         return;
     }
 
     if (categorySelect.value === '__new__') {
         if (!newCategoryName) {
-            alert(WIKI_CREATE_ALERTS.new_category_required || 'Please enter a name for the new category.');
+            if (typeof window.ptAlert === 'function') {
+                window.ptAlert(WIKI_CREATE_ALERTS.new_category_required || 'Please enter a name for the new category.', 'warning');
+            } else {
+                window.alert(WIKI_CREATE_ALERTS.new_category_required || 'Please enter a name for the new category.');
+            }
             return;
         }
         categorySelect.value = '';
@@ -196,7 +204,11 @@ function formatText(type) {
 }
 
 function openPreview() {
-    alert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.');
+    if (typeof window.ptAlert === 'function') {
+        window.ptAlert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.', 'info');
+    } else {
+        window.alert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.');
+    }
 }
 
 document.addEventListener('keydown', function(e) {

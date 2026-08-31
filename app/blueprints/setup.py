@@ -32,10 +32,12 @@ MODULE_META = [
     {'key': 'module_booking', 'icon': 'bi-calendar-check', 'label': 'Buchungen', 'settings_endpoint': 'settings.booking_forms'},
     {'key': 'module_music', 'icon': 'bi-music-note-beamed', 'label': 'Musik', 'settings_endpoint': 'settings.admin_music'},
     {'key': 'module_media_downloader', 'icon': 'bi-download', 'label': 'Media Downloader', 'settings_endpoint': None},
+    {'key': 'module_file_converter', 'icon': 'bi-arrow-left-right', 'label': 'Dateikonverter', 'settings_endpoint': None},
     {'key': 'module_assessment', 'icon': 'bi-clipboard-check', 'label': 'Bewertungen', 'settings_endpoint': 'assessment.admin_settings.admin_settings_page'},
     {'key': 'module_shortlinks', 'icon': 'bi-link-45deg', 'label': 'Kurzlinks', 'settings_endpoint': None},
     {'key': 'module_kanban', 'icon': 'bi-kanban', 'label': 'Kanban', 'settings_endpoint': 'settings.admin_kanban_settings'},
     {'key': 'module_excalidraw', 'icon': 'bi-pencil-square', 'label': 'Excalidraw', 'settings_endpoint': None},
+    {'key': 'module_surveys', 'icon': 'bi-ui-checks-grid', 'label': 'Umfragen', 'settings_endpoint': None},
 ]
 
 LANGUAGE_NAMES = {

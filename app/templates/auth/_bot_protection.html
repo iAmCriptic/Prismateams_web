@@ -4,6 +4,7 @@
     or (bot_context == 'login' and bot_enabled_login)
     or (bot_context == 'share_edit' and bot_enabled_share_edit)
     or (bot_context == 'mailbox' and bot_enabled_mailbox)
+    or (bot_context in ['survey_submit', 'survey_verify', 'survey_confirm'] and bot_enabled_surveys)
 ) %}
 {% endif %}
 {% if show_bot and bot_config.provider != 'none' %}

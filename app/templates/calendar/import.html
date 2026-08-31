@@ -126,11 +126,10 @@
                                         </button>
                                     </form>
                                     {% if can_edit %}
-                                    <form method="POST" class="d-inline"
-                                          onsubmit="return confirm('{{ _('calendar.import.sync_delete_confirm') }}');">
+                                    <form method="POST" class="d-inline">
                                         <input type="hidden" name="action" value="delete_sync">
                                         <input type="hidden" name="source_id" value="{{ source.id }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ _('calendar.import.sync_delete') }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ _('calendar.import.sync_delete') }}" data-confirm-delete="{{ _('calendar.import.sync_delete_confirm') }}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>

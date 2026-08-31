@@ -255,10 +255,12 @@
     }
 
     function notify(message, category) {
-        if (typeof window.showAppBanner === 'function') {
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(message, category || 'info');
+        } else if (typeof window.showAppBanner === 'function') {
             window.showAppBanner(message, category || 'info');
         } else {
-            alert(message);
+            window.alert(message);
         }
     }
 
@@ -322,7 +324,7 @@
             }
         });
         if (!ok) {
-            alert({{ _('settings.admin.create_user.validation_error')|tojson }});
+            notify({{ _('settings.admin.create_user.validation_error')|tojson }}, 'warning');
             return;
         }
 
@@ -371,7 +373,7 @@
             submitBtn.innerHTML = original;
         })
         .catch(function (err) {
-            alert(err.message || 'Error');
+            notify(err.message || 'Error', 'danger');
             submitBtn.disabled = false;
             submitBtn.innerHTML = original;
         });

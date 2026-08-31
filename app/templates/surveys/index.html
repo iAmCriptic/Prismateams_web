@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('surveys.nav.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('surveys.index') }}" class="surveys-search" role="search" id="surveysSearchForm">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search surveys-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="surveysSearchInput"
+           value="{{ search_query|default('') }}"
+           class="form-control surveys-search-input"
+           placeholder="{{ _('surveys.index.search_placeholder') }}"
+           aria-label="{{ _('surveys.index.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+       class="btn surveys-search-clear"
+       id="surveysSearchClear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+{% from 'surveys/_sidebar.html' import surveys_sidebar_chrome, surveys_create_url with context %}
+
+<div class="surveys-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+            <span>{{ _('surveys.nav.title') }}</span>
+        </div>
+        {{ surveys_sidebar_chrome() }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="surveysMobileNav" aria-labelledby="surveysMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="surveysMobileNavLabel">
+                <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                <span>{{ _('surveys.nav.title') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body">
+            {{ surveys_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true) }}
+        </div>
+    </div>
+
+    <div class="mod-main surveys-main">
+        <div class="d-lg-none mb-3">
+            <button type="button" class="btn btn-outline-secondary surveys-btn-pill" data-bs-toggle="offcanvas" data-bs-target="#surveysMobileNav">
+                <i class="bi bi-list"></i> {{ _('surveys.nav.title') }}
+            </button>
+        </div>
+
+        <h1 class="h4 mb-3">{{ _('surveys.nav.title') }}</h1>
+
+        {% if surveys %}
+        <div class="surveys-list">
+            {% for survey in surveys %}
+            <article class="surveys-card">
+                <div class="surveys-card-body">
+                    <h2 class="h6 mb-1">
+                        <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}">{{ survey.title }}</a>
+                    </h2>
+                    {% if survey.description %}
+                    <p class="text-muted small mb-2">{{ survey.description[:160] }}{% if survey.description|length > 160 %}…{% endif %}</p>
+                    {% endif %}
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        {% if not survey.is_active %}
+                        <span class="badge bg-secondary">{{ _('surveys.index.inactive') }}</span>
+                        {% endif %}
+                        {% if survey.is_publicly_fillable %}
+                        <span class="badge bg-success">{{ _('surveys.index.public_fill') }}</span>
+                        {% endif %}
+                        <span class="text-muted small">{{ survey.updated_at.strftime('%d.%m.%Y') if survey.updated_at else '' }}</span>
+                    </div>
+                </div>
+                <div class="surveys-card-actions">
+                    <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn btn-sm btn-outline-primary surveys-btn-pill">{{ _('surveys.index.edit') }}</a>
+                    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm btn-outline-secondary surveys-btn-pill">{{ _('surveys.index.results') }}</a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="surveys-empty text-center py-5">
+            <i class="bi bi-ui-checks-grid display-4 text-muted"></i>
+            <p class="text-muted mt-3">{{ _('surveys.index.empty') }}</p>
+            <a href="{{ surveys_create_url() }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.nav.new') }}</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

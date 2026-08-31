@@ -237,10 +237,16 @@ def get_or_create_team_calendar(team, created_by=None):
 def list_team_calendars_for_user(user):
     if not is_calendar_team_enabled():
         return []
+    from app.utils.team_module_settings import filter_teams_with_section
+
     team_ids = list(user_calendar_team_ids(user))
     if not team_ids:
         return []
     teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name.asc()).all()
+    teams = filter_teams_with_section(teams, 'calendar')
+    team_ids = [t.id for t in teams]
+    if not team_ids:
+        return []
     calendars = []
     for team in teams:
         get_or_create_team_calendar(team, created_by=getattr(user, 'id', None))

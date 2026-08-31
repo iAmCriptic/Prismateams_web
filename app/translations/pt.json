@@ -25,7 +25,9 @@
       "notifications_short": "Alertas",
       "home": "Início",
       "booking": "Reservas",
-      "media_downloader": "Downloader de mídia"
+      "media_downloader": "Downloader de mídia",
+      "surveys": "Inquéritos",
+      "file_converter": "File Converter"
     },
     "cookie_consent": {
       "title": "Cookies e privacidade",
@@ -102,6 +104,14 @@
       "email": "Endereço de e-mail",
       "email_google_locked": "Este e-mail vem do Google e não pode ser alterado aqui.",
       "phone_optional": "Telefone (opcional)",
+      "picture_optional": "Foto de perfil (opcional)",
+      "picture_choose": "Escolher imagem",
+      "picture_clear": "Remover",
+      "picture_help": "JPG, PNG ou GIF · máx. 5 MB. Pode alterar depois no perfil.",
+      "picture_alt": "Foto de perfil",
+      "picture_alt_preview": "Pré-visualização da foto de perfil",
+      "picture_error_type": "Apenas ficheiros JPG, PNG e GIF são permitidos.",
+      "picture_error_size": "O ficheiro é demasiado grande. Tamanho máximo: 5 MB.",
       "password": "Senha",
       "password_help": "Pelo menos 12 caracteres com letras maiúsculas, minúsculas, números e símbolos.",
       "confirm_password": "Confirmar senha",
@@ -250,6 +260,7 @@
     "page_title": "Downloader de mídia",
     "heading": "Downloader de mídia",
     "description": "Baixe conteúdo do YouTube e YouTube Music como MP3 ou MP4.",
+    "client_notice": "O download é feito no seu navegador, evitando bloqueios do servidor. Em seguida o arquivo é convertido no servidor e fica disponível aqui.",
     "legal_notice": "Você é responsável por cumprir os direitos autorais e os termos das plataformas. Os arquivos são excluídos automaticamente após uma hora.",
     "nav": {
       "label": "Navegação do downloader de mídia",
@@ -315,6 +326,9 @@
     "status": {
       "pending": "Pendente",
       "processing": "Processando",
+      "downloading": "Baixando (navegador)…",
+      "uploading": "Enviando…",
+      "converting": "Convertendo…",
       "completed": "Concluído",
       "failed": "Cancelado por erro",
       "cancelled": "Cancelado",
@@ -329,7 +343,8 @@
       "mode_complete": "Baixar todas as músicas completas",
       "mode_timestamps": "Definir timestamps por música",
       "download_all": "Baixar playlist",
-      "preview_error": "Não foi possível carregar a playlist."
+      "preview_error": "Não foi possível carregar a playlist.",
+      "client_only": "A pré-visualização da playlist é feita no navegador."
     },
     "flash": {
       "unavailable": "Downloader indisponível.",
@@ -344,11 +359,15 @@
       "invalid_time_range": "A hora de início deve ser anterior à de fim.",
       "too_many_jobs": "Máximo de %(max)s downloads simultâneos permitidos.",
       "started": "Download iniciado.",
+      "use_browser": "Inicie o download pelo botão no navegador.",
+      "client_download_failed": "Falha no download do navegador. Tente novamente ou entre no YouTube.",
+      "upload_failed": "Falha ao enviar o arquivo para o servidor.",
+      "err_convert_failed": "Falha na conversão no servidor.",
       "expired": "Este arquivo não está mais disponível.",
       "err_http_403": "Download bloqueado pelo YouTube (HTTP 403). Tente novamente mais tarde ou use outra qualidade/URL.",
       "err_bot_check": "O YouTube exige login (verificação de bot). Admins podem definir opcionalmente um cookies.txt (ver documentação de instalação).",
       "err_cookies_needed": "Cookies do YouTube ausentes, expirados ou inválidos. Renove o cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
-      "err_age_restricted": "Este vídeo tem restrição de idade e não pode ser baixado sem login/cookies.",
+      "err_age_restricted": "Este vídeo tem restrição de idade. O YouTube só permite acesso com login — o navegador não pode ler cookies do YouTube automaticamente.",
       "err_video_unavailable": "Este vídeo não está disponível.",
       "err_download_failed": "Falha no download. Tente novamente.",
       "file_missing": "Arquivo não encontrado.",
@@ -667,6 +686,10 @@
           "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
           "manage_link": "Manage mailboxes"
         }
+      },
+      "admin_modules": {
+        "module_file_converter": "File Converter",
+        "module_surveys": "Surveys"
       }
     },
     "profile": {
@@ -818,6 +841,141 @@
       "google_help_oauth_step5": "Cole Client ID e Client Secret aqui e guarde – depois o OAuth funciona no assistente.",
       "google_help_api_heading": "API key (para YouTube)",
       "redirect_hint_login": "URI de redirecionamento (login / segurança): {url}"
+    },
+    "about": {
+      "file_converter_label": "File converter / LibreOffice",
+      "libreoffice_available": "LibreOffice available",
+      "libreoffice_missing": "LibreOffice not found"
+    }
+  },
+  "surveys": {
+    "nav": {
+      "title": "Inquéritos",
+      "all": "Todos",
+      "create": "Novo inquérito",
+      "new": "Novo"
+    },
+    "flash": {
+      "module_disabled": "Módulo desativado.",
+      "created": "Criado.",
+      "deleted": "Eliminado.",
+      "duplicated": "Duplicado."
+    }
+  },
+  "file_converter": {
+    "page_title": "File Converter",
+    "heading": "File Converter",
+    "description": "Upload a file, then choose the target format or resize options.",
+    "nav": {
+      "label": "File converter navigation",
+      "convert": "Convert",
+      "jobs": "Jobs",
+      "clear_all": "Clear list",
+      "menu": "Menu"
+    },
+    "upload": {
+      "title": "Upload file",
+      "hint": "Drop a file here or click to select",
+      "uploading": "Uploading…"
+    },
+    "form": {
+      "convert": "Convert",
+      "select_option": "Please select an option",
+      "reset": "Another file"
+    },
+    "groups": {
+      "format": "Format",
+      "size": "Resize"
+    },
+    "category": {
+      "audio": "Audio",
+      "image": "Image",
+      "pdf": "PDF",
+      "document": "Document"
+    },
+    "format": {
+      "mp3": "MP3",
+      "wav": "WAV",
+      "ogg": "OGG",
+      "flac": "FLAC",
+      "aac": "AAC",
+      "m4a": "M4A",
+      "opus": "Opus",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "bmp": "BMP",
+      "tiff": "TIFF",
+      "gif": "GIF",
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "odt": "ODT",
+      "txt": "TXT",
+      "xlsx": "XLSX",
+      "ods": "ODS",
+      "csv": "CSV",
+      "pptx": "PPTX",
+      "odp": "ODP"
+    },
+    "page_size": {
+      "a1": "A1",
+      "a2": "A2",
+      "a3": "A3",
+      "a4": "A4",
+      "a5": "A5",
+      "letter": "Letter",
+      "legal": "Legal"
+    },
+    "resize": {
+      "custom": "Custom",
+      "percent": "Percentage",
+      "width": "Width (px)",
+      "height": "Height (px)",
+      "percent_label": "Scale (%)",
+      "keep_aspect": "Keep aspect ratio"
+    },
+    "engines": {
+      "ffmpeg": "Audio (FFmpeg)",
+      "images": "Images",
+      "pdf": "PDF",
+      "libreoffice": "Documents (LibreOffice)"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Converting…",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "jobs": {
+      "heading": "Conversions",
+      "empty": "No conversions yet.",
+      "download": "Download",
+      "delete_confirm": "Delete this job?",
+      "clear_all_confirm": "Delete all finished jobs?",
+      "col_file": "File",
+      "col_type": "Type",
+      "col_status": "Status",
+      "col_expires": "Expires",
+      "col_actions": "Actions"
+    },
+    "flash": {
+      "unsupported_type": "This file type is not supported.",
+      "ffmpeg_missing": "FFmpeg is not available. Audio conversion is disabled.",
+      "libreoffice_missing": "LibreOffice is not installed. Document conversion is disabled.",
+      "pillow_missing": "Image processing is not available.",
+      "pypdf_missing": "PDF processing is not available.",
+      "no_options": "No conversion options are available for this file.",
+      "file_missing": "File not found or expired.",
+      "file_too_large": "The file is too large.",
+      "invalid_option": "Invalid conversion option.",
+      "invalid_format": "Invalid target format.",
+      "invalid_resize": "Invalid resize parameters.",
+      "invalid_page_size": "Invalid page size.",
+      "too_many_jobs": "Too many concurrent conversions (max. {max}).",
+      "err_convert_failed": "Conversion failed.",
+      "output_not_found": "Output file was not created.",
+      "timeout": "Conversion timed out.",
+      "upload_failed": "Upload failed."
     }
   }
 }

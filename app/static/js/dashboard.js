@@ -643,7 +643,11 @@
             }
         } catch (err) {
             console.error(err);
-            alert(t('live.save_error', 'Speichern fehlgeschlagen.'));
+            if (typeof window.ptAlert === 'function') {
+                window.ptAlert(t('live.save_error', 'Speichern fehlgeschlagen.'), 'danger');
+            } else {
+                window.alert(t('live.save_error', 'Speichern fehlgeschlagen.'));
+            }
         }
     }
 

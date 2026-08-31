@@ -163,7 +163,8 @@ let entryCount = {{ (whitelist_entries|length) if whitelist_entries else 1 }};
 
 document.getElementById('add-entry').addEventListener('click', function () {
     if (entryCount >= 5) {
-        alert('Maximal 5 Einträge.');
+        if (typeof window.ptAlert === 'function') window.ptAlert('Maximal 5 Einträge.', 'warning');
+        else window.alert('Maximal 5 Einträge.');
         return;
     }
     entryCount++;

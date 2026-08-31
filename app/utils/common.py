@@ -22,10 +22,12 @@ AVAILABLE_MODULES = [
     'module_booking',
     'module_music',
     'module_media_downloader',
+    'module_file_converter',
     'module_assessment',
     'module_shortlinks',
     'module_kanban',
     'module_excalidraw',
+    'module_surveys',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

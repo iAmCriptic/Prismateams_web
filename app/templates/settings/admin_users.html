@@ -614,6 +614,14 @@ const i18nGuestEdit = {
     saveError: {{ _('settings.admin.users.flash_guest_save_error')|tojson }}
 };
 
+function adminNotify(message, category) {
+    if (typeof window.ptAlert === 'function') {
+        window.ptAlert(message, category || 'danger');
+        return;
+    }
+    window.alert(String(message || ''));
+}
+
 document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"], #rolesModal [data-bs-toggle="tooltip"], #guestEditModal [data-bs-toggle="tooltip"]').forEach(function (el) {
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         new bootstrap.Tooltip(el);
@@ -730,7 +738,7 @@ function loadGuestEdit(userId) {
     .then(function (response) { return response.json(); })
     .then(function (data) {
         if (!data || data.success === false) {
-            alert((data && data.error) || i18nGuestEdit.loadError);
+            adminNotify((data && data.error) || i18nGuestEdit.loadError, 'danger');
             return;
         }
         document.getElementById('guestEditFirstName').value = data.first_name || '';
@@ -773,7 +781,7 @@ function loadGuestEdit(userId) {
     })
     .catch(function (error) {
         console.error(error);
-        alert(i18nGuestEdit.loadError);
+        adminNotify(i18nGuestEdit.loadError, 'danger');
     });
 }
 
@@ -811,12 +819,12 @@ function saveGuestEdit() {
             return;
         }
         if (saveBtn) saveBtn.disabled = false;
-        alert((result.data && result.data.error) || i18nGuestEdit.saveError);
+        adminNotify((result.data && result.data.error) || i18nGuestEdit.saveError, 'danger');
     })
     .catch(function (error) {
         console.error(error);
         if (saveBtn) saveBtn.disabled = false;
-        alert(i18nGuestEdit.saveError);
+        adminNotify(i18nGuestEdit.saveError, 'danger');
     });
 }
 
@@ -859,7 +867,7 @@ function loadUserRoles(userId) {
         })
         .catch(error => {
             console.error('Fehler beim Laden der Rollen:', error);
-            alert('Fehler beim Laden der Rollen. Bitte Seite neu laden.');
+            adminNotify('Fehler beim Laden der Rollen. Bitte Seite neu laden.', 'danger');
         });
 }
 
@@ -988,14 +996,14 @@ function saveRoles() {
         } else {
             if (saveBtn) saveBtn.disabled = false;
             toggleModuleRoles();
-            alert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'));
+            adminNotify('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'), 'danger');
         }
     })
     .catch(error => {
         console.error('Fehler beim Speichern:', error);
         if (saveBtn) saveBtn.disabled = false;
         toggleModuleRoles();
-        alert('Fehler beim Speichern der Rollen. Bitte erneut versuchen.');
+        adminNotify('Fehler beim Speichern der Rollen. Bitte erneut versuchen.', 'danger');
     });
 }
 </script>

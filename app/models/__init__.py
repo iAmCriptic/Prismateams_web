@@ -40,8 +40,19 @@ from .assessment import (
     AssessmentAppSetting,
 )
 from .media_downloader import MediaDownloadJob
+from .file_converter import ConversionJob
 from .team import Team, TeamMember
 from .excalidraw import ExcalidrawDrawing, ExcalidrawDrawingVersion
+from .survey import (
+    Survey,
+    SurveyPage,
+    SurveyQuestion,
+    SurveyLogicRule,
+    SurveyResponse,
+    SurveyAnswer,
+    SurveyEmailVerification,
+    SurveyResponseLock,
+)
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -93,6 +104,7 @@ __all__ = [
     'AssessmentWarning', 'AssessmentRoomInspection',
     'AssessmentAppSetting',
     'MediaDownloadJob',
+    'ConversionJob',
     'Team', 'TeamMember',
     'KanbanBoard', 'KanbanBoardMember', 'KanbanList', 'KanbanCard',
     'KanbanLabel', 'KanbanCardLabel', 'KanbanCardAssignee',
@@ -100,6 +112,8 @@ __all__ = [
     'KanbanCardVote', 'KanbanActivity', 'KanbanBoardTemplate', 'KanbanBoardView',
     'KanbanCustomFieldCategory', 'KanbanCustomField', 'KanbanCardFieldEnabled', 'KanbanCardFieldValue',
     'ExcalidrawDrawing', 'ExcalidrawDrawingVersion',
+    'Survey', 'SurveyPage', 'SurveyQuestion', 'SurveyLogicRule',
+    'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
 ]
 
 

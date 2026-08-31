@@ -558,18 +558,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    document.querySelectorAll('[data-confirm-delete]').forEach((btn) => {
-        btn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const message = btn.getAttribute('data-confirm-delete');
-            const form = btn.closest('form');
-            const ok = typeof window.ptConfirm === 'function'
-                ? await window.ptConfirm(message, { danger: true })
-                : window.confirm(message);
-            if (ok && form) form.submit();
-        });
-    });
-
     document.querySelectorAll('.toggle-favorite-item').forEach((item) => {
         const pageId = item.getAttribute('data-page-id');
         if (!pageId) return;

@@ -46,32 +46,6 @@
                                 </div>
                                 <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
                             </div>
-                        </div>
-
-                        <div class="settings-admin-files-row">
-                            <div class="settings-admin-files-row-main">
-                                <div class="form-check form-switch settings-admin-files-switch mb-0">
-                                    <input class="form-check-input" type="checkbox" id="files_private_folders_enabled" name="files_private_folders_enabled" {% if files_private_folders_enabled %}checked{% endif %}>
-                                    <label class="form-check-label" for="files_private_folders_enabled">
-                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.private_folders_label') }}</span>
-                                    </label>
-                                </div>
-                                <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
-                            </div>
-                        </div>
-
-                        <div class="settings-admin-files-row">
-                            <div class="settings-admin-files-row-main">
-                                <div class="form-check form-switch settings-admin-files-switch mb-0">
-                                    <input class="form-check-input" type="checkbox" id="files_team_folders_enabled" name="files_team_folders_enabled" {% if files_team_folders_enabled %}checked{% endif %}>
-                                    <label class="form-check-label" for="files_team_folders_enabled">
-                                        <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.team_folders_label') }}</span>
-                                    </label>
-                                </div>
-                                <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.team_folders_help') }}</p>
-                            </div>
-                        </div>
-
                         <div class="settings-admin-files-row">
                             <div class="settings-admin-files-row-main">
                                 <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.document_format_label') }}</span>
@@ -94,6 +68,15 @@
                         </div>
                     </div>
                 </section>
+
+                <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-0">{{ _('settings.admin.file_settings.visibility_moved') }}</p>
+                        </div>
+                    </div>
+                </div>
 
                 <section class="settings-admin-files-card" aria-labelledby="files-storage-title">
                     <div class="settings-admin-files-card-head">

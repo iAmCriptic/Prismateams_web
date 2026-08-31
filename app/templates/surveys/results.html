@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+
+
+{% block title %}{{ _('surveys.results.title') }} – {{ survey.title }}{% endblock %}
+
+
+
+{% block extra_css %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+
+{% endblock %}
+
+
+
+{% block content %}
+
+<div class="surveys-workspace surveys-workspace--results">
+
+    <header class="surveys-workspace-toolbar">
+
+        <div class="surveys-workspace-toolbar-start">
+
+            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary surveys-btn-pill">
+
+                <i class="bi bi-arrow-left"></i> {{ _('surveys.builder.back') }}
+
+            </a>
+
+            <div class="surveys-workspace-brand">
+
+                <i class="bi bi-bar-chart" aria-hidden="true"></i>
+
+                <span class="surveys-workspace-title" title="{{ survey.title }}">{{ survey.title }}</span>
+
+            </div>
+
+        </div>
+
+        <div class="surveys-workspace-toolbar-end">
+
+            <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+
+                <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
+
+            </a>
+
+            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn btn-outline-secondary surveys-btn-pill">
+
+                <i class="bi bi-pencil"></i> {{ _('surveys.index.edit') }}
+
+            </a>
+
+            <a href="{{ url_for('surveys.export_csv', survey_id=survey.id) }}" class="btn btn-primary surveys-btn-pill">
+
+                <i class="bi bi-download"></i> {{ _('surveys.results.export_csv') }}
+
+            </a>
+
+        </div>
+
+    </header>
+
+
+
+    <div class="surveys-workspace-body surveys-workspace-body--scroll">
+
+        <p class="text-muted small mb-3">{{ _('surveys.results.title') }}</p>
+
+
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-md-4">
+
+                <div class="surveys-stat-card">
+
+                    <div class="surveys-stat-value">{{ summary.total_submitted }}</div>
+
+                    <div class="surveys-stat-label">{{ _('surveys.results.total_submitted') }}</div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="surveys-stat-card">
+
+                    <div class="surveys-stat-value">{{ summary.completion_rate }}%</div>
+
+                    <div class="surveys-stat-label">{{ _('surveys.results.completion_rate') }}</div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="surveys-stat-card">
+
+                    <div class="surveys-stat-value">{{ summary.total_started }}</div>
+
+                    <div class="surveys-stat-label">{{ _('surveys.results.total_started') }}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <h2 class="h5 mb-3">{{ _('surveys.results.by_question') }}</h2>
+
+        {% for stat in summary.question_stats %}
+
+        <div class="surveys-result-widget mb-3">
+
+            <h3 class="h6">{{ stat.label }}</h3>
+
+            <p class="text-muted small">{{ _('surveys.results.answered', count=stat.answered_count, total=stat.response_count) }}</p>
+
+
+
+            {% if stat.distribution %}
+
+            <div class="surveys-bar-chart">
+
+                {% for item in stat.distribution %}
+
+                <div class="surveys-bar-row">
+
+                    <span class="surveys-bar-label">{{ item.label }}</span>
+
+                    <div class="surveys-bar-track">
+
+                        <div class="surveys-bar-fill" style="width: {{ item.percent }}%"></div>
+
+                    </div>
+
+                    <span class="surveys-bar-count">{{ item.count }} ({{ item.percent }}%)</span>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            {% elif stat.average is defined %}
+
+            <p>{{ _('surveys.results.avg') }}: <strong>{{ stat.average }}</strong>
+
+            {% if stat.median is defined %} · {{ _('surveys.results.median') }}: {{ stat.median }}{% endif %}
+
+            · Min: {{ stat.min }} · Max: {{ stat.max }}</p>
+
+            {% elif stat.text_answers %}
+
+            <ul class="list-unstyled mb-0 small">
+
+                {% for text in stat.text_answers[:10] %}
+
+                <li class="border-bottom py-1">{{ text }}</li>
+
+                {% endfor %}
+
+                {% if stat.text_answers|length > 10 %}
+
+                <li class="text-muted pt-1">+ {{ stat.text_answers|length - 10 }} weitere</li>
+
+                {% endif %}
+
+            </ul>
+
+            {% endif %}
+
+        </div>
+
+        {% endfor %}
+
+
+
+        <h2 class="h5 mt-4 mb-3">{{ _('surveys.results.all_responses') }}</h2>
+
+        <div class="table-responsive">
+
+            <table class="table table-sm align-middle">
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+
+                        <th>{{ _('surveys.results.email') }}</th>
+
+                        <th>{{ _('surveys.results.submitted_at') }}</th>
+
+                        <th></th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for resp in responses if resp.status == 'submitted' %}
+
+                    <tr>
+
+                        <td>{{ resp.id }}</td>
+
+                        <td>{{ resp.respondent_email or '—' }}</td>
+
+                        <td>{{ resp.submitted_at.strftime('%d.%m.%Y %H:%M') if resp.submitted_at else '—' }}</td>
+
+                        <td>
+
+                            <a href="{{ url_for('surveys.result_detail', survey_id=survey.id, response_id=resp.id) }}" class="btn btn-sm btn-outline-primary surveys-btn-pill">{{ _('surveys.results.view') }}</a>
+
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr><td colspan="4" class="text-muted">{{ _('surveys.results.no_responses') }}</td></tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+

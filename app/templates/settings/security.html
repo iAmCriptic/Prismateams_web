@@ -56,12 +56,15 @@
                 <span class="badge rounded-pill text-bg-success">{{ _('settings.security.2fa.status_on') }}</span>
             </div>
 
-            <form method="POST" action="{{ url_for('settings.disable_2fa') }}" class="settings-security-form" onsubmit="return confirm('{{ _('settings.security.2fa.disable_confirm') }}');">
+            <form method="POST" action="{{ url_for('settings.disable_2fa') }}" class="settings-security-form">
                 <div class="settings-security-field">
                     <label for="disable_password" class="form-label">{{ _('settings.security.2fa.disable_password_label') }}</label>
                     <input type="password" class="form-control settings-security-input" id="disable_password" name="password" required autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn btn-outline-danger settings-security-btn">{{ _('settings.security.2fa.disable_button') }}</button>
+                <button type="submit" class="btn btn-outline-danger settings-security-btn"
+                        data-pt-confirm="{{ _('settings.security.2fa.disable_confirm') }}"
+                        data-pt-confirm-danger="true"
+                        data-pt-confirm-ok="{{ _('settings.security.2fa.disable_button') }}">{{ _('settings.security.2fa.disable_button') }}</button>
             </form>
 
             {% elif not show_setup %}
@@ -168,8 +171,11 @@
             <span class="badge rounded-pill text-bg-success">{{ _('settings.security.google.status_linked') }}</span>
             {% if google_email %}<span class="text-muted small ms-2">{{ google_email }}</span>{% endif %}
         </div>
-        <form method="POST" action="{{ url_for('settings.security_google_unlink') }}" onsubmit="return confirm('{{ _('settings.security.google.unlink_confirm') }}');">
-            <button type="submit" class="btn btn-outline-danger settings-security-btn">{{ _('settings.security.google.unlink') }}</button>
+        <form method="POST" action="{{ url_for('settings.security_google_unlink') }}">
+            <button type="submit" class="btn btn-outline-danger settings-security-btn"
+                    data-pt-confirm="{{ _('settings.security.google.unlink_confirm') }}"
+                    data-pt-confirm-danger="true"
+                    data-pt-confirm-ok="{{ _('settings.security.google.unlink') }}">{{ _('settings.security.google.unlink') }}</button>
         </form>
         {% else %}
         <div class="settings-security-status-row mb-2">
@@ -222,9 +228,12 @@
                 </div>
                 <div class="settings-security-device-actions">
                     {% if not sess.is_current %}
-                    <form method="POST" action="{{ url_for('settings.revoke_session_route') }}" onsubmit="return confirm('{{ _('settings.security.devices.revoke_confirm') }}');">
+                    <form method="POST" action="{{ url_for('settings.revoke_session_route') }}">
                         <input type="hidden" name="session_id" value="{{ sess.session_id }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn"
+                                data-pt-confirm="{{ _('settings.security.devices.revoke_confirm') }}"
+                                data-pt-confirm-danger="true"
+                                data-pt-confirm-ok="{{ _('settings.security.devices.revoke_button') }}">
                             {{ _('settings.security.devices.revoke_button') }}
                         </button>
                     </form>
@@ -234,8 +243,11 @@
             {% endfor %}
         </div>
 
-        <form method="POST" action="{{ url_for('settings.revoke_all_sessions_route') }}" class="settings-security-revoke-all" onsubmit="return confirm('{{ _('settings.security.devices.revoke_all_confirm') }}');">
-            <button type="submit" class="btn btn-outline-danger settings-security-btn">
+        <form method="POST" action="{{ url_for('settings.revoke_all_sessions_route') }}" class="settings-security-revoke-all">
+            <button type="submit" class="btn btn-outline-danger settings-security-btn"
+                    data-pt-confirm="{{ _('settings.security.devices.revoke_all_confirm') }}"
+                    data-pt-confirm-danger="true"
+                    data-pt-confirm-ok="{{ _('settings.security.devices.revoke_all_button') }}">
                 <i class="bi bi-x-octagon" aria-hidden="true"></i>
                 {{ _('settings.security.devices.revoke_all_button') }}
             </button>

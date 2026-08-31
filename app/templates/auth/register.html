@@ -60,7 +60,33 @@
                 </div>
                 {% endif %}
 
-                <form method="POST" id="registerForm">
+                <form method="POST" id="registerForm" enctype="multipart/form-data">
+                    <div class="auth-register-avatar mb-3">
+                        <div class="auth-register-avatar-preview" id="registerPicturePreview">
+                            {% if gp and gp.picture %}
+                            <img src="{{ gp.picture }}" alt="{{ _('auth.register.picture_alt') }}" id="registerPictureImg" referrerpolicy="no-referrer">
+                            {% else %}
+                            <i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>
+                            {% endif %}
+                        </div>
+                        <div class="auth-register-avatar-fields">
+                            <label class="form-label mb-1" for="profile_picture">{{ _('auth.register.picture_optional') }}</label>
+                            <div class="auth-register-avatar-actions">
+                                <label for="profile_picture" class="btn btn-outline-secondary btn-sm mb-0">
+                                    <i class="bi bi-upload" aria-hidden="true"></i>
+                                    {{ _('auth.register.picture_choose') }}
+                                </label>
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="registerPictureClear" hidden>
+                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                    {{ _('auth.register.picture_clear') }}
+                                </button>
+                            </div>
+                            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
+                            <div class="form-text mb-0">{{ _('auth.register.picture_help') }}</div>
+                            <div class="form-text text-danger" id="registerPictureError" hidden></div>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-12 col-md-6 mb-3">
                             <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
@@ -179,6 +205,99 @@
         password.addEventListener('input', updatePasswordFeedback);
         password.addEventListener('change', updatePasswordFeedback);
         updatePasswordFeedback();
+    }
+
+    var pictureInput = document.getElementById('profile_picture');
+    var picturePreview = document.getElementById('registerPicturePreview');
+    var pictureClear = document.getElementById('registerPictureClear');
+    var pictureError = document.getElementById('registerPictureError');
+    var googlePictureSrc = {{ (gp.picture if gp and gp.picture else '') | tojson }};
+    var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    var maxSize = 5 * 1024 * 1024;
+    var objectUrl = null;
+
+    function showPictureError(message) {
+        if (!pictureError) return;
+        pictureError.textContent = message || '';
+        pictureError.hidden = !message;
+    }
+
+    var pictureAlt = {{ _('auth.register.picture_alt') | tojson }};
+    var pictureAltPreview = {{ _('auth.register.picture_alt_preview') | tojson }};
+
+    function isAllowedImage(file) {
+        if (allowedTypes.indexOf(file.type) !== -1) return true;
+        return /\.(png|jpe?g|gif)$/i.test(file.name || '');
+    }
+
+    function setPreviewImage(src, alt, referrerPolicy) {
+        if (!picturePreview) return;
+        picturePreview.replaceChildren();
+        var img = document.createElement('img');
+        img.src = src;
+        img.alt = alt || '';
+        if (referrerPolicy) img.referrerPolicy = referrerPolicy;
+        picturePreview.appendChild(img);
+    }
+
+    function setPreviewIcon() {
+        if (!picturePreview) return;
+        picturePreview.replaceChildren();
+        var iconEl = document.createElement('i');
+        iconEl.className = 'bi bi-person-fill';
+        iconEl.id = 'registerPictureIcon';
+        iconEl.setAttribute('aria-hidden', 'true');
+        picturePreview.appendChild(iconEl);
+    }
+
+    function restoreDefaultPreview() {
+        if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+        }
+        if (googlePictureSrc) {
+            setPreviewImage(googlePictureSrc, pictureAlt, 'no-referrer');
+        } else {
+            setPreviewIcon();
+        }
+        if (pictureClear) pictureClear.hidden = true;
+    }
+
+    function onPictureChange() {
+        if (!pictureInput || !pictureInput.files || !pictureInput.files[0]) {
+            restoreDefaultPreview();
+            showPictureError('');
+            return;
+        }
+        var file = pictureInput.files[0];
+        if (!isAllowedImage(file)) {
+            pictureInput.value = '';
+            restoreDefaultPreview();
+            showPictureError({{ _('auth.register.picture_error_type') | tojson }});
+            return;
+        }
+        if (file.size > maxSize) {
+            pictureInput.value = '';
+            restoreDefaultPreview();
+            showPictureError({{ _('auth.register.picture_error_size') | tojson }});
+            return;
+        }
+        showPictureError('');
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(file);
+        setPreviewImage(objectUrl, pictureAltPreview);
+        if (pictureClear) pictureClear.hidden = false;
+    }
+
+    if (pictureInput) {
+        pictureInput.addEventListener('change', onPictureChange);
+    }
+    if (pictureClear) {
+        pictureClear.addEventListener('click', function () {
+            if (pictureInput) pictureInput.value = '';
+            restoreDefaultPreview();
+            showPictureError('');
+        });
     }
 
     if (!form || !btn) return;

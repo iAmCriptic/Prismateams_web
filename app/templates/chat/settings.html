@@ -94,7 +94,8 @@
                         <h2 class="chat-settings-danger-title">{{ _('chat.settings.delete.title') }}</h2>
                         <p class="chat-settings-danger-help">{{ _('chat.settings.delete.help') }}</p>
                         <button type="submit" class="btn btn-outline-danger chat-settings-danger-btn"
-                                form="chat-delete-form">
+                                form="chat-delete-form"
+                                data-confirm-delete="{{ _('chat.settings.delete.confirm') }}">
                             {{ _('chat.view.dropdown.delete') }}
                         </button>
                     </div>
@@ -179,8 +180,7 @@
     </form>
 
     {% if not chat.is_main_chat and not chat.team_id %}
-    <form method="POST" id="chat-delete-form" action="{{ chat_delete_url }}"
-          onsubmit="return confirm({{ _('chat.settings.delete.confirm')|tojson }});" hidden></form>
+    <form method="POST" id="chat-delete-form" action="{{ chat_delete_url }}" hidden></form>
     {% endif %}
 </div>
 </div><!-- /chat-main -->

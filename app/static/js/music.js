@@ -993,20 +993,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 console.log('Queue-Position geändert - SSE-Update wird kommen');
             } else {
-                if (typeof window.showAppBanner === 'function') {
+                if (typeof window.ptAlert === 'function') {
+                    window.ptAlert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'), 'danger');
+                } else if (typeof window.showAppBanner === 'function') {
                     window.showAppBanner('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'), 'danger');
                 } else {
-                    alert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'));
+                    window.alert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'));
                 }
                 // Lade Queue neu bei Fehler
                 updateQueueDisplay();
             }
         })
         .catch(error => {
-            if (typeof window.showAppBanner === 'function') {
+            if (typeof window.ptAlert === 'function') {
+                window.ptAlert('Fehler: ' + error.message, 'danger');
+            } else if (typeof window.showAppBanner === 'function') {
                 window.showAppBanner('Fehler: ' + error.message, 'danger');
             } else {
-                alert('Fehler: ' + error.message);
+                window.alert('Fehler: ' + error.message);
             }
             updateQueueDisplay();
         });

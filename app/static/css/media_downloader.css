@@ -439,3 +439,14 @@
 .media-job-actions-menu .dropdown-item .bi {
     opacity: 0.9;
 }
+
+.media-job-progress .progress-bar.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.media-job[data-status="downloading"] .job-progress .progress-bar,
+.media-job[data-status="uploading"] .job-progress .progress-bar,
+.media-job[data-status="converting"] .job-progress .progress-bar {
+    font-size: 0.7rem;
+    font-weight: 600;
+}

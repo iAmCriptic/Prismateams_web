@@ -10,6 +10,11 @@ from app.models.chat import Chat, ChatMember, ChatMessage, ChatPin
 CHAT_PINS_MAX = 6
 
 
+def _team_chat_visible(team_id) -> bool:
+    from app.utils.team_module_settings import is_team_section_enabled
+    return is_team_section_enabled(team_id, 'chat')
+
+
 def wants_desktop_chat_layout(user, request):
     """Decide whether /chat/ should redirect to the main chat (desktop shell)."""
     preferred = (getattr(user, 'preferred_layout', None) or 'auto').strip().lower()
@@ -174,7 +179,11 @@ def build_chat_nav_items(user):
 
     main = [c for c in chats if c.is_main_chat][:1]  # only one Haupt-Chat in the nav
     team_chats = sorted(
-        [c for c in chats if not c.is_main_chat and c.team_id],
+        [
+            c for c in chats
+            if not c.is_main_chat and c.team_id
+            and _team_chat_visible(c.team_id)
+        ],
         key=lambda c: (c.name or '').lower(),
     )
     team_ids = {c.id for c in team_chats}

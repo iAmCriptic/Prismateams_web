@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+
+
+{% block title %}{{ survey.title }} – {{ _('surveys.builder.title') }}{% endblock %}
+
+
+
+{% block extra_css %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+
+{% endblock %}
+
+
+
+{% block content %}
+
+<div class="surveys-workspace" id="surveyBuilder"
+
+     data-survey-id="{{ survey.id }}"
+
+     data-structure-url="{{ url_for('surveys.api_structure', survey_id=survey.id) }}"
+
+     data-header-url="{{ url_for('surveys.header_image', survey_id=survey.id) }}"
+
+     data-toggle-public-url="{{ url_for('surveys.toggle_public_fill', survey_id=survey.id) }}"
+
+     data-results-url="{{ url_for('surveys.results', survey_id=survey.id) }}"
+
+     data-preview-url="{{ preview_url }}"
+
+     data-csrf="{{ csrf_token() if csrf_token is defined else '' }}">
+
+
+
+    <header class="surveys-workspace-toolbar">
+
+        <div class="surveys-workspace-toolbar-start">
+
+            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary surveys-btn-pill">
+
+                <i class="bi bi-arrow-left"></i> {{ _('surveys.builder.back') }}
+
+            </a>
+
+            <div class="surveys-workspace-brand">
+
+                <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+
+                <span class="surveys-workspace-title" title="{{ survey.title }}">{{ survey.title }}</span>
+
+            </div>
+
+        </div>
+
+        <span class="surveys-save-status text-muted small" id="surveySaveStatus"></span>
+
+        <div class="surveys-workspace-toolbar-end">
+
+            <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+
+                <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
+
+            </a>
+
+            <button type="button" class="btn btn-outline-primary surveys-btn-pill" data-bs-toggle="modal" data-bs-target="#surveyShareModal">
+
+                <i class="bi bi-share"></i> {{ _('surveys.builder.share') }}
+
+            </button>
+
+            <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-primary surveys-btn-pill">
+
+                <i class="bi bi-bar-chart"></i> {{ _('surveys.index.results') }}
+
+            </a>
+
+        </div>
+
+    </header>
+
+
+
+    <div class="surveys-workspace-body">
+
+        <div class="surveys-builder-layout">
+
+            <div class="surveys-builder-main">
+
+                <div class="surveys-header-card" id="surveyHeaderCard">
+
+                    <div class="surveys-header-image-wrap" id="surveyHeaderImageWrap">
+
+                        {% if survey.header_image_path %}
+
+                        <img src="{{ url_for('surveys.header_image_view', survey_id=survey.id) }}" alt="" class="surveys-header-image" id="surveyHeaderPreview">
+
+                        {% else %}
+
+                        <div class="surveys-header-image-placeholder" id="surveyHeaderPreview">
+
+                            <i class="bi bi-image"></i>
+
+                            <span>{{ _('surveys.builder.add_header_image') }}</span>
+
+                        </div>
+
+                        {% endif %}
+
+                        <label class="surveys-header-upload-btn">
+
+                            <input type="file" accept="image/*" id="surveyHeaderInput" hidden>
+
+                            <i class="bi bi-camera"></i>
+
+                        </label>
+
+                    </div>
+
+                    <input type="text" class="form-control surveys-title-input" id="surveyTitleInput" value="{{ survey.title }}" placeholder="{{ _('surveys.builder.title_placeholder') }}">
+
+                    <textarea class="form-control surveys-desc-input" id="surveyDescInput" rows="2" placeholder="{{ _('surveys.builder.description_placeholder') }}">{{ survey.description or '' }}</textarea>
+
+                </div>
+
+
+
+                <div id="surveyPagesContainer"></div>
+
+
+
+                <div class="surveys-builder-actions d-flex flex-wrap gap-2 mt-3">
+
+                    <div class="dropdown">
+
+                        <button type="button" class="btn btn-primary surveys-btn-pill dropdown-toggle" data-bs-toggle="dropdown">
+
+                            <i class="bi bi-plus-lg"></i> {{ _('surveys.builder.add_question') }}
+
+                        </button>
+
+                        <ul class="dropdown-menu surveys-pill-dropdown" id="surveyAddQuestionMenu"></ul>
+
+                    </div>
+
+                    <button type="button" class="btn btn-outline-secondary surveys-btn-pill" id="surveyAddPageBtn">
+
+                        <i class="bi bi-file-earmark-plus"></i> {{ _('surveys.builder.add_page') }}
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <aside class="surveys-settings-panel" id="surveySettingsPanel">
+
+                <h2 class="h6 mb-3">{{ _('surveys.settings.title') }}</h2>
+
+
+
+                <details class="surveys-settings-section" open>
+
+                    <summary>{{ _('surveys.settings.responses') }}</summary>
+
+                    <div class="surveys-settings-body">
+
+                        <div class="form-check form-switch surveys-pill-switch mb-2">
+
+                            <input class="form-check-input" type="checkbox" id="settingRequireEmail">
+
+                            <label class="form-check-label" for="settingRequireEmail">{{ _('surveys.settings.require_email') }}</label>
+
+                        </div>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-2">
+
+                            <input class="form-check-input" type="checkbox" id="settingOnePerEmail">
+
+                            <label class="form-check-label" for="settingOnePerEmail">{{ _('surveys.settings.one_per_email') }}</label>
+
+                        </div>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-0">
+
+                            <input class="form-check-input" type="checkbox" id="settingAllowEdit">
+
+                            <label class="form-check-label" for="settingAllowEdit">{{ _('surveys.settings.allow_edit') }}</label>
+
+                        </div>
+
+                    </div>
+
+                </details>
+
+
+
+                <details class="surveys-settings-section">
+
+                    <summary>{{ _('surveys.settings.presentation') }}</summary>
+
+                    <div class="surveys-settings-body">
+
+                        <label class="form-label small">{{ _('surveys.settings.layout_mode') }}</label>
+
+                        <select class="form-select form-select-sm mb-2" id="settingLayoutMode" data-inv-pill-select>
+
+                            <option value="scroll">{{ _('surveys.settings.layout_scroll') }}</option>
+
+                            <option value="pages">{{ _('surveys.settings.layout_pages') }}</option>
+
+                        </select>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-2">
+
+                            <input class="form-check-input" type="checkbox" id="settingProgressBar">
+
+                            <label class="form-check-label" for="settingProgressBar">{{ _('surveys.settings.progress_bar') }}</label>
+
+                        </div>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-0">
+
+                            <input class="form-check-input" type="checkbox" id="settingShuffle">
+
+                            <label class="form-check-label" for="settingShuffle">{{ _('surveys.settings.shuffle') }}</label>
+
+                        </div>
+
+                    </div>
+
+                </details>
+
+
+
+                <details class="surveys-settings-section">
+
+                    <summary>{{ _('surveys.settings.after_submit') }}</summary>
+
+                    <div class="surveys-settings-body">
+
+                        <label class="form-label small" for="settingConfirmMsg">{{ _('surveys.settings.confirmation_message') }}</label>
+
+                        <textarea class="form-control form-control-sm mb-2" id="settingConfirmMsg" rows="2"></textarea>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-2">
+
+                            <input class="form-check-input" type="checkbox" id="settingAnotherLink">
+
+                            <label class="form-check-label" for="settingAnotherLink">{{ _('surveys.settings.another_link') }}</label>
+
+                        </div>
+
+                        <div class="form-check form-switch surveys-pill-switch mb-0">
+
+                            <input class="form-check-input" type="checkbox" id="settingDisableAutosave">
+
+                            <label class="form-check-label" for="settingDisableAutosave">{{ _('surveys.settings.disable_autosave') }}</label>
+
+                        </div>
+
+                    </div>
+
+                </details>
+
+
+
+                <details class="surveys-settings-section">
+
+                    <summary>{{ _('surveys.logic.title') }}</summary>
+
+                    <div class="surveys-settings-body" id="surveyLogicContainer">
+
+                        <p class="text-muted small">{{ _('surveys.logic.hint') }}</p>
+
+                        <div id="surveyLogicRules"></div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary surveys-btn-pill mt-2" id="surveyAddLogicBtn">
+
+                            <i class="bi bi-diagram-3"></i> {{ _('surveys.logic.add_rule') }}
+
+                        </button>
+
+                    </div>
+
+                </details>
+
+
+
+                <details class="surveys-settings-section" open>
+
+                    <summary>{{ _('surveys.settings.public_fill') }}</summary>
+
+                    <div class="surveys-settings-body">
+
+                        <div class="form-check form-switch surveys-pill-switch mb-2">
+
+                            <input class="form-check-input" type="checkbox" id="settingPublicFill" {% if survey.is_publicly_fillable %}checked{% endif %}>
+
+                            <label class="form-check-label" for="settingPublicFill">{{ _('surveys.settings.public_fill_enable') }}</label>
+
+                        </div>
+
+                        <div class="input-group input-group-sm" id="publicLinkGroup" {% if not survey.is_publicly_fillable %}style="display:none"{% endif %}>
+
+                            <input type="text" class="form-control" id="publicLinkInput" readonly value="{{ public_url or '' }}">
+
+                            <button type="button" class="btn btn-outline-secondary" id="copyPublicLinkBtn"><i class="bi bi-clipboard"></i></button>
+
+                        </div>
+
+                    </div>
+
+                </details>
+
+
+
+                <div class="surveys-settings-danger mt-4">
+
+                    <form method="POST" action="{{ url_for('surveys.delete', survey_id=survey.id) }}">
+
+                        <button type="submit" class="btn btn-sm btn-outline-danger surveys-btn-pill w-100" data-confirm-delete="{{ _('surveys.builder.delete_confirm') }}">{{ _('surveys.builder.delete') }}</button>
+
+                    </form>
+
+                </div>
+
+            </aside>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<div class="modal fade" id="surveyShareModal" tabindex="-1" aria-labelledby="surveyShareModalLabel" aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content surveys-share-modal">
+
+            <div class="modal-header border-0 pb-0">
+
+                <h2 class="modal-title h5" id="surveyShareModalLabel">{{ _('surveys.builder.share') }}</h2>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <p class="text-muted small">{{ _('surveys.settings.share_hint') }}</p>
+
+                <div class="form-check form-switch surveys-pill-switch mb-3">
+
+                    <input class="form-check-input" type="checkbox" id="shareModalPublicFill" {% if survey.is_publicly_fillable %}checked{% endif %}>
+
+                    <label class="form-check-label" for="shareModalPublicFill">{{ _('surveys.settings.public_fill_enable') }}</label>
+
+                </div>
+
+                <div id="shareModalLinkGroup" {% if not survey.is_publicly_fillable %}style="display:none"{% endif %}>
+
+                    <label class="form-label small" for="shareModalLinkInput">{{ _('surveys.settings.share_link') }}</label>
+
+                    <div class="input-group">
+
+                        <input type="text" class="form-control" id="shareModalLinkInput" readonly value="{{ public_url or '' }}">
+
+                        <button type="button" class="btn btn-outline-secondary" id="shareModalCopyBtn"><i class="bi bi-clipboard"></i></button>
+
+                    </div>
+
+                </div>
+
+                <div class="mt-3">
+
+                    <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+
+                        <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script type="application/json" id="surveyStructureData">{{ structure_json|safe }}</script>
+
+{% endblock %}
+
+
+
+{% block extra_js %}
+
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/survey_builder.js') }}"></script>
+
+{% endblock %}
+

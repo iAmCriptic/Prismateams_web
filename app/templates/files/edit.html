@@ -197,11 +197,17 @@ document.addEventListener('DOMContentLoaded', function() {
     editor.focus();
 });
 
-function goBack() {
+async function goBack() {
     if (hasUnsavedChanges) {
-        if (!confirm('Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?')) {
-            return;
-        }
+        const msg = 'Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?';
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(msg, {
+                danger: false,
+                title: 'Ungespeicherte Änderungen',
+                confirmLabel: 'Zurückgehen',
+            })
+            : window.confirm(msg);
+        if (!ok) return;
     }
     releaseEditLock();
     window.location.href = '{{ back_url }}';

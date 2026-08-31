@@ -85,14 +85,13 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - FFmpeg / Media Downloader
 - `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
 
-## Media Downloader (yt-dlp)
+## Media Downloader (Browser-Download + FFmpeg)
 
 Beim Aktivieren von FFmpeg setzt der Installer u. a.:
 
 - `FFMPEG_PATH`
-- `MEDIA_DOWNLOADER_PLAYER_CLIENT=ios,web_creator,mweb` (Default gegen Bot-Checks in Rechenzentren)
 
-**Cookies sind optional.** Interaktiv kann ein Pfad zu einer Netscape-`cookies.txt` angegeben werden (`MEDIA_DOWNLOADER_COOKIES_FILE`). Details, Export und Rotation: [INSTALLATION.md](INSTALLATION.md) (Schritt 6b).
+Downloads erfolgen im Browser des Nutzers; der Server konvertiert die hochgeladene Rohdatei per FFmpeg. Details: [INSTALLATION.md](INSTALLATION.md) (Schritt 6b).
 
 ## Kommandozeilen-Optionen
 

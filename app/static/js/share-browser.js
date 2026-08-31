@@ -98,10 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (createFolderMenuItem && shareCreateFolderForm && shareCreateFolderName) {
-        createFolderMenuItem.addEventListener('click', (event) => {
+        createFolderMenuItem.addEventListener('click', async (event) => {
             event.preventDefault();
             closeNewMenu();
-            const folderName = window.prompt('Ordnername eingeben');
+            const folderName = typeof window.ptPrompt === 'function'
+                ? await window.ptPrompt('Ordnername eingeben', { title: 'Neuer Ordner', confirmLabel: 'Erstellen' })
+                : window.prompt('Ordnername eingeben');
             if (!folderName) {
                 return;
             }

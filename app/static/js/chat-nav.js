@@ -21,11 +21,15 @@
     }
 
     function showError(msg) {
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(msg, 'warning');
+            return;
+        }
         if (window.showAppBanner) {
             window.showAppBanner(msg, 'warning');
             return;
         }
-        alert(msg);
+        window.alert(msg);
     }
 
     function isMuted(chatId) {
@@ -165,7 +169,11 @@
             window.deleteChat(chatId);
             return;
         }
-        if (!confirm(i18n().deleteConfirm || 'Möchten Sie diesen Chat wirklich löschen?')) return;
+        const msg = i18n().deleteConfirm || 'Möchten Sie diesen Chat wirklich löschen?';
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(msg, { danger: true })
+            : window.confirm(msg);
+        if (!ok) return;
         try {
             const response = await fetch('/chat/' + chatId + '/delete', {
                 method: 'POST',

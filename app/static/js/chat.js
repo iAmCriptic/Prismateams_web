@@ -893,7 +893,10 @@
         if (modal) new bootstrap.Modal(modal).show();
     };
     window.deleteChat = async function (id) {
-        if (!confirm("Möchten Sie diesen Chat wirklich löschen?")) return;
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm("Möchten Sie diesen Chat wirklich löschen?", { danger: true })
+            : window.confirm("Möchten Sie diesen Chat wirklich löschen?");
+        if (!ok) return;
         const response = await fetch(`/chat/${id}/delete`, { method: "POST", headers: { "X-Requested-With": "XMLHttpRequest" } });
         if (response.ok) window.location.href = "/chat/";
     };

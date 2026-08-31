@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('file_converter.page_title') }}{% endblock %}
+
+{% block content %}
+{% from 'file_converter/_sidebar.html' import file_converter_sidebar_chrome with context %}
+
+{% macro job_status_html(job) %}
+{% set err_key = namespace %}
+{% set err_text = job.error_message %}
+{% if job.error_message and job.error_message.startswith('[') and ']' in job.error_message[:64] %}
+  {% set err_key = job.error_message[1:job.error_message.find(']')] %}
+  {% set err_text = job.error_message[job.error_message.find(']')+1:].lstrip() %}
+{% endif %}
+{% if job.status == 'completed' %}
+<span class="badge rounded-pill bg-success">{{ _('file_converter.status.completed') }}</span>
+{% elif job.status == 'failed' %}
+<span class="badge rounded-pill bg-danger">{{ _('file_converter.status.failed') }}</span>
+{% elif job.status == 'processing' %}
+<div class="progress fc-job-progress">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 60%">{{ _('file_converter.status.processing') }}</div>
+</div>
+{% else %}
+<span class="badge rounded-pill bg-secondary">{{ _('file_converter.status.pending') }}</span>
+{% endif %}
+{% if err_text and job.status == 'failed' %}
+<div class="small text-danger mt-1 job-error">{{ err_text }}</div>
+{% endif %}
+{% endmacro %}
+
+{% macro job_icon(job) -%}
+{%- if job.source_category == 'audio' -%}bi-music-note-beamed
+{%- elif job.source_category == 'image' -%}bi-image
+{%- elif job.source_category == 'pdf' -%}bi-file-earmark-pdf
+{%- else -%}bi-file-earmark-text
+{%- endif -%}
+{%- endmacro %}
+
+{% macro job_menu_items(job) %}
+{% if job.is_downloadable() %}
+<li>
+    <a class="dropdown-item" href="{{ url_for('file_converter.download_file', job_id=job.id) }}">
+        <i class="bi bi-download me-2"></i>{{ _('file_converter.jobs.download') }}
+    </a>
+</li>
+<li><hr class="dropdown-divider"></li>
+{% endif %}
+<li>
+    <button type="button" class="dropdown-item text-danger fc-job-delete-btn" data-job-id="{{ job.id }}">
+        <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+    </button>
+</li>
+{% endmacro %}
+
+{% macro job_list_row(job) %}
+<tr class="mod-list-row fc-job" data-job-id="{{ job.id }}" data-status="{{ job.status }}">
+    <td>
+        <div class="d-flex align-items-center gap-2 min-width-0">
+            <span class="fc-job-icon flex-shrink-0" aria-hidden="true"><i class="bi {{ job_icon(job) }}"></i></span>
+            <div class="min-width-0">
+                <span class="mod-list-name text-truncate d-inline-block" style="max-width: 280px;">{{ job.source_filename }}</span>
+                <div class="small text-muted">→ {{ job.target_format|upper }}</div>
+            </div>
+        </div>
+    </td>
+    <td class="d-none d-sm-table-cell">{{ _('file_converter.category.' ~ job.source_category) }}</td>
+    <td class="job-status-cell">{{ job_status_html(job) }}</td>
+    <td class="d-none d-md-table-cell">
+        {% if job.expires_at %}{{ job.expires_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}–{% endif %}
+    </td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
+                {% if job.is_downloadable() %}
+                <a class="btn btn-sm btn-link" href="{{ url_for('file_converter.download_file', job_id=job.id) }}" title="{{ _('file_converter.jobs.download') }}">
+                    <i class="bi bi-download"></i>
+                </a>
+                {% endif %}
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end fc-pill-dropdown">{{ job_menu_items(job) }}</ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+<div class="fc-shell mod-shell--nav"
+     id="fileConverterApp"
+     data-upload-url="{{ url_for('file_converter.upload') }}"
+     data-convert-url="{{ url_for('file_converter.convert') }}"
+     data-clear-all-url="{{ url_for('file_converter.clear_all') }}"
+     data-status-url-template="{{ url_for('file_converter.job_status', job_id=0) }}"
+     data-download-url-template="{{ url_for('file_converter.download_file', job_id=0) }}"
+     data-delete-url-template="{{ url_for('file_converter.delete_job', job_id=0) }}"
+     data-max-file-size="{{ max_file_size }}"
+     data-i18n-status-pending="{{ _('file_converter.status.pending') }}"
+     data-i18n-status-processing="{{ _('file_converter.status.processing') }}"
+     data-i18n-status-completed="{{ _('file_converter.status.completed') }}"
+     data-i18n-status-failed="{{ _('file_converter.status.failed') }}"
+     data-i18n-download="{{ _('file_converter.jobs.download') }}"
+     data-i18n-delete="{{ _('common.delete') }}"
+     data-i18n-delete-confirm="{{ _('file_converter.jobs.delete_confirm') }}"
+     data-i18n-clear-confirm="{{ _('file_converter.jobs.clear_all_confirm') }}"
+     data-i18n-upload-hint="{{ _('file_converter.upload.hint') }}"
+     data-i18n-upload-title="{{ _('file_converter.upload.title') }}"
+     data-i18n-uploading="{{ _('file_converter.upload.uploading') }}"
+     data-i18n-convert="{{ _('file_converter.form.convert') }}"
+     data-i18n-group-format="{{ _('file_converter.groups.format') }}"
+     data-i18n-group-size="{{ _('file_converter.groups.size') }}"
+     data-i18n-width="{{ _('file_converter.resize.width') }}"
+     data-i18n-height="{{ _('file_converter.resize.height') }}"
+     data-i18n-percent="{{ _('file_converter.resize.percent_label') }}"
+     data-i18n-keep-aspect="{{ _('file_converter.resize.keep_aspect') }}"
+     data-i18n-select-option="{{ _('file_converter.form.select_option') }}"
+     data-i18n-reset="{{ _('file_converter.form.reset') }}"
+     data-i18n-file-too-large="{{ _('file_converter.flash.file_too_large') }}"
+     data-i18n-category-audio="{{ _('file_converter.category.audio') }}"
+     data-i18n-category-image="{{ _('file_converter.category.image') }}"
+     data-i18n-category-pdf="{{ _('file_converter.category.pdf') }}"
+     data-i18n-category-document="{{ _('file_converter.category.document') }}">
+
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+        <span>{{ _('file_converter.heading') }}</span>
+    </div>
+    {{ file_converter_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="fcMobileNav" aria-labelledby="fcMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="fcMobileNavLabel">
+            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+            <span>{{ _('file_converter.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ file_converter_sidebar_chrome('-mobile', true) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#fcMobileNav" aria-controls="fcMobileNav" aria-label="{{ _('file_converter.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <strong class="text-truncate">{{ _('file_converter.heading') }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="fc-panel" data-fc-panel="convert">
+        <div class="card fc-card mb-3">
+            <div class="card-body">
+                <h1 class="h4 mb-2">{{ _('file_converter.heading') }}</h1>
+                <p class="text-muted mb-3">{{ _('file_converter.description') }}</p>
+
+                <div class="fc-engine-badges mb-3 d-flex flex-wrap gap-2">
+                    {% if engines.ffmpeg %}
+                    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-circle me-1"></i>{{ _('file_converter.engines.ffmpeg') }}</span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-x-circle me-1"></i>{{ _('file_converter.engines.ffmpeg') }}</span>
+                    {% endif %}
+                    {% if engines.pillow %}
+                    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-circle me-1"></i>{{ _('file_converter.engines.images') }}</span>
+                    {% endif %}
+                    {% if engines.pypdf %}
+                    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-circle me-1"></i>{{ _('file_converter.engines.pdf') }}</span>
+                    {% endif %}
+                    {% if engines.libreoffice %}
+                    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-circle me-1"></i>{{ _('file_converter.engines.libreoffice') }}</span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-x-circle me-1"></i>{{ _('file_converter.engines.libreoffice') }}</span>
+                    {% endif %}
+                </div>
+
+                {# Step 1: Upload #}
+                <div id="fcStepUpload">
+                    <div class="fc-dropzone" id="fcDropzone" tabindex="0" role="button" aria-label="{{ _('file_converter.upload.hint') }}">
+                        <input type="file" id="fcFileInput" class="d-none" accept=".mp3,.wav,.ogg,.flac,.aac,.m4a,.opus,.wma,.jpg,.jpeg,.png,.webp,.bmp,.tiff,.tif,.gif,.pdf,.docx,.doc,.odt,.rtf,.xlsx,.xls,.ods,.csv,.pptx,.ppt,.odp">
+                        <div class="fc-dropzone-inner text-center py-5 px-3">
+                            <i class="bi bi-cloud-arrow-up fc-dropzone-icon" aria-hidden="true"></i>
+                            <p class="mb-1 fw-semibold" id="fcDropzoneTitle">{{ _('file_converter.upload.title') }}</p>
+                            <p class="text-muted small mb-0" id="fcDropzoneHint">{{ _('file_converter.upload.hint') }}</p>
+                        </div>
+                    </div>
+                    <div class="progress mt-3 d-none" id="fcUploadProgress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%" id="fcUploadProgressBar"></div>
+                    </div>
+                    <div class="alert alert-danger mt-3 d-none" id="fcUploadError" role="alert"></div>
+                </div>
+
+                {# Step 2: Options #}
+                <div id="fcStepOptions" class="d-none">
+                    <div class="fc-file-meta d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <div>
+                            <div class="fw-semibold" id="fcMetaName"></div>
+                            <div class="small text-muted" id="fcMetaInfo"></div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm fc-btn-pill" id="fcResetBtn">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('file_converter.form.reset') }}
+                        </button>
+                    </div>
+
+                    <div id="fcOptionsFormat" class="mb-3"></div>
+                    <div id="fcOptionsSize" class="mb-3"></div>
+
+                    <div id="fcParamPanel" class="fc-param-panel card bg-body-tertiary border-0 d-none mb-3">
+                        <div class="card-body">
+                            <div id="fcParamCustom" class="d-none">
+                                <div class="row g-2">
+                                    <div class="col-sm-4">
+                                        <label class="form-label" for="fcWidth">{{ _('file_converter.resize.width') }}</label>
+                                        <input type="number" class="form-control" id="fcWidth" min="1" max="20000" placeholder="px">
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <label class="form-label" for="fcHeight">{{ _('file_converter.resize.height') }}</label>
+                                        <input type="number" class="form-control" id="fcHeight" min="1" max="20000" placeholder="px">
+                                    </div>
+                                    <div class="col-sm-4 d-flex align-items-end">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="fcKeepAspect" checked>
+                                            <label class="form-check-label" for="fcKeepAspect">{{ _('file_converter.resize.keep_aspect') }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="fcParamPercent" class="d-none">
+                                <label class="form-label" for="fcPercent">{{ _('file_converter.resize.percent_label') }}</label>
+                                <input type="number" class="form-control" id="fcPercent" min="25" max="400" value="100" step="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-accent fc-btn-pill" id="fcConvertBtn" disabled>
+                            <i class="bi bi-arrow-left-right me-1"></i>{{ _('file_converter.form.convert') }}
+                        </button>
+                    </div>
+                    <div class="alert alert-danger mt-3 d-none" id="fcConvertError" role="alert"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fc-panel d-none" data-fc-panel="jobs">
+        <div class="card fc-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">{{ _('file_converter.jobs.heading') }}</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mod-list-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ _('file_converter.jobs.col_file') }}</th>
+                                <th class="d-none d-sm-table-cell">{{ _('file_converter.jobs.col_type') }}</th>
+                                <th>{{ _('file_converter.jobs.col_status') }}</th>
+                                <th class="d-none d-md-table-cell">{{ _('file_converter.jobs.col_expires') }}</th>
+                                <th class="text-end">{{ _('file_converter.jobs.col_actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fcJobsBody">
+                            {% for job in jobs %}
+                            {{ job_list_row(job) }}
+                            {% else %}
+                            <tr class="fc-empty-row">
+                                <td colspan="5" class="text-muted text-center py-4">{{ _('file_converter.jobs.empty') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/file_converter.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+{% endblock %}
