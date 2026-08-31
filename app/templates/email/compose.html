@@ -530,7 +530,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Success: Show message and redirect
                 if (data.message) {
                     // You could show a toast notification here
-                    console.log('Success:', data.message);
                 }
                 // Redirect after short delay
                 setTimeout(function() {
@@ -646,7 +645,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }).then(function(data) {
             if (data.success) {
                 hasUnsavedDraft = false;
-                console.log('Entwurf gespeichert');
                 // Neuer Entwurf pro Speichern — ID aktualisieren, damit beim Senden der aktuelle Entwurf gelöscht wird
                 if (data.draft_id) {
                     var draftIdInput = document.getElementById('composeDraftId');

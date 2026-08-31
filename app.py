@@ -47,13 +47,14 @@ def make_shell_context():
 
 if __name__ == '__main__':
     from app import socketio
+    debug_mode = os.getenv('FLASK_ENV', 'development') != 'production'
     print(f"Starte HTTP-Server auf http://0.0.0.0:5000")
     socketio.run(
         app,
         host='0.0.0.0',
         port=5000,
-        debug=True,
-        allow_unsafe_werkzeug=True
+        debug=debug_mode,
+        allow_unsafe_werkzeug=debug_mode
     )
 
 

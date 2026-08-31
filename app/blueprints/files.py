@@ -4143,7 +4143,9 @@ def public_share_create_folder(token):
 @check_module_access('module_files')
 def onlyoffice_debug():
     """Debug endpoint to show OnlyOffice configuration and URLs."""
-    from flask import url_for
+    from flask import abort, url_for
+    if not current_app.debug:
+        abort(404)
     from urllib.parse import quote
     
     # Get a test file if available

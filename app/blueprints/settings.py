@@ -193,10 +193,13 @@ def profile_picture(filename):
         full_path = os.path.join(directory, filename)
         
         if current_app.debug:
-            print(f"[PROFILE PIC] Requested filename: {filename}")
-            print(f"[PROFILE PIC] Full path: {full_path}")
-            print(f"[PROFILE PIC] File exists: {os.path.isfile(full_path)}")
-            print(f"[PROFILE PIC] Directory contents: {os.listdir(directory) if os.path.exists(directory) else 'Directory not found'}")
+            current_app.logger.debug("[PROFILE PIC] Requested filename: %s", filename)
+            current_app.logger.debug("[PROFILE PIC] Full path: %s", full_path)
+            current_app.logger.debug("[PROFILE PIC] File exists: %s", os.path.isfile(full_path))
+            current_app.logger.debug(
+                "[PROFILE PIC] Directory contents: %s",
+                os.listdir(directory) if os.path.exists(directory) else 'Directory not found',
+            )
         
         if not os.path.isfile(full_path):
             abort(404)

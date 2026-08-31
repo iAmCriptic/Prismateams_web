@@ -359,12 +359,12 @@
       "prev": "Back",
       "next": "Next",
       "welcome": {
-        "title": "Welcome to Version 3",
-        "text": "PrismaTeams {version} is here – a refreshed design, new modules, and many day-to-day improvements for your team.",
+        "title": "Welcome to Version 3.3",
+        "text": "PrismaTeams {version} brings two new modules plus important improvements for Media Download and Settings.",
         "highlights": {
-          "design": "A fresher UI, clearer navigation, and a consistent design language.",
-          "modules": "New and expanded modules: Assessment, Music, Shortlinks, Booking, Events, and more.",
-          "security": "Stronger security with 2FA, bot protection, guest accounts, and session management."
+          "modules": "Two new modules: Surveys and Excalidraw – create, share, and evaluate.",
+          "media_downloader": "Media Download reworked – now runs reliably in datacenter environments too.",
+          "settings": "Settings cleaned up – clearer structure and search across all options."
         }
       },
       "modules": {
@@ -386,11 +386,32 @@
         },
         "settings": {
           "title": "Settings",
-          "teaser": "OAuth, Google & teams",
+          "teaser": "Cleaned up & search",
           "items": {
-            "oauth": "New OAuth connections in Settings.",
-            "google": "Sign in with Google – login and account linking.",
-            "teams": "New team setup as a foundation for future updates."
+            "search": "New search across all settings pages – get to the right option quickly.",
+            "structure": "Clearer structure and grouped sections.",
+            "navigation": "Improved sidebar navigation for users and admins.",
+            "catalog": "Searchable settings catalog with role-based filtering."
+          }
+        },
+        "surveys": {
+          "title": "Surveys",
+          "teaser": "New module",
+          "items": {
+            "module": "New survey module with form builder and public fill link.",
+            "builder": "Pages, question types, logic rules, and preview in the builder.",
+            "public": "Public fill with email verification and bot protection.",
+            "results": "Results with charts and analytics."
+          }
+        },
+        "excalidraw": {
+          "title": "Excalidraw",
+          "teaser": "New module",
+          "items": {
+            "module": "New drawing module with integrated Excalidraw editor.",
+            "collab": "Live collaboration for drawing together as a team.",
+            "versions": "Version history and automatic saving.",
+            "sharing": "Share links with visibility and optional password."
           }
         },
         "dashboard": {
@@ -572,14 +593,12 @@
         },
         "media_downloader": {
           "title": "Media Download",
-          "teaser": "Playlists & stability",
+          "teaser": "Datacenter & stability",
           "items": {
-            "design": "Design and UI update for the download interface.",
+            "datacenter": "Reworked for datacenter environments – downloads work without server-side YT-DLP.",
+            "client": "Client-side download directly in the browser.",
             "playlists": "Playlist support and preview.",
-            "cancel": "Cancel and purge jobs.",
-            "errors": "Clearer error responses and feedback.",
-            "config": "Configuration and compatibility indicator.",
-            "fixes": "Many stability and bug fixes."
+            "stability": "More stable jobs, cancel support, and clearer error feedback."
           }
         },
         "wiki": {

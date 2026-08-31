@@ -19,6 +19,9 @@ from cryptography.fernet import Fernet
 import os
 import requests
 from urllib.parse import urlparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 credentials_bp = Blueprint('credentials', __name__)
 
@@ -42,7 +45,9 @@ def get_encryption_key():
     # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
     # In Produktion sollte der Key immer in .env gesetzt sein
     key = Fernet.generate_key()
-    print("WARNUNG: CREDENTIAL_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei.")
+    logger.warning(
+        "CREDENTIAL_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei."
+    )
     return key
 
 

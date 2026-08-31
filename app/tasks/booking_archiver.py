@@ -2,9 +2,12 @@
 Archivierungssystem für Buchungsanfragen.
 Automatische Archivierung von vergangenen Events basierend auf archive_days.
 """
+import logging
 from datetime import datetime, timedelta
 from app import db
 from app.models.booking import BookingRequest, BookingForm
+
+logger = logging.getLogger(__name__)
 
 
 def archive_old_booking_requests():
@@ -38,14 +41,14 @@ def archive_old_booking_requests():
         # Speichere Änderungen
         if archived_count > 0:
             db.session.commit()
-            print(f"[Booking Archiver] {archived_count} Buchungsanfragen wurden archiviert.")
+            logger.info("%s Buchungsanfragen wurden archiviert.", archived_count)
             return archived_count
         
         return 0
         
     except Exception as e:
         db.session.rollback()
-        print(f"[Booking Archiver] Fehler beim Archivieren: {e}")
+        logger.error("Fehler beim Archivieren: %s", e, exc_info=True)
         return 0
 
 
@@ -55,5 +58,5 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         count = archive_old_booking_requests()
-        print(f"Archivierung abgeschlossen. {count} Buchungen archiviert.")
+        logger.info("Archivierung abgeschlossen. %s Buchungen archiviert.", count)
 

@@ -1,5 +1,6 @@
 """Idempotente Schema- und Datenmigration für das Bewertungsmodul."""
 
+import logging
 import re
 
 from sqlalchemy import inspect, text
@@ -14,6 +15,9 @@ from app.models.assessment import (
     AssessmentVisitorEvaluation,
     AssessmentWarning,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _column_names(inspector, table):
@@ -47,9 +51,9 @@ def _drop_legacy_floor_plan_tables(connection, inspector):
         if table in inspector.get_table_names():
             try:
                 connection.execute(text(f"DROP TABLE {table}"))
-                print(f"[OK] Legacy-Tabelle {table} entfernt")
+                logger.info("Legacy-Tabelle %s entfernt", table)
             except Exception as exc:
-                print(f"[WARNUNG] {table} konnte nicht gelöscht werden: {exc}")
+                logger.warning("%s konnte nicht gelöscht werden: %s", table, exc)
 
 
 def _validate_sql_identifier(identifier):
@@ -159,7 +163,7 @@ def run_assessment_migrations():
                     )
                     """
                 ))
-            print("[OK] Tabelle ass_user_lists angelegt")
+            logger.info("Tabelle ass_user_lists angelegt")
 
     _migrate_default_data()
 

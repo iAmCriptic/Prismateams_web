@@ -363,12 +363,12 @@
       "prev": "Zurück",
       "next": "Weiter",
       "welcome": {
-        "title": "Willkommen zu Version 3",
-        "text": "PrismaTeams {version} ist da – neues Design, neue Module und viele Verbesserungen für den Alltag im Team.",
+        "title": "Willkommen zu Version 3.3",
+        "text": "PrismaTeams {version} bringt zwei neue Module sowie wichtige Verbesserungen für Media Download und Einstellungen.",
         "highlights": {
-          "design": "Frischere Oberfläche, klarere Navigation und einheitliche Designsprache.",
-          "modules": "Neue und stark erweiterte Module: Bewertung, Musik, Shortlinks, Booking, Events und mehr.",
-          "security": "Mehr Sicherheit mit 2FA, Bot-Schutz, Gast-Accounts und Session-Verwaltung."
+          "modules": "Zwei neue Module: Umfragen und Excalidraw – erstellen, teilen und auswerten.",
+          "media_downloader": "Media Download überarbeitet – läuft nun auch in Rechenzentrumsumgebungen zuverlässig.",
+          "settings": "Einstellungen aufgeräumt – übersichtlichere Struktur und Suche über alle Optionen."
         }
       },
       "modules": {
@@ -390,11 +390,32 @@
         },
         "settings": {
           "title": "Einstellungen",
-          "teaser": "OAuth, Google & Teams",
+          "teaser": "Aufgeräumt & Suche",
           "items": {
-            "oauth": "Neue OAuth-Anbindungen in den Einstellungen.",
-            "google": "Sign in with Google – Anmeldung und Kontoverknüpfung.",
-            "teams": "Neue Teameinrichtung als Basis für zukünftige Updates."
+            "search": "Neue Suche über alle Einstellungsseiten – schnell zur richtigen Option.",
+            "structure": "Übersichtlichere Struktur und gruppierte Bereiche.",
+            "navigation": "Verbesserte Sidebar-Navigation für Nutzer und Admins.",
+            "catalog": "Durchsuchbarer Einstellungskatalog mit rollenbasierter Filterung."
+          }
+        },
+        "surveys": {
+          "title": "Umfragen",
+          "teaser": "Neues Modul",
+          "items": {
+            "module": "Neues Umfragemodul mit Formular-Builder und öffentlichem Ausfüll-Link.",
+            "builder": "Seiten, Fragentypen, Logikregeln und Vorschau im Builder.",
+            "public": "Öffentlich ausfüllbar mit E-Mail-Verifizierung und Bot-Schutz.",
+            "results": "Ergebnisse mit Diagrammen und Auswertung."
+          }
+        },
+        "excalidraw": {
+          "title": "Excalidraw",
+          "teaser": "Neues Modul",
+          "items": {
+            "module": "Neues Zeichenmodul mit integriertem Excalidraw-Editor.",
+            "collab": "Live-Kollaboration für gemeinsames Zeichnen im Team.",
+            "versions": "Versionsverlauf und automatisches Speichern.",
+            "sharing": "Freigabelinks mit Sichtbarkeit und optionalem Passwort."
           }
         },
         "dashboard": {
@@ -576,14 +597,12 @@
         },
         "media_downloader": {
           "title": "Media Download",
-          "teaser": "Playlists & Stabilität",
+          "teaser": "Rechenzentrum & Stabilität",
           "items": {
-            "design": "Design- und UI-Update der Download-Oberfläche.",
+            "datacenter": "Überarbeitet für Rechenzentrumsumgebungen – Downloads auch ohne Server-YT-DLP.",
+            "client": "Clientseitiger Download direkt im Browser.",
             "playlists": "Playlist-Support und Vorschau.",
-            "cancel": "Jobs abbrechen und aufräumen.",
-            "errors": "Klarere Fehlerantworten und Feedback.",
-            "config": "Konfiguration und Kompatibilitätsanzeige.",
-            "fixes": "Zahlreiche Stabilitäts- und Bugfixes."
+            "stability": "Stabilere Jobs, abbrechen und klareres Fehlerfeedback."
           }
         },
         "wiki": {

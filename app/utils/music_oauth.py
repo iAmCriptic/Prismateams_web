@@ -66,7 +66,9 @@ def get_encryption_key():
     # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
     # In Produktion sollte der Key immer in .env gesetzt sein
     key = Fernet.generate_key()
-    print("WARNUNG: MUSIC_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei.")
+    logger.warning(
+        "MUSIC_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei."
+    )
     return key
 
 
