@@ -24,12 +24,12 @@ const CLIENT_USER_AGENTS = {
 };
 
 /** Clients that often expose progressive/direct URLs without nsig decipher. */
-const DEFAULT_DOWNLOAD_CLIENTS = ['ANDROID', 'ANDROID_VR', 'WEB_EMBEDDED', 'TV_EMBEDDED', 'MWEB', 'IOS'];
+const DEFAULT_DOWNLOAD_CLIENTS = ['TV_EMBEDDED', 'WEB_EMBEDDED', 'ANDROID', 'ANDROID_VR', 'MWEB', 'IOS'];
 
-/** Windows desktop browsers: prefer Android/TV clients over IOS adaptive. */
+/** Windows desktop browsers: TV/embedded clients before Android adaptive. */
 function getDownloadClients() {
     if (typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent)) {
-        return ['ANDROID', 'ANDROID_VR', 'WEB_EMBEDDED', 'TV_EMBEDDED', 'MWEB', 'IOS'];
+        return ['TV_EMBEDDED', 'WEB_EMBEDDED', 'ANDROID', 'ANDROID_VR', 'MWEB', 'IOS'];
     }
     return DEFAULT_DOWNLOAD_CLIENTS;
 }
@@ -342,16 +342,41 @@ function playabilityError(info) {
     return reason || 'unplayable';
 }
 
+function isBotCheckText(text) {
+    const lower = String(text || '').toLowerCase();
+    if (!lower) return false;
+    return (
+        lower.includes('not a bot')
+        || lower.includes('no bot')
+        || lower.includes('kein bot')
+        || lower.includes('bot bist')
+        || lower.includes('nicht bot')
+        || lower.includes('verify you\'re not')
+        || lower.includes('confirm you\'re not')
+        || lower.includes('unusual traffic')
+        || lower.includes('ungewöhnlich')
+        || (lower.includes('bot') && (lower.includes('sign in') || lower.includes('melde dich an')))
+    );
+}
+
+function isBotCheckInfo(info) {
+    const status = info?.playability_status;
+    if (!status) return false;
+    const reason = status.reason || status.error_screen?.text?.text || '';
+    const state = String(status.status || '');
+    return isBotCheckText(reason) || isBotCheckText(state);
+}
+
 function isAgeRestrictionText(text) {
     const lower = String(text || '').toLowerCase();
     if (!lower) return false;
+    if (isBotCheckText(lower)) return false;
     return (
         lower.includes('age-restricted')
         || lower.includes('age restricted')
         || lower.includes('confirm your age')
         || lower.includes('age_verification')
         || lower.includes('content_check')
-        || lower.includes('login_required')
         || lower.includes('inappropriate for some users')
         || lower.includes('altersbeschränkt')
         || lower.includes('altersbeschraenkt')
@@ -370,15 +395,24 @@ function isAgeRestrictionText(text) {
 function isAgeRestrictedInfo(info) {
     const status = info?.playability_status;
     if (!status) return false;
+    if (isBotCheckInfo(info)) return false;
+
     const state = String(status.status || '').toUpperCase();
-    if (state === 'LOGIN_REQUIRED' || state === 'CONTENT_CHECK_REQUIRED') {
+    const reason = status.reason || status.error_screen?.text?.text || '';
+
+    if (state === 'CONTENT_CHECK_REQUIRED') {
         return true;
     }
-    const reason = status.reason || status.error_screen?.text?.text || '';
+    if (state === 'LOGIN_REQUIRED') {
+        return isAgeRestrictionText(reason);
+    }
     return isAgeRestrictionText(reason) || isAgeRestrictionText(state);
 }
 
 function throwPlayabilityFailure(info, playErr) {
+    if (isBotCheckInfo(info) || isBotCheckText(playErr)) {
+        throw new ClientDownloadError('err_bot_check', playErr);
+    }
     if (isAgeRestrictedInfo(info)) {
         throw new ClientDownloadError('err_age_restricted', playErr);
     }
@@ -884,6 +918,7 @@ function extractErrorText(err) {
 
 export function mapClientError(err) {
     if (err?.code === 'err_age_restricted') return 'err_age_restricted';
+    if (err?.code === 'err_bot_check') return 'err_bot_check';
 
     const lower = extractErrorText(err).toLowerCase();
 
@@ -892,10 +927,13 @@ export function mapClientError(err) {
         || lower.includes('not available') || lower.includes('unavailable')) {
         return 'err_video_unavailable';
     }
+    if (isBotCheckText(lower)) {
+        return 'err_bot_check';
+    }
     if (isAgeRestrictionText(lower)) {
         return 'err_age_restricted';
     }
-    if (lower.includes('bot') || lower.includes('sign in') || lower.includes('login required')
+    if (lower.includes('sign in') || lower.includes('login required')
         || lower.includes('http_403') || lower.includes(' 403') || lower.includes('forbidden')) {
         return 'err_bot_check';
     }
