@@ -12,6 +12,9 @@ URL = f'https://unpkg.com/youtubei.js@{VERSION}/bundle/browser.js'
 
 
 def main():
+    if os.path.isfile(TARGET) and os.path.getsize(TARGET) > 100_000:
+        print(f'youtubei.js bundle already present ({os.path.getsize(TARGET)} bytes) -> {TARGET}')
+        return
     os.makedirs(os.path.dirname(TARGET), exist_ok=True)
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     with urllib.request.urlopen(req, timeout=120) as resp:
