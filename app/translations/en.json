@@ -5377,7 +5377,10 @@
       "modal_title": "Sign in to YouTube",
       "instructions": "Open the link, enter the code, and approve access with your Google account:",
       "open_link": "Open youtube.com/activate",
-      "wait_hint": "This dialog closes automatically once sign-in completes."
+      "wait_hint": "This dialog closes automatically once sign-in completes.",
+      "loading": "Loading code…",
+      "failed": "YouTube sign-in failed. Please try again.",
+      "unavailable": "YouTube sign-in is not ready yet. Please reload the page."
     },
     "legal_notice": "You are responsible for complying with copyright and platform terms of service. Downloaded files are automatically deleted after one hour.",
     "nav": {

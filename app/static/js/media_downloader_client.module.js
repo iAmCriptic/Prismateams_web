@@ -271,8 +271,8 @@ export async function signInToYoutube() {
         const onPending = (data) => {
             if (authCallbacks.onAuthPending) {
                 authCallbacks.onAuthPending({
-                    verificationUrl: data.verification_url,
-                    userCode: data.user_code,
+                    verificationUrl: data.verification_url || data.verificationUrl,
+                    userCode: data.user_code || data.userCode,
                 });
             }
         };
