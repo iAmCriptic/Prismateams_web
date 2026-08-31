@@ -123,6 +123,10 @@ location /static {
     alias ${INSTALL_DIR}/app/static;
     expires 30d;
     add_header Cache-Control "public, immutable";
+    include /etc/nginx/mime.types;
+    types {
+        text/javascript mjs;
+    }
 }
 
 # Uploads (MUSS VOR / kommen!)
