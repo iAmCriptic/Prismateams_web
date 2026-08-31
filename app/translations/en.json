@@ -5368,7 +5368,17 @@
     "page_title": "Media Downloader",
     "heading": "Media Downloader",
     "description": "Download content from YouTube and YouTube Music as MP3 or MP4.",
-    "client_notice": "The download runs in your browser — avoiding server-side YouTube blocks. The file is then converted on the server and made available here.",
+    "client_notice": "The download runs in your browser (your network connection). If YouTube asks for sign-in, use the YouTube sign-in button. The server then converts the file.",
+    "youtube_auth": {
+      "sign_in": "Sign in to YouTube",
+      "sign_out": "Sign out of YouTube",
+      "signed_in": "Signed in to YouTube",
+      "signed_out": "Not signed in to YouTube",
+      "modal_title": "Sign in to YouTube",
+      "instructions": "Open the link, enter the code, and approve access with your Google account:",
+      "open_link": "Open youtube.com/activate",
+      "wait_hint": "This dialog closes automatically once sign-in completes."
+    },
     "legal_notice": "You are responsible for complying with copyright and platform terms of service. Downloaded files are automatically deleted after one hour.",
     "nav": {
       "label": "Media Downloader navigation",
@@ -5473,7 +5483,7 @@
       "err_convert_failed": "Server-side conversion failed.",
       "expired": "This file is no longer available.",
       "err_http_403": "Download blocked by YouTube (HTTP 403). Please retry later or use a different quality/URL.",
-      "err_bot_check": "YouTube requires sign-in (bot check). Admins can optionally set a cookies.txt file (see installation docs).",
+      "err_bot_check": "YouTube requires sign-in. Use \"Sign in to YouTube\" and retry the download.",
       "err_cookies_needed": "YouTube cookies are missing, expired, or invalid. Renew cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "This video is age-restricted. YouTube only allows access when signed in — the browser cannot read YouTube cookies automatically for security reasons.",
       "err_video_unavailable": "This video is unavailable.",

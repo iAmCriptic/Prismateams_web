@@ -38,17 +38,25 @@ let platformReady = false;
 let playlistClientPromise = null;
 let proxyUrl = null;
 let cachedProxyFetch = null;
+let cachedSmartFetch = null;
 let configuredYoutubeiUrl = null;
+let authenticatedInnertube = null;
+const authCallbacks = { onAuthPending: null, onAuthStateChange: null };
+const YT_OAUTH_STORAGE_KEY = 'media_downloader_yt_oauth';
+const AUTHENTICATED_CLIENT = 'TV';
 
 export function configure(options = {}) {
     if (options.proxyUrl) {
         proxyUrl = options.proxyUrl;
         cachedProxyFetch = null;
+        cachedSmartFetch = null;
     }
     if (options.youtubeiUrl) {
         configuredYoutubeiUrl = options.youtubeiUrl;
         youtubeJsModulePromise = null;
     }
+    if (options.onAuthPending) authCallbacks.onAuthPending = options.onAuthPending;
+    if (options.onAuthStateChange) authCallbacks.onAuthStateChange = options.onAuthStateChange;
 }
 
 function shouldProxyUrl(url) {
@@ -179,9 +187,130 @@ function getProxyFetch() {
     return cachedProxyFetch;
 }
 
+/** Browser fetch first (user IP); server proxy only as CORS/network fallback. */
+function getSmartFetch() {
+    if (!cachedSmartFetch) {
+        cachedSmartFetch = async (input, init = {}) => {
+            const targetUrl = resolveRequestUrl(input);
+            try {
+                const response = await fetch(input, init);
+                if (response.type !== 'opaque') {
+                    return response;
+                }
+                throw new Error('cors_opaque');
+            } catch (directErr) {
+                const proxy = getProxyFetch();
+                if (proxy && targetUrl && shouldProxyUrl(targetUrl)) {
+                    return proxy(input, init);
+                }
+                throw directErr;
+            }
+        };
+    }
+    return cachedSmartFetch;
+}
+
 async function proxiedFetch(url, init = {}) {
-    const fetchImpl = getProxyFetch() || fetch;
-    return fetchImpl(url, init);
+    return getSmartFetch()(url, init);
+}
+
+function loadOAuthCredentials() {
+    try {
+        const raw = localStorage.getItem(YT_OAUTH_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function saveOAuthCredentials(credentials) {
+    localStorage.setItem(YT_OAUTH_STORAGE_KEY, JSON.stringify(credentials));
+}
+
+function clearOAuthCredentials() {
+    localStorage.removeItem(YT_OAUTH_STORAGE_KEY);
+}
+
+function resetAuthenticatedSession() {
+    authenticatedInnertube = null;
+    playlistClientPromise = null;
+}
+
+export function isYoutubeSignedIn() {
+    return Boolean(loadOAuthCredentials()?.access_token);
+}
+
+export async function signInToYoutube() {
+    await ensurePlatform();
+    const { Innertube } = await importYoutubeJs();
+
+    if (authenticatedInnertube?.session?.logged_in) {
+        return loadOAuthCredentials();
+    }
+
+    const innertube = await Innertube.create({
+        lang: 'de',
+        location: 'DE',
+        client_type: AUTHENTICATED_CLIENT,
+        retrieve_player: false,
+        enable_session_cache: false,
+        generate_session_locally: true,
+        fetch: getSmartFetch(),
+        user_agent: CLIENT_USER_AGENTS.TV,
+    });
+
+    const cached = loadOAuthCredentials();
+
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            innertube.session.off('auth-pending', onPending);
+            innertube.session.off('auth', onAuth);
+            innertube.session.off('auth-error', onError);
+        };
+
+        const onPending = (data) => {
+            if (authCallbacks.onAuthPending) {
+                authCallbacks.onAuthPending({
+                    verificationUrl: data.verification_url,
+                    userCode: data.user_code,
+                });
+            }
+        };
+        const onAuth = ({ credentials }) => {
+            cleanup();
+            saveOAuthCredentials(credentials);
+            authenticatedInnertube = innertube;
+            playlistClientPromise = null;
+            if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(true);
+            resolve(credentials);
+        };
+        const onError = (err) => {
+            cleanup();
+            reject(err);
+        };
+
+        innertube.session.on('auth-pending', onPending);
+        innertube.session.once('auth', onAuth);
+        innertube.session.once('auth-error', onError);
+
+        innertube.session.signIn(cached || undefined).catch((err) => {
+            cleanup();
+            reject(err);
+        });
+    });
+}
+
+export async function signOutFromYoutube() {
+    if (authenticatedInnertube?.session?.logged_in) {
+        try {
+            await authenticatedInnertube.session.signOut();
+        } catch (e) {
+            // ignore revoke failures
+        }
+    }
+    clearOAuthCredentials();
+    resetAuthenticatedSession();
+    if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(false);
 }
 
 function isTruePlaylistListId(listId) {
@@ -302,17 +431,33 @@ async function createInnertube(clientType = 'WEB', { retrievePlayer = false } = 
         generate_session_locally: true,
         fast_fail: false,
         enable_session_cache: false,
+        fetch: getSmartFetch(),
     };
     if (CLIENT_USER_AGENTS[clientType]) {
         options.user_agent = CLIENT_USER_AGENTS[clientType];
     }
-    if (proxyUrl) {
-        options.fetch = getProxyFetch();
-    }
     return Innertube.create(options);
 }
 
+async function ensureAuthenticatedInnertube() {
+    if (authenticatedInnertube?.session?.logged_in) {
+        return authenticatedInnertube;
+    }
+    const creds = loadOAuthCredentials();
+    if (!creds) {
+        throw new ClientDownloadError('err_bot_check', 'youtube_not_signed_in');
+    }
+    await signInToYoutube();
+    if (!authenticatedInnertube) {
+        throw new ClientDownloadError('err_bot_check', 'youtube_auth_failed');
+    }
+    return authenticatedInnertube;
+}
+
 async function getPlaylistClient() {
+    if (isYoutubeSignedIn()) {
+        return ensureAuthenticatedInnertube();
+    }
     if (!playlistClientPromise) {
         playlistClientPromise = createInnertube('WEB', { retrievePlayer: false });
     }
@@ -821,6 +966,20 @@ export async function getVideoMetadata(videoId) {
     };
 }
 
+async function downloadWithAuthenticatedClient(videoId, format, options = {}) {
+    const { onProgress, signal } = options;
+    const innertube = await ensureAuthenticatedInnertube();
+    try {
+        return await downloadViaDirectUrl(innertube, videoId, AUTHENTICATED_CLIENT, format, onProgress, signal);
+    } catch (directErr) {
+        console.warn(`[MediaDownloader] ${AUTHENTICATED_CLIENT} auth direct failed for ${videoId}:`, directErr);
+        if (!shouldRetryWithPlayer(directErr)) {
+            throw directErr;
+        }
+    }
+    return downloadViaInnertubeDownload(innertube, videoId, AUTHENTICATED_CLIENT, format, onProgress, signal);
+}
+
 /**
  * Download media for a video ID.
  * @returns {Promise<{title: string, files: Array<{role: string, blob: Blob, ext: string}>}>}
@@ -828,6 +987,21 @@ export async function getVideoMetadata(videoId) {
 export async function downloadMedia(videoId, format, options = {}) {
     const { onProgress, signal, title: titleOverride } = options;
     let lastError = null;
+
+    if (isYoutubeSignedIn()) {
+        try {
+            const result = await downloadWithAuthenticatedClient(videoId, format, options);
+            if (titleOverride) result.title = titleOverride;
+            if (typeof onProgress === 'function') onProgress(100);
+            return result;
+        } catch (err) {
+            lastError = err;
+            console.warn(`[MediaDownloader] Authenticated download failed for ${videoId}:`, err);
+            if (err?.code === 'err_age_restricted' || mapClientError(err) === 'err_age_restricted') {
+                throw err;
+            }
+        }
+    }
 
     for (const clientType of getDownloadClients()) {
         try {

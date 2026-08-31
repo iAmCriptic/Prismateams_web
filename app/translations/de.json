@@ -5561,8 +5561,18 @@
     "page_title": "Media Downloader",
     "heading": "Media Downloader",
     "description": "Laden Sie Inhalte von YouTube und YouTube Music als MP3 oder MP4 herunter.",
-    "client_notice": "Der Download erfolgt in Ihrem Browser — YouTube-Sperren des Servers werden so umgangen. Anschließend wird die Datei auf dem Server konvertiert und steht hier zum Abruf bereit.",
+    "client_notice": "Der Download läuft in Ihrem Browser (Ihre Netzwerkverbindung). Bei Bot-Check können Sie sich optional bei YouTube anmelden. Anschließend konvertiert der Server die Datei.",
     "legal_notice": "Sie sind für die Einhaltung von Urheberrecht und Nutzungsbedingungen der Plattformen verantwortlich. Heruntergeladene Dateien werden nach einer Stunde automatisch gelöscht.",
+    "youtube_auth": {
+      "sign_in": "Bei YouTube anmelden",
+      "sign_out": "YouTube abmelden",
+      "signed_in": "Bei YouTube angemeldet",
+      "signed_out": "Nicht bei YouTube angemeldet",
+      "modal_title": "Bei YouTube anmelden",
+      "instructions": "Öffnen Sie den Link, geben Sie den Code ein und bestätigen Sie den Zugriff mit Ihrem Google-Konto:",
+      "open_link": "youtube.com/activate öffnen",
+      "wait_hint": "Dieses Fenster schließt sich automatisch, sobald die Anmeldung abgeschlossen ist."
+    },
     "nav": {
       "label": "Media Downloader Navigation",
       "menu": "Menü",
@@ -5666,7 +5676,7 @@
       "err_convert_failed": "Konvertierung auf dem Server fehlgeschlagen.",
       "expired": "Diese Datei ist nicht mehr verfügbar.",
       "err_http_403": "Download durch YouTube blockiert (HTTP 403). Bitte später erneut versuchen oder eine andere Qualitätsstufe/URL nutzen.",
-      "err_bot_check": "YouTube verlangt eine Anmeldung (Bot-Check). Admins können optional eine cookies.txt setzen (siehe Installationsdoku).",
+      "err_bot_check": "YouTube verlangt eine Anmeldung. Bitte „Bei YouTube anmelden“ nutzen und den Download erneut starten.",
       "err_cookies_needed": "YouTube-Cookies fehlen, sind abgelaufen oder ungültig. Bitte cookies.txt erneuern (MEDIA_DOWNLOADER_COOKIES_FILE).",
       "err_age_restricted": "Ein Download Altersbeschränkter Videos / Lieder ist mit diesem Tool NICHT Möglich.",
       "err_video_unavailable": "Dieses Video ist nicht verfügbar.",
