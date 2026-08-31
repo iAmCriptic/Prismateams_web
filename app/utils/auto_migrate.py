@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import logging
 from datetime import datetime
 
 from sqlalchemy import text
@@ -20,6 +21,8 @@ from sqlalchemy import text
 # Verhindert Rekursion, wenn ein Migrationsskript selbst create_app() aufruft
 RUNNING_ENV = "PRISMATEAMS_RUNNING_MIGRATIONS"
 SKIP_JOBS_ENV = "PRISMATEAMS_SKIP_BACKGROUND_JOBS"
+
+logger = logging.getLogger(__name__)
 
 
 def _migrations_dir() -> str:
@@ -164,7 +167,7 @@ def run_pending_migrations(db=None, *, force_all: bool = False) -> bool:
     migrations_dir = _migrations_dir()
     scripts = discover_migration_scripts(migrations_dir)
     if not scripts:
-        print("[INFO] Keine Migrationsskripte in migrations/ gefunden")
+        logger.info("Keine Migrationsskripte in migrations/ gefunden")
         return True
 
     os.environ[RUNNING_ENV] = "1"
@@ -174,33 +177,32 @@ def run_pending_migrations(db=None, *, force_all: bool = False) -> bool:
 
         pending = [name for name in scripts if name not in applied]
         if not pending:
-            print(f"[OK] Alle {len(scripts)} Migration(en) bereits angewendet")
+            logger.info("Alle %s Migration(en) bereits angewendet", len(scripts))
             return True
 
-        print("=" * 60)
-        print(f"Auto-Migration: {len(pending)} ausstehend, {len(applied)} bereits angewendet")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("Auto-Migration: %s ausstehend, %s bereits angewendet", len(pending), len(applied))
+        logger.info("=" * 60)
 
         all_ok = True
         for filename in pending:
             script_path = os.path.join(migrations_dir, filename)
-            print(f"[INFO] Migration: {filename} ...")
+            logger.info("Migration: %s ...", filename)
             ok, detail = _run_script(script_path)
             if ok:
                 try:
                     _mark_applied(db, filename)
                 except Exception as mark_err:
-                    # Doppelter Insert bei parallelem Start – ok wenn schon da
-                    print(f"[WARNUNG] Konnte {filename} nicht als angewendet markieren: {mark_err}")
-                print(f"[OK] {filename}")
+                    logger.warning("Konnte %s nicht als angewendet markieren: %s", filename, mark_err)
+                logger.info("%s", filename)
             else:
                 all_ok = False
-                print(f"[FEHLER] {filename}: {detail[:2000]}")
+                logger.error("%s: %s", filename, detail[:2000])
 
         if all_ok:
-            print("[OK] Auto-Migration abgeschlossen")
+            logger.info("Auto-Migration abgeschlossen")
         else:
-            print("[WARNUNG] Mindestens eine Migration ist fehlgeschlagen")
+            logger.warning("Mindestens eine Migration ist fehlgeschlagen")
         return all_ok
     finally:
         os.environ.pop(RUNNING_ENV, None)

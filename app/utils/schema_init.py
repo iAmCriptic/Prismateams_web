@@ -14,9 +14,12 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
 from typing import Iterable
 
 from sqlalchemy import inspect, text
+
+logger = logging.getLogger(__name__)
 
 # Kritische Tabellen, die nach Fresh-Install existieren müssen
 CRITICAL_TABLES = (
@@ -156,11 +159,11 @@ class _SchemaLock:
                 if row and row[0] == 1:
                     self._mode = "mysql"
                     return self
-                print("[WARNUNG] Schema-Lock Timeout – fahre ohne exklusiven Lock fort")
+                logger.warning("Schema-Lock Timeout – fahre ohne exklusiven Lock fort")
                 self._conn.close()
                 self._conn = None
             except Exception as exc:
-                print(f"[WARNUNG] MySQL Schema-Lock fehlgeschlagen: {exc}")
+                logger.warning("MySQL Schema-Lock fehlgeschlagen: %s", exc)
                 if self._conn is not None:
                     try:
                         self._conn.close()
@@ -186,7 +189,7 @@ class _SchemaLock:
                 fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
             self._mode = "file"
         except Exception as exc:
-            print(f"[WARNUNG] Datei-Schema-Lock fehlgeschlagen: {exc}")
+            logger.warning("Datei-Schema-Lock fehlgeschlagen: %s", exc)
             if self._file is not None:
                 try:
                     self._file.close()
@@ -234,13 +237,13 @@ def _create_missing_tables(db, table_names: Iterable[str]) -> list[str]:
         table = db.metadata.tables.get(name)
         if table is None:
             still_missing.append(name)
-            print(f"[WARNUNG] Tabelle '{name}' nicht in Metadata – Modell fehlt?")
+            logger.warning("Tabelle '%s' nicht in Metadata – Modell fehlt?", name)
             continue
         try:
             table.create(db.engine, checkfirst=True)
-            print(f"[OK] Tabelle '{name}' sichergestellt")
+            logger.info("Tabelle '%s' sichergestellt", name)
         except Exception as exc:
-            print(f"[WARNUNG] Tabelle '{name}' konnte nicht erstellt werden: {exc}")
+            logger.warning("Tabelle '%s' konnte nicht erstellt werden: %s", name, exc)
             still_missing.append(name)
     return still_missing
 
@@ -263,22 +266,22 @@ def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) 
     with _SchemaLock(db):
         try:
             db.create_all()
-            print("[OK] db.create_all() ausgeführt")
+            logger.info("db.create_all() ausgeführt")
         except Exception as create_error:
-            print(f"[WARNUNG] db.create_all() fehlgeschlagen: {create_error}")
-            print("[INFO] Versuche fehlende Tabellen einzeln zu erstellen...")
+            logger.warning("db.create_all() fehlgeschlagen: %s", create_error)
+            logger.info("Versuche fehlende Tabellen einzeln zu erstellen...")
 
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
         missing = [name for name in critical if name not in existing]
 
         if missing:
-            print(f"[INFO] {len(missing)} kritische Tabelle(n) fehlen: {', '.join(missing)}")
+            logger.info("%s kritische Tabelle(n) fehlen: %s", len(missing), ', '.join(missing))
             pending = list(missing)
             for attempt in range(1, 4):
                 if not pending:
                     break
-                print(f"[INFO] Tabellen-Erstellung Durchlauf {attempt}/3 ...")
+                logger.info("Tabellen-Erstellung Durchlauf %s/3 ...", attempt)
                 pending = _create_missing_tables(db, pending)
                 try:
                     db.create_all()
@@ -295,13 +298,13 @@ def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) 
 
                 _ensure_schema_migrations_table(db)
             except Exception as mig_tbl_err:
-                print(f"[WARNUNG] schema_migrations konnte nicht angelegt werden: {mig_tbl_err}")
+                logger.warning("schema_migrations konnte nicht angelegt werden: %s", mig_tbl_err)
 
         existing = set(inspect(db.engine).get_table_names())
         still_missing = [name for name in critical if name not in existing]
         if still_missing:
-            print(f"[FEHLER] Nach Schema-Init fehlen noch: {', '.join(still_missing)}")
+            logger.error("Nach Schema-Init fehlen noch: %s", ', '.join(still_missing))
             return False, still_missing
 
-        print(f"[OK] Schema vollständig ({len(existing)} Tabellen, kritische geprüft)")
+        logger.info("Schema vollständig (%s Tabellen, kritische geprüft)", len(existing))
         return True, []

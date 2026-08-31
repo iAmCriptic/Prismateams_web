@@ -1846,7 +1846,7 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     color: inherit;
     background: transparent;
     border: none;
-    transition: background 0.15s ease, transform 0.12s ease;
+    transition: background 0.2s ease, transform 0.28s cubic-bezier(0.34, 1.45, 0.64, 1);
 }
 
 .dashboard-module-icon {
@@ -1859,6 +1859,11 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     color: var(--nav-icon-color, var(--accent-color, #0d6efd));
     background: color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 16%, transparent);
     font-size: 1.35rem;
+    transition:
+        transform 0.28s cubic-bezier(0.34, 1.45, 0.64, 1),
+        filter 0.25s ease,
+        box-shadow 0.28s ease,
+        background 0.25s ease;
 }
 
 .dashboard-module-label {
@@ -1876,15 +1881,21 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 }
 
 .dashboard-module-chip:hover,
-.dashboard-module-chip:focus {
-    background: rgba(127, 127, 127, 0.12);
+.dashboard-module-chip:focus-visible {
+    background: rgba(127, 127, 127, 0.14);
     color: inherit;
     text-decoration: none;
+    transform: translateY(-4px);
 }
 
 .dashboard-module-chip:hover .dashboard-module-icon,
-.dashboard-module-chip:focus .dashboard-module-icon {
-    filter: brightness(1.05);
+.dashboard-module-chip:focus-visible .dashboard-module-icon {
+    transform: scale(1.22);
+    filter: brightness(1.14) saturate(1.08);
+    background: color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 38%, transparent);
+    box-shadow:
+        0 10px 28px color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 42%, transparent),
+        0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 /* Same accent colors as 9-dot launcher */

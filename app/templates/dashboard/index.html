@@ -216,17 +216,18 @@ updateClock();
 setInterval(updateClock, 1000);
 
 (function initWhatsNew() {
-    const VERSION = {{ (whats_new_version|default('3.1.0'))|tojson }};
+    const VERSION = {{ (whats_new_version|default('3.3.0'))|tojson }};
     const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
-    const panelsOrder = ['welcome', 'overview', 'general', 'settings', 'email'];
+    const panelsOrder = ['welcome', 'overview', 'surveys', 'excalidraw', 'media_downloader', 'settings'];
     const titleEl = document.querySelector('[data-whats-new-title]');
-    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.1.0'), current='{current}', total='{total}')|tojson }};
+    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.3.0'), current='{current}', total='{total}')|tojson }};
     const moduleTitles = {
         welcome: {{ _('dashboard.whats_new.welcome.title')|tojson }},
         overview: {{ _('dashboard.whats_new.overview_label')|tojson }},
-        general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
-        settings: {{ _('dashboard.whats_new.modules.settings.title')|tojson }},
-        email: {{ _('dashboard.whats_new.modules.email.title')|tojson }}
+        surveys: {{ _('dashboard.whats_new.modules.surveys.title')|tojson }},
+        excalidraw: {{ _('dashboard.whats_new.modules.excalidraw.title')|tojson }},
+        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }},
+        settings: {{ _('dashboard.whats_new.modules.settings.title')|tojson }}
     };
     let currentPanel = 'welcome';
     let seenMarked = !AUTO_OPEN;

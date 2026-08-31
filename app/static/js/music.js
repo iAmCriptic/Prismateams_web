@@ -86,10 +86,6 @@ function initSSE() {
     try {
         eventSource = new EventSource('/sse/events/music');
         
-        eventSource.onopen = function() {
-            console.log('SSE verbunden - Live-Updates aktiv');
-        };
-        
         eventSource.onerror = function(error) {
             console.warn('SSE Fehler - versuche Reconnect...');
             // EventSource reconnected automatisch
@@ -98,7 +94,6 @@ function initSSE() {
         // Event-Handler für Musik-Updates
         eventSource.addEventListener('music:wish_added', function(e) {
             const data = JSON.parse(e.data);
-            console.log('Wish hinzugefügt:', data);
             invalidateCache('wishlist');
             if (data.wish) {
                 addWishToDisplayDirect(data.wish);
@@ -114,7 +109,6 @@ function initSSE() {
         
         eventSource.addEventListener('music:wish_updated', function(e) {
             const data = JSON.parse(e.data);
-            console.log('Wish aktualisiert:', data);
             invalidateCache('wishlist');
             if (data.wish) {
                 updateWishInDisplay(data.wish);
@@ -130,7 +124,6 @@ function initSSE() {
         
         eventSource.addEventListener('music:queue_updated', function(e) {
             const data = JSON.parse(e.data);
-            console.log('Queue-Update:', data);
             invalidateCache('queue');
             if (data.queue !== undefined) {
                 updateQueueDisplayDirect(data.queue);
@@ -139,7 +132,6 @@ function initSSE() {
         
         eventSource.addEventListener('music:played_updated', function(e) {
             const data = JSON.parse(e.data);
-            console.log('Played-Update:', data);
             invalidateCache('played');
             if (data.count !== undefined) {
                 updatePlayedBadgeDirect(data.count);
@@ -151,7 +143,6 @@ function initSSE() {
         
         eventSource.addEventListener('music:wishlist_cleared', function(e) {
             const data = JSON.parse(e.data);
-            console.log('Wishlist geleert:', data);
             invalidateCache('wishlist');
             // Leere Wishlist-Anzeige
             const wishlistContainer = document.querySelector('#wishlist-list');
@@ -990,8 +981,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         updateQueueDisplay();
                     }
                 }, 2000);
-                
-                console.log('Queue-Position geändert - SSE-Update wird kommen');
             } else {
                 if (typeof window.ptAlert === 'function') {
                     window.ptAlert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'), 'danger');

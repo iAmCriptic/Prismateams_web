@@ -7,6 +7,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import config
 import json
+import logging
 import os
 from app.utils.i18n import register_i18n, translate
 from urllib.parse import urlparse
@@ -45,6 +46,40 @@ def _env_flag(name, default=False):
     if raw is None:
         return default
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def configure_app_logging(app, config_name='default'):
+    """Central logging for Gunicorn/systemd (stderr → journalctl)."""
+    default_level = logging.INFO if config_name == 'production' else logging.DEBUG
+    level_name = os.getenv('LOG_LEVEL', '').strip().upper()
+    if level_name:
+        level = getattr(logging, level_name, default_level)
+    else:
+        level = default_level
+
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        force=True,
+    )
+    app.logger.setLevel(level)
+    werkzeug_level = logging.WARNING if config_name == 'production' else logging.INFO
+    logging.getLogger('werkzeug').setLevel(werkzeug_level)
+
+
+def _log_startup(message, level=None):
+    """Structured startup log (migrations, schema patches)."""
+    logger = logging.getLogger('app.startup')
+    text = str(message)
+    if level is None:
+        if text.startswith('[FEHLER]'):
+            level = 'error'
+        elif text.startswith('[WARNUNG]') or text.startswith('WARNING:'):
+            level = 'warning'
+        else:
+            level = 'info'
+    getattr(logger, level, logger.info)(text)
 
 
 def _current_release_marker(app):
@@ -87,6 +122,7 @@ def create_app(config_name='default'):
     app.url_map.converters['imap_folder'] = ImapFolderConverter
 
     app.config.from_object(config[config_name])
+    configure_app_logging(app, config_name)
 
     if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
         raise RuntimeError(
@@ -189,8 +225,7 @@ def create_app(config_name='default'):
             
             socketio.init_app(app, **init_kwargs)
             # WICHTIG: Logge auf INFO-Level, damit es in systemd-Logs sichtbar ist
-            logger.info(f"✅ SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
-            print(f"✅ SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
+            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
@@ -1058,7 +1093,8 @@ def create_app(config_name='default'):
     app.register_blueprint(manuals_bp, url_prefix='/manuals')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
-    app.register_blueprint(errors_bp, url_prefix='/test')
+    if config_name != 'production':
+        app.register_blueprint(errors_bp, url_prefix='/test')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_compat_bp)
@@ -1275,7 +1311,7 @@ def create_app(config_name='default'):
                 # Robust: create_all + kritische Tabellen einzeln nachziehen (MySQL-Lock bei Multi-Worker)
                 schema_ok, missing_tables = ensure_all_tables(db)
                 if not schema_ok:
-                    print(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
+                    _log_startup(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
 
                 auto_migrate_after_update, release_marker = _should_run_migrations_after_update(app)
                 should_run_startup_migrations = run_startup_migrations or auto_migrate_after_update
@@ -1287,14 +1323,14 @@ def create_app(config_name='default'):
                         from app.utils.auto_migrate import run_pending_migrations
                         run_pending_migrations(db)
                     except Exception as auto_mig_err:
-                        print(f"[WARNUNG] Auto-Migration fehlgeschlagen: {auto_mig_err}")
+                        _log_startup(f"[WARNUNG] Auto-Migration fehlgeschlagen: {auto_mig_err}")
                     # Nach Migrationen nochmals kritische Tabellen sicherstellen
                     try:
                         ensure_all_tables(db)
                     except Exception as schema_again_err:
-                        print(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
+                        _log_startup(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
                 else:
-                    print("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
+                    _log_startup("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
                 
                 try:
                     from sqlalchemy import inspect
@@ -1302,102 +1338,102 @@ def create_app(config_name='default'):
                     if 'folders' in inspector.get_table_names():
                         columns = {col['name']: col for col in inspector.get_columns('folders')}
                         if 'color' not in columns:
-                            print("[INFO] Ergänze folders.color ...")
+                            _log_startup("[INFO] Ergänze folders.color ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE folders ADD COLUMN color VARCHAR(16)"))
-                            print("[OK] folders.color hinzugefügt")
+                            _log_startup("[OK] folders.color hinzugefügt")
                         if 'team_id' not in columns:
-                            print("[INFO] Ergänze folders.team_id ...")
+                            _log_startup("[INFO] Ergänze folders.team_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE folders ADD COLUMN team_id INTEGER NULL"))
-                            print("[OK] folders.team_id hinzugefügt")
+                            _log_startup("[OK] folders.team_id hinzugefügt")
                         if 'is_team_root' not in columns:
-                            print("[INFO] Ergänze folders.is_team_root ...")
+                            _log_startup("[INFO] Ergänze folders.is_team_root ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE folders ADD COLUMN is_team_root BOOLEAN NOT NULL DEFAULT 0"
                                 ))
-                            print("[OK] folders.is_team_root hinzugefügt")
+                            _log_startup("[OK] folders.is_team_root hinzugefügt")
 
                     if 'files' in inspector.get_table_names():
                         file_cols = {col['name'] for col in inspector.get_columns('files')}
                         if 'team_id' not in file_cols:
-                            print("[INFO] Ergänze files.team_id ...")
+                            _log_startup("[INFO] Ergänze files.team_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE files ADD COLUMN team_id INTEGER NULL"))
-                            print("[OK] files.team_id hinzugefügt")
+                            _log_startup("[OK] files.team_id hinzugefügt")
 
                     if 'resource_acl' in inspector.get_table_names():
                         acl_cols = {col['name'] for col in inspector.get_columns('resource_acl')}
                         if 'grantee_team_id' not in acl_cols:
-                            print("[INFO] Ergänze resource_acl.grantee_team_id ...")
+                            _log_startup("[INFO] Ergänze resource_acl.grantee_team_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE resource_acl ADD COLUMN grantee_team_id INTEGER NULL"
                                 ))
-                            print("[OK] resource_acl.grantee_team_id hinzugefügt")
+                            _log_startup("[OK] resource_acl.grantee_team_id hinzugefügt")
 
                     if 'kanban_cards' in inspector.get_table_names():
                         kanban_cols = {col['name'] for col in inspector.get_columns('kanban_cards')}
                         if 'poll_text' not in kanban_cols:
-                            print("[INFO] Ergänze kanban_cards.poll_text ...")
+                            _log_startup("[INFO] Ergänze kanban_cards.poll_text ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE kanban_cards ADD COLUMN poll_text TEXT"))
-                            print("[OK] kanban_cards.poll_text hinzugefügt")
+                            _log_startup("[OK] kanban_cards.poll_text hinzugefügt")
                         if 'completed_at' not in kanban_cols:
-                            print("[INFO] Ergänze kanban_cards.completed_at ...")
+                            _log_startup("[INFO] Ergänze kanban_cards.completed_at ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE kanban_cards ADD COLUMN completed_at DATETIME NULL"))
-                            print("[OK] kanban_cards.completed_at hinzugefügt")
+                            _log_startup("[OK] kanban_cards.completed_at hinzugefügt")
 
                     if 'kanban_attachments' in inspector.get_table_names():
                         att_cols = {col['name']: col for col in inspector.get_columns('kanban_attachments')}
                         if 'url' not in att_cols:
-                            print("[INFO] Ergänze kanban_attachments.url ...")
+                            _log_startup("[INFO] Ergänze kanban_attachments.url ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE kanban_attachments ADD COLUMN url VARCHAR(1000) NULL"))
-                            print("[OK] kanban_attachments.url hinzugefügt")
+                            _log_startup("[OK] kanban_attachments.url hinzugefügt")
                         dialect = db.engine.dialect.name
                         if dialect == 'mysql':
                             for col_name in ('filename', 'original_filename', 'storage_path'):
                                 col = att_cols.get(col_name)
                                 if col and not col.get('nullable', True):
-                                    print(f"[INFO] Lockere kanban_attachments.{col_name} (nullable) ...")
+                                    _log_startup(f"[INFO] Lockere kanban_attachments.{col_name} (nullable) ...")
                                     with db.engine.begin() as connection:
                                         connection.execute(text(
                                             f"ALTER TABLE kanban_attachments MODIFY COLUMN {col_name} VARCHAR(500) NULL"
                                             if col_name == 'storage_path'
                                             else f"ALTER TABLE kanban_attachments MODIFY COLUMN {col_name} VARCHAR(255) NULL"
                                         ))
-                                    print(f"[OK] kanban_attachments.{col_name} nullable")
+                                    _log_startup(f"[OK] kanban_attachments.{col_name} nullable")
                         elif dialect == 'sqlite':
                             # SQLite: nullable change via recreate is heavy; new rows can use NULL if column allows
                             pass
 
                     table_names = inspector.get_table_names()
                     if 'credential_folders' not in table_names:
-                        print("[INFO] Erstelle credential_folders ...")
+                        _log_startup("[INFO] Erstelle credential_folders ...")
                         CredentialFolder.__table__.create(db.engine, checkfirst=True)
-                        print("[OK] credential_folders erstellt")
+                        _log_startup("[OK] credential_folders erstellt")
 
                     if 'credentials' in table_names:
                         credential_columns = {col['name'] for col in inspector.get_columns('credentials')}
                         if 'folder_id' not in credential_columns:
-                            print("[INFO] Ergänze credentials.folder_id ...")
+                            _log_startup("[INFO] Ergänze credentials.folder_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE credentials ADD COLUMN folder_id INTEGER NULL"))
-                            print("[OK] credentials.folder_id hinzugefügt")
+                            _log_startup("[OK] credentials.folder_id hinzugefügt")
 
                         if 'is_favorite' not in credential_columns:
-                            print("[INFO] Ergänze credentials.is_favorite ...")
+                            _log_startup("[INFO] Ergänze credentials.is_favorite ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE credentials ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
-                            print("[OK] credentials.is_favorite hinzugefügt")
+                            _log_startup("[OK] credentials.is_favorite hinzugefügt")
 
                     if 'credential_favorites' not in inspector.get_table_names():
-                        print("[INFO] Erstelle credential_favorites ...")
+                        _log_startup("[INFO] Erstelle credential_favorites ...")
                         CredentialFavorite.__table__.create(db.engine, checkfirst=True)
-                        print("[OK] credential_favorites erstellt")
+                        _log_startup("[OK] credential_favorites erstellt")
                         # Legacy-Favoriten auf Ersteller übernehmen
                         try:
                             dialect = db.engine.dialect.name
@@ -1417,18 +1453,18 @@ def create_app(config_name='default'):
                                 """
                             with db.engine.begin() as connection:
                                 connection.execute(text(sql))
-                            print("[OK] Legacy credential favorites migriert")
+                            _log_startup("[OK] Legacy credential favorites migriert")
                         except Exception as fav_err:
-                            print(f"[WARNUNG] Legacy-Favoriten-Migration: {fav_err}")
+                            _log_startup(f"[WARNUNG] Legacy-Favoriten-Migration: {fav_err}")
 
                     if ('users' in inspector.get_table_names() and
                             'language' not in {col['name'] for col in inspector.get_columns('users')}):
-                        print("[INFO] Ergänze users.language ...")
+                        _log_startup("[INFO] Ergänze users.language ...")
                         with db.engine.begin() as connection:
                             connection.execute(text(
                                 "ALTER TABLE users ADD COLUMN language VARCHAR(10) NOT NULL DEFAULT 'de'"
                             ))
-                        print("[OK] users.language hinzugefügt")
+                        _log_startup("[OK] users.language hinzugefügt")
                     
                     # Sicherheitsfeatures-Migration (2FA, Rate Limiting, Session-Management)
                     # Vollständige Migration läuft über Auto-Migration (migrate_to_2_4_3.py).
@@ -1444,64 +1480,64 @@ def create_app(config_name='default'):
                         }
                         missing = [(n, d) for n, d in security_columns if n not in columns]
                         if missing:
-                            print("[INFO] Ergänze fehlende Security-Spalten an users ...")
+                            _log_startup("[INFO] Ergänze fehlende Security-Spalten an users ...")
                             with db.engine.begin() as connection:
                                 for col_name, col_ddl in missing:
                                     connection.execute(text(
                                         f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"
                                     ))
-                            print("[OK] Security-Spalten ergänzt")
+                            _log_startup("[OK] Security-Spalten ergänzt")
                         if 'user_sessions' not in inspector.get_table_names():
-                            print("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
+                            _log_startup("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
                         calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}
                         if 'event_color' not in calendar_columns:
-                            print("[INFO] Ergänze calendar_events.event_color ...")
+                            _log_startup("[INFO] Ergänze calendar_events.event_color ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE calendar_events "
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
-                            print("[OK] calendar_events.event_color hinzugefügt")
+                            _log_startup("[OK] calendar_events.event_color hinzugefügt")
                         if 'sync_source_id' not in calendar_columns:
-                            print("[INFO] Ergänze calendar_events.sync_source_id ...")
+                            _log_startup("[INFO] Ergänze calendar_events.sync_source_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE calendar_events ADD COLUMN sync_source_id INTEGER NULL"
                                 ))
-                            print("[OK] calendar_events.sync_source_id hinzugefügt")
+                            _log_startup("[OK] calendar_events.sync_source_id hinzugefügt")
                         if 'ical_uid' not in calendar_columns:
-                            print("[INFO] Ergänze calendar_events.ical_uid ...")
+                            _log_startup("[INFO] Ergänze calendar_events.ical_uid ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE calendar_events ADD COLUMN ical_uid VARCHAR(255) NULL"
                                 ))
-                            print("[OK] calendar_events.ical_uid hinzugefügt")
+                            _log_startup("[OK] calendar_events.ical_uid hinzugefügt")
 
                     # Kalender Sync-Sources Tabelle
                     if 'calendar_sync_sources' not in inspector.get_table_names():
-                        print("[INFO] Erstelle calendar_sync_sources ...")
+                        _log_startup("[INFO] Erstelle calendar_sync_sources ...")
                         from app.models.calendar import CalendarSyncSource as _CalendarSyncSource
                         _CalendarSyncSource.__table__.create(db.engine, checkfirst=True)
-                        print("[OK] calendar_sync_sources erstellt")
+                        _log_startup("[OK] calendar_sync_sources erstellt")
 
                     # Multi-Kalender: calendars + calendar_id
                     if 'calendars' not in inspector.get_table_names():
-                        print("[INFO] Erstelle calendars ...")
+                        _log_startup("[INFO] Erstelle calendars ...")
                         from app.models.calendar import Calendar as _Calendar
                         _Calendar.__table__.create(db.engine, checkfirst=True)
-                        print("[OK] calendars erstellt")
+                        _log_startup("[OK] calendars erstellt")
                     if 'calendar_events' in inspector.get_table_names():
                         calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}
                         if 'calendar_id' not in calendar_columns:
-                            print("[INFO] Ergänze calendar_events.calendar_id ...")
+                            _log_startup("[INFO] Ergänze calendar_events.calendar_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     "ALTER TABLE calendar_events ADD COLUMN calendar_id INTEGER NULL"
                                 ))
-                            print("[OK] calendar_events.calendar_id hinzugefügt")
+                            _log_startup("[OK] calendar_events.calendar_id hinzugefügt")
 
                     if 'calendars' in inspector.get_table_names():
                         cal_cols = {col['name'] for col in inspector.get_columns('calendars')}
@@ -1513,19 +1549,19 @@ def create_app(config_name='default'):
                         if 'hidden_from_others' not in cal_cols:
                             cal_alters.append("ALTER TABLE calendars ADD COLUMN hidden_from_others BOOLEAN NOT NULL DEFAULT 0")
                         if cal_alters:
-                            print("[INFO] Ergänze calendars Team-/Default-Spalten ...")
+                            _log_startup("[INFO] Ergänze calendars Team-/Default-Spalten ...")
                             with db.engine.begin() as connection:
                                 for stmt in cal_alters:
                                     connection.execute(text(stmt))
-                            print("[OK] calendars Team-/Default-Spalten ergänzt")
+                            _log_startup("[OK] calendars Team-/Default-Spalten ergänzt")
 
                     if 'chats' in inspector.get_table_names():
                         chat_cols = {col['name'] for col in inspector.get_columns('chats')}
                         if 'team_id' not in chat_cols:
-                            print("[INFO] Ergänze chats.team_id ...")
+                            _log_startup("[INFO] Ergänze chats.team_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE chats ADD COLUMN team_id INTEGER NULL"))
-                            print("[OK] chats.team_id hinzugefügt")
+                            _log_startup("[OK] chats.team_id hinzugefügt")
                         chat_indexes = inspector.get_indexes('chats')
                         has_team_unique = any(
                             ix.get('unique') and ix.get('column_names') == ['team_id']
@@ -1535,15 +1571,15 @@ def create_app(config_name='default'):
                             for u in inspector.get_unique_constraints('chats')
                         )
                         if not has_team_unique:
-                            print("[INFO] Lege Unique-Index chats.team_id an ...")
+                            _log_startup("[INFO] Lege Unique-Index chats.team_id an ...")
                             try:
                                 with db.engine.begin() as connection:
                                     connection.execute(text(
                                         "CREATE UNIQUE INDEX IF NOT EXISTS uq_chats_team_id ON chats(team_id)"
                                     ))
-                                print("[OK] Unique-Index chats.team_id angelegt")
+                                _log_startup("[OK] Unique-Index chats.team_id angelegt")
                             except Exception as idx_error:
-                                print(f"[WARNUNG] Unique-Index chats.team_id: {idx_error}")
+                                _log_startup(f"[WARNUNG] Unique-Index chats.team_id: {idx_error}")
 
                     # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
                     table_names = set(inspector.get_table_names())
@@ -1554,12 +1590,12 @@ def create_app(config_name='default'):
                                 connection.execute(
                                     text("ALTER TABLE events ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0")
                                 )
-                                print("[OK] events.is_archived hinzugefügt")
+                                _log_startup("[OK] events.is_archived hinzugefügt")
                             if 'archived_at' not in event_columns:
                                 connection.execute(
                                     text("ALTER TABLE events ADD COLUMN archived_at DATETIME NULL")
                                 )
-                                print("[OK] events.archived_at hinzugefügt")
+                                _log_startup("[OK] events.archived_at hinzugefügt")
 
                     if 'event_timeline_items' in table_names:
                         timeline_columns = {
@@ -1573,34 +1609,34 @@ def create_app(config_name='default'):
                                         "ADD COLUMN appointment_id INTEGER NULL"
                                     )
                                 )
-                            print("[OK] event_timeline_items.appointment_id hinzugefügt")
+                            _log_startup("[OK] event_timeline_items.appointment_id hinzugefügt")
 
                     # Chat-Messages: metadata_json für strukturierte Nachrichtentypen ergänzen
                     if 'chat_messages' in inspector.get_table_names():
                         chat_columns = {col['name'] for col in inspector.get_columns('chat_messages')}
                         if 'metadata_json' not in chat_columns:
-                            print("[INFO] Ergänze chat_messages.metadata_json ...")
+                            _log_startup("[INFO] Ergänze chat_messages.metadata_json ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT"))
-                            print("[OK] chat_messages.metadata_json hinzugefügt")
+                            _log_startup("[OK] chat_messages.metadata_json hinzugefügt")
 
                     # Kontakte: sort_name für flexible Sortierung ergänzen
                     if 'contacts' in inspector.get_table_names():
                         contact_columns = {col['name'] for col in inspector.get_columns('contacts')}
                         if 'salutation' not in contact_columns:
-                            print("[INFO] Ergänze contacts.salutation ...")
+                            _log_startup("[INFO] Ergänze contacts.salutation ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE contacts ADD COLUMN salutation VARCHAR(50)"))
-                            print("[OK] contacts.salutation hinzugefügt")
+                            _log_startup("[OK] contacts.salutation hinzugefügt")
                         if 'sort_name' not in contact_columns:
-                            print("[INFO] Ergänze contacts.sort_name ...")
+                            _log_startup("[INFO] Ergänze contacts.sort_name ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE contacts ADD COLUMN sort_name VARCHAR(255)"))
                                 connection.execute(text(
                                     "UPDATE contacts SET sort_name = name "
                                     "WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
                                 ))
-                            print("[OK] contacts.sort_name hinzugefügt und initialisiert")
+                            _log_startup("[OK] contacts.sort_name hinzugefügt und initialisiert")
 
                     visibility_tables = (
                         ('credentials', 'public'),
@@ -1615,19 +1651,19 @@ def create_app(config_name='default'):
                             continue
                         vis_cols = {col['name'] for col in inspector.get_columns(vis_table)}
                         if 'visibility' not in vis_cols:
-                            print(f"[INFO] Ergänze {vis_table}.visibility ...")
+                            _log_startup(f"[INFO] Ergänze {vis_table}.visibility ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     f"ALTER TABLE {vis_table} ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT '{vis_default}'"
                                 ))
-                            print(f"[OK] {vis_table}.visibility hinzugefügt")
+                            _log_startup(f"[OK] {vis_table}.visibility hinzugefügt")
                         if 'team_id' not in vis_cols:
-                            print(f"[INFO] Ergänze {vis_table}.team_id ...")
+                            _log_startup(f"[INFO] Ergänze {vis_table}.team_id ...")
                             with db.engine.begin() as connection:
                                 connection.execute(text(
                                     f"ALTER TABLE {vis_table} ADD COLUMN team_id INTEGER NULL"
                                 ))
-                            print(f"[OK] {vis_table}.team_id hinzugefügt")
+                            _log_startup(f"[OK] {vis_table}.team_id hinzugefügt")
 
                     # E-Mail-Manager-Großupdate: Farbpunkt/Keyword-Sync-Spalten ergänzen
                     if 'email_messages' in inspector.get_table_names():
@@ -1642,22 +1678,22 @@ def create_app(config_name='default'):
                         if 'last_flag_sync_at' not in email_columns:
                             mail_manager_columns.append(("last_flag_sync_at", "DATETIME NULL"))
                         if mail_manager_columns:
-                            print("[INFO] Ergänze email_messages Mail-Manager-Spalten ...")
+                            _log_startup("[INFO] Ergänze email_messages Mail-Manager-Spalten ...")
                             try:
                                 with db.engine.begin() as connection:
                                     for col_name, col_def in mail_manager_columns:
                                         connection.execute(text(
                                             f"ALTER TABLE email_messages ADD COLUMN {col_name} {col_def}"
                                         ))
-                                print(
+                                _log_startup(
                                     "[OK] email_messages Mail-Manager-Spalten hinzugefügt: "
                                     + ", ".join(c[0] for c in mail_manager_columns)
                                 )
                             except Exception as mail_col_error:
-                                print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
+                                _log_startup(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
-                    print(f"[WARNUNG] Inline-Schema-Nachrüstung fehlgeschlagen: {migration_error}")
-                    print("[INFO] Bitte prüfen: python migrations/run_all.py")
+                    _log_startup(f"[WARNUNG] Inline-Schema-Nachrüstung fehlgeschlagen: {migration_error}")
+                    _log_startup("[INFO] Bitte prüfen: python migrations/run_all.py")
 
                 try:
                     from sqlalchemy import inspect, text
@@ -1673,11 +1709,11 @@ def create_app(config_name='default'):
                     if 'ass_users' in existing_tables:
                         user_columns = {col['name'] for col in inspector.get_columns('ass_users')}
                         if 'theme_mode' not in user_columns:
-                            print("[INFO] Ergänze ass_users.theme_mode ...")
+                            _log_startup("[INFO] Ergänze ass_users.theme_mode ...")
                             stmt = "ALTER TABLE ass_users ADD COLUMN theme_mode VARCHAR(16) NOT NULL DEFAULT 'light'"
                             with db.engine.begin() as connection:
                                 connection.execute(text(stmt))
-                            print("[OK] ass_users.theme_mode hinzugefügt")
+                            _log_startup("[OK] ass_users.theme_mode hinzugefügt")
 
                     default_roles = ['Administrator', 'Bewerter', 'Betrachter', 'Inspektor', 'Verwarner']
                     for role_name in default_roles:
@@ -1703,7 +1739,7 @@ def create_app(config_name='default'):
                         run_assessment_migrations()
                 except Exception as assessment_error:
                     db.session.rollback()
-                    print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
+                    _log_startup(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
 
                 if should_run_startup_migrations:
                     try:
@@ -1727,7 +1763,7 @@ def create_app(config_name='default'):
                         db.session.commit()
                     except Exception as marker_err:
                         db.session.rollback()
-                        print(f"[WARNUNG] Release-Marker für Auto-Migration konnte nicht gespeichert werden: {marker_err}")
+                        _log_startup(f"[WARNUNG] Release-Marker für Auto-Migration konnte nicht gespeichert werden: {marker_err}")
                 
                 from app.models.email import EmailFolder
                 
@@ -1747,10 +1783,10 @@ def create_app(config_name='default'):
                     if not existing_folder:
                         folder = EmailFolder(**folder_data)
                         db.session.add(folder)
-                        print(f"Created standard folder: {folder_data['display_name']}")
+                        _log_startup(f"Created standard folder: {folder_data['display_name']}")
                 
                 db.session.commit()
-                print("[OK] Standard email folders ensured")
+                _log_startup("[OK] Standard email folders ensured")
                 
                 from app.models.settings import SystemSettings
                 from app.models.chat import Chat
@@ -1892,7 +1928,7 @@ def create_app(config_name='default'):
                                     )
                                     db.session.add(member)
                     except Exception as e:
-                        print(f"WARNING: Could not check has_full_access column: {e}")
+                        _log_startup(f"WARNING: Could not check has_full_access column: {e}")
                         # Fallback: Füge alle aktiven Benutzer hinzu
                         from app.models.chat import ChatMember
                         active_users = User.query.filter_by(is_active=True, is_guest=False).all()
@@ -1950,7 +1986,7 @@ def create_app(config_name='default'):
                                     )
                                     db.session.add(member)
                     except Exception as e:
-                        print(f"WARNING: Could not update main chat members: {e}")
+                        _log_startup(f"WARNING: Could not update main chat members: {e}")
 
                 try:
                     from app.models.settings import SystemSettings as _Sys
@@ -1961,7 +1997,7 @@ def create_app(config_name='default'):
                     if not _Sys.query.filter_by(key='calendar_team_enabled').first():
                         db.session.add(_Sys(key='calendar_team_enabled', value='False', description='Team-Kalender aktiv'))
                 except Exception as e:
-                    print(f"WARNING: Kalender-Settings konnten nicht migriert werden: {e}")
+                    _log_startup(f"WARNING: Kalender-Settings konnten nicht migriert werden: {e}")
 
                 try:
                     inspector = inspect(db.engine)
@@ -1970,7 +2006,7 @@ def create_app(config_name='default'):
                         from app.utils.team_chat import ensure_all_team_chats
                         ensure_all_team_chats()
                 except Exception as e:
-                    print(f"WARNING: Team-Chats konnten nicht angelegt werden: {e}")
+                    _log_startup(f"WARNING: Team-Chats konnten nicht angelegt werden: {e}")
 
                 try:
                     inspector = inspect(db.engine)
@@ -1983,19 +2019,19 @@ def create_app(config_name='default'):
                             first_public.is_default = True
                         backfill_space_calendars()
                 except Exception as e:
-                    print(f"WARNING: Kalender-Backfill fehlgeschlagen: {e}")
+                    _log_startup(f"WARNING: Kalender-Backfill fehlgeschlagen: {e}")
                 
                 db.session.commit()
                 
             except Exception as e:
-                print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
+                _log_startup(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
 
         try:
             from app.utils.file_storage_limits import sync_flask_max_content_length
             synced = sync_flask_max_content_length(app)
-            print(f"[INFO] MAX_CONTENT_LENGTH aus Datei-Einstellungen: {synced} Bytes")
+            _log_startup(f"[INFO] MAX_CONTENT_LENGTH aus Datei-Einstellungen: {synced} Bytes")
         except Exception as sync_err:
-            print(f"[WARNUNG] MAX_CONTENT_LENGTH-Sync fehlgeschlagen: {sync_err}")
+            _log_startup(f"[WARNUNG] MAX_CONTENT_LENGTH-Sync fehlgeschlagen: {sync_err}")
     
     # Background-Jobs nur im Hauptprozess starten
     if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):

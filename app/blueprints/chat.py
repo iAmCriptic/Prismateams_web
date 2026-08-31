@@ -24,6 +24,9 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 import os
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -401,9 +404,9 @@ def send_message(chat_id):
             chat_name=chat.name,
             message_id=message.id  # WICHTIG: Für Duplikat-Vermeidung
         )
-        print("Chat-Push-Benachrichtigung asynchron eingeplant")
+        logger.debug("Chat-Push-Benachrichtigung asynchron eingeplant")
     except Exception as e:
-        print(f"Fehler beim Senden der Push-Benachrichtigungen: {e}")
+        logger.warning("Fehler beim Senden der Push-Benachrichtigungen: %s", e, exc_info=True)
     
     # Sende Dashboard-Updates an alle Chat-Mitglieder (außer dem Sender)
     try:

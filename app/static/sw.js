@@ -102,7 +102,6 @@ self.addEventListener('activate', function(event) {
         return Promise.all(
           cacheNames.map(function(cacheName) {
             if (cacheName !== CACHE_NAME) {
-              console.log('Lösche alten Cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -115,7 +114,6 @@ self.addEventListener('activate', function(event) {
               keys.map(function(request) {
                 const url = new URL(request.url);
                 if (ALWAYS_NETWORK_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + '/'))) {
-                  console.log('Entferne gecachte Route:', url.pathname);
                   return cache.delete(request);
                 }
               })

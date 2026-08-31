@@ -1,4 +1,4 @@
-{# What's New Modal – v3.1.0 #}
+{# What's New Modal – v3.3.0 #}
 {% macro wn_feature(icon, key) -%}
 <li class="whats-new-feature">
     <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-{{ icon }}"></i></span>
@@ -14,7 +14,7 @@
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title" id="whatsNewModalLabel">
                     <i class="bi bi-stars" aria-hidden="true"></i>
-                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.1.0'), current=1, total=5) }}</span>
+                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.3.0'), current=1, total=6) }}</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
@@ -22,7 +22,7 @@
             <div class="whats-new-progress" id="whatsNewDots" aria-hidden="true">
                 <div class="whats-new-progress-meta">
                     <div class="whats-new-progress-bar" aria-hidden="true"><span id="whatsNewProgressFill"></span></div>
-                    <span class="whats-new-progress-count" id="whatsNewProgressCount">1/5</span>
+                    <span class="whats-new-progress-count" id="whatsNewProgressCount">1/6</span>
                 </div>
             </div>
 
@@ -30,24 +30,24 @@
                 <div class="whats-new-panels">
                 <div class="whats-new-panel is-active" data-panel="welcome">
                     <div class="whats-new-welcome">
-                        <span class="whats-new-welcome-badge">v{{ whats_new_version|default('3.1.0') }}</span>
+                        <span class="whats-new-welcome-badge">v{{ whats_new_version|default('3.3.0') }}</span>
                         <div class="whats-new-welcome-hero" aria-hidden="true">
                             <i class="bi bi-rocket-takeoff"></i>
                         </div>
                         <h3 class="whats-new-welcome-title">{{ _('dashboard.whats_new.welcome.title') }}</h3>
-                        <p class="whats-new-welcome-text">{{ _('dashboard.whats_new.welcome.text', version=whats_new_version|default('3.1.0')) }}</p>
+                        <p class="whats-new-welcome-text">{{ _('dashboard.whats_new.welcome.text', version=whats_new_version|default('3.3.0')) }}</p>
                         <ul class="whats-new-welcome-highlights">
                             <li>
-                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-palette2"></i></span>
-                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.design') }}</span>
-                            </li>
-                            <li>
-                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-grid-1x2"></i></span>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-clipboard-data"></i></span>
                                 <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.modules') }}</span>
                             </li>
                             <li>
-                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></span>
-                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.security') }}</span>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-download"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.media_downloader') }}</span>
+                            </li>
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-gear"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.settings') }}</span>
                             </li>
                         </ul>
                     </div>
@@ -56,11 +56,25 @@
                 <div class="whats-new-panel" data-panel="overview">
                     <p class="whats-new-overview-subtitle">{{ _('dashboard.whats_new.overview_subtitle') }}</p>
                     <div class="whats-new-tile-grid">
-                        <button type="button" class="whats-new-tile whats-new-tile--lg whats-new-module-btn" data-goto="general">
-                            <span class="whats-new-module-icon text-secondary"><i class="bi bi-sliders"></i></span>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="surveys">
+                            <span class="whats-new-module-icon text-success"><i class="bi bi-clipboard-data"></i></span>
                             <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.general.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.general.teaser') }}</small>
+                                <strong>{{ _('dashboard.whats_new.modules.surveys.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.surveys.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="excalidraw">
+                            <span class="whats-new-module-icon text-warning"><i class="bi bi-pencil-square"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.excalidraw.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.excalidraw.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="media_downloader">
+                            <span class="whats-new-module-icon text-danger"><i class="bi bi-download"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
                             </span>
                         </button>
                         <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="settings">
@@ -70,32 +84,45 @@
                                 <small>{{ _('dashboard.whats_new.modules.settings.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="email">
-                            <span class="whats-new-module-icon text-info"><i class="bi bi-envelope"></i></span>
-                            <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.email.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.email.teaser') }}</small>
-                            </span>
-                        </button>
                     </div>
                 </div>
 
-                <div class="whats-new-panel" data-panel="general">
+                <div class="whats-new-panel" data-panel="surveys">
                     <div class="whats-new-detail-header">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg text-secondary"><i class="bi bi-sliders"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.general.title') }}</h6></div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-success"><i class="bi bi-clipboard-data"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.surveys.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.general.items.design') }}
-                        {{ wn_feature('brush', 'dashboard.whats_new.modules.general.items.accent') }}
-                        {{ wn_feature('exclamation-circle', 'dashboard.whats_new.modules.general.items.alerts') }}
-                        {{ wn_feature('layout-sidebar', 'dashboard.whats_new.modules.general.items.navigation') }}
-                        {{ wn_feature('menu-button-wide', 'dashboard.whats_new.modules.general.items.context_menus') }}
-                        {{ wn_feature('gear-wide-connected', 'dashboard.whats_new.modules.general.items.setup') }}
-                        {{ wn_feature('bell', 'dashboard.whats_new.modules.general.items.push') }}
-                        {{ wn_feature('envelope-paper', 'dashboard.whats_new.modules.general.items.email_templates') }}
-                        {{ wn_feature('filetype-pdf', 'dashboard.whats_new.modules.general.items.pdf') }}
-                        {{ wn_feature('translate', 'dashboard.whats_new.modules.general.items.i18n') }}
+                        {{ wn_feature('clipboard-plus', 'dashboard.whats_new.modules.surveys.items.module') }}
+                        {{ wn_feature('ui-checks-grid', 'dashboard.whats_new.modules.surveys.items.builder') }}
+                        {{ wn_feature('link-45deg', 'dashboard.whats_new.modules.surveys.items.public') }}
+                        {{ wn_feature('bar-chart', 'dashboard.whats_new.modules.surveys.items.results') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="excalidraw">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-warning"><i class="bi bi-pencil-square"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.excalidraw.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('brush', 'dashboard.whats_new.modules.excalidraw.items.module') }}
+                        {{ wn_feature('people', 'dashboard.whats_new.modules.excalidraw.items.collab') }}
+                        {{ wn_feature('clock-history', 'dashboard.whats_new.modules.excalidraw.items.versions') }}
+                        {{ wn_feature('share', 'dashboard.whats_new.modules.excalidraw.items.sharing') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="media_downloader">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-danger"><i class="bi bi-download"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('hdd-network', 'dashboard.whats_new.modules.media_downloader.items.datacenter') }}
+                        {{ wn_feature('browser-chrome', 'dashboard.whats_new.modules.media_downloader.items.client') }}
+                        {{ wn_feature('collection-play', 'dashboard.whats_new.modules.media_downloader.items.playlists') }}
+                        {{ wn_feature('shield-check', 'dashboard.whats_new.modules.media_downloader.items.stability') }}
                     </ul>
                 </div>
 
@@ -105,20 +132,10 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.settings.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        {{ wn_feature('plug', 'dashboard.whats_new.modules.settings.items.oauth') }}
-                        {{ wn_feature('google', 'dashboard.whats_new.modules.settings.items.google') }}
-                        {{ wn_feature('people', 'dashboard.whats_new.modules.settings.items.teams') }}
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="email">
-                    <div class="whats-new-detail-header">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg text-info"><i class="bi bi-envelope"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.email.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        {{ wn_feature('inboxes', 'dashboard.whats_new.modules.email.items.multi_mailbox') }}
-                        {{ wn_feature('people', 'dashboard.whats_new.modules.email.items.team') }}
+                        {{ wn_feature('search', 'dashboard.whats_new.modules.settings.items.search') }}
+                        {{ wn_feature('layout-text-window', 'dashboard.whats_new.modules.settings.items.structure') }}
+                        {{ wn_feature('layout-sidebar', 'dashboard.whats_new.modules.settings.items.navigation') }}
+                        {{ wn_feature('list-ul', 'dashboard.whats_new.modules.settings.items.catalog') }}
                     </ul>
                 </div>
                 </div>

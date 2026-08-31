@@ -62,7 +62,9 @@ from app.utils.kanban_access import (
     can_manage_board,
     can_view_board,
     get_allowed_visibilities,
+    get_board_member_roles,
     get_board_membership,
+    is_effective_board_member,
     visibility_allowed,
 )
 from app.utils.onlyoffice import is_onlyoffice_enabled, is_onlyoffice_file_type
@@ -181,6 +183,33 @@ def _upload_root():
     root = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'kanban')
     os.makedirs(root, exist_ok=True)
     return root
+
+
+def _serialize_board_members(board: KanbanBoard) -> list[dict]:
+    roles = get_board_member_roles(board)
+    if not roles:
+        return []
+    users = {
+        user.id: user
+        for user in User.query.filter(User.id.in_(roles)).all()
+    }
+    role_order = {'owner': 0, 'admin': 1, 'member': 2}
+    entries = []
+    for user_id, role in roles.items():
+        user = users.get(user_id)
+        if not user:
+            continue
+        entries.append((
+            role_order.get(role, 3),
+            (user.full_name or user.email or '').lower(),
+            user,
+            role,
+        ))
+    entries.sort()
+    return [
+        {**(_user_brief(user) or {}), 'role': role}
+        for _, _, user, role in entries
+    ]
 
 
 def _user_brief(user: User | None) -> dict | None:
@@ -416,7 +445,7 @@ def _serialize_board(
         'team_name': board.team.name if board.team else None,
         'closed': bool(board.closed_at),
         'created_at': board.created_at.isoformat() if board.created_at else None,
-        'member_count': len(board.members),
+        'member_count': len(get_board_member_roles(board)),
         'url': url_for('kanban.board', board_id=board.id),
     }
     if full:
@@ -428,10 +457,7 @@ def _serialize_board(
             {'id': lb.id, 'name': lb.name, 'color': lb.color, 'position': lb.position}
             for lb in sorted(board.labels, key=lambda x: x.position)
         ]
-        data['members'] = [
-            {**(_user_brief(m.user) or {}), 'role': m.role}
-            for m in board.members if m.user
-        ]
+        data['members'] = _serialize_board_members(board)
         if share_token:
             data['can_edit'] = True  # caller passes token only for authorized share view; refine below
             share = get_share_by_token(share_token)
@@ -1064,6 +1090,8 @@ def api_toggle_assignee(card_id):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     user_id = int(data['user_id'])
+    if not is_effective_board_member(board, user_id):
+        return jsonify({'error': 'Assignee is not a board member'}), 400
     existing = KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=user_id).first()
     if existing:
         db.session.delete(existing)
@@ -1175,10 +1203,7 @@ def api_checklist_item(item_id):
                 assignee_id = int(raw_assignee)
             except (TypeError, ValueError):
                 return jsonify({'error': 'Invalid assignee_id'}), 400
-            is_member = KanbanBoardMember.query.filter_by(
-                board_id=board.id, user_id=assignee_id
-            ).first()
-            if assignee_id != board.created_by and not is_member:
+            if not is_effective_board_member(board, assignee_id):
                 return jsonify({'error': 'Assignee is not a board member'}), 400
             item.assignee_id = assignee_id
     db.session.commit()
@@ -1956,12 +1981,7 @@ def api_board_members(board_id):
     if err:
         return err
     if request.method == 'GET':
-        return jsonify({
-            'members': [
-                {**(_user_brief(m.user) or {}), 'role': m.role}
-                for m in board.members if m.user
-            ]
-        })
+        return jsonify({'members': _serialize_board_members(board)})
     if not can_manage_board(current_user, board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}

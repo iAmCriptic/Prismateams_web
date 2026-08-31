@@ -37,6 +37,7 @@ from app.utils.lock_manager import (
 from app.utils.common import format_datetime
 
 email_bp = Blueprint('email', __name__)
+logger = logging.getLogger(__name__)
 
 
 def get_portal_display_name():
@@ -2651,8 +2652,7 @@ def sync_emails_from_server(mailbox=None):
     mailbox=None → Hauptpostfach (App-Config).
     """
     label = f"mailbox#{mailbox.id}" if mailbox is not None else "main"
-    print(f"E-Mail-Synchronisation wird gestartet ({label})")
-    logging.info(f"E-Mail-Synchronisation wird gestartet ({label})")
+    logger.info(f"E-Mail-Synchronisation wird gestartet ({label})")
     
     shared_conn = None
     try:
@@ -2665,8 +2665,7 @@ def sync_emails_from_server(mailbox=None):
         # OAuth-Postfächer haben kein IMAP-Passwort – Platzhalter-Check nur für Passwort-Auth
         if auth_type != 'oauth' and _is_placeholder_imap_config(imap_server, username, password):
             message = "IMAP ist nicht konfiguriert (Platzhalterwerte erkannt) - Synchronisation übersprungen"
-            logging.warning(message)
-            print(message)
+            logger.warning(message)
             return False, message
         if not imap_server or not username:
             message = "IMAP-Konfiguration unvollständig (Server/Benutzer fehlen)"
@@ -2741,8 +2740,7 @@ def sync_emails_from_server(mailbox=None):
                 folder_results.append(f"{display_name}: Fehler - {str(folder_error)}")
                 continue
         
-        print(f"E-Mail-Synchronisation wurde beendet: {successful_folders} erfolgreich, {failed_folders} fehlgeschlagen")
-        logging.info(f"E-Mail-Synchronisation wurde beendet: {successful_folders} Ordner erfolgreich, {failed_folders} Ordner fehlgeschlagen")
+        logger.info(f"E-Mail-Synchronisation wurde beendet: {successful_folders} Ordner erfolgreich, {failed_folders} Ordner fehlgeschlagen")
         
         # Erstelle Ergebnis-Meldung
         if total_new > 0:
@@ -2762,7 +2760,7 @@ def sync_emails_from_server(mailbox=None):
         logging.error(f"Kritischer Fehler in sync_emails_from_server: {e}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
-        print(f"E-Mail-Synchronisation Fehler: {e}")
+        logger.error(f"E-Mail-Synchronisation Fehler: {e}", exc_info=True)
         return False, f"Kritischer Fehler: {str(e)}"
     finally:
         if shared_conn is not None:
@@ -4873,17 +4871,28 @@ def sync_emails():
                 with acquire_email_sync_lock(timeout=0) as acquired:
                     if acquired:
                         if mb_obj is not None:
-                            # Wichtig: Ordnerliste (Gmail [Gmail]/Trash …) + Inhalte aller Ordner
-                            print(f"E-Mail-Synchronisation wird gestartet (vollständiges Postfach, mailbox={sync_mailbox_id})")
+                            logger.info(
+                                "E-Mail-Synchronisation wird gestartet (vollständiges Postfach, mailbox=%s)",
+                                sync_mailbox_id,
+                            )
                             success, message = sync_emails_from_server(mailbox=mb_obj)
-                            print(f"E-Mail-Synchronisation wurde beendet (mailbox={sync_mailbox_id})")
+                            logger.info(
+                                "E-Mail-Synchronisation wurde beendet (mailbox=%s)",
+                                sync_mailbox_id,
+                            )
                         elif current_folder:
-                            print(f"E-Mail-Synchronisation wird gestartet (Ordner: {folder_label or current_folder})")
+                            logger.info(
+                                "E-Mail-Synchronisation wird gestartet (Ordner: %s)",
+                                folder_label or current_folder,
+                            )
                             sync_imap_folders(mailbox=None)
                             success, message = sync_emails_from_folder(
                                 current_folder, mailbox=None
                             )
-                            print(f"E-Mail-Synchronisation wurde beendet (Ordner: {folder_label or current_folder})")
+                            logger.info(
+                                "E-Mail-Synchronisation wurde beendet (Ordner: %s)",
+                                folder_label or current_folder,
+                            )
                         else:
                             # Nur Hauptpostfach synchronisieren
                             success, message = sync_emails_from_server(mailbox=None)
@@ -4893,10 +4902,9 @@ def sync_emails():
                         else:
                             emit_status('error', message, 'danger', shouldRefresh=False)
                     else:
-                        print("E-Mail-Synchronisation: Bereits in einem anderen Worker aktiv")
+                        logger.debug("E-Mail-Synchronisation: Bereits in einem anderen Worker aktiv")
                         emit_status('warning', 'Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning', shouldRefresh=False)
             except Exception as exc:
-                print(f"E-Mail-Synchronisation Fehler: {exc}")
                 app_instance.logger.error(f"E-Mail-Synchronisation Fehler: {exc}", exc_info=True)
                 emit_status('error', str(exc), 'danger', shouldRefresh=False)
     
@@ -5672,7 +5680,7 @@ def imap_set_keyword(uid, folder, keyword, enabled=True):
 
 def email_sync_scheduler(app):
     """Background thread for automatic email synchronization every 15 minutes."""
-    print("E-Mail-Sync-Scheduler Thread gestartet, warte 30 Sekunden vor erster Synchronisation...")
+    logger.info("E-Mail-Sync-Scheduler Thread gestartet, warte 30 Sekunden vor erster Synchronisation...")
     # Warte 30 Sekunden nach App-Start, bevor die erste Synchronisation startet
     time.sleep(30)
     
@@ -5687,25 +5695,18 @@ def email_sync_scheduler(app):
                         try:
                             success, message = sync_all_configured_mailboxes()
                             if success:
-                                logging.debug(f"Auto-sync: {message}")
+                                logger.debug("Auto-sync: %s", message)
                             else:
-                                logging.error(f"Auto-sync failed: {message}")
+                                logger.error("Auto-sync failed: %s", message)
                         except Exception as sync_error:
-                            logging.error(f"Fehler während der Synchronisation: {sync_error}")
-                            import traceback
-                            logging.error(f"Traceback: {traceback.format_exc()}")
-                            print(f"E-Mail-Synchronisation Fehler: {sync_error}")
+                            logger.error(f"Fehler während der Synchronisation: {sync_error}", exc_info=True)
                     else:
-                        logging.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
+                        logger.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
         except Exception as e:
-            logging.error(f"Auto-sync error: {e}")
-            import traceback
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            print(f"E-Mail-Sync-Scheduler Fehler: {e}")
+            logger.error(f"E-Mail-Sync-Scheduler Fehler: {e}", exc_info=True)
         finally:
-            # Stelle sicher, dass wir nach der Synchronisation immer warten
             if lock_acquired:
-                print("E-Mail-Synchronisation abgeschlossen, warte 15 Minuten bis zur nächsten...")
+                logger.debug("E-Mail-Synchronisation abgeschlossen, warte 15 Minuten bis zur nächsten...")
         
         # Nach jeder Synchronisation 15 Minuten warten
         time.sleep(900)
@@ -5737,8 +5738,10 @@ def start_email_sync(app):
     # Prüfe zuerst, ob bereits ein Thread mit diesem Namen läuft (auch nach Reload)
     existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
     if existing_threads:
-        print(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
-        logging.debug(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
+        logger.debug(
+            "E-Mail-Sync-Thread läuft bereits (gefunden %s Thread(s)), überspringe Neustart",
+            len(existing_threads),
+        )
         return
     
     from pathlib import Path
@@ -5749,20 +5752,19 @@ def start_email_sync(app):
         # Doppelte Prüfung innerhalb des Locks
         existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
         if existing_threads:
-            print(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
-            logging.debug(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
+            logger.debug(
+                "E-Mail-Sync-Thread läuft bereits (zweite Prüfung, %s Thread(s)), überspringe Neustart",
+                len(existing_threads),
+            )
             return
         
         if _sync_started:
-            print("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
-            logging.debug("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
+            logger.debug("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
             return
 
-        # Leader-Election über Worker-Grenzen: nur ein Gunicorn-Worker startet den Scheduler
         leader = try_acquire_email_sync_leader(lock_dir=lock_dir)
         if leader is None:
-            print("E-Mail-Sync-Leader bereits von anderem Worker gehalten — kein Sync-Thread in diesem Worker")
-            logging.info("E-Mail-Sync-Leader bereits aktiv — dieser Worker startet keinen Scheduler")
+            logger.info("E-Mail-Sync-Leader bereits aktiv — dieser Worker startet keinen Scheduler")
             return
 
         _email_sync_leader = leader
@@ -5777,5 +5779,4 @@ def start_email_sync(app):
         _sync_started = True
         sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True, name="email-sync-scheduler")
         sync_thread.start()
-        print("E-Mail Auto-Sync Thread gestartet (dieser Worker ist Sync-Leader)")
-        logging.info("E-Mail Auto-Sync gestartet (Leader, alle 15 Minuten)")
+        logger.info("E-Mail Auto-Sync gestartet (Leader, alle 15 Minuten)")

@@ -334,9 +334,6 @@ apiScript.onerror = function() {
         editorDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;"><h3>OnlyOffice konnte nicht geladen werden</h3><p>Bitte überprüfen Sie:</p><ul style="text-align: left; display: inline-block;"><li>OnlyOffice Document Server läuft auf Port 8080</li><li>Nginx-Konfiguration ist korrekt</li><li>OnlyOffice ist unter /onlyoffice erreichbar</li></ul><p style="margin-top: 1rem;">API-URL: {{ onlyoffice_api_url }}</p></div>';
     }
 };
-apiScript.onload = function() {
-    console.log('OnlyOffice API-Skript erfolgreich geladen');
-};
 document.head.appendChild(apiScript);
 
 function waitForOnlyOfficeAPI(callback) {
@@ -427,30 +424,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add token if available (OnlyOffice requires token when JWT is enabled)
     {% if token and token|length > 0 %}
     config.token = "{{ token }}";
-    console.log('OnlyOffice JWT token added to config (length: {{ token|length }})');
     {% else %}
     console.warn('OnlyOffice JWT token not provided - JWT may be disabled or secret key not set');
     console.warn('If OnlyOffice Document Server has JWT_ENABLED=true, you must set ONLYOFFICE_SECRET_KEY in .env');
     {% endif %}
     
-    // Log configuration for debugging
-    console.log('OnlyOffice config:', {
-        documentUrl: config.document.url,
-        documentKey: config.document.key,
-        documentType: config.documentType,
-        callbackUrl: config.editorConfig.callbackUrl,
-        hasToken: !!config.token
-    });
-    
-    // Note: The document URL will be fetched by OnlyOffice Document Server, not by the browser
-    // The browser cannot test this directly due to CORS - OnlyOffice Document Server must fetch it
-    console.log('Document URL for OnlyOffice Document Server:', config.document.url);
-    console.log('OnlyOffice Document Server will fetch this URL directly from its server');
-    
     // Wait for ONLYOFFICE API to load
     waitForOnlyOfficeAPI(function() {
         try {
-            console.log('Initializing OnlyOffice editor...');
             docEditor = new DocsAPI.DocEditor("onlyoffice-editor", config);
             if (!docEditor) {
                 console.error('OnlyOffice editor object is null');

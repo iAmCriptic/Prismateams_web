@@ -6,7 +6,8 @@ from flask import current_app
 
 from app.models.kanban import KanbanBoard, KanbanBoardMember, KanbanCard, KanbanList
 from app.models.settings import SystemSettings
-from app.models.team import TeamMember
+from app.models.team import Team, TeamMember
+from app.models.user import User
 from app.utils.access_control import has_module_access
 from app.utils.common import is_module_enabled
 
@@ -63,6 +64,67 @@ def get_board_membership(board: KanbanBoard, user) -> KanbanBoardMember | None:
     if not board or not user:
         return None
     return KanbanBoardMember.query.filter_by(board_id=board.id, user_id=user.id).first()
+
+
+def _team_member_user_ids(team: Team | None) -> set[int]:
+    if not team:
+        return set()
+    ids = {m.user_id for m in TeamMember.query.filter_by(team_id=team.id).all()}
+    if team.leader_id:
+        ids.add(team.leader_id)
+    return ids
+
+
+def _kanban_eligible_user_ids() -> set[int]:
+    """Active users who may use the Kanban module."""
+    return {
+        user.id
+        for user in User.query.filter_by(is_active=True).all()
+        if has_module_access(user, 'module_kanban')
+    }
+
+
+def get_board_member_roles(board: KanbanBoard) -> dict[int, str]:
+    """User id -> role for everyone shown as a board member in the UI."""
+    explicit = {m.user_id: m.role for m in (board.members or []) if m.user_id}
+
+    if board.visibility == VISIBILITY_PRIVATE:
+        candidate_ids = set(explicit)
+        if board.created_by:
+            candidate_ids.add(board.created_by)
+    elif board.visibility == VISIBILITY_TEAM and board.team_id:
+        team = board.team or Team.query.get(board.team_id)
+        candidate_ids = _team_member_user_ids(team)
+        candidate_ids.update(explicit)
+        if board.created_by:
+            candidate_ids.add(board.created_by)
+        candidate_ids &= _kanban_eligible_user_ids()
+    elif board.visibility == VISIBILITY_PUBLIC:
+        candidate_ids = _kanban_eligible_user_ids()
+        candidate_ids.update(explicit)
+    else:
+        candidate_ids = set(explicit)
+
+    active_ids = {
+        user.id
+        for user in User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True)).all()
+    } if candidate_ids else set()
+
+    roles: dict[int, str] = {}
+    for user_id in active_ids:
+        if user_id == board.created_by:
+            roles[user_id] = explicit.get(user_id, 'owner')
+        elif user_id in explicit:
+            roles[user_id] = explicit[user_id]
+        else:
+            roles[user_id] = 'member'
+    return roles
+
+
+def is_effective_board_member(board: KanbanBoard, user_id: int | None) -> bool:
+    if not user_id:
+        return False
+    return user_id in get_board_member_roles(board)
 
 
 def can_view_board(user, board: KanbanBoard, *, allow_closed: bool = False) -> bool:
