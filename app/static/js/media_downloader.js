@@ -119,8 +119,9 @@
 
         function configureClient() {
             const proxyUrl = root.dataset.youtubeProxyUrl;
-            if (proxyUrl && window.MediaDownloaderClient?.configure) {
-                window.MediaDownloaderClient.configure({ proxyUrl });
+            const youtubeiUrl = root.dataset.youtubeiUrl;
+            if (window.MediaDownloaderClient?.configure) {
+                window.MediaDownloaderClient.configure({ proxyUrl, youtubeiUrl });
             }
         }
 

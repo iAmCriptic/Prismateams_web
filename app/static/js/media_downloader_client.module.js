@@ -38,11 +38,16 @@ let platformReady = false;
 let playlistClientPromise = null;
 let proxyUrl = null;
 let cachedProxyFetch = null;
+let configuredYoutubeiUrl = null;
 
 export function configure(options = {}) {
     if (options.proxyUrl) {
         proxyUrl = options.proxyUrl;
         cachedProxyFetch = null;
+    }
+    if (options.youtubeiUrl) {
+        configuredYoutubeiUrl = options.youtubeiUrl;
+        youtubeJsModulePromise = null;
     }
 }
 
@@ -247,12 +252,22 @@ export function canonicalizePlaylistUrl(url) {
 async function importYoutubeJs() {
     if (!youtubeJsModulePromise) {
         youtubeJsModulePromise = (async () => {
-            try {
-                return await import(/* webpackIgnore: true */ YTJS_LOCAL_URL);
-            } catch (localErr) {
-                console.warn('[MediaDownloader] Local youtubei.js unavailable, using CDN fallback', localErr);
-                return import(/* webpackIgnore: true */ YTJS_CDN_URL);
+            const candidates = [
+                configuredYoutubeiUrl,
+                YTJS_CDN_URL,
+                YTJS_LOCAL_URL,
+            ].filter(Boolean);
+
+            let lastErr;
+            for (const url of candidates) {
+                try {
+                    return await import(/* webpackIgnore: true */ url);
+                } catch (err) {
+                    lastErr = err;
+                    console.warn('[MediaDownloader] youtubei.js load failed, trying next source:', url, err);
+                }
             }
+            throw lastErr || new Error('youtubei_load_failed');
         })();
     }
     return youtubeJsModulePromise;
