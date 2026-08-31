@@ -449,6 +449,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script type="module" src="{{ url_for('static', filename='js/media_downloader_bootstrap.mjs') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/media_downloader_bootstrap.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 <script src="{{ url_for('static', filename='js/media_downloader.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

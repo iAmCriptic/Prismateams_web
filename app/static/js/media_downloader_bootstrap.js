@@ -12,7 +12,7 @@ import {
     getPlaylistEntries,
     mapClientError,
     ClientDownloadError,
-} from './media_downloader_client.mjs';
+} from './media_downloader_client.module.js';
 
 window.MediaDownloaderClient = {
     configure,
