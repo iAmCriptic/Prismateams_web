@@ -650,3 +650,35 @@ def iter_youtube_proxy_response(requests_response):
                 yield chunk
     finally:
         requests_response.close()
+
+
+YOUTUBEI_JS_VERSION = '18.0.0'
+YOUTUBEI_JS_URL = f'https://unpkg.com/youtubei.js@{YOUTUBEI_JS_VERSION}/bundle/browser.js'
+YOUTUBEI_JS_MIN_BYTES = 100_000
+
+
+def youtubei_vendor_path(app=None):
+    app = app or current_app
+    static_root = app.static_folder or os.path.join(app.root_path, 'static')
+    return os.path.join(static_root, 'vendor', 'youtubei.js', 'browser.js')
+
+
+def ensure_youtubei_vendor(app=None):
+    """Download youtubei.js browser bundle if missing (not shipped in git)."""
+    import urllib.request
+
+    app = app or current_app
+    target = youtubei_vendor_path(app)
+    if os.path.isfile(target) and os.path.getsize(target) > YOUTUBEI_JS_MIN_BYTES:
+        return target
+
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    req = urllib.request.Request(YOUTUBEI_JS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = resp.read()
+    if len(data) < YOUTUBEI_JS_MIN_BYTES:
+        raise RuntimeError(f'youtubei.js bundle too small ({len(data)} bytes)')
+    with open(target, 'wb') as handle:
+        handle.write(data)
+    logger.info('Downloaded youtubei.js %s browser bundle (%s bytes)', YOUTUBEI_JS_VERSION, len(data))
+    return target

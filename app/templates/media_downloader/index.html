@@ -167,6 +167,7 @@
      data-clear-all-url="{{ url_for('media_downloader.clear_all') }}"
      data-youtube-search-url="{{ url_for('media_downloader.youtube_search') }}"
      data-youtube-proxy-url="{{ url_for('media_downloader.youtube_proxy') }}"
+     data-youtubei-url="{{ url_for('media_downloader.youtubei_vendor') }}"
      data-download-url-template="{{ url_for('media_downloader.download_file', job_id=0) }}"
      data-status-url-template="{{ url_for('media_downloader.job_status', job_id=0) }}"
      data-delete-url-template="{{ url_for('media_downloader.delete_job', job_id=0) }}"
@@ -449,6 +450,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>window.__mediaDlAssetV = {{ config.ABOUT_BUILD_NUMBER|tojson }};</script>
 <script type="module" src="{{ url_for('static', filename='js/media_downloader_bootstrap.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 <script src="{{ url_for('static', filename='js/media_downloader.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

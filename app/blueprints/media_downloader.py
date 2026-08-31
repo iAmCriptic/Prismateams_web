@@ -29,6 +29,7 @@ from app.utils.media_downloader import (
     is_allowed_youtube_proxy_url,
     build_youtube_proxy_request,
     iter_youtube_proxy_response,
+    ensure_youtubei_vendor,
     YOUTUBE_PROXY_SKIP_RESPONSE_HEADERS,
 )
 
@@ -444,6 +445,19 @@ def youtube_search():
             'error': translate('media_downloader.search.error'),
             'results': [],
         }), 502
+
+
+@media_downloader_bp.route('/vendor/youtubei.js')
+@login_required
+@check_module_access('module_media_downloader')
+def youtubei_vendor():
+    """Serve youtubei.js via Flask (nginx /static bypasses Python mimetypes)."""
+    try:
+        path = ensure_youtubei_vendor(current_app)
+        return send_file(path, mimetype='text/javascript', conditional=True)
+    except Exception as exc:
+        logger.error('youtubei.js vendor unavailable: %s', exc, exc_info=True)
+        return Response('// youtubei.js unavailable\n', status=503, mimetype='text/javascript')
 
 
 @media_downloader_bp.route('/youtube-proxy', methods=['POST'])
