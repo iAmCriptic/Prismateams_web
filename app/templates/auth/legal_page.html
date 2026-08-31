@@ -9,7 +9,7 @@
         <div class="auth-panel">
             <div class="auth-panel-body">
                 <h1 class="auth-legal-heading mb-3">{{ page_heading }}</h1>
-                <div class="auth-legal-content">{{ content }}</div>
+                <div class="auth-legal-content markdown-body">{{ content | markdown | safe }}</div>
                 <div class="text-center mt-4">
                     <a href="{{ url_for('auth.login') }}" class="text-muted">{{ _('auth.legal.back_to_login') }}</a>
                 </div>

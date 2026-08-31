@@ -356,7 +356,10 @@ function revealDashboardCredential(id, username) {
             if (usernameElement) usernameElement.textContent = `${userLabel}: ${username}`;
             if (passwordElement) passwordElement.textContent = `${revealLabel}: ${data.password}`;
         })
-        .catch(() => alert(errorMessage));
+        .catch(() => {
+            if (typeof window.ptAlert === 'function') window.ptAlert(errorMessage, 'danger');
+            else window.alert(errorMessage);
+        });
 }
 
 function copyDashboardCredentialField(id, field, usernameValue = null) {
@@ -368,11 +371,21 @@ function copyDashboardCredentialField(id, field, usernameValue = null) {
     const usernameElement = document.getElementById(`dashboard-user-${id}`);
     const passwordElement = document.getElementById(`dashboard-pwd-${id}`);
     const writeClipboard = (value, successMessage) => {
-        navigator.clipboard.writeText(value).then(() => alert(successMessage)).catch(() => alert(errorMessage));
+        navigator.clipboard.writeText(value).then(() => {
+            if (typeof window.ptAlert === 'function') window.ptAlert(successMessage, 'success');
+            else window.alert(successMessage);
+        }).catch(() => {
+            if (typeof window.ptAlert === 'function') window.ptAlert(errorMessage, 'danger');
+            else window.alert(errorMessage);
+        });
     };
     if (field === 'username') {
         const username = usernameValue || dashboardCredentialCache[id]?.username || '';
-        if (!username) { alert(errorMessage); return; }
+        if (!username) {
+            if (typeof window.ptAlert === 'function') window.ptAlert(errorMessage, 'danger');
+            else window.alert(errorMessage);
+            return;
+        }
         if (usernameElement) usernameElement.textContent = `${userLabel}: ${username}`;
         dashboardCredentialCache[id] = { ...dashboardCredentialCache[id], username };
         writeClipboard(username, copiedUsername);
@@ -395,7 +408,10 @@ function copyDashboardCredentialField(id, field, usernameValue = null) {
             if (passwordElement) passwordElement.textContent = `${revealLabel}: ${data.password}`;
             writeClipboard(data.password, copiedPassword);
         })
-        .catch(() => alert(errorMessage));
+        .catch(() => {
+            if (typeof window.ptAlert === 'function') window.ptAlert(errorMessage, 'danger');
+            else window.alert(errorMessage);
+        });
 }
 
 function dismissUpdateBanner() {

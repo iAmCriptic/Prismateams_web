@@ -15,9 +15,11 @@ MOBILE_NAV_SLOT_KEYS = (
     'inventory',
     'wiki',
     'excalidraw',
+    'surveys',
     'booking',
     'music',
     'kanban',
+    'file_converter',
 )
 
 MOBILE_NAV_DEFAULT_SLOTS = {
@@ -42,9 +44,11 @@ DESKTOP_NAV_ORDER = (
     'shortlinks',
     'kanban',
     'excalidraw',
+    'surveys',
     'booking',
     'music',
     'media_downloader',
+    'file_converter',
     'assessment',
 )
 
@@ -179,12 +183,28 @@ NAV_LINK_REGISTRY = {
         'active_prefix': 'excalidraw',
         'in_launcher': True,
     },
+    'surveys': {
+        'endpoint': 'surveys.index',
+        'icon': 'bi-ui-checks-grid',
+        'label_key': 'layout.nav.surveys',
+        'module': 'module_surveys',
+        'active_prefix': 'surveys',
+        'in_launcher': True,
+    },
     'media_downloader': {
         'endpoint': 'media_downloader.index',
         'icon': 'bi-download',
         'label_key': 'layout.nav.media_downloader',
         'module': 'module_media_downloader',
         'active_prefix': 'media_downloader',
+        'in_launcher': True,
+    },
+    'file_converter': {
+        'endpoint': 'file_converter.index',
+        'icon': 'bi-arrow-left-right',
+        'label_key': 'layout.nav.file_converter',
+        'module': 'module_file_converter',
+        'active_prefix': 'file_converter',
         'in_launcher': True,
     },
     'assessment': {

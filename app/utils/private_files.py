@@ -36,14 +36,18 @@ def user_file_team_ids(user):
 
 def user_file_teams(user):
     """Teams shown as file-sidebar folders (members; admins see all)."""
+    from app.utils.team_module_settings import filter_teams_with_section
+
     if not is_team_folders_enabled() or not user or getattr(user, 'is_guest', False):
         return []
     if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return Team.query.order_by(Team.name).all()
-    team_ids = list(user_file_team_ids(user))
-    if not team_ids:
-        return []
-    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+        teams = Team.query.order_by(Team.name).all()
+    else:
+        team_ids = list(user_file_team_ids(user))
+        if not team_ids:
+            return []
+        teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    return filter_teams_with_section(teams, 'files')
 
 
 def user_may_use_file_team(user, team_id):

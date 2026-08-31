@@ -59,6 +59,15 @@ CRITICAL_TABLES = (
     "public_shares",
     "booking_forms",
     "booking_requests",
+    "surveys",
+    "survey_pages",
+    "survey_questions",
+    "survey_logic_rules",
+    "survey_responses",
+    "survey_answers",
+    "survey_email_verifications",
+    "survey_response_locks",
+    "conversion_jobs",
     "schema_migrations",
 )
 
@@ -94,8 +103,18 @@ def import_all_models() -> None:
     from app.models.inventory import Checkout, CheckoutItem  # noqa: F401
     from app.models.manual import Manual, ManualFolder  # noqa: F401
     from app.models.public_share import PublicShare, ShareAccessLog  # noqa: F401
-    from app.models.team import Team, TeamMember  # noqa: F401
+    from app.models.team import Team, TeamMember, TeamModuleSetting  # noqa: F401
     from app.models.wiki import WikiFavorite  # noqa: F401
+    from app.models.survey import (  # noqa: F401
+        Survey,
+        SurveyPage,
+        SurveyQuestion,
+        SurveyLogicRule,
+        SurveyResponse,
+        SurveyAnswer,
+        SurveyEmailVerification,
+        SurveyResponseLock,
+    )
 
 
 def should_run_startup_schema(*, debug: bool = False) -> bool:

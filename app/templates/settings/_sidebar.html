@@ -1,3 +1,24 @@
+{% macro settings_search(id_suffix='') %}
+<div class="settings-search" role="search" data-settings-search-root>
+    <label class="settings-search-field" for="settingsSearchInput{{ id_suffix }}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="settingsSearchInput{{ id_suffix }}"
+               class="settings-search-input"
+               placeholder="{{ _('settings.search.placeholder') }}"
+               aria-label="{{ _('settings.search.label') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search"
+               data-settings-search-input>
+    </label>
+    <button type="button" class="btn settings-search-clear d-none" id="settingsSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}" data-settings-search-clear>
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <div class="settings-search-results d-none" id="settingsSearchResults{{ id_suffix }}" role="listbox" aria-label="{{ _('settings.search.label') }}" data-settings-search-results></div>
+</div>
+{% endmacro %}
+
 {% macro settings_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
 {% set ep = request.endpoint or '' %}
 
@@ -31,8 +52,10 @@
     'settings.admin_team_detail',
     'settings.delete_team',
     'settings.team_image',
-    'settings.team_mailboxes'
+    'settings.team_mailboxes',
+    'settings.team_settings'
 ] %}
+{% set team_settings_active = ep == 'settings.team_settings' %}
 {% set my_mailboxes_active = ep == 'settings.my_mailboxes' %}
 {% set mailboxes_admin_active = ep in [
     'settings.admin_mailboxes',
@@ -48,7 +71,6 @@
     'auth.test_email'
 ] or mailboxes_admin_active %}
 {% set show_teams_nav = current_user.is_admin or (current_user.led_teams and current_user.led_teams|length > 0) %}
-{% set codes_active = false %}
 {% set whitelist_active = ep in [
     'settings.admin_whitelist',
     'settings.add_whitelist_entry',
@@ -59,18 +81,15 @@
 {% set legal_active = ep == 'settings.admin_legal' %}
 {% set modules_active = ep == 'settings.admin_modules' %}
 {% set integrations_active = ep == 'settings.admin_integrations' %}
-{% set push_active = ep == 'settings.admin_push_subscriptions' %}
 {% set backup_active = ep == 'settings.admin_backup' %}
 {% set registration_active = ep == 'settings.admin_registration' %}
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
-{% set kanban_active = ep == 'settings.admin_kanban_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
-{% set visibility_active = ep == 'settings.admin_module_visibility' %}
-{% set visibility_module = request.view_args.module if visibility_active and request.view_args else '' %}
 
+<div class="settings-sidebar-scroll">
 <nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
     <a href="{{ url_for('settings.index') }}" class="nav-link mod-nav-link{% if start_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-house me-2"></i>{{ _('settings.sidebar.start') }}
@@ -105,8 +124,11 @@
     {% if show_teams_nav and not current_user.is_admin %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.team_lead_heading') }}</div>
-    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active and not team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
+    </a>
+    <a href="{{ url_for('settings.team_settings') }}" class="nav-link mod-nav-link{% if team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-sliders me-2"></i>{{ _('settings.team_settings.title') }}
     </a>
     {% endif %}
 
@@ -142,9 +164,6 @@
     <a href="{{ url_for('settings.admin_integrations') }}" class="nav-link mod-nav-link{% if integrations_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-link-45deg me-2"></i>{{ _('settings.integrations.heading') }}
     </a>
-    <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="nav-link mod-nav-link{% if push_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-bell me-2"></i>{{ _('settings.sidebar.push_subscriptions') }}
-    </a>
     <a href="{{ url_for('settings.admin_backup') }}" class="nav-link mod-nav-link{% if backup_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-archive me-2"></i>{{ _('settings.admin.cards.backup.title') }}
     </a>
@@ -175,41 +194,6 @@
         <i class="bi bi-box-seam me-2"></i>{{ _('settings.sidebar.inventory') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_kanban') %}
-    <a href="{{ url_for('settings.admin_kanban_settings') }}" class="nav-link mod-nav-link{% if kanban_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-kanban me-2"></i>{{ _('settings.sidebar.kanban') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_credentials') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='credentials') }}" class="nav-link mod-nav-link{% if visibility_module == 'credentials' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-key me-2"></i>{{ _('layout.nav.credentials') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_manuals') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='manuals') }}" class="nav-link mod-nav-link{% if visibility_module == 'manuals' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-book me-2"></i>{{ _('layout.nav.manuals') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_contacts') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='contacts') }}" class="nav-link mod-nav-link{% if visibility_module == 'contacts' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-person-lines-fill me-2"></i>{{ _('layout.nav.contacts') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_wiki') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='wiki') }}" class="nav-link mod-nav-link{% if visibility_module == 'wiki' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-journal-text me-2"></i>{{ _('layout.nav.wiki') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_shortlinks') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='shortlinks') }}" class="nav-link mod-nav-link{% if visibility_module == 'shortlinks' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-link-45deg me-2"></i>{{ _('layout.nav.shortlinks') }}
-    </a>
-    {% endif %}
-    {% if is_module_enabled('module_excalidraw') %}
-    <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}" class="nav-link mod-nav-link{% if visibility_module == 'excalidraw' %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-pencil-square me-2"></i>{{ _('layout.nav.excalidraw') }}
-    </a>
-    {% endif %}
     {% if is_module_enabled('module_calendar') %}
     <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}
@@ -220,4 +204,5 @@
     </a>
     {% endif %}
 </nav>
+</div>
 {% endmacro %}

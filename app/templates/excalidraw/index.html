@@ -434,7 +434,8 @@
                     btn.innerHTML = `<i class="bi bi-check2 me-1"></i>${esc(I18N.copied)}`;
                     setTimeout(() => { btn.innerHTML = old; }, 1200);
                 } catch (_) {
-                    alert(btn.getAttribute('data-copy-share'));
+                    if (typeof window.ptAlert === 'function') window.ptAlert(btn.getAttribute('data-copy-share'), 'info');
+                    else window.alert(btn.getAttribute('data-copy-share'));
                 }
             });
         });
@@ -445,12 +446,18 @@
         });
         list.querySelectorAll('[data-del-share]').forEach((btn) => {
             btn.addEventListener('click', async () => {
-                if (!confirm(I18N.deleteConfirm)) return;
+                if (typeof window.ptConfirm === 'function') {
+                    const ok = await window.ptConfirm(I18N.deleteConfirm, { danger: true });
+                    if (!ok) return;
+                } else if (!window.confirm(I18N.deleteConfirm)) {
+                    return;
+                }
                 try {
                     await api(`${sharesUrl(currentShareDrawingId)}/${btn.getAttribute('data-del-share')}`, { method: 'DELETE' });
                     openShareModal(currentShareDrawingId);
                 } catch (err) {
-                    alert(err.message || I18N.loadError);
+                    if (typeof window.ptAlert === 'function') window.ptAlert(err.message || I18N.loadError, 'danger');
+                    else window.alert(err.message || I18N.loadError);
                 }
             });
         });
@@ -519,25 +526,15 @@
             });
         });
 
-        document.querySelectorAll('[data-confirm-delete]').forEach((btn) => {
-            btn.addEventListener('click', async function (e) {
-                e.preventDefault();
-                const message = btn.getAttribute('data-confirm-delete');
-                const form = btn.closest('form');
-                const ok = typeof window.ptConfirm === 'function'
-                    ? await window.ptConfirm(message, { danger: true })
-                    : window.confirm(message);
-                if (ok && form) form.submit();
-            });
-        });
-
         document.querySelectorAll('[data-excalidraw-rename]').forEach((btn) => {
             btn.addEventListener('click', async function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 const id = btn.getAttribute('data-excalidraw-rename');
                 const current = btn.getAttribute('data-excalidraw-name') || '';
-                const next = window.prompt(NAME_REQUIRED, current);
+                const next = typeof window.ptPrompt === 'function'
+                    ? await window.ptPrompt(NAME_REQUIRED, { defaultValue: current, title: NAME_REQUIRED })
+                    : window.prompt(NAME_REQUIRED, current);
                 if (!next || !next.trim() || next.trim() === current) return;
                 const response = await fetch(RENAME_URL + id, {
                     method: 'POST',
@@ -580,7 +577,8 @@
             if (data.success) {
                 window.location.reload();
             } else {
-                alert(data.error || 'Error');
+                if (typeof window.ptAlert === 'function') window.ptAlert(data.error || 'Error', 'danger');
+                else window.alert(data.error || 'Error');
             }
         });
 
@@ -604,7 +602,8 @@
                 e.target.reset();
                 openShareModal(currentShareDrawingId, document.getElementById('excalidrawShareName')?.textContent);
             } catch (err) {
-                alert(err.message || I18N.loadError);
+                if (typeof window.ptAlert === 'function') window.ptAlert(err.message || I18N.loadError, 'danger');
+                else window.alert(err.message || I18N.loadError);
             }
         });
     });

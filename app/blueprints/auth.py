@@ -226,6 +226,12 @@ def register():
         last_name = request.form.get('last_name', '').strip()
         phone = request.form.get('phone', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
+        from app.utils.profile_pictures import (
+            get_uploaded_profile_picture,
+            save_uploaded_profile_picture,
+            validate_profile_picture_file,
+        )
+        profile_file = get_uploaded_profile_picture(request.files)
         
         # Validation
         if not all([email, password, first_name, last_name]):
@@ -240,6 +246,14 @@ def register():
         is_valid, _ = validate_password(password, min_length=12, require_complexity=True)
         if not is_valid:
             flash(translate('auth.flash.password_requirements'), 'danger')
+            return render_template('auth/register.html', **_google_register_template_kwargs())
+
+        picture_error = validate_profile_picture_file(profile_file)
+        if picture_error == 'type':
+            flash(translate('auth.flash.picture_invalid_type'), 'danger')
+            return render_template('auth/register.html', **_google_register_template_kwargs())
+        if picture_error == 'size':
+            flash(translate('auth.flash.picture_too_large'), 'danger')
             return render_template('auth/register.html', **_google_register_template_kwargs())
         
         # Check if user already exists
@@ -287,7 +301,9 @@ def register():
             db.session.add(new_user)
             db.session.flush()
 
-            if google_verified and google_prefill.get('picture'):
+            if profile_file:
+                save_uploaded_profile_picture(new_user, profile_file)
+            elif google_verified and google_prefill.get('picture'):
                 save_google_profile_picture(new_user, google_prefill.get('picture'))
 
             # Standardrollen + E-Mail-Rechte vor dem Commit — unabhängig vom Mailversand

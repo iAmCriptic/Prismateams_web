@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('surveys.nav.create') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 640px;">
+    <h1 class="h4 mb-3">{{ _('surveys.nav.create') }}</h1>
+    <form method="POST" class="surveys-create-form">
+        <div class="mb-3">
+            <label for="surveyTitle" class="form-label">{{ _('surveys.create.title_label') }} <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control"
+                   id="surveyTitle"
+                   name="title"
+                   value="{{ title|default('') }}"
+                   placeholder="{{ _('surveys.create.title_placeholder') }}"
+                   required
+                   autofocus>
+        </div>
+
+        {% from 'partials/visibility_select.html' import visibility_select with context %}
+        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary surveys-btn-pill">{{ _('surveys.create.submit') }}</button>
+            <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}" class="btn btn-outline-secondary surveys-btn-pill">{{ _('common.cancel') }}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

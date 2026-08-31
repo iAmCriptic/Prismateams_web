@@ -1,0 +1,58 @@
+{% macro render_question(question) %}
+<div class="survey-public-question mb-4" data-question-id="{{ question.id }}" data-question-type="{{ question.question_type }}">
+    <label class="form-label fw-semibold">
+        {{ question.label }}
+        {% if question.is_required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% if question.description %}
+    <p class="text-muted small">{{ question.description }}</p>
+    {% endif %}
+
+    {% set cfg = question.get_config() %}
+    {% if question.question_type == 'short_text' %}
+    <input type="text" class="form-control" name="q_{{ question.id }}" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'long_text' %}
+    <textarea class="form-control" name="q_{{ question.id }}" rows="4" {% if question.is_required %}required{% endif %}></textarea>
+    {% elif question.question_type == 'number' %}
+    <input type="number" class="form-control" name="q_{{ question.id }}" step="any" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'email' %}
+    <input type="email" class="form-control" name="q_{{ question.id }}" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'url' %}
+    <input type="url" class="form-control" name="q_{{ question.id }}" placeholder="https://" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'date' %}
+    <input type="date" class="form-control" name="q_{{ question.id }}" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'time' %}
+    <input type="time" class="form-control" name="q_{{ question.id }}" {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'slider' %}
+    <input type="range" class="form-range" name="q_{{ question.id }}"
+           min="{{ cfg.get('min', 0) }}" max="{{ cfg.get('max', 100) }}"
+           {% if cfg.get('step') %}step="{{ cfg.step }}"{% endif %}
+           {% if question.is_required %}required{% endif %}>
+    {% elif question.question_type == 'rating_stars' %}
+    <div class="survey-star-rating" data-max="{{ cfg.get('max_stars', 5) }}">
+        {% for i in range(1, (cfg.get('max_stars', 5)|int) + 1) %}
+        <label class="survey-star">
+            <input type="radio" name="q_{{ question.id }}" value="{{ i }}" {% if question.is_required %}required{% endif %}>
+            <i class="bi bi-star"></i>
+        </label>
+        {% endfor %}
+    </div>
+    {% elif question.question_type == 'single_choice' %}
+    {% for opt in cfg.get('options', []) %}
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="q_{{ question.id }}" id="q{{ question.id }}_{{ loop.index }}" value="{{ opt.id or opt.label }}" {% if question.is_required %}required{% endif %}>
+        <label class="form-check-label" for="q{{ question.id }}_{{ loop.index }}">{{ opt.label }}</label>
+    </div>
+    {% endfor %}
+    {% elif question.question_type == 'multiple_choice' %}
+    {% for opt in cfg.get('options', []) %}
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="q_{{ question.id }}" id="q{{ question.id }}_{{ loop.index }}" value="{{ opt.id or opt.label }}">
+        <label class="form-check-label" for="q{{ question.id }}_{{ loop.index }}">{{ opt.label }}</label>
+    </div>
+    {% endfor %}
+    {% elif question.question_type == 'file_upload' %}
+    <input type="file" class="form-control" name="q_{{ question.id }}" {% if question.is_required %}required{% endif %}>
+    {% endif %}
+</div>
+{% endmacro %}

@@ -92,8 +92,10 @@
 .top-navbar-search .shortlinks-search,
 .top-navbar-search .files-search,
 .top-navbar-search .calendar-search,
+.top-navbar-search .settings-search,
 .top-navbar-search .email-search,
-.top-navbar-search .inventory-search {
+.top-navbar-search .inventory-search,
+.top-navbar-search .surveys-search {
     width: 100%;
     max-width: 42rem;
     margin: 0 auto;

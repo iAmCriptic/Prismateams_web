@@ -16,7 +16,19 @@
     <div class="settings-admin-music-header">
         <div class="settings-admin-music-header-text">
             <h1 class="settings-admin-music-title">{{ _('music.admin.heading') }}</h1>
-            <p class="settings-admin-music-subtitle">{{ _('music.admin.subtitle') }}</p>
+            <p class="settings-admin-music-subtitle">{{ _('music.admin.subtitle_providers_only') }}</p>
+        </div>
+    </div>
+
+    <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+        <div class="portal-msg__body">
+            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+            <div class="portal-msg__content">
+                <p class="portal-msg__text mb-2">{{ _('music.admin.integrations_moved') }}</p>
+                <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
+                    <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>{{ _('settings.integrations.heading') }}
+                </a>
+            </div>
         </div>
     </div>
 
@@ -27,9 +39,6 @@
                     <i class="bi bi-list-check" aria-hidden="true"></i>
                     {{ _('music.admin.provider_activation.title') }}
                 </h2>
-                <button type="button" class="settings-admin-music-info" data-bs-toggle="tooltip" data-bs-custom-class="settings-admin-music-tooltip" title="{{ _('music.admin.provider_activation.description') }}" aria-label="{{ _('music.admin.provider_activation.description') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
             </div>
             <p class="settings-admin-music-hint">{{ _('music.admin.provider_activation.description') }}</p>
 
@@ -61,205 +70,29 @@
                 </div>
                 {% endif %}
                 {% endfor %}
-                {% for provider_info in all_providers if provider_info.id not in provider_order %}
-                <div class="settings-admin-music-row provider-item" data-provider="{{ provider_info.id }}">
-                    <div class="settings-admin-music-row-main">
-                        <div class="form-check form-switch settings-admin-music-switch mb-0">
-                            <input class="form-check-input" type="checkbox"
-                                   id="provider_enabled_{{ provider_info.id }}"
-                                   name="provider_enabled_{{ provider_info.id }}"
-                                   {% if provider_info.id in enabled_providers %}checked{% endif %}>
-                            <label class="form-check-label settings-admin-music-name" for="provider_enabled_{{ provider_info.id }}">
-                                <i class="bi {{ provider_info.icon }}" aria-hidden="true"></i>
-                                <span>{{ provider_info.name }}</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="settings-admin-music-row-actions">
-                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-music-btn move-up" title="{{ _('music.admin.provider_activation.move_up') }}">
-                            <i class="bi bi-arrow-up" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-music-btn move-down" title="{{ _('music.admin.provider_activation.move_down') }}">
-                            <i class="bi bi-arrow-down" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
             </div>
             <input type="hidden" name="provider_order" id="provider_order" value="">
         </section>
 
-        <div class="settings-admin-music-grid settings-admin-music-grid--main">
-            <section class="settings-admin-music-card" aria-labelledby="music-spotify-title">
-                <div class="settings-admin-music-card-head">
-                    <h2 id="music-spotify-title" class="settings-admin-music-section-title mb-0">
-                        <i class="bi bi-spotify" aria-hidden="true"></i>
-                        {{ _('music.admin.spotify.title') }}
-                    </h2>
-                    <button type="button" class="settings-admin-music-info" data-bs-toggle="tooltip" data-bs-custom-class="settings-admin-music-tooltip" title="{{ _('music.admin.spotify.hint') }}" aria-label="{{ _('music.admin.spotify.hint') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-
-                <div class="alert alert-permanent portal-msg portal-msg--{% if spotify_connected %}success{% else %}warning{% endif %} settings-admin-music-msg" role="status">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-{% if spotify_connected %}check-circle{% else %}exclamation-triangle{% endif %}-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <h6 class="portal-msg__title">
-                                {% if spotify_connected %}
-                                {{ _('music.admin.spotify.connected') }}
-                                {% else %}
-                                {{ _('music.admin.spotify.not_connected') }}
-                                {% endif %}
-                            </h6>
-                            <div class="portal-msg__actions">
-                                {% if spotify_connected %}
-                                <a href="{{ url_for('music.disconnect', provider='spotify') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
-                                    <i class="bi bi-plug me-1" aria-hidden="true"></i>{{ _('music.admin.spotify.disconnect') }}
-                                </a>
-                                {% else %}
-                                <a href="{{ url_for('music.connect_spotify') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--primary">
-                                    <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>{{ _('music.admin.spotify.connect') }}
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
+        <section class="settings-admin-music-card mt-3" aria-labelledby="music-display-title">
+            <div class="settings-admin-music-card-head">
+                <h2 id="music-display-title" class="settings-admin-music-section-title mb-0">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                    {{ _('music.admin.display_settings.title') }}
+                </h2>
+            </div>
+            <div class="settings-admin-music-row">
+                <div class="settings-admin-music-row-main">
+                    <div class="form-check form-switch settings-admin-music-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="show_provider_badges" name="show_provider_badges" {% if show_provider_badges %}checked{% endif %}>
+                        <label class="form-check-label" for="show_provider_badges">
+                            <span class="settings-admin-music-name">{{ _('music.admin.display_settings.show_provider_badges') }}</span>
+                        </label>
                     </div>
+                    <p class="settings-admin-music-meta mb-0">{{ _('music.admin.display_settings.show_provider_badges_help') }}</p>
                 </div>
-
-                <div class="settings-admin-music-code-row">
-                    <div class="settings-admin-music-code-label">{{ _('music.admin.spotify.redirect_uri') }}</div>
-                    <div class="settings-admin-music-code-wrap">
-                        <code class="settings-admin-music-code" data-code="{{ spotify_redirect_uri }}">{{ spotify_redirect_uri }}</code>
-                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-music-btn settings-admin-music-copy" data-code="{{ spotify_redirect_uri }}" title="{{ _('music.admin.copy_uri') }}">
-                            <i class="bi bi-clipboard" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                    <p class="settings-admin-music-field-help">{{ _('music.admin.spotify.redirect_uri_help') }}</p>
-                </div>
-
-                <div class="settings-admin-music-fields">
-                    <div class="settings-admin-music-field mb-0">
-                        <label for="spotify_client_id" class="form-label">{{ _('music.admin.spotify.client_id') }}</label>
-                        <input type="text" class="form-control settings-admin-music-input" id="spotify_client_id" name="spotify_client_id"
-                               value="{{ spotify_client_id }}" placeholder="{{ _('music.admin.spotify.client_id_placeholder') }}" autocomplete="off">
-                        <div class="form-text">{{ _('music.admin.spotify.client_id_help', link='https://developer.spotify.com/dashboard') | safe }}</div>
-                    </div>
-                    <div class="settings-admin-music-field mb-0">
-                        <label for="spotify_client_secret" class="form-label">{{ _('music.admin.spotify.client_secret') }}</label>
-                        <input type="password" class="form-control settings-admin-music-input" id="spotify_client_secret" name="spotify_client_secret"
-                               value="{{ spotify_client_secret }}" placeholder="{{ _('music.admin.spotify.client_secret_placeholder') }}" autocomplete="new-password">
-                    </div>
-                </div>
-            </section>
-
-            <section class="settings-admin-music-card" aria-labelledby="music-youtube-title">
-                <div class="settings-admin-music-card-head">
-                    <h2 id="music-youtube-title" class="settings-admin-music-section-title mb-0">
-                        <i class="bi bi-youtube" aria-hidden="true"></i>
-                        {{ _('music.admin.youtube.title') }}
-                    </h2>
-                    <button type="button" class="settings-admin-music-info" data-bs-toggle="tooltip" data-bs-custom-class="settings-admin-music-tooltip" title="{{ _('music.admin.youtube.hint') }}" aria-label="{{ _('music.admin.youtube.hint') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-
-                {% if youtube_connected %}
-                <div class="alert alert-permanent portal-msg portal-msg--success settings-admin-music-msg" role="status">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-check-circle-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <h6 class="portal-msg__title">{{ _('music.admin.youtube.connected') }}</h6>
-                            <div class="portal-msg__actions">
-                                <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
-                                    <i class="bi bi-plug me-1" aria-hidden="true"></i>{{ _('music.admin.youtube.disconnect') }}
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div class="alert alert-permanent portal-msg portal-msg--info settings-admin-music-msg mb-0" role="status">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-info-circle-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <p class="portal-msg__text">{{ _('music.admin.youtube.keys_moved') }}</p>
-                            <div class="portal-msg__actions">
-                                <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
-                                    <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>{{ _('settings.integrations.heading') }}
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <div class="settings-admin-music-grid settings-admin-music-grid--three">
-            <section class="settings-admin-music-card" aria-labelledby="music-deezer-title">
-                <div class="settings-admin-music-card-head">
-                    <h2 id="music-deezer-title" class="settings-admin-music-section-title mb-0">
-                        <i class="bi bi-music-note-list" aria-hidden="true"></i>
-                        {{ _('music.admin.deezer.title') }}
-                    </h2>
-                    <button type="button" class="settings-admin-music-info" data-bs-toggle="tooltip" data-bs-custom-class="settings-admin-music-tooltip" title="{{ _('music.admin.deezer.hint') }}" aria-label="{{ _('music.admin.deezer.hint') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="settings-admin-music-field mb-0">
-                    <label for="deezer_app_id" class="form-label">{{ _('music.admin.deezer.app_id_label') }}</label>
-                    <input type="text" class="form-control settings-admin-music-input" id="deezer_app_id" name="deezer_app_id"
-                           value="{{ deezer_app_id }}" placeholder="{{ _('music.admin.deezer.app_id_placeholder') }}" autocomplete="off">
-                    <div class="form-text">{{ _('music.admin.deezer.app_id_help', link='https://developers.deezer.com/myapps') | safe }}</div>
-                </div>
-            </section>
-
-            <section class="settings-admin-music-card" aria-labelledby="music-musicbrainz-title">
-                <div class="settings-admin-music-card-head">
-                    <h2 id="music-musicbrainz-title" class="settings-admin-music-section-title mb-0">
-                        <i class="bi bi-database" aria-hidden="true"></i>
-                        {{ _('music.admin.musicbrainz.title') }}
-                    </h2>
-                </div>
-                <div class="alert alert-permanent portal-msg portal-msg--info settings-admin-music-msg mb-0" role="status">
-                    <div class="portal-msg__body">
-                        <div class="portal-msg__icon" aria-hidden="true">
-                            <i class="bi bi-info-circle-fill"></i>
-                        </div>
-                        <div class="portal-msg__content">
-                            <p class="portal-msg__text">{{ _('music.admin.musicbrainz.description') }}</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="settings-admin-music-card" aria-labelledby="music-display-title">
-                <div class="settings-admin-music-card-head">
-                    <h2 id="music-display-title" class="settings-admin-music-section-title mb-0">
-                        <i class="bi bi-eye" aria-hidden="true"></i>
-                        {{ _('music.admin.display_settings.title') }}
-                    </h2>
-                </div>
-                <div class="settings-admin-music-row">
-                    <div class="settings-admin-music-row-main">
-                        <div class="form-check form-switch settings-admin-music-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="show_provider_badges" name="show_provider_badges" {% if show_provider_badges %}checked{% endif %}>
-                            <label class="form-check-label" for="show_provider_badges">
-                                <span class="settings-admin-music-name">{{ _('music.admin.display_settings.show_provider_badges') }}</span>
-                            </label>
-                        </div>
-                        <p class="settings-admin-music-meta mb-0">{{ _('music.admin.display_settings.show_provider_badges_help') }}</p>
-                    </div>
-                </div>
-            </section>
-        </div>
+            </div>
+        </section>
 
         <div class="settings-admin-music-actions">
             <button type="submit" class="btn btn-accent settings-admin-music-submit">
@@ -272,28 +105,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var root = document.querySelector('.settings-admin-music');
-    if (!root) return;
-
-    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-
-    root.querySelectorAll('.settings-admin-music-copy').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var code = btn.getAttribute('data-code') || '';
-            if (!code || !navigator.clipboard) return;
-            navigator.clipboard.writeText(code).then(function () {
-                btn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
-                setTimeout(function () {
-                    btn.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
-                }, 1200);
-            });
-        });
-    });
-
     var providerList = document.getElementById('providerList');
     var providerOrderInput = document.getElementById('provider_order');
     if (!providerList || !providerOrderInput) return;

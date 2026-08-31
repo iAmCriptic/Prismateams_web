@@ -1,0 +1,51 @@
+<!-- Global confirm dialog (replaces native window.confirm) -->
+<div class="modal fade" id="ptConfirmModal" tabindex="-1" aria-labelledby="ptConfirmTitleText" aria-hidden="true"
+     data-i18n-title="{{ _('common.confirm_delete_title') }}"
+     data-i18n-message="{{ _('common.confirm_delete_default') }}"
+     data-i18n-ok="{{ _('common.delete') }}"
+     data-i18n-cancel="{{ _('common.cancel') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content pt-confirm-modal">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+                    <i id="ptConfirmIcon" class="bi bi-exclamation-triangle-fill text-danger flex-shrink-0" aria-hidden="true"></i>
+                    <span id="ptConfirmTitleText">{{ _('common.confirm_delete_title') }}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="ptConfirmMessage">{{ _('common.confirm_delete_default') }}</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptConfirmCancelBtn">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-danger" id="ptConfirmOkBtn">{{ _('common.delete') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global prompt dialog (replaces native window.prompt) -->
+<div class="modal fade" id="ptPromptModal" tabindex="-1" aria-labelledby="ptPromptTitleText" aria-hidden="true"
+     data-i18n-ok="{{ _('common.confirm') }}"
+     data-i18n-cancel="{{ _('common.cancel') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content pt-confirm-modal">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-pencil-square text-primary flex-shrink-0" aria-hidden="true"></i>
+                    <span id="ptPromptTitleText">{{ _('common.confirm') }}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="ptPromptMessage"></p>
+                <label class="visually-hidden" for="ptPromptInput" id="ptPromptInputLabel">{{ _('common.confirm') }}</label>
+                <input type="text" class="form-control" id="ptPromptInput" autocomplete="off">
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptPromptCancelBtn">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-outline-primary" id="ptPromptOkBtn">{{ _('common.confirm') }}</button>
+            </div>
+        </div>
+    </div>
+</div>

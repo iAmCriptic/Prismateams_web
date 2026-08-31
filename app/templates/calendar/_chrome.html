@@ -174,8 +174,8 @@
                     {% endif %}
                     {% if cal.can_delete_calendar %}
                     <li>
-                        <form method="POST" action="{{ url_for('calendar.delete_user_calendar', calendar_id=cal.id) }}" onsubmit="return confirm({{ _('calendar.sidebar.delete_calendar_confirm')|tojson }});">
-                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>{{ _('calendar.sidebar.delete') }}</button>
+                        <form method="POST" action="{{ url_for('calendar.delete_user_calendar', calendar_id=cal.id) }}">
+                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('calendar.sidebar.delete_calendar_confirm') }}"><i class="bi bi-trash me-2"></i>{{ _('calendar.sidebar.delete') }}</button>
                         </form>
                     </li>
                     {% endif %}

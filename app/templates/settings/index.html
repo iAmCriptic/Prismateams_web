@@ -79,6 +79,36 @@
     </div>
 </section>
 
+{% if current_user.led_teams and current_user.led_teams|length > 0 and not current_user.is_admin %}
+<section class="settings-start-section mb-4" aria-labelledby="settings-leader-heading">
+    <h2 id="settings-leader-heading" class="settings-start-section-title">
+        {{ _('settings.sidebar.team_lead_heading') }}
+    </h2>
+    <div class="row g-2 settings-tile-grid">
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.admin_teams') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-diagram-3"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.admin.cards.teams.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.team_settings.teams_tile_desc') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <a href="{{ url_for('settings.team_settings') }}" class="settings-tile">
+                <span class="settings-tile-icon"><i class="bi bi-sliders"></i></span>
+                <span class="settings-tile-body">
+                    <span class="settings-tile-title">{{ _('settings.team_settings.title') }}</span>
+                    <span class="settings-tile-desc">{{ _('settings.team_settings.tile_desc') }}</span>
+                </span>
+                <i class="bi bi-chevron-right settings-tile-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 {% if current_user.is_admin %}
 <section id="admin" class="settings-start-section settings-start-admin" aria-labelledby="settings-admin-heading">
     <div class="settings-start-admin-header">
@@ -138,9 +168,9 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{{ url_for('settings.admin_push_subscriptions') }}">
-                            <i class="bi bi-bell"></i>
-                            <span>{{ _('settings.sidebar.push_subscriptions') }}</span>
+                        <a href="{{ url_for('settings.admin_integrations') }}">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>{{ _('settings.integrations.heading') }}</span>
                         </a>
                     </li>
                     <li>
@@ -192,62 +222,6 @@
                         <a href="{{ url_for('settings.admin_inventory_settings') }}">
                             <i class="bi bi-box-seam"></i>
                             <span>{{ _('settings.sidebar.inventory') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_kanban') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_kanban_settings') }}">
-                            <i class="bi bi-kanban"></i>
-                            <span>{{ _('settings.sidebar.kanban') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_credentials') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='credentials') }}">
-                            <i class="bi bi-key"></i>
-                            <span>{{ _('layout.nav.credentials') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_manuals') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='manuals') }}">
-                            <i class="bi bi-book"></i>
-                            <span>{{ _('layout.nav.manuals') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_contacts') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='contacts') }}">
-                            <i class="bi bi-person-lines-fill"></i>
-                            <span>{{ _('layout.nav.contacts') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_wiki') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='wiki') }}">
-                            <i class="bi bi-journal-text"></i>
-                            <span>{{ _('layout.nav.wiki') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_shortlinks') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='shortlinks') }}">
-                            <i class="bi bi-link-45deg"></i>
-                            <span>{{ _('layout.nav.shortlinks') }}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if is_module_enabled('module_excalidraw') %}
-                    <li>
-                        <a href="{{ url_for('settings.admin_module_visibility', module='excalidraw') }}">
-                            <i class="bi bi-pencil-square"></i>
-                            <span>{{ _('layout.nav.excalidraw') }}</span>
                         </a>
                     </li>
                     {% endif %}

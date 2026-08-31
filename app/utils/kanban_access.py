@@ -33,12 +33,18 @@ def is_kanban_module_enabled() -> bool:
 
 def get_allowed_visibilities() -> list[str]:
     """Board types that may be created / openly discovered."""
+    from app.utils.module_visibility_settings import (
+        is_global_private_enabled,
+        is_global_public_enabled,
+        is_global_team_enabled,
+    )
+
     allowed = []
-    if _setting_bool(SETTING_ALLOW_PRIVATE, True):
+    if is_global_private_enabled() and _setting_bool(SETTING_ALLOW_PRIVATE, True):
         allowed.append(VISIBILITY_PRIVATE)
-    if _setting_bool(SETTING_ALLOW_TEAM, True):
+    if is_global_team_enabled() and _setting_bool(SETTING_ALLOW_TEAM, True):
         allowed.append(VISIBILITY_TEAM)
-    if _setting_bool(SETTING_ALLOW_PUBLIC, True):
+    if is_global_public_enabled() and _setting_bool(SETTING_ALLOW_PUBLIC, True):
         allowed.append(VISIBILITY_PUBLIC)
     return allowed or [VISIBILITY_PRIVATE]
 
@@ -142,6 +148,9 @@ def accessible_boards_query(user, *, include_closed: bool = False):
         for m in KanbanBoardMember.query.filter_by(user_id=user.id).all()
     ]
     allowed = set(get_allowed_visibilities())
+    if VISIBILITY_TEAM in allowed and team_ids:
+        from app.utils.team_module_settings import is_team_section_enabled
+        team_ids = [tid for tid in team_ids if is_team_section_enabled(tid, 'kanban')]
 
     clauses = []
     if member_board_ids:

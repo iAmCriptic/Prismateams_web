@@ -49,7 +49,9 @@ document.querySelectorAll('[data-reopen]').forEach(btn => {
 });
 document.querySelectorAll('[data-delete]').forEach(btn => {
   btn.addEventListener('click', async () => {
-    if (!confirm('Board löschen?')) return;
+    if (!(typeof window.ptConfirm === 'function'
+        ? await window.ptConfirm('Board löschen?', { danger: true })
+        : window.confirm('Board löschen?'))) return;
     await fetch(`/kanban/api/boards/${btn.dataset.delete}`, { method: 'DELETE', headers: {'X-Requested-With':'XMLHttpRequest'} });
     location.reload();
   });

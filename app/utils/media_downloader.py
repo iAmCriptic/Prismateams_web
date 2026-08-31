@@ -1,4 +1,4 @@
-"""Media Downloader utilities (YouTube / YouTube Music via yt-dlp + FFmpeg)."""
+"""Media Downloader utilities (client-side fetch + server FFmpeg conversion)."""
 import glob
 import logging
 import os
@@ -29,11 +29,22 @@ PLAYLIST_LIST_PREFIXES = ('PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
 FFMPEG_FALLBACK_PATHS = (
     '/usr/bin/ffmpeg',
     '/usr/local/bin/ffmpeg',
+    r'C:\ffmpeg\bin\ffmpeg.exe',
+    r'C:\Program Files\ffmpeg\bin\ffmpeg.exe',
+    os.path.expandvars(r'%LOCALAPPDATA%\Microsoft\WinGet\Links\ffmpeg.exe'),
 )
 
 
 class DownloadCancelledError(Exception):
-    """Raised when an active download should be cancelled."""
+    """Raised when an active conversion should be cancelled."""
+
+
+class ConvertError(Exception):
+    """Raised when FFmpeg conversion fails."""
+
+    def __init__(self, error_key='err_convert_failed', message=None):
+        super().__init__(message or error_key)
+        self.error_key = error_key
 
 
 def normalize_media_url(url):
@@ -42,12 +53,10 @@ def normalize_media_url(url):
         return ''
 
     cleaned = str(url).strip()
-    # First URL in pasted text (chat messages, etc.)
     match = re.search(r'https?://[^\s<>"\']+', cleaned, flags=re.IGNORECASE)
     if match:
         cleaned = match.group(0)
     else:
-        # Bare youtube.com / youtu.be without scheme
         bare = re.search(
             r'(?:www\.)?(?:music\.)?(?:m\.)?(?:youtube\.com|youtu\.be)/\S+',
             cleaned,
@@ -74,7 +83,6 @@ def _is_allowed_host(host):
         return True
     if f'www.{host}' in ALLOWED_HOSTS:
         return True
-    # m.youtube.com / music.youtube.com already covered; allow *.youtube.com
     if host.endswith('.youtube.com') or host == 'youtube.com' or host == 'youtu.be':
         return True
     return False
@@ -98,7 +106,7 @@ def get_ffmpeg_path():
 
 
 def is_media_downloader_compatible():
-    """True when FFmpeg is available (system requirement for downloads)."""
+    """True when FFmpeg is available (required for server-side conversion)."""
     return bool(get_ffmpeg_path())
 
 
@@ -133,7 +141,6 @@ def _get_playlist_list_id(parsed):
 
 
 def _is_true_playlist_list_id(list_id):
-    """True when list= ID looks like a real playlist (not mix/radio RD…)."""
     if not list_id:
         return False
     upper = list_id.upper()
@@ -154,11 +161,9 @@ def is_playlist_url(url):
     path = parsed.path.rstrip('/').lower() or '/'
     list_id = _get_playlist_list_id(parsed)
 
-    # Explicit playlist pages (YouTube + YouTube Music)
     if path == '/playlist' or path.endswith('/playlist'):
         return bool(list_id)
 
-    # Any allowed host with a real playlist list= id (watch, share, music browse…)
     if _is_true_playlist_list_id(list_id):
         return True
 
@@ -172,12 +177,7 @@ def is_playlist_url(url):
 
 
 def canonicalize_playlist_url(url):
-    """
-    Rewrite watch/share/music URLs with list= to a canonical /playlist?list= URL.
-
-    yt-dlp often returns _type=url (no entries) for watch?v=…&list=PL… links;
-    /playlist?list=… extracts entries reliably.
-    """
+    """Rewrite watch/share/music URLs with list= to a canonical /playlist?list= URL."""
     url = normalize_media_url(url)
     if not url or not is_playlist_url(url):
         return url
@@ -219,7 +219,6 @@ def validate_media_url(url):
     path = parsed.path.rstrip('/').lower() or '/'
     list_id = _get_playlist_list_id(parsed)
 
-    # Playlist URLs are always valid when they carry a list id
     if path == '/playlist' or path.endswith('/playlist'):
         if list_id:
             return True, None
@@ -259,7 +258,6 @@ def parse_time_segment(start_str, end_str):
 
     Returns:
         tuple: (start, end, error_key)
-        start/end are original strings when valid, or None when empty.
     """
     start_str = (start_str or '').strip()
     end_str = (end_str or '').strip()
@@ -285,10 +283,15 @@ def parse_time_segment(start_str, end_str):
 def get_upload_dir():
     base = current_app.config['UPLOAD_FOLDER']
     if not os.path.isabs(base):
-        # Defense: avoid Flask send_file resolving relative paths under app.root_path
         project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
         base = os.path.join(project_root, base)
     target = os.path.abspath(os.path.join(base, 'media_downloader'))
+    os.makedirs(target, exist_ok=True)
+    return target
+
+
+def get_raw_dir(job_id):
+    target = os.path.abspath(os.path.join(get_upload_dir(), 'raw', str(job_id)))
     os.makedirs(target, exist_ok=True)
     return target
 
@@ -298,380 +301,197 @@ def get_retention_timedelta():
     return timedelta(hours=max(1, int(hours)))
 
 
-DEFAULT_PLAYER_CLIENTS = ('ios', 'web_creator', 'mweb')
+def _slugify_title(title, fallback='download'):
+    text = (title or fallback).strip() or fallback
+    text = re.sub(r'[^\w\s.-]', '', text, flags=re.UNICODE)
+    text = re.sub(r'\s+', '_', text).strip('._')
+    return (text[:200] or fallback)
 
 
-def _parse_player_clients(raw):
-    """Parse comma/space-separated player client names; fall back to defaults."""
-    if not raw or not str(raw).strip():
-        return list(DEFAULT_PLAYER_CLIENTS)
-    clients = [
-        part.strip()
-        for part in str(raw).replace(';', ',').split(',')
-        if part.strip()
-    ]
-    return clients or list(DEFAULT_PLAYER_CLIENTS)
-
-
-def _resolve_cookies_file():
-    """
-    Return a readable cookies.txt path from config, or None.
-
-    Logs a warning when configured but missing/unreadable (no crash).
-    """
-    configured = (current_app.config.get('MEDIA_DOWNLOADER_COOKIES_FILE') or '').strip()
-    if not configured:
-        return None
-
-    path = configured
-    if not os.path.isabs(path):
-        project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
-        path = os.path.join(project_root, path)
-    path = os.path.abspath(path)
-
-    if not os.path.isfile(path):
-        logger.warning(
-            'MEDIA_DOWNLOADER_COOKIES_FILE is set but file not found: %s',
-            path,
-        )
-        return None
-    if not os.access(path, os.R_OK):
-        logger.warning(
-            'MEDIA_DOWNLOADER_COOKIES_FILE is not readable: %s',
-            path,
-        )
-        return None
-    return path
-
-
-def _get_common_ydl_opts():
-    """Shared yt-dlp options for metadata extraction and downloads."""
-    max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 100 * 1024 * 1024)
+def _run_ffmpeg(args, should_cancel=None):
     ffmpeg_path = get_ffmpeg_path()
-    player_clients = _parse_player_clients(
-        current_app.config.get('MEDIA_DOWNLOADER_PLAYER_CLIENT')
-    )
+    if not ffmpeg_path:
+        raise ConvertError('incompatible', 'FFmpeg not available')
 
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'restrictfilenames': True,
-        'max_filesize': max_bytes,
-        'http_headers': {
-            'User-Agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/125.0.0.0 Safari/537.36'
-            ),
-            'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-        },
-        'retries': 3,
-        'fragment_retries': 3,
-        # Prefer non-web clients to reduce bot/sign-in blocks on datacenter IPs
-        'extractor_args': {
-            'youtube': {
-                'player_client': player_clients,
-            },
-        },
-    }
+    cmd = [ffmpeg_path, '-y', '-hide_banner', '-loglevel', 'error', *args]
 
-    if ffmpeg_path:
-        ffmpeg_dir = os.path.dirname(ffmpeg_path)
-        ydl_opts['ffmpeg_location'] = ffmpeg_dir or ffmpeg_path
-
-    cookies_file = _resolve_cookies_file()
-    if cookies_file:
-        ydl_opts['cookiefile'] = cookies_file
-
-    return ydl_opts
-
-
-def _map_download_error(exc):
-    """Map yt-dlp / network exceptions to stable flash error keys."""
-    message = str(exc).lower()
-    if (
-        'sign in to confirm you’re not a bot' in message
-        or "sign in to confirm you're not a bot" in message
-        or 'confirm you are not a bot' in message
-        or 'confirm you’re not a bot' in message
-        or 'login required' in message
-        or 'please sign in' in message
-    ):
-        return 'err_bot_check'
-    if 'http error 403' in message or 'forbidden' in message:
-        return 'err_http_403'
-    if (
-        'sign in to confirm your age' in message
-        or 'confirm your age' in message
-        or 'age-restricted' in message
-        or 'age restricted' in message
-    ):
-        return 'err_age_restricted'
-    if 'cookies' in message and (
-        'expired' in message or 'invalid' in message or 'required' in message
-    ):
-        return 'err_cookies_needed'
-    if 'video is unavailable' in message or 'video unavailable' in message:
-        return 'err_video_unavailable'
-    if 'output_not_found' in message:
-        return 'output_not_found'
-    return 'err_download_failed'
-
-
-def extract_playlist_entries(url):
-    """
-    Fetch playlist metadata without downloading.
-
-    Returns:
-        tuple: (result_dict | None, error_key | None)
-    """
-    import yt_dlp
-
-    url = canonicalize_playlist_url(normalize_media_url(url))
-    if not url:
-        return None, 'empty_url'
-
-    def _pull(target_url, opts):
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            return ydl.extract_info(target_url, download=False)
-
-    def _materialize_entries(raw):
-        if raw is None:
-            return None
-        try:
-            return [e for e in raw]
-        except TypeError:
-            return []
-
-    def _has_usable_entries(info):
-        if not info:
-            return False
-        materialized = _materialize_entries(info.get('entries'))
-        if materialized is None:
-            return False
-        # Cache list back onto info so generators are not consumed twice
-        info['entries'] = materialized
-        return any(bool(e) for e in materialized)
-
-    base_opts = _get_common_ydl_opts()
-    attempts = [
-        {
-            **base_opts,
-            'extract_flat': True,
-            'skip_download': True,
-            'noplaylist': False,
-            'yes_playlist': True,
-            'playlistend': 500,
-            'ignoreerrors': True,
-        },
-        {
-            **base_opts,
-            'extract_flat': 'in_playlist',
-            'skip_download': True,
-            'noplaylist': False,
-            'ignoreerrors': True,
-        },
-        {
-            **base_opts,
-            'skip_download': True,
-            'noplaylist': False,
-            'yes_playlist': True,
-            'playlistend': 200,
-            'ignoreerrors': True,
-        },
-    ]
-
-    info = None
-    last_exc = None
-    tried_urls = []
-    urls_to_try = [url]
-
-    for target_url in urls_to_try:
-        if target_url in tried_urls:
-            continue
-        tried_urls.append(target_url)
-
-        for opts in attempts:
-            try:
-                candidate = _pull(target_url, opts)
-            except Exception as exc:
-                last_exc = exc
-                logger.warning('Playlist preview attempt failed for %s: %s', target_url, exc)
-                continue
-
-            if not candidate:
-                continue
-
-            # watch?list=… often returns a redirect stub — follow once
-            if candidate.get('_type') == 'url' and candidate.get('url'):
-                redirect = normalize_media_url(candidate.get('url'))
-                if redirect:
-                    redirect = canonicalize_playlist_url(redirect) or redirect
-                    if redirect not in tried_urls and redirect not in urls_to_try:
-                        urls_to_try.append(redirect)
-                info = candidate
-                continue
-
-            info = candidate
-            if _has_usable_entries(candidate):
-                break
-        if _has_usable_entries(info):
-            break
-
-    if not info:
-        if last_exc:
-            logger.error('Playlist preview failed for %s: %s', url, last_exc, exc_info=True)
-        return None, 'preview_failed'
-
-    entries_raw = _materialize_entries(info.get('entries'))
-    if entries_raw is None:
-        if info.get('_type') == 'url' and info.get('url'):
-            redirect = canonicalize_playlist_url(info.get('url')) or normalize_media_url(info.get('url'))
-            if redirect and redirect not in tried_urls:
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        while proc.poll() is None:
+            if should_cancel and should_cancel():
+                proc.terminate()
                 try:
-                    info = _pull(redirect, attempts[0]) or {}
-                    entries_raw = _materialize_entries(info.get('entries'))
-                except Exception as exc:
-                    logger.warning('Playlist redirect follow failed for %s: %s', redirect, exc)
-                    return None, 'preview_failed'
-        if entries_raw is None:
-            if info.get('_type') == 'playlist':
-                entries_raw = []
-            else:
-                return None, 'not_a_playlist'
-    else:
-        info['entries'] = entries_raw
-
-    entries = []
-    for entry in entries_raw or []:
-        if not entry:
-            continue
-
-        video_id = (entry.get('id') or '').strip()
-        # Flat extracts sometimes put the video id in ie_key/url fields only
-        if not video_id:
-            raw_url = (entry.get('url') or '').strip()
-            if raw_url and not raw_url.startswith(('http://', 'https://')) and '/' not in raw_url:
-                video_id = raw_url
-
-        title = (entry.get('title') or '').strip()
-        if title in ('[Private video]', '[Deleted video]', '[Unavailable video]'):
-            continue
-
-        entry_url = (entry.get('webpage_url') or '').strip()
-        if not entry_url:
-            entry_url = (entry.get('url') or '').strip()
-        if entry_url and not entry_url.startswith(('http://', 'https://')):
-            if 'watch?' in entry_url:
-                entry_url = f'https://www.youtube.com/{entry_url.lstrip("/")}'
-            else:
-                # Flat mode: url is often just the video id
-                entry_url = f'https://www.youtube.com/watch?v={entry_url}'
-        if not entry_url:
-            if not video_id:
-                continue
-            entry_url = f'https://www.youtube.com/watch?v={video_id}'
-
-        # Never keep playlist URLs as entry targets
-        if is_playlist_url(entry_url) and video_id:
-            entry_url = f'https://www.youtube.com/watch?v={video_id}'
-
-        entries.append({
-            'id': video_id or entry_url,
-            'title': title or video_id or entry_url,
-            'url': entry_url,
-            'duration': entry.get('duration'),
-        })
-
-    if not entries:
-        return None, 'empty_playlist'
-
-    return {
-        'playlist_title': info.get('title') or 'Playlist',
-        'entry_count': len(entries),
-        'entries': entries,
-    }, None
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                raise DownloadCancelledError('cancelled')
+        stdout, stderr = proc.communicate(timeout=1)
+        if proc.returncode != 0:
+            logger.error('FFmpeg failed (%s): %s', proc.returncode, stderr or stdout)
+            raise ConvertError('err_convert_failed', stderr or stdout)
+    except DownloadCancelledError:
+        raise
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise ConvertError('err_convert_failed', 'FFmpeg timeout')
+    except OSError as exc:
+        raise ConvertError('err_convert_failed', str(exc)) from exc
 
 
-def run_download(job, should_cancel=None):
+def _list_raw_files(raw_dir):
+    if not os.path.isdir(raw_dir):
+        return []
+    files = []
+    for name in os.listdir(raw_dir):
+        path = os.path.join(raw_dir, name)
+        if os.path.isfile(path) and not name.endswith('.part'):
+            files.append(path)
+    return sorted(files)
+
+
+def _classify_raw_files(raw_files):
+    video_path = None
+    audio_path = None
+    muxed_path = None
+
+    for path in raw_files:
+        base = os.path.basename(path).lower()
+        if base.startswith('video.'):
+            video_path = path
+        elif base.startswith('audio.'):
+            audio_path = path
+        elif base.startswith('muxed.'):
+            muxed_path = path
+        elif muxed_path is None:
+            muxed_path = path
+
+    return video_path, audio_path, muxed_path
+
+
+def run_convert(job, should_cancel=None):
     """
-    Download and convert media for a MediaDownloadJob instance.
+    Convert uploaded raw media files for a MediaDownloadJob.
 
     Returns:
         tuple: (success: bool, error_message: str | None)
     """
-    import yt_dlp
+    raw_dir = get_raw_dir(job.id)
+    raw_files = _list_raw_files(raw_dir)
+    if not raw_files:
+        return False, 'output_not_found'
 
     upload_dir = get_upload_dir()
     output_ext = 'mp3' if job.format == 'audio' else 'mp4'
-    output_template = os.path.join(upload_dir, f'{job.id}_%(title).200B.%(ext)s')
+    title_slug = _slugify_title(job.title, f'job_{job.id}')
+    output_path = os.path.join(upload_dir, f'{job.id}_{title_slug}.{output_ext}')
+    # ASCII temp name with correct extension — FFmpeg uses the suffix for the muxer
+    # (e.g. *.mp3.tmp would fail); non-ASCII titles can break FFmpeg on Windows.
+    temp_path = os.path.join(upload_dir, f'{job.id}_converting.{output_ext}')
 
-    ydl_opts = _get_common_ydl_opts()
-    ydl_opts['outtmpl'] = output_template
-    ydl_opts['noplaylist'] = True
+    if os.path.isfile(temp_path):
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
 
-    if job.format == 'audio':
-        ydl_opts.update({
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        })
-    else:
-        ydl_opts.update({
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4',
-        })
-
-    if job.start_time and job.end_time:
-        ydl_opts['download_sections'] = [f'*{job.start_time}-{job.end_time}']
-
-    def _check_cancel():
-        return bool(should_cancel and should_cancel())
-
-    def _progress_hook(_status):
-        if _check_cancel():
-            raise DownloadCancelledError('cancelled')
-
-    if _check_cancel():
-        return False, 'cancelled'
-
-    ydl_opts['progress_hooks'] = [_progress_hook]
+    video_path, audio_path, muxed_path = _classify_raw_files(raw_files)
+    start_sec = _time_string_to_seconds(job.start_time) if job.start_time else None
+    end_sec = _time_string_to_seconds(job.end_time) if job.end_time else None
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            if _check_cancel():
-                return False, 'cancelled'
-            info = ydl.extract_info(job.source_url, download=True)
-            title = info.get('title') if info else None
+        if should_cancel and should_cancel():
+            return False, 'cancelled'
 
-        pattern = os.path.join(upload_dir, f'{job.id}_*.{output_ext}')
-        matches = glob.glob(pattern)
-        if not matches:
-            pattern_any = os.path.join(upload_dir, f'{job.id}_*.*')
-            matches = [p for p in glob.glob(pattern_any) if not p.endswith('.part')]
+        if job.format == 'audio':
+            source = audio_path or muxed_path or raw_files[0]
+            args = ['-i', source, '-vn', '-codec:a', 'libmp3lame', '-b:a', '192k']
+            if start_sec is not None and end_sec is not None:
+                args = ['-ss', str(start_sec), '-to', str(end_sec), *args]
+            args.append(temp_path)
+            _run_ffmpeg(args, should_cancel=should_cancel)
+        elif video_path and audio_path:
+            args = [
+                '-i', video_path,
+                '-i', audio_path,
+                '-c:v', 'copy',
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                '-movflags', '+faststart',
+            ]
+            if start_sec is not None and end_sec is not None:
+                args = ['-ss', str(start_sec), '-to', str(end_sec), *args]
+            args.extend(['-map', '0:v:0', '-map', '1:a:0', temp_path])
+            _run_ffmpeg(args, should_cancel=should_cancel)
+        else:
+            source = muxed_path or video_path or audio_path or raw_files[0]
+            args = ['-i', source, '-c', 'copy', '-movflags', '+faststart']
+            if start_sec is not None and end_sec is not None:
+                args = ['-ss', str(start_sec), '-to', str(end_sec), *args]
+            args.append(temp_path)
+            _run_ffmpeg(args, should_cancel=should_cancel)
 
-        if not matches:
+        if should_cancel and should_cancel():
+            if os.path.isfile(temp_path):
+                os.remove(temp_path)
+            return False, 'cancelled'
+
+        if not os.path.isfile(temp_path):
             return False, 'output_not_found'
 
-        filepath = matches[0]
-        job.title = title
-        job.filename = os.path.basename(filepath)
-        job.file_size = os.path.getsize(filepath)
+        if os.path.isfile(output_path):
+            os.remove(output_path)
+        os.rename(temp_path, output_path)
+
+        job.filename = os.path.basename(output_path)
+        job.file_size = os.path.getsize(output_path)
         job.completed_at = datetime.utcnow()
         job.expires_at = job.completed_at + get_retention_timedelta()
         return True, None
     except DownloadCancelledError:
+        if os.path.isfile(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
         return False, 'cancelled'
+    except ConvertError as exc:
+        if os.path.isfile(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        return False, exc.error_key
     except Exception as exc:
-        logger.error('Media download failed for job %s: %s', job.id, exc, exc_info=True)
-        return False, _map_download_error(exc)
+        logger.error('Media convert failed for job %s: %s', job.id, exc, exc_info=True)
+        if os.path.isfile(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        return False, 'err_convert_failed'
+    finally:
+        delete_job_raw_dir(job.id)
+
+
+def delete_job_raw_dir(job_id):
+    """Remove temporary raw upload directory for a job."""
+    raw_dir = os.path.join(get_upload_dir(), 'raw', str(job_id))
+    if os.path.isdir(raw_dir):
+        try:
+            shutil.rmtree(raw_dir)
+        except OSError as exc:
+            logger.warning('Could not delete raw dir %s: %s', raw_dir, exc)
 
 
 def delete_job_file(job):
-    """Remove the physical file for a job if it exists."""
+    """Remove the physical output file and raw uploads for a job."""
+    delete_job_raw_dir(job.id)
+
     if not job.filename:
         return
 
@@ -681,3 +501,152 @@ def delete_job_file(job):
             os.remove(filepath)
         except OSError as exc:
             logger.warning('Could not delete media file %s: %s', filepath, exc)
+
+    pattern = os.path.join(get_upload_dir(), f'{job.id}_*')
+    for path in glob.glob(pattern):
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+YOUTUBE_PROXY_ALLOWED_SUFFIXES = (
+    '.youtube.com',
+    '.googlevideo.com',
+    '.ggpht.com',
+    '.googleusercontent.com',
+    '.googleapis.com',
+    '.gstatic.com',
+    '.ytimg.com',
+    'youtubei.googleapis.com',
+)
+
+YOUTUBE_PROXY_SKIP_REQUEST_HEADERS = frozenset({
+    'host', 'connection', 'content-length', 'transfer-encoding',
+})
+
+YOUTUBE_PROXY_IOS_UA = (
+    'com.google.ios.youtube/20.11.6 (iPhone10,4; U; CPU iOS 16_7_7 like Mac OS X)'
+)
+YOUTUBE_PROXY_ANDROID_UA = (
+    'com.google.android.youtube/21.03.36'
+    '(Linux; U; Android 16; en_US; SM-S908E Build/TP1A.220624.014) gzip'
+)
+
+YOUTUBE_PROXY_SKIP_RESPONSE_HEADERS = frozenset({
+    'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+    'te', 'trailers', 'transfer-encoding', 'upgrade', 'content-encoding',
+})
+
+YOUTUBE_PROXY_DEFAULT_UA = (
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/125.0.0.0 Safari/537.36'
+)
+
+
+def is_allowed_youtube_proxy_url(url):
+    """Return True when URL may be fetched through the media downloader proxy."""
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+
+    if parsed.scheme != 'https':
+        return False
+
+    host = (parsed.hostname or '').lower().rstrip('.')
+    if not host:
+        return False
+    if host == 'youtu.be':
+        return True
+
+    return any(
+        host == suffix.lstrip('.') or host.endswith(suffix)
+        for suffix in YOUTUBE_PROXY_ALLOWED_SUFFIXES
+    )
+
+
+def build_youtube_proxy_request(data):
+    """
+    Build kwargs for requests.request() from a JSON proxy payload.
+
+    Returns:
+        tuple: (request_kwargs dict, error_key | None)
+    """
+    import base64
+    import requests
+
+    target_url = (data.get('url') or '').strip()
+    if not target_url or not is_allowed_youtube_proxy_url(target_url):
+        return None, 'forbidden_host'
+
+    method = (data.get('method') or 'GET').upper()
+    if method not in ('GET', 'POST', 'HEAD'):
+        return None, 'invalid_method'
+
+    headers = {}
+    raw_headers = data.get('headers') or {}
+    if isinstance(raw_headers, dict):
+        for key, value in raw_headers.items():
+            if not key or value is None:
+                continue
+            lower = key.lower()
+            if lower in YOUTUBE_PROXY_SKIP_REQUEST_HEADERS:
+                continue
+            headers[key] = str(value)
+
+    parsed = urlparse(target_url)
+    host = (parsed.hostname or '').lower()
+    is_googlevideo = host.endswith('.googlevideo.com')
+
+    if is_googlevideo:
+        # Stream URLs are signature-bound to the Innertube client UA. Keep headers minimal.
+        range_header = headers.get('Range') or headers.get('range')
+        if 'c=IOS' in target_url or 'c=iOS' in target_url:
+            headers = {'User-Agent': YOUTUBE_PROXY_IOS_UA, 'Accept': '*/*'}
+        elif 'c=ANDROID' in target_url:
+            headers = {'User-Agent': YOUTUBE_PROXY_ANDROID_UA, 'Accept': '*/*'}
+        else:
+            headers = {
+                'User-Agent': headers.get('User-Agent') or YOUTUBE_PROXY_DEFAULT_UA,
+                'Accept': '*/*',
+            }
+        if range_header:
+            headers['Range'] = range_header
+    elif not any(k.lower() == 'user-agent' for k in headers):
+        headers['User-Agent'] = YOUTUBE_PROXY_DEFAULT_UA
+
+    body = None
+    if method == 'POST':
+        encoding = (data.get('encoding') or 'utf8').lower()
+        raw_body = data.get('body')
+        if raw_body is not None and raw_body != '':
+            if encoding == 'base64':
+                try:
+                    body = base64.b64decode(raw_body)
+                except (ValueError, TypeError):
+                    return None, 'invalid_body'
+            else:
+                body = str(raw_body).encode('utf-8')
+
+    return {
+        'method': method,
+        'url': target_url,
+        'headers': headers,
+        'data': body,
+        'stream': True,
+        'timeout': (15, 600),
+        'allow_redirects': True,
+    }, None
+
+
+def iter_youtube_proxy_response(requests_response):
+    """Yield chunks from a requests response for Flask streaming."""
+    try:
+        for chunk in requests_response.iter_content(chunk_size=65536):
+            if chunk:
+                yield chunk
+    finally:
+        requests_response.close()

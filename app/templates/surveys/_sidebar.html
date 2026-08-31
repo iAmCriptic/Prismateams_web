@@ -1,0 +1,45 @@
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
+
+{% macro surveys_create_url() %}
+{%- if active_nav|default('all') == 'private' -%}
+{{ url_for('surveys.create', view='private') }}
+{%- elif active_nav|default('all') == 'public' -%}
+{{ url_for('surveys.create', view='public') }}
+{%- elif active_nav|default('all') and (active_nav|default('all')).startswith('team-') -%}
+{{ url_for('surveys.create', view='team', team_id=filter_team_id) }}
+{%- else -%}
+{{ url_for('surveys.create') }}
+{%- endif -%}
+{% endmacro %}
+
+{% macro surveys_folder_nav(dismiss_offcanvas=false) %}
+{% set active_nav = active_nav|default('all') %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if active_nav == 'all' %}active{% endif %}"
+       href="{{ url_for('surveys.index') }}"
+       {% if dismiss_offcanvas %}data-surveys-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-ui-checks-grid me-2"></i>{{ _('surveys.nav.all') }}
+    </a>
+    {{ visibility_space_links(
+        'surveys.index',
+        {},
+        'data-surveys-dismiss-offcanvas="1"' if dismiss_offcanvas else '',
+        allowed_visibilities,
+        visibility_teams,
+        active_nav
+    ) }}
+</nav>
+{% endmacro %}
+
+{% macro surveys_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
+{% if include_new %}
+<div class="mod-sidebar-new-wrap w-100">
+    <a href="{{ surveys_create_url() }}"
+       class="btn mod-sidebar-new w-100 text-start"
+       {% if dismiss_offcanvas %}data-surveys-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-lg me-2"></i>{{ _('surveys.nav.new') }}
+    </a>
+</div>
+{% endif %}
+{{ surveys_folder_nav(dismiss_offcanvas) }}
+{% endmacro %}

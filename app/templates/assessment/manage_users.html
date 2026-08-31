@@ -181,8 +181,9 @@
         const res = await fetch('/assessment/api/users', { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!data.success) {
-            if (window.ptConfirm) await window.ptConfirm(data.message || '{{ _("assessment.common.error") }}', { danger: false, confirmLabel: 'OK' });
-            else alert(data.message || 'Error');
+            if (window.AssessmentUI) window.AssessmentUI.notify(data.message || '{{ _("assessment.common.error") }}', 'danger');
+            else if (typeof window.ptAlert === 'function') window.ptAlert(data.message || '{{ _("assessment.common.error") }}', 'danger');
+            else window.alert(data.message || 'Error');
             return;
         }
         resetForm();

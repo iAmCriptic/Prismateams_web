@@ -99,7 +99,8 @@ document.getElementById('copyFeedBtn').addEventListener('click', async function(
             button.classList.add('btn-outline-secondary');
         }, 2000);
     } catch (err) {
-        alert('{{ _("calendar.feed.copy_error") }}');
+        if (typeof window.ptAlert === 'function') window.ptAlert('{{ _("calendar.feed.copy_error") }}', 'danger');
+        else window.alert('{{ _("calendar.feed.copy_error") }}');
     }
 });
 </script>

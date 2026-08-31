@@ -61,7 +61,7 @@ AVAILABLE_LINK_KEYS = [
     'contacts', 'inventory', 'inventory_stock', 'inventory_quick_scan',
     'inventory_checkout', 'inventory_borrows', 'inventory_sets',
     'inventory_tool', 'inventory_print_qr', 'inventory_statistics',
-    'wiki', 'shortlinks', 'kanban', 'excalidraw', 'booking', 'music', 'media_downloader',
+    'wiki', 'shortlinks', 'kanban', 'excalidraw', 'booking', 'music', 'media_downloader', 'file_converter',
     'assessment', 'assessment_evaluate', 'assessment_my_evaluations',
     'assessment_ranking', 'assessment_inspections', 'assessment_warnings',
     'settings', 'profile', 'logout',

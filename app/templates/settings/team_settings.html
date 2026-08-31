@@ -1,0 +1,60 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.team_settings.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.team_settings.title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="settings-admin-modules">
+    <div class="settings-admin-modules-header">
+        <h1 class="settings-admin-modules-title">{{ _('settings.team_settings.heading') }}</h1>
+        <p class="settings-admin-modules-subtitle">{{ _('settings.team_settings.subtitle') }}</p>
+    </div>
+
+    {% if teams|length > 1 %}
+    <div class="settings-appearance-type-toggle mb-3" role="tablist" aria-label="{{ _('settings.team_settings.team_select') }}">
+        {% for t in teams %}
+        <a href="{{ url_for('settings.team_settings', team_id=t.id) }}"
+           class="settings-appearance-type-btn{% if t.id == team.id %} active{% endif %}"
+           {% if t.id == team.id %}aria-current="page"{% endif %}>
+            {{ t.name }}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted small mb-3"><strong>{{ team.name }}</strong></p>
+    {% endif %}
+
+    <form method="POST" class="settings-admin-modules-form">
+        <input type="hidden" name="team_id" value="{{ team.id }}">
+
+        <section class="settings-admin-modules-card" aria-labelledby="team-modules-heading">
+            <div class="settings-admin-modules-card-head">
+                <h2 id="team-modules-heading" class="settings-admin-modules-section-title mb-0">
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                    {{ _('settings.team_settings.section_modules') }}
+                </h2>
+            </div>
+            <p class="settings-admin-modules-hint">{{ _('settings.team_settings.section_lead') }}</p>
+
+            <div class="settings-admin-modules-grid">
+                {% for mod in modules %}
+                <div class="form-check form-switch settings-admin-modules-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="team_module_{{ mod.key }}" name="team_module_{{ mod.key }}"
+                           {% if mod.enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="team_module_{{ mod.key }}">
+                        <span>{{ mod.label }}</span>
+                    </label>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">{{ _('settings.team_settings.no_modules') }}</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="settings-admin-modules-actions">
+            <button type="submit" class="btn btn-accent settings-admin-modules-submit">{{ _('common.save') }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

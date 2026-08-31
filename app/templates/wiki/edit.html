@@ -199,11 +199,13 @@ function handleCategoryChange() {
     }
 }
 
-function goBack() {
+async function goBack() {
     if (hasUnsavedChanges) {
-        if (!confirm(WIKI_EDIT_ALERTS.unsaved_changes || 'You have unsaved changes. Leave page anyway?')) {
-            return;
-        }
+        const msg = WIKI_EDIT_ALERTS.unsaved_changes || 'You have unsaved changes. Leave page anyway?';
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(msg, { danger: false, confirmLabel: 'OK' })
+            : window.confirm(msg);
+        if (!ok) return;
     }
     window.location.href = '{{ url_for("wiki.view", slug=page.slug) }}';
 }
@@ -217,7 +219,11 @@ function savePage(silent = false) {
     if (categorySelect.value === '__new__') {
         if (!newCategoryName) {
             if (!silent) {
-                alert(WIKI_EDIT_ALERTS.new_category_required || 'Please enter a name for the new category.');
+                if (typeof window.ptAlert === 'function') {
+                    window.ptAlert(WIKI_EDIT_ALERTS.new_category_required || 'Please enter a name for the new category.', 'warning');
+                } else {
+                    window.alert(WIKI_EDIT_ALERTS.new_category_required || 'Please enter a name for the new category.');
+                }
             }
             return;
         }
@@ -246,7 +252,11 @@ function savePage(silent = false) {
     .catch(error => {
         console.error('Error saving wiki page:', error);
         if (!silent) {
-            alert(WIKI_EDIT_ALERTS.save_error || 'Failed to save page. Please try again.');
+            if (typeof window.ptAlert === 'function') {
+                window.ptAlert(WIKI_EDIT_ALERTS.save_error || 'Failed to save page. Please try again.', 'danger');
+            } else {
+                window.alert(WIKI_EDIT_ALERTS.save_error || 'Failed to save page. Please try again.');
+            }
         }
     })
     .finally(() => {

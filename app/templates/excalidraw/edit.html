@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
     <link rel="stylesheet" href="{{ excalidraw_css_url }}" onerror="this.onerror=null;this.href='{{ excalidraw_cdn_base }}index.css';">
     <style>
         :root {
@@ -218,6 +219,19 @@ function excalidrawLeaveEditor() {
 {% if share_manage and not is_share_guest %}
 {% from 'partials/visibility_select.html' import visibility_select with context %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% include 'partials/pt_dialogs.html' %}
+<script>
+window.PRISMATEAMS_I18N = window.PRISMATEAMS_I18N || {};
+window.PRISMATEAMS_I18N.common = {{ {
+    'cancel': _('common.cancel'),
+    'delete': _('common.delete'),
+    'confirm': _('common.confirm'),
+    'close': _('common.close'),
+    'confirm_delete_title': _('common.confirm_delete_title'),
+    'confirm_delete_default': _('common.confirm_delete_default')
+} | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <div class="modal fade" id="excalidrawVisibilityModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -341,16 +355,27 @@ function excalidrawLeaveEditor() {
                     const old = btn.innerHTML;
                     btn.innerHTML = `<i class="bi bi-check2 me-1"></i>${esc(I18N.copied)}`;
                     setTimeout(() => { btn.innerHTML = old; }, 1200);
-                } catch (_) { alert(btn.getAttribute('data-copy-share')); }
+                } catch (_) {
+                    if (typeof window.ptAlert === 'function') window.ptAlert(btn.getAttribute('data-copy-share'), 'info');
+                    else window.alert(btn.getAttribute('data-copy-share'));
+                }
             });
         });
         list.querySelectorAll('[data-del-share]').forEach((btn) => {
             btn.addEventListener('click', async () => {
-                if (!confirm(I18N.deleteConfirm)) return;
+                if (typeof window.ptConfirm === 'function') {
+                    const ok = await window.ptConfirm(I18N.deleteConfirm, { danger: true });
+                    if (!ok) return;
+                } else if (!window.confirm(I18N.deleteConfirm)) {
+                    return;
+                }
                 try {
                     await api(`${SHARES_URL}/${btn.getAttribute('data-del-share')}`, { method: 'DELETE' });
                     openShareModal();
-                } catch (err) { alert(err.message || I18N.loadError); }
+                } catch (err) {
+                    if (typeof window.ptAlert === 'function') window.ptAlert(err.message || I18N.loadError, 'danger');
+                    else window.alert(err.message || I18N.loadError);
+                }
             });
         });
     }
@@ -382,7 +407,8 @@ function excalidrawLeaveEditor() {
         if (data.success) {
             getModal('excalidrawVisibilityModal')?.hide();
         } else {
-            alert(data.error || 'Error');
+            if (typeof window.ptAlert === 'function') window.ptAlert(data.error || 'Error', 'danger');
+            else window.alert(data.error || 'Error');
         }
     });
     document.getElementById('excalidrawShareForm')?.addEventListener('submit', async (e) => {
@@ -392,7 +418,10 @@ function excalidrawLeaveEditor() {
             await api(SHARES_URL, { method: 'POST', body: Object.fromEntries(fd.entries()) });
             e.target.reset();
             openShareModal();
-        } catch (err) { alert(err.message || I18N.loadError); }
+        } catch (err) {
+            if (typeof window.ptAlert === 'function') window.ptAlert(err.message || I18N.loadError, 'danger');
+            else window.alert(err.message || I18N.loadError);
+        }
     });
 })();
 </script>

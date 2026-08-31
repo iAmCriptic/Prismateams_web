@@ -42,3 +42,24 @@ class TeamMember(db.Model):
 
     def __repr__(self):
         return f'<TeamMember team={self.team_id} user={self.user_id}>'
+
+
+class TeamModuleSetting(db.Model):
+    """Per-team enable/disable for team-scoped module sections (team leader settings)."""
+
+    __tablename__ = 'team_module_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='CASCADE'), nullable=False)
+    module_key = db.Column(db.String(32), nullable=False)
+    team_section_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    team = db.relationship('Team', backref=db.backref('module_settings', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('team_id', 'module_key', name='unique_team_module_setting'),
+    )
+
+    def __repr__(self):
+        return f'<TeamModuleSetting team={self.team_id} module={self.module_key} enabled={self.team_section_enabled}>'

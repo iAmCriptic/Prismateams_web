@@ -22,6 +22,7 @@ MODULE_KEYS = {
     'wiki': 'module_wiki',
     'shortlinks': 'module_shortlinks',
     'excalidraw': 'module_excalidraw',
+    'surveys': 'module_surveys',
 }
 
 OWNER_ATTRS = {
@@ -31,6 +32,7 @@ OWNER_ATTRS = {
     'wiki': 'created_by',
     'shortlinks': 'created_by',
     'excalidraw': 'created_by',
+    'surveys': 'created_by',
 }
 
 DEFAULT_VISIBILITY = {
@@ -40,6 +42,7 @@ DEFAULT_VISIBILITY = {
     'wiki': VISIBILITY_PUBLIC,
     'shortlinks': VISIBILITY_PRIVATE,
     'excalidraw': VISIBILITY_PUBLIC,
+    'surveys': VISIBILITY_PRIVATE,
 }
 
 
@@ -55,12 +58,18 @@ def _setting_bool(key: str, default: bool = True) -> bool:
 
 
 def get_allowed_visibilities(module: str) -> list[str]:
+    from app.utils.module_visibility_settings import (
+        is_global_private_enabled,
+        is_global_public_enabled,
+        is_global_team_enabled,
+    )
+
     allowed = []
-    if _setting_bool(setting_key(module, 'private'), True):
+    if is_global_private_enabled() and _setting_bool(setting_key(module, 'private'), True):
         allowed.append(VISIBILITY_PRIVATE)
-    if _setting_bool(setting_key(module, 'team'), True):
+    if is_global_team_enabled() and _setting_bool(setting_key(module, 'team'), True):
         allowed.append(VISIBILITY_TEAM)
-    if _setting_bool(setting_key(module, 'public'), True):
+    if is_global_public_enabled() and _setting_bool(setting_key(module, 'public'), True):
         allowed.append(VISIBILITY_PUBLIC)
     return allowed or [VISIBILITY_PRIVATE]
 
@@ -77,16 +86,20 @@ def user_team_ids(user) -> set[int]:
 
 def user_visibility_teams(user, module: str):
     """Teams shown as sidebar folders (members; admins see all)."""
+    from app.utils.team_module_settings import filter_teams_with_section
+
     if VISIBILITY_TEAM not in get_allowed_visibilities(module) or not user:
         return []
     if getattr(user, 'is_guest', False):
         return []
     if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return Team.query.order_by(Team.name).all()
-    team_ids = list(user_team_ids(user))
-    if not team_ids:
-        return []
-    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+        teams = Team.query.order_by(Team.name).all()
+    else:
+        team_ids = list(user_team_ids(user))
+        if not team_ids:
+            return []
+        teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    return filter_teams_with_section(teams, module)
 
 
 def user_may_use_team(user, module: str, team_id) -> bool:

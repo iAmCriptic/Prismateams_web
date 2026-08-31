@@ -70,6 +70,13 @@
                         <span>{{ _('settings.admin.registration.scope_share_edit') }}</span>
                     </label>
                 </div>
+                <div class="settings-admin-registration-chip-wrap">
+                    <input type="checkbox" class="btn-check" id="portal_bot_protection_surveys" name="portal_bot_protection_surveys" autocomplete="off" {% if config.surveys_enabled %}checked{% endif %}>
+                    <label class="settings-admin-registration-chip" for="portal_bot_protection_surveys">
+                        <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                        <span>{{ _('settings.admin.registration.scope_surveys') }}</span>
+                    </label>
+                </div>
             </div>
         </section>
 

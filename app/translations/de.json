@@ -31,7 +31,9 @@
       "kanban": "Kanban",
       "events": "Veranstaltungen",
       "shortlinks": "Kurzlinks",
-      "assessment": "Bewertung"
+      "assessment": "Bewertung",
+      "surveys": "Umfragen",
+      "file_converter": "Dateikonverter"
     },
     "brand": {
       "separator": "–",
@@ -173,6 +175,14 @@
       "email": "E-Mail-Adresse",
       "email_google_locked": "Die E-Mail-Adresse kommt von Google und kann hier nicht geändert werden.",
       "phone_optional": "Telefonnummer (optional)",
+      "picture_optional": "Profilbild (optional)",
+      "picture_choose": "Bild wählen",
+      "picture_clear": "Entfernen",
+      "picture_help": "JPG, PNG oder GIF · max. 5 MB. Du kannst das Bild später im Profil ändern.",
+      "picture_alt": "Profilbild",
+      "picture_alt_preview": "Profilbild-Vorschau",
+      "picture_error_type": "Nur JPG, PNG und GIF-Dateien sind erlaubt.",
+      "picture_error_size": "Die Datei ist zu groß. Maximale Größe: 5 MB.",
       "password": "Passwort",
       "password_help": "Mindestens 12 Zeichen, Groß- und Kleinbuchstaben, Zahlen und Sonderzeichen.",
       "confirm_password": "Passwort bestätigen",
@@ -274,7 +284,9 @@
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt.",
-      "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut."
+      "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF sind erlaubt.",
+      "picture_too_large": "Das Profilbild ist zu groß. Maximale Größe: 5 MB."
     },
     "bot_protection": {
       "recaptcha_required": "Bitte bestätigen Sie, dass Sie kein Roboter sind."
@@ -824,6 +836,26 @@
       "kanban": "Kanban",
       "kanban_desc": "Sichtbarkeit Private / Team / Public für Boards"
     },
+    "search": {
+      "label": "Einstellungen durchsuchen",
+      "placeholder": "Einstellung suchen…"
+    },
+    "team_settings": {
+      "title": "Teameinstellungen",
+      "page_title": "Teameinstellungen - Einstellungen",
+      "heading": "Teameinstellungen",
+      "subtitle": "Team-Bereiche pro Team für Mitglieder ein- oder ausschalten.",
+      "team_select": "Team auswählen",
+      "section_modules": "Team-Module",
+      "section_lead": "Steuert, ob Mitglieder dieses Teams den Team-Bereich des Moduls sehen. Globale Freigabe erfolgt unter Module.",
+      "module_chat": "Team-Chat",
+      "tile_desc": "Team-Bereiche der Module verwalten",
+      "teams_tile_desc": "Mitglieder und Team-Postfächer",
+      "no_modules": "Keine aktiven Module mit Team-Bereich.",
+      "flash_saved": "Teameinstellungen wurden gespeichert.",
+      "flash_no_teams": "Sie leiten derzeit kein Team.",
+      "flash_email_disabled": "E-Mail-Team-Bereich ist für dieses Team deaktiviert."
+    },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
@@ -1228,7 +1260,10 @@
       "excalidraw_label": "Excalidraw Integration:",
       "excalidraw_active": "Aktiv",
       "excalidraw_inactive": "Nicht aktiv",
-      "back_button": "Zurück zu Einstellungen"
+      "back_button": "Zurück zu Einstellungen",
+      "file_converter_label": "Dateikonverter / LibreOffice",
+      "libreoffice_available": "LibreOffice verfügbar",
+      "libreoffice_missing": "LibreOffice nicht gefunden"
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
@@ -1264,7 +1299,15 @@
         "cancel": "Zurück",
         "flash_updated": "Module-Einstellungen wurden aktualisiert.",
         "module_kanban": "Kanban",
-        "module_excalidraw": "Excalidraw"
+        "module_excalidraw": "Excalidraw",
+        "section_visibility": "Sichtbarkeits-Varianten",
+        "visibility_description": "Steuert global, ob Inhalte als Privat, Team oder Public angelegt werden dürfen.",
+        "visibility_lead": "Gilt für Wiki, Zugangsdaten, Kanban, Kalender, Dateien und weitere Module mit Bereichen.",
+        "allow_private": "Private Varianten",
+        "allow_team": "Team-Varianten",
+        "allow_public": "Public-Varianten",
+        "module_file_converter": "Dateikonverter",
+        "module_surveys": "Umfragen"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -1459,7 +1502,10 @@
         "flash_logo_uploaded": "Portalslogo wurde hochgeladen.",
         "flash_logo_removed": "Portalslogo wurde entfernt.",
         "flash_logo_too_large": "Logo zu groß ({size:.1f} MB). Maximal 5 MB erlaubt.",
-        "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG."
+        "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG.",
+        "section_security": "Sicherheit & Sitzungen",
+        "inactivity_logout_hint": "Benutzer werden nach 30 Tagen ohne Portal-Aktivität automatisch abgemeldet. Angemeldete Geräte können unter Sicherheit verwaltet werden.",
+        "flash_inactivity_logout": "Sie wurden nach 30 Tagen Inaktivität abgemeldet. Bitte melden Sie sich erneut an."
       },
       "legal": {
         "page_title": "Rechtliche Hinweise - Administration",
@@ -1476,7 +1522,12 @@
         "imprint_help": "Wird unter /impressum öffentlich angezeigt. Ersetzen Sie die Platzhalter durch Ihre korrekten Angaben.",
         "preview": "Vorschau",
         "save": "Änderungen speichern",
-        "flash_saved": "Rechtliche Hinweise wurden gespeichert."
+        "flash_saved": "Rechtliche Hinweise wurden gespeichert.",
+        "tabs_label": "Rechtstext auswählen",
+        "toolbar_label": "Formatierung",
+        "tool_bold": "Fett",
+        "tool_italic": "Kursiv",
+        "tool_list": "Liste"
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
@@ -1904,6 +1955,7 @@
         "scope_login": "Login",
         "scope_mailbox": "Briefkästen",
         "scope_share_edit": "Freigaben (Bearbeiten)",
+        "scope_surveys": "Umfragen",
         "scope_login_help": "Für Login, Freigaben und Briefkästen werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist schwächer.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA-Version",
@@ -1971,14 +2023,16 @@
         "flash_exception_deleted": "Ausnahme wurde entfernt.",
         "flash_exception_exists": "Für diesen Nutzer existiert bereits eine Ausnahme.",
         "flash_exception_user_invalid": "Bitte einen gültigen Nutzer wählen.",
-        "flash_exception_empty": "Bitte mindestens Dateilimit oder Kontingent für die Ausnahme setzen."
+        "flash_exception_empty": "Bitte mindestens Dateilimit oder Kontingent für die Ausnahme setzen.",
+        "visibility_moved": "Private und Team-Ordner steuern Sie zentral unter Module → Sichtbarkeits-Varianten."
       },
       "calendar_settings": {
         "page_title": "Kalender-Einstellungen - Administration",
         "breadcrumb": "Kalender-Einstellungen",
         "heading": "Kalender-Einstellungen",
-        "subtitle": "Private, Team- und Public-Kalender sowie Import und Export steuern.",
+        "subtitle": "Import, Export und erweiterte Kalender-Funktionen.",
         "section_title": "Kalender-Funktionen",
+        "visibility_moved": "Private und Team-Kalender steuern Sie zentral unter Module → Sichtbarkeits-Varianten.",
         "multi_label": "Mehrere Kalender nutzen",
         "multi_help": "Jeder Benutzer erhält einen eigenen Kalender. Es gibt einen Public-Kalender für alle. Andere Kalender können angesehen, aber Termine nur im eigenen und im Public-Kalender erstellt werden.",
         "personal_label": "Private Kalender",
@@ -4979,6 +5033,8 @@
       "breadcrumb_music": "Musikmodul-Einstellungen",
       "heading": "Musikmodul-Einstellungen",
       "subtitle": "Provider aktivieren, Reihenfolge festlegen und Zugangsdaten verwalten.",
+      "subtitle_providers_only": "Provider aktivieren, Reihenfolge festlegen und Anzeige-Optionen.",
+      "integrations_moved": "Spotify-, YouTube- und Deezer-Verknüpfungen liegen unter Einstellungen → Verknüpfungen.",
       "copy_uri": "URI kopieren",
       "provider_activation": {
         "title": "Provider-Aktivierung und Reihenfolge",
@@ -5021,7 +5077,8 @@
         "disconnect": "Trennen",
         "not_connected": "YouTube Music ist nicht verbunden.",
         "connect": "Verbinden",
-        "keys_moved": "API-Key und OAuth-Credentials für YouTube/Google liegen jetzt unter Verknüpfungen."
+        "keys_moved": "API-Key und OAuth-Credentials für YouTube/Google liegen jetzt unter Verknüpfungen.",
+        "use_google_keys": "Verbindung nutzt die Google OAuth-Einstellungen oben auf dieser Seite."
       },
       "deezer": {
         "title": "Deezer",
@@ -5485,6 +5542,7 @@
     "page_title": "Media Downloader",
     "heading": "Media Downloader",
     "description": "Laden Sie Inhalte von YouTube und YouTube Music als MP3 oder MP4 herunter.",
+    "client_notice": "Der Download erfolgt in Ihrem Browser — YouTube-Sperren des Servers werden so umgangen. Anschließend wird die Datei auf dem Server konvertiert und steht hier zum Abruf bereit.",
     "legal_notice": "Sie sind für die Einhaltung von Urheberrecht und Nutzungsbedingungen der Plattformen verantwortlich. Heruntergeladene Dateien werden nach einer Stunde automatisch gelöscht.",
     "nav": {
       "label": "Media Downloader Navigation",
@@ -5550,6 +5608,9 @@
     "status": {
       "pending": "Wartend",
       "processing": "In Bearbeitung",
+      "downloading": "Wird heruntergeladen (Browser)…",
+      "uploading": "Wird hochgeladen…",
+      "converting": "Wird konvertiert…",
       "completed": "Fertig",
       "failed": "Wegen Fehler abgebrochen",
       "cancelled": "Abgebrochen",
@@ -5564,7 +5625,8 @@
       "mode_complete": "Alle Songs komplett herunterladen",
       "mode_timestamps": "Zeitstempel pro Song angeben",
       "download_all": "Playlist herunterladen",
-      "preview_error": "Playlist konnte nicht geladen werden."
+      "preview_error": "Playlist konnte nicht geladen werden.",
+      "client_only": "Playlist-Vorschau erfolgt im Browser."
     },
     "flash": {
       "unavailable": "Media Downloader ist nicht verfügbar.",
@@ -5579,11 +5641,15 @@
       "invalid_time_range": "Die Startzeit muss vor der Endzeit liegen.",
       "too_many_jobs": "Maximal %(max)s gleichzeitige Downloads erlaubt.",
       "started": "Download wurde gestartet.",
+      "use_browser": "Bitte starten Sie den Download über die Schaltfläche im Browser.",
+      "client_download_failed": "Download im Browser fehlgeschlagen. Bitte erneut versuchen oder in YouTube anmelden.",
+      "upload_failed": "Upload der Rohdatei auf den Server fehlgeschlagen.",
+      "err_convert_failed": "Konvertierung auf dem Server fehlgeschlagen.",
       "expired": "Diese Datei ist nicht mehr verfügbar.",
       "err_http_403": "Download durch YouTube blockiert (HTTP 403). Bitte später erneut versuchen oder eine andere Qualitätsstufe/URL nutzen.",
       "err_bot_check": "YouTube verlangt eine Anmeldung (Bot-Check). Admins können optional eine cookies.txt setzen (siehe Installationsdoku).",
       "err_cookies_needed": "YouTube-Cookies fehlen, sind abgelaufen oder ungültig. Bitte cookies.txt erneuern (MEDIA_DOWNLOADER_COOKIES_FILE).",
-      "err_age_restricted": "Dieses Video ist altersbeschränkt und kann ohne Anmeldung/Cookies nicht heruntergeladen werden.",
+      "err_age_restricted": "Ein Download Altersbeschränkter Videos / Lieder ist mit diesem Tool NICHT Möglich.",
       "err_video_unavailable": "Dieses Video ist nicht verfügbar.",
       "err_download_failed": "Download fehlgeschlagen. Bitte erneut versuchen.",
       "file_missing": "Datei wurde nicht gefunden.",
@@ -5816,6 +5882,243 @@
     },
     "flash": {
       "access_denied": "Kein Zugriff auf diesen Eintrag."
+    }
+  },
+  "surveys": {
+    "nav": {
+      "title": "Umfragen",
+      "all": "Alle",
+      "create": "Neue Umfrage",
+      "new": "Neu"
+    },
+    "index": {
+      "search_placeholder": "Umfragen suchen…",
+      "inactive": "Inaktiv",
+      "public_fill": "Öffentlich ausfüllbar",
+      "edit": "Bearbeiten",
+      "results": "Ergebnisse",
+      "empty": "Noch keine Umfragen vorhanden."
+    },
+    "create": {
+      "submit": "Umfrage erstellen",
+      "title_label": "Name der Umfrage",
+      "title_placeholder": "z. B. Team-Feedback Q1",
+      "title_required": "Bitte geben Sie einen Namen für die Umfrage ein."
+    },
+    "builder": {
+      "title": "Umfrage bearbeiten",
+      "draft_title": "Neue Umfrage",
+      "title_placeholder": "Umfragetitel",
+      "description_placeholder": "Beschreibung",
+      "add_header_image": "Header-Bild hinzufügen",
+      "add_question": "Frage hinzufügen",
+      "add_page": "Seite hinzufügen",
+      "delete": "Umfrage löschen",
+      "delete_confirm": "Umfrage wirklich löschen?",
+      "back": "Zurück",
+      "preview": "Vorschau",
+      "share": "Freigeben"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "responses": "Antworten",
+      "require_email": "E-Mail-Adressen erfassen und bestätigen",
+      "one_per_email": "Maximal eine Antwort pro E-Mail",
+      "allow_edit": "Antworten dürfen bearbeitet werden",
+      "presentation": "Präsentation",
+      "layout_mode": "Formular-Darstellung",
+      "layout_scroll": "Eine lange Seite (scrollen)",
+      "layout_pages": "Mehrere Seiten",
+      "progress_bar": "Fortschrittsanzeige einblenden",
+      "shuffle": "Zufällige Reihenfolge der Fragen",
+      "after_submit": "Nach Absenden",
+      "confirmation_message": "Bestätigungsnachricht",
+      "another_link": "Link zum Einsenden einer weiteren Antwort anzeigen",
+      "disable_autosave": "Automatisches Speichern deaktivieren",
+      "public_fill": "Aktivieren",
+      "public_fill_enable": "Öffentlich ausfüllbar (Link für Externe)",
+      "share_link": "Link zum Ausfüllen",
+      "share_hint": "Aktivieren Sie die Umfrage und teilen Sie den Link mit Teilnehmenden."
+    },
+    "public": {
+      "not_found": "Umfrage nicht gefunden oder nicht verfügbar.",
+      "preview_banner": "Vorschau – Antworten werden nicht gespeichert.",
+      "verify_title": "E-Mail bestätigen",
+      "verify_hint": "Bitte geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Bestätigungscode.",
+      "email_label": "E-Mail-Adresse",
+      "send_code": "Code senden",
+      "confirm_title": "Code eingeben",
+      "confirm_hint": "Wir haben einen Code an {email} gesendet.",
+      "code_label": "Bestätigungscode",
+      "confirm_btn": "Bestätigen",
+      "invalid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+      "invalid_code": "Ungültiger oder abgelaufener Code.",
+      "code_sent": "Bestätigungscode wurde gesendet.",
+      "email_verified": "E-Mail erfolgreich bestätigt.",
+      "verify_required": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.",
+      "already_submitted": "Sie haben diese Umfrage bereits ausgefüllt.",
+      "already_submitted_hint": "Pro E-Mail ist nur eine Teilnahme möglich.",
+      "required_missing": "Pflichtfelder fehlen: {fields}",
+      "bot_blocked": "Anfrage blockiert. Bitte versuchen Sie es erneut.",
+      "captcha_required": "Bitte bestätigen Sie die Sicherheitsprüfung vor dem Absenden.",
+      "submit": "Absenden",
+      "next": "Weiter",
+      "prev": "Zurück",
+      "done_title": "Vielen Dank!",
+      "done_default": "Ihre Antwort wurde gespeichert.",
+      "submit_another": "Weitere Antwort senden",
+      "verify_email_subject": "Bestätigungscode für Umfrage: {title}",
+      "verify_email_body": "Ihr Bestätigungscode für die Umfrage \"{title}\": {code}\n\nDer Code ist 24 Stunden gültig."
+    },
+    "results": {
+      "title": "Ergebnisse",
+      "export_csv": "CSV exportieren",
+      "total_submitted": "Eingereichte Antworten",
+      "completion_rate": "Abschlussrate",
+      "total_started": "Gestartet",
+      "by_question": "Auswertung nach Frage",
+      "answered": "{count} von {total} beantwortet",
+      "avg": "Durchschnitt",
+      "median": "Median",
+      "pie_chart": "Verteilungsdiagramm",
+      "of_max": "von {max} Sternen",
+      "range": "Bereich",
+      "all_responses": "Alle Antworten",
+      "email": "E-Mail",
+      "submitted_at": "Eingereicht",
+      "view": "Ansehen",
+      "no_responses": "Noch keine Antworten.",
+      "response_detail": "Einzelantwort"
+    },
+    "flash": {
+      "module_disabled": "Das Umfragemodul ist deaktiviert.",
+      "created": "Umfrage wurde erstellt.",
+      "deleted": "Umfrage wurde gelöscht.",
+      "duplicated": "Umfrage wurde dupliziert."
+    },
+    "logic": {
+      "title": "Verknüpfungen",
+      "hint": "Seiten oder Fragen abhängig von Antworten anzeigen, ausblenden oder überspringen.",
+      "add_rule": "Regel hinzufügen",
+      "if_answer": "Wenn Antwort",
+      "then": "dann",
+      "value_placeholder": "Wert"
+    }
+  },
+  "file_converter": {
+    "page_title": "Dateikonverter",
+    "heading": "Dateikonverter",
+    "description": "Laden Sie eine Datei hoch und wählen Sie anschließend das Zielformat oder die Größenanpassung.",
+    "nav": {
+      "label": "Dateikonverter Navigation",
+      "convert": "Konvertieren",
+      "jobs": "Aufträge",
+      "clear_all": "Liste leeren",
+      "menu": "Menü"
+    },
+    "upload": {
+      "title": "Datei hochladen",
+      "hint": "Datei hierher ziehen oder klicken zum Auswählen",
+      "uploading": "Wird hochgeladen…"
+    },
+    "form": {
+      "convert": "Konvertieren",
+      "select_option": "Bitte eine Option wählen",
+      "reset": "Andere Datei"
+    },
+    "groups": {
+      "format": "Format",
+      "size": "Größe anpassen"
+    },
+    "category": {
+      "audio": "Audio",
+      "image": "Bild",
+      "pdf": "PDF",
+      "document": "Dokument"
+    },
+    "format": {
+      "mp3": "MP3",
+      "wav": "WAV",
+      "ogg": "OGG",
+      "flac": "FLAC",
+      "aac": "AAC",
+      "m4a": "M4A",
+      "opus": "Opus",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "bmp": "BMP",
+      "tiff": "TIFF",
+      "gif": "GIF",
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "odt": "ODT",
+      "txt": "TXT",
+      "xlsx": "XLSX",
+      "ods": "ODS",
+      "csv": "CSV",
+      "pptx": "PPTX",
+      "odp": "ODP"
+    },
+    "page_size": {
+      "a1": "A1",
+      "a2": "A2",
+      "a3": "A3",
+      "a4": "A4",
+      "a5": "A5",
+      "letter": "Letter",
+      "legal": "Legal"
+    },
+    "resize": {
+      "custom": "Benutzerdefiniert",
+      "percent": "Prozentual",
+      "width": "Breite (px)",
+      "height": "Höhe (px)",
+      "percent_label": "Skalierung (%)",
+      "keep_aspect": "Seitenverhältnis beibehalten"
+    },
+    "engines": {
+      "ffmpeg": "Audio (FFmpeg)",
+      "images": "Bilder",
+      "pdf": "PDF",
+      "libreoffice": "Dokumente (LibreOffice)"
+    },
+    "status": {
+      "pending": "Wartend",
+      "processing": "Wird konvertiert…",
+      "completed": "Fertig",
+      "failed": "Fehlgeschlagen"
+    },
+    "jobs": {
+      "heading": "Konvertierungen",
+      "empty": "Noch keine Konvertierungen.",
+      "download": "Herunterladen",
+      "delete_confirm": "Diesen Auftrag wirklich löschen?",
+      "clear_all_confirm": "Alle abgeschlossenen Aufträge löschen?",
+      "col_file": "Datei",
+      "col_type": "Typ",
+      "col_status": "Status",
+      "col_expires": "Läuft ab",
+      "col_actions": "Aktionen"
+    },
+    "flash": {
+      "unsupported_type": "Dieser Dateityp wird nicht unterstützt.",
+      "ffmpeg_missing": "FFmpeg ist nicht verfügbar. Audio-Konvertierung ist nicht möglich.",
+      "libreoffice_missing": "LibreOffice ist nicht installiert. Dokument-Konvertierung ist nicht möglich.",
+      "pillow_missing": "Bildverarbeitung ist nicht verfügbar.",
+      "pypdf_missing": "PDF-Verarbeitung ist nicht verfügbar.",
+      "no_options": "Für diese Datei sind keine Konvertierungsoptionen verfügbar.",
+      "file_missing": "Datei nicht gefunden oder abgelaufen.",
+      "file_too_large": "Die Datei ist zu groß.",
+      "invalid_option": "Ungültige Konvertierungsoption.",
+      "invalid_format": "Ungültiges Zielformat.",
+      "invalid_resize": "Ungültige Größenangaben.",
+      "invalid_page_size": "Ungültiges Papierformat.",
+      "too_many_jobs": "Zu viele parallele Konvertierungen (max. {max}).",
+      "err_convert_failed": "Die Konvertierung ist fehlgeschlagen.",
+      "output_not_found": "Ausgabedatei wurde nicht erzeugt.",
+      "timeout": "Die Konvertierung hat das Zeitlimit überschritten.",
+      "upload_failed": "Upload fehlgeschlagen."
     }
   }
 }

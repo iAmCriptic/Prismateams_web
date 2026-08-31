@@ -59,6 +59,14 @@ const InventoryFormManager = (() => {
     let folderSelect;
     let categorySelect;
 
+    const formNotify = (message, category = 'danger') => {
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(message, category);
+            return;
+        }
+        window.alert(String(message || ''));
+    };
+
     const routes = {
         folders: '/folders',
         categories: '/categories',
@@ -296,7 +304,7 @@ const InventoryFormManager = (() => {
             }
         } catch (error) {
             console.error(error);
-            alert(error.message || 'Löschen fehlgeschlagen.');
+            formNotify(error.message || 'Löschen fehlgeschlagen.');
         }
     };
 
@@ -327,7 +335,7 @@ const InventoryFormManager = (() => {
                 hidePanel('folderCreatePanel');
             } catch (error) {
                 console.error(error);
-                alert(error.message || 'Aktion fehlgeschlagen.');
+                formNotify(error.message || 'Aktion fehlgeschlagen.');
             }
         });
 
@@ -364,7 +372,7 @@ const InventoryFormManager = (() => {
                 hidePanel('folderEditPanel');
             } catch (error) {
                 console.error(error);
-                alert(error.message || 'Aktion fehlgeschlagen.');
+                formNotify(error.message || 'Aktion fehlgeschlagen.');
             }
         });
 
@@ -401,7 +409,7 @@ const InventoryFormManager = (() => {
                 hidePanel('categoryCreatePanel');
             } catch (error) {
                 console.error(error);
-                alert(error.message || 'Aktion fehlgeschlagen.');
+                formNotify(error.message || 'Aktion fehlgeschlagen.');
             }
         });
 
@@ -436,7 +444,7 @@ const InventoryFormManager = (() => {
                 hidePanel('categoryEditPanel');
             } catch (error) {
                 console.error(error);
-                alert(error.message || 'Aktion fehlgeschlagen.');
+                formNotify(error.message || 'Aktion fehlgeschlagen.');
             }
         });
 

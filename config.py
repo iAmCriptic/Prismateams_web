@@ -84,13 +84,10 @@ class Config:
     MEDIA_DOWNLOADER_RETENTION_HOURS = int(os.environ.get('MEDIA_DOWNLOADER_RETENTION_HOURS', '1'))
     MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
     FFMPEG_PATH = os.environ.get('FFMPEG_PATH', '')
-    # Comma-separated yt-dlp YouTube player clients (bot-check workaround for datacenter IPs)
-    MEDIA_DOWNLOADER_PLAYER_CLIENT = os.environ.get(
-        'MEDIA_DOWNLOADER_PLAYER_CLIENT',
-        'ios,web_creator,mweb',
-    ).strip()
-    # Optional Netscape cookies.txt for yt-dlp (age-restricted / stubborn bot checks)
-    MEDIA_DOWNLOADER_COOKIES_FILE = os.environ.get('MEDIA_DOWNLOADER_COOKIES_FILE', '').strip()
+
+    FILE_CONVERTER_RETENTION_HOURS = int(os.environ.get('FILE_CONVERTER_RETENTION_HOURS', '24'))
+    FILE_CONVERTER_MAX_CONCURRENT = int(os.environ.get('FILE_CONVERTER_MAX_CONCURRENT', '2'))
+    LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', '')
 
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

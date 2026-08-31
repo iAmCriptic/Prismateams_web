@@ -861,7 +861,14 @@ document.addEventListener('DOMContentLoaded', function () {
     addNeedBtn.addEventListener('click', function () {
       const product = parseNeedInput(needLookupInput?.value);
       const quantity = Math.max(1, parseInt(needLookupQty?.value || '1', 10) || 1);
-      if (!product) return alert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.');
+      if (!product) {
+        if (typeof window.ptAlert === 'function') {
+          window.ptAlert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.', 'warning');
+        } else {
+          window.alert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.');
+        }
+        return;
+      }
       addNeedRow(product, quantity);
       if (needLookupInput) needLookupInput.value = '';
       if (needLookupQty) needLookupQty.value = '1';

@@ -238,7 +238,10 @@ class NotificationCenter {
     }
 
     async deleteAll() {
-        if (!confirm('Alle Benachrichtigungen wirklich löschen?')) return;
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm('Alle Benachrichtigungen wirklich löschen?', { danger: true })
+            : window.confirm('Alle Benachrichtigungen wirklich löschen?');
+        if (!ok) return;
         const res = await this.apiFetch('/api/notifications/delete-all', { method: 'POST' });
         const data = await res.json();
         if (data.success) {

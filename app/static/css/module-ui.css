@@ -17,6 +17,7 @@
 .credentials-search-icon,
 .manuals-search-icon,
 .email-search-icon,
+.surveys-search-icon,
 .chat-create-search .bi-search {
     color: var(--accent-color, #0d6efd);
     opacity: 1;

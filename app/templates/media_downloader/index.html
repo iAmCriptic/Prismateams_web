@@ -20,6 +20,18 @@
 <span class="badge bg-secondary">{{ _('media_downloader.status.cancelled') }}</span>
 {% elif job.status == 'cancelling' %}
 <span class="badge bg-warning text-dark">{{ _('media_downloader.status.cancelling') }}</span>
+{% elif job.status == 'downloading' %}
+<div class="progress media-job-progress job-progress">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 5%">5%</div>
+</div>
+{% elif job.status == 'uploading' %}
+<div class="progress media-job-progress job-progress">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 88%">88%</div>
+</div>
+{% elif job.status == 'converting' %}
+<div class="progress media-job-progress job-progress">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 92%">92%</div>
+</div>
 {% else %}
 <div class="progress media-job-progress job-progress">
     <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 5%">5%</div>
@@ -150,15 +162,23 @@
      id="mediaDownloaderApp"
      data-youtube-search="{{ '1' if youtube_search_enabled else '0' }}"
      data-pending-playlist-url="{{ pending_playlist_url|default('', true)|e }}"
-     data-preview-url="{{ url_for('media_downloader.playlist_preview') }}"
+     data-jobs-url="{{ url_for('media_downloader.create_job') }}"
      data-batch-url="{{ url_for('media_downloader.download_batch') }}"
      data-clear-all-url="{{ url_for('media_downloader.clear_all') }}"
      data-youtube-search-url="{{ url_for('media_downloader.youtube_search') }}"
+     data-youtube-proxy-url="{{ url_for('media_downloader.youtube_proxy') }}"
      data-download-url-template="{{ url_for('media_downloader.download_file', job_id=0) }}"
      data-status-url-template="{{ url_for('media_downloader.job_status', job_id=0) }}"
      data-delete-url-template="{{ url_for('media_downloader.delete_job', job_id=0) }}"
+     data-progress-url-template="{{ url_for('media_downloader.update_job_progress', job_id=0) }}"
+     data-upload-url-template="{{ url_for('media_downloader.upload_job_files', job_id=0) }}"
+     data-fail-url-template="{{ url_for('media_downloader.fail_job', job_id=0) }}"
+     data-max-concurrent="{{ config.MEDIA_DOWNLOADER_MAX_CONCURRENT }}"
      data-i18n-status-pending="{{ _('media_downloader.status.pending') }}"
      data-i18n-status-processing="{{ _('media_downloader.status.processing') }}"
+     data-i18n-status-downloading="{{ _('media_downloader.status.downloading') }}"
+     data-i18n-status-uploading="{{ _('media_downloader.status.uploading') }}"
+     data-i18n-status-converting="{{ _('media_downloader.status.converting') }}"
      data-i18n-status-completed="{{ _('media_downloader.status.completed') }}"
      data-i18n-status-failed="{{ _('media_downloader.status.failed') }}"
      data-i18n-status-cancelled="{{ _('media_downloader.status.cancelled') }}"
@@ -250,6 +270,7 @@
                 </div>
                 <div class="portal-msg__content">
                     <p class="portal-msg__text">{{ _('media_downloader.legal_notice') }}</p>
+                    <p class="portal-msg__text mb-0">{{ _('media_downloader.client_notice') }}</p>
                 </div>
             </div>
         </div>
@@ -428,5 +449,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/media_downloader.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/media_downloader_bootstrap.mjs') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+<script src="{{ url_for('static', filename='js/media_downloader.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

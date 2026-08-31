@@ -1,0 +1,215 @@
+/* File Converter — module-specific styles (shell via module-ui.css) */
+
+/* ——— Pill buttons (module-wide) ——— */
+.fc-shell .btn:not(.btn-close) {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.fc-btn-pill {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.fc-shell .mod-list-actions .btn-link {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fc-sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+}
+
+.fc-clear-link,
+.btn.fc-clear-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    border-radius: 1.5rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--bs-danger, #dc3545) !important;
+    box-shadow: none;
+    width: 100%;
+}
+
+.fc-clear-link:hover {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+}
+
+.fc-nav-badge:empty,
+.fc-nav-badge[data-count="0"],
+.mod-nav-badge.fc-nav-badge:empty,
+.mod-nav-badge.fc-nav-badge[data-count="0"] {
+    display: none;
+}
+
+.fc-dropzone {
+    border: 2px dashed var(--bs-border-color, #ced4da);
+    border-radius: var(--mod-radius-pill, 1.25rem);
+    background: var(--bs-body-bg, #fff);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fc-dropzone:hover,
+.fc-dropzone:focus,
+.fc-dropzone.fc-dragover {
+    border-color: var(--bs-primary, #0d6efd);
+    background: rgba(13, 110, 253, 0.04);
+    outline: none;
+}
+
+.fc-dropzone-icon {
+    font-size: 2.5rem;
+    color: var(--bs-primary, #0d6efd);
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.fc-option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.6rem;
+}
+
+.fc-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 4.5rem;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg, #fff);
+    color: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.fc-option-btn:hover {
+    border-color: var(--bs-primary, #0d6efd);
+}
+
+.fc-option-btn.active {
+    border-color: var(--bs-primary, #0d6efd);
+    background: rgba(13, 110, 253, 0.08);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+}
+
+.fc-option-btn .bi {
+    font-size: 1.25rem;
+    color: var(--bs-primary, #0d6efd);
+}
+
+.fc-group-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 0.5rem;
+}
+
+.fc-job-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 110, 253, 0.1);
+    color: var(--bs-primary, #0d6efd);
+}
+
+.fc-job-progress {
+    height: 1.25rem;
+    min-width: 7rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    overflow: hidden;
+}
+
+.fc-job-progress .progress-bar {
+    font-size: 0.7rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+#fcUploadProgress {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    overflow: hidden;
+}
+
+#fcUploadProgress .progress-bar {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.fc-param-panel {
+    border-radius: var(--mod-radius-pill, 1.25rem) !important;
+}
+
+.fc-param-panel .form-control {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.fc-engine-badges .badge {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45em 0.85em;
+    font-weight: 500;
+}
+
+/* Pill dropdown menus */
+.fc-pill-dropdown.dropdown-menu,
+.fc-shell .mod-list-actions .dropdown-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14) !important;
+    min-width: 14rem;
+    overflow: visible !important;
+}
+
+.fc-pill-dropdown .dropdown-item,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.5rem 0.9rem !important;
+    display: flex !important;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.fc-pill-dropdown .dropdown-item:hover,
+.fc-pill-dropdown .dropdown-item:focus,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-item:hover,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-item:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+}
+
+.fc-pill-dropdown .dropdown-item.text-danger:hover,
+.fc-pill-dropdown .dropdown-item.text-danger:focus,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-item.text-danger:hover,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-item.text-danger:focus {
+    background: color-mix(in srgb, #dc3545 12%, transparent) !important;
+    color: #dc3545 !important;
+}
+
+.fc-pill-dropdown .dropdown-divider,
+.fc-shell .mod-list-actions .dropdown-menu .dropdown-divider {
+    margin: 0.35rem 0.55rem;
+    opacity: 0.55;
+}

@@ -24,14 +24,22 @@
             youtubeSearchEnabled: root.dataset.youtubeSearch === '1',
             previewUrl: root.dataset.previewUrl,
             batchUrl: root.dataset.batchUrl,
+            jobsUrl: root.dataset.jobsUrl,
             clearAllUrl: root.dataset.clearAllUrl,
             youtubeSearchUrl: root.dataset.youtubeSearchUrl,
             downloadUrlTemplate: root.dataset.downloadUrlTemplate,
             statusUrlTemplate: root.dataset.statusUrlTemplate,
             deleteUrlTemplate: root.dataset.deleteUrlTemplate,
+            progressUrlTemplate: root.dataset.progressUrlTemplate,
+            uploadUrlTemplate: root.dataset.uploadUrlTemplate,
+            failUrlTemplate: root.dataset.failUrlTemplate,
+            maxConcurrent: Number(root.dataset.maxConcurrent) || 2,
             statusLabels: {
                 pending: root.dataset.i18nStatusPending,
                 processing: root.dataset.i18nStatusProcessing,
+                downloading: root.dataset.i18nStatusDownloading,
+                uploading: root.dataset.i18nStatusUploading,
+                converting: root.dataset.i18nStatusConverting,
                 completed: root.dataset.i18nStatusCompleted,
                 failed: root.dataset.i18nStatusFailed,
                 cancelled: root.dataset.i18nStatusCancelled,
@@ -67,6 +75,10 @@
 
         const progressState = new Map();
         const progressIntervals = new Map();
+        const clientAbortControllers = new Map();
+        const clientJobQueue = [];
+        let clientActiveCount = 0;
+        let clientReadyPromise = null;
         let playlistData = null;
         let playlistPreviewUrl = '';
         let previewInFlight = false;
@@ -91,12 +103,208 @@
 
         const statusRank = {
             pending: 1,
-            processing: 2,
-            cancelling: 3,
-            completed: 4,
-            failed: 4,
-            cancelled: 4,
+            downloading: 2,
+            uploading: 3,
+            processing: 4,
+            converting: 4,
+            cancelling: 5,
+            completed: 6,
+            failed: 6,
+            cancelled: 6,
         };
+
+        const ACTIVE_JOB_STATUSES = new Set([
+            'pending', 'downloading', 'uploading', 'processing', 'converting', 'cancelling',
+        ]);
+
+        function configureClient() {
+            const proxyUrl = root.dataset.youtubeProxyUrl;
+            if (proxyUrl && window.MediaDownloaderClient?.configure) {
+                window.MediaDownloaderClient.configure({ proxyUrl });
+            }
+        }
+
+        function waitForClient() {
+            if (window.MediaDownloaderClient) {
+                configureClient();
+                return Promise.resolve(window.MediaDownloaderClient);
+            }
+            if (!clientReadyPromise) {
+                clientReadyPromise = new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const timer = setInterval(() => {
+                        if (window.MediaDownloaderClient) {
+                            clearInterval(timer);
+                            configureClient();
+                            resolve(window.MediaDownloaderClient);
+                            return;
+                        }
+                        attempts += 1;
+                        if (attempts > 120) {
+                            clearInterval(timer);
+                            reject(new Error('client_load_failed'));
+                        }
+                    }, 250);
+                });
+            }
+            return clientReadyPromise;
+        }
+
+        function jobProgressUrl(jobId) {
+            return cfg.progressUrlTemplate.replace('/0', `/${jobId}`);
+        }
+
+        function jobUploadUrl(jobId) {
+            return cfg.uploadUrlTemplate.replace('/0', `/${jobId}`);
+        }
+
+        function jobFailUrl(jobId) {
+            return cfg.failUrlTemplate.replace('/0', `/${jobId}`);
+        }
+
+        async function patchJobProgress(jobId, payload) {
+            try {
+                await fetch(jobProgressUrl(jobId), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            } catch (err) {
+                // ignore transient network errors during progress
+            }
+        }
+
+        function setJobProgressUi(jobId, percent, status) {
+            const id = String(jobId);
+            progressState.set(id, { percent: Math.max(0, Math.min(100, percent)) });
+            jobElements(id).forEach((el) => renderProgressBar(el, percent, status || el.dataset.status));
+        }
+
+        async function failClientJob(jobId, errorKey) {
+            try {
+                const response = await fetch(jobFailUrl(jobId), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error_key: errorKey || 'client_download_failed' }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (data.status === 'failed' && data.error_message) {
+                    setFailedStatus(jobId, data.error_message);
+                    updateJobsBadge();
+                    return;
+                }
+                if (response.status === 410) {
+                    removeJobElements(jobId);
+                    return;
+                }
+            } catch (err) {
+                // ignore
+            }
+            pollJob(jobId);
+        }
+
+        async function runClientJob(job) {
+            const jobId = job.id;
+            const controller = new AbortController();
+            clientAbortControllers.set(String(jobId), controller);
+
+            try {
+                const client = await waitForClient();
+                const videoId = client.resolveVideoId(job.source_url);
+                if (!videoId) {
+                    await failClientJob(jobId, 'err_download_failed');
+                    return;
+                }
+
+                setJobProgressUi(jobId, 2, 'downloading');
+                await patchJobProgress(jobId, { status: 'downloading', progress: 2, title: job.title });
+
+                const result = await client.downloadMedia(
+                    videoId,
+                    job.format,
+                    {
+                        signal: controller.signal,
+                        title: job.title,
+                        onProgress: (pct) => {
+                            const mapped = Math.min(85, Math.max(3, Math.round(pct * 0.85)));
+                            setJobProgressUi(jobId, mapped, 'downloading');
+                            if (mapped % 5 === 0) {
+                                patchJobProgress(jobId, { status: 'downloading', progress: mapped });
+                            }
+                        },
+                    },
+                );
+
+                if (controller.signal.aborted) {
+                    await failClientJob(jobId, 'cancelled');
+                    return;
+                }
+
+                setJobProgressUi(jobId, 88, 'uploading');
+                await patchJobProgress(jobId, {
+                    status: 'uploading',
+                    progress: 88,
+                    title: result.title || job.title,
+                });
+
+                const formData = new FormData();
+                if (result.title) formData.append('title', result.title);
+                result.files.forEach((file) => {
+                    const name = `${file.role}.${file.ext}`;
+                    formData.append(file.role === 'muxed' ? 'file' : file.role, file.blob, name);
+                });
+
+                const uploadResponse = await fetch(jobUploadUrl(jobId), {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal,
+                });
+
+                if (!uploadResponse.ok) {
+                    await failClientJob(jobId, 'upload_failed');
+                    return;
+                }
+
+                setJobProgressUi(jobId, 95, 'converting');
+                pollJob(jobId);
+            } catch (err) {
+                if (err && err.name === 'AbortError') {
+                    await failClientJob(jobId, 'cancelled');
+                    return;
+                }
+                console.error('[MediaDownloader] Client download failed:', err);
+                const client = window.MediaDownloaderClient;
+                const errorKey = client ? client.mapClientError(err) : 'client_download_failed';
+                await failClientJob(jobId, errorKey);
+            } finally {
+                clientAbortControllers.delete(String(jobId));
+            }
+        }
+
+        function pumpClientQueue() {
+            while (clientActiveCount < cfg.maxConcurrent && clientJobQueue.length) {
+                const job = clientJobQueue.shift();
+                if (!job) break;
+                clientActiveCount += 1;
+                runClientJob(job).finally(() => {
+                    clientActiveCount = Math.max(0, clientActiveCount - 1);
+                    pumpClientQueue();
+                });
+            }
+        }
+
+        function enqueueClientJob(job) {
+            if (!job || !job.id) return;
+            if (!ACTIVE_JOB_STATUSES.has(job.status)) return;
+            if (job.status === 'converting' || job.status === 'processing') {
+                pollJob(job.id);
+                return;
+            }
+            const id = String(job.id);
+            if (clientJobQueue.some((queued) => String(queued.id) === id)) return;
+            clientJobQueue.push(job);
+            pumpClientQueue();
+        }
 
         function switchMediaTab(tab) {
             if (!cfg.tabMeta[tab]) return;
@@ -187,7 +395,8 @@
                 if (seen.has(id)) return;
                 seen.add(id);
                 const status = el.dataset.status;
-                if (status === 'pending' || status === 'processing' || status === 'cancelling') {
+                if (status === 'pending' || status === 'downloading' || status === 'uploading'
+                    || status === 'processing' || status === 'converting' || status === 'cancelling') {
                     count += 1;
                 }
             });
@@ -464,27 +673,18 @@
             showPlaylistLoading();
 
             try {
-                const response = await fetch(cfg.previewUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_url: cleaned }),
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    lastPreviewedUrl = '';
-                    // If server says not a playlist, move URL to single field
-                    if (data.error_key === 'not_a_playlist') {
-                        activateSingleMode({ keepPlaylistUrl: false });
-                        if (singleUrlInput) singleUrlInput.value = cleaned;
-                        if (playlistUrlInput) playlistUrlInput.value = '';
-                        return;
-                    }
-                    showPlaylistError(data.error || cfg.previewErrorLabel);
-                    return;
-                }
+                const client = await waitForClient();
+                const data = await client.getPlaylistEntries(cleaned);
                 showPlaylistContent(data);
             } catch (err) {
                 lastPreviewedUrl = '';
+                const code = (err && err.message) ? String(err.message) : '';
+                if (code === 'not_a_playlist') {
+                    activateSingleMode({ keepPlaylistUrl: false });
+                    if (singleUrlInput) singleUrlInput.value = cleaned;
+                    if (playlistUrlInput) playlistUrlInput.value = '';
+                    return;
+                }
                 showPlaylistError(cfg.previewErrorLabel);
             } finally {
                 previewInFlight = false;
@@ -562,8 +762,8 @@
                 }
 
                 const state = progressState.get(id);
-                const cap = status === 'processing' ? 92 : 25;
-                const increment = status === 'processing'
+                const cap = (status === 'processing' || status === 'converting') ? 92 : 25;
+                const increment = (status === 'processing' || status === 'converting')
                     ? (1 + Math.random() * 2)
                     : (0.3 + Math.random() * 0.5);
                 state.percent = Math.min(cap, state.percent + increment);
@@ -580,6 +780,9 @@
             if (status === 'failed') badgeClass = 'bg-danger';
             if (status === 'cancelled') badgeClass = 'bg-secondary';
             if (status === 'cancelling') badgeClass = 'bg-warning text-dark';
+            if (status === 'downloading' || status === 'uploading' || status === 'converting') {
+                badgeClass = 'bg-primary';
+            }
 
             jobElements(jobId).forEach((el) => {
                 el.dataset.status = status;
@@ -612,11 +815,36 @@
         function ensureJobsVisible() {
             const empty = document.getElementById('jobsEmpty');
             if (empty) empty.classList.add('d-none');
+
             const listView = document.getElementById('jobsListView');
             const gridView = document.getElementById('jobsGridView');
-            if (listView) listView.classList.remove('d-none');
-            if (gridView) gridView.classList.remove('d-none');
-            applyViewMode(viewMode);
+            const listBtn = document.getElementById('mediaListViewBtn');
+            const gridBtn = document.getElementById('mediaGridViewBtn');
+            const isGrid = viewMode === 'grid';
+
+            if (listBtn) listBtn.classList.toggle('active', !isGrid);
+            if (gridBtn) gridBtn.classList.toggle('active', isGrid);
+
+            if (listView) {
+                listView.classList.toggle('d-none', isGrid);
+                if (isGrid) {
+                    listView.setAttribute('hidden', '');
+                    listView.style.display = 'none';
+                } else {
+                    listView.removeAttribute('hidden');
+                    listView.style.display = '';
+                }
+            }
+            if (gridView) {
+                gridView.classList.toggle('d-none', !isGrid);
+                if (!isGrid) {
+                    gridView.setAttribute('hidden', '');
+                    gridView.style.display = 'none';
+                } else {
+                    gridView.removeAttribute('hidden');
+                    gridView.style.display = '';
+                }
+            }
         }
 
         function titleHtml(job) {
@@ -760,7 +988,68 @@
 
             startProgressAnimation(job.id);
             pollJob(job.id);
+            enqueueClientJob(job);
             updateJobsBadge();
+        }
+
+        async function startSingleDownload() {
+            let url = normalizeMediaUrl(singleUrlInput ? singleUrlInput.value : '');
+            if (!url) {
+                if (singleUrlInput) singleUrlInput.focus();
+                return false;
+            }
+
+            if (isPlaylistUrl(url)) {
+                url = canonicalizePlaylistUrl(url) || url;
+                if (playlistUrlInput) playlistUrlInput.value = url;
+                if (singleUrlInput) singleUrlInput.value = '';
+                setSubmitBusy(true);
+                try {
+                    await loadPlaylistInline(url);
+                } finally {
+                    setSubmitBusy(false);
+                }
+                return false;
+            }
+
+            const format = getSelectedFormat();
+            const startTime = (document.getElementById('start_time')?.value || '').trim();
+            const endTime = (document.getElementById('end_time')?.value || '').trim();
+
+            setSubmitBusy(true);
+            try {
+                const response = await fetch(cfg.jobsUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_url: url,
+                        format,
+                        start_time: startTime,
+                        end_time: endTime,
+                    }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(data.error || cfg.previewErrorLabel, 'danger');
+                    }
+                    return false;
+                }
+
+                if (singleUrlInput) singleUrlInput.value = '';
+                activateSingleMode();
+                createJobElements(data);
+                ensureJobsVisible();
+                switchMediaTab('jobs');
+                return true;
+            } catch (err) {
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(cfg.previewErrorLabel, 'danger');
+                }
+                return false;
+            } finally {
+                setSubmitBusy(false);
+            }
         }
 
         function updateJobTitle(jobId, data) {
@@ -833,6 +1122,9 @@
 
         async function deleteJob(jobId) {
             if (!cfg.deleteUrlTemplate) return;
+            const abort = clientAbortControllers.get(String(jobId));
+            if (abort) abort.abort();
+
             const ok = await portalConfirm(cfg.deleteConfirm || cfg.clearAllConfirm, {
                 danger: true,
                 confirmLabel: cfg.deleteLabel || undefined,
@@ -884,7 +1176,7 @@
                     const previousRank = statusRank[previousStatus] || 0;
                     const incomingRank = statusRank[data.status] || 0;
                     if (previousRank > incomingRank) {
-                        if (previousStatus === 'pending' || previousStatus === 'processing' || previousStatus === 'cancelling') {
+                        if (ACTIVE_JOB_STATUSES.has(previousStatus)) {
                             setTimeout(() => pollJob(id), 2500);
                         }
                         return;
@@ -898,13 +1190,16 @@
                         updateJobTitle(id, data);
                     }
 
+                    if (typeof data.progress === 'number' && ACTIVE_JOB_STATUSES.has(data.status)) {
+                        stopProgressAnimation(id);
+                        setJobProgressUi(id, data.progress, data.status);
+                    }
+
                     if (data.status === 'completed') {
                         setCompletedStatus(id);
                     } else if (data.status === 'failed') {
                         setFailedStatus(id, data.error_message);
-                        const wasActive = previousStatus === 'pending'
-                            || previousStatus === 'processing'
-                            || previousStatus === 'cancelling';
+                        const wasActive = ACTIVE_JOB_STATUSES.has(previousStatus);
                         if (wasActive && data.error_message && typeof window.showAppBanner === 'function') {
                             window.showAppBanner(data.error_message, 'danger', {
                                 timeout: 12000,
@@ -912,11 +1207,21 @@
                             });
                         }
                     } else if (data.status === 'cancelled') {
-                        // Abgebrochen → sofort aus der Liste
                         removeJobElements(id);
                         return;
                     } else if (data.status === 'cancelling') {
                         setBadgeStatus(id, data.status, data.error_message);
+                    } else if (data.status === 'converting') {
+                        stopProgressAnimation(id);
+                        const state = progressState.get(id) || { percent: 90 };
+                        state.percent = Math.max(state.percent, 90);
+                        progressState.set(id, state);
+                        els.forEach((el) => renderProgressBar(el, state.percent, data.status));
+                        startProgressAnimation(id);
+                    } else if (data.status === 'downloading' || data.status === 'uploading') {
+                        if (typeof data.progress === 'number') {
+                            setJobProgressUi(id, data.progress, data.status);
+                        }
                     } else if (previousStatus !== data.status && data.status === 'processing') {
                         const state = progressState.get(id) || { percent: 5 };
                         state.percent = Math.max(state.percent, 25);
@@ -932,7 +1237,7 @@
                     updateJobActions(id, data.downloadable, data);
                     updateJobsBadge();
 
-                    if (data.status === 'pending' || data.status === 'processing' || data.status === 'cancelling') {
+                    if (ACTIVE_JOB_STATUSES.has(data.status)) {
                         setTimeout(() => pollJob(id), 2500);
                     }
                 })
@@ -977,8 +1282,10 @@
                 if (singleUrlInput) singleUrlInput.value = '';
                 resetPlaylistPanel();
                 activateSingleMode();
+                (data.jobs || []).forEach((job) => {
+                    createJobElements(job);
+                });
                 ensureJobsVisible();
-                (data.jobs || []).forEach((job) => createJobElements(job));
                 switchMediaTab('jobs');
                 setSubmitBusy(false);
                 return true;
@@ -1133,7 +1440,9 @@
                 }
 
                 if (singleUrlInput) singleUrlInput.value = url;
-                return true;
+                event.preventDefault();
+                startSingleDownload();
+                return false;
             });
         }
 
@@ -1334,8 +1643,19 @@
             const id = el.dataset.jobId;
             if (seenPoll.has(id)) return;
             seenPoll.add(id);
-            if (el.dataset.status === 'pending' || el.dataset.status === 'processing' || el.dataset.status === 'cancelling') {
-                startProgressAnimation(id);
+            if (el.dataset.status === 'pending' || el.dataset.status === 'processing'
+                || el.dataset.status === 'downloading' || el.dataset.status === 'uploading'
+                || el.dataset.status === 'converting' || el.dataset.status === 'cancelling') {
+                if (el.dataset.status === 'downloading' || el.dataset.status === 'uploading') {
+                    enqueueClientJob({
+                        id: Number(id),
+                        status: el.dataset.status,
+                        source_url: el.dataset.sourceUrl,
+                        format: el.dataset.format,
+                    });
+                } else {
+                    startProgressAnimation(id);
+                }
                 pollJob(id);
             }
         });

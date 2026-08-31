@@ -219,7 +219,10 @@
         const label = purge
             ? `Wirklich ${items.length} Element(e) endgültig löschen?`
             : `Wirklich ${items.length} Element(e) in den Papierkorb legen?`;
-        if (!window.confirm(label)) return;
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(label, { danger: true })
+            : window.confirm(label);
+        if (!ok) return;
 
         setBulkBusy(true);
         const url = window.FILES_BULK_DELETE_URL || '/files/api/bulk-delete';

@@ -80,6 +80,19 @@
                         {% endif %}
                     </span>
                 </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.file_converter_label') }}</span>
+                    <span class="settings-about-meta-value">
+                        {% if libreoffice_available %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.libreoffice_available') }}</span>
+                        {% if libreoffice_version %}
+                        <span class="settings-about-meta-value--mono ms-2">{{ libreoffice_version }}</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.libreoffice_missing') }}</span>
+                        {% endif %}
+                    </span>
+                </div>
             </div>
         </section>
 

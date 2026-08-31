@@ -386,6 +386,19 @@ window.showAppBanner = function showAppBanner(message, category, options) {
 // Alias for older call sites
 window.showPageBanner = window.showAppBanner;
 
+/**
+ * App-styled notice (banner). Prefer over window.alert().
+ * @param {string} message
+ * @param {string} [category='info'] - success|info|warning|danger|error
+ * @param {{ timeout?: number|null, clear?: boolean, title?: string }} [options]
+ */
+window.ptAlert = function ptAlert(message, category, options) {
+    if (typeof window.showAppBanner === 'function') {
+        return window.showAppBanner(String(message || ''), category || 'info', options);
+    }
+    window.alert(String(message || ''));
+};
+
 // Status-Meldung beim Laden der Seite
 function showStatusInfo() {
     // Status-Info wird still geprüft, keine Console-Ausgabe
@@ -1418,7 +1431,15 @@ class ServerPushManager {
     }
 
     async resetPushRegistration() {
-        if (!confirm('Push-Benachrichtigungen wirklich zurücksetzen? Sie müssen sich danach erneut registrieren.')) {
+        const resetMsg = 'Push-Benachrichtigungen wirklich zurücksetzen? Sie müssen sich danach erneut registrieren.';
+        const ok = typeof window.ptConfirm === 'function'
+            ? await window.ptConfirm(resetMsg, {
+                title: 'Push zurücksetzen',
+                confirmLabel: 'Zurücksetzen',
+                danger: true,
+            })
+            : window.confirm(resetMsg);
+        if (!ok) {
             return false;
         }
         try {
@@ -1603,11 +1624,14 @@ class ServerPushManager {
     }
     
     showTestResult(type, message) {
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(message, type, { title: 'Test-Push' });
+            return;
+        }
         if (typeof window.showAppBanner === 'function') {
             window.showAppBanner(message, type, { title: 'Test-Push' });
             return;
         }
-        // Fallback falls Banner-API fehlt
         window.alert('Test-Push: ' + message);
     }
 }
@@ -1701,6 +1725,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!button || button.disabled) return;
         if (button.dataset.ptConfirmOk === '1') {
             button.dataset.ptConfirmOk = '';
+            return;
+        }
+        const form = button.form || button.closest('form');
+        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
             return;
         }
         e.preventDefault();

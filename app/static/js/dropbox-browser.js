@@ -8,6 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectionInfo = document.getElementById('selectionInfo');
     const maxSize = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
 
+    function notify(msg, category) {
+        if (typeof window.ptAlert === 'function') {
+            window.ptAlert(msg, category || 'warning');
+            return;
+        }
+        window.alert(msg);
+    }
+
     const listViewBtn = document.getElementById('dropboxListViewBtn');
     const gridViewBtn = document.getElementById('dropboxGridViewBtn');
     const gridViewContainer = document.getElementById('dropboxGridViewContainer');
@@ -80,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const maxLabel = (typeof window.FILES_MAX_UPLOAD_LABEL === 'string' && window.FILES_MAX_UPLOAD_LABEL)
                     ? window.FILES_MAX_UPLOAD_LABEL
                     : (Math.round(maxSize / (1024 * 1024)) + 'MB');
-                window.alert(`Die Datei "${file.name}" ist zu groß. Maximale Größe: ${maxLabel} pro Datei.`);
+                notify(`Die Datei "${file.name}" ist zu groß. Maximale Größe: ${maxLabel} pro Datei.`, 'warning');
                 if (source === 'Dateien' && fileInput) fileInput.value = '';
                 if (source === 'Ordner' && folderInput) folderInput.value = '';
                 updateSelectionInfo('Wählen Sie Dateien oder einen Ordner aus. Upload startet automatisch.');
@@ -129,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasFolder = folderInput && folderInput.files.length > 0;
             if (!hasFile && !hasFolder) {
                 event.preventDefault();
-                window.alert('Bitte wählen Sie Dateien oder einen Ordner aus.');
+                notify('Bitte wählen Sie Dateien oder einen Ordner aus.', 'warning');
                 return;
             }
 

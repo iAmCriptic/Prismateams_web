@@ -31,7 +31,9 @@
       "kanban": "Kanban",
       "events": "Events",
       "shortlinks": "Short links",
-      "assessment": "Assessment"
+      "assessment": "Assessment",
+      "surveys": "Surveys",
+      "file_converter": "File Converter"
     },
     "brand": {
       "separator": "–",
@@ -173,6 +175,14 @@
       "email": "Email address",
       "email_google_locked": "This email comes from Google and cannot be changed here.",
       "phone_optional": "Phone number (optional)",
+      "picture_optional": "Profile picture (optional)",
+      "picture_choose": "Choose image",
+      "picture_clear": "Remove",
+      "picture_help": "JPG, PNG or GIF · max. 5 MB. You can change this later in your profile.",
+      "picture_alt": "Profile picture",
+      "picture_alt_preview": "Profile picture preview",
+      "picture_error_type": "Only JPG, PNG and GIF files are allowed.",
+      "picture_error_size": "The file is too large. Maximum size: 5 MB.",
       "password": "Password",
       "password_help": "At least 12 characters including uppercase, lowercase, numbers and symbols.",
       "confirm_password": "Confirm password",
@@ -246,6 +256,8 @@
       "test_email_error": "Error sending test email: {error}",
       "logout_success": "You have been successfully logged out.",
       "bot_protection_failed": "Security verification failed. Please try again.",
+      "picture_invalid_type": "Invalid file type. Only PNG, JPG, JPEG and GIF files are allowed.",
+      "picture_too_large": "The profile picture is too large. Maximum size: 5 MB.",
       "enter_email": "Please enter your email address.",
       "password_reset_email_sent": "If an account with this email address exists, a reset code has been sent.",
       "invalid_reset_code": "Invalid or expired reset code.",
@@ -824,6 +836,26 @@
       "kanban": "Kanban",
       "kanban_desc": "Visibility Private / Team / Public for boards"
     },
+    "search": {
+      "label": "Search settings",
+      "placeholder": "Search settings…"
+    },
+    "team_settings": {
+      "title": "Team settings",
+      "page_title": "Team settings - Settings",
+      "heading": "Team settings",
+      "subtitle": "Enable or disable team sections per team for members.",
+      "team_select": "Select team",
+      "section_modules": "Team modules",
+      "section_lead": "Controls whether members of this team see the team section of each module. Global access is configured under Modules.",
+      "module_chat": "Team chat",
+      "tile_desc": "Manage team sections of modules",
+      "teams_tile_desc": "Members and team mailboxes",
+      "no_modules": "No active modules with a team section.",
+      "flash_saved": "Team settings saved.",
+      "flash_no_teams": "You are not leading any team.",
+      "flash_email_disabled": "The team email section is disabled for this team."
+    },
     "appearance": {
       "page_title": "Appearance - Settings",
       "breadcrumb_settings": "Settings",
@@ -1228,7 +1260,10 @@
       "excalidraw_label": "Excalidraw integration:",
       "excalidraw_active": "Active",
       "excalidraw_inactive": "Inactive",
-      "back_button": "Back to settings"
+      "back_button": "Back to settings",
+      "file_converter_label": "File converter / LibreOffice",
+      "libreoffice_available": "LibreOffice available",
+      "libreoffice_missing": "LibreOffice not found"
     },
     "admin": {
       "page_title": "Administration - Settings",
@@ -1264,7 +1299,15 @@
         "cancel": "Back",
         "flash_updated": "Module settings have been updated.",
         "module_kanban": "Kanban",
-        "module_excalidraw": "Excalidraw"
+        "module_excalidraw": "Excalidraw",
+        "section_visibility": "Visibility variants",
+        "visibility_description": "Globally control whether content can be private, team-scoped, or public.",
+        "visibility_lead": "Applies to wiki, credentials, kanban, calendar, files, and other modules with sections.",
+        "allow_private": "Private variants",
+        "allow_team": "Team variants",
+        "allow_public": "Public variants",
+        "module_file_converter": "File Converter",
+        "module_surveys": "Surveys"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1532,6 +1575,7 @@
         "scope_login": "Login",
         "scope_mailbox": "Mailboxes",
         "scope_share_edit": "Shares (edit)",
+        "scope_surveys": "Surveys",
         "scope_login_help": "For login, shares and mailboxes, reCAPTCHA or Turnstile are recommended. Honeypot is weaker.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA version",
@@ -1599,14 +1643,16 @@
         "flash_exception_deleted": "Exception has been removed.",
         "flash_exception_exists": "An exception already exists for this user.",
         "flash_exception_user_invalid": "Please select a valid user.",
-        "flash_exception_empty": "Set at least a file limit or quota for the exception."
+        "flash_exception_empty": "Set at least a file limit or quota for the exception.",
+        "visibility_moved": "Private and team folders are configured centrally under Modules → Visibility variants."
       },
       "calendar_settings": {
         "page_title": "Calendar Settings - Administration",
         "breadcrumb": "Calendar Settings",
         "heading": "Calendar Settings",
-        "subtitle": "Control private, team and public calendars as well as import and export.",
+        "subtitle": "Import, export, and advanced calendar features.",
         "section_title": "Calendar Features",
+        "visibility_moved": "Private and team calendars are configured centrally under Modules → Visibility variants.",
         "multi_label": "Use multiple calendars",
         "multi_help": "Each user gets a personal calendar. There is a public calendar for everyone. Others can be viewed, but events can only be created in your own and the public calendar.",
         "personal_label": "Private calendars",
@@ -1670,7 +1716,10 @@
         "flash_logo_uploaded": "Portal logo has been uploaded.",
         "flash_logo_removed": "Portal logo has been removed.",
         "flash_logo_too_large": "Logo too large ({size:.1f} MB). Maximum 5 MB allowed.",
-        "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG."
+        "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG.",
+        "section_security": "Security & sessions",
+        "inactivity_logout_hint": "Users are automatically logged out after 30 days without portal activity. Manage devices under Security.",
+        "flash_inactivity_logout": "You were logged out after 30 days of inactivity. Please sign in again."
       },
       "legal": {
         "page_title": "Legal notice & terms - Administration",
@@ -1687,7 +1736,12 @@
         "imprint_help": "Shown publicly at /impressum. Replace the placeholders with your correct details.",
         "preview": "Preview",
         "save": "Save changes",
-        "flash_saved": "Legal settings have been saved."
+        "flash_saved": "Legal settings have been saved.",
+        "tabs_label": "Select legal text",
+        "toolbar_label": "Formatting",
+        "tool_bold": "Bold",
+        "tool_italic": "Italic",
+        "tool_list": "List"
       },
       "booking_forms": {
         "page_title": "Booking forms - Administration",
@@ -4979,6 +5033,8 @@
       "breadcrumb_music": "Music Module Settings",
       "heading": "Music Module Settings",
       "subtitle": "Enable providers, set search order, and manage credentials.",
+      "subtitle_providers_only": "Enable providers, set search order, and display options.",
+      "integrations_moved": "Spotify, YouTube, and Deezer connections are under Settings → Integrations.",
       "copy_uri": "Copy URI",
       "spotify": {
         "title": "Spotify OAuth Configuration",
@@ -5014,7 +5070,8 @@
         "api_key_label": "API Key (recommended)",
         "api_key_placeholder": "YouTube API Key",
         "api_key_help": "Google Cloud Console: enable YouTube Data API v3 → create an API key → under restrictions allow only “YouTube Data API v3”. <a href=\"{link}\" target=\"_blank\">Open Google Cloud Console</a>",
-        "keys_moved": "API key and OAuth credentials for YouTube/Google are now under Integrations."
+        "keys_moved": "API key and OAuth credentials for YouTube/Google are now under Integrations.",
+        "use_google_keys": "Connection uses the Google OAuth settings at the top of this page."
       },
       "save": "Save settings",
       "cancel": "Cancel",
@@ -5292,6 +5349,7 @@
     "page_title": "Media Downloader",
     "heading": "Media Downloader",
     "description": "Download content from YouTube and YouTube Music as MP3 or MP4.",
+    "client_notice": "The download runs in your browser — avoiding server-side YouTube blocks. The file is then converted on the server and made available here.",
     "legal_notice": "You are responsible for complying with copyright and platform terms of service. Downloaded files are automatically deleted after one hour.",
     "nav": {
       "label": "Media Downloader navigation",
@@ -5357,6 +5415,9 @@
     "status": {
       "pending": "Pending",
       "processing": "Processing",
+      "downloading": "Downloading (browser)…",
+      "uploading": "Uploading…",
+      "converting": "Converting…",
       "completed": "Completed",
       "failed": "Aborted due to error",
       "cancelled": "Cancelled",
@@ -5371,7 +5432,8 @@
       "mode_complete": "Download all songs completely",
       "mode_timestamps": "Specify timestamps per song",
       "download_all": "Download playlist",
-      "preview_error": "Could not load playlist."
+      "preview_error": "Could not load playlist.",
+      "client_only": "Playlist preview runs in the browser."
     },
     "flash": {
       "unavailable": "Media Downloader is not available.",
@@ -5386,11 +5448,15 @@
       "invalid_time_range": "Start time must be before end time.",
       "too_many_jobs": "Maximum %(max)s concurrent downloads allowed.",
       "started": "Download started.",
+      "use_browser": "Please start the download using the button in the browser.",
+      "client_download_failed": "Browser download failed. Please retry or sign in to YouTube.",
+      "upload_failed": "Upload of the raw file to the server failed.",
+      "err_convert_failed": "Server-side conversion failed.",
       "expired": "This file is no longer available.",
       "err_http_403": "Download blocked by YouTube (HTTP 403). Please retry later or use a different quality/URL.",
       "err_bot_check": "YouTube requires sign-in (bot check). Admins can optionally set a cookies.txt file (see installation docs).",
       "err_cookies_needed": "YouTube cookies are missing, expired, or invalid. Renew cookies.txt (MEDIA_DOWNLOADER_COOKIES_FILE).",
-      "err_age_restricted": "This video is age-restricted and cannot be downloaded without sign-in/cookies.",
+      "err_age_restricted": "This video is age-restricted. YouTube only allows access when signed in — the browser cannot read YouTube cookies automatically for security reasons.",
       "err_video_unavailable": "This video is unavailable.",
       "err_download_failed": "Download failed. Please try again.",
       "file_missing": "File not found.",
@@ -5816,6 +5882,243 @@
     },
     "flash": {
       "access_denied": "You do not have access to this item."
+    }
+  },
+  "surveys": {
+    "nav": {
+      "title": "Surveys",
+      "all": "All",
+      "create": "New survey",
+      "new": "New"
+    },
+    "index": {
+      "search_placeholder": "Search surveys…",
+      "inactive": "Inactive",
+      "public_fill": "Public link",
+      "edit": "Edit",
+      "results": "Results",
+      "empty": "No surveys yet."
+    },
+    "create": {
+      "submit": "Create survey",
+      "title_label": "Survey name",
+      "title_placeholder": "e.g. Team feedback Q1",
+      "title_required": "Please enter a survey name."
+    },
+    "builder": {
+      "title": "Edit survey",
+      "draft_title": "New survey",
+      "title_placeholder": "Survey title",
+      "description_placeholder": "Description",
+      "add_header_image": "Add header image",
+      "add_question": "Add question",
+      "add_page": "Add page",
+      "delete": "Delete survey",
+      "delete_confirm": "Delete this survey?",
+      "back": "Back",
+      "preview": "Preview",
+      "share": "Share"
+    },
+    "settings": {
+      "title": "Settings",
+      "responses": "Responses",
+      "require_email": "Collect and verify email",
+      "one_per_email": "One response per email",
+      "allow_edit": "Allow editing responses",
+      "presentation": "Presentation",
+      "layout_mode": "Layout",
+      "layout_scroll": "Single scrollable page",
+      "layout_pages": "Multiple pages",
+      "progress_bar": "Show progress bar",
+      "shuffle": "Shuffle questions",
+      "after_submit": "After submit",
+      "confirmation_message": "Confirmation message",
+      "another_link": "Show link to submit another response",
+      "disable_autosave": "Disable autosave",
+      "public_fill": "Activate",
+      "public_fill_enable": "Publicly fillable (external link)",
+      "share_link": "Fill link",
+      "share_hint": "Activate the survey and share the link with participants."
+    },
+    "public": {
+      "not_found": "Survey not found.",
+      "preview_banner": "Preview – responses are not saved.",
+      "verify_title": "Verify email",
+      "verify_hint": "Enter your email to receive a code.",
+      "email_label": "Email",
+      "send_code": "Send code",
+      "confirm_title": "Enter code",
+      "confirm_hint": "We sent a code to {email}.",
+      "code_label": "Confirmation code",
+      "confirm_btn": "Confirm",
+      "invalid_email": "Invalid email.",
+      "invalid_code": "Invalid or expired code.",
+      "code_sent": "Code sent.",
+      "email_verified": "Email verified.",
+      "verify_required": "Please verify your email first.",
+      "already_submitted": "Already submitted.",
+      "already_submitted_hint": "Only one response per email.",
+      "required_missing": "Required fields missing: {fields}",
+      "bot_blocked": "Request blocked.",
+      "captcha_required": "Please complete the security check before submitting.",
+      "submit": "Submit",
+      "next": "Next",
+      "prev": "Back",
+      "done_title": "Thank you!",
+      "done_default": "Your response was saved.",
+      "submit_another": "Submit another response",
+      "verify_email_subject": "Confirmation code for survey: {title}",
+      "verify_email_body": "Your code for \"{title}\": {code}"
+    },
+    "results": {
+      "title": "Results",
+      "export_csv": "Export CSV",
+      "total_submitted": "Submitted",
+      "completion_rate": "Completion rate",
+      "total_started": "Started",
+      "by_question": "By question",
+      "answered": "{count} of {total} answered",
+      "avg": "Average",
+      "median": "Median",
+      "pie_chart": "Distribution chart",
+      "of_max": "out of {max} stars",
+      "range": "Range",
+      "all_responses": "All responses",
+      "email": "Email",
+      "submitted_at": "Submitted",
+      "view": "View",
+      "no_responses": "No responses yet.",
+      "response_detail": "Response"
+    },
+    "flash": {
+      "module_disabled": "Survey module disabled.",
+      "created": "Survey created.",
+      "deleted": "Survey deleted.",
+      "duplicated": "Survey duplicated."
+    },
+    "logic": {
+      "title": "Conditional logic",
+      "hint": "Show, hide or skip pages based on answers.",
+      "add_rule": "Add rule",
+      "if_answer": "If answer",
+      "then": "then",
+      "value_placeholder": "Value"
+    }
+  },
+  "file_converter": {
+    "page_title": "File Converter",
+    "heading": "File Converter",
+    "description": "Upload a file, then choose the target format or resize options.",
+    "nav": {
+      "label": "File converter navigation",
+      "convert": "Convert",
+      "jobs": "Jobs",
+      "clear_all": "Clear list",
+      "menu": "Menu"
+    },
+    "upload": {
+      "title": "Upload file",
+      "hint": "Drop a file here or click to select",
+      "uploading": "Uploading…"
+    },
+    "form": {
+      "convert": "Convert",
+      "select_option": "Please select an option",
+      "reset": "Another file"
+    },
+    "groups": {
+      "format": "Format",
+      "size": "Resize"
+    },
+    "category": {
+      "audio": "Audio",
+      "image": "Image",
+      "pdf": "PDF",
+      "document": "Document"
+    },
+    "format": {
+      "mp3": "MP3",
+      "wav": "WAV",
+      "ogg": "OGG",
+      "flac": "FLAC",
+      "aac": "AAC",
+      "m4a": "M4A",
+      "opus": "Opus",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "bmp": "BMP",
+      "tiff": "TIFF",
+      "gif": "GIF",
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "odt": "ODT",
+      "txt": "TXT",
+      "xlsx": "XLSX",
+      "ods": "ODS",
+      "csv": "CSV",
+      "pptx": "PPTX",
+      "odp": "ODP"
+    },
+    "page_size": {
+      "a1": "A1",
+      "a2": "A2",
+      "a3": "A3",
+      "a4": "A4",
+      "a5": "A5",
+      "letter": "Letter",
+      "legal": "Legal"
+    },
+    "resize": {
+      "custom": "Custom",
+      "percent": "Percentage",
+      "width": "Width (px)",
+      "height": "Height (px)",
+      "percent_label": "Scale (%)",
+      "keep_aspect": "Keep aspect ratio"
+    },
+    "engines": {
+      "ffmpeg": "Audio (FFmpeg)",
+      "images": "Images",
+      "pdf": "PDF",
+      "libreoffice": "Documents (LibreOffice)"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Converting…",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "jobs": {
+      "heading": "Conversions",
+      "empty": "No conversions yet.",
+      "download": "Download",
+      "delete_confirm": "Delete this job?",
+      "clear_all_confirm": "Delete all finished jobs?",
+      "col_file": "File",
+      "col_type": "Type",
+      "col_status": "Status",
+      "col_expires": "Expires",
+      "col_actions": "Actions"
+    },
+    "flash": {
+      "unsupported_type": "This file type is not supported.",
+      "ffmpeg_missing": "FFmpeg is not available. Audio conversion is disabled.",
+      "libreoffice_missing": "LibreOffice is not installed. Document conversion is disabled.",
+      "pillow_missing": "Image processing is not available.",
+      "pypdf_missing": "PDF processing is not available.",
+      "no_options": "No conversion options are available for this file.",
+      "file_missing": "File not found or expired.",
+      "file_too_large": "The file is too large.",
+      "invalid_option": "Invalid conversion option.",
+      "invalid_format": "Invalid target format.",
+      "invalid_resize": "Invalid resize parameters.",
+      "invalid_page_size": "Invalid page size.",
+      "too_many_jobs": "Too many concurrent conversions (max. {max}).",
+      "err_convert_failed": "Conversion failed.",
+      "output_not_found": "Output file was not created.",
+      "timeout": "Conversion timed out.",
+      "upload_failed": "Upload failed."
     }
   }
 }

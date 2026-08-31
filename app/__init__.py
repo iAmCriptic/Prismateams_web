@@ -367,6 +367,10 @@ def create_app(config_name='default'):
              request.endpoint == 'settings.portal_logo' or
              request.endpoint == 'music.public_wishlist' or
              request.endpoint == 'music.public_search' or
+             request.endpoint.startswith('surveys.public_') or
+             request.endpoint == 'surveys.public_fill' or
+             request.endpoint == 'surveys.public_done' or
+             request.endpoint == 'surveys.public_header' or
              request.endpoint == 'shortlinks.resolve')):
             return
         
@@ -451,6 +455,19 @@ def create_app(config_name='default'):
             if not current_session.last_activity or (datetime.utcnow() - current_session.last_activity) >= timedelta(minutes=1):
                 current_session.last_activity = datetime.utcnow()
                 db.session.commit()
+
+            inactivity_limit = timedelta(days=30)
+            last_seen = current_session.last_activity or current_session.created_at
+            if last_seen and (datetime.utcnow() - last_seen) >= inactivity_limit:
+                from app.utils.session_manager import revoke_session
+                revoke_session(current_user.id, current_session_id)
+                db.session.commit()
+                logout_user()
+                session.clear()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Session expired due to inactivity'}), 401
+                flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                return redirect(url_for('auth.login'))
         except Exception as exc:
             app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
     
@@ -486,6 +503,7 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'assessment'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'branding'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'media_downloader'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'file_converter'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
@@ -1023,8 +1041,10 @@ def create_app(config_name='default'):
     from app.blueprints.shortlinks import shortlinks_bp
     from app.blueprints.events import events_bp
     from app.blueprints.media_downloader import media_downloader_bp
+    from app.blueprints.file_converter import file_converter_bp
     from app.blueprints.kanban import kanban_bp
     from app.blueprints.excalidraw import excalidraw_bp
+    from app.blueprints.surveys import surveys_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -1051,8 +1071,10 @@ def create_app(config_name='default'):
     app.register_blueprint(shortlinks_bp)
     app.register_blueprint(events_bp, url_prefix='/events')
     app.register_blueprint(media_downloader_bp)
+    app.register_blueprint(file_converter_bp)
     app.register_blueprint(kanban_bp, url_prefix='/kanban')
     app.register_blueprint(excalidraw_bp)
+    app.register_blueprint(surveys_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -1218,6 +1240,7 @@ def create_app(config_name='default'):
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.media_downloader import MediaDownloadJob
+                from app.models.file_converter import ConversionJob
                 from app.models.shortlink import ShortLink
                 from app.models.kanban import (
                     KanbanBoard, KanbanBoardMember, KanbanList, KanbanCard,
@@ -1986,6 +2009,9 @@ def create_app(config_name='default'):
 
         from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
         start_media_downloader_cleanup(app)
+
+        from app.tasks.file_converter_cleanup import start_file_converter_cleanup
+        start_file_converter_cleanup(app)
     
     return app
 
