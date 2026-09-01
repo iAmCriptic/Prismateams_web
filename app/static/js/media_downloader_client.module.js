@@ -40,7 +40,12 @@ let proxyUrl = null;
 let cachedProxyFetch = null;
 let cachedSmartFetch = null;
 let configuredYoutubeiUrl = null;
+let configuredOAuthClientUrl = null;
+let cachedOAuthClientPromise = null;
+let debugDownloads = false;
 let authenticatedInnertube = null;
+let activeSignInPromise = null;
+let activeSignInReject = null;
 const authCallbacks = { onAuthPending: null, onAuthStateChange: null };
 const YT_OAUTH_STORAGE_KEY = 'media_downloader_yt_oauth';
 const AUTHENTICATED_CLIENT = 'TV';
@@ -55,8 +60,54 @@ export function configure(options = {}) {
         configuredYoutubeiUrl = options.youtubeiUrl;
         youtubeJsModulePromise = null;
     }
+    if (options.youtubeOAuthClientUrl) {
+        configuredOAuthClientUrl = options.youtubeOAuthClientUrl;
+        cachedOAuthClientPromise = null;
+    }
     if (options.onAuthPending) authCallbacks.onAuthPending = options.onAuthPending;
     if (options.onAuthStateChange) authCallbacks.onAuthStateChange = options.onAuthStateChange;
+    if (typeof options.debug === 'boolean') {
+        debugDownloads = options.debug;
+    }
+}
+
+function mdDebug(...args) {
+    if (debugDownloads) {
+        console.debug('[MediaDownloader]', ...args);
+    }
+}
+
+function isAbsoluteHttpsUrl(url) {
+    return typeof url === 'string' && url.startsWith('https://');
+}
+
+function resolveRequestUrl(input, init = {}) {
+    const base = init.baseURL || (typeof window !== 'undefined' ? window.location.href : undefined);
+
+    if (typeof input === 'string') {
+        if (isAbsoluteHttpsUrl(input)) return input;
+        if (base) {
+            try {
+                return new URL(input, base).href;
+            } catch (e) {
+                return input;
+            }
+        }
+        return input;
+    }
+    if (input instanceof URL) return input.href;
+    if (input && typeof input.url === 'string') {
+        if (isAbsoluteHttpsUrl(input.url)) return input.url;
+        if (base) {
+            try {
+                return new URL(input.url, base).href;
+            } catch (e) {
+                return input.url;
+            }
+        }
+        return input.url;
+    }
+    return '';
 }
 
 function shouldProxyUrl(url) {
@@ -76,13 +127,6 @@ function shouldProxyUrl(url) {
     } catch (e) {
         return false;
     }
-}
-
-function resolveRequestUrl(input) {
-    if (typeof input === 'string') return input;
-    if (input instanceof URL) return input.href;
-    if (input && typeof input.url === 'string') return input.url;
-    return '';
 }
 
 function headersToObject(headers) {
@@ -149,9 +193,9 @@ function resolveFetchParams(input, init = {}) {
 
 function createYoutubeProxyFetch() {
     return async (input, init = {}) => {
-        const targetUrl = resolveRequestUrl(input);
+        const targetUrl = resolveRequestUrl(input, init);
 
-        if (!proxyUrl || !targetUrl || !shouldProxyUrl(targetUrl)) {
+        if (!proxyUrl || !isAbsoluteHttpsUrl(targetUrl) || !shouldProxyUrl(targetUrl)) {
             return fetch(input, init);
         }
 
@@ -187,24 +231,16 @@ function getProxyFetch() {
     return cachedProxyFetch;
 }
 
-/** Browser fetch first (user IP); server proxy only as CORS/network fallback. */
+/** Same-origin proxy for YouTube/googlevideo (browser cannot call them directly). */
 function getSmartFetch() {
     if (!cachedSmartFetch) {
         cachedSmartFetch = async (input, init = {}) => {
-            const targetUrl = resolveRequestUrl(input);
-            try {
-                const response = await fetch(input, init);
-                if (response.type !== 'opaque') {
-                    return response;
-                }
-                throw new Error('cors_opaque');
-            } catch (directErr) {
-                const proxy = getProxyFetch();
-                if (proxy && targetUrl && shouldProxyUrl(targetUrl)) {
-                    return proxy(input, init);
-                }
-                throw directErr;
+            const targetUrl = resolveRequestUrl(input, init);
+            const proxy = getProxyFetch();
+            if (proxy && isAbsoluteHttpsUrl(targetUrl) && shouldProxyUrl(targetUrl)) {
+                return proxy(input, init);
             }
+            return fetch(input, init);
         };
     }
     return cachedSmartFetch;
@@ -240,64 +276,120 @@ export function isYoutubeSignedIn() {
     return Boolean(loadOAuthCredentials()?.access_token);
 }
 
-export async function signInToYoutube() {
-    await ensurePlatform();
-    const { Innertube } = await importYoutubeJs();
+async function fetchTvOAuthClientFromServer() {
+    if (!configuredOAuthClientUrl) return null;
+    if (!cachedOAuthClientPromise) {
+        cachedOAuthClientPromise = fetch(configuredOAuthClientUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        }).then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data?.client_id || !data?.client_secret) {
+                throw new Error('oauth_client_unavailable');
+            }
+            return {
+                client_id: data.client_id,
+                client_secret: data.client_secret,
+            };
+        }).catch((err) => {
+            cachedOAuthClientPromise = null;
+            throw err;
+        });
+    }
+    return cachedOAuthClientPromise;
+}
 
-    if (authenticatedInnertube?.session?.logged_in) {
-        return loadOAuthCredentials();
+async function ensureTvOAuthClient(innertube) {
+    if (innertube?.session?.oauth?.client_id) return;
+    const client = await fetchTvOAuthClientFromServer();
+    if (client) {
+        innertube.session.oauth.client_id = client;
+    }
+}
+
+export function cancelYoutubeSignIn() {
+    if (activeSignInReject) {
+        activeSignInReject(Object.assign(new Error('youtube_sign_in_cancelled'), { name: 'AbortError' }));
+    }
+}
+
+export async function signInToYoutube() {
+    if (activeSignInPromise) {
+        return activeSignInPromise;
     }
 
-    const innertube = await Innertube.create({
-        lang: 'de',
-        location: 'DE',
-        client_type: AUTHENTICATED_CLIENT,
-        retrieve_player: false,
-        enable_session_cache: false,
-        generate_session_locally: true,
-        fetch: getSmartFetch(),
-        user_agent: CLIENT_USER_AGENTS.TV,
-    });
+    activeSignInPromise = (async () => {
+        await ensurePlatform();
+        const { Innertube } = await importYoutubeJs();
 
-    const cached = loadOAuthCredentials();
+        if (authenticatedInnertube?.session?.logged_in) {
+            return loadOAuthCredentials();
+        }
 
-    return new Promise((resolve, reject) => {
-        const cleanup = () => {
-            innertube.session.off('auth-pending', onPending);
-            innertube.session.off('auth', onAuth);
-            innertube.session.off('auth-error', onError);
-        };
-
-        const onPending = (data) => {
-            if (authCallbacks.onAuthPending) {
-                authCallbacks.onAuthPending({
-                    verificationUrl: data.verification_url || data.verificationUrl,
-                    userCode: data.user_code || data.userCode,
-                });
-            }
-        };
-        const onAuth = ({ credentials }) => {
-            cleanup();
-            saveOAuthCredentials(credentials);
-            authenticatedInnertube = innertube;
-            playlistClientPromise = null;
-            if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(true);
-            resolve(credentials);
-        };
-        const onError = (err) => {
-            cleanup();
-            reject(err);
-        };
-
-        innertube.session.on('auth-pending', onPending);
-        innertube.session.once('auth', onAuth);
-        innertube.session.once('auth-error', onError);
-
-        innertube.session.signIn(cached || undefined).catch((err) => {
-            cleanup();
-            reject(err);
+        const innertube = await Innertube.create({
+            lang: 'de',
+            location: 'DE',
+            client_type: AUTHENTICATED_CLIENT,
+            retrieve_player: false,
+            enable_session_cache: false,
+            generate_session_locally: true,
+            fetch: getSmartFetch(),
+            user_agent: CLIENT_USER_AGENTS.TV,
         });
-    });
+
+        const cached = loadOAuthCredentials();
+
+        await ensureTvOAuthClient(innertube);
+
+        return new Promise((resolve, reject) => {
+            activeSignInReject = reject;
+
+            const cleanup = () => {
+                activeSignInReject = null;
+                innertube.session.off('auth-pending', onPending);
+                innertube.session.off('auth', onAuth);
+                innertube.session.off('auth-error', onError);
+            };
+
+            const onPending = (data) => {
+                if (authCallbacks.onAuthPending) {
+                    authCallbacks.onAuthPending({
+                        verificationUrl: data.verification_url || data.verificationUrl,
+                        userCode: data.user_code || data.userCode,
+                    });
+                }
+            };
+            const onAuth = ({ credentials }) => {
+                cleanup();
+                saveOAuthCredentials(credentials);
+                authenticatedInnertube = innertube;
+                playlistClientPromise = null;
+                if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(true);
+                resolve(credentials);
+            };
+            const onError = (err) => {
+                cleanup();
+                reject(err);
+            };
+
+            innertube.session.on('auth-pending', onPending);
+            innertube.session.once('auth', onAuth);
+            innertube.session.once('auth-error', onError);
+
+            innertube.session.signIn(cached || undefined).catch((err) => {
+                cleanup();
+                reject(err);
+            });
+        });
+    })();
+
+    try {
+        return await activeSignInPromise;
+    } finally {
+        activeSignInPromise = null;
+        activeSignInReject = null;
+    }
 }
 
 export async function signOutFromYoutube() {
@@ -920,7 +1012,7 @@ async function downloadWithClient(clientType, videoId, format, options = {}) {
     try {
         return await downloadViaDirectUrl(innertube, videoId, clientType, format, onProgress, signal);
     } catch (directErr) {
-        console.warn(`[MediaDownloader] ${clientType} direct failed for ${videoId}:`, directErr);
+        mdDebug(`${clientType} direct failed for ${videoId}:`, directErr);
         if (!shouldRetryWithPlayer(directErr)) {
             throw directErr;
         }
@@ -929,7 +1021,7 @@ async function downloadWithClient(clientType, videoId, format, options = {}) {
     try {
         return await downloadViaInnertubeDownload(innertube, videoId, clientType, format, onProgress, signal);
     } catch (muxErr) {
-        console.warn(`[MediaDownloader] ${clientType} muxed failed for ${videoId}:`, muxErr);
+        mdDebug(`${clientType} muxed failed for ${videoId}:`, muxErr);
         if (!shouldRetryWithPlayer(muxErr)) {
             throw muxErr;
         }
@@ -972,7 +1064,7 @@ async function downloadWithAuthenticatedClient(videoId, format, options = {}) {
     try {
         return await downloadViaDirectUrl(innertube, videoId, AUTHENTICATED_CLIENT, format, onProgress, signal);
     } catch (directErr) {
-        console.warn(`[MediaDownloader] ${AUTHENTICATED_CLIENT} auth direct failed for ${videoId}:`, directErr);
+        mdDebug(`${AUTHENTICATED_CLIENT} auth direct failed for ${videoId}:`, directErr);
         if (!shouldRetryWithPlayer(directErr)) {
             throw directErr;
         }
@@ -996,7 +1088,7 @@ export async function downloadMedia(videoId, format, options = {}) {
             return result;
         } catch (err) {
             lastError = err;
-            console.warn(`[MediaDownloader] Authenticated download failed for ${videoId}:`, err);
+            mdDebug(`Authenticated download failed for ${videoId}:`, err);
             if (err?.code === 'err_age_restricted' || mapClientError(err) === 'err_age_restricted') {
                 throw err;
             }
@@ -1011,7 +1103,7 @@ export async function downloadMedia(videoId, format, options = {}) {
             return result;
         } catch (err) {
             lastError = err;
-            console.warn(`[MediaDownloader] ${clientType} failed for ${videoId}:`, err);
+            mdDebug(`${clientType} failed for ${videoId}:`, err);
             if (err?.code === 'err_age_restricted' || mapClientError(err) === 'err_age_restricted') {
                 throw err;
             }

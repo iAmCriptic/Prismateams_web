@@ -30,6 +30,7 @@ from app.utils.media_downloader import (
     build_youtube_proxy_request,
     iter_youtube_proxy_response,
     ensure_youtubei_vendor,
+    fetch_youtube_tv_oauth_client,
     YOUTUBE_PROXY_SKIP_RESPONSE_HEADERS,
 )
 
@@ -445,6 +446,19 @@ def youtube_search():
             'error': translate('media_downloader.search.error'),
             'results': [],
         }), 502
+
+
+@media_downloader_bp.route('/youtube-oauth-client')
+@login_required
+@check_module_access('module_media_downloader')
+@limiter.limit('30 per hour')
+def youtube_oauth_client():
+    """Provide YouTube TV OAuth client credentials for browser sign-in."""
+    try:
+        return jsonify(fetch_youtube_tv_oauth_client())
+    except Exception as exc:
+        logger.error('YouTube TV OAuth client fetch failed: %s', exc, exc_info=True)
+        return jsonify({'error': 'oauth_client_unavailable'}), 502
 
 
 @media_downloader_bp.route('/vendor/youtubei.js')
