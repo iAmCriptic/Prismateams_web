@@ -35,43 +35,6 @@
         </section>
 
 
-        <section class="calendar-form-card" aria-labelledby="cal-create-time">
-            <div class="calendar-form-card-head">
-                <h2 id="cal-create-time" class="calendar-form-section-title">
-                    <i class="bi bi-clock" aria-hidden="true"></i>
-                    {{ _('calendar.create.sections.time') }}
-                </h2>
-            </div>
-            <div class="calendar-form-fields calendar-form-fields--2">
-                <div class="calendar-form-field">
-                    <label class="form-label">{{ _('calendar.create.form.start_time') }}</label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="date" class="form-control" id="start_date" name="start_date" required>
-                            <small class="form-text">Datum</small>
-                        </div>
-                        <div class="col-6">
-                            <input type="time" class="form-control" id="start_time" name="start_time">
-                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="calendar-form-field">
-                    <label class="form-label">{{ _('calendar.create.form.end_time') }}</label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="date" class="form-control" id="end_date" name="end_date" required>
-                            <small class="form-text">Datum</small>
-                        </div>
-                        <div class="col-6">
-                            <input type="time" class="form-control" id="end_time" name="end_time">
-                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <div class="calendar-form-row calendar-form-row--2">
         <section class="calendar-form-card" aria-labelledby="cal-create-appearance">
             <div class="calendar-form-card-head">
@@ -82,10 +45,13 @@
             </div>
             <div class="calendar-form-fields">
                 <div class="calendar-form-field">
-                    <label for="event_color" class="form-label">Farbe</label>
+                    <label for="event_color" class="form-label">{{ _('calendar.create.form.color_label') }}</label>
                     <div class="d-flex flex-wrap align-items-center gap-2 calendar-color-picker-row">
-                        <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="#0d6efd" title="Terminfarbe">
-                        <div class="calendar-color-presets d-flex align-items-center flex-wrap" role="group" aria-label="Schnellfarben">
+                        <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="#0d6efd" title="{{ _('calendar.create.form.color_label') }}">
+                        <div class="calendar-color-presets d-flex align-items-center flex-wrap" role="group" aria-label="{{ _('calendar.create.form.color_label') }}">
+                            {% if calendar_multi_enabled %}
+                            <button type="button" class="calendar-color-preset calendar-color-preset--calendar" id="calendarColorPreset" data-calendar-preset-color="#0d6efd" style="background-color:#0d6efd" title="{{ _('calendar.create.form.calendar_color_preset') }}"></button>
+                            {% endif %}
                             <button type="button" class="calendar-color-preset" data-calendar-preset-color="#0d6efd" style="background-color:#0d6efd" title="Standard (Blau)"></button>
                             <button type="button" class="calendar-color-preset" data-calendar-preset-color="#198754" style="background-color:#198754" title="Grün"></button>
                             <button type="button" class="calendar-color-preset" data-calendar-preset-color="#fd7e14" style="background-color:#fd7e14" title="Orange"></button>
@@ -152,6 +118,44 @@
         </section>
         </div>
 
+        <div class="calendar-form-row calendar-form-row--3">
+        <section class="calendar-form-card" aria-labelledby="cal-create-time">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-time" class="calendar-form-section-title">
+                    <i class="bi bi-clock" aria-hidden="true"></i>
+                    {{ _('calendar.create.sections.time') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <label class="form-label">{{ _('calendar.create.form.start_time') }}</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            <small class="form-text">Datum</small>
+                        </div>
+                        <div class="col-6">
+                            <input type="time" class="form-control" id="start_time" name="start_time">
+                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="calendar-form-field">
+                    <label class="form-label">{{ _('calendar.create.form.end_time') }}</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            <small class="form-text">Datum</small>
+                        </div>
+                        <div class="col-6">
+                            <input type="time" class="form-control" id="end_time" name="end_time">
+                            <small class="form-text">Uhrzeit (optional - leer = ganztägig)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         {% if calendar_multi_enabled %}
         <section class="calendar-form-card" aria-labelledby="cal-create-calendar">
             <div class="calendar-form-card-head">
@@ -165,12 +169,23 @@
                     <label for="calendar_id" class="form-label">{{ _('calendar.create.form.calendar_label') }}</label>
                     <select class="form-select" id="calendar_id" name="calendar_id" required>
                         {% for cal in writable_calendars %}
-                        <option value="{{ cal.id }}" data-calendar-type="{{ cal.calendar_type }}" {% if cal.id == default_calendar_id %}selected{% endif %}>{{ cal.name }}</option>
+                        <option value="{{ cal.id }}" data-calendar-type="{{ cal.calendar_type }}" data-calendar-color="{{ cal.color }}" {% if cal.id == default_calendar_id %}selected{% endif %}>{{ cal.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
+            </div>
+        </section>
+
+        <section class="calendar-form-card" aria-labelledby="cal-create-invitees">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-create-invitees" class="calendar-form-section-title">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    {{ _('calendar.create.form.invitees_label') }}
+                </h2>
+            </div>
+            <div class="calendar-form-fields">
                 <div class="calendar-form-field" id="inviteesSection">
-                    <label for="inviteeSearch" class="form-label">{{ _('calendar.create.form.invitees_label') }}</label>
+                    <label for="inviteeSearch" class="form-label visually-hidden">{{ _('calendar.create.form.invitees_label') }}</label>
                     <div class="position-relative">
                         <input type="search" class="form-control" id="inviteeSearch" autocomplete="off" placeholder="{{ _('calendar.create.form.invitees_search') }}">
                         <div id="inviteeSearchResults" class="calendar-invitee-results list-group shadow-sm d-none"></div>
@@ -182,6 +197,7 @@
             </div>
         </section>
         {% endif %}
+        </div>
 
         <div class="calendar-form-actions">
             <button type="submit" class="btn btn-accent calendar-form-submit">{{ _('calendar.create.buttons.submit') }}</button>
@@ -196,7 +212,30 @@ document.addEventListener('DOMContentLoaded', function() {
     (function initEventColorPresets() {
         const input = document.getElementById('event_color');
         const presets = document.querySelectorAll('[data-calendar-preset-color]');
+        const calendarSelect = document.getElementById('calendar_id');
+        const calendarPreset = document.getElementById('calendarColorPreset');
         if (!input || !presets.length) return;
+
+        let userPickedColor = false;
+
+        function getSelectedCalendarColor() {
+            if (!calendarSelect) return '#0d6efd';
+            const opt = calendarSelect.options[calendarSelect.selectedIndex];
+            return (opt && opt.getAttribute('data-calendar-color')) || '#0d6efd';
+        }
+
+        function updateCalendarColorPreset() {
+            if (!calendarPreset) return;
+            const color = getSelectedCalendarColor();
+            calendarPreset.setAttribute('data-calendar-preset-color', color);
+            calendarPreset.style.backgroundColor = color;
+            calendarPreset.title = CAL_CREATE_I18N.form?.calendar_color_preset || 'Kalenderfarbe';
+            if (!userPickedColor) {
+                input.value = color;
+            }
+            syncActive();
+        }
+
         function syncActive() {
             const v = (input.value || '').toLowerCase();
             presets.forEach(function(btn) {
@@ -204,14 +243,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.classList.toggle('is-active', c === v);
             });
         }
+
         presets.forEach(function(btn) {
             btn.addEventListener('click', function() {
                 input.value = btn.getAttribute('data-calendar-preset-color');
+                userPickedColor = true;
                 syncActive();
             });
         });
-        input.addEventListener('input', syncActive);
-        syncActive();
+        input.addEventListener('input', function() {
+            userPickedColor = true;
+            syncActive();
+        });
+        if (calendarSelect) {
+            calendarSelect.addEventListener('change', function() {
+                userPickedColor = false;
+                updateCalendarColorPreset();
+            });
+            updateCalendarColorPreset();
+        } else {
+            syncActive();
+        }
     })();
 
     const isRecurringCheckbox = document.getElementById('is_recurring');

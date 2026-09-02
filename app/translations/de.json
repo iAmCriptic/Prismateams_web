@@ -137,6 +137,9 @@
     }
   },
   "auth": {
+    "shell": {
+      "tagline": "Dein Team-Portal. Sicher. Zentral."
+    },
     "login": {
       "title": "Anmelden",
       "subtitle": "Melde dich mit deinen Zugangsdaten an, um fortzufahren.",
@@ -151,7 +154,9 @@
       "switch_text": "Noch kein Konto? Registriere dich und starte direkt mit Prismateams.",
       "switch_cta": "Registrieren",
       "2fa_code": "2FA-Code",
-      "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein."
+      "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
+      "2fa_recovery_request": "Keinen Zugang zur Authenticator-App? Code per E-Mail senden",
+      "2fa_recovery_pending": "Ein Wiederherstellungscode wurde an Ihre E-Mail gesendet (5 Min. gültig). Sie können ihn hier eingeben."
     },
     "legal": {
       "nav_label": "Rechtliche Hinweise",
@@ -283,6 +288,10 @@
       "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden.",
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
+      "2fa_recovery_email_sent": "Ein Wiederherstellungscode wurde an {email} gesendet. Er ist 5 Minuten gültig.",
+      "2fa_recovery_email_failed": "Der Wiederherstellungscode konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+      "2fa_recovery_mail_not_configured": "E-Mail ist nicht konfiguriert. Bitte wenden Sie sich an einen Administrator.",
+      "2fa_recovery_rate_limited": "Bitte warten Sie kurz, bevor Sie einen neuen Code anfordern.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt.",
       "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF sind erlaubt.",
@@ -311,6 +320,18 @@
       "link_success": "Google-Konto verknüpft. Bei aktivem Multi-Postfach wurde „Gmail“ angelegt bzw. aktualisiert.",
       "unlink_success": "Google-Verknüpfung entfernt.",
       "not_linked_account": "Es ist kein Google-Konto verknüpft."
+    },
+    "passkey": {
+      "login_with": "Mit Passkey anmelden",
+      "login_with_aria": "Mit Passkey anmelden",
+      "use_passkey": "Mit Passkey bestätigen",
+      "or_divider": "oder",
+      "https_required": "Passkeys erfordern HTTPS (oder localhost).",
+      "invalid_response": "Ungültige Passkey-Antwort.",
+      "login_failed": "Passkey-Anmeldung fehlgeschlagen.",
+      "verify_failed": "Passkey-Bestätigung fehlgeschlagen.",
+      "use_localhost": "Passkeys funktionieren lokal nicht über 127.0.0.1. Bitte localhost verwenden.",
+      "open_localhost": "Zu localhost wechseln"
     }
   },
   "dashboard": {
@@ -349,6 +370,30 @@
     },
     "welcome": "Willkommen, {name}!",
     "overview_subtitle": "Hier ist Ihre Übersicht",
+    "onboarding": {
+      "button_label": "Kurztour",
+      "button_aria": "Einführungstour erneut starten",
+      "progress": "{current} / {total}",
+      "skip": "Überspringen",
+      "back": "Zurück",
+      "next": "Weiter",
+      "finish": "Los geht's",
+      "steps": {
+        "settings": {
+          "title": "Einstellungen anpassen",
+          "text": "Über das Zahnrad erreichst du Profil, Darstellung, Benachrichtigungen und Sicherheit – alles an einem Ort."
+        },
+        "modules": {
+          "title": "Module öffnen",
+          "text": "Über das 9-Punkte-Menü oben erreichst du jederzeit alle Module – auf jeder Seite im Portal.",
+          "text_admin": "Das 9-Punkte-Menü oben öffnet alle Module. Als Admin kannst du unter Einstellungen → Module zusätzliche Bereiche für das Team aktivieren."
+        },
+        "dashboard": {
+          "title": "Dashboard personalisieren",
+          "text": "Mit „Anordnen“ verschiebst und vergrößerst du Widgets. Über „Widget hinzufügen“ wählst du neue Übersichten aus."
+        }
+      }
+    },
     "whats_new": {
       "button_label": "Neues",
       "button_aria": "Neuigkeiten der Version anzeigen",
@@ -716,7 +761,8 @@
       "no_options": "Keine Einträge verfügbar.",
       "no_settings": "Für dieses Widget gibt es keine weiteren Einstellungen.",
       "all_added": "Alle verfügbaren Widgets sind bereits hinzugefügt.",
-      "save_error": "Speichern fehlgeschlagen."
+      "save_error": "Speichern fehlgeschlagen.",
+      "more_items": "+{count} weitere"
     },
     "guest": {
       "use_modules": "Nutzen Sie die Modul-Leiste oben, um zu Ihren freigegebenen Bereichen zu gelangen."
@@ -1086,7 +1132,31 @@
         "disabled_success": "2FA wurde erfolgreich deaktiviert.",
         "wrong_password": "Das Passwort ist falsch.",
         "setup_started": "2FA-Einrichtung gestartet. Bitte scannen Sie den QR-Code und geben Sie den Code ein.",
-        "setup_cancelled": "2FA-Einrichtung wurde abgebrochen."
+        "setup_cancelled": "2FA-Einrichtung wurde abgebrochen.",
+        "issuer_hint": "In Ihrer Authenticator-App erscheint der Eintrag als „{name}“.",
+        "recovery_hint": "Authenticator verloren? Beim Login können Sie sich einen einmaligen Wiederherstellungscode per E-Mail senden lassen (5 Min. gültig)."
+      },
+      "passkeys": {
+        "heading": "Passkeys",
+        "help": "Passwortloser Login und alternative 2FA-Bestätigung mit Geräte-Passkey.",
+        "intro": "Registrieren Sie einen Passkey auf diesem oder einem anderen Gerät. Sie können sich damit ohne Passwort anmelden oder im 2FA-Schritt bestätigen.",
+        "status_none": "Kein Passkey registriert",
+        "add_button": "Passkey hinzufügen",
+        "unnamed_device": "Passkey-Gerät",
+        "last_used": "Zuletzt: {date}",
+        "delete_button": "Entfernen",
+        "delete_confirm": "Passkey wirklich entfernen?",
+        "delete_password_placeholder": "Passwort zur Bestätigung",
+        "enter_password": "Bitte geben Sie Ihr Passwort ein.",
+        "wrong_password": "Das Passwort ist falsch.",
+        "not_found": "Passkey nicht gefunden.",
+        "deleted_success": "Passkey wurde entfernt.",
+        "guest_not_allowed": "Passkeys sind für Gast-Accounts nicht verfügbar.",
+        "https_required": "Passkeys erfordern HTTPS (oder localhost).",
+        "invalid_response": "Ungültige Passkey-Antwort.",
+        "already_registered": "Dieser Passkey ist bereits registriert.",
+        "register_failed": "Passkey konnte nicht registriert werden.",
+        "device_label_prompt": "Gerätename (optional):"
       },
       "devices": {
         "heading": "Angemeldete Geräte",
@@ -1226,6 +1296,17 @@
         "reminder_1d": "1 Tag vorher",
         "reminder_2d": "2 Tage vorher"
       },
+      "kanban": {
+        "title": "Kanban-Benachrichtigungen",
+        "toggle": "Kanban-Benachrichtigungen aktivieren",
+        "help": "Benachrichtigungen für Boards, auf denen Sie Mitglied sind",
+        "uploads": "Uploads & Anhänge",
+        "uploads_help": "Neue Dateien oder Links an Karten",
+        "changes": "Kartenänderungen",
+        "changes_help": "Titel, Beschreibung, Fälligkeit, Verschieben oder Erledigt",
+        "checklist": "Checklisten",
+        "checklist_help": "Neue, geänderte oder erledigte Checklistenpunkte"
+      },
       "js": {
         "checking": "Prüfe...",
         "permission_granted": "Erteilt",
@@ -1276,7 +1357,7 @@
       "media_downloader_label": "Media Downloader",
       "media_downloader_compatible": "FFmpeg ok",
       "media_downloader_not_compatible": "FFmpeg fehlt",
-      "excalidraw_label": "Excalidraw Integration:",
+      "excalidraw_label": "Excalidraw Rooms:",
       "excalidraw_active": "Aktiv",
       "excalidraw_inactive": "Nicht aktiv",
       "back_button": "Zurück zu Einstellungen",
@@ -1495,10 +1576,34 @@
         "remove_logo_confirm": "Portalslogo wirklich entfernen?",
         "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
         "default_accent_color_label": "Standard-Akzentfarbe",
-        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
+        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer und UI-Elemente im Portal.",
         "preview": "Vorschau",
-        "color_gradient_label": "Farbverlauf für Login/Register",
-        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
+        "color_gradient_label": "Farbverlauf hinter dem Anmeldeformular",
+        "color_gradient_help": "Hintergrund auf der Seite mit Login, Registrierung und Passwort-Formular.",
+        "auth_brand_image_label": "Hintergrundbild (Logo-Seite)",
+        "auth_brand_image_help": "Bild für die Seite mit Logo und optionalem Text (PNG, JPG, GIF oder WebP, max. 8 MB). Hat Vorrang vor der Brand-Farbe.",
+        "auth_brand_color_label": "Hintergrundfarbe (Logo-Seite)",
+        "auth_brand_color_help": "Einfarbig, wenn kein Hintergrundbild hochgeladen wurde.",
+        "remove_auth_brand_image": "Bild entfernen",
+        "remove_auth_brand_image_confirm": "Hintergrundbild wirklich entfernen?",
+        "flash_auth_brand_image_uploaded": "Hintergrundbild für Login/Register wurde hochgeladen.",
+        "flash_auth_brand_image_removed": "Hintergrundbild wurde entfernt.",
+        "flash_auth_brand_image_too_large": "Das Bild ist zu groß (max. 8 MB).",
+        "flash_auth_brand_image_invalid_type": "Ungültiger Bildtyp. Erlaubt: PNG, JPG, GIF, WebP.",
+        "auth_brand_logo_position_label": "Logo-Position auf der Brand-Seite",
+        "auth_brand_logo_position_help": "Position des Portallogos auf dem Hintergrundbild bzw. der Hintergrundfarbe.",
+        "auth_brand_text_label": "Optionaler Text auf der Brand-Seite",
+        "auth_brand_text_placeholder": "z. B. Willkommen im Team-Portal",
+        "auth_brand_text_help": "Optionaler Text unter dem Logo. Leer lassen, wenn kein Text angezeigt werden soll.",
+        "auth_brand_position.top-left": "Oben links",
+        "auth_brand_position.top-center": "Oben mitte",
+        "auth_brand_position.top-right": "Oben rechts",
+        "auth_brand_position.middle-left": "Mitte links",
+        "auth_brand_position.middle-center": "Mitte mitte",
+        "auth_brand_position.middle-right": "Mitte rechts",
+        "auth_brand_position.bottom-left": "Unten links",
+        "auth_brand_position.bottom-center": "Unten mitte",
+        "auth_brand_position.bottom-right": "Unten rechts",
         "color_gradient_default": "Standard (Blau-Violett)",
         "color_gradient_purple_blue": "Blau-Violett",
         "color_gradient_pink_red": "Pink-Rot",
@@ -3003,7 +3108,7 @@
       "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
       "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
       "folder_updated": "Ordner \"{folder_name}\" wurde aktualisiert.",
-      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Einträge liegen wieder im Root."
+      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Einträge liegen wieder direkt im Bereich."
     },
     "errors": {
       "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
@@ -3054,9 +3159,11 @@
         "name": "Ordnername",
         "color": "Farbe",
         "create": "Ordner erstellen",
+        "all": "Alle",
+        "all_empty": "Keine Zugangsdaten vorhanden.",
         "root": "Root",
         "drop_hint": "Karten auf Ordner ziehen",
-        "root_empty": "Keine Einträge im Root-Bereich.",
+        "root_empty": "Keine Einträge ohne Ordner.",
         "empty": "Dieser Ordner ist leer.",
         "move_up": "Ordner nach oben",
         "hint": "Name und Farbe für den neuen Ordner.",
@@ -3065,7 +3172,7 @@
         "edit": "Ordner bearbeiten",
         "menu": "Ordner-Optionen",
         "save": "Speichern",
-        "delete_confirm": "Ordner wirklich löschen? Einträge landen wieder im Root.",
+        "delete_confirm": "Ordner wirklich löschen? Einträge bleiben im Bereich ohne Ordner.",
         "move_down": "Ordner nach unten"
       },
       "search": {
@@ -3082,7 +3189,8 @@
         "password": "Passwort",
         "notes": "Notizen (optional)",
         "folder": "Ordner",
-        "root_folder": "Im Root speichern",
+        "no_folder": "Kein Ordner",
+        "root_folder": "Kein Ordner",
         "is_favorite": "Als Favorit markieren"
       },
       "placeholders": {
@@ -3114,6 +3222,7 @@
         "subtitle": "Eintrag aktualisieren oder Ordner wechseln."
       },
       "back": "Zurück",
+      "context_hint": "Wird im aktuellen Bereich gespeichert",
       "sections": {
         "site": "Website",
         "access": "Zugangsdaten",
@@ -3815,6 +3924,7 @@
       "brand": "Kalender",
       "new_event": "Neuer Termin",
       "new_calendar": "Neuer Kalender",
+      "more_options": "Mehr Optionen",
       "reset": "Zurücksetzen",
       "my_calendar": "Mein Kalender",
       "public": "Public",
@@ -4036,6 +4146,8 @@
           "end_help": "Wenn leer, wird unbegrenzt wiederholt"
         },
         "calendar_label": "Kalender",
+        "color_label": "Farbe",
+        "calendar_color_preset": "Kalenderfarbe",
         "invitees_label": "Personen einladen",
         "invitees_help": "Personen suchen und anklicken. Eingeladene erhalten eine Benachrichtigung und können zusagen oder absagen.",
         "invitees_search": "Person suchen…"
@@ -5071,6 +5183,7 @@
         "client_id_help": "Erhalten Sie Ihre Credentials im <a href=\"{link}\" target=\"_blank\">Spotify Developer Dashboard</a>",
         "client_secret": "Client Secret",
         "client_secret_placeholder": "Spotify Client Secret",
+        "credentials_hint": "Client ID und Client Secret aus dem Spotify Developer Dashboard. Redirect URI unten im Portal eintragen.",
         "redirect_uri": "Redirect URI:",
         "redirect_uri_help": "Diese URI muss in Ihrem Spotify Developer Dashboard als Redirect URI eingetragen sein.",
         "connected": "Spotify verbunden",
@@ -5728,6 +5841,14 @@
       "message_title": "Neue Nachricht zur Buchung",
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "kanban": {
+      "upload_title": "Neuer Anhang auf {board}",
+      "upload_body": "{actor} hat „{filename}“ an „{card}“ angehängt",
+      "change_title": "Karte geändert",
+      "change_body": "{actor} hat „{card}“ auf {board} aktualisiert",
+      "checklist_title": "Checkliste aktualisiert",
+      "checklist_body": "{actor}: „{item}“ auf „{card}“"
     },
     "push": {
       "test_title": "Test-Benachrichtigung",

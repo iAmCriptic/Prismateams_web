@@ -12,7 +12,7 @@
 
     <form method="POST" class="settings-appearance-form">
         <div class="settings-appearance-grid">
-            <section class="settings-appearance-card" aria-labelledby="appearance-section-language">
+            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-language">
                 <div class="settings-appearance-card-head">
                     <h2 id="appearance-section-language" class="settings-appearance-section-title mb-0">
                         <i class="bi bi-translate" aria-hidden="true"></i>
@@ -46,7 +46,7 @@
                 </div>
             </section>
 
-            <section class="settings-appearance-card" aria-labelledby="appearance-section-theme">
+            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-theme">
                 <div class="settings-appearance-card-head">
                     <h2 id="appearance-section-theme" class="settings-appearance-section-title mb-0">
                         <i class="bi bi-moon-stars" aria-hidden="true"></i>
@@ -81,9 +81,8 @@
                     </div>
                 </div>
             </section>
-        </div>
 
-        <section class="settings-appearance-card" aria-labelledby="appearance-section-color">
+            <section class="settings-appearance-card settings-appearance-card--color settings-appearance-card--animate" aria-labelledby="appearance-section-color">
             <div class="settings-appearance-card-head">
                 <h2 id="appearance-section-color" class="settings-appearance-section-title mb-0">
                     <i class="bi bi-palette" aria-hidden="true"></i>
@@ -166,9 +165,9 @@
             </div>
 
             <input type="hidden" id="accent_gradient" name="accent_gradient" value="{{ user.accent_gradient or '' }}">
-        </section>
+            </section>
 
-        <section class="settings-appearance-card" aria-labelledby="appearance-section-layout">
+            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-layout">
             <div class="settings-appearance-card-head">
                 <h2 id="appearance-section-layout" class="settings-appearance-section-title mb-0">
                     <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
@@ -188,10 +187,11 @@
                 </select>
             </div>
 
-        </section>
+            </section>
+        </div>
 
         <div class="settings-appearance-actions">
-            <button type="submit" class="btn btn-accent settings-appearance-submit">
+            <button type="submit" class="btn btn-accent rounded-pill settings-appearance-submit">
                 <i class="bi bi-save" aria-hidden="true"></i>
                 {{ _('settings.appearance.save_button') }}
             </button>
@@ -242,16 +242,43 @@ document.addEventListener('DOMContentLoaded', function () {
     var gradientSection = document.getElementById('gradient-section');
     var accentGradient = document.getElementById('accent_gradient');
 
+    function pulsePreview(el) {
+        if (!el) return;
+        el.classList.remove('is-pulsing');
+        void el.offsetWidth;
+        el.classList.add('is-pulsing');
+    }
+
     function showSolid() {
-        if (solidSection) solidSection.hidden = false;
-        if (gradientSection) gradientSection.hidden = true;
+        if (gradientSection) {
+            gradientSection.classList.remove('is-visible');
+            gradientSection.setAttribute('hidden', '');
+        }
+        if (solidSection) {
+            solidSection.removeAttribute('hidden');
+            requestAnimationFrame(function () {
+                solidSection.classList.add('is-visible');
+            });
+        }
         if (accentGradient) accentGradient.value = '';
     }
 
     function showGradient() {
-        if (solidSection) solidSection.hidden = true;
-        if (gradientSection) gradientSection.hidden = false;
+        if (solidSection) {
+            solidSection.classList.remove('is-visible');
+            solidSection.setAttribute('hidden', '');
+        }
+        if (gradientSection) {
+            gradientSection.removeAttribute('hidden');
+            requestAnimationFrame(function () {
+                gradientSection.classList.add('is-visible');
+            });
+        }
         updateGradientPreview();
+    }
+
+    if (solidSection && !solidSection.hasAttribute('hidden')) {
+        solidSection.classList.add('is-visible');
     }
 
     document.getElementById('color_solid').addEventListener('change', function () {
@@ -262,7 +289,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('accent_color').addEventListener('input', function (e) {
-        document.getElementById('color-preview').style.backgroundColor = e.target.value;
+        var preview = document.getElementById('color-preview');
+        preview.style.backgroundColor = e.target.value;
+        pulsePreview(preview);
     });
 
     function updateGradientPreview() {
@@ -270,8 +299,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var end = document.getElementById('gradient_end').value;
         var direction = document.getElementById('gradient_direction').value;
         var gradient = 'linear-gradient(' + direction + ', ' + start + ' 0%, ' + end + ' 100%)';
-        document.getElementById('gradient-preview').style.background = gradient;
+        var preview = document.getElementById('gradient-preview');
+        preview.style.background = gradient;
         accentGradient.value = gradient;
+        pulsePreview(preview);
     }
 
     document.getElementById('gradient_start').addEventListener('input', updateGradientPreview);
@@ -284,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('gradient_end').value = this.dataset.end;
             document.getElementById('color_gradient').checked = true;
             showGradient();
+            updateGradientPreview();
         });
     });
 

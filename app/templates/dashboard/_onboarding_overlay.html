@@ -1,0 +1,34 @@
+{# Portal-Onboarding: 3-Schritte-Spotlight-Tour für neue Nutzer #}
+<div id="portalOnboarding"
+     class="portal-onboarding d-none"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="portalOnboardingTitle"
+     data-portal-onboarding-auto="{{ '1' if show_portal_onboarding|default(false) else '0' }}"
+     data-portal-onboarding-complete-url="{{ url_for('dashboard.api_onboarding_complete') }}">
+    <div class="portal-onboarding-backdrop" data-portal-onboarding-dismiss aria-hidden="true"></div>
+    <div class="portal-onboarding-spotlight" aria-hidden="true">
+        <span class="portal-onboarding-ring"></span>
+    </div>
+    <div class="portal-onboarding-card">
+        <div class="portal-onboarding-progress" id="portalOnboardingProgress" aria-live="polite"></div>
+        <h3 class="portal-onboarding-title" id="portalOnboardingTitle"></h3>
+        <p class="portal-onboarding-text" id="portalOnboardingText"></p>
+        <div class="portal-onboarding-actions">
+            <button type="button" class="whats-new-btn whats-new-btn--ghost portal-onboarding-skip" id="portalOnboardingSkip">
+                {{ _('dashboard.onboarding.skip') }}
+            </button>
+            <div class="portal-onboarding-nav">
+                <button type="button" class="whats-new-btn whats-new-btn--ghost portal-onboarding-back d-none" id="portalOnboardingBack">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>{{ _('dashboard.onboarding.back') }}
+                </button>
+                <button type="button" class="whats-new-btn whats-new-btn--primary whats-new-btn--next portal-onboarding-next" id="portalOnboardingNext">
+                    {{ _('dashboard.onboarding.next') }}<i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="whats-new-btn whats-new-btn--primary whats-new-btn--next portal-onboarding-finish d-none" id="portalOnboardingFinish">
+                    {{ _('dashboard.onboarding.finish') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

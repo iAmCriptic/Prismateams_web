@@ -1,165 +1,141 @@
 {% set force_light_theme = true %}
 {% extends "base.html" %}
+{% from 'auth/_auth_shell.html' import auth_shell with context %}
 
 {% block title %}{{ _('auth.register.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
 {% set gp = google_prefill or none %}
-<div class="auth-container auth-register">
-    <div class="auth-card">
-        <div class="auth-panel">
-            <div class="auth-panel-body">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-person-plus text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-2">{{ _('auth.register.title') }}</h5>
-                <p class="text-center text-muted auth-subtitle mb-4">
-                    {% if gp %}
-                    {{ _('auth.register.subtitle_google') }}
-                    {% else %}
-                    {{ _('auth.register.subtitle') }}
-                    {% endif %}
-                </p>
+{% set register_subtitle = _('auth.register.subtitle_google') if gp else _('auth.register.subtitle') %}
+{% call auth_shell(_('auth.register.title'), register_subtitle, body_class='auth-register', brand_icon='bi-person-plus') %}
+{% if google_login_ready|default(false) and not gp %}
+<a href="{{ url_for('auth.google_register_start') }}"
+   class="btn btn-outline-primary auth-google-btn w-100 mb-2"
+   aria-label="{{ _('auth.google.register_with_aria') }}">
+    <span>{{ _('auth.google.login_with') }}</span>
+    <span class="auth-google-logo" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
+            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
+        </svg>
+    </span>
+</a>
+<div class="auth-google-divider my-3" role="separator">
+    <span>{{ _('auth.google.or') }}</span>
+</div>
+{% endif %}
 
-                {% if google_login_ready|default(false) and not gp %}
-                <a href="{{ url_for('auth.google_register_start') }}"
-                   class="btn btn-outline-primary auth-google-btn w-100 mb-2"
-                   aria-label="{{ _('auth.google.register_with_aria') }}">
-                    <span>{{ _('auth.google.login_with') }}</span>
-                    <span class="auth-google-logo" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
-                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
-                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
-                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z"/>
-                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
-                        </svg>
-                    </span>
-                </a>
-                <div class="auth-google-divider my-3" role="separator">
-                    <span>{{ _('auth.google.or') }}</span>
-                </div>
-                {% endif %}
-
-                {% if gp %}
-                <div class="auth-google-prefill mb-3">
-                    {% if gp.picture %}
-                    <img src="{{ gp.picture }}" alt="" class="auth-google-prefill-avatar" width="56" height="56" referrerpolicy="no-referrer">
-                    {% endif %}
-                    <div class="auth-google-prefill-meta">
-                        <div class="fw-semibold">{{ _('auth.register.google_connected') }}</div>
-                        <div class="text-muted small">{{ gp.email }}</div>
-                        <a href="{{ url_for('auth.register', clear_google=1) }}" class="small">{{ _('auth.register.google_disconnect') }}</a>
-                    </div>
-                </div>
-                {% endif %}
-
-                <form method="POST" id="registerForm" enctype="multipart/form-data">
-                    <div class="auth-register-avatar mb-3">
-                        <div class="auth-register-avatar-preview" id="registerPicturePreview">
-                            {% if gp and gp.picture %}
-                            <img src="{{ gp.picture }}" alt="{{ _('auth.register.picture_alt') }}" id="registerPictureImg" referrerpolicy="no-referrer">
-                            {% else %}
-                            <i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>
-                            {% endif %}
-                        </div>
-                        <div class="auth-register-avatar-fields">
-                            <label class="form-label mb-1" for="profile_picture">{{ _('auth.register.picture_optional') }}</label>
-                            <div class="auth-register-avatar-actions">
-                                <label for="profile_picture" class="btn btn-outline-secondary btn-sm mb-0">
-                                    <i class="bi bi-upload" aria-hidden="true"></i>
-                                    {{ _('auth.register.picture_choose') }}
-                                </label>
-                                <button type="button" class="btn btn-outline-danger btn-sm" id="registerPictureClear" hidden>
-                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                                    {{ _('auth.register.picture_clear') }}
-                                </button>
-                            </div>
-                            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
-                            <div class="form-text mb-0">{{ _('auth.register.picture_help') }}</div>
-                            <div class="form-text text-danger" id="registerPictureError" hidden></div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-12 col-md-6 mb-3">
-                            <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" required
-                                   value="{{ gp.first_name if gp else '' }}">
-                        </div>
-                        <div class="col-12 col-md-6 mb-3">
-                            <label for="last_name" class="form-label">{{ _('auth.register.last_name') }}</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" required
-                                   value="{{ gp.last_name if gp else '' }}">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="email" class="form-label">{{ _('auth.register.email') }}</label>
-                        <input type="email" class="form-control" id="email" name="email" required
-                               value="{{ gp.email if gp else '' }}"
-                               {% if gp %}readonly tabindex="-1"{% endif %}>
-                        {% if gp %}
-                        <div class="form-text">{{ _('auth.register.email_google_locked') }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">{{ _('auth.register.phone_optional') }}</label>
-                        <input type="tel" class="form-control" id="phone" name="phone">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
-                        <div class="password-req-wrap">
-                            <input type="password" class="form-control password-req-input" id="password" name="password" required minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
-                            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden title="{{ _('auth.register.password_help') }}">
-                                <i class="bi bi-exclamation-circle-fill"></i>
-                            </span>
-                        </div>
-                        <div class="form-text password-req-help is-idle" id="passwordHelp">{{ _('auth.register.password_help') }}</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
-                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password">
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
-                            <label class="form-check-label" for="dark_mode">
-                                <i class="bi bi-moon me-2"></i>
-                                {{ _('auth.register.dark_mode_label') }}
-                            </label>
-                        </div>
-                        <div class="form-text">{{ _('auth.register.dark_mode_help') }}</div>
-                    </div>
-
-                    {% set bot_context = 'register' %}
-                    {% include 'auth/_bot_protection.html' %}
-
-                    <button type="submit" class="btn btn-accent w-100" id="registerSubmitBtn">{{ _('auth.register.submit') }}</button>
-                </form>
-
-                <hr class="my-4">
-
-                <p class="text-center mb-0">
-                    {{ _('auth.register.login_link_prefix') }}
-                    <a href="{{ url_for('auth.login') }}">{{ _('auth.register.login_link_cta') }}</a>
-                </p>
-            </div>
-        </div>
+{% if gp %}
+<div class="auth-google-prefill mb-3">
+    {% if gp.picture %}
+    <img src="{{ gp.picture }}" alt="" class="auth-google-prefill-avatar" width="56" height="56" referrerpolicy="no-referrer">
+    {% endif %}
+    <div class="auth-google-prefill-meta">
+        <div class="fw-semibold">{{ _('auth.register.google_connected') }}</div>
+        <div class="text-muted small">{{ gp.email }}</div>
+        <a href="{{ url_for('auth.register', clear_google=1) }}" class="small">{{ _('auth.register.google_disconnect') }}</a>
     </div>
 </div>
+{% endif %}
 
-{% include 'auth/_auth_bg.html' %}
+<form method="POST" id="registerForm" enctype="multipart/form-data">
+    <div class="auth-register-avatar mb-3">
+        <div class="auth-register-avatar-preview" id="registerPicturePreview">
+            {% if gp and gp.picture %}
+            <img src="{{ gp.picture }}" alt="{{ _('auth.register.picture_alt') }}" id="registerPictureImg" referrerpolicy="no-referrer">
+            {% else %}
+            <i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>
+            {% endif %}
+        </div>
+        <div class="auth-register-avatar-fields">
+            <label class="form-label mb-1" for="profile_picture">{{ _('auth.register.picture_optional') }}</label>
+            <div class="auth-register-avatar-actions">
+                <label for="profile_picture" class="btn btn-outline-secondary btn-sm mb-0">
+                    <i class="bi bi-upload" aria-hidden="true"></i>
+                    {{ _('auth.register.picture_choose') }}
+                </label>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="registerPictureClear" hidden>
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    {{ _('auth.register.picture_clear') }}
+                </button>
+            </div>
+            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
+            <div class="form-text mb-0">{{ _('auth.register.picture_help') }}</div>
+            <div class="form-text text-danger" id="registerPictureError" hidden></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-md-6 mb-3">
+            <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" required
+                   value="{{ gp.first_name if gp else '' }}">
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+            <label for="last_name" class="form-label">{{ _('auth.register.last_name') }}</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" required
+                   value="{{ gp.last_name if gp else '' }}">
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">{{ _('auth.register.email') }}</label>
+        <input type="email" class="form-control" id="email" name="email" required
+               value="{{ gp.email if gp else '' }}"
+               {% if gp %}readonly tabindex="-1"{% endif %}>
+        {% if gp %}
+        <div class="form-text">{{ _('auth.register.email_google_locked') }}</div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        <label for="phone" class="form-label">{{ _('auth.register.phone_optional') }}</label>
+        <input type="tel" class="form-control" id="phone" name="phone">
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
+        <div class="password-req-wrap">
+            <input type="password" class="form-control password-req-input" id="password" name="password" required minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
+            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden title="{{ _('auth.register.password_help') }}">
+                <i class="bi bi-exclamation-circle-fill"></i>
+            </span>
+        </div>
+        <div class="form-text password-req-help is-idle" id="passwordHelp">{{ _('auth.register.password_help') }}</div>
+    </div>
+
+    <div class="mb-3">
+        <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
+        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password">
+    </div>
+
+    <div class="mb-3">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
+            <label class="form-check-label" for="dark_mode">
+                <i class="bi bi-moon me-2"></i>
+                {{ _('auth.register.dark_mode_label') }}
+            </label>
+        </div>
+        <div class="form-text">{{ _('auth.register.dark_mode_help') }}</div>
+    </div>
+
+    {% set bot_context = 'register' %}
+    {% include 'auth/_bot_protection.html' %}
+
+    <button type="submit" class="btn btn-accent w-100" id="registerSubmitBtn">{{ _('auth.register.submit') }}</button>
+</form>
+
+<hr class="my-4">
+
+<p class="text-center mb-0">
+    {{ _('auth.register.login_link_prefix') }}
+    <a href="{{ url_for('auth.login') }}" class="auth-page-switch" data-auth-transition="to-login">{{ _('auth.register.login_link_cta') }}</a>
+</p>
+{% endcall %}
+
 <script>
 (function () {
     var form = document.getElementById('registerForm');

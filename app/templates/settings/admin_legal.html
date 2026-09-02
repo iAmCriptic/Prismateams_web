@@ -34,7 +34,7 @@
                         aria-controls="legalCollapse{{ page_id|capitalize }}" id="legal-{{ page_id }}-title">
                     <h2 class="settings-admin-system-section-title mb-0">{{ heading }}</h2>
                 </button>
-                <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary rounded-pill" target="_blank" rel="noopener">
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                     {{ _('settings.admin.legal.preview') }}
                 </a>
@@ -56,7 +56,7 @@
         {% endfor %}
 
         <div class="settings-admin-system-actions">
-            <button type="submit" class="btn btn-accent">
+            <button type="submit" class="btn btn-accent rounded-pill settings-admin-system-submit">
                 <i class="bi bi-save" aria-hidden="true"></i>
                 {{ _('settings.admin.legal.save') }}
             </button>

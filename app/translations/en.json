@@ -137,6 +137,9 @@
     }
   },
   "auth": {
+    "shell": {
+      "tagline": "Your team portal. Secure. Centralized."
+    },
     "login": {
       "title": "Log in",
       "subtitle": "Sign in with your credentials to continue.",
@@ -151,6 +154,8 @@
       "switch_cta": "Register",
       "2fa_code": "2FA code",
       "2fa_code_help": "Enter the 6-digit code from your authenticator app.",
+      "2fa_recovery_request": "Lost access to your authenticator app? Send code by email",
+      "2fa_recovery_pending": "A recovery code was sent to your email (valid for 5 minutes). You can enter it here."
       "forgot_password": "Forgot password?"
     },
     "legal": {
@@ -264,6 +269,10 @@
       "password_reset_success": "Password was reset successfully. You can now log in.",
       "enter_2fa_code": "Please enter your 2FA code.",
       "invalid_2fa_code": "Invalid 2FA code. Please try again.",
+      "2fa_recovery_email_sent": "A recovery code was sent to {email}. It is valid for 5 minutes.",
+      "2fa_recovery_email_failed": "Could not send the recovery code. Please try again later.",
+      "2fa_recovery_mail_not_configured": "Email is not configured. Please contact an administrator.",
+      "2fa_recovery_rate_limited": "Please wait a moment before requesting a new code.",
       "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts."
     },
     "bot_protection": {
@@ -311,6 +320,18 @@
       "link_success": "Google account linked. With multi-mailbox enabled, “Gmail” was created or updated.",
       "unlink_success": "Google link removed.",
       "not_linked_account": "No Google account is linked."
+    },
+    "passkey": {
+      "login_with": "Sign in with passkey",
+      "login_with_aria": "Sign in with passkey",
+      "use_passkey": "Confirm with passkey",
+      "or_divider": "or",
+      "https_required": "Passkeys require HTTPS (or localhost).",
+      "invalid_response": "Invalid passkey response.",
+      "login_failed": "Passkey sign-in failed.",
+      "verify_failed": "Passkey verification failed.",
+      "use_localhost": "Passkeys do not work locally via 127.0.0.1. Please use localhost.",
+      "open_localhost": "Switch to localhost"
     }
   },
   "dashboard": {
@@ -345,6 +366,30 @@
     },
     "welcome": "Welcome, {name}!",
     "overview_subtitle": "Here is your overview",
+    "onboarding": {
+      "button_label": "Quick tour",
+      "button_aria": "Restart the introduction tour",
+      "progress": "{current} / {total}",
+      "skip": "Skip",
+      "back": "Back",
+      "next": "Next",
+      "finish": "Get started",
+      "steps": {
+        "settings": {
+          "title": "Customize settings",
+          "text": "Use the gear icon to manage your profile, appearance, notifications, and security in one place."
+        },
+        "modules": {
+          "title": "Open modules",
+          "text": "Use the 9-dot menu at the top to reach every module from any page in the portal.",
+          "text_admin": "The 9-dot menu at the top opens all modules. As an admin, you can enable more areas for the team under Settings → Modules."
+        },
+        "dashboard": {
+          "title": "Personalize your dashboard",
+          "text": "Use Arrange to move and resize widgets. Add Widget lets you pick new overview cards."
+        }
+      }
+    },
     "whats_new": {
       "button_label": "What's new",
       "button_aria": "Show what's new in this version",
@@ -712,7 +757,8 @@
       "no_options": "No entries available.",
       "no_settings": "This widget has no additional settings.",
       "all_added": "All available widgets have already been added.",
-      "save_error": "Could not save."
+      "save_error": "Could not save.",
+      "more_items": "+{count} more"
     },
     "guest": {
       "use_modules": "Use the module bar above to open your available areas."
@@ -1114,6 +1160,17 @@
         "reminder_1d": "1 day before",
         "reminder_2d": "2 days before"
       },
+      "kanban": {
+        "title": "Kanban notifications",
+        "toggle": "Enable Kanban notifications",
+        "help": "Notifications for boards you are a member of",
+        "uploads": "Uploads & attachments",
+        "uploads_help": "New files or links on cards",
+        "changes": "Card changes",
+        "changes_help": "Title, description, due date, moves or completion",
+        "checklist": "Checklists",
+        "checklist_help": "New, updated or completed checklist items"
+      },
       "save_button": "Save settings",
       "js": {
         "checking": "Checking...",
@@ -1206,7 +1263,31 @@
         "disabled_success": "2FA disabled successfully.",
         "wrong_password": "The password is incorrect.",
         "setup_started": "2FA setup started. Scan the QR code and enter the code.",
-        "setup_cancelled": "2FA setup was cancelled."
+        "setup_cancelled": "2FA setup was cancelled.",
+        "issuer_hint": "In your authenticator app the entry will appear as \"{name}\".",
+        "recovery_hint": "Lost your authenticator? During login you can request a one-time recovery code by email (valid for 5 minutes)."
+      },
+      "passkeys": {
+        "heading": "Passkeys",
+        "help": "Passwordless sign-in and alternative 2FA confirmation with a device passkey.",
+        "intro": "Register a passkey on this or another device. You can sign in without a password or confirm at the 2FA step.",
+        "status_none": "No passkey registered",
+        "add_button": "Add passkey",
+        "unnamed_device": "Passkey device",
+        "last_used": "Last used: {date}",
+        "delete_button": "Remove",
+        "delete_confirm": "Really remove this passkey?",
+        "delete_password_placeholder": "Password to confirm",
+        "enter_password": "Please enter your password.",
+        "wrong_password": "Incorrect password.",
+        "not_found": "Passkey not found.",
+        "deleted_success": "Passkey removed.",
+        "guest_not_allowed": "Passkeys are not available for guest accounts.",
+        "https_required": "Passkeys require HTTPS (or localhost).",
+        "invalid_response": "Invalid passkey response.",
+        "already_registered": "This passkey is already registered.",
+        "register_failed": "Could not register passkey.",
+        "device_label_prompt": "Device name (optional):"
       },
       "devices": {
         "heading": "Signed-in devices",
@@ -1276,7 +1357,7 @@
       "media_downloader_label": "Media Downloader",
       "media_downloader_compatible": "FFmpeg ok",
       "media_downloader_not_compatible": "FFmpeg missing",
-      "excalidraw_label": "Excalidraw integration:",
+      "excalidraw_label": "Excalidraw Rooms:",
       "excalidraw_active": "Active",
       "excalidraw_inactive": "Inactive",
       "back_button": "Back to settings",
@@ -1709,10 +1790,34 @@
         "remove_logo_confirm": "Really remove the portal logo?",
         "portal_logo_help": "Logo for the portal (PNG, JPG, JPEG, GIF or SVG, max. 5MB)",
         "default_accent_color_label": "Default accent color",
-        "default_accent_color_help": "Default accent color for new users. Users can change this later in their settings.",
+        "default_accent_color_help": "Default accent color for new users and UI elements across the portal.",
         "preview": "Preview",
-        "color_gradient_label": "Gradient for Login/Register",
-        "color_gradient_help": "Choose a gradient for the login and registration pages.",
+        "color_gradient_label": "Gradient behind the sign-in form",
+        "color_gradient_help": "Background on the page with login, registration, and password forms.",
+        "auth_brand_image_label": "Background image (logo panel)",
+        "auth_brand_image_help": "Image for the panel with logo and optional text (PNG, JPG, GIF or WebP, max. 8 MB). Takes precedence over the brand color.",
+        "auth_brand_color_label": "Background color (logo panel)",
+        "auth_brand_color_help": "Solid color when no background image is uploaded.",
+        "remove_auth_brand_image": "Remove image",
+        "remove_auth_brand_image_confirm": "Really remove the background image?",
+        "flash_auth_brand_image_uploaded": "Login/register background image uploaded.",
+        "flash_auth_brand_image_removed": "Background image removed.",
+        "flash_auth_brand_image_too_large": "Image is too large (max. 8 MB).",
+        "flash_auth_brand_image_invalid_type": "Invalid image type. Allowed: PNG, JPG, GIF, WebP.",
+        "auth_brand_logo_position_label": "Logo position on brand panel",
+        "auth_brand_logo_position_help": "Where the portal logo appears on the background image or color.",
+        "auth_brand_text_label": "Optional text on brand panel",
+        "auth_brand_text_placeholder": "e.g. Welcome to your team portal",
+        "auth_brand_text_help": "Optional text below the logo. Leave empty to hide text.",
+        "auth_brand_position.top-left": "Top left",
+        "auth_brand_position.top-center": "Top center",
+        "auth_brand_position.top-right": "Top right",
+        "auth_brand_position.middle-left": "Middle left",
+        "auth_brand_position.middle-center": "Middle center",
+        "auth_brand_position.middle-right": "Middle right",
+        "auth_brand_position.bottom-left": "Bottom left",
+        "auth_brand_position.bottom-center": "Bottom center",
+        "auth_brand_position.bottom-right": "Bottom right",
         "color_gradient_default": "Default (Blue-Violet)",
         "color_gradient_purple_blue": "Purple-Blue",
         "color_gradient_pink_red": "Pink-Red",
@@ -3416,6 +3521,8 @@
           "end_help": "Leave empty for unlimited recurrence"
         },
         "calendar_label": "Calendar",
+        "color_label": "Color",
+        "calendar_color_preset": "Calendar color",
         "invitees_label": "Invite people",
         "invitees_help": "Search and click people. Invitees get a notification and can accept or decline.",
         "invitees_search": "Search person…"
@@ -3550,6 +3657,7 @@
       "brand": "Calendar",
       "new_event": "New event",
       "new_calendar": "New calendar",
+      "more_options": "More options",
       "reset": "Reset",
       "my_calendar": "My calendar",
       "public": "Public",
@@ -3900,9 +4008,11 @@
         "name": "Folder name",
         "color": "Color",
         "create": "Create folder",
+        "all": "All",
+        "all_empty": "No credentials available.",
         "root": "Root",
         "drop_hint": "Drag cards onto folders",
-        "root_empty": "No entries in root.",
+        "root_empty": "No entries without a folder.",
         "empty": "This folder is empty.",
         "move_up": "Move folder up",
         "hint": "Name and color for the new folder.",
@@ -3911,7 +4021,7 @@
         "edit": "Edit folder",
         "menu": "Folder options",
         "save": "Save",
-        "delete_confirm": "Really delete this folder? Entries will move back to root.",
+        "delete_confirm": "Really delete this folder? Entries will stay in the area without a folder.",
         "move_down": "Move folder down"
       },
       "search": {
@@ -3928,7 +4038,8 @@
         "password": "Password",
         "notes": "Notes (optional)",
         "folder": "Folder",
-        "root_folder": "Store in root",
+        "no_folder": "No folder",
+        "root_folder": "No folder",
         "is_favorite": "Mark as favorite"
       },
       "placeholders": {
@@ -3960,6 +4071,7 @@
         "subtitle": "Update the entry or move it to another folder."
       },
       "back": "Back",
+      "context_hint": "Saved in the current area",
       "sections": {
         "site": "Website",
         "access": "Login details",
@@ -3974,7 +4086,7 @@
       "folder_name_required": "Please provide a folder name.",
       "folder_created": "Folder \"{folder_name}\" has been created.",
       "folder_updated": "Folder \"{folder_name}\" was updated.",
-      "folder_deleted": "Folder \"{folder_name}\" was deleted. Entries are back in root."
+      "folder_deleted": "Folder \"{folder_name}\" was deleted. Entries are back in the area without a folder."
     },
     "errors": {
       "decrypt_error": "Error decrypting password"
@@ -5062,6 +5174,7 @@
         "client_id_help": "Get this from {link}",
         "client_secret": "Spotify Client Secret",
         "client_secret_placeholder": "Your Spotify Client Secret",
+        "credentials_hint": "Client ID and Client Secret from the Spotify Developer Dashboard. Add the redirect URI below in your Spotify app.",
         "redirect_uri": "Redirect URI:",
         "redirect_uri_help": "Add this URL to your Spotify Developer Dashboard as a redirect URI.",
         "connected": "Spotify is connected to your account.",
@@ -5535,6 +5648,14 @@
       "message_title": "New booking message",
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "kanban": {
+      "upload_title": "New attachment on {board}",
+      "upload_body": "{actor} attached \"{filename}\" to \"{card}\"",
+      "change_title": "Card updated",
+      "change_body": "{actor} updated \"{card}\" on {board}",
+      "checklist_title": "Checklist updated",
+      "checklist_body": "{actor}: \"{item}\" on \"{card}\""
     },
     "push": {
       "test_title": "Test notification",

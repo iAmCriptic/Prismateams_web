@@ -80,7 +80,8 @@
                         <input type="file" id="directFileUpload" name="file" form="shareUploadForm" style="display:none;" multiple>
                         <input type="file" id="directFolderUpload" name="file" form="shareUploadForm" style="display:none;" webkitdirectory directory multiple>
                         {% endif %}
-                        <div class="files-view-toggle" role="group">
+                        <div class="files-view-toggle" data-view="grid" role="group">
+                            <span class="files-view-toggle__indicator" aria-hidden="true"></span>
                             <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="Listenansicht">
                                 <i class="bi bi-list"></i>
                             </button>
@@ -104,7 +105,8 @@
                     </nav>
                     {% endif %}
 
-                    <div id="gridViewContainer">
+                    <div id="shareViewStage" class="files-view-stage" data-view="grid">
+                    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
                         {% if subfolders %}
                         <h6 class="mb-3">Ordner</h6>
                         <div class="row g-3 mb-4">
@@ -195,7 +197,7 @@
                         {% endif %}
                     </div>
 
-                    <div id="listViewContainer" class="d-none">
+                    <div id="listViewContainer" class="files-view-pane" style="display: none;">
                         {% if subfolders %}
                         <h6 class="mb-3">Ordner</h6>
                         <div class="list-group mb-4">
@@ -238,6 +240,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    </div>
 
                     {% if can_edit %}
                     <form id="shareUploadForm" method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data" class="d-none">
@@ -271,6 +274,7 @@
 
 {% block extra_js %}
 {% if item_type == 'folder' %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/share-browser.js') }}"></script>
 {% endif %}
 {% endblock %}

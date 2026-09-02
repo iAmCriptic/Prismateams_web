@@ -159,6 +159,16 @@
       "link_success": "Аккаунт Google связан. При активных нескольких ящиках создан или обновлён «Gmail».",
       "unlink_success": "Связь с Google удалена.",
       "not_linked_account": "Аккаунт Google не связан."
+    },
+    "passkey": {
+      "login_with": "Войти с passkey",
+      "login_with_aria": "Войти с passkey",
+      "use_passkey": "Подтвердить с passkey",
+      "or_divider": "или",
+      "https_required": "Passkeys требуют HTTPS (или localhost).",
+      "invalid_response": "Неверный ответ passkey.",
+      "login_failed": "Не удалось войти с passkey.",
+      "verify_failed": "Не удалось подтвердить passkey."
     }
   },
   "dashboard": {
@@ -569,6 +579,14 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "kanban": {
+      "upload_title": "Новое вложение на {board}",
+      "upload_body": "{actor} прикрепил «{filename}» к «{card}»",
+      "change_title": "Карточка изменена",
+      "change_body": "{actor} обновил «{card}» на {board}",
+      "checklist_title": "Чек-лист обновлён",
+      "checklist_body": "{actor}: «{item}» на «{card}»"
+    },
     "push": {
       "test_title": "Тестовое уведомление",
       "test_body": "Тест от {portal_name}. Push работает."
@@ -690,6 +708,19 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys"
+      }
+    },
+    "notifications": {
+      "kanban": {
+        "title": "Уведомления Kanban",
+        "toggle": "Включить уведомления Kanban",
+        "help": "Уведомления для досок, участником которых вы являетесь",
+        "uploads": "Загрузки и вложения",
+        "uploads_help": "Новые файлы или ссылки на карточках",
+        "changes": "Изменения карточек",
+        "changes_help": "Название, описание, срок, перемещение или выполнение",
+        "checklist": "Чек-листы",
+        "checklist_help": "Новые, изменённые или выполненные пункты"
       }
     },
     "profile": {

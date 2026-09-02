@@ -6,6 +6,9 @@ from app.models.credential import Credential, CredentialFolder, CredentialFavori
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
 from app.utils.module_visibility import (
+    VISIBILITY_PRIVATE,
+    VISIBILITY_PUBLIC,
+    VISIBILITY_TEAM,
     accessible_query,
     apply_section_filter,
     apply_visibility_from_form,
@@ -136,15 +139,134 @@ def _credentials_denied():
     return redirect(url_for('credentials.index'))
 
 
-def _credentials_form_kwargs(item=None):
+def _folder_scope(folder):
+    """Return (visibility, team_id) for a folder."""
+    if not folder:
+        return VISIBILITY_PUBLIC, None
+    vis = (folder.visibility or VISIBILITY_PUBLIC).strip().lower()
+    if vis == VISIBILITY_TEAM and folder.team_id:
+        return VISIBILITY_TEAM, folder.team_id
+    if vis == VISIBILITY_PRIVATE:
+        return VISIBILITY_PRIVATE, None
+    return VISIBILITY_PUBLIC, None
+
+
+def _group_folders_by_scope(folders):
+    """Group folders for sidebar navigation."""
+    grouped = {
+        VISIBILITY_PRIVATE: [],
+        VISIBILITY_PUBLIC: [],
+        'teams': {},
+    }
+    for folder in folders:
+        vis, team_id = _folder_scope(folder)
+        if vis == VISIBILITY_TEAM and team_id:
+            grouped['teams'].setdefault(team_id, []).append(folder)
+        elif vis == VISIBILITY_PRIVATE:
+            grouped[VISIBILITY_PRIVATE].append(folder)
+        else:
+            grouped[VISIBILITY_PUBLIC].append(folder)
+    return grouped
+
+
+def _folders_for_scope(all_folders, section, filter_team_id):
+    """Return folders matching the current visibility scope."""
+    if section == VISIBILITY_PRIVATE:
+        return [f for f in all_folders if _folder_scope(f)[0] == VISIBILITY_PRIVATE]
+    if section == VISIBILITY_PUBLIC:
+        return [f for f in all_folders if _folder_scope(f)[0] == VISIBILITY_PUBLIC]
+    if section == VISIBILITY_TEAM and filter_team_id:
+        return [
+            f for f in all_folders
+            if _folder_scope(f) == (VISIBILITY_TEAM, filter_team_id)
+        ]
+    return list(all_folders)
+
+
+def _index_url_kwargs(folder=None, view=None, team_id=None, folder_id=None):
+    """Build query args for credentials.index redirects."""
+    kwargs = {}
+    if folder_id:
+        kwargs['folder_id'] = folder_id
+    if folder:
+        vis, tid = _folder_scope(folder)
+        if vis == VISIBILITY_TEAM and tid:
+            kwargs['view'] = VISIBILITY_TEAM
+            kwargs['team_id'] = tid
+        elif vis in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC):
+            kwargs['view'] = vis
+    elif view and view not in ('all', 'favorites'):
+        kwargs['view'] = view
+        if view == VISIBILITY_TEAM and team_id:
+            kwargs['team_id'] = team_id
+    return kwargs
+
+
+def _scope_folder_query(folder):
+    """Base query for folders in the same scope as *folder*."""
+    vis, team_id = _folder_scope(folder)
+    query = CredentialFolder.query.filter(CredentialFolder.visibility == vis)
+    if vis == VISIBILITY_TEAM and team_id:
+        return query.filter(CredentialFolder.team_id == team_id)
+    return query.filter(CredentialFolder.team_id.is_(None))
+
+
+def _parse_folder_scope_from_form():
+    """Read visibility scope for new folders from form hidden fields."""
+    raw_view = (request.form.get('return_view') or '').strip().lower()
+    raw_team_id = request.form.get('return_team_id')
+    team_id = None
+    if raw_view == VISIBILITY_TEAM:
+        try:
+            team_id = int(raw_team_id or 0) or None
+        except (TypeError, ValueError):
+            team_id = None
+        if team_id:
+            return VISIBILITY_TEAM, team_id
+        return VISIBILITY_PRIVATE, None
+    if raw_view == VISIBILITY_PRIVATE:
+        return VISIBILITY_PRIVATE, None
+    return VISIBILITY_PUBLIC, None
+
+
+def _credentials_form_kwargs(item=None, folder_id=None):
     section, filter_team_id = parse_section_args('credentials', current_user)
-    pre_section = section if section in ('private', 'public', 'team') else None
-    return visibility_form_context(
+    pre_section = None
+    pre_team_id = None
+
+    if item is None:
+        if folder_id:
+            folder = CredentialFolder.query.get(folder_id)
+            if folder:
+                pre_section, pre_team_id = _folder_scope(folder)
+        elif section in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM):
+            pre_section = section
+            pre_team_id = filter_team_id
+
+    all_folders = CredentialFolder.query.order_by(
+        CredentialFolder.position.asc(), CredentialFolder.name.asc()
+    ).all()
+
+    ctx = visibility_form_context(
         'credentials',
         current_user,
         item=item,
         preselect_section=pre_section,
-        preselect_team_id=filter_team_id,
+        preselect_team_id=pre_team_id,
+    )
+    ctx['scope_folders'] = all_folders
+    return ctx
+
+
+def _render_create_form(folder_id=None, is_favorite=False, **extra):
+    selected_folder_id = folder_id
+    form_ctx = _credentials_form_kwargs(folder_id=selected_folder_id)
+    return render_template(
+        'credentials/create.html',
+        selected_folder_id=selected_folder_id,
+        is_favorite=is_favorite,
+        **form_ctx,
+        **extra,
     )
 
 
@@ -153,13 +275,32 @@ def _credentials_form_kwargs(item=None):
 @check_module_access('module_credentials')
 def index():
     """List credentials for root, folder, space, or personal favorites view."""
-    folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
+    all_folders = CredentialFolder.query.order_by(
+        CredentialFolder.position.asc(), CredentialFolder.name.asc()
+    ).all()
+    folders_by_scope = _group_folders_by_scope(all_folders)
     section, filter_team_id = parse_section_args('credentials', current_user)
     active_favorites = section == 'favorites'
-    space_view = section in ('private', 'team', 'public')
+    space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
     search_query = request.args.get('q', '').strip()
-    active_folder_id = None if active_favorites or space_view else parse_folder_id(request.args.get('folder_id'))
-    active_folder = CredentialFolder.query.get(active_folder_id) if active_folder_id else None
+    raw_folder_id = parse_folder_id(request.args.get('folder_id'))
+
+    active_folder_id = None
+    active_folder = None
+    if raw_folder_id and not active_favorites:
+        active_folder = CredentialFolder.query.get(raw_folder_id)
+        if active_folder:
+            active_folder_id = raw_folder_id
+            folder_vis, folder_team_id = _folder_scope(active_folder)
+            if not space_view:
+                section = folder_vis
+                filter_team_id = folder_team_id
+                space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
+        else:
+            active_folder_id = None
+    elif not active_favorites and not space_view:
+        active_folder_id = None
+
     favorite_ids = get_user_favorite_ids(current_user.id)
     show_favorites_nav = bool(favorite_ids)
 
@@ -169,13 +310,13 @@ def index():
             credentials_query = credentials_query.filter(Credential.id.in_(favorite_ids))
         else:
             return redirect(url_for('credentials.index'))
+    elif active_folder_id:
+        credentials_query = credentials_query.filter(Credential.folder_id == active_folder_id)
     elif space_view:
         credentials_query = apply_section_filter(credentials_query, Credential, section, filter_team_id)
-    elif not search_query:
-        if active_folder_id is None:
+        if not search_query:
             credentials_query = credentials_query.filter(Credential.folder_id.is_(None))
-        else:
-            credentials_query = credentials_query.filter(Credential.folder_id == active_folder_id)
+    # "Alle"-Ansicht: alle sichtbaren Einträge (ohne Ordner-Filter)
 
     if search_query:
         like = f'%{search_query}%'
@@ -193,7 +334,8 @@ def index():
 
     return render_template(
         'credentials/index.html',
-        folders=folders,
+        folders=all_folders,
+        folders_by_scope=folders_by_scope,
         credentials=credentials,
         active_folder_id=active_folder_id,
         active_folder=active_folder,
@@ -221,14 +363,7 @@ def create():
         
         if not all([website_url, website_name, username, password]):
             flash(translate('credentials.flash.fill_all_fields'), 'danger')
-            folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
-            return render_template(
-                'credentials/create.html',
-                folders=folders,
-                selected_folder_id=folder_id,
-                is_favorite=is_favorite,
-                **_credentials_form_kwargs(),
-            )
+            return _render_create_form(folder_id=folder_id, is_favorite=is_favorite)
 
         # Get favicon
         favicon_url = get_favicon_url(website_url)
@@ -257,17 +392,18 @@ def create():
         db.session.commit()
 
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
-        return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
+        folder = CredentialFolder.query.get(folder_id) if folder_id else None
+        if folder:
+            redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=folder_id)
+        else:
+            redirect_kwargs = _index_url_kwargs(
+                view=credential.visibility,
+                team_id=credential.team_id if credential.visibility == VISIBILITY_TEAM else None,
+            )
+        return redirect(url_for('credentials.index', **redirect_kwargs))
 
-    folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
     selected_folder_id = parse_folder_id(request.args.get('folder_id'))
-    return render_template(
-        'credentials/create.html',
-        folders=folders,
-        selected_folder_id=selected_folder_id,
-        is_favorite=False,
-        **_credentials_form_kwargs(),
-    )
+    return _render_create_form(folder_id=selected_folder_id, is_favorite=False)
 
 
 @credentials_bp.route('/edit/<int:credential_id>', methods=['GET', 'POST'])
@@ -300,12 +436,11 @@ def edit(credential_id):
         db.session.commit()
         
         flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
-        folder_id = credential.folder_id
-        return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
+        folder = CredentialFolder.query.get(credential.folder_id) if credential.folder_id else None
+        return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=credential.folder_id)))
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
-    folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
     is_favorite = CredentialFavorite.query.filter_by(
         user_id=current_user.id,
         credential_id=credential.id
@@ -315,7 +450,6 @@ def edit(credential_id):
         'credentials/edit.html',
         credential=credential,
         password=decrypted_password,
-        folders=folders,
         is_favorite=is_favorite,
         **_credentials_form_kwargs(credential),
     )
@@ -337,7 +471,8 @@ def delete(credential_id):
     db.session.commit()
 
     flash(translate('credentials.flash.deleted', website_name=website_name), 'success')
-    return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
+    folder = CredentialFolder.query.get(folder_id) if folder_id else None
+    return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=folder_id)))
 
 
 @credentials_bp.route('/view-password/<int:credential_id>')
@@ -367,13 +502,26 @@ def create_folder():
 
     if not folder_name:
         flash(translate('credentials.flash.folder_name_required'), 'danger')
-        return redirect(url_for('credentials.index'))
+        return redirect(url_for('credentials.index', **_index_url_kwargs(
+            view=request.form.get('return_view'),
+            team_id=request.form.get('return_team_id'),
+            folder_id=parse_folder_id(request.form.get('return_folder_id')),
+        )))
 
-    max_position = db.session.query(db.func.max(CredentialFolder.position)).scalar() or 0
+    folder_visibility, folder_team_id = _parse_folder_scope_from_form()
+    scope_query = CredentialFolder.query.filter(CredentialFolder.visibility == folder_visibility)
+    if folder_visibility == VISIBILITY_TEAM and folder_team_id:
+        scope_query = scope_query.filter(CredentialFolder.team_id == folder_team_id)
+    else:
+        scope_query = scope_query.filter(CredentialFolder.team_id.is_(None))
+    max_position = scope_query.with_entities(db.func.max(CredentialFolder.position)).scalar() or 0
+
     folder = CredentialFolder(
         name=folder_name[:120],
         color=folder_color,
         position=max_position + 1,
+        visibility=folder_visibility,
+        team_id=folder_team_id,
         created_by=current_user.id
     )
     db.session.add(folder)
@@ -381,11 +529,12 @@ def create_folder():
 
     flash(translate('credentials.flash.folder_created', folder_name=folder.name), 'success')
     return_folder_id = parse_folder_id(request.form.get('return_folder_id'))
-    return redirect(
-        url_for('credentials.index', folder_id=return_folder_id)
-        if return_folder_id
-        else url_for('credentials.index')
-    )
+    return redirect(url_for('credentials.index', **_index_url_kwargs(
+        folder=folder,
+        folder_id=return_folder_id,
+        view=request.form.get('return_view'),
+        team_id=request.form.get('return_team_id'),
+    )))
 
 
 @credentials_bp.route('/folders/<int:folder_id>/update', methods=['POST'])
@@ -406,7 +555,7 @@ def update_folder(folder_id):
     db.session.commit()
 
     flash(translate('credentials.flash.folder_updated', folder_name=folder.name), 'success')
-    return redirect(url_for('credentials.index', folder_id=folder.id))
+    return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=folder.id)))
 
 
 @credentials_bp.route('/folders/<int:folder_id>/delete', methods=['POST'])
@@ -416,13 +565,14 @@ def delete_folder(folder_id):
     """Delete folder; move credentials back to root."""
     folder = CredentialFolder.query.get_or_404(folder_id)
     folder_name = folder.name
+    redirect_kwargs = _index_url_kwargs(folder=folder)
 
     Credential.query.filter_by(folder_id=folder.id).update({'folder_id': None})
     db.session.delete(folder)
     db.session.commit()
 
     flash(translate('credentials.flash.folder_deleted', folder_name=folder_name), 'success')
-    return redirect(url_for('credentials.index'))
+    return redirect(url_for('credentials.index', **redirect_kwargs))
 
 
 @credentials_bp.route('/folders/<int:folder_id>/move-up', methods=['POST'])
@@ -431,7 +581,7 @@ def delete_folder(folder_id):
 def move_folder_up(folder_id):
     """Move folder one position up."""
     folder = CredentialFolder.query.get_or_404(folder_id)
-    previous_folder = CredentialFolder.query.filter(
+    previous_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position < folder.position
     ).order_by(CredentialFolder.position.desc()).first()
 
@@ -439,7 +589,7 @@ def move_folder_up(folder_id):
         folder.position, previous_folder.position = previous_folder.position, folder.position
         db.session.commit()
 
-    return redirect(url_for('credentials.index', folder_id=folder_id))
+    return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=folder_id)))
 
 
 @credentials_bp.route('/folders/<int:folder_id>/move-down', methods=['POST'])
@@ -448,7 +598,7 @@ def move_folder_up(folder_id):
 def move_folder_down(folder_id):
     """Move folder one position down."""
     folder = CredentialFolder.query.get_or_404(folder_id)
-    next_folder = CredentialFolder.query.filter(
+    next_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position > folder.position
     ).order_by(CredentialFolder.position.asc()).first()
 
@@ -456,7 +606,7 @@ def move_folder_down(folder_id):
         folder.position, next_folder.position = next_folder.position, folder.position
         db.session.commit()
 
-    return redirect(url_for('credentials.index', folder_id=folder_id))
+    return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=folder_id)))
 
 
 @credentials_bp.route('/move/<int:credential_id>', methods=['POST'])

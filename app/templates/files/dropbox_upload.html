@@ -72,7 +72,8 @@
                             </li>
                         </ul>
                     </div>
-                    <div class="files-view-toggle" role="group">
+                    <div class="files-view-toggle" data-view="grid" role="group">
+                        <span class="files-view-toggle__indicator" aria-hidden="true"></span>
                         <button class="files-view-toggle__btn" id="dropboxListViewBtn" type="button" title="Listenansicht">
                             <i class="bi bi-list"></i>
                         </button>
@@ -93,7 +94,8 @@
                 </form>
 
                 <h5 class="mt-4 mb-3">Ihre Uploads in dieser Sitzung</h5>
-                <div id="dropboxGridViewContainer">
+                <div id="dropboxViewStage" class="files-view-stage" data-view="grid">
+                <div id="dropboxGridViewContainer" class="files-view-pane files-view-pane--active">
                     {% if session_uploads %}
                     <div class="row g-3" id="dropboxGridView">
                         {% for file in session_uploads %}
@@ -121,7 +123,7 @@
                     </div>
                     {% endif %}
                 </div>
-                <div id="dropboxListViewContainer" class="d-none">
+                <div id="dropboxListViewContainer" class="files-view-pane" style="display: none;">
                     {% if session_uploads %}
                     <div class="list-group" id="dropboxListView">
                         {% for file in session_uploads %}
@@ -147,6 +149,7 @@
                     </div>
                     {% endif %}
                 </div>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -158,5 +161,6 @@
 <script>
 window.FILES_MAX_UPLOAD_BYTES = {{ files_max_upload_bytes|default(104857600)|int }};
 </script>
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dropbox-browser.js') }}"></script>
 {% endblock %}

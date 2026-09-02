@@ -23,7 +23,6 @@
 body:has(.error-page) .sidebar,
 body:has(.error-page) .mobile-nav,
 body:has(.error-page) .pwa-install-prompt,
-body:has(.error-page) .back-button-container,
 body:has(.error-page) #appFlashBanner {
     display: none !important;
 }

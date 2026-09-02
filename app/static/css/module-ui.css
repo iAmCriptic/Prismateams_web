@@ -965,3 +965,31 @@ a.mod-nav-link.active,
     padding: 0.35rem 0.75rem;
     font-size: 0.875rem;
 }
+
+/* ——— Inline back link (subpages inside a module shell) ——— */
+.mod-back-row {
+    margin-top: 0.15rem;
+}
+
+.mod-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 999px;
+    padding: 0.25rem 0.15rem;
+    line-height: 1.2;
+}
+
+.mod-back-link:hover,
+.mod-back-link:focus {
+    color: var(--accent-color, #0d6efd);
+    text-decoration: none;
+}
+
+.mod-back-link i {
+    font-size: 1rem;
+    line-height: 1;
+}

@@ -159,6 +159,16 @@
       "link_success": "Conta Google vinculada. Com multi-mailbox ativo, “Gmail” foi criado ou atualizado.",
       "unlink_success": "Ligação Google removida.",
       "not_linked_account": "Nenhuma conta Google está vinculada."
+    },
+    "passkey": {
+      "login_with": "Entrar com passkey",
+      "login_with_aria": "Entrar com passkey",
+      "use_passkey": "Confirmar com passkey",
+      "or_divider": "ou",
+      "https_required": "Passkeys exigem HTTPS (ou localhost).",
+      "invalid_response": "Resposta de passkey inválida.",
+      "login_failed": "Falha ao entrar com passkey.",
+      "verify_failed": "Falha na verificação do passkey."
     }
   },
   "dashboard": {
@@ -569,6 +579,14 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "kanban": {
+      "upload_title": "Novo anexo em {board}",
+      "upload_body": "{actor} anexou «{filename}» a «{card}»",
+      "change_title": "Cartão atualizado",
+      "change_body": "{actor} atualizou «{card}» em {board}",
+      "checklist_title": "Lista de verificação atualizada",
+      "checklist_body": "{actor}: «{item}» em «{card}»"
+    },
     "push": {
       "test_title": "Notificação de teste",
       "test_body": "Teste de {portal_name}. Push funciona."
@@ -690,6 +708,19 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys"
+      }
+    },
+    "notifications": {
+      "kanban": {
+        "title": "Notificações Kanban",
+        "toggle": "Ativar notificações Kanban",
+        "help": "Notificações para quadros em que é membro",
+        "uploads": "Uploads e anexos",
+        "uploads_help": "Novos ficheiros ou links em cartões",
+        "changes": "Alterações em cartões",
+        "changes_help": "Título, descrição, prazo, movimento ou conclusão",
+        "checklist": "Listas de verificação",
+        "checklist_help": "Itens novos, atualizados ou concluídos"
       }
     },
     "profile": {

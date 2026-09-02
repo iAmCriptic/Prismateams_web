@@ -16,7 +16,15 @@ import os
 import secrets
 import tempfile
 from app.utils.i18n import available_languages, translate
-from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
+from app.utils.totp import (
+    generate_totp_secret,
+    get_totp_uri,
+    get_totp_issuer_name,
+    generate_qr_code,
+    encrypt_secret,
+    verify_totp,
+)
+from app.utils.webauthn_helper import passkeys_supported_for_request, localhost_passkey_url
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
 from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone, portal_now_naive
@@ -228,6 +236,25 @@ def portal_logo(filename):
         abort(404)
 
 
+@settings_bp.route('/auth-brand-image/<path:filename>')
+def auth_brand_image(filename):
+    """Serve auth brand panel background image (public access)."""
+    try:
+        from urllib.parse import unquote
+        filename = unquote(filename)
+
+        project_root = os.path.dirname(current_app.root_path)
+        directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+        full_path = os.path.join(directory, filename)
+
+        if not os.path.isfile(full_path):
+            abort(404)
+
+        return send_from_directory(directory, filename)
+    except FileNotFoundError:
+        abort(404)
+
+
 @settings_bp.route('/notifications', methods=['GET', 'POST'])
 @login_required
 def notifications():
@@ -250,6 +277,14 @@ def notifications():
         # Buchungsanfragen
         settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
         settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
+
+        # Kanban-Benachrichtigungen
+        from app.utils.common import is_module_enabled
+        if is_module_enabled('module_kanban'):
+            settings.kanban_notifications_enabled = 'kanban_notifications_enabled' in request.form
+            settings.kanban_upload_notifications = 'kanban_upload_notifications' in request.form
+            settings.kanban_change_notifications = 'kanban_change_notifications' in request.form
+            settings.kanban_checklist_notifications = 'kanban_checklist_notifications' in request.form
         
         # Kalender-Benachrichtigungen
         settings.calendar_notifications_enabled = 'calendar_notifications_enabled' in request.form
@@ -295,12 +330,15 @@ def notifications():
             chat_id=chat.id
         ).first()
         chat_notification_settings[chat.id] = chat_setting.notifications_enabled if chat_setting else True
-    
+
+    from app.utils.common import is_module_enabled
+
     return render_template(
         'settings/notifications.html',
         settings=settings,
         user_chats=user_chats,
-        chat_notification_settings=chat_notification_settings
+        chat_notification_settings=chat_notification_settings,
+        kanban_module_enabled=is_module_enabled('module_kanban'),
     )
 
 
@@ -2068,6 +2106,104 @@ def admin_system():
             if gradient_setting:
                 db.session.delete(gradient_setting)
 
+        auth_brand_color = request.form.get('auth_brand_color', '#667eea').strip()
+        if not auth_brand_color.startswith('#'):
+            auth_brand_color = f'#{auth_brand_color.lstrip("#")}'
+        brand_color_setting = SystemSettings.query.filter_by(key='auth_brand_color').first()
+        if brand_color_setting:
+            brand_color_setting.value = auth_brand_color
+        else:
+            db.session.add(SystemSettings(
+                key='auth_brand_color',
+                value=auth_brand_color,
+                description='Hintergrundfarbe Auth-Brand-Seite ohne Bild',
+            ))
+
+        from app.utils.auth_branding import normalize_auth_brand_logo_position
+
+        auth_brand_text = request.form.get('auth_brand_text', '').strip()
+        text_setting = SystemSettings.query.filter_by(key='auth_brand_text').first()
+        if text_setting:
+            text_setting.value = auth_brand_text
+        else:
+            db.session.add(SystemSettings(
+                key='auth_brand_text',
+                value=auth_brand_text,
+                description='Optionaler Text auf der Login/Register Brand-Seite',
+            ))
+
+        logo_position = normalize_auth_brand_logo_position(
+            request.form.get('auth_brand_logo_position', '').strip()
+        )
+        position_setting = SystemSettings.query.filter_by(key='auth_brand_logo_position').first()
+        if position_setting:
+            position_setting.value = logo_position
+        else:
+            db.session.add(SystemSettings(
+                key='auth_brand_logo_position',
+                value=logo_position,
+                description='Logo-Position auf der Auth-Brand-Seite',
+            ))
+
+        if request.form.get('remove_auth_brand_image') == '1':
+            image_setting = SystemSettings.query.filter_by(key='auth_brand_image').first()
+            if image_setting and image_setting.value:
+                try:
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    old_path = os.path.join(upload_dir, image_setting.value)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except OSError:
+                    pass
+                db.session.delete(image_setting)
+                flash(translate('settings.admin.system.flash_auth_brand_image_removed'), 'success')
+
+        if 'auth_brand_image' in request.files:
+            file = request.files['auth_brand_image']
+            if file and file.filename:
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                    file.seek(0, 2)
+                    file_size = file.tell()
+                    file.seek(0)
+                    max_size = 8 * 1024 * 1024
+                    if file_size > max_size:
+                        flash(translate('settings.admin.system.flash_auth_brand_image_too_large'), 'danger')
+                        return redirect(url_for('settings.admin_system'))
+
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"auth_brand_{timestamp}_{filename}"
+
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+
+                    old_image_setting = SystemSettings.query.filter_by(key='auth_brand_image').first()
+                    if old_image_setting and old_image_setting.value:
+                        try:
+                            old_path = os.path.join(upload_dir, old_image_setting.value)
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except OSError:
+                            pass
+
+                    if old_image_setting:
+                        old_image_setting.value = filename
+                    else:
+                        db.session.add(SystemSettings(
+                            key='auth_brand_image',
+                            value=filename,
+                            description='Hintergrundbild Auth-Brand-Seite',
+                        ))
+                    flash(translate('settings.admin.system.flash_auth_brand_image_uploaded'), 'success')
+                else:
+                    flash(translate('settings.admin.system.flash_auth_brand_image_invalid_type'), 'danger')
+                    return redirect(url_for('settings.admin_system'))
+
         # Update portal timezone
         timezone_choices = dict(get_timezone_choices())
         portal_timezone = request.form.get('portal_timezone', DEFAULT_TIMEZONE).strip()
@@ -2143,12 +2279,23 @@ def admin_system():
     accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
+    auth_brand_image_setting = SystemSettings.query.filter_by(key='auth_brand_image').first()
+    auth_brand_color_setting = SystemSettings.query.filter_by(key='auth_brand_color').first()
+    auth_brand_text_setting = SystemSettings.query.filter_by(key='auth_brand_text').first()
+    auth_brand_position_setting = SystemSettings.query.filter_by(key='auth_brand_logo_position').first()
+    from app.utils.auth_branding import AUTH_BRAND_LOGO_POSITIONS, normalize_auth_brand_logo_position
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
     default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
     color_gradient = gradient_setting.value if gradient_setting else ''
     portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
+    auth_brand_image = auth_brand_image_setting.value if auth_brand_image_setting else None
+    auth_brand_color = auth_brand_color_setting.value if auth_brand_color_setting else '#667eea'
+    auth_brand_text = auth_brand_text_setting.value if auth_brand_text_setting else ''
+    auth_brand_logo_position = normalize_auth_brand_logo_position(
+        auth_brand_position_setting.value if auth_brand_position_setting else None
+    )
     guest_email_domain = get_guest_email_domain()
     search_indexing_enabled = is_search_indexing_enabled()
     
@@ -2158,6 +2305,11 @@ def admin_system():
                          default_accent_color=default_accent_color,
                          color_gradient=color_gradient,
                          portal_timezone=portal_timezone,
+                         auth_brand_image=auth_brand_image,
+                         auth_brand_color=auth_brand_color,
+                         auth_brand_text=auth_brand_text,
+                         auth_brand_logo_position=auth_brand_logo_position,
+                         auth_brand_logo_positions=AUTH_BRAND_LOGO_POSITIONS,
                          guest_email_domain=guest_email_domain,
                          search_indexing_enabled=search_indexing_enabled,
                          timezone_choices=get_timezone_choices())
@@ -2663,12 +2815,10 @@ def admin_integrations():
 
         spotify_client_id = request.form.get('spotify_client_id', '').strip()
         spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
-        deezer_app_id = request.form.get('deezer_app_id', '').strip()
 
         for key, value, desc in (
             ('spotify_client_id', spotify_client_id, 'Spotify OAuth Client ID'),
             ('spotify_client_secret', spotify_client_secret, 'Spotify Client Secret'),
-            ('deezer_app_id', deezer_app_id, 'Deezer App-ID'),
         ):
             row = MusicSettings.query.filter_by(key=key).first()
             if row:
@@ -2684,13 +2834,9 @@ def admin_integrations():
     microsoft = get_microsoft_credentials()
     from app.utils.integrations import google_oauth_redirect_uri
     from app.models.music import MusicSettings
-    from app.utils.music_oauth import is_provider_connected
 
     spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
     spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
-    deezer_app_id = MusicSettings.query.filter_by(key='deezer_app_id').first()
-    spotify_connected = is_provider_connected(current_user.id, 'spotify')
-    youtube_connected = is_provider_connected(current_user.id, 'youtube')
 
     return render_template(
         'settings/admin_integrations.html',
@@ -2700,11 +2846,7 @@ def admin_integrations():
         microsoft_redirect=url_for('settings.mailbox_oauth_callback', provider='microsoft', _external=True),
         spotify_client_id=spotify_client_id.value if spotify_client_id else '',
         spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
-        deezer_app_id=deezer_app_id.value if deezer_app_id else '',
-        spotify_connected=spotify_connected,
-        youtube_connected=youtube_connected,
         spotify_redirect_uri=url_for('music.spotify_callback', _external=True),
-        youtube_redirect_uri=google_oauth_redirect_uri(),
     )
 
 
@@ -4803,7 +4945,19 @@ def _render_security_page(scroll_to_devices=False):
                 flask_session['2fa_setup_secret'] = generate_totp_secret()
             totp_secret = flask_session['2fa_setup_secret']
             totp_uri = get_totp_uri(current_user.email, totp_secret)
-            qr_code_data = generate_qr_code(totp_uri)
+            logo_path = None
+            portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+            if portal_logo_setting and portal_logo_setting.value:
+                project_root = os.path.dirname(current_app.root_path)
+                candidate = os.path.join(
+                    project_root,
+                    current_app.config['UPLOAD_FOLDER'],
+                    'system',
+                    portal_logo_setting.value,
+                )
+                if os.path.isfile(candidate):
+                    logo_path = candidate
+            qr_code_data = generate_qr_code(totp_uri, logo_path=logo_path)
             show_setup = True
         elif not setup_mode:
             # Setup nicht aktiv angefordert: sensible Setup-Daten verwerfen
@@ -4812,17 +4966,31 @@ def _render_security_page(scroll_to_devices=False):
 
     sessions = get_user_sessions(current_user.id)
 
+    from app.models.passkey import UserPasskey
+
+    passkeys = []
+    if not current_user.is_guest:
+        passkeys = (
+            UserPasskey.query.filter_by(user_id=current_user.id)
+            .order_by(UserPasskey.created_at.desc())
+            .all()
+        )
+
     return render_template(
         'settings/security.html',
         user=current_user,
         qr_code_data=qr_code_data,
         totp_secret=totp_secret,
+        totp_issuer_name=get_totp_issuer_name(),
         show_setup=show_setup,
         sessions=sessions,
         scroll_to_devices=scroll_to_devices,
         google_linked=bool(getattr(current_user, 'google_sub', None)),
         google_email=getattr(current_user, 'google_email', None),
         google_login_ready=_google_ready(),
+        passkeys=passkeys,
+        passkeys_supported=passkeys_supported_for_request(),
+        passkeys_localhost_url=localhost_passkey_url(),
     )
 
 
@@ -4978,6 +5146,114 @@ def disable_2fa():
     db.session.commit()
     
     flash(translate('settings.security.2fa.disabled_success'), 'success')
+    return redirect(url_for('settings.security'))
+
+
+@settings_bp.route('/security/passkey/register/options', methods=['POST'])
+@login_required
+def passkey_register_options():
+    """WebAuthn-Registrierungsoptionen für Passkey."""
+    from app.utils.webauthn_helper import (
+        WebAuthnError,
+        build_registration_options,
+        passkeys_supported_for_request,
+    )
+
+    if current_user.is_guest:
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.guest_not_allowed')}), 403
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.https_required')}), 400
+
+    try:
+        options = build_registration_options(current_user)
+        return jsonify({'success': True, 'options': options})
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        current_app.logger.exception('Passkey register options failed')
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.register_failed')}), 500
+
+
+@settings_bp.route('/security/passkey/register/verify', methods=['POST'])
+@login_required
+def passkey_register_verify():
+    """Passkey-Registrierung abschließen."""
+    from app.models.passkey import UserPasskey
+    from app.utils.webauthn_helper import (
+        WebAuthnError,
+        passkeys_supported_for_request,
+        verify_registration,
+    )
+
+    if current_user.is_guest:
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.guest_not_allowed')}), 403
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.https_required')}), 400
+
+    data = request.get_json(silent=True) or {}
+    credential = data.get('credential')
+    device_label = data.get('device_label')
+
+    if not credential:
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.invalid_response')}), 400
+
+    try:
+        result = verify_registration(current_user, credential, device_label=device_label)
+        if UserPasskey.query.filter_by(credential_id=result['credential_id']).first():
+            return jsonify({'success': False, 'error': translate('settings.security.passkeys.already_registered')}), 409
+
+        passkey = UserPasskey(
+            user_id=current_user.id,
+            credential_id=result['credential_id'],
+            public_key=result['public_key'],
+            sign_count=result['sign_count'],
+            transports=result['transports'],
+            aaguid=result['aaguid'],
+            backed_up=result['backed_up'],
+            device_label=result['device_label'],
+        )
+        db.session.add(passkey)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'passkey': {
+                'id': passkey.id,
+                'device_label': passkey.device_label or translate('settings.security.passkeys.unnamed_device'),
+            },
+        })
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        current_app.logger.exception('Passkey register verify failed')
+        db.session.rollback()
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.register_failed')}), 500
+
+
+@settings_bp.route('/security/passkey/<int:passkey_id>/delete', methods=['POST'])
+@login_required
+def passkey_delete(passkey_id):
+    """Passkey entfernen (Passwort-Bestätigung)."""
+    from app.models.passkey import UserPasskey
+
+    password = request.form.get('password', '')
+    if not password:
+        flash(translate('settings.security.passkeys.enter_password'), 'danger')
+        return redirect(url_for('settings.security'))
+
+    if not current_user.check_password(password):
+        flash(translate('settings.security.passkeys.wrong_password'), 'danger')
+        return redirect(url_for('settings.security'))
+
+    passkey = UserPasskey.query.filter_by(id=passkey_id, user_id=current_user.id).first()
+    if not passkey:
+        flash(translate('settings.security.passkeys.not_found'), 'danger')
+        return redirect(url_for('settings.security'))
+
+    db.session.delete(passkey)
+    db.session.commit()
+    flash(translate('settings.security.passkeys.deleted_success'), 'success')
     return redirect(url_for('settings.security'))
 
 

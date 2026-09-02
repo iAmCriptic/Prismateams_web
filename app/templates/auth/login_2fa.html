@@ -1,42 +1,80 @@
 {% set force_light_theme = true %}
 {% extends "base.html" %}
+{% from 'auth/_auth_shell.html' import auth_shell with context %}
 
 {% block title %}{{ _('auth.login.2fa_code') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container auth-login">
-    <div class="auth-card">
-        <div class="auth-panel">
-            <div class="auth-panel-body">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-shield-lock text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-2">{{ _('auth.login.2fa_code') }}</h5>
-                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.login.2fa_code_help') }}</p>
-
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="totp_code" class="form-label">{{ _('auth.login.2fa_code') }}</label>
-                        <input type="text" class="form-control text-center" id="totp_code" name="totp_code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus>
-                    </div>
-
-                    <button type="submit" class="btn btn-accent w-100 mb-3">{{ _('auth.login.submit') }}</button>
-                </form>
-
-                <div class="text-center">
-                    <a href="{{ url_for('auth.login') }}" class="text-muted">Zurück zum Login</a>
-                </div>
-            </div>
-        </div>
+{% call auth_shell(_('auth.login.2fa_code'), _('auth.login.2fa_code_help'), body_class='auth-2fa', brand_icon='bi-shield-lock') %}
+<form method="POST" id="totpForm">
+    <div class="mb-3">
+        <label for="totp_code" class="form-label">{{ _('auth.login.2fa_code') }}</label>
+        <input type="text"
+               class="form-control text-center auth-code-input"
+               id="totp_code"
+               name="totp_code"
+               inputmode="numeric"
+               autocomplete="one-time-code"
+               placeholder="••••••"
+               maxlength="6"
+               pattern="[0-9]{6}"
+               required
+               autofocus>
+        {% if recovery_code_pending|default(false) %}
+        <div class="form-text text-center mt-2">{{ _('auth.login.2fa_recovery_pending') }}</div>
+        {% endif %}
     </div>
+
+    <button type="submit" class="btn btn-accent w-100 mb-3">{{ _('auth.login.submit') }}</button>
+</form>
+
+{% if has_passkeys|default(false) and passkeys_supported|default(false) %}
+<div class="auth-passkey-divider text-center text-muted my-3">
+    <span>{{ _('auth.passkey.or_divider') }}</span>
+</div>
+<button type="button"
+        class="btn btn-outline-secondary w-100 mb-3"
+        id="passkey-2fa-btn">
+    <i class="bi bi-fingerprint me-1" aria-hidden="true"></i>
+    {{ _('auth.passkey.use_passkey') }}
+</button>
+{% endif %}
+
+<div class="text-center mt-3">
+    <form method="POST" action="{{ url_for('auth.login_2fa_recovery') }}" class="d-inline">
+        <button type="submit" class="btn btn-link text-muted p-0 auth-2fa-recovery-link">
+            {{ _('auth.login.2fa_recovery_request') }}
+        </button>
+    </form>
 </div>
 
-{% include 'auth/_auth_bg.html' %}
+<div class="text-center mt-2">
+    <a href="{{ url_for('auth.login') }}" class="text-muted">{{ _('auth.legal.back_to_login') }}</a>
+</div>
+{% endcall %}
+
+<script>
+(function () {
+    var input = document.getElementById('totp_code');
+    if (!input) return;
+    input.addEventListener('input', function () {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+    });
+})();
+</script>
+
+{% if has_passkeys|default(false) and passkeys_supported|default(false) %}
+<script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.PrismateamsPasskeys) {
+        window.PrismateamsPasskeys.init2fa({
+            optionsUrl: {{ url_for('auth.passkey_2fa_options')|tojson }},
+            verifyUrl: {{ url_for('auth.passkey_2fa_verify')|tojson }},
+            buttonSelector: '#passkey-2fa-btn',
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

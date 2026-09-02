@@ -11,6 +11,8 @@ class CredentialFolder(db.Model):
     name = db.Column(db.String(120), nullable=False)
     color = db.Column(db.String(16), nullable=False, default='#0d6efd')
     position = db.Column(db.Integer, nullable=False, default=0)
+    visibility = db.Column(db.String(20), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

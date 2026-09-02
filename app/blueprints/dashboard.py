@@ -80,6 +80,7 @@ ALL_WIDGET_TYPES = [
 ]
 
 DASHBOARD_GRID_COLS = 4
+DASHBOARD_WIDGET_LIST_LIMIT = 12
 
 
 def _rects_overlap(a, b):
@@ -214,7 +215,7 @@ def _load_termine_for_widget(user, calendar_ids):
             q = events_query_for_calendars(user, None, base_filters=base_filters)
         else:
             q = CalendarEvent.query.filter(*base_filters)
-        events = q.order_by(CalendarEvent.start_time).limit(3).all()
+        events = q.order_by(CalendarEvent.start_time).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
         calendars_meta = []
         if calendar_ids:
             for cid in calendar_ids:
@@ -250,7 +251,7 @@ def _load_emails_for_widget(user, mailbox_id):
             if mailbox_id not in accessible:
                 return []
             q = q.filter(EmailMessage.mailbox_id == mailbox_id)
-        return q.order_by(EmailMessage.received_at.desc()).limit(5).all()
+        return q.order_by(EmailMessage.received_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
     except Exception as e:
         logger.warning(f"Fehler beim Laden der E-Mails: {e}")
         return []
@@ -273,7 +274,7 @@ def _load_credentials_for_widget(user, credential_ids):
         )
         by_id = {c.id: c for c in found}
         ordered = [by_id[i] for i in ids if i in by_id]
-        return ordered[:5]
+        return ordered[:DASHBOARD_WIDGET_LIST_LIMIT]
     except Exception as e:
         logger.warning(f"Fehler beim Laden der Passwörter: {e}")
         return []
@@ -293,7 +294,7 @@ def _load_kanban_activity_for_widget(user, board_ids):
             KanbanActivity.query
             .filter(KanbanActivity.board_id.in_(target_ids))
             .order_by(KanbanActivity.created_at.desc())
-            .limit(8)
+            .limit(DASHBOARD_WIDGET_LIST_LIMIT)
             .all()
         )
         board_by_id = {b.id: b for b in accessible if b.id in target_ids}
@@ -314,7 +315,7 @@ def _load_kanban_activity_for_widget(user, board_ids):
                 'user_name': a.user.full_name if a.user else '',
                 'created_at': a.created_at,
             })
-        return activities[:5]
+        return activities[:DASHBOARD_WIDGET_LIST_LIMIT]
     except Exception as e:
         logger.warning(f"Fehler beim Laden der Kanban-Änderungen: {e}")
         return []
@@ -337,9 +338,9 @@ def _load_widget_payload(user, widgets):
                         ChatMessage.sender_id != user.id,
                         ChatMessage.is_deleted == False
                     )
-                ).order_by(ChatMessage.created_at.desc()).limit(5).all()
+                ).order_by(ChatMessage.created_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
                 unread_messages.extend(messages)
-            unread_messages = sorted(unread_messages, key=lambda x: x.created_at, reverse=True)[:5]
+            unread_messages = sorted(unread_messages, key=lambda x: x.created_at, reverse=True)[:DASHBOARD_WIDGET_LIST_LIMIT]
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Nachrichten: {e}")
 
@@ -348,7 +349,7 @@ def _load_widget_payload(user, widgets):
         try:
             recent_files = File.query.filter_by(
                 uploaded_by=user.id
-            ).order_by(File.updated_at.desc()).limit(3).all()
+            ).order_by(File.updated_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Dateien: {e}")
 
@@ -358,7 +359,7 @@ def _load_widget_payload(user, widgets):
             recent_wiki_pages = (
                 accessible_query(user, WikiPage, 'wiki')
                 .order_by(WikiPage.updated_at.desc())
-                .limit(3)
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
                 .all()
             )
         except Exception as e:
@@ -369,7 +370,7 @@ def _load_widget_payload(user, widgets):
         try:
             favorites = WikiFavorite.query.filter_by(
                 user_id=user.id
-            ).order_by(WikiFavorite.created_at.desc()).limit(5).all()
+            ).order_by(WikiFavorite.created_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
             my_wiki_favorites = [
                 fav.wiki_page
                 for fav in favorites
@@ -403,7 +404,7 @@ def _load_widget_payload(user, widgets):
                         grouped[group_key]['expected_return_date'] = b.expected_return_date
                 if b.is_overdue:
                     grouped[group_key]['is_overdue'] = True
-            my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)
+            my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)[:DASHBOARD_WIDGET_LIST_LIMIT]
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Ausleihen: {e}")
 
@@ -413,7 +414,7 @@ def _load_widget_payload(user, widgets):
         try:
             new_booking_requests = BookingRequest.query.filter_by(
                 status='pending'
-            ).order_by(BookingRequest.created_at.desc()).limit(3).all()
+            ).order_by(BookingRequest.created_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
             total_pending_bookings = BookingRequest.query.filter_by(status='pending').count()
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Buchungen: {e}")
@@ -623,8 +624,9 @@ def index():
         greeting_key = 'dashboard.greeting.evening'
 
     is_guest = getattr(current_user, 'is_guest', False)
+    show_portal_onboarding = (not is_guest) and not getattr(current_user, 'portal_onboarding_completed', False)
     seen_version = getattr(current_user, 'whats_new_seen_version', None)
-    show_whats_new = (not is_guest) and (seen_version != WHATS_NEW_VERSION)
+    show_whats_new = (not is_guest) and (not show_portal_onboarding) and (seen_version != WHATS_NEW_VERSION)
     if show_whats_new:
         try:
             current_user.whats_new_seen_version = WHATS_NEW_VERSION
@@ -647,6 +649,7 @@ def index():
         greeting_key=greeting_key,
         whats_new_version=WHATS_NEW_VERSION,
         show_whats_new=show_whats_new,
+        show_portal_onboarding=show_portal_onboarding,
     )
 
 
@@ -659,6 +662,17 @@ def api_whats_new_seen():
     current_user.whats_new_seen_version = WHATS_NEW_VERSION
     db.session.commit()
     return jsonify({'success': True, 'version': WHATS_NEW_VERSION})
+
+
+@dashboard_bp.route('/api/dashboard/onboarding/complete', methods=['POST'])
+@login_required
+def api_onboarding_complete():
+    """Markiert die Portal-Onboarding-Tour als abgeschlossen."""
+    if getattr(current_user, 'is_guest', False):
+        return jsonify({'success': True, 'skipped': True})
+    current_user.portal_onboarding_completed = True
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @dashboard_bp.route('/dashboard/edit', methods=['GET', 'POST'])

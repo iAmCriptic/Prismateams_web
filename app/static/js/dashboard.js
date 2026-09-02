@@ -60,6 +60,102 @@
         return Math.max(min, Math.min(max, n));
     }
 
+    function listRowGap(listEl) {
+        const style = window.getComputedStyle(listEl);
+        const gap = parseFloat(style.rowGap || style.gap);
+        return Number.isFinite(gap) ? gap : 0;
+    }
+
+    function fitWidgetList(widget) {
+        const list = widget.querySelector('.dash-widget-list');
+        if (!list) return;
+
+        const rows = [...list.querySelectorAll(':scope > .dash-widget-row')];
+        let moreEl = list.querySelector(':scope > .dash-widget-more');
+
+        rows.forEach((row) => row.classList.remove('is-clipped'));
+
+        if (!rows.length) {
+            if (moreEl) moreEl.remove();
+            return;
+        }
+
+        const available = list.clientHeight;
+        if (available <= 0) return;
+
+        const gap = listRowGap(list);
+        const moreTemplate = t('live.more_items', '+{count} more');
+        let used = 0;
+        let visibleCount = 0;
+
+        for (let i = 0; i < rows.length; i += 1) {
+            const row = rows[i];
+            const rowHeight = row.offsetHeight;
+            const gapBefore = visibleCount > 0 ? gap : 0;
+            const hiddenAfter = rows.length - i - 1;
+            let moreReserve = 0;
+            if (hiddenAfter > 0) {
+                if (!moreEl) {
+                    moreEl = document.createElement('div');
+                    moreEl.className = 'dash-widget-more';
+                    list.appendChild(moreEl);
+                }
+                moreEl.textContent = moreTemplate.replace('{count}', String(hiddenAfter));
+                moreEl.classList.remove('is-clipped');
+                moreReserve = moreEl.offsetHeight + (visibleCount > 0 || rowHeight > 0 ? gap : 0);
+            } else if (moreEl) {
+                moreEl.classList.add('is-clipped');
+            }
+
+            if (used + gapBefore + rowHeight + moreReserve <= available + 0.5) {
+                used += gapBefore + rowHeight;
+                visibleCount += 1;
+            } else {
+                for (let j = i; j < rows.length; j += 1) {
+                    rows[j].classList.add('is-clipped');
+                }
+                break;
+            }
+        }
+
+        const hidden = rows.length - visibleCount;
+        if (hidden > 0) {
+            if (!moreEl) {
+                moreEl = document.createElement('div');
+                moreEl.className = 'dash-widget-more';
+                list.appendChild(moreEl);
+            }
+            moreEl.textContent = moreTemplate.replace('{count}', String(hidden));
+            moreEl.classList.remove('is-clipped');
+        } else if (moreEl) {
+            moreEl.remove();
+        }
+    }
+
+    function fitWidgetLists(root) {
+        const scope = root || grid;
+        if (!scope) return;
+        const widgetsToFit = scope.classList?.contains('dash-widget')
+            ? [scope]
+            : [...scope.querySelectorAll('.dash-widget')];
+        widgetsToFit.forEach((widget) => fitWidgetList(widget));
+    }
+
+    let fitListsRaf = null;
+    function scheduleFitWidgetLists(root) {
+        if (fitListsRaf) cancelAnimationFrame(fitListsRaf);
+        fitListsRaf = requestAnimationFrame(() => {
+            fitListsRaf = null;
+            fitWidgetLists(root);
+        });
+    }
+
+    let resizeDebounce = null;
+    function onWindowResize() {
+        clearTimeout(resizeDebounce);
+        resizeDebounce = setTimeout(() => scheduleFitWidgetLists(), 120);
+    }
+
     function collectWidgetsFromDom() {
         if (!grid) return widgets;
         const order = [];
@@ -292,6 +388,7 @@
         if (placementFits(startGX, startGY, nextW, nextH, id)) {
             applyWidgetPlacement(widget, startGX, startGY, nextW, nextH);
             resizeState.lastGood = { w: nextW, h: nextH };
+            scheduleFitWidgetLists(widget);
         }
     }
 
@@ -300,6 +397,7 @@
         const { widget } = resizeState;
         widget.classList.remove('is-resizing');
         resizeState = null;
+        scheduleFitWidgetLists(widget);
         try {
             const next = collectWidgetsFromDom();
             await saveConfig({ widgets: next });
@@ -711,5 +809,24 @@
             fromDom.push(readWidgetConfig(el));
         });
         if (fromDom.length) widgets = fromDom;
+
+        scheduleFitWidgetLists();
+        if (typeof ResizeObserver !== 'undefined') {
+            const listObserver = new ResizeObserver((entries) => {
+                entries.forEach((entry) => {
+                    const widget = entry.target.closest('.dash-widget') || entry.target;
+                    if (widget && widget.classList.contains('dash-widget')) {
+                        scheduleFitWidgetLists(widget);
+                    } else {
+                        scheduleFitWidgetLists();
+                    }
+                });
+            });
+            listObserver.observe(grid);
+            grid.querySelectorAll('.dash-widget').forEach((widget) => listObserver.observe(widget));
+        }
+        window.addEventListener('resize', onWindowResize);
     }
+
+    window.dashboardFitWidgetLists = scheduleFitWidgetLists;
 })();

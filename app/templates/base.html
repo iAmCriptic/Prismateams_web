@@ -89,6 +89,7 @@
         {% elif request.endpoint.startswith('files.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
         {% elif request.endpoint.startswith('credentials.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
         {% elif request.endpoint.startswith('manuals.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
@@ -351,26 +352,6 @@
     <!-- Main Content -->
     <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed and not _is_auth_shell %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
         <div class="container-fluid{% if not _is_setup and not _is_embed and not _is_auth_shell %} py-3{% endif %}">
-            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten / Inventar-Shell) -->
-            {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
-                {% set index_endpoints = [
-                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
-                    'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
-                    'email.index', 'email.folder_view',
-                    'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
-                    'shortlinks.index', 'kanban.index', 'kanban.board', 'booking.requests', 'music.index', 'media_downloader.index', 'file_converter.index', 'settings.index',
-                    'assessment.general.home', 'excalidraw.index', 'surveys.index'
-                ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint.startswith('kanban.') or request.endpoint.startswith('booking.') or request.endpoint.startswith('media_downloader.') or request.endpoint.startswith('file_converter.') or request.endpoint.startswith('excalidraw.') or request.endpoint.startswith('surveys.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'chat.chat_settings', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email', 'dashboard.edit'])) %}
-                {% if not hide_back %}
-                <div class="back-button-container mb-3">
-                    <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
-                        <i class="bi bi-arrow-left"></i> {{ _('layout.nav.back') }}
-                    </a>
-                </div>
-                {% endif %}
-            {% endif %}
-            
             <!-- Flash / App Banner Messages (fixed overlay — does not push content) -->
             <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true">
                 {% block portal_alerts %}{% endblock %}

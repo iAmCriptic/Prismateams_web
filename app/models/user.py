@@ -71,6 +71,8 @@ class User(UserMixin, db.Model):
     # Two-Factor Authentication (2FA)
     totp_secret = db.Column(db.String(255), nullable=True)  # Verschlüsseltes TOTP-Secret
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    totp_recovery_code = db.Column(db.String(6), nullable=True)
+    totp_recovery_code_expires = db.Column(db.DateTime, nullable=True)
 
     # Google Login / Registrierung / Verknüpfung
     google_sub = db.Column(db.String(64), unique=True, nullable=True, index=True)
@@ -91,6 +93,9 @@ class User(UserMixin, db.Model):
 
     # What's New: zuletzt gesehene Versionsnummer (bei Release WHATS_NEW_VERSION bumpen → erneut anzeigen)
     whats_new_seen_version = db.Column(db.String(32), nullable=True)
+
+    # Portal-Onboarding: 3-Schritte-Tour nach erstem Login
+    portal_onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
     
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')
@@ -271,15 +276,27 @@ class User(UserMixin, db.Model):
             wid = item.get('id') or cls._new_widget_instance_id()
             entry = {'id': str(wid), 'type': str(wtype)}
 
-            # Layout size: w = columns (1-4), h = rows (1-3)
+            # Layout size: w = columns (1-4), h = rows (1-6, 5.5rem grid)
             try:
                 entry['w'] = max(1, min(4, int(item.get('w', 1) or 1)))
             except (TypeError, ValueError):
                 entry['w'] = 1
             try:
-                entry['h'] = max(1, min(3, int(item.get('h', 1) or 1)))
+                h_raw = int(item.get('h', 1) or 1)
+                grid_v = int(item.get('grid_v') or 1)
+                if grid_v < 2:
+                    h_raw = h_raw * 2
+                entry['h'] = max(1, min(6, h_raw))
             except (TypeError, ValueError):
                 entry['h'] = 1
+            entry['grid_v'] = 2
+            for pos_key in ('x', 'y'):
+                try:
+                    pos_val = item.get(pos_key)
+                    if pos_val is not None:
+                        entry[pos_key] = max(1, int(pos_val))
+                except (TypeError, ValueError):
+                    pass
 
             if wtype == 'termine':
                 entry['calendar_ids'] = _int_list(item.get('calendar_ids') or [])

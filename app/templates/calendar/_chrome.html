@@ -1,25 +1,45 @@
 {# Shared calendar sidebar / chrome macros #}
 
-{% macro calendar_more_menu(align_end=false) %}
-{% if calendar_export_enabled or calendar_import_enabled %}
-<div class="dropdown {% if not align_end %}dropend{% endif %}">
-    <button type="button" class="btn {% if align_end %}calendar-mobile-more-btn{% else %}calendar-sidebar-more{% endif %}" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
-        <i class="bi bi-three-dots-vertical"></i>
+{% macro calendar_more_options(align_end=false, show_new_calendar=false) %}
+{% set has_export = calendar_export_enabled|default(true) or calendar_import_enabled|default(true) %}
+{% if show_new_calendar or has_export %}
+<div class="dropdown calendar-sidebar-more-wrap {% if align_end %}dropstart{% else %}dropend{% endif %}">
+    <button type="button"
+            class="btn calendar-sidebar-more-options{% if not align_end %} w-100 text-start{% endif %}"
+            data-bs-toggle="dropdown"
+            data-bs-popper-config='{"strategy":"fixed"}'
+            aria-expanded="false"
+            aria-label="{{ _('calendar.sidebar.more_options') }}">
+        <i class="bi bi-sliders me-1" aria-hidden="true"></i>{{ _('calendar.sidebar.more_options') }}
+        <i class="bi bi-chevron-down ms-auto calendar-sidebar-more-chevron" aria-hidden="true"></i>
     </button>
     <ul class="dropdown-menu calendar-more-dropdown{% if align_end %} dropdown-menu-end{% endif %}">
-        {% if calendar_export_enabled %}
+        {% if show_new_calendar %}
+        <li>
+            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#calendarCreateModal">
+                <i class="bi bi-calendar-plus"></i> {{ _('calendar.sidebar.new_calendar') }}
+            </button>
+        </li>
+        {% if has_export %}<li><hr class="dropdown-divider"></li>{% endif %}
+        {% endif %}
+        {% if calendar_export_enabled|default(true) %}
         <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
         {% endif %}
-        {% if calendar_import_enabled %}
+        {% if calendar_import_enabled|default(true) %}
         <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
         {% endif %}
-        {% if calendar_export_enabled %}
+        {% if calendar_export_enabled|default(true) %}
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
         {% endif %}
     </ul>
 </div>
 {% endif %}
+{% endmacro %}
+
+{# Backward-compatible alias #}
+{% macro calendar_more_menu(align_end=false) %}
+{{ calendar_more_options(align_end=align_end, show_new_calendar=false) }}
 {% endmacro %}
 
 {% macro calendar_view_pills(variant='toolbar', with_ids=false) %}
@@ -67,11 +87,116 @@
 </div>
 {% endmacro %}
 
+{% macro calendar_people_filter(id_suffix='') %}
+<label class="calendar-sidebar-filter" for="calendarPeopleSearch{{ id_suffix }}">
+    <i class="bi bi-funnel" aria-hidden="true"></i>
+    <input type="search"
+           class="calendar-sidebar-filter-input"
+           id="calendarPeopleSearch{{ id_suffix }}"
+           placeholder="{{ _('calendar.sidebar.search') }}"
+           aria-label="{{ _('calendar.sidebar.search') }}"
+           autocomplete="off"
+           spellcheck="false">
+</label>
+{% endmacro %}
+
+{% macro calendar_modals() %}
+<div class="modal fade calendar-modal" id="calendarCreateModal" tabindex="-1" aria-labelledby="calendarCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('calendar.create_calendar') }}" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calendarCreateModalLabel">{{ _('calendar.sidebar.new_calendar') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                {% if calendar_multi_enabled|default(false) %}
+                <div class="mb-3">
+                    <label class="form-label" for="newCalName">{{ _('calendar.sidebar.form.name') }}</label>
+                    <input class="form-control" id="newCalName" name="name" required maxlength="200">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="newCalType">{{ _('calendar.sidebar.form.type') }}</label>
+                    <select class="form-select" id="newCalType" name="calendar_type" required>
+                        {% if calendar_personal_enabled|default(false) %}
+                        <option value="personal">{{ _('calendar.sidebar.group_personal') }}</option>
+                        {% endif %}
+                        {% if calendar_team_enabled|default(false) and user_calendar_teams|default([]) %}
+                        <option value="team">{{ _('calendar.sidebar.group_team') }}</option>
+                        {% endif %}
+                        <option value="public">{{ _('calendar.sidebar.group_public') }}</option>
+                    </select>
+                </div>
+                {% if user_calendar_teams|default([]) %}
+                <div class="mb-3 d-none" id="newCalTeamWrap">
+                    <label class="form-label" for="newCalTeam">{{ _('calendar.sidebar.form.team') }}</label>
+                    <select class="form-select" id="newCalTeam" name="team_id">
+                        {% for t in user_calendar_teams %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="mb-0">
+                    <label class="form-label" for="newCalColor">{{ _('calendar.sidebar.form.color') }}</label>
+                    <input class="form-control form-control-color" id="newCalColor" name="color" type="color" value="#0d6efd">
+                </div>
+                {% else %}
+                <input type="hidden" name="calendar_type" value="public">
+                <div class="mb-3">
+                    <label class="form-label" for="newCalNameSimple">{{ _('calendar.sidebar.form.name') }}</label>
+                    <input class="form-control" id="newCalNameSimple" name="name" required maxlength="200">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="newCalColorSimple">{{ _('calendar.sidebar.form.color') }}</label>
+                    <input class="form-control form-control-color" id="newCalColorSimple" name="color" type="color" value="#198754">
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="submit" class="btn btn-accent rounded-pill">{{ _('calendar.sidebar.form.create') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade calendar-modal" id="calendarMetaModal" tabindex="-1" aria-labelledby="calendarMetaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="#" class="modal-content" id="calendarMetaForm">
+            <input type="hidden" name="meta_form" value="1">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calendarMetaModalLabel">{{ _('calendar.sidebar.edit') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="editCalName">{{ _('calendar.sidebar.form.name') }}</label>
+                    <input class="form-control" id="editCalName" name="name" required maxlength="200">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="editCalColor">{{ _('calendar.sidebar.form.color') }}</label>
+                    <input class="form-control form-control-color" id="editCalColor" name="color" type="color" value="#0d6efd">
+                </div>
+                <div class="form-check form-switch d-none" id="editCalHideWrap">
+                    <input class="form-check-input" type="checkbox" id="editCalHide" name="hidden_from_others" value="1">
+                    <label class="form-check-label" for="editCalHide">{{ _('calendar.sidebar.hide') }}</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="submit" class="btn btn-accent rounded-pill">{{ _('common.save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
+
 {% macro calendar_sidebar(show_view_pills=false, interactive=true, minimal=false) %}
 {% set sc = sidebar_calendars|default(none) %}
-{% set ns = namespace(new_cal_id=none) %}
+{% set ns = namespace(new_cal_id=none, has_others=false) %}
 {% if sc %}
     {% set ns.new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
+    {% set ns.has_others = sc.others and sc.others|length > 0 %}
 {% endif %}
 {% if minimal %}
 <aside class="calendar-sidebar calendar-sidebar--minimal d-none d-lg-flex flex-column">
@@ -88,11 +213,7 @@
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% endif %}
-    {% if calendar_export_enabled or calendar_import_enabled %}
-    <div class="calendar-sidebar-actions d-flex align-items-center gap-1">
-        {{ calendar_more_menu() }}
-    </div>
-    {% endif %}
+    {{ calendar_more_options(show_new_calendar=false) }}
 </aside>
 {% elif calendar_multi_enabled and sc %}
 <aside class="calendar-sidebar d-none d-lg-flex flex-column">
@@ -104,24 +225,23 @@
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% if interactive %}
-    <button type="button" class="btn calendar-sidebar-new calendar-sidebar-new-cal w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#calendarCreateModal">
-        <i class="bi bi-calendar-plus me-2"></i>{{ _('calendar.sidebar.new_calendar') }}
-    </button>
-    {% endif %}
-    {% if interactive or calendar_export_enabled or calendar_import_enabled %}
-    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
-        {% if interactive %}
-        <button type="button" class="btn calendar-sidebar-reset flex-grow-1" id="calendarResetBtnDesktop">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
-        </button>
-        {% endif %}
-        {{ calendar_more_menu() }}
+    <div class="mb-2">
+        {{ calendar_more_options(show_new_calendar=true) }}
+    </div>
+    {% elif calendar_export_enabled|default(true) or calendar_import_enabled|default(true) %}
+    <div class="mb-2">
+        {{ calendar_more_options(show_new_calendar=false) }}
     </div>
     {% endif %}
     {% if show_view_pills %}
     <div class="mb-3 flex-shrink-0">
         {{ calendar_view_pills(variant='sidebar', with_ids=true) }}
     </div>
+    {% endif %}
+    {% if interactive %}
+    <button type="button" class="btn calendar-sidebar-reset w-100 text-start mb-2 flex-shrink-0" id="calendarResetBtnDesktop">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+    </button>
     {% endif %}
     <nav class="calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
         {% macro cal_nav_item(cal, label=none) %}
@@ -185,32 +305,28 @@
         </div>
         {% endmacro %}
         {% if sc.personals %}
-        <div class="calendar-nav-group-label">{{ _('calendar.sidebar.group_personal') }}</div>
         {% for cal in sc.personals %}
         {{ cal_nav_item(cal) }}
         {% endfor %}
         {% endif %}
         {% if sc.teams %}
-        <div class="calendar-nav-group-label">{{ _('calendar.sidebar.group_team') }}</div>
         {% for cal in sc.teams %}
         {{ cal_nav_item(cal) }}
         {% endfor %}
         {% endif %}
         {% if sc.publics %}
-        <div class="calendar-nav-group-label">{{ _('calendar.sidebar.group_public') }}</div>
         {% for cal in sc.publics %}
         {{ cal_nav_item(cal) }}
         {% endfor %}
         {% endif %}
         {% if sc.events %}
-        <div class="calendar-nav-group-label">{{ _('calendar.sidebar.group_events') }}</div>
         {{ cal_nav_item(sc.events) }}
         {% endif %}
         {% if sc.others %}
         <hr class="my-2">
         {% if interactive %}
-        <div class="px-1 mb-2">
-            <input type="search" class="form-control form-control-sm" id="calendarPeopleSearch" placeholder="{{ _('calendar.sidebar.search') }}" autocomplete="off">
+        <div class="px-1 mb-2 calendar-sidebar-filter-wrap">
+            {{ calendar_people_filter('Sidebar') }}
         </div>
         {% endif %}
         <div id="calendarOthersList">
@@ -231,93 +347,20 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
     </div>
-    <div class="offcanvas-body pt-0">
-        <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnMobile">
+    <div class="offcanvas-body pt-0 d-flex flex-column">
+        {% if show_view_pills %}
+        <div class="mb-3 flex-shrink-0">
+            {{ calendar_view_pills(variant='sidebar', with_ids=false) }}
+        </div>
+        {% endif %}
+        <button type="button" class="btn calendar-sidebar-reset w-100 text-start mb-2 flex-shrink-0" id="calendarResetBtnMobile">
             <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
         </button>
-        <button type="button" class="btn calendar-sidebar-new w-100 text-start mb-3" data-bs-toggle="modal" data-bs-target="#calendarCreateModal">
-            <i class="bi bi-calendar-plus me-2"></i>{{ _('calendar.sidebar.new_calendar') }}
-        </button>
-        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1"></div>
+        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
     </div>
 </div>
 
-<div class="modal fade" id="calendarCreateModal" tabindex="-1" aria-labelledby="calendarCreateModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="POST" action="{{ url_for('calendar.create_calendar') }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="calendarCreateModalLabel">{{ _('calendar.sidebar.new_calendar') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label" for="newCalName">{{ _('calendar.sidebar.form.name') }}</label>
-                    <input class="form-control" id="newCalName" name="name" required maxlength="200">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="newCalType">{{ _('calendar.sidebar.form.type') }}</label>
-                    <select class="form-select" id="newCalType" name="calendar_type" required>
-                        {% if calendar_personal_enabled|default(false) %}
-                        <option value="personal">{{ _('calendar.sidebar.group_personal') }}</option>
-                        {% endif %}
-                        {% if calendar_team_enabled|default(false) and user_calendar_teams|default([]) %}
-                        <option value="team">{{ _('calendar.sidebar.group_team') }}</option>
-                        {% endif %}
-                        <option value="public">{{ _('calendar.sidebar.group_public') }}</option>
-                    </select>
-                </div>
-                {% if user_calendar_teams|default([]) %}
-                <div class="mb-3 d-none" id="newCalTeamWrap">
-                    <label class="form-label" for="newCalTeam">{{ _('calendar.sidebar.form.team') }}</label>
-                    <select class="form-select" id="newCalTeam" name="team_id">
-                        {% for t in user_calendar_teams %}
-                        <option value="{{ t.id }}">{{ t.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
-                <div class="mb-0">
-                    <label class="form-label" for="newCalColor">{{ _('calendar.sidebar.form.color') }}</label>
-                    <input class="form-control form-control-color" id="newCalColor" name="color" type="color" value="#0d6efd">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="submit" class="btn btn-accent">{{ _('calendar.sidebar.form.create') }}</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="calendarMetaModal" tabindex="-1" aria-labelledby="calendarMetaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="POST" action="#" class="modal-content" id="calendarMetaForm">
-            <input type="hidden" name="meta_form" value="1">
-            <div class="modal-header">
-                <h5 class="modal-title" id="calendarMetaModalLabel">{{ _('calendar.sidebar.edit') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label" for="editCalName">{{ _('calendar.sidebar.form.name') }}</label>
-                    <input class="form-control" id="editCalName" name="name" required maxlength="200">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="editCalColor">{{ _('calendar.sidebar.form.color') }}</label>
-                    <input class="form-control form-control-color" id="editCalColor" name="color" type="color" value="#0d6efd">
-                </div>
-                <div class="form-check form-switch d-none" id="editCalHideWrap">
-                    <input class="form-check-input" type="checkbox" id="editCalHide" name="hidden_from_others" value="1">
-                    <label class="form-check-label" for="editCalHide">{{ _('calendar.sidebar.hide') }}</label>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="submit" class="btn btn-accent">{{ _('common.save') }}</button>
-            </div>
-        </form>
-    </div>
-</div>
+{{ calendar_modals() }}
 {% endif %}
 {% else %}
 <aside class="calendar-sidebar calendar-sidebar--simple d-none d-lg-flex flex-column">
@@ -330,42 +373,15 @@
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% endif %}
-    <button type="button" class="btn calendar-sidebar-new calendar-sidebar-new-cal w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#calendarCreateModal">
-        <i class="bi bi-calendar-plus me-2"></i>{{ _('calendar.sidebar.new_calendar') }}
-    </button>
-    {% if calendar_export_enabled or calendar_import_enabled %}
-    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
-        {{ calendar_more_menu() }}
+    <div class="mb-2">
+        {{ calendar_more_options(show_new_calendar=true) }}
     </div>
-    {% endif %}
     {% if show_view_pills %}
-    {{ calendar_view_pills(variant='sidebar', with_ids=true) }}
+    <div class="mb-3 flex-shrink-0">
+        {{ calendar_view_pills(variant='sidebar', with_ids=true) }}
+    </div>
     {% endif %}
 </aside>
-<div class="modal fade" id="calendarCreateModal" tabindex="-1" aria-labelledby="calendarCreateModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="POST" action="{{ url_for('calendar.create_calendar') }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="calendarCreateModalLabel">{{ _('calendar.sidebar.new_calendar') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" name="calendar_type" value="public">
-                <div class="mb-3">
-                    <label class="form-label" for="newCalNameSimple">{{ _('calendar.sidebar.form.name') }}</label>
-                    <input class="form-control" id="newCalNameSimple" name="name" required maxlength="200">
-                </div>
-                <div class="mb-0">
-                    <label class="form-label" for="newCalColorSimple">{{ _('calendar.sidebar.form.color') }}</label>
-                    <input class="form-control form-control-color" id="newCalColorSimple" name="color" type="color" value="#198754">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="submit" class="btn btn-accent">{{ _('calendar.sidebar.form.create') }}</button>
-            </div>
-        </form>
-    </div>
-</div>
+{{ calendar_modals() }}
 {% endif %}
 {% endmacro %}

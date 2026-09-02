@@ -1,37 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const listViewBtn = document.getElementById('listViewBtn');
-    const gridViewBtn = document.getElementById('gridViewBtn');
-    const gridViewContainer = document.getElementById('gridViewContainer');
-    const listViewContainer = document.getElementById('listViewContainer');
-    const viewStorageKey = 'shareViewMode';
-
-    function setView(mode) {
-        if (!listViewBtn || !gridViewBtn || !gridViewContainer || !listViewContainer) {
-            return;
-        }
-        if (mode === 'list') {
-            listViewBtn.classList.add('active', 'is-active');
-            gridViewBtn.classList.remove('active', 'is-active');
-            listViewContainer.classList.remove('d-none');
-            gridViewContainer.classList.add('d-none');
-            listViewContainer.style.display = 'block';
-            gridViewContainer.style.display = 'none';
-        } else {
-            gridViewBtn.classList.add('active', 'is-active');
-            listViewBtn.classList.remove('active', 'is-active');
-            gridViewContainer.classList.remove('d-none');
-            listViewContainer.classList.add('d-none');
-            gridViewContainer.style.display = 'block';
-            listViewContainer.style.display = 'none';
-        }
-        window.localStorage.setItem(viewStorageKey, mode);
-    }
-
-    if (listViewBtn && gridViewBtn) {
-        listViewBtn.addEventListener('click', () => setView('list'));
-        gridViewBtn.addEventListener('click', () => setView('grid'));
-        const savedMode = window.localStorage.getItem(viewStorageKey) || 'grid';
-        setView(savedMode === 'list' ? 'list' : 'grid');
+    if (typeof window.initFilesViewToggle === 'function') {
+        window.initFilesViewToggle({
+            toggleEl: document.querySelector('.files-ext-toolbar .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('shareViewStage'),
+            storageKey: 'shareViewMode',
+            defaultMode: 'grid',
+        });
     }
 
     const newButtonDropdown = document.getElementById('newButtonDropdown');

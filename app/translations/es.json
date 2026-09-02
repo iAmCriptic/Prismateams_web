@@ -159,6 +159,16 @@
       "link_success": "Cuenta de Google vinculada. Con multi-buzón activo se creó o actualizó “Gmail”.",
       "unlink_success": "Vinculación de Google eliminada.",
       "not_linked_account": "No hay ninguna cuenta de Google vinculada."
+    },
+    "passkey": {
+      "login_with": "Iniciar sesión con passkey",
+      "login_with_aria": "Iniciar sesión con passkey",
+      "use_passkey": "Confirmar con passkey",
+      "or_divider": "o",
+      "https_required": "Los passkeys requieren HTTPS (o localhost).",
+      "invalid_response": "Respuesta de passkey no válida.",
+      "login_failed": "Error al iniciar sesión con passkey.",
+      "verify_failed": "Error al verificar el passkey."
     }
   },
   "dashboard": {
@@ -569,6 +579,14 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "kanban": {
+      "upload_title": "Nuevo adjunto en {board}",
+      "upload_body": "{actor} adjuntó «{filename}» a «{card}»",
+      "change_title": "Tarjeta actualizada",
+      "change_body": "{actor} actualizó «{card}» en {board}",
+      "checklist_title": "Lista de verificación actualizada",
+      "checklist_body": "{actor}: «{item}» en «{card}»"
+    },
     "push": {
       "test_title": "Notificación de prueba",
       "test_body": "Prueba de {portal_name}. Push funciona."
@@ -690,6 +708,19 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys"
+      }
+    },
+    "notifications": {
+      "kanban": {
+        "title": "Notificaciones Kanban",
+        "toggle": "Activar notificaciones Kanban",
+        "help": "Notificaciones para tableros en los que eres miembro",
+        "uploads": "Subidas y adjuntos",
+        "uploads_help": "Nuevos archivos o enlaces en tarjetas",
+        "changes": "Cambios en tarjetas",
+        "changes_help": "Título, descripción, fecha, movimiento o completado",
+        "checklist": "Listas de verificación",
+        "checklist_help": "Elementos nuevos, actualizados o completados"
       }
     },
     "profile": {

@@ -507,6 +507,136 @@ def send_file_notification(file_id: int, notification_type: str = 'new') -> int:
     return sent_count
 
 
+def send_kanban_notification(
+    board_id: int,
+    actor_id: int,
+    event_kind: str,
+    card_id: int,
+    *,
+    detail: Optional[str] = None,
+    push_suffix: Optional[str] = None,
+) -> int:
+    """Benachrichtigt Board-Mitglieder über Kanban-Ereignisse."""
+    from app.models.kanban import KanbanBoard, KanbanCard
+    from app.utils.access_control import has_module_access
+    from app.utils.kanban_access import get_board_member_roles
+
+    if not actor_id or event_kind not in ('upload', 'change', 'checklist'):
+        return 0
+
+    board = KanbanBoard.query.get(board_id)
+    card = KanbanCard.query.get(card_id)
+    if not board or not card:
+        return 0
+
+    actor = User.query.get(actor_id)
+    if not actor:
+        return 0
+
+    member_roles = get_board_member_roles(board)
+    sent_count = 0
+    actor_name = actor.full_name or actor.email or str(actor_id)
+    board_title = board.title or ''
+    card_title = card.title or ''
+    url = f'/kanban/board/{board_id}'
+    in_app_key = f'kanban:{board_id}:{card_id}:{event_kind}'
+    push_key = push_suffix if push_suffix else f'{in_app_key}:{int(datetime.utcnow().timestamp() * 1000)}'
+
+    toggle_attr = {
+        'upload': 'kanban_upload_notifications',
+        'change': 'kanban_change_notifications',
+        'checklist': 'kanban_checklist_notifications',
+    }[event_kind]
+
+    title_key = f'notifications.kanban.{event_kind}_title'
+    body_key = f'notifications.kanban.{event_kind}_body'
+
+    for user_id in member_roles:
+        if user_id == actor_id:
+            continue
+        user = User.query.get(user_id)
+        if not user or not user.is_active or not user.notifications_enabled:
+            continue
+        if not has_module_access(user, 'module_kanban'):
+            continue
+
+        settings = get_or_create_notification_settings(user.id)
+        if not settings.kanban_notifications_enabled:
+            continue
+        if not getattr(settings, toggle_attr, True):
+            continue
+
+        title = _user_translate(user, title_key, board=board_title)
+        body_kwargs = {
+            'board': board_title,
+            'card': card_title,
+            'actor': actor_name,
+        }
+        if detail:
+            body_kwargs['item'] = detail
+            body_kwargs['filename'] = detail
+        body = _user_translate(user, body_key, **body_kwargs)
+
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='kanban',
+            dedup_key=in_app_key,
+            push_dedup_key=push_key,
+            source_id=card_id,
+            data={
+                'board_id': board_id,
+                'card_id': card_id,
+                'event_kind': event_kind,
+                'type': 'kanban',
+            },
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
+def enqueue_kanban_notification(
+    board_id: int,
+    actor_id: int,
+    event_kind: str,
+    card_id: int,
+    *,
+    detail: Optional[str] = None,
+    push_suffix: Optional[str] = None,
+):
+    app = current_app._get_current_object()
+
+    def _run_in_background():
+        with app.app_context():
+            try:
+                send_kanban_notification(
+                    board_id=board_id,
+                    actor_id=actor_id,
+                    event_kind=event_kind,
+                    card_id=card_id,
+                    detail=detail,
+                    push_suffix=push_suffix,
+                )
+            except Exception as exc:
+                logging.error(f'Asynchroner Kanban-Push fehlgeschlagen: {exc}')
+
+    try:
+        socketio.start_background_task(_run_in_background)
+    except Exception as exc:
+        logging.warning(f'Background-Task konnte nicht gestartet werden, fallback synchron: {exc}')
+        send_kanban_notification(
+            board_id=board_id,
+            actor_id=actor_id,
+            event_kind=event_kind,
+            card_id=card_id,
+            detail=detail,
+            push_suffix=push_suffix,
+        )
+
+
 def send_email_notification(email_id: int) -> int:
     try:
         db.session.flush()
