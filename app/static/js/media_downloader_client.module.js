@@ -49,6 +49,10 @@ let activeSignInReject = null;
 const authCallbacks = { onAuthPending: null, onAuthStateChange: null };
 const YT_OAUTH_STORAGE_KEY = 'media_downloader_yt_oauth';
 const AUTHENTICATED_CLIENT = 'TV';
+const YOUTUBE_PROXY_ORIGIN = 'https://www.youtube.com';
+const YOUTUBE_PROXY_REFERER = 'https://www.youtube.com/';
+
+let warmupSessionPromise = null;
 
 export function configure(options = {}) {
     if (options.proxyUrl) {
@@ -143,6 +147,31 @@ function headersToObject(headers) {
     return out;
 }
 
+function withYoutubeProxyContextHeaders(headerObj, targetUrl) {
+    const out = { ...headerObj };
+    if (!shouldProxyUrl(targetUrl)) return out;
+
+    try {
+        const host = new URL(targetUrl).hostname.toLowerCase();
+        const needsYoutubeContext = host.includes('youtube')
+            || host.endsWith('.googlevideo.com')
+            || host.endsWith('.googleapis.com');
+        if (!needsYoutubeContext) return out;
+
+        const hasOrigin = Object.keys(out).some((k) => k.toLowerCase() === 'origin');
+        const hasReferer = Object.keys(out).some((k) => k.toLowerCase() === 'referer');
+        if (!hasOrigin) {
+            out['X-YouTube-Origin'] = YOUTUBE_PROXY_ORIGIN;
+        }
+        if (!hasReferer) {
+            out['X-YouTube-Referer'] = YOUTUBE_PROXY_REFERER;
+        }
+    } catch (e) {
+        // ignore malformed URLs
+    }
+    return out;
+}
+
 async function bodyToPayload(body, method) {
     if (!body || method === 'GET' || method === 'HEAD') return null;
     if (typeof body === 'string') return { body, encoding: 'utf8' };
@@ -200,7 +229,7 @@ function createYoutubeProxyFetch() {
         }
 
         const { method, headers, body, signal } = resolveFetchParams(input, init);
-        const headerObj = headersToObject(headers);
+        const headerObj = withYoutubeProxyContextHeaders(headersToObject(headers), targetUrl);
 
         const payload = await bodyToPayload(body, method);
 
@@ -273,7 +302,43 @@ function resetAuthenticatedSession() {
 }
 
 export function isYoutubeSignedIn() {
+    if (authenticatedInnertube?.session?.logged_in) {
+        return true;
+    }
     return Boolean(loadOAuthCredentials()?.access_token);
+}
+
+async function invalidateYoutubeAuth() {
+    clearOAuthCredentials();
+    resetAuthenticatedSession();
+    if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(false);
+}
+
+/**
+ * Restore OAuth session from localStorage (validates tokens, clears stale creds).
+ */
+export async function warmupYoutubeSession() {
+    if (!loadOAuthCredentials()?.access_token) {
+        return false;
+    }
+    if (authenticatedInnertube?.session?.logged_in) {
+        return true;
+    }
+    if (!warmupSessionPromise) {
+        warmupSessionPromise = (async () => {
+            try {
+                await signInToYoutube();
+                return Boolean(authenticatedInnertube?.session?.logged_in);
+            } catch (err) {
+                mdDebug('YouTube session warmup failed:', err);
+                await invalidateYoutubeAuth();
+                return false;
+            } finally {
+                warmupSessionPromise = null;
+            }
+        })();
+    }
+    return warmupSessionPromise;
 }
 
 async function fetchTvOAuthClientFromServer() {
@@ -370,7 +435,7 @@ export async function signInToYoutube() {
             };
             const onError = (err) => {
                 cleanup();
-                reject(err);
+                invalidateYoutubeAuth().finally(() => reject(err));
             };
 
             innertube.session.on('auth-pending', onPending);
@@ -379,7 +444,7 @@ export async function signInToYoutube() {
 
             innertube.session.signIn(cached || undefined).catch((err) => {
                 cleanup();
-                reject(err);
+                invalidateYoutubeAuth().finally(() => reject(err));
             });
         });
     })();
@@ -400,9 +465,7 @@ export async function signOutFromYoutube() {
             // ignore revoke failures
         }
     }
-    clearOAuthCredentials();
-    resetAuthenticatedSession();
-    if (authCallbacks.onAuthStateChange) authCallbacks.onAuthStateChange(false);
+    await invalidateYoutubeAuth();
 }
 
 function isTruePlaylistListId(listId) {
@@ -535,13 +598,9 @@ async function ensureAuthenticatedInnertube() {
     if (authenticatedInnertube?.session?.logged_in) {
         return authenticatedInnertube;
     }
-    const creds = loadOAuthCredentials();
-    if (!creds) {
+    const warmed = await warmupYoutubeSession();
+    if (!warmed || !authenticatedInnertube?.session?.logged_in) {
         throw new ClientDownloadError('err_bot_check', 'youtube_not_signed_in');
-    }
-    await signInToYoutube();
-    if (!authenticatedInnertube) {
-        throw new ClientDownloadError('err_bot_check', 'youtube_auth_failed');
     }
     return authenticatedInnertube;
 }
@@ -1079,8 +1138,9 @@ async function downloadWithAuthenticatedClient(videoId, format, options = {}) {
 export async function downloadMedia(videoId, format, options = {}) {
     const { onProgress, signal, title: titleOverride } = options;
     let lastError = null;
+    const signedIn = isYoutubeSignedIn();
 
-    if (isYoutubeSignedIn()) {
+    if (signedIn) {
         try {
             const result = await downloadWithAuthenticatedClient(videoId, format, options);
             if (titleOverride) result.title = titleOverride;
@@ -1089,7 +1149,12 @@ export async function downloadMedia(videoId, format, options = {}) {
         } catch (err) {
             lastError = err;
             mdDebug(`Authenticated download failed for ${videoId}:`, err);
-            if (err?.code === 'err_age_restricted' || mapClientError(err) === 'err_age_restricted') {
+            const mapped = mapClientError(err);
+            if (err?.code === 'err_age_restricted' || mapped === 'err_age_restricted') {
+                throw err;
+            }
+            if (mapped === 'err_bot_check' || err?.code === 'err_bot_check') {
+                await invalidateYoutubeAuth();
                 throw err;
             }
         }

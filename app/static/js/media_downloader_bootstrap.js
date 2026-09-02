@@ -23,6 +23,7 @@ try {
         signOutFromYoutube,
         isYoutubeSignedIn,
         cancelYoutubeSignIn,
+        warmupYoutubeSession,
     } = await import(/* webpackIgnore: true */ clientUrl);
 
     window.MediaDownloaderClient = {
@@ -40,6 +41,7 @@ try {
         signOutFromYoutube,
         isYoutubeSignedIn,
         cancelYoutubeSignIn,
+        warmupYoutubeSession,
     };
 
     window.dispatchEvent(new CustomEvent('media-downloader-client-ready'));
