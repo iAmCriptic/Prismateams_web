@@ -6,10 +6,12 @@ from app.models.manual import Manual, ManualFolder
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
 from app.utils.module_visibility import (
+    VISIBILITY_PRIVATE,
+    VISIBILITY_PUBLIC,
+    VISIBILITY_TEAM,
     accessible_query,
     apply_section_filter,
     apply_visibility_from_form,
-    can_edit_item,
     can_view_item,
     parse_section_args,
     visibility_form_context,
@@ -59,10 +61,91 @@ def resolve_manual_file_path(manual):
     return file_path
 
 
-def redirect_to_folder(folder_id=None):
+def _folder_scope(folder):
+    """Return (visibility, team_id) for a folder."""
+    if not folder:
+        return VISIBILITY_PUBLIC, None
+    vis = (folder.visibility or VISIBILITY_PUBLIC).strip().lower()
+    if vis == VISIBILITY_TEAM and folder.team_id:
+        return VISIBILITY_TEAM, folder.team_id
+    if vis == VISIBILITY_PRIVATE:
+        return VISIBILITY_PRIVATE, None
+    return VISIBILITY_PUBLIC, None
+
+
+def _group_folders_by_scope(folders):
+    """Group folders for sidebar navigation."""
+    grouped = {
+        VISIBILITY_PRIVATE: [],
+        VISIBILITY_PUBLIC: [],
+        'teams': {},
+    }
+    for folder in folders:
+        vis, team_id = _folder_scope(folder)
+        if vis == VISIBILITY_TEAM and team_id:
+            grouped['teams'].setdefault(team_id, []).append(folder)
+        elif vis == VISIBILITY_PRIVATE:
+            grouped[VISIBILITY_PRIVATE].append(folder)
+        else:
+            grouped[VISIBILITY_PUBLIC].append(folder)
+    return grouped
+
+
+def _index_url_kwargs(folder=None, view=None, team_id=None, folder_id=None):
+    """Build query args for manuals.index redirects."""
+    kwargs = {}
     if folder_id:
-        return redirect(url_for('manuals.index', folder_id=folder_id))
-    return redirect(url_for('manuals.index'))
+        kwargs['folder_id'] = folder_id
+    if folder:
+        vis, tid = _folder_scope(folder)
+        if vis == VISIBILITY_TEAM and tid:
+            kwargs['view'] = VISIBILITY_TEAM
+            kwargs['team_id'] = tid
+        elif vis in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC):
+            kwargs['view'] = vis
+    elif view and view not in ('all',):
+        kwargs['view'] = view
+        if view == VISIBILITY_TEAM and team_id:
+            kwargs['team_id'] = team_id
+    return kwargs
+
+
+def redirect_to_folder(folder_id=None, folder=None, view=None, team_id=None):
+    if folder is None and folder_id:
+        folder = ManualFolder.query.get(folder_id)
+    return redirect(url_for('manuals.index', **_index_url_kwargs(
+        folder=folder,
+        view=view,
+        team_id=team_id,
+        folder_id=folder_id,
+    )))
+
+
+def _scope_folder_query(folder):
+    """Base query for folders in the same scope as *folder*."""
+    vis, team_id = _folder_scope(folder)
+    query = ManualFolder.query.filter(ManualFolder.visibility == vis)
+    if vis == VISIBILITY_TEAM and team_id:
+        return query.filter(ManualFolder.team_id == team_id)
+    return query.filter(ManualFolder.team_id.is_(None))
+
+
+def _parse_folder_scope_from_form():
+    """Read visibility scope for new folders from form hidden fields."""
+    raw_view = (request.form.get('return_view') or '').strip().lower()
+    raw_team_id = request.form.get('return_team_id')
+    team_id = None
+    if raw_view == VISIBILITY_TEAM:
+        try:
+            team_id = int(raw_team_id or 0) or None
+        except (TypeError, ValueError):
+            team_id = None
+        if team_id:
+            return VISIBILITY_TEAM, team_id
+        return VISIBILITY_PRIVATE, None
+    if raw_view == VISIBILITY_PRIVATE:
+        return VISIBILITY_PRIVATE, None
+    return VISIBILITY_PUBLIC, None
 
 
 def _manuals_denied():
@@ -70,36 +153,66 @@ def _manuals_denied():
     return redirect(url_for('manuals.index'))
 
 
-def _manuals_form_kwargs():
+def _manuals_form_kwargs(folder_id=None):
     section, filter_team_id = parse_section_args('manuals', current_user)
-    pre_section = section if section in ('private', 'public', 'team') else None
-    return visibility_form_context(
+    pre_section = None
+    pre_team_id = None
+
+    if folder_id:
+        folder = ManualFolder.query.get(folder_id)
+        if folder:
+            pre_section, pre_team_id = _folder_scope(folder)
+    elif section in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM):
+        pre_section = section
+        pre_team_id = filter_team_id
+
+    all_folders = ManualFolder.query.order_by(
+        ManualFolder.position.asc(), ManualFolder.name.asc()
+    ).all()
+    ctx = visibility_form_context(
         'manuals',
         current_user,
         preselect_section=pre_section,
-        preselect_team_id=filter_team_id,
+        preselect_team_id=pre_team_id,
     )
+    ctx['folders'] = all_folders
+    return ctx
 
 
 @manuals_bp.route('/')
 @login_required
 @check_module_access('module_manuals')
 def index():
-    """List manuals for the active folder (root when folder_id is empty)."""
-    folders = ManualFolder.query.order_by(ManualFolder.position.asc(), ManualFolder.name.asc()).all()
+    """List manuals for all, folder, or space view."""
+    all_folders = ManualFolder.query.order_by(
+        ManualFolder.position.asc(), ManualFolder.name.asc()
+    ).all()
+    folders_by_scope = _group_folders_by_scope(all_folders)
     section, filter_team_id = parse_section_args('manuals', current_user)
-    space_view = section in ('private', 'team', 'public')
-    active_folder_id = None if space_view else parse_folder_id(request.args.get('folder_id'))
-    active_folder = ManualFolder.query.get(active_folder_id) if active_folder_id else None
+    space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
     search_query = (request.args.get('q') or '').strip()
+    raw_folder_id = parse_folder_id(request.args.get('folder_id'))
+
+    active_folder_id = None
+    active_folder = None
+    if raw_folder_id:
+        active_folder = ManualFolder.query.get(raw_folder_id)
+        if active_folder:
+            active_folder_id = raw_folder_id
+            folder_vis, folder_team_id = _folder_scope(active_folder)
+            if not space_view:
+                section = folder_vis
+                filter_team_id = folder_team_id
+                space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
 
     manuals_query = accessible_query(current_user, Manual, 'manuals').order_by(Manual.uploaded_at.desc())
-    if space_view:
-        manuals_query = apply_section_filter(manuals_query, Manual, section, filter_team_id)
-    elif active_folder_id is None:
-        manuals_query = manuals_query.filter(Manual.folder_id.is_(None))
-    else:
+    if active_folder_id:
         manuals_query = manuals_query.filter(Manual.folder_id == active_folder_id)
+    elif space_view:
+        manuals_query = apply_section_filter(manuals_query, Manual, section, filter_team_id)
+        if not search_query:
+            manuals_query = manuals_query.filter(Manual.folder_id.is_(None))
+    # "Alle"-Ansicht: alle sichtbaren Einträge (ohne Ordner-Filter)
 
     if search_query:
         like = f'%{search_query}%'
@@ -116,7 +229,8 @@ def index():
     return render_template(
         'manuals/index.html',
         manuals=manuals,
-        folders=folders,
+        folders=all_folders,
+        folders_by_scope=folders_by_scope,
         active_folder_id=active_folder_id,
         active_folder=active_folder,
         search_query=search_query,
@@ -133,19 +247,18 @@ def upload():
         flash(translate('manuals.flash.upload_admin_only'), 'danger')
         return redirect(url_for('manuals.index'))
 
-    folders = ManualFolder.query.order_by(ManualFolder.position.asc(), ManualFolder.name.asc()).all()
     selected_folder_id = parse_folder_id(
         request.form.get('folder_id') if request.method == 'POST' else request.args.get('folder_id')
     )
+    form_ctx = _manuals_form_kwargs(folder_id=selected_folder_id)
 
     if request.method == 'POST':
         if 'file' not in request.files:
             flash(translate('manuals.flash.no_file_selected'), 'danger')
             return render_template(
                 'manuals/upload.html',
-                folders=folders,
                 selected_folder_id=selected_folder_id,
-                **_manuals_form_kwargs(),
+                **form_ctx,
             )
 
         file = request.files['file']
@@ -155,9 +268,8 @@ def upload():
             flash(translate('manuals.flash.no_file_selected'), 'danger')
             return render_template(
                 'manuals/upload.html',
-                folders=folders,
                 selected_folder_id=selected_folder_id,
-                **_manuals_form_kwargs(),
+                **form_ctx,
             )
 
         if not title:
@@ -167,9 +279,8 @@ def upload():
             flash(translate('manuals.flash.only_pdf'), 'danger')
             return render_template(
                 'manuals/upload.html',
-                folders=folders,
                 selected_folder_id=selected_folder_id,
-                **_manuals_form_kwargs(),
+                **form_ctx,
             )
 
         filename = secure_filename(file.filename)
@@ -195,13 +306,18 @@ def upload():
         db.session.commit()
 
         flash(translate('manuals.flash.uploaded', title=title), 'success')
-        return redirect_to_folder(selected_folder_id)
+        folder = ManualFolder.query.get(selected_folder_id) if selected_folder_id else None
+        if folder:
+            return redirect_to_folder(folder_id=selected_folder_id, folder=folder)
+        return redirect(url_for('manuals.index', **_index_url_kwargs(
+            view=manual.visibility,
+            team_id=manual.team_id if manual.visibility == VISIBILITY_TEAM else None,
+        )))
 
     return render_template(
         'manuals/upload.html',
-        folders=folders,
         selected_folder_id=selected_folder_id,
-        **_manuals_form_kwargs(),
+        **form_ctx,
     )
 
 
@@ -219,11 +335,8 @@ def view(manual_id):
         flash(translate('manuals.flash.file_not_found'), 'danger')
         return redirect_to_folder(manual.folder_id)
 
-    back_url = (
-        url_for('manuals.index', folder_id=manual.folder_id)
-        if manual.folder_id
-        else url_for('manuals.index')
-    )
+    folder = ManualFolder.query.get(manual.folder_id) if manual.folder_id else None
+    back_url = url_for('manuals.index', **_index_url_kwargs(folder=folder, folder_id=manual.folder_id))
     return render_template(
         'manuals/view.html',
         manual=manual,
@@ -305,13 +418,26 @@ def create_folder():
 
     if not folder_name:
         flash(translate('manuals.flash.folder_name_required'), 'danger')
-        return redirect(url_for('manuals.index'))
+        return redirect(url_for('manuals.index', **_index_url_kwargs(
+            view=request.form.get('return_view'),
+            team_id=request.form.get('return_team_id'),
+            folder_id=parse_folder_id(request.form.get('return_folder_id')),
+        )))
 
-    max_position = db.session.query(db.func.max(ManualFolder.position)).scalar() or 0
+    folder_visibility, folder_team_id = _parse_folder_scope_from_form()
+    scope_query = ManualFolder.query.filter(ManualFolder.visibility == folder_visibility)
+    if folder_visibility == VISIBILITY_TEAM and folder_team_id:
+        scope_query = scope_query.filter(ManualFolder.team_id == folder_team_id)
+    else:
+        scope_query = scope_query.filter(ManualFolder.team_id.is_(None))
+    max_position = scope_query.with_entities(db.func.max(ManualFolder.position)).scalar() or 0
+
     folder = ManualFolder(
         name=folder_name[:120],
         color=folder_color,
         position=max_position + 1,
+        visibility=folder_visibility,
+        team_id=folder_team_id,
         created_by=current_user.id
     )
     db.session.add(folder)
@@ -319,7 +445,12 @@ def create_folder():
 
     flash(translate('manuals.flash.folder_created', folder_name=folder.name), 'success')
     return_folder_id = parse_folder_id(request.form.get('return_folder_id'))
-    return redirect_to_folder(return_folder_id)
+    return redirect(url_for('manuals.index', **_index_url_kwargs(
+        folder=folder,
+        folder_id=return_folder_id,
+        view=request.form.get('return_view'),
+        team_id=request.form.get('return_team_id'),
+    )))
 
 
 @manuals_bp.route('/folders/<int:folder_id>/rename', methods=['POST'])
@@ -337,14 +468,14 @@ def rename_folder(folder_id):
 
     if not folder_name:
         flash(translate('manuals.flash.folder_name_required'), 'danger')
-        return redirect_to_folder(folder_id)
+        return redirect_to_folder(folder_id, folder=folder)
 
     folder.name = folder_name[:120]
     folder.color = folder_color
     db.session.commit()
 
     flash(translate('manuals.flash.folder_renamed', folder_name=folder.name), 'success')
-    return redirect_to_folder(folder_id)
+    return redirect_to_folder(folder_id, folder=folder)
 
 
 @manuals_bp.route('/folders/<int:folder_id>/delete', methods=['POST'])
@@ -358,13 +489,14 @@ def delete_folder(folder_id):
 
     folder = ManualFolder.query.get_or_404(folder_id)
     folder_name = folder.name
+    redirect_kwargs = _index_url_kwargs(folder=folder)
 
     Manual.query.filter_by(folder_id=folder.id).update({'folder_id': None})
     db.session.delete(folder)
     db.session.commit()
 
     flash(translate('manuals.flash.folder_deleted', folder_name=folder_name), 'success')
-    return redirect(url_for('manuals.index'))
+    return redirect(url_for('manuals.index', **redirect_kwargs))
 
 
 @manuals_bp.route('/folders/<int:folder_id>/move-up', methods=['POST'])
@@ -377,7 +509,7 @@ def move_folder_up(folder_id):
         return redirect(url_for('manuals.index'))
 
     folder = ManualFolder.query.get_or_404(folder_id)
-    previous_folder = ManualFolder.query.filter(
+    previous_folder = _scope_folder_query(folder).filter(
         ManualFolder.position < folder.position
     ).order_by(ManualFolder.position.desc()).first()
 
@@ -385,7 +517,7 @@ def move_folder_up(folder_id):
         folder.position, previous_folder.position = previous_folder.position, folder.position
         db.session.commit()
 
-    return redirect_to_folder(folder_id)
+    return redirect_to_folder(folder_id, folder=folder)
 
 
 @manuals_bp.route('/folders/<int:folder_id>/move-down', methods=['POST'])
@@ -398,7 +530,7 @@ def move_folder_down(folder_id):
         return redirect(url_for('manuals.index'))
 
     folder = ManualFolder.query.get_or_404(folder_id)
-    next_folder = ManualFolder.query.filter(
+    next_folder = _scope_folder_query(folder).filter(
         ManualFolder.position > folder.position
     ).order_by(ManualFolder.position.asc()).first()
 
@@ -406,7 +538,7 @@ def move_folder_down(folder_id):
         folder.position, next_folder.position = next_folder.position, folder.position
         db.session.commit()
 
-    return redirect_to_folder(folder_id)
+    return redirect_to_folder(folder_id, folder=folder)
 
 
 @manuals_bp.route('/move/<int:manual_id>', methods=['POST'])

@@ -272,46 +272,6 @@
     color: inherit;
 }
 
-.module-launcher-item[data-nav-id="dashboard"],
-.favorites-rail-item[data-nav-id="dashboard"] { --nav-icon-color: #1a73e8; }
-.module-launcher-item[data-nav-id="chat"],
-.favorites-rail-item[data-nav-id="chat"] { --nav-icon-color: #34a853; }
-.module-launcher-item[data-nav-id="files"],
-.favorites-rail-item[data-nav-id="files"] { --nav-icon-color: #f9ab00; }
-.module-launcher-item[data-nav-id="calendar"],
-.favorites-rail-item[data-nav-id="calendar"] { --nav-icon-color: #1a73e8; }
-.module-launcher-item[data-nav-id="events"],
-.favorites-rail-item[data-nav-id="events"] { --nav-icon-color: #f9ab00; }
-.module-launcher-item[data-nav-id="email"],
-.favorites-rail-item[data-nav-id="email"] { --nav-icon-color: #ea4335; }
-.module-launcher-item[data-nav-id="contacts"],
-.favorites-rail-item[data-nav-id="contacts"] { --nav-icon-color: #1a73e8; }
-.module-launcher-item[data-nav-id="credentials"],
-.favorites-rail-item[data-nav-id="credentials"] { --nav-icon-color: #9334e6; }
-.module-launcher-item[data-nav-id="manuals"],
-.favorites-rail-item[data-nav-id="manuals"] { --nav-icon-color: #188038; }
-.module-launcher-item[data-nav-id="inventory"],
-.favorites-rail-item[data-nav-id="inventory"] { --nav-icon-color: #e37400; }
-.module-launcher-item[data-nav-id="wiki"],
-.favorites-rail-item[data-nav-id="wiki"] { --nav-icon-color: #188038; }
-.module-launcher-item[data-nav-id="shortlinks"],
-.favorites-rail-item[data-nav-id="shortlinks"] { --nav-icon-color: #007b83; }
-.module-launcher-item[data-nav-id="kanban"],
-.favorites-rail-item[data-nav-id="kanban"] { --nav-icon-color: #3f51b5; }
-.module-launcher-item[data-nav-id="booking"],
-.favorites-rail-item[data-nav-id="booking"] { --nav-icon-color: #d93025; }
-.module-launcher-item[data-nav-id="music"],
-.favorites-rail-item[data-nav-id="music"] { --nav-icon-color: #e94235; }
-.module-launcher-item[data-nav-id="media_downloader"],
-.favorites-rail-item[data-nav-id="media_downloader"] { --nav-icon-color: #1a73e8; }
-.module-launcher-item[data-nav-id="assessment"],
-.favorites-rail-item[data-nav-id="assessment"] { --nav-icon-color: #137333; }
-
-.module-launcher-item.is-current .module-launcher-icon,
-.favorites-rail-item.is-current {
-    --nav-icon-color: var(--accent-color, #0d6efd);
-}
-
 .module-launcher-icon {
     width: 44px;
     height: 44px;
@@ -319,9 +279,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--nav-icon-color, #5f6368);
-    background: color-mix(in srgb, var(--nav-icon-color, #5f6368) 16%, transparent);
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent);
     font-size: 1.25rem;
+}
+
+.module-launcher-icon .bi {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .module-launcher-label {
@@ -557,7 +524,7 @@
 }
 
 [data-bs-theme="dark"] .module-launcher-icon {
-    background: color-mix(in srgb, var(--nav-icon-color, #9aa0a6) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
 }
 
 @media (max-width: 991.98px) {
@@ -620,7 +587,7 @@
     align-items: center;
     justify-content: center;
     background: transparent;
-    color: var(--nav-icon-color, #5f6368);
+    color: var(--accent-color, #0d6efd);
     text-decoration: none;
     position: relative;
     flex-shrink: 0;
@@ -629,6 +596,10 @@
 .favorites-rail-item .bi,
 .favorites-rail-add .bi {
     font-size: 1.25rem;
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .favorites-rail-item:hover,
@@ -636,7 +607,7 @@
 .favorites-rail-add:hover,
 .favorites-rail-add:focus-visible {
     background: rgba(127, 127, 127, 0.14);
-    color: var(--nav-icon-color, inherit);
+    color: var(--accent-color, #0d6efd);
 }
 
 .favorites-rail-item.is-current {

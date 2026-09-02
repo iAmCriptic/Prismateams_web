@@ -246,7 +246,7 @@ ffmpeg -version
 
 **Hinweise:**
 - Kein Docker oder Nginx-Proxy erforderlich
-- **Downloads** erfolgen im Browser des Nutzers (youtubei.js) — YouTube-Bot-Sperren des Servers werden umgangen
+- **Downloads** erfolgen im Browser des Nutzers (youtubei.js); YouTube-API- und Stream-Requests laufen über den Portal-Server (`/media-downloader/youtube-proxy`), weil Browser YouTube sonst per CORS blockieren
 - **Konvertierung** (MP3/MP4) erfolgt serverseitig via FFmpeg
 - **Aktivierung im Portal:** Einstellungen → Administration → Module → **Media Downloader**
 - Heruntergeladene Dateien werden standardmäßig nach **1 Stunde** automatisch gelöscht (`MEDIA_DOWNLOADER_RETENTION_HOURS` in `.env`, optional)

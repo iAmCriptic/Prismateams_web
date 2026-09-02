@@ -1347,6 +1347,23 @@ def create_app(config_name='default'):
                                 ))
                             _log_startup("[OK] credential_folders.team_id hinzugefügt")
 
+                    if 'manual_folders' in table_names:
+                        manual_folder_columns = {col['name'] for col in inspector.get_columns('manual_folders')}
+                        if 'visibility' not in manual_folder_columns:
+                            _log_startup("[INFO] Ergänze manual_folders.visibility ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE manual_folders ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT 'public'"
+                                ))
+                            _log_startup("[OK] manual_folders.visibility hinzugefügt")
+                        if 'team_id' not in manual_folder_columns:
+                            _log_startup("[INFO] Ergänze manual_folders.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE manual_folders ADD COLUMN team_id INTEGER NULL"
+                                ))
+                            _log_startup("[OK] manual_folders.team_id hinzugefügt")
+
                     if 'credentials' in table_names:
                         credential_columns = {col['name'] for col in inspector.get_columns('credentials')}
                         if 'folder_id' not in credential_columns:

@@ -61,6 +61,17 @@
 {% else %}
 {% set view_param = '' %}
 {% endif %}
+{% if active_favorites %}
+{% set active_folder_label = _('contacts.index.folders.favorites') %}
+{% elif active_nav == 'private' %}
+{% set active_folder_label = _('visibility.nav.private') %}
+{% elif active_nav == 'public' %}
+{% set active_folder_label = _('visibility.nav.public') %}
+{% elif space_view and filter_team_id %}
+{% set active_folder_label = _('visibility.nav.team') %}
+{% else %}
+{% set active_folder_label = _('contacts.index.folders.all') %}
+{% endif %}
 {% set contacts_query_base = {
     'sort': current_sort,
     'dir': current_dir,
@@ -92,11 +103,12 @@
 {% endmacro %}
 
 {% macro contacts_view_toggle(suffix='', extra_class='') %}
-<div class="contacts-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('contacts.index.views.label') }}">
-    <button type="button" class="contacts-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
+<div class="files-view-toggle {{ extra_class }}" data-view="list" role="group" aria-label="{{ _('contacts.index.views.label') }}">
+    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="files-view-toggle__btn active is-active" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="contacts-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
+    <button type="button" class="files-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -496,7 +508,8 @@
         </div>
     </div>
 
-    <div id="gridViewContainer" style="display: none;">
+    <div id="contactsViewStage" class="files-view-stage">
+    <div id="gridViewContainer" class="files-view-pane" style="display: none;">
         {% if contacts %}
         <div class="row g-3">
             {% for contact in contacts %}
@@ -517,7 +530,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" style="display: none;">
+    <div id="listViewContainer" class="files-view-pane files-view-pane--active">
         {% if contacts %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -550,11 +563,13 @@
         </div>
         {% endif %}
     </div>
+    </div>
 </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 const CONTACTS_I18N = {{ current_translations.get('contacts', {}).get('index', {})|tojson }};
@@ -602,45 +617,49 @@ function toggleContactFavorite(id) {
         .catch(() => {});
 }
 
-function setContactsViewMode(mode) {
-    const grid = document.getElementById('gridViewContainer');
-    const list = document.getElementById('listViewContainer');
-    const listBtns = [
-        document.getElementById('listViewBtn'),
-        document.getElementById('listViewBtnMobile')
-    ].filter(Boolean);
-    const gridBtns = [
-        document.getElementById('gridViewBtn'),
-        document.getElementById('gridViewBtnMobile')
-    ].filter(Boolean);
-
-    const isList = mode === 'list';
-    if (grid) grid.style.display = isList ? 'none' : '';
-    if (list) list.style.display = isList ? '' : 'none';
-
-    listBtns.forEach((btn) => {
-        btn.classList.toggle('active', isList);
-        btn.classList.toggle('is-active', isList);
-    });
-    gridBtns.forEach((btn) => {
-        btn.classList.toggle('active', !isList);
-        btn.classList.toggle('is-active', !isList);
-    });
-    localStorage.setItem('contactsViewMode', isList ? 'list' : 'grid');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('contactsViewMode') || 'list';
-    setContactsViewMode(saved);
+    function syncAllToggleUi(mode) {
+        document.querySelectorAll('.contacts-shell .files-view-toggle').forEach((el) => {
+            el.dataset.view = mode;
+        });
+        ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'list');
+            btn.classList.toggle('is-active', mode === 'list');
+        });
+        ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'grid');
+            btn.classList.toggle('is-active', mode === 'grid');
+        });
+    }
 
-    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setContactsViewMode('list'));
-    });
-    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setContactsViewMode('grid'));
-    });
+    if (typeof window.initFilesViewToggle === 'function') {
+        const viewToggleApi = window.initFilesViewToggle({
+            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('contactsViewStage'),
+            storageKey: 'contactsViewMode',
+            defaultMode: 'list',
+            onSwitch: syncAllToggleUi,
+        });
+        if (viewToggleApi) {
+            syncAllToggleUi(viewToggleApi.getMode());
+            const listMobile = document.getElementById('listViewBtnMobile');
+            const gridMobile = document.getElementById('gridViewBtnMobile');
+            if (listMobile) {
+                listMobile.addEventListener('click', () => viewToggleApi.setView('list'));
+            }
+            if (gridMobile) {
+                gridMobile.addEventListener('click', () => viewToggleApi.setView('grid'));
+            }
+        }
+    }
 
     document.addEventListener('click', (event) => {
         const copyBtn = event.target.closest('[data-copy-text]');

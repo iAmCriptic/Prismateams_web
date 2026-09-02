@@ -33,6 +33,7 @@ from app.utils.private_files import (
     is_team_folders_enabled,
     list_acl_for_resource,
     list_folder_favorites,
+    list_move_destinations,
     list_view_contents,
     normalize_view,
     parse_team_id,
@@ -49,6 +50,7 @@ from app.utils.private_files import (
     upsert_acl,
     user_file_teams,
     user_may_use_file_team,
+    sanitize_files_item_name,
     FOLDER_FAVORITES_MAX,
 )
 from app.models.public_share import PublicShare
@@ -897,6 +899,7 @@ def create_folder():
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
     team_id = _request_team_id()
     
+    folder_name = sanitize_files_item_name(folder_name)
     if not folder_name:
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
@@ -953,15 +956,10 @@ def rename_file(file_id):
         return redirect(request.referrer or url_for('files.index'))
     
     file = File.query.get_or_404(file_id)
-    new_name = request.form.get('new_name', '').strip()
+    new_name = sanitize_files_item_name(request.form.get('new_name', ''))
     
     if not new_name:
         flash('Neuer Dateiname darf nicht leer sein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
-    
-    # Keine Pfadseparatoren erlauben
-    if '/' in new_name or '\\' in new_name:
-        flash('Ungültiger Dateiname.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     # Prüfe ob bereits eine Datei mit diesem Namen im selben Ordner existiert
@@ -995,14 +993,10 @@ def rename_folder(folder_id):
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         flash('Dieser Stammordner kann nicht umbenannt werden.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
-    new_name = request.form.get('new_name', '').strip()
+    new_name = sanitize_files_item_name(request.form.get('new_name', ''))
     
     if not new_name:
         flash('Neuer Ordnername darf nicht leer sein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
-    
-    if '/' in new_name or '\\' in new_name:
-        flash('Ungültiger Ordnername.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     folder.name = new_name
@@ -1117,7 +1111,7 @@ def move_item():
         if not can_edit_folder(target_folder, current_user) and not current_user.is_admin:
             return jsonify({
                 'success': False,
-                'error': translate('files.index.errors.move_guest_not_allowed')
+                'error': translate('files.index.errors.move_not_allowed')
             }), 403
 
     target_space = resolve_space_for_parent(target_folder, files_view or 'public')
@@ -1125,11 +1119,17 @@ def move_item():
 
     if item_type == 'file':
         file = File.query.get(item_id)
-        if not file or not file.is_current:
+        if not file or not file.is_current or file.deleted_at is not None:
             return jsonify({
                 'success': False,
                 'error': translate('files.index.errors.move_item_not_found')
             }), 404
+
+        if not can_edit_file(file, current_user) and not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_not_allowed')
+            }), 403
 
         if file.folder_id == target_folder_id:
             return jsonify({'success': True, 'no_change': True}), 200
@@ -1138,7 +1138,8 @@ def move_item():
             File.id != file.id,
             File.name == file.name,
             File.folder_id.is_(target_folder_id) if target_folder_id is None else File.folder_id == target_folder_id,
-            File.is_current == True
+            File.is_current == True,
+            File.deleted_at.is_(None),
         ).first()
         if name_conflict:
             return jsonify({
@@ -1153,7 +1154,7 @@ def move_item():
         return jsonify({'success': True}), 200
 
     folder = Folder.query.get(item_id)
-    if not folder:
+    if not folder or folder.deleted_at is not None:
         return jsonify({
             'success': False,
             'error': translate('files.index.errors.move_item_not_found')
@@ -1164,6 +1165,12 @@ def move_item():
             'success': False,
             'error': translate('files.index.errors.move_invalid_request')
         }), 400
+
+    if not can_edit_folder(folder, current_user) and not current_user.is_admin:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_not_allowed')
+        }), 403
 
     if folder.id == target_folder_id:
         return jsonify({
@@ -1180,10 +1187,73 @@ def move_item():
     if folder.parent_id == target_folder_id:
         return jsonify({'success': True, 'no_change': True}), 200
 
+    folder_name_conflict = Folder.query.filter(
+        Folder.id != folder.id,
+        Folder.name == folder.name,
+        Folder.parent_id.is_(target_folder_id) if target_folder_id is None else Folder.parent_id == target_folder_id,
+        Folder.deleted_at.is_(None),
+        Folder.is_personal_root.is_(False),
+        Folder.is_team_root.is_(False),
+    ).first()
+    if folder_name_conflict:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_name_conflict')
+        }), 409
+
     folder.parent_id = target_folder_id
     apply_space_to_folder_tree(folder, target_space, target_team_id)
     db.session.commit()
     return jsonify({'success': True}), 200
+
+
+@files_bp.route('/api/move-destinations')
+@login_required
+@check_module_access('module_files')
+def api_move_destinations():
+    """Folder trees per space for the move picker."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_guest_not_allowed')
+        }), 403
+
+    exclude_folder_id = None
+    raw_exclude = request.args.get('exclude_folder_id')
+    if raw_exclude not in (None, '', 'null'):
+        try:
+            exclude_folder_id = int(raw_exclude)
+        except (TypeError, ValueError):
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_invalid_request')
+            }), 400
+
+    spaces = list_move_destinations(current_user, exclude_folder_id=exclude_folder_id)
+    nav_labels = {
+        'ablage': translate('files.index.nav.ablage'),
+        'public': translate('files.index.nav.public'),
+        'team': translate('files.index.nav.team'),
+    }
+    payload = []
+    for space in spaces:
+        label = space.get('label')
+        if label in ('ablage', 'public'):
+            display_label = nav_labels.get(label, label)
+        else:
+            display_label = label
+        payload.append({
+            'key': space['key'],
+            'view': space['view'],
+            'team_id': space.get('team_id'),
+            'root_folder_id': space.get('root_folder_id'),
+            'label': display_label,
+            'color': space.get('color'),
+            'folders': space.get('folders') or [],
+        })
+
+    return jsonify({'success': True, 'spaces': payload}), 200
+
 
 @files_bp.route('/create-file', methods=['POST'])
 @login_required
@@ -4087,12 +4157,9 @@ def public_share_create_folder(token):
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
 
-    folder_name = request.form.get('folder_name', '').strip()
+    folder_name = sanitize_files_item_name(request.form.get('folder_name', ''))
     if not folder_name:
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
-        return redirect(url_for('files.public_share', token=token))
-    if '/' in folder_name or '\\' in folder_name:
-        flash('Ungültiger Ordnername.', 'danger')
         return redirect(url_for('files.public_share', token=token))
 
     parent_id = request.form.get('parent_id', type=int)

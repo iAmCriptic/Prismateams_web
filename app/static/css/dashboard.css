@@ -1873,14 +1873,21 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--nav-icon-color, var(--accent-color, #0d6efd));
-    background: color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 16%, transparent);
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent);
     font-size: 1.35rem;
     transition:
         transform 0.28s cubic-bezier(0.34, 1.45, 0.64, 1),
         filter 0.25s ease,
         box-shadow 0.28s ease,
         background 0.25s ease;
+}
+
+.dashboard-module-icon .bi {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .dashboard-module-label {
@@ -1909,30 +1916,11 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 .dashboard-module-chip:focus-visible .dashboard-module-icon {
     transform: scale(1.22);
     filter: brightness(1.14) saturate(1.08);
-    background: color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 38%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 38%, transparent);
     box-shadow:
-        0 10px 28px color-mix(in srgb, var(--nav-icon-color, var(--accent-color, #0d6efd)) 42%, transparent),
+        0 10px 28px color-mix(in srgb, var(--accent-color, #0d6efd) 42%, transparent),
         0 4px 12px rgba(0, 0, 0, 0.12);
 }
-
-/* Same accent colors as 9-dot launcher */
-.dashboard-module-chip[data-nav-id="chat"] { --nav-icon-color: #34a853; }
-.dashboard-module-chip[data-nav-id="files"] { --nav-icon-color: #f9ab00; }
-.dashboard-module-chip[data-nav-id="calendar"] { --nav-icon-color: #1a73e8; }
-.dashboard-module-chip[data-nav-id="events"] { --nav-icon-color: #f9ab00; }
-.dashboard-module-chip[data-nav-id="email"] { --nav-icon-color: #ea4335; }
-.dashboard-module-chip[data-nav-id="contacts"] { --nav-icon-color: #1a73e8; }
-.dashboard-module-chip[data-nav-id="credentials"] { --nav-icon-color: #9334e6; }
-.dashboard-module-chip[data-nav-id="manuals"] { --nav-icon-color: #188038; }
-.dashboard-module-chip[data-nav-id="inventory"] { --nav-icon-color: #e37400; }
-.dashboard-module-chip[data-nav-id="wiki"] { --nav-icon-color: #188038; }
-.dashboard-module-chip[data-nav-id="shortlinks"] { --nav-icon-color: #007b83; }
-.dashboard-module-chip[data-nav-id="kanban"] { --nav-icon-color: #3f51b5; }
-.dashboard-module-chip[data-nav-id="excalidraw"] { --nav-icon-color: #5f6368; }
-.dashboard-module-chip[data-nav-id="booking"] { --nav-icon-color: #d93025; }
-.dashboard-module-chip[data-nav-id="music"] { --nav-icon-color: #e94235; }
-.dashboard-module-chip[data-nav-id="media_downloader"] { --nav-icon-color: #1a73e8; }
-.dashboard-module-chip[data-nav-id="assessment"] { --nav-icon-color: #137333; }
 
 .dashboard-module-bar.is-sorting .dashboard-module-chip {
     cursor: grab;

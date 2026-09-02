@@ -10,6 +10,7 @@ from app.models.file import File, FileVersion, Folder
 from app.models.settings import SystemSettings
 from app.utils.access_control import has_module_access
 from app.utils.common import format_datetime
+from app.utils.private_files import sanitize_files_item_name
 from werkzeug.security import generate_password_hash
 
 
@@ -289,8 +290,8 @@ def register_files_routes(api_bp, require_api_auth):
     @require_api_auth
     def api_rename_file(file_id):
         data = request.get_json(silent=True) or {}
-        new_name = (data.get("new_name") or "").strip()
-        if not new_name or "/" in new_name or "\\" in new_name:
+        new_name = sanitize_files_item_name(data.get("new_name"))
+        if not new_name:
             return jsonify({"success": False, "error": "Ungültiger Dateiname"}), 400
 
         file_obj = File.query.get_or_404(file_id)
@@ -306,8 +307,8 @@ def register_files_routes(api_bp, require_api_auth):
     @require_api_auth
     def api_rename_folder(folder_id):
         data = request.get_json(silent=True) or {}
-        new_name = (data.get("new_name") or "").strip()
-        if not new_name or "/" in new_name or "\\" in new_name:
+        new_name = sanitize_files_item_name(data.get("new_name"))
+        if not new_name:
             return jsonify({"success": False, "error": "Ungültiger Ordnername"}), 400
 
         folder = Folder.query.get_or_404(folder_id)

@@ -61,22 +61,32 @@
 {% macro files_nav_links(dismiss_offcanvas=false) %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
     {% if files_private_folders_enabled %}
-    <a class="nav-link mod-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
+    <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}" data-drop-target="space" data-drop-view="ablage"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
     {% endif %}
     {% if files_team_folders_enabled %}
     {% for t in files_nav_teams %}
-    <a class="nav-link mod-nav-link {% if files_view == 'team' and files_team_id == t.id %}active{% endif %}" href="{{ url_for('files.index', view='team', team_id=t.id) }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
+    <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'team' and files_team_id == t.id %}active{% endif %}" href="{{ url_for('files.index', view='team', team_id=t.id) }}" data-drop-target="space" data-drop-view="team" data-drop-team-id="{{ t.id }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
         <span class="d-inline-block rounded-circle me-2 flex-shrink-0" style="width:.65rem;height:.65rem;background:{{ t.color or 'var(--bs-secondary-color, #6c757d)' }};" aria-hidden="true"></span>
         <span class="text-truncate">{{ t.name }}</span>
     </a>
     {% endfor %}
     {% endif %}
-    <a class="nav-link mod-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
+    <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}" data-drop-target="space" data-drop-view="public"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
     {% if files_private_folders_enabled or files_team_folders_enabled %}
     <a class="nav-link mod-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
     {% endif %}
     <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash3-fill me-2"></i>{{ _('files.index.nav.trash') }}</a>
 </nav>
+{% endmacro %}
+
+{% macro files_move_menu_item(item_type, item_id) %}
+{% if not is_trash_view %}
+<li>
+    <a class="dropdown-item" href="#" onclick="openMoveModal({{ item_type|tojson }}, {{ item_id }}); return false;">
+        <i class="bi bi-folder-symlink me-2"></i> {{ _('files.index.actions.move') }}
+    </a>
+</li>
+{% endif %}
 {% endmacro %}
 
 {% macro files_favorites_nav(dismiss_offcanvas=false) %}
@@ -509,6 +519,7 @@
                                         <i class="bi bi-pencil me-2"></i> {{ _('files.index.folder_actions.rename') }}
                                     </a>
                                 </li>
+                                {{ files_move_menu_item('folder', folder.id) }}
                                 {% if not is_trash_view %}
                                 <li>
                                     <a class="dropdown-item files-favorite-toggle" href="#" data-folder-id="{{ folder.id }}" onclick="toggleFolderFavorite({{ folder.id }}); return false;">
@@ -722,6 +733,7 @@
                                         <i class="bi bi-pencil me-2"></i> {{ _('files.index.file_actions.rename') }}
                                     </a>
                                 </li>
+                                {{ files_move_menu_item('file', file.id) }}
                                 <li><hr class="dropdown-divider"></li>
                                 {% if is_trash_view %}
                                 <li>
@@ -887,6 +899,7 @@
                                     <li><a class="dropdown-item" href="#" onclick="openInternalShare('folder', {{ folder.id }}); return false;"><i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}</a></li>
                                     {% endif %}
                                     <li><a class="dropdown-item" href="#" onclick='startInlineRename("folder", {{ folder.id }}, {{ folder.name|tojson }}); return false;'><i class="bi bi-pencil me-2"></i> {{ _('files.index.folder_actions.rename') }}</a></li>
+                                    {{ files_move_menu_item('folder', folder.id) }}
                                     <li><a class="dropdown-item files-favorite-toggle" href="#" data-folder-id="{{ folder.id }}" onclick="toggleFolderFavorite({{ folder.id }}); return false;"><i class="bi bi-star{% if folder.id in favorite_folder_ids %}-fill{% endif %}"></i> <span>{% if folder.id in favorite_folder_ids %}{{ _('files.index.favorites.remove') }}{% else %}{{ _('files.index.favorites.add') }}{% endif %}</span></a></li>
                                     <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}</button></form></li>
                                     {% endif %}
@@ -954,6 +967,7 @@
                                     <li><a class="dropdown-item" href="#" onclick="openInternalShare('file', {{ file.id }}); return false;"><i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}</a></li>
                                     {% endif %}
                                     <li><a class="dropdown-item" href="#" onclick='startInlineRename("file", {{ file.id }}, {{ file.name|tojson }}); return false;'><i class="bi bi-pencil me-2"></i> {{ _('files.index.file_actions.rename') }}</a></li>
+                                    {{ files_move_menu_item('file', file.id) }}
                                     <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}</button></form></li>
                                     {% endif %}
                                 </ul>
@@ -1094,6 +1108,30 @@
     </div>
 </div>
 
+<!-- Verschieben Modal -->
+<div class="modal fade" id="filesMoveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _('files.index.modals.move.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="filesMoveItemLabel"></p>
+                <div id="filesMoveLoading" class="text-muted small py-3">{{ _('files.index.modals.move.loading') }}</div>
+                <div id="filesMoveTree" class="files-move-tree" hidden></div>
+                <div id="filesMoveError" class="alert alert-danger py-2 small mb-0" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent" id="filesMoveConfirmBtn" disabled>
+                    <i class="bi bi-folder-symlink me-1"></i>{{ _('files.index.modals.move.confirm') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Upload-Konflikt Modal -->
 <div class="modal fade" id="uploadConflictModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1227,6 +1265,8 @@ window.FILES_IS_TRASH = {{ 'true' if is_trash_view else 'false' }};
 window.FILES_BULK_ZIP_URL = {{ url_for('files.api_download_zip')|tojson }};
 window.FILES_BULK_DELETE_URL = {{ url_for('files.api_bulk_delete')|tojson }};
 window.FILES_BULK_RESTORE_URL = {{ url_for('files.api_bulk_restore')|tojson }};
+window.FILES_MOVE_URL = {{ url_for('files.move_item')|tojson }};
+window.FILES_MOVE_DESTINATIONS_URL = {{ url_for('files.api_move_destinations')|tojson }};
 
 (function () {
     function applyPayload(root, data) {
@@ -1664,17 +1704,48 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.files-drop-active').forEach(el => el.classList.remove('files-drop-active'));
     }
 
-    function getDropTargetFolderId(dropTarget) {
-        if (!dropTarget) return CURRENT_FOLDER_ID;
+    function getDropTargetInfo(dropTarget) {
+        if (!dropTarget) {
+            return {
+                target_folder_id: CURRENT_FOLDER_ID,
+                view: window.FILES_VIEW || undefined,
+                team_id: window.FILES_TEAM_ID || undefined
+            };
+        }
+        const spaceTarget = dropTarget.closest('[data-drop-target="space"]');
+        if (spaceTarget) {
+            const view = spaceTarget.dataset.dropView || 'public';
+            const teamRaw = spaceTarget.dataset.dropTeamId;
+            return {
+                target_folder_id: null,
+                view,
+                team_id: teamRaw ? parseInt(teamRaw, 10) : undefined
+            };
+        }
         const folderTarget = dropTarget.closest('[data-drop-target="folder"][data-item-id]');
         if (folderTarget) {
             const rawId = folderTarget.dataset.itemId;
+            let targetFolderId = CURRENT_FOLDER_ID;
             if (rawId === '' || rawId === 'null' || rawId === undefined) {
-                return null;
+                targetFolderId = null;
+            } else {
+                targetFolderId = parseInt(rawId, 10);
             }
-            return parseInt(rawId, 10);
+            return {
+                target_folder_id: targetFolderId,
+                view: window.FILES_VIEW || undefined,
+                team_id: window.FILES_TEAM_ID || undefined
+            };
         }
-        return CURRENT_FOLDER_ID;
+        return {
+            target_folder_id: CURRENT_FOLDER_ID,
+            view: window.FILES_VIEW || undefined,
+            team_id: window.FILES_TEAM_ID || undefined
+        };
+    }
+
+    function getDropTargetFolderId(dropTarget) {
+        return getDropTargetInfo(dropTarget).target_folder_id;
     }
 
     function createRollbackState(itemType, itemId) {
@@ -1709,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function moveItemViaApi(payload, rollbackState) {
         applyOptimisticHide(rollbackState);
         try {
-            const response = await fetch('{{ url_for("files.move_item") }}', {
+            const response = await fetch(window.FILES_MOVE_URL || '{{ url_for("files.move_item") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -1795,7 +1866,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     draggableItems.forEach(item => {
         item.addEventListener('dragstart', event => {
-            if (event.target.closest('.dropdown, .btn, a, form, input, textarea, [data-bs-toggle="dropdown"]')) {
+            if (event.target.closest('.dropdown, a, form, input, textarea, [data-bs-toggle="dropdown"]')) {
+                event.preventDefault();
+                return;
+            }
+            const blockedBtn = event.target.closest('.btn');
+            if (blockedBtn && !blockedBtn.classList.contains('files-dnd-handle')) {
                 event.preventDefault();
                 return;
             }
@@ -1822,8 +1898,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const isInternal = Array.from(event.dataTransfer.types || []).includes(dndMimeType);
             if (isInternal || (event.dataTransfer.files && event.dataTransfer.files.length > 0)) {
                 clearDropHighlights();
-                if (zone.classList.contains('files-drop-target')) {
-                    zone.classList.add('files-drop-active');
+                const activeTarget = event.target.closest('.files-drop-target') || (zone.classList.contains('files-drop-target') ? zone : null);
+                if (activeTarget) {
+                    activeTarget.classList.add('files-drop-active');
                 }
             }
         });
@@ -1836,6 +1913,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         zone.addEventListener('drop', async event => {
             event.preventDefault();
+            event.stopPropagation();
             clearDropHighlights();
             document.body.classList.remove('files-dnd-dragging');
 
@@ -1849,14 +1927,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                const targetFolderId = getDropTargetFolderId(event.target);
+                const dropInfo = getDropTargetInfo(event.target);
                 const rollbackState = createRollbackState(parsed.item_type, String(parsed.item_id));
                 await moveItemViaApi({
                     item_type: parsed.item_type,
                     item_id: parsed.item_id,
-                    target_folder_id: targetFolderId,
-                    view: window.FILES_VIEW || undefined,
-                    team_id: window.FILES_TEAM_ID || undefined
+                    target_folder_id: dropInfo.target_folder_id,
+                    view: dropInfo.view,
+                    team_id: dropInfo.team_id
                 }, rollbackState);
                 return;
             }
@@ -2719,6 +2797,248 @@ function openFolderColorModal(folderId, folderName, currentColor) {
 
     modal.show();
 }
+
+// ===== Verschieben (Modal + Ordnerbaum) =====
+(function () {
+    let moveState = {
+        itemType: null,
+        itemId: null,
+        selected: null,
+        modal: null
+    };
+
+    function moveLabels() {
+        const modals = (window.FILES_I18N && window.FILES_I18N.modals && window.FILES_I18N.modals.move) || {};
+        const actions = (window.FILES_I18N && window.FILES_I18N.actions) || {};
+        const nav = (window.FILES_I18N && window.FILES_I18N.nav) || {};
+        return {
+            title: modals.title || actions.move || 'Verschieben',
+            loading: modals.loading || 'Lade Ziele…',
+            confirm: modals.confirm || 'Hierher verschieben',
+            empty: modals.empty || 'Keine Ordner verfügbar.',
+            root_hint: modals.root_hint || 'In diesen Bereich (Root)',
+            item_file: modals.item_file || 'Datei verschieben',
+            item_folder: modals.item_folder || 'Ordner verschieben',
+            nav
+        };
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function setMoveError(message) {
+        const el = document.getElementById('filesMoveError');
+        if (!el) return;
+        if (!message) {
+            el.hidden = true;
+            el.textContent = '';
+            return;
+        }
+        el.hidden = false;
+        el.textContent = message;
+    }
+
+    function setMoveSelection(payload, button) {
+        moveState.selected = payload;
+        document.querySelectorAll('.files-move-node.is-selected').forEach(el => el.classList.remove('is-selected'));
+        if (button) button.classList.add('is-selected');
+        const confirmBtn = document.getElementById('filesMoveConfirmBtn');
+        if (confirmBtn) confirmBtn.disabled = !payload;
+    }
+
+    function renderFolderNodes(nodes, depth) {
+        if (!nodes || !nodes.length) return '';
+        return nodes.map(node => {
+            const hasChildren = node.children && node.children.length;
+            const kids = hasChildren
+                ? `<div class="files-move-children">${renderFolderNodes(node.children, depth + 1)}</div>`
+                : '';
+            const toggle = hasChildren
+                ? `<button type="button" class="files-move-toggle" aria-expanded="true" title="Unterordner"><i class="bi bi-caret-down-fill"></i></button>`
+                : `<span class="files-move-toggle-spacer"></span>`;
+            const colorStyle = node.color ? ` style="color:${escapeHtml(node.color)}"` : '';
+            return `
+                <div class="files-move-branch" data-depth="${depth}">
+                    <div class="files-move-row">
+                        ${toggle}
+                        <button type="button" class="files-move-node"
+                            data-folder-id="${node.id}"
+                            data-view=""
+                            data-team-id="">
+                            <i class="bi bi-folder-fill folder-color-icon"${colorStyle}></i>
+                            <span class="text-truncate">${escapeHtml(node.name)}</span>
+                        </button>
+                    </div>
+                    ${kids}
+                </div>`;
+        }).join('');
+    }
+
+    function renderSpaces(spaces) {
+        const labels = moveLabels();
+        return (spaces || []).map(space => {
+            const icon = space.view === 'ablage'
+                ? 'bi-hdd'
+                : (space.view === 'team' ? 'bi-people-fill' : 'bi-globe2');
+            const colorDot = space.color
+                ? `<span class="files-move-team-dot" style="background:${escapeHtml(space.color)}"></span>`
+                : `<i class="bi ${icon}"></i>`;
+            const teamAttr = space.team_id != null ? ` data-team-id="${space.team_id}"` : ' data-team-id=""';
+            const children = renderFolderNodes(space.folders || [], 1);
+            return `
+                <div class="files-move-space" data-space-key="${escapeHtml(space.key)}">
+                    <button type="button" class="files-move-node files-move-space-root"
+                        data-folder-id=""
+                        data-view="${escapeHtml(space.view)}"
+                        ${teamAttr}>
+                        ${colorDot}
+                        <span class="text-truncate">${escapeHtml(space.label)}</span>
+                        <span class="files-move-root-hint">${escapeHtml(labels.root_hint)}</span>
+                    </button>
+                    ${children ? `<div class="files-move-children">${children}</div>` : ''}
+                </div>`;
+        }).join('');
+    }
+
+    function bindTreeEvents(treeEl) {
+        treeEl.querySelectorAll('.files-move-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const branch = btn.closest('.files-move-branch');
+                if (!branch) return;
+                const kids = branch.querySelector(':scope > .files-move-children');
+                if (!kids) return;
+                const open = kids.hidden;
+                kids.hidden = !open;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = open ? 'bi bi-caret-down-fill' : 'bi bi-caret-right-fill';
+                }
+            });
+        });
+
+        treeEl.querySelectorAll('.files-move-node').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const rawFolder = btn.getAttribute('data-folder-id');
+                const view = btn.getAttribute('data-view') || '';
+                const teamRaw = btn.getAttribute('data-team-id');
+                let targetFolderId = null;
+                if (rawFolder !== '' && rawFolder != null) {
+                    targetFolderId = parseInt(rawFolder, 10);
+                }
+                // Folder nodes inherit view/team from enclosing space
+                const space = btn.closest('.files-move-space');
+                const spaceRoot = space && space.querySelector('.files-move-space-root');
+                const resolvedView = view || (spaceRoot && spaceRoot.getAttribute('data-view')) || window.FILES_VIEW || 'public';
+                const resolvedTeam = teamRaw || (spaceRoot && spaceRoot.getAttribute('data-team-id')) || '';
+                setMoveSelection({
+                    target_folder_id: Number.isFinite(targetFolderId) ? targetFolderId : null,
+                    view: resolvedView,
+                    team_id: resolvedTeam ? parseInt(resolvedTeam, 10) : undefined
+                }, btn);
+            });
+        });
+    }
+
+    async function loadDestinations() {
+        const loading = document.getElementById('filesMoveLoading');
+        const tree = document.getElementById('filesMoveTree');
+        const confirmBtn = document.getElementById('filesMoveConfirmBtn');
+        if (loading) loading.hidden = false;
+        if (tree) {
+            tree.hidden = true;
+            tree.innerHTML = '';
+        }
+        if (confirmBtn) confirmBtn.disabled = true;
+        setMoveError('');
+        moveState.selected = null;
+
+        const params = new URLSearchParams();
+        if (moveState.itemType === 'folder' && moveState.itemId) {
+            params.set('exclude_folder_id', String(moveState.itemId));
+        }
+        const url = (window.FILES_MOVE_DESTINATIONS_URL || '/files/api/move-destinations')
+            + (params.toString() ? ('?' + params.toString()) : '');
+
+        try {
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || (FILES_I18N.messages && FILES_I18N.messages.move_error) || 'Laden fehlgeschlagen');
+            }
+            if (loading) loading.hidden = true;
+            if (!tree) return;
+            if (!data.spaces || !data.spaces.length) {
+                tree.innerHTML = `<div class="text-muted small">${escapeHtml(moveLabels().empty)}</div>`;
+            } else {
+                tree.innerHTML = renderSpaces(data.spaces);
+                bindTreeEvents(tree);
+            }
+            tree.hidden = false;
+        } catch (err) {
+            if (loading) loading.hidden = true;
+            setMoveError(err.message || (FILES_I18N.messages && FILES_I18N.messages.move_error));
+        }
+    }
+
+    window.openMoveModal = function openMoveModal(itemType, itemId) {
+        if (window.FILES_IS_TRASH) return;
+        moveState.itemType = itemType;
+        moveState.itemId = itemId;
+        const labels = moveLabels();
+        const labelEl = document.getElementById('filesMoveItemLabel');
+        if (labelEl) {
+            labelEl.textContent = itemType === 'folder' ? labels.item_folder : labels.item_file;
+        }
+        const modalEl = document.getElementById('filesMoveModal');
+        if (!modalEl) return;
+        moveState.modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        moveState.modal.show();
+        loadDestinations();
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const confirmBtn = document.getElementById('filesMoveConfirmBtn');
+        if (!confirmBtn) return;
+        confirmBtn.addEventListener('click', async () => {
+            if (!moveState.selected || !moveState.itemType || !moveState.itemId) return;
+            confirmBtn.disabled = true;
+            setMoveError('');
+            try {
+                const response = await fetch(window.FILES_MOVE_URL || '/files/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_type: moveState.itemType,
+                        item_id: moveState.itemId,
+                        target_folder_id: moveState.selected.target_folder_id,
+                        view: moveState.selected.view,
+                        team_id: moveState.selected.team_id
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result.success) {
+                    setMoveError(result.error || (FILES_I18N.messages && FILES_I18N.messages.move_error) || 'Verschieben fehlgeschlagen.');
+                    confirmBtn.disabled = false;
+                    return;
+                }
+                if (moveState.modal) moveState.modal.hide();
+                if (typeof showDnDMessage === 'function') {
+                    showDnDMessage((FILES_I18N.messages && FILES_I18N.messages.move_success) || 'Element wurde verschoben.', 'success');
+                }
+                window.location.reload();
+            } catch (err) {
+                setMoveError((FILES_I18N.messages && FILES_I18N.messages.move_error) || 'Verschieben fehlgeschlagen.');
+                confirmBtn.disabled = false;
+            }
+        });
+    });
+})();
 
 // ===== Umbenennen & Freigaben =====
 function shareModeFieldsHtml(shareLabels, mode) {

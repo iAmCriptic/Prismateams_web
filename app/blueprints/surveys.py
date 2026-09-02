@@ -86,8 +86,7 @@ def _surveys_form_kwargs(survey=None):
         preselect_section=pre_section,
         preselect_team_id=filter_team_id,
     )
-    ctx['section_filter'] = section
-    ctx['filter_team_id'] = filter_team_id
+    ctx.update(visibility_nav_context('surveys', current_user, section, filter_team_id))
     return ctx
 
 

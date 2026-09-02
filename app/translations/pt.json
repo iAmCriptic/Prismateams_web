@@ -636,7 +636,8 @@
       "teams": {
         "page_title": "Teams - Administration",
         "heading": "Teams",
-        "subtitle": "Create teams and assign members. Not connected to modules yet.",
+        "subtitle": "Create teams and assign members. Team leads can manage their own team.",
+        "subtitle_leader": "Add or remove members of your teams. Creating and deleting teams remains admin-only.",
         "create": "Create team",
         "create_heading": "New team",
         "create_page_title": "Create team - Administration",
@@ -660,7 +661,7 @@
         "field_color_help": "Optional. Shown in lists and chips.",
         "clear_color": "Clear color",
         "field_leader": "Lead",
-        "field_leader_help": "The lead is automatically added as a member. No extra permissions.",
+        "field_leader_help": "The lead is added as a member and can manage the team (add/remove members, team settings).",
         "no_leader": "No lead",
         "field_image": "Image",
         "field_image_help": "PNG, JPG, GIF or WebP – max. 5 MB",
@@ -668,8 +669,10 @@
         "members_title": "Members",
         "no_members": "This team has no members yet.",
         "add_members": "Add members",
+        "add_members_help": "Select portal members who are not yet in this team.",
         "add_selected": "Add selected",
-        "all_users_already_members": "All users are already members.",
+        "all_users_already_members": "All portal members are already in this team.",
+        "search_no_user_results": "No matching portal members found.",
         "remove_member": "Remove",
         "remove_member_confirm": "Remove {name} from the team?",
         "badge_leader": "Lead",
@@ -684,6 +687,7 @@
         "flash_deleted": "Team \"{name}\" was deleted.",
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
+        "flash_cannot_remove_leader": "The team lead cannot be removed. Assign a different lead first.",
         "flash_user_teams_updated": "Teams for {name} were updated."
       },
       "cards": {
