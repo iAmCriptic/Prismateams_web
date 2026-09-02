@@ -92,10 +92,12 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
         {% elif request.endpoint.startswith('manuals.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
         {% elif request.endpoint.startswith('email.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
         {% elif request.endpoint.startswith('contacts.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
         {% elif request.endpoint.startswith('booking.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
@@ -106,11 +108,13 @@
         {% elif request.endpoint.startswith('inventory.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
         {% elif request.endpoint.startswith('wiki.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
         {% elif request.endpoint.startswith('excalidraw.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
         {% elif request.endpoint.startswith('shortlinks.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
         {% elif request.endpoint.startswith('kanban.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
@@ -124,6 +128,9 @@
         {% elif request.endpoint.startswith('assessment.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
+        {% elif request.endpoint.startswith('surveys.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
         {% elif request.endpoint.startswith('dashboard.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}

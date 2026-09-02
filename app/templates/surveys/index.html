@@ -2,10 +2,6 @@
 
 {% block title %}{{ _('surveys.nav.title') }}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
-{% endblock %}
-
 {% block navbar_search %}
 <form method="GET" action="{{ url_for('surveys.index') }}" class="surveys-search" role="search" id="surveysSearchForm">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
@@ -34,6 +30,185 @@
 
 {% block content %}
 {% from 'surveys/_sidebar.html' import surveys_sidebar_chrome, surveys_create_url with context %}
+{% set search_query = search_query|default('') %}
+{% set active_nav = active_nav|default('all') %}
+{% set filter_team_id = filter_team_id|default(none) %}
+{% set section_filter = section_filter|default('all') %}
+{% set create_url = surveys_create_url() %}
+{% if active_nav == 'private' %}
+{% set heading_label = _('visibility.nav.private') %}
+{% elif active_nav == 'public' %}
+{% set heading_label = _('visibility.nav.public') %}
+{% elif active_nav and active_nav.startswith('team-') %}
+{% set heading_label = _('visibility.nav.team') %}
+{% else %}
+{% set heading_label = _('surveys.nav.all') %}
+{% endif %}
+
+{% macro surveys_search_form(id_suffix='') %}
+<form method="GET" action="{{ url_for('surveys.index') }}" class="surveys-search" role="search" id="surveysSearchForm{{ id_suffix }}">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search surveys-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="surveysSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control surveys-search-input"
+           placeholder="{{ _('surveys.index.search_placeholder') }}"
+           aria-label="{{ _('surveys.index.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+       class="btn surveys-search-clear"
+       id="surveysSearchClear{{ id_suffix }}"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
+{% macro surveys_view_toggle(suffix='', extra_class='') %}
+<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('surveys.index.view_toggle.label') }}">
+    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro survey_visibility_label(survey) %}
+{%- if survey.visibility == 'private' -%}
+{{ _('visibility.nav.private') }}
+{%- elif survey.visibility == 'public' -%}
+{{ _('visibility.nav.public') }}
+{%- elif survey.visibility == 'team' -%}
+{{ _('visibility.nav.team') }}
+{%- else -%}
+{{ survey.visibility }}
+{%- endif -%}
+{% endmacro %}
+
+{% macro survey_menu_items(survey) %}
+<li>
+    <a class="dropdown-item" href="{{ url_for('surveys.edit', survey_id=survey.id) }}">
+        <i class="bi bi-pencil me-2"></i>{{ _('surveys.index.edit') }}
+    </a>
+</li>
+<li>
+    <a class="dropdown-item" href="{{ url_for('surveys.results', survey_id=survey.id) }}">
+        <i class="bi bi-bar-chart me-2"></i>{{ _('surveys.index.results') }}
+    </a>
+</li>
+{% if survey.is_publicly_fillable and survey.public_token %}
+<li>
+    <a class="dropdown-item" href="{{ url_for('surveys.public_fill', token=survey.public_token) }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right me-2"></i>{{ _('surveys.index.open') }}
+    </a>
+</li>
+{% endif %}
+<li><hr class="dropdown-divider"></li>
+<li>
+    <form method="POST" action="{{ url_for('surveys.delete', survey_id=survey.id) }}" class="d-inline">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('surveys.builder.delete_confirm') }}">
+            <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+        </button>
+    </form>
+</li>
+{% endmacro %}
+
+{% macro render_survey_card(survey) %}
+<article class="surveys-card">
+    <div class="surveys-card-body">
+        <h2 class="h6 mb-1">
+            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}">{{ survey.title }}</a>
+        </h2>
+        {% if survey.description %}
+        <p class="text-muted small mb-2">{{ survey.description[:160] }}{% if survey.description|length > 160 %}…{% endif %}</p>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge bg-light text-dark border">{{ survey_visibility_label(survey) }}</span>
+            {% if not survey.is_active %}
+            <span class="badge bg-secondary">{{ _('surveys.index.inactive') }}</span>
+            {% endif %}
+            {% if survey.is_publicly_fillable %}
+            <span class="badge bg-success">{{ _('surveys.index.public_fill') }}</span>
+            {% endif %}
+            <span class="text-muted small">{{ survey.updated_at.strftime('%d.%m.%Y') if survey.updated_at else '' }}</span>
+        </div>
+    </div>
+    <div class="surveys-card-actions">
+        <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm surveys-btn-pill surveys-btn-accent">{{ _('surveys.index.results') }}</a>
+        <div class="dropdown d-inline-block">
+            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end surveys-actions-menu">
+                {{ survey_menu_items(survey) }}
+            </ul>
+        </div>
+    </div>
+</article>
+{% endmacro %}
+
+{% macro render_survey_list_row(survey) %}
+<tr class="mod-list-row">
+    <td>
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('surveys.edit', survey_id=survey.id) }}">
+            <i class="bi bi-ui-checks-grid flex-shrink-0 text-muted"></i>
+            <span class="text-truncate">{{ survey.title }}</span>
+        </a>
+        {% if survey.description %}
+        <div class="small text-muted text-truncate d-md-none" style="max-width: 16rem;">{{ survey.description[:80] }}{% if survey.description|length > 80 %}…{% endif %}</div>
+        {% endif %}
+    </td>
+    <td>
+        <div class="d-flex flex-wrap gap-1 align-items-center">
+            <span class="badge bg-light text-dark border">{{ survey_visibility_label(survey) }}</span>
+            {% if not survey.is_active %}
+            <span class="badge bg-secondary">{{ _('surveys.index.inactive') }}</span>
+            {% endif %}
+            {% if survey.is_publicly_fillable %}
+            <span class="badge bg-success">{{ _('surveys.index.public_fill') }}</span>
+            {% endif %}
+        </div>
+    </td>
+    <td class="d-none d-md-table-cell text-muted">
+        {{ survey.updated_at.strftime('%d.%m.%Y') if survey.updated_at else '—' }}
+    </td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
+                <a class="btn btn-sm btn-link" href="{{ url_for('surveys.edit', survey_id=survey.id) }}" title="{{ _('surveys.index.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <a class="btn btn-sm btn-link" href="{{ url_for('surveys.results', survey_id=survey.id) }}" title="{{ _('surveys.index.results') }}">
+                    <i class="bi bi-bar-chart"></i>
+                </a>
+                {% if survey.is_publicly_fillable and survey.public_token %}
+                <a class="btn btn-sm btn-link" href="{{ url_for('surveys.public_fill', token=survey.public_token) }}" target="_blank" rel="noopener" title="{{ _('surveys.index.open') }}">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+                {% endif %}
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end surveys-actions-menu">
+                    {{ survey_menu_items(survey) }}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
 
 <div class="surveys-shell mod-shell--nav">
     <aside class="mod-sidebar d-none d-lg-flex flex-column">
@@ -52,54 +227,157 @@
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
         </div>
-        <div class="offcanvas-body">
-            {{ surveys_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true) }}
+        <div class="offcanvas-body pt-0">
+            {{ surveys_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true, include_new=false) }}
         </div>
     </div>
 
-    <div class="mod-main surveys-main">
-        <div class="d-lg-none mb-3">
-            <button type="button" class="btn btn-outline-secondary surveys-btn-pill" data-bs-toggle="offcanvas" data-bs-target="#surveysMobileNav">
-                <i class="bi bi-list"></i> {{ _('surveys.nav.title') }}
-            </button>
+    <div class="mod-main surveys-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#surveysMobileNav" aria-controls="surveysMobileNav" aria-label="{{ _('surveys.index.nav.menu') }}">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                        <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                        <span>{{ heading_label }}</span>
+                    </h1>
+                </div>
+                <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i> {{ _('surveys.nav.new') }}
+                </a>
+            </div>
+            <div class="surveys-mobile-toolbar mt-2">
+                <div class="surveys-mobile-search min-width-0 flex-grow-1">
+                    {{ surveys_search_form('Mobile') }}
+                </div>
+                <div class="surveys-mobile-view-toggle flex-shrink-0">
+                    {{ surveys_view_toggle('Mobile') }}
+                </div>
+            </div>
         </div>
 
-        <h1 class="h4 mb-3">{{ _('surveys.nav.title') }}</h1>
+        <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+            <div class="col min-width-0">
+                <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                    {{ surveys_view_toggle('') }}
+                </div>
+            </div>
+        </div>
 
         {% if surveys %}
-        <div class="surveys-list">
-            {% for survey in surveys %}
-            <article class="surveys-card">
-                <div class="surveys-card-body">
-                    <h2 class="h6 mb-1">
-                        <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}">{{ survey.title }}</a>
-                    </h2>
-                    {% if survey.description %}
-                    <p class="text-muted small mb-2">{{ survey.description[:160] }}{% if survey.description|length > 160 %}…{% endif %}</p>
-                    {% endif %}
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                        {% if not survey.is_active %}
-                        <span class="badge bg-secondary">{{ _('surveys.index.inactive') }}</span>
-                        {% endif %}
-                        {% if survey.is_publicly_fillable %}
-                        <span class="badge bg-success">{{ _('surveys.index.public_fill') }}</span>
-                        {% endif %}
-                        <span class="text-muted small">{{ survey.updated_at.strftime('%d.%m.%Y') if survey.updated_at else '' }}</span>
-                    </div>
+        <div id="surveysViewStage" class="files-view-stage">
+            <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+                <div class="surveys-list">
+                    {% for survey in surveys %}
+                    {{ render_survey_card(survey) }}
+                    {% endfor %}
                 </div>
-                <div class="surveys-card-actions">
-                    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm surveys-btn-pill surveys-btn-accent">{{ _('surveys.index.results') }}</a>
+            </div>
+
+            <div id="listViewContainer" class="files-view-pane" style="display:none">
+                <div class="mod-list-table-wrap">
+                    <table class="table mod-list-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ _('surveys.index.list.title') }}</th>
+                                <th scope="col">{{ _('surveys.index.list.status') }}</th>
+                                <th scope="col" class="d-none d-md-table-cell">{{ _('surveys.index.list.date') }}</th>
+                                <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for survey in surveys %}
+                            {{ render_survey_list_row(survey) }}
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </article>
-            {% endfor %}
+            </div>
         </div>
         {% else %}
         <div class="surveys-empty text-center py-5">
             <i class="bi bi-ui-checks-grid display-4 text-muted"></i>
             <p class="text-muted mt-3">{{ _('surveys.index.empty') }}</p>
-            <a href="{{ surveys_create_url() }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.nav.new') }}</a>
+            <a href="{{ create_url }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.nav.new') }}</a>
         </div>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script>
+(function () {
+    document.querySelectorAll('[data-surveys-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('surveysMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        function syncAllToggleUi(mode) {
+            document.querySelectorAll('.surveys-shell .files-view-toggle').forEach(function (el) {
+                el.dataset.view = mode;
+            });
+            ['listViewBtn', 'listViewBtnMobile'].forEach(function (id) {
+                var btn = document.getElementById(id);
+                if (!btn) return;
+                btn.classList.toggle('active', mode === 'list');
+                btn.classList.toggle('is-active', mode === 'list');
+            });
+            ['gridViewBtn', 'gridViewBtnMobile'].forEach(function (id) {
+                var btn = document.getElementById(id);
+                if (!btn) return;
+                btn.classList.toggle('active', mode === 'grid');
+                btn.classList.toggle('is-active', mode === 'grid');
+            });
+        }
+
+        if (typeof window.initFilesViewToggle !== 'function') {
+            return;
+        }
+        if (!document.getElementById('gridViewContainer') || !document.getElementById('listViewContainer')) {
+            return;
+        }
+
+        var viewToggleApi = window.initFilesViewToggle({
+            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('surveysViewStage'),
+            storageKey: 'surveysViewMode',
+            defaultMode: 'grid',
+            onSwitch: syncAllToggleUi,
+        });
+
+        if (viewToggleApi) {
+            syncAllToggleUi(viewToggleApi.getMode());
+            var listMobile = document.getElementById('listViewBtnMobile');
+            var gridMobile = document.getElementById('gridViewBtnMobile');
+            if (listMobile) {
+                listMobile.addEventListener('click', function () {
+                    viewToggleApi.setView('list');
+                });
+            }
+            if (gridMobile) {
+                gridMobile.addEventListener('click', function () {
+                    viewToggleApi.setView('grid');
+                });
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

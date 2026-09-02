@@ -73,6 +73,167 @@
 </form>
 {% endmacro %}
 
+{% macro shortlinks_view_toggle(suffix='', extra_class='') %}
+<div class="files-view-toggle {{ extra_class }}" data-view="list" role="group" aria-label="{{ _('shortlinks.index.view_toggle.label') }}">
+    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="files-view-toggle__btn active is-active" id="listViewBtn{{ suffix }}" title="{{ _('shortlinks.index.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="files-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('shortlinks.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro shortlinks_menu_items(link, short_url) %}
+<li>
+    <a class="dropdown-item" href="{{ short_url }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right"></i> Öffnen
+    </a>
+</li>
+<li>
+    <a class="dropdown-item" href="{{ url_for('shortlinks.edit', link_id=link.id) }}">
+        <i class="bi bi-pencil"></i> Bearbeiten
+    </a>
+</li>
+<li>
+    <button type="button" class="dropdown-item shortlinks-copy-btn" data-copy-url="{{ short_url }}">
+        <i class="bi bi-clipboard"></i> Link kopieren
+    </button>
+</li>
+<li><hr class="dropdown-divider"></li>
+<li>
+    <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Kurzlink wirklich löschen?">
+            <i class="bi bi-trash"></i> Löschen
+        </button>
+    </form>
+</li>
+{% endmacro %}
+
+{% macro shortlinks_visibility_badge(link) %}
+{% set vis = link.visibility|default('private') %}
+{% if vis == 'public' %}
+<span class="badge bg-info text-dark">{{ _('visibility.nav.public') }}</span>
+{% elif vis == 'team' %}
+<span class="badge bg-primary">{{ _('visibility.nav.team') }}</span>
+{% else %}
+<span class="badge bg-secondary">{{ _('visibility.nav.private') }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro render_shortlink_card(link) %}
+{% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
+<div class="col-12 col-md-6 col-lg-4 shortlink-item">
+    <div class="card h-100 shortlinks-card">
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                <div class="shortlinks-card-icon" aria-hidden="true">
+                    <i class="bi bi-link-45deg"></i>
+                </div>
+                <div class="d-flex align-items-start gap-1 shortlinks-card-actions">
+                    <div class="shortlinks-grid-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                        <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </div>
+                    <div class="dropdown shortlinks-card-menu">
+                        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Aktionen">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shortlinks-actions-menu">
+                            {{ shortlinks_menu_items(link, short_url) }}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="shortlinks-card-title text-truncate mb-1" title="{{ link.slug }}">
+                <a class="text-decoration-none text-reset" href="{{ short_url }}" target="_blank" rel="noopener">{{ link.slug }}</a>
+            </h5>
+            <div class="shortlinks-card-dest text-truncate mb-3" title="{{ link.target_url }}">{{ link.target_url }}</div>
+
+            <div class="d-flex flex-wrap align-items-center gap-1 mb-2">
+                {{ shortlinks_visibility_badge(link) }}
+                {% if link.is_accessible() %}
+                <span class="badge bg-success">Aktiv</span>
+                {% else %}
+                <span class="badge bg-secondary">Inaktiv</span>
+                {% endif %}
+                {% if link.password_hash %}
+                <span class="badge bg-warning text-dark">Passwort</span>
+                {% endif %}
+            </div>
+
+            <div class="shortlinks-card-clicks mt-auto">
+                <i class="bi bi-mouse" aria-hidden="true"></i>
+                <span>{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_shortlink_list_row(link) %}
+{% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
+<tr class="mod-list-row">
+    <td>
+        <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
+            <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
+        </a>
+        <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ link.target_url }}</div>
+    </td>
+    <td class="d-none d-md-table-cell text-truncate" style="max-width: 280px;">
+        <span class="text-muted" title="{{ link.target_url }}">{{ link.target_url }}</span>
+    </td>
+    <td>
+        {% if link.is_accessible() %}
+        <span class="badge bg-success">Aktiv</span>
+        {% else %}
+        <span class="badge bg-secondary">Inaktiv</span>
+        {% endif %}
+        {% if link.password_hash %}
+        <span class="badge bg-warning text-dark">Passwort</span>
+        {% endif %}
+    </td>
+    <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
+    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
+                <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Aktionen">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shortlinks-actions-menu">
+                    {{ shortlinks_menu_items(link, short_url) }}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro shortlinks_empty_state() %}
+<div class="mod-empty-state">
+    {% if search_query or status_filter or expiry_filter or password_filter or clicks_filter %}
+    Keine Kurzlinks für diese Filter.
+    {% else %}
+    Noch keine Kurzlinks vorhanden.
+    {% endif %}
+</div>
+{% endmacro %}
+
 <div class="shortlinks-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -115,6 +276,9 @@
             <div class="shortlinks-mobile-search min-width-0 flex-grow-1">
                 {{ shortlinks_search_form('Mobile') }}
             </div>
+            <div class="shortlinks-mobile-view-toggle flex-shrink-0">
+                {{ shortlinks_view_toggle('Mobile') }}
+            </div>
         </div>
     </div>
 
@@ -122,108 +286,59 @@
         <div class="col min-width-0">
             <h1 class="h4 mb-0 text-truncate">Kurzlinks</h1>
         </div>
+        <div class="col-auto">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ shortlinks_view_toggle('') }}
+            </div>
+        </div>
     </div>
 
-    {% if links %}
-    <div class="mod-list-table-wrap">
-        <table class="table align-middle mod-list-table mb-0">
-            <thead>
-                <tr>
-                    <th>Kurzlink</th>
-                    <th class="d-none d-md-table-cell">Ziel</th>
-                    <th>Status</th>
-                    <th class="d-none d-sm-table-cell">Klicks</th>
-                    <th class="d-none d-lg-table-cell">Ablauf</th>
-                    <th class="text-end"></th>
-                </tr>
-            </thead>
-            <tbody>
+    <div id="shortlinksViewStage" class="files-view-stage">
+        <div id="listViewContainer" class="files-view-pane files-view-pane--active">
+            {% if links %}
+            <div class="mod-list-table-wrap">
+                <table class="table align-middle mod-list-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Kurzlink</th>
+                            <th class="d-none d-md-table-cell">Ziel</th>
+                            <th>Status</th>
+                            <th class="d-none d-sm-table-cell">Klicks</th>
+                            <th class="d-none d-lg-table-cell">Ablauf</th>
+                            <th class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for link in links %}
+                        {{ render_shortlink_list_row(link) }}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            {{ shortlinks_empty_state() }}
+            {% endif %}
+        </div>
+
+        <div id="gridViewContainer" class="files-view-pane" style="display: none;">
+            {% if links %}
+            <div class="row g-3">
                 {% for link in links %}
-                {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
-                <tr class="mod-list-row">
-                    <td>
-                        <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
-                            <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
-                        </a>
-                        <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ link.target_url }}</div>
-                    </td>
-                    <td class="d-none d-md-table-cell text-truncate" style="max-width: 280px;">
-                        <span class="text-muted" title="{{ link.target_url }}">{{ link.target_url }}</span>
-                    </td>
-                    <td>
-                        {% if link.is_accessible() %}
-                        <span class="badge bg-success">Aktiv</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inaktiv</span>
-                        {% endif %}
-                        {% if link.password_hash %}
-                        <span class="badge bg-warning text-dark">Passwort</span>
-                        {% endif %}
-                    </td>
-                    <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
-                    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
-                    <td class="text-end">
-                        <div class="mod-list-actions">
-                            <div class="mod-list-hover-actions">
-                                <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
-                                <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                            </div>
-                            <div class="dropdown d-inline-block">
-                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Aktionen">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shortlinks-actions-menu">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ short_url }}" target="_blank" rel="noopener">
-                                            <i class="bi bi-box-arrow-up-right"></i> Öffnen
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{{ url_for('shortlinks.edit', link_id=link.id) }}">
-                                            <i class="bi bi-pencil"></i> Bearbeiten
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <button type="button" class="dropdown-item shortlinks-copy-btn" data-copy-url="{{ short_url }}">
-                                            <i class="bi bi-clipboard"></i> Link kopieren
-                                        </button>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}">
-                                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Kurzlink wirklich löschen?">
-                                                <i class="bi bi-trash"></i> Löschen
-                                            </button>
-                                        </form>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
+                {{ render_shortlink_card(link) }}
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+            {% else %}
+            {{ shortlinks_empty_state() }}
+            {% endif %}
+        </div>
     </div>
-    {% else %}
-    <div class="mod-empty-state">
-        {% if search_query or status_filter or expiry_filter or password_filter or clicks_filter %}
-        Keine Kurzlinks für diese Filter.
-        {% else %}
-        Noch keine Kurzlinks vorhanden.
-        {% endif %}
-    </div>
-    {% endif %}
 </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script>
 (function () {
     document.querySelectorAll('[data-shortlinks-dismiss-offcanvas]').forEach(function (el) {
@@ -241,7 +356,6 @@
             window.showAppBanner(String(message || ''), category || 'info');
             return;
         }
-        // Fallback ohne Banner-API (sollte im Portal nicht greifen)
         console.warn(message);
     }
 
@@ -309,6 +423,49 @@
 document.addEventListener('DOMContentLoaded', function () {
     if (window.InventoryPillSelect) {
         window.InventoryPillSelect.enhanceAll(document);
+    }
+
+    function syncAllToggleUi(mode) {
+        document.querySelectorAll('.shortlinks-shell .files-view-toggle').forEach(function (el) {
+            el.dataset.view = mode;
+        });
+        ['listViewBtn', 'listViewBtnMobile'].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'list');
+            btn.classList.toggle('is-active', mode === 'list');
+        });
+        ['gridViewBtn', 'gridViewBtnMobile'].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'grid');
+            btn.classList.toggle('is-active', mode === 'grid');
+        });
+    }
+
+    if (typeof window.initFilesViewToggle === 'function') {
+        var viewToggleApi = window.initFilesViewToggle({
+            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('shortlinksViewStage'),
+            storageKey: 'shortlinksViewMode',
+            defaultMode: 'list',
+            onSwitch: syncAllToggleUi,
+        });
+        if (viewToggleApi) {
+            syncAllToggleUi(viewToggleApi.getMode());
+            var listMobile = document.getElementById('listViewBtnMobile');
+            var gridMobile = document.getElementById('gridViewBtnMobile');
+            if (listMobile) {
+                listMobile.addEventListener('click', function () { viewToggleApi.setView('list'); });
+            }
+            if (gridMobile) {
+                gridMobile.addEventListener('click', function () { viewToggleApi.setView('grid'); });
+            }
+        }
     }
 });
 </script>

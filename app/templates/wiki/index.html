@@ -52,14 +52,25 @@
 {% else %}
 {% set create_url = url_for('wiki.create') %}
 {% endif %}
-{% set heading_label = _('wiki.index.folders.favorites') if active_favorites else _('wiki.index.heading') %}
+{% if active_favorites %}
+{% set heading_label = _('wiki.index.folders.favorites') %}
+{% elif active_nav == 'private' %}
+{% set heading_label = _('visibility.nav.private') %}
+{% elif active_nav == 'public' %}
+{% set heading_label = _('visibility.nav.public') %}
+{% elif space_view and filter_team_id %}
+{% set heading_label = _('visibility.nav.team') %}
+{% else %}
+{% set heading_label = _('wiki.index.folders.all') %}
+{% endif %}
 
 {% macro wiki_view_toggle(suffix='', extra_class='') %}
-<div class="wiki-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('wiki.index.view_toggle.label') }}">
-    <button type="button" class="wiki-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.list') }}">
+<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('wiki.index.view_toggle.label') }}">
+    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="wiki-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.grid') }}">
+    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -325,7 +336,8 @@
         </div>
     </div>
 
-    <div id="gridViewContainer" style="display: none;">
+    <div id="wikiViewStage" class="files-view-stage">
+    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
         {% if pages %}
         <div class="row g-3">
             {% for page in pages %}
@@ -337,7 +349,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" style="display: none;">
+    <div id="listViewContainer" class="files-view-pane" style="display: none;">
         {% if pages %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -361,6 +373,7 @@
         {{ wiki_empty_state() }}
         {% endif %}
     </div>
+    </div>
 </div>
 </div>
 
@@ -376,6 +389,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
@@ -498,25 +512,6 @@ document.addEventListener('click', function (e) {
     openWikiPageHistory(trigger.getAttribute('data-wiki-history'));
 }, true);
 
-function setWikiViewMode(mode) {
-    const grid = document.getElementById('gridViewContainer');
-    const list = document.getElementById('listViewContainer');
-    const listBtns = [document.getElementById('listViewBtn'), document.getElementById('listViewBtnMobile')].filter(Boolean);
-    const gridBtns = [document.getElementById('gridViewBtn'), document.getElementById('gridViewBtnMobile')].filter(Boolean);
-    const isList = mode === 'list';
-    if (grid) grid.style.display = isList ? 'none' : '';
-    if (list) list.style.display = isList ? '' : 'none';
-    listBtns.forEach((btn) => {
-        btn.classList.toggle('active', isList);
-        btn.classList.toggle('is-active', isList);
-    });
-    gridBtns.forEach((btn) => {
-        btn.classList.toggle('active', !isList);
-        btn.classList.toggle('is-active', !isList);
-    });
-    localStorage.setItem('wikiViewMode', isList ? 'list' : 'grid');
-}
-
 function wikiNotify(message, category) {
     if (typeof window.showAppBanner === 'function') {
         window.showAppBanner(message, category || 'info');
@@ -538,15 +533,48 @@ function updateFavoriteUI(pageId, isFavorite) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    setWikiViewMode(localStorage.getItem('wikiViewMode') || 'grid');
-    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setWikiViewMode('list'));
-    });
-    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setWikiViewMode('grid'));
-    });
+    function syncAllToggleUi(mode) {
+        document.querySelectorAll('.wiki-shell .files-view-toggle').forEach((el) => {
+            el.dataset.view = mode;
+        });
+        ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'list');
+            btn.classList.toggle('is-active', mode === 'list');
+        });
+        ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'grid');
+            btn.classList.toggle('is-active', mode === 'grid');
+        });
+    }
+
+    if (typeof window.initFilesViewToggle === 'function') {
+        const viewToggleApi = window.initFilesViewToggle({
+            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('wikiViewStage'),
+            storageKey: 'wikiViewMode',
+            defaultMode: 'grid',
+            onSwitch: syncAllToggleUi,
+        });
+        if (viewToggleApi) {
+            syncAllToggleUi(viewToggleApi.getMode());
+            const listMobile = document.getElementById('listViewBtnMobile');
+            const gridMobile = document.getElementById('gridViewBtnMobile');
+            if (listMobile) {
+                listMobile.addEventListener('click', () => viewToggleApi.setView('list'));
+            }
+            if (gridMobile) {
+                gridMobile.addEventListener('click', () => viewToggleApi.setView('grid'));
+            }
+        }
+    }
 
     document.querySelectorAll('[data-wiki-dismiss-offcanvas]').forEach(function(el) {
         el.addEventListener('click', function() {

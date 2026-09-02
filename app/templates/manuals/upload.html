@@ -5,8 +5,26 @@
 {% block content %}
 {% set selected_folder_id = selected_folder_id|default(none) %}
 {% set folders = folders|default([]) %}
+{% set form_view = request.args.get('view') %}
+{% set form_team_id = request.args.get('team_id') %}
+{% if selected_folder_id and not form_view %}
+{% set upload_url = url_for('manuals.upload', folder_id=selected_folder_id) %}
+{% elif form_view == 'team' and form_team_id %}
+{% set upload_url = url_for('manuals.upload', view='team', team_id=form_team_id, folder_id=selected_folder_id) %}
+{% elif form_view in ['private', 'public', 'team'] %}
+{% set upload_url = url_for('manuals.upload', view=form_view, team_id=form_team_id if form_view == 'team' else none, folder_id=selected_folder_id) %}
+{% else %}
 {% set upload_url = url_for('manuals.upload', folder_id=selected_folder_id) if selected_folder_id else url_for('manuals.upload') %}
-{% set index_url = url_for('manuals.index', folder_id=selected_folder_id) if selected_folder_id else url_for('manuals.index') %}
+{% endif %}
+{% if form_view == 'team' and form_team_id %}
+{% set index_url = url_for('manuals.index', view='team', team_id=form_team_id, folder_id=selected_folder_id) %}
+{% elif form_view in ['private', 'public'] %}
+{% set index_url = url_for('manuals.index', view=form_view, folder_id=selected_folder_id) %}
+{% elif selected_folder_id %}
+{% set index_url = url_for('manuals.index', folder_id=selected_folder_id) %}
+{% else %}
+{% set index_url = url_for('manuals.index') %}
+{% endif %}
 
 <div class="manuals-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
@@ -65,7 +83,7 @@
             </div>
         </div>
 
-        <form method="POST" enctype="multipart/form-data" class="manuals-form-body">
+        <form method="POST" enctype="multipart/form-data" class="manuals-form-body" action="{{ upload_url }}">
             <section class="manuals-form-card" aria-labelledby="manuals-form-file">
                 <div class="manuals-form-card-head">
                     <h2 id="manuals-form-file" class="manuals-form-section-title">
@@ -81,7 +99,7 @@
                     <div class="manuals-form-field">
                         <label class="form-label" for="folder_id">{{ _('manuals.upload.form.folder') }}</label>
                         <select class="form-select" id="folder_id" name="folder_id">
-                            <option value="" {% if not selected_folder_id %}selected{% endif %}>{{ _('manuals.upload.form.root_folder') }}</option>
+                            <option value="" {% if not selected_folder_id %}selected{% endif %}>{{ _('manuals.upload.form.no_folder') }}</option>
                             {% for folder in folders %}
                             <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
                             {% endfor %}

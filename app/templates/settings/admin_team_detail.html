@@ -53,14 +53,10 @@
                 {{ _('settings.mailboxes.team_mailboxes') }}
             </a>
             {% endif %}
-            <button type="button" class="btn btn-accent settings-admin-teams-btn" data-bs-toggle="modal" data-bs-target="#addMembersModal">
-                <i class="bi bi-person-plus" aria-hidden="true"></i>
-                {{ _('settings.admin.teams.add_members') }}
-            </button>
         </div>
     </div>
 
-    <section class="settings-admin-teams-panel">
+    <section class="settings-admin-teams-panel mb-3">
         <h2 class="settings-admin-teams-section-title">{{ _('settings.admin.teams.members_title') }}</h2>
         {% if members %}
         <div class="settings-admin-teams-member-list">
@@ -84,6 +80,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% if team.leader_id != m.user_id %}
                 <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
                     <input type="hidden" name="action" value="remove_member">
                     <input type="hidden" name="user_id" value="{{ m.user_id }}">
@@ -92,6 +89,7 @@
                         {{ _('settings.admin.teams.remove_member') }}
                     </button>
                 </form>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -99,74 +97,67 @@
         <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.no_members') }}</p>
         {% endif %}
     </section>
-</div>
 
-<div class="modal fade settings-admin-roles-modal" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable modal-lg">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
-                <input type="hidden" name="action" value="add_members">
-                <div class="modal-header settings-admin-roles-modal-header">
-                    <h5 class="modal-title" id="addMembersModalLabel">{{ _('settings.admin.teams.add_members') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+    <section class="settings-admin-teams-panel" aria-labelledby="add-members-heading">
+        <h2 id="add-members-heading" class="settings-admin-teams-section-title">{{ _('settings.admin.teams.add_members') }}</h2>
+        <p class="settings-admin-teams-subtitle mb-3">{{ _('settings.admin.teams.add_members_help') }}</p>
+        <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
+            <input type="hidden" name="action" value="add_members">
+            {% if available_users %}
+            <div class="settings-admin-teams-modal-search">
+                <div class="sau-search-inner">
+                    <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                    <input type="search" id="memberPickerSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_users_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_users_placeholder') }}">
                 </div>
-                <div class="modal-body settings-admin-roles-modal-body">
-                    {% if available_users %}
-                    <div class="settings-admin-teams-modal-search">
-                        <div class="sau-search-inner">
-                            <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
-                            <input type="search" id="memberPickerSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_users_placeholder') }}" autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="settings-admin-teams-picker-list" id="memberPickerList">
-                        {% for u in available_users %}
-                        <label class="settings-admin-teams-picker-item" data-search-name="{{ u.full_name|lower }}" data-search-email="{{ (u.guest_username or u.email)|lower }}">
-                            <input class="form-check-input" type="checkbox" name="user_ids" value="{{ u.id }}">
-                            <span class="settings-admin-teams-picker-text">
-                                <strong>{{ u.full_name }}</strong>
-                                {% if u.is_guest %}
-                                <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
-                                {% endif %}
-                                <br>
-                                <small>{% if u.is_guest %}{{ u.guest_username or u.email }}{% else %}{{ u.email }}{% endif %}</small>
-                            </span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="mb-0">{{ _('settings.admin.teams.all_users_already_members') }}</p>
-                    {% endif %}
-                </div>
-                <div class="modal-footer settings-admin-roles-modal-footer">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-roles-btn" {% if not available_users %}disabled{% endif %}>
-                        <i class="bi bi-person-plus" aria-hidden="true"></i>
-                        {{ _('settings.admin.teams.add_selected') }}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
+            <div class="settings-admin-teams-picker-list settings-admin-teams-picker-list--page" id="memberPickerList">
+                {% for u in available_users %}
+                <label class="settings-admin-teams-picker-item" data-search-name="{{ u.full_name|lower }}" data-search-email="{{ (u.guest_username or u.email)|lower }}">
+                    <input class="form-check-input" type="checkbox" name="user_ids" value="{{ u.id }}">
+                    <span class="settings-admin-teams-picker-text">
+                        <strong>{{ u.full_name }}</strong>
+                        {% if u.is_guest %}
+                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
+                        {% endif %}
+                        <br>
+                        <small>{% if u.is_guest %}{{ u.guest_username or u.email }}{% else %}{{ u.email }}{% endif %}</small>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            <p class="settings-admin-teams-empty mt-2 mb-0" id="noMemberSearchResults" hidden>{{ _('settings.admin.teams.search_no_user_results') }}</p>
+            <div class="settings-admin-teams-form-actions">
+                <button type="submit" class="btn btn-accent settings-admin-teams-btn">
+                    <i class="bi bi-person-plus" aria-hidden="true"></i>
+                    {{ _('settings.admin.teams.add_selected') }}
+                </button>
+            </div>
+            {% else %}
+            <p class="mb-0 settings-admin-teams-empty">{{ _('settings.admin.teams.all_users_already_members') }}</p>
+            {% endif %}
+        </form>
+    </section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
-    var modalEl = document.getElementById('addMembersModal');
-    if (modalEl && modalEl.parentElement !== document.body) {
-        document.body.appendChild(modalEl);
-    }
     var input = document.getElementById('memberPickerSearch');
     var list = document.getElementById('memberPickerList');
+    var empty = document.getElementById('noMemberSearchResults');
     if (!input || !list) return;
     input.addEventListener('input', function () {
         var q = (input.value || '').trim().toLowerCase();
+        var visible = 0;
         list.querySelectorAll('.settings-admin-teams-picker-item').forEach(function (item) {
             var name = item.getAttribute('data-search-name') || '';
             var email = item.getAttribute('data-search-email') || '';
-            item.hidden = !!(q && name.indexOf(q) === -1 && email.indexOf(q) === -1);
+            var show = !q || name.indexOf(q) !== -1 || email.indexOf(q) !== -1;
+            item.hidden = !show;
+            if (show) visible += 1;
         });
+        if (empty) empty.hidden = visible > 0;
     });
 })();
 </script>

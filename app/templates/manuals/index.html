@@ -4,7 +4,9 @@
 
 {% block navbar_search %}
 <form method="GET" class="manuals-search" role="search" id="manualsSearchForm">
-    {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}
+    {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
+    {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
+    {% if request.args.get('folder_id') %}<input type="hidden" name="folder_id" value="{{ request.args.get('folder_id') }}">{% endif %}
     <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
@@ -17,7 +19,7 @@
            spellcheck="false"
            enterkeyhint="search">
     {% if search_query %}
-    <a href="{{ url_for('manuals.index', folder_id=active_folder_id) if active_folder_id else url_for('manuals.index') }}"
+    <a href="{{ url_for('manuals.index', folder_id=request.args.get('folder_id'), view=request.args.get('view'), team_id=request.args.get('team_id')) }}"
        class="btn manuals-search-clear"
        id="manualsSearchClear"
        aria-label="{{ _('common.cancel') }}">
@@ -33,8 +35,13 @@
 {% set search_query = search_query|default('') %}
 {% set active_nav = active_nav|default('all') %}
 {% set filter_team_id = filter_team_id|default(none) %}
+{% set folders_by_scope = folders_by_scope|default({'private': [], 'public': [], 'teams': {}}) %}
 {% set space_view = active_nav in ['private', 'public'] or (active_nav and active_nav.startswith('team-')) %}
-{% if space_view and filter_team_id %}
+{% if active_folder and active_folder.visibility == 'team' and active_folder.team_id %}
+{% set upload_url = url_for('manuals.upload', view='team', team_id=active_folder.team_id, folder_id=active_folder_id) %}
+{% elif active_folder and active_folder.visibility in ['private', 'public'] %}
+{% set upload_url = url_for('manuals.upload', view=active_folder.visibility, folder_id=active_folder_id) %}
+{% elif space_view and filter_team_id %}
 {% set upload_url = url_for('manuals.upload', view='team', team_id=filter_team_id, folder_id=active_folder_id) %}
 {% elif space_view %}
 {% set upload_url = url_for('manuals.upload', view=active_nav, folder_id=active_folder_id) %}
@@ -43,28 +50,39 @@
 {% else %}
 {% set upload_url = url_for('manuals.upload') %}
 {% endif %}
-{% if active_nav == 'private' %}
+{% if active_folder %}
+{% set active_folder_label = active_folder.name %}
+{% elif active_nav == 'private' %}
 {% set active_folder_label = _('visibility.nav.private') %}
 {% elif active_nav == 'public' %}
 {% set active_folder_label = _('visibility.nav.public') %}
-{% elif space_view %}
+{% elif space_view and filter_team_id %}
 {% set active_folder_label = _('visibility.nav.team') %}
 {% else %}
-{% set active_folder_label = active_folder.name if active_folder else _('manuals.index.folders.root') %}
+{% set active_folder_label = _('manuals.index.folders.all') %}
 {% endif %}
 {% set can_manage = current_user.is_admin %}
-{% if space_view and filter_team_id %}
-{% set manuals_clear_url = url_for('manuals.index', view='team', team_id=filter_team_id) %}
+{% if active_folder and active_folder.visibility == 'team' and active_folder.team_id %}
+{% set view_param = 'team' %}
+{% elif active_folder and active_folder.visibility == 'private' %}
+{% set view_param = 'private' %}
+{% elif active_folder and active_folder.visibility == 'public' %}
+{% set view_param = 'public' %}
+{% elif active_nav == 'private' %}
+{% set view_param = 'private' %}
+{% elif active_nav == 'public' %}
+{% set view_param = 'public' %}
 {% elif space_view %}
-{% set manuals_clear_url = url_for('manuals.index', view=active_nav) %}
-{% elif active_folder_id %}
-{% set manuals_clear_url = url_for('manuals.index', folder_id=active_folder_id) %}
+{% set view_param = 'team' %}
 {% else %}
-{% set manuals_clear_url = url_for('manuals.index') %}
+{% set view_param = '' %}
 {% endif %}
+{% set index_team_id = active_folder.team_id if active_folder and active_folder.visibility == 'team' else (filter_team_id if view_param == 'team' else none) %}
 
 {% macro manuals_search_form(id_suffix='') %}
 <form method="GET" class="manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
+    {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
+    {% if view_param == 'team' and index_team_id %}<input type="hidden" name="team_id" value="{{ index_team_id }}">{% endif %}
     {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}
     <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
     <input type="search"
@@ -78,7 +96,7 @@
            spellcheck="false"
            enterkeyhint="search">
     {% if search_query %}
-    <a href="{{ manuals_clear_url }}"
+    <a href="{{ url_for('manuals.index', folder_id=active_folder_id, view=view_param or none, team_id=index_team_id if view_param == 'team' else none) }}"
        class="btn manuals-search-clear"
        id="manualsSearchClear{{ id_suffix }}"
        aria-label="{{ _('common.cancel') }}">
@@ -109,6 +127,12 @@
 {% macro manuals_folder_create_inline(form_id) %}
 <div class="manuals-folder-inline" id="{{ form_id }}Wrap" hidden>
     <form method="POST" action="{{ url_for('manuals.create_folder') }}" id="{{ form_id }}" class="manuals-folder-inline-form">
+        {% if view_param %}
+        <input type="hidden" name="return_view" value="{{ view_param }}">
+        {% endif %}
+        {% if view_param == 'team' and index_team_id %}
+        <input type="hidden" name="return_team_id" value="{{ index_team_id }}">
+        {% endif %}
         {% if active_folder_id %}
         <input type="hidden" name="return_folder_id" value="{{ active_folder_id }}">
         {% endif %}
@@ -162,55 +186,105 @@
 </div>
 {% endmacro %}
 
-{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
+{% macro manuals_folder_row(folder, nav_suffix, dismiss_offcanvas=false, nested=false) %}
+{% set edit_form_id = 'manualsFolderEdit' ~ nav_suffix ~ folder.id %}
+{% if folder.visibility == 'team' and folder.team_id %}
+{% set folder_href = url_for('manuals.index', folder_id=folder.id, view='team', team_id=folder.team_id) %}
+{% elif folder.visibility == 'private' %}
+{% set folder_href = url_for('manuals.index', folder_id=folder.id, view='private') %}
+{% else %}
+{% set folder_href = url_for('manuals.index', folder_id=folder.id, view='public') %}
+{% endif %}
+<div class="manuals-folder-nav-item{% if nested %} manuals-folder-nav-item--nested{% endif %}" data-folder-nav-item data-folder-id="{{ folder.id }}">
+    <div class="manuals-folder-nav-row">
+        <a class="nav-link mod-nav-link {% if active_folder_id == folder.id %}active{% endif %}"
+           href="{{ folder_href }}"
+           data-folder-dropzone
+           data-folder-id="{{ folder.id }}"
+           {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
+            <span class="manuals-color-dot" style="background: {{ folder.color }};"></span>
+            <span class="text-truncate">{{ folder.name }}</span>
+        </a>
+        {% if can_manage %}
+        <button type="button"
+                class="manuals-folder-nav-edit-btn"
+                data-action="open-folder-edit"
+                data-folder-inline="{{ edit_form_id }}"
+                aria-label="{{ _('manuals.index.folders.rename') }}"
+                title="{{ _('manuals.index.folders.rename') }}">
+            <i class="bi bi-pencil d-none d-lg-inline" aria-hidden="true"></i>
+            <i class="bi bi-three-dots-vertical d-lg-none" aria-hidden="true"></i>
+        </button>
+        {% endif %}
+    </div>
+    {% if can_manage %}
+    {{ manuals_folder_edit_inline(folder, edit_form_id) }}
+    {% endif %}
+</div>
+{% endmacro %}
+
 {% macro manuals_folder_nav(nav_suffix='', dismiss_offcanvas=false) %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link mod-nav-link {% if not active_folder_id and active_nav == 'all' %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if active_nav == 'all' and not active_folder_id %}active{% endif %}"
        href="{{ url_for('manuals.index') }}"
        data-folder-dropzone
        data-folder-id=""
        {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-house-door me-2"></i>{{ _('manuals.index.folders.root') }}
+        <i class="bi bi-collection me-2"></i>{{ _('manuals.index.folders.all') }}
     </a>
-    {{ visibility_space_links('manuals.index', {}, 'data-manuals-dismiss-offcanvas="1"' if dismiss_offcanvas else '', allowed_visibilities, visibility_teams, active_nav) }}
-    {% for folder in folders %}
-    {% set edit_form_id = 'manualsFolderEdit' ~ nav_suffix ~ folder.id %}
-    <div class="manuals-folder-nav-item" data-folder-nav-item data-folder-id="{{ folder.id }}">
-        <div class="manuals-folder-nav-row">
-            <a class="nav-link mod-nav-link {% if active_folder_id == folder.id %}active{% endif %}"
-               href="{{ url_for('manuals.index', folder_id=folder.id) }}"
-               data-folder-dropzone
-               data-folder-id="{{ folder.id }}"
-               {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
-                <span class="manuals-color-dot" style="background: {{ folder.color }};"></span>
-                <span class="text-truncate">{{ folder.name }}</span>
-            </a>
-            {% if can_manage %}
-            <button type="button"
-                    class="manuals-folder-nav-edit-btn"
-                    data-action="open-folder-edit"
-                    data-folder-inline="{{ edit_form_id }}"
-                    aria-label="{{ _('manuals.index.folders.rename') }}"
-                    title="{{ _('manuals.index.folders.rename') }}">
-                <i class="bi bi-pencil d-none d-lg-inline" aria-hidden="true"></i>
-                <i class="bi bi-three-dots-vertical d-lg-none" aria-hidden="true"></i>
-            </button>
-            {% endif %}
-        </div>
-        {% if can_manage %}
-        {{ manuals_folder_edit_inline(folder, edit_form_id) }}
-        {% endif %}
-    </div>
+    {% if 'private' in allowed_visibilities %}
+    <a class="nav-link mod-nav-link {% if active_nav == 'private' and not active_folder_id %}active{% endif %}"
+       href="{{ url_for('manuals.index', view='private') }}"
+       data-folder-dropzone
+       data-folder-id=""
+       {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-lock me-2"></i>{{ _('visibility.nav.private') }}
+    </a>
+    {% for folder in folders_by_scope.private %}
+        {{ manuals_folder_row(folder, nav_suffix, dismiss_offcanvas, true) }}
     {% endfor %}
+    {% endif %}
+    {% if 'team' in allowed_visibilities %}
+    {% for t in visibility_teams %}
+    <a class="nav-link mod-nav-link {% if active_nav == 'team-' ~ t.id and not active_folder_id %}active{% endif %}"
+       href="{{ url_for('manuals.index', view='team', team_id=t.id) }}"
+       data-folder-dropzone
+       data-folder-id=""
+       {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
+        {% if t.color %}
+        <span class="d-inline-block rounded-circle me-2 flex-shrink-0" style="width:.65rem;height:.65rem;background:{{ t.color }};" aria-hidden="true"></span>
+        {% else %}
+        <i class="bi bi-people me-2" aria-hidden="true"></i>
+        {% endif %}
+        <span class="text-truncate">{{ t.name }}</span>
+    </a>
+    {% for folder in folders_by_scope.teams.get(t.id, []) %}
+        {{ manuals_folder_row(folder, nav_suffix, dismiss_offcanvas, true) }}
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    {% if 'public' in allowed_visibilities %}
+    <a class="nav-link mod-nav-link {% if active_nav == 'public' and not active_folder_id %}active{% endif %}"
+       href="{{ url_for('manuals.index', view='public') }}"
+       data-folder-dropzone
+       data-folder-id=""
+       {% if dismiss_offcanvas %}data-manuals-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-globe2 me-2"></i>{{ _('visibility.nav.public') }}
+    </a>
+    {% for folder in folders_by_scope.public %}
+        {{ manuals_folder_row(folder, nav_suffix, dismiss_offcanvas, true) }}
+    {% endfor %}
+    {% endif %}
 </nav>
 {% endmacro %}
 
 {% macro manuals_view_toggle(suffix='', extra_class='') %}
-<div class="manuals-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('manuals.index.view_toggle.label') }}">
-    <button type="button" class="manuals-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.list') }}">
+<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('manuals.index.view_toggle.label') }}">
+    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="manuals-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.grid') }}">
+    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -415,7 +489,8 @@
         </div>
     </div>
 
-    <div id="gridViewContainer" style="display: none;">
+    <div id="manualsViewStage" class="files-view-stage">
+    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
         {% if manuals %}
         <div class="row g-3">
             {% for manual in manuals %}
@@ -431,7 +506,7 @@
                 {% elif active_folder_id %}
                 {{ _('manuals.index.folders.empty') }}
                 {% else %}
-                {{ _('manuals.index.folders.root_empty') }}
+                {{ _('manuals.index.folders.all_empty') }}
                 {% endif %}
                 {% if can_manage and not search_query %}
                 <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
@@ -441,7 +516,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" style="display: none;">
+    <div id="listViewContainer" class="files-view-pane" style="display:none">
         {% if manuals %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -469,7 +544,7 @@
                 {% elif active_folder_id %}
                 {{ _('manuals.index.folders.empty') }}
                 {% else %}
-                {{ _('manuals.index.folders.root_empty') }}
+                {{ _('manuals.index.folders.all_empty') }}
                 {% endif %}
                 {% if can_manage and not search_query %}
                 <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
@@ -478,11 +553,13 @@
         </div>
         {% endif %}
     </div>
+    </div>
 </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script>
 const MANUALS_I18N = {{ current_translations.get('manuals', {}).get('index', {})|tojson }};
 let draggedManualId = null;
@@ -659,45 +736,49 @@ document.querySelectorAll('#manualsMobileNav a[data-manuals-dismiss-offcanvas]')
     });
 });
 
-function setManualsViewMode(mode) {
-    const grid = document.getElementById('gridViewContainer');
-    const list = document.getElementById('listViewContainer');
-    const listBtns = [
-        document.getElementById('listViewBtn'),
-        document.getElementById('listViewBtnMobile')
-    ].filter(Boolean);
-    const gridBtns = [
-        document.getElementById('gridViewBtn'),
-        document.getElementById('gridViewBtnMobile')
-    ].filter(Boolean);
-
-    const isList = mode === 'list';
-    if (grid) grid.style.display = isList ? 'none' : '';
-    if (list) list.style.display = isList ? '' : 'none';
-
-    listBtns.forEach((btn) => {
-        btn.classList.toggle('active', isList);
-        btn.classList.toggle('is-active', isList);
-    });
-    gridBtns.forEach((btn) => {
-        btn.classList.toggle('active', !isList);
-        btn.classList.toggle('is-active', !isList);
-    });
-    localStorage.setItem('manualsViewMode', isList ? 'list' : 'grid');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('manualsViewMode') || 'grid';
-    setManualsViewMode(saved);
+    function syncAllToggleUi(mode) {
+        document.querySelectorAll('.manuals-shell .files-view-toggle').forEach((el) => {
+            el.dataset.view = mode;
+        });
+        ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'list');
+            btn.classList.toggle('is-active', mode === 'list');
+        });
+        ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.classList.toggle('active', mode === 'grid');
+            btn.classList.toggle('is-active', mode === 'grid');
+        });
+    }
 
-    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setManualsViewMode('list'));
-    });
-    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => setManualsViewMode('grid'));
-    });
+    if (typeof window.initFilesViewToggle === 'function') {
+        const viewToggleApi = window.initFilesViewToggle({
+            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewContainer'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('manualsViewStage'),
+            storageKey: 'manualsViewMode',
+            defaultMode: 'grid',
+            onSwitch: syncAllToggleUi,
+        });
+        if (viewToggleApi) {
+            syncAllToggleUi(viewToggleApi.getMode());
+            const listMobile = document.getElementById('listViewBtnMobile');
+            const gridMobile = document.getElementById('gridViewBtnMobile');
+            if (listMobile) {
+                listMobile.addEventListener('click', () => viewToggleApi.setView('list'));
+            }
+            if (gridMobile) {
+                gridMobile.addEventListener('click', () => viewToggleApi.setView('grid'));
+            }
+        }
+    }
 });
 
 function moveManual(manualId, folderId) {

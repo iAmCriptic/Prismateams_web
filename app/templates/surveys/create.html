@@ -2,33 +2,122 @@
 
 {% block title %}{{ _('surveys.nav.create') }}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+{% block content %}
+{% from 'surveys/_sidebar.html' import surveys_sidebar_chrome, surveys_create_url with context %}
+{% set create_url = surveys_create_url() %}
+{% if section_filter == 'team' and filter_team_id %}
+{% set index_url = url_for('surveys.index', view='team', team_id=filter_team_id) %}
+{% elif section_filter in ['private', 'public'] %}
+{% set index_url = url_for('surveys.index', view=section_filter) %}
+{% else %}
+{% set index_url = url_for('surveys.index') %}
+{% endif %}
+
+<div class="surveys-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+            <span>{{ _('surveys.nav.title') }}</span>
+        </div>
+        {{ surveys_sidebar_chrome() }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="surveysMobileNav" aria-labelledby="surveysMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="surveysMobileNavLabel">
+                <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                <span>{{ _('surveys.nav.title') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            <nav class="mod-sidebar-nav nav flex-column gap-1 mb-2">
+                <a class="nav-link mod-nav-link" href="{{ index_url }}">
+                    <i class="bi bi-arrow-left me-2"></i>{{ _('layout.nav.back') }}
+                </a>
+            </nav>
+            {{ surveys_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true, include_new=false) }}
+        </div>
+    </div>
+
+    <div class="mod-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#surveysMobileNav" aria-controls="surveysMobileNav" aria-label="{{ _('surveys.index.nav.menu') }}">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        <span>{{ _('surveys.nav.create') }}</span>
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="surveys-form">
+            <div class="surveys-form-header">
+                <a href="{{ index_url }}" class="surveys-form-back mod-back-link">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>{{ _('layout.nav.back') }}</span>
+                </a>
+                <div class="d-none d-lg-block">
+                    <h1 class="surveys-form-title">{{ _('surveys.nav.create') }}</h1>
+                    <p class="surveys-form-subtitle">{{ _('surveys.create.subtitle') }}</p>
+                </div>
+            </div>
+
+            <form method="POST" class="surveys-form-body surveys-create-form" action="{{ create_url }}">
+                <section class="surveys-form-card" aria-labelledby="surveys-form-basics">
+                    <div class="surveys-form-card-head">
+                        <h2 id="surveys-form-basics" class="surveys-form-section-title">
+                            <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                            {{ _('surveys.create.title_label') }}
+                        </h2>
+                    </div>
+                    <div class="surveys-form-fields">
+                        <div class="surveys-form-field">
+                            <label for="surveyTitle" class="form-label">{{ _('surveys.create.title_label') }} <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="surveyTitle"
+                                   name="title"
+                                   value="{{ title|default('') }}"
+                                   placeholder="{{ _('surveys.create.title_placeholder') }}"
+                                   required
+                                   autofocus>
+                        </div>
+                        <div class="surveys-form-field">
+                            {% from 'partials/visibility_select.html' import visibility_select with context %}
+                            {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+                        </div>
+                    </div>
+                </section>
+
+                <div class="surveys-form-actions">
+                    <button type="submit" class="btn btn-accent surveys-form-submit surveys-btn-pill">
+                        <i class="bi bi-check-lg" aria-hidden="true"></i> {{ _('surveys.create.submit') }}
+                    </button>
+                    <a href="{{ index_url }}" class="btn btn-outline-secondary surveys-form-cancel surveys-btn-pill">{{ _('common.cancel') }}</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block content %}
-<div class="container py-4" style="max-width: 640px;">
-    <h1 class="h4 mb-3">{{ _('surveys.nav.create') }}</h1>
-    <form method="POST" class="surveys-create-form">
-        <div class="mb-3">
-            <label for="surveyTitle" class="form-label">{{ _('surveys.create.title_label') }} <span class="text-danger">*</span></label>
-            <input type="text"
-                   class="form-control"
-                   id="surveyTitle"
-                   name="title"
-                   value="{{ title|default('') }}"
-                   placeholder="{{ _('surveys.create.title_placeholder') }}"
-                   required
-                   autofocus>
-        </div>
-
-        {% from 'partials/visibility_select.html' import visibility_select with context %}
-        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
-
-        <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary surveys-btn-pill">{{ _('surveys.create.submit') }}</button>
-            <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}" class="btn btn-outline-secondary surveys-btn-pill">{{ _('common.cancel') }}</a>
-        </div>
-    </form>
-</div>
+{% block extra_js %}
+<script>
+(function () {
+    document.querySelectorAll('[data-surveys-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('surveysMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

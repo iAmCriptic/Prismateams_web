@@ -235,6 +235,20 @@
     gap: 0.5rem;
 }
 
+.shortlinks-mobile-view-toggle {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.shortlinks-mobile-view-toggle .files-view-toggle__btn {
+    width: 2.1rem;
+    height: 2.1rem;
+}
+
+.page-toolbar-row .files-view-toggle {
+    flex-shrink: 0;
+}
+
 .shortlinks-mobile-search .shortlinks-search {
     max-width: none;
     margin: 0;
@@ -351,6 +365,109 @@
 
 .shortlinks-copy-ok {
     color: var(--bs-success, #198754) !important;
+}
+
+/* ——— Grid-Karten ——— */
+.shortlinks-card {
+    border-radius: var(--mod-radius-card, 0.9rem);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    overflow: visible;
+    transition: box-shadow 0.2s ease, border-color 0.15s ease;
+    background: var(--bs-body-bg, #fff);
+}
+
+.shortlinks-card:hover {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.shortlinks-card .card-body {
+    overflow: visible;
+}
+
+.shortlinks-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, #0d6efd);
+    flex-shrink: 0;
+    font-size: 1.15rem;
+}
+
+.shortlinks-card-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.shortlinks-card-title a {
+    color: inherit;
+}
+
+.shortlinks-card-title a:hover {
+    color: var(--accent-color, #0d6efd);
+}
+
+.shortlinks-card-dest {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+    max-width: 100%;
+}
+
+.shortlinks-card-clicks {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.shortlinks-card-clicks .bi {
+    opacity: 0.85;
+}
+
+.shortlinks-card-menu .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+}
+
+.shortlinks-card-menu .btn-link:hover,
+.shortlinks-card-menu .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.shortlinks-grid-hover-actions {
+    display: none !important;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+@media (min-width: 992px) {
+    .shortlinks-card:hover .shortlinks-grid-hover-actions,
+    .shortlinks-card:focus-within .shortlinks-grid-hover-actions {
+        display: inline-flex !important;
+    }
+}
+
+.shortlinks-grid-hover-actions .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.shortlinks-grid-hover-actions .btn-link:hover,
+.shortlinks-grid-hover-actions .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
 }
 
 /* ——— 3-Punkte-Menü (Pillen, wie Zugangsdaten) ——— */

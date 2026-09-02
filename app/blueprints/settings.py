@@ -1664,6 +1664,9 @@ def admin_team_detail(team_id):
 
     if not can_manage_team(current_user, team_id):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        from app.utils.multi_mailboxes import user_is_team_leader
+        if user_is_team_leader(current_user) or current_user.is_admin:
+            return redirect(url_for('settings.admin_teams'))
         return redirect(url_for('settings.index'))
 
     team = Team.query.get_or_404(team_id)
@@ -1694,7 +1697,11 @@ def admin_team_detail(team_id):
         if action == 'remove_member':
             raw_id = request.form.get('user_id', '').strip()
             if raw_id.isdigit():
-                TeamMember.query.filter_by(team_id=team.id, user_id=int(raw_id)).delete()
+                uid = int(raw_id)
+                if team.leader_id and uid == team.leader_id:
+                    flash(translate('settings.admin.teams.flash_cannot_remove_leader'), 'warning')
+                    return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+                TeamMember.query.filter_by(team_id=team.id, user_id=uid).delete()
                 from app.utils.team_chat import sync_team_chat_members
                 sync_team_chat_members(team)
                 db.session.commit()
@@ -1706,10 +1713,16 @@ def admin_team_detail(team_id):
         [m for m in team.members if m.user],
         key=lambda m: ((m.user.last_name or '').lower(), (m.user.first_name or '').lower())
     )
+    # Alle Portalnutzer außer System-Anonymous und bestehenden Mitgliedern
+    # (aktive zuerst), damit Teamleitung andere Mitglieder klar auswählen kann.
     available_q = User.query.filter(User.email != 'anonymous@system.local')
     if member_user_ids:
-        available_q = available_q.filter(~User.id.in_(member_user_ids))
-    available_users = available_q.order_by(User.last_name, User.first_name).all()
+        available_q = available_q.filter(~User.id.in_(list(member_user_ids)))
+    available_users = available_q.order_by(
+        User.is_active.desc(),
+        User.last_name,
+        User.first_name,
+    ).all()
 
     return render_template(
         'settings/admin_team_detail.html',

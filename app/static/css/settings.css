@@ -6489,6 +6489,12 @@ textarea.settings-admin-booking-input {
     overflow: auto;
 }
 
+.settings-admin-teams-picker-list--page {
+    max-height: min(28rem, 55vh);
+    margin-bottom: 0.75rem;
+    padding: 0.15rem;
+}
+
 .settings-admin-teams-picker-item {
     display: flex;
     gap: 0.75rem;

@@ -915,7 +915,7 @@
       "section_lead": "Steuert, ob Mitglieder dieses Teams den Team-Bereich des Moduls sehen. Globale Freigabe erfolgt unter Module.",
       "module_chat": "Team-Chat",
       "tile_desc": "Team-Bereiche der Module verwalten",
-      "teams_tile_desc": "Mitglieder und Team-Postfächer",
+      "teams_tile_desc": "Mitglieder deiner Teams hinzufügen oder entfernen",
       "no_modules": "Keine aktiven Module mit Team-Bereich.",
       "flash_saved": "Teameinstellungen wurden gespeichert.",
       "flash_no_teams": "Sie leiten derzeit kein Team.",
@@ -2058,7 +2058,7 @@
         },
         "teams": {
           "title": "Teams",
-          "description": "Teams anlegen und Benutzer zuordnen"
+          "description": "Teams anlegen; Teamleitung verwaltet Mitglieder selbst"
         }
       },
       "registration": {
@@ -2174,7 +2174,8 @@
       "teams": {
         "page_title": "Teams - Administration",
         "heading": "Teams",
-        "subtitle": "Teams anlegen und Mitglieder zuordnen. Noch ohne Anbindung an Module.",
+        "subtitle": "Teams anlegen und Mitglieder zuordnen. Die Teamleitung kann das eigene Team selbst verwalten.",
+        "subtitle_leader": "Mitglieder deiner Teams hinzufügen oder entfernen. Anlegen und Löschen von Teams bleibt dem Administrator vorbehalten.",
         "create": "Team erstellen",
         "create_heading": "Neues Team",
         "create_page_title": "Team erstellen - Administration",
@@ -2198,7 +2199,7 @@
         "field_color_help": "Optional. Wird in Listen und Chips angezeigt.",
         "clear_color": "Farbe entfernen",
         "field_leader": "Leitung",
-        "field_leader_help": "Die Leitung wird automatisch als Mitglied hinzugefügt. Keine Extra-Rechte.",
+        "field_leader_help": "Die Leitung wird automatisch Mitglied und kann das Team selbst verwalten (Mitglieder hinzufügen/entfernen, Teameinstellungen).",
         "no_leader": "Keine Leitung",
         "field_image": "Bild",
         "field_image_help": "PNG, JPG, GIF oder WebP – max. 5 MB",
@@ -2206,8 +2207,10 @@
         "members_title": "Mitglieder",
         "no_members": "Dieses Team hat noch keine Mitglieder.",
         "add_members": "Mitglieder hinzufügen",
+        "add_members_help": "Aktive Portalmitglieder auswählen, die noch nicht in diesem Team sind.",
         "add_selected": "Ausgewählte hinzufügen",
-        "all_users_already_members": "Alle Benutzer sind bereits Mitglied.",
+        "all_users_already_members": "Alle Portalmitglieder sind bereits in diesem Team.",
+        "search_no_user_results": "Keine passenden Portalmitglieder gefunden.",
         "remove_member": "Entfernen",
         "remove_member_confirm": "{name} aus dem Team entfernen?",
         "badge_leader": "Leitung",
@@ -2222,6 +2225,7 @@
         "flash_deleted": "Team \"{name}\" wurde gelöscht.",
         "flash_members_added": "{count} Mitglied(er) hinzugefügt.",
         "flash_member_removed": "Mitglied entfernt.",
+        "flash_cannot_remove_leader": "Die Teamleitung kann nicht entfernt werden. Weise zuerst eine andere Leitung zu.",
         "flash_user_teams_updated": "Teams für {name} wurden aktualisiert."
       },
       "kanban": {
@@ -2681,7 +2685,8 @@
         "share_disable": "Freigabe deaktivieren",
         "share": "Freigeben",
         "rename": "Umbenennen",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "move": "Verschieben"
       },
       "file_actions": {
         "download": "Herunterladen",
@@ -2693,7 +2698,11 @@
         "share": "Freigeben",
         "details": "Details & Versionen",
         "rename": "Umbenennen",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "move": "Verschieben"
+      },
+      "actions": {
+        "move": "Verschieben"
       },
       "labels": {
         "text_file": "Text-Datei",
@@ -2818,6 +2827,15 @@
           "title": "Ordner umbenennen",
           "name_label": "Neuer Ordnername",
           "name_help": "Geben Sie den neuen Namen für den Ordner ein."
+        },
+        "move": {
+          "title": "Verschieben",
+          "loading": "Lade Ziele…",
+          "confirm": "Hierher verschieben",
+          "empty": "Keine Ordner verfügbar.",
+          "root_hint": "Bereich (Root)",
+          "item_file": "Datei in einen anderen Ordner oder Bereich verschieben.",
+          "item_folder": "Ordner in einen anderen Ordner oder Bereich verschieben."
         }
       },
       "alerts": {
@@ -2830,12 +2848,13 @@
       "errors": {
         "file_type_not_supported": "Dateityp nicht unterstützt",
         "move_guest_not_allowed": "Gast-Accounts können keine Dateien oder Ordner verschieben.",
+        "move_not_allowed": "Keine Berechtigung zum Verschieben an dieses Ziel.",
         "move_invalid_request": "Ungültige Verschiebe-Anfrage.",
         "move_invalid_target": "Ungültiger Zielordner.",
         "move_target_not_found": "Zielordner wurde nicht gefunden.",
         "move_item_not_found": "Element wurde nicht gefunden.",
         "move_cycle_folder": "Ein Ordner kann nicht in sich selbst oder einen Unterordner verschoben werden.",
-        "move_name_conflict": "Im Zielordner existiert bereits eine Datei mit diesem Namen."
+        "move_name_conflict": "Im Zielordner existiert bereits ein Element mit diesem Namen."
       },
       "messages": {
         "upload_error": "Fehler beim Hochladen der Dateien.",
@@ -4286,10 +4305,12 @@
         "create": "Ordner erstellen",
         "rename": "Umbenennen",
         "delete": "Löschen",
-        "delete_confirm": "Ordner löschen? Anleitungen werden nach Alle Anleitungen verschoben.",
-        "root": "Alle Anleitungen",
+        "delete_confirm": "Ordner löschen? Anleitungen bleiben ohne Ordner erhalten.",
+        "all": "Alle",
+        "all_empty": "Keine Anleitungen vorhanden.",
+        "root": "Alle",
         "drop_hint": "Karten auf Ordner ziehen",
-        "root_empty": "Keine Anleitungen ohne Ordner.",
+        "root_empty": "Keine Anleitungen vorhanden.",
         "empty": "Dieser Ordner ist leer.",
         "move_up": "Ordner nach oben",
         "move_down": "Ordner nach unten"
@@ -4316,7 +4337,8 @@
         "title": "Titel",
         "title_placeholder": "z.B. Benutzerhandbuch",
         "folder": "Ordner",
-        "root_folder": "Alle Anleitungen (ohne Ordner)",
+        "no_folder": "Kein Ordner",
+        "root_folder": "Kein Ordner",
         "file": "PDF-Datei",
         "file_help": "Nur PDF-Dateien sind erlaubt"
       },
@@ -6050,10 +6072,25 @@
       "public_fill": "Öffentlich ausfüllbar",
       "edit": "Bearbeiten",
       "results": "Ergebnisse",
-      "empty": "Noch keine Umfragen vorhanden."
+      "open": "Öffnen",
+      "empty": "Noch keine Umfragen vorhanden.",
+      "nav": {
+        "menu": "Umfragen-Menü"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "list": {
+        "title": "Titel",
+        "status": "Status",
+        "date": "Datum"
+      }
     },
     "create": {
       "submit": "Umfrage erstellen",
+      "subtitle": "Name und Sichtbarkeit festlegen – Fragen folgen im Builder.",
       "title_label": "Name der Umfrage",
       "title_placeholder": "z. B. Team-Feedback Q1",
       "title_required": "Bitte geben Sie einen Namen für die Umfrage ein."
@@ -6156,6 +6193,15 @@
       "if_answer": "Wenn Antwort",
       "then": "dann",
       "value_placeholder": "Wert"
+    }
+  },
+  "shortlinks": {
+    "index": {
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      }
     }
   },
   "file_converter": {

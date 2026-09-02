@@ -8,7 +8,7 @@
     <div class="settings-admin-teams-header">
         <div>
             <h1 class="settings-admin-teams-title">{{ _('settings.admin.teams.heading') }}</h1>
-            <p class="settings-admin-teams-subtitle">{{ _('settings.admin.teams.subtitle') }}</p>
+            <p class="settings-admin-teams-subtitle">{% if is_team_leader_view|default(false) %}{{ _('settings.admin.teams.subtitle_leader') }}{% else %}{{ _('settings.admin.teams.subtitle') }}{% endif %}</p>
         </div>
         <div class="settings-admin-teams-header-actions">
             {% if not is_team_leader_view|default(false) %}

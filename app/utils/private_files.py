@@ -14,6 +14,17 @@ VALID_VIEWS = ('ablage', 'freigaben', 'public', 'trash', 'team')
 PERSONAL_ROOT_NAME = 'Eigene Dateien'
 
 
+def sanitize_files_item_name(name):
+    """
+    Normalize display names for files/folders.
+    Keeps characters like '/' so names such as "26/27 Förderverein" are stored and shown as entered.
+    Only trims surrounding whitespace; empty/whitespace-only input becomes ''.
+    """
+    if name is None:
+        return ''
+    return str(name).strip()
+
+
 def is_private_folders_enabled():
     setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
     return bool(setting and str(setting.value).lower() == 'true')
@@ -468,6 +479,140 @@ def resolve_team_id_for_parent(parent_folder, view, team_id=None):
     if view == 'team':
         return team_id
     return None
+
+
+def _collect_descendant_folder_ids(folder_id):
+    """All folder ids under folder_id (including folder_id itself)."""
+    if not folder_id:
+        return set()
+    result = {int(folder_id)}
+    queue = [int(folder_id)]
+    while queue:
+        parent_id = queue.pop()
+        children = (
+            _alive_folder_query()
+            .filter(Folder.parent_id == parent_id)
+            .with_entities(Folder.id)
+            .all()
+        )
+        for (child_id,) in children:
+            if child_id not in result:
+                result.add(child_id)
+                queue.append(child_id)
+    return result
+
+
+def _build_folder_children_map(folders):
+    by_parent = {}
+    for folder in folders:
+        by_parent.setdefault(folder.parent_id, []).append(folder)
+    for siblings in by_parent.values():
+        siblings.sort(key=lambda f: (f.name or '').lower())
+    return by_parent
+
+
+def _serialize_move_folder_nodes(by_parent, parent_id, exclude_ids):
+    nodes = []
+    for folder in by_parent.get(parent_id, []):
+        if folder.id in exclude_ids:
+            continue
+        nodes.append({
+            'id': folder.id,
+            'name': folder.name,
+            'color': folder.color,
+            'children': _serialize_move_folder_nodes(by_parent, folder.id, exclude_ids),
+        })
+    return nodes
+
+
+def _folders_in_subtree(root_id):
+    """Non-root folders whose ancestry includes root_id."""
+    if root_id is None:
+        return []
+    descendant_ids = _collect_descendant_folder_ids(root_id) - {root_id}
+    if not descendant_ids:
+        return []
+    return (
+        _alive_folder_query()
+        .filter(
+            Folder.id.in_(descendant_ids),
+            Folder.is_personal_root.is_(False),
+            Folder.is_team_root.is_(False),
+        )
+        .all()
+    )
+
+
+def list_move_destinations(user, exclude_folder_id=None):
+    """
+    Destination spaces + folder trees for the move picker.
+    exclude_folder_id: when moving a folder, hide it and its descendants.
+    """
+    exclude_ids = _collect_descendant_folder_ids(exclude_folder_id) if exclude_folder_id else set()
+    spaces = []
+
+    if is_private_folders_enabled():
+        personal_root = ensure_personal_root(user.id)
+        folders = [
+            f for f in _folders_in_subtree(personal_root.id)
+            if can_view_folder(f, user, private_enabled=True)
+            or getattr(user, 'is_admin', False)
+        ]
+        by_parent = _build_folder_children_map(folders)
+        spaces.append({
+            'key': 'ablage',
+            'view': 'ablage',
+            'team_id': None,
+            'root_folder_id': personal_root.id,
+            'label': 'ablage',
+            'folders': _serialize_move_folder_nodes(by_parent, personal_root.id, exclude_ids),
+        })
+
+    if is_team_folders_enabled():
+        for team in user_file_teams(user):
+            team_root = ensure_team_root(team.id, user.id)
+            if not team_root:
+                continue
+            folders = [
+                f for f in _folders_in_subtree(team_root.id)
+                if can_view_folder(f, user, team_enabled=True)
+                or getattr(user, 'is_admin', False)
+            ]
+            by_parent = _build_folder_children_map(folders)
+            spaces.append({
+                'key': f'team-{team.id}',
+                'view': 'team',
+                'team_id': team.id,
+                'root_folder_id': team_root.id,
+                'label': team.name,
+                'color': getattr(team, 'color', None),
+                'folders': _serialize_move_folder_nodes(by_parent, team_root.id, exclude_ids),
+            })
+
+    public_folders = (
+        _alive_folder_query()
+        .filter(
+            Folder.space == 'public',
+            Folder.is_personal_root.is_(False),
+            Folder.is_team_root.is_(False),
+        )
+        .all()
+    )
+    public_folders = [
+        f for f in public_folders
+        if can_view_folder(f, user) or getattr(user, 'is_admin', False)
+    ]
+    by_parent = _build_folder_children_map(public_folders)
+    spaces.append({
+        'key': 'public',
+        'view': 'public',
+        'team_id': None,
+        'root_folder_id': None,
+        'label': 'public',
+        'folders': _serialize_move_folder_nodes(by_parent, None, exclude_ids),
+    })
+
+    return spaces
 
 
 def list_view_contents(view, folder_id, user, team_id=None):
