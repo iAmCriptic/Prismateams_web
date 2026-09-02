@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu with context %}
+{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_options with context %}
 
 {% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
 {% set calendar_export_enabled = calendar_export_enabled|default(true) %}
@@ -26,7 +26,7 @@
                 </h1>
             </div>
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                {{ calendar_more_menu(align_end=true) }}
+                {{ calendar_more_options(align_end=true, show_new_calendar=true) }}
                 {% if calendar_multi_enabled and sc %}
                 {% set new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
                 <a href="{{ url_for('calendar.create_event', calendar_id=new_cal_id) if new_cal_id else url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">

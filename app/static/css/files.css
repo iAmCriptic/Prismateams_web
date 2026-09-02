@@ -1601,10 +1601,6 @@ body:has(.files-shell) {
     align-items: center;
 }
 
-.files-back-row .back-button {
-    border-radius: var(--mod-radius-card, 0.75rem);
-}
-
 .files-shell--private .mod-main > .page-toolbar-row h1.mod-view-heading {
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -1747,6 +1743,7 @@ body:has(.files-shell) {
 }
 
 .files-view-toggle {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.15rem;
@@ -1756,7 +1753,27 @@ body:has(.files-shell) {
     background: var(--bs-body-bg);
 }
 
+.files-view-toggle__indicator {
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    transition: transform 0.28s cubic-bezier(0.34, 1.15, 0.64, 1);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.files-view-toggle[data-view="grid"] .files-view-toggle__indicator {
+    transform: translateX(calc(2.25rem + 0.15rem));
+}
+
 .files-view-toggle__btn {
+    position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1767,18 +1784,119 @@ body:has(.files-shell) {
     border-radius: var(--mod-radius-pill, 1.5rem);
     background: transparent;
     color: var(--bs-secondary-color);
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: color 0.2s ease;
 }
 
 .files-view-toggle__btn:hover {
     color: var(--accent-color, var(--bs-primary));
-    background: rgba(13, 110, 253, 0.08);
 }
 
 .files-view-toggle__btn.active,
 .files-view-toggle__btn.is-active {
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    background: transparent;
     color: #fff;
+}
+
+.files-view-toggle__btn.active:hover,
+.files-view-toggle__btn.is-active:hover {
+    color: #fff;
+}
+
+/* View pane crossfade */
+.files-view-stage {
+    position: relative;
+}
+
+.files-view-pane {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.files-view-pane.files-view-pane--active {
+    opacity: 1;
+    transform: none;
+}
+
+.files-view-pane.files-view-pane--leave {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .files-view-toggle__indicator {
+        transition-duration: 0.01ms;
+    }
+
+    .files-view-pane {
+        transition-duration: 0.01ms;
+        transform: none;
+    }
+
+    .files-view-pane.files-view-pane--leave {
+        transform: none;
+    }
+}
+
+/* Share / dropbox status chips on file cards */
+.files-item-chips {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    max-width: calc(100% - 2.5rem);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.files-item-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.files-item-chip .bi {
+    font-size: 0.72rem;
+}
+
+.files-item-chip--dropbox {
+    background: color-mix(in srgb, #0d9488 14%, var(--bs-body-bg));
+    color: #0d9488;
+    border: 1px solid color-mix(in srgb, #0d9488 28%, transparent);
+}
+
+.files-item-chip--share {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg));
+    color: var(--accent-color, #0d6efd);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
+}
+
+.files-list-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.2rem;
+}
+
+.files-list-chips .files-item-chip {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
 }
 
 #newButton.files-pill-new,
@@ -2119,6 +2237,103 @@ body:has(.files-shell) {
     padding: 0.35em 0.75em;
 }
 
+.files-share-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.files-share-chip--dropbox {
+    background: color-mix(in srgb, #0d9488 14%, var(--bs-body-bg));
+    color: #0d9488;
+    border-color: color-mix(in srgb, #0d9488 28%, transparent);
+}
+
+.files-share-chip--view {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg));
+    color: var(--accent-color, #0d6efd);
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
+}
+
+.files-share-chip--edit {
+    background: color-mix(in srgb, #198754 12%, var(--bs-body-bg));
+    color: #198754;
+    border-color: color-mix(in srgb, #198754 28%, transparent);
+}
+
+.files-share-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.files-share-status--active {
+    background: color-mix(in srgb, #198754 14%, var(--bs-body-bg));
+    color: #198754;
+}
+
+.files-share-status--expired {
+    background: color-mix(in srgb, #e6a800 16%, var(--bs-body-bg));
+    color: #b8860b;
+}
+
+.files-share-status--off {
+    background: color-mix(in srgb, var(--bs-secondary-color) 14%, var(--bs-body-bg));
+    color: var(--bs-secondary-color);
+}
+
+.files-share-table-wrap thead th {
+    background: color-mix(in srgb, var(--bs-secondary-color) 8%, var(--bs-body-bg));
+    border-bottom-width: 1px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.files-share-table-wrap thead tr:first-child th:first-child {
+    border-top-left-radius: 0.75rem;
+}
+
+.files-share-table-wrap thead tr:first-child th:last-child {
+    border-top-right-radius: 0.75rem;
+}
+
+.files-share-add-section {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+}
+
+.files-settings-section {
+    padding: 0.95rem 1.05rem;
+    margin-bottom: 0.85rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    border-radius: 1.1rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg, #f8f9fa));
+}
+
+.files-settings-section h6 {
+    margin-bottom: 0.65rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.files-settings-section:last-child {
+    margin-bottom: 0;
+}
+
 .files-share-icon-actions {
     display: inline-flex;
     align-items: center;
@@ -2310,6 +2525,25 @@ body:has(.files-shell) {
 .dropbox-gate-modal {
     border-radius: 1.35rem !important;
     overflow: hidden;
+    animation: files-gate-in 0.35s cubic-bezier(0.34, 1.1, 0.64, 1) both;
+}
+
+@keyframes files-gate-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .share-gate-modal,
+    .dropbox-gate-modal {
+        animation: none;
+    }
 }
 
 .share-gate-overlay,
@@ -2480,6 +2714,34 @@ body:has(.dropbox-shell) .container-fluid {
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
     border-radius: var(--mod-radius-card, 0.9rem);
     background: var(--bs-body-bg, #fff);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.share-browser-card .file-item:hover,
+.share-browser-card .folder-item:hover {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
+}
+
+.share-browser-card .list-group-item {
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    border-radius: var(--mod-radius-card, 0.9rem) !important;
+    margin-bottom: 0.45rem;
+    padding: 0.75rem 1rem;
+    background: var(--bs-body-bg, #fff);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.share-browser-card .list-group-item:hover,
+.share-browser-card .list-group-item:focus {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 30%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 5%, var(--bs-body-bg));
+    box-shadow: 0 0.2rem 0.65rem rgba(0, 0, 0, 0.06);
+}
+
+.share-browser-card .list-group {
+    border-radius: 0;
+    gap: 0;
 }
 
 /* PDF-Vorschau in Grid: Scrollbar abschneiden */

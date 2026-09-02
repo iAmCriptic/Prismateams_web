@@ -1,0 +1,210 @@
+{# Premium split-screen auth layout — use via {% call auth_shell(...) %} ... {% endcall %} #}
+
+
+
+{% macro auth_shell(title, subtitle='', body_class='', show_legal=false, brand_icon='bi-shield-lock') %}
+
+
+
+{% if portal_logo_filename %}
+
+    {% set auth_logo_url = url_for('settings.portal_logo', filename=portal_logo_filename) %}
+
+{% elif app_logo %}
+
+    {% set auth_logo_url = url_for('static', filename=app_logo) %}
+
+{% else %}
+
+    {% set auth_logo_url = url_for('static', filename='img/logo.png') %}
+
+{% endif %}
+
+
+
+{% set brand_pos = auth_brand_logo_position|default('middle-center') %}
+
+{% set form_bg = auth_form_gradient or color_gradient or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}
+
+{% set brand_color = auth_brand_color or '#667eea' %}
+
+
+
+<style>
+
+:root {
+
+    --auth-accent: {{ default_accent_color or '#0d6efd' }};
+
+    --accent-color: {{ default_accent_color or '#0d6efd' }};
+
+    --auth-form-bg: {{ form_bg }};
+
+    --auth-page-bg: {{ form_bg }};
+
+    {% if auth_brand_image_filename %}
+
+    {% set brand_image_url = url_for('settings.auth_brand_image', filename=auth_brand_image_filename) %}
+
+    --auth-brand-bg-image: url("{{ brand_image_url }}");
+
+    --auth-brand-bg-color: transparent;
+
+    {% else %}
+
+    --auth-brand-bg-image: none;
+
+    --auth-brand-bg-color: {{ brand_color }};
+
+    {% endif %}
+
+}
+
+</style>
+
+
+
+<div class="auth-container auth-split-container {{ body_class }}" id="authSplitRoot">
+
+    {% if portal_logo_filename or app_logo %}
+    <div class="auth-mobile-brand d-lg-none">
+        <img src="{{ auth_logo_url }}"
+             alt="{{ app_name or 'Prismateams' }}"
+             class="auth-mobile-brand-logo">
+    </div>
+    {% endif %}
+
+    <script>
+
+    (function () {
+
+        try {
+
+            var pending = sessionStorage.getItem('authPageTransition');
+
+            if (!pending) return;
+
+            sessionStorage.removeItem('authPageTransition');
+
+            var root = document.getElementById('authSplitRoot');
+
+            if (root) {
+
+                root.classList.add('auth-transition-enter', 'auth-transition-enter-' + pending);
+
+            }
+
+        } catch (e) { /* ignore */ }
+
+    })();
+
+    </script>
+
+
+
+    <div class="auth-split{% if 'auth-register' in body_class %} auth-split--flipped{% endif %}">
+
+
+
+        <aside class="auth-split-brand auth-brand-logo--{{ brand_pos }}{% if auth_brand_image_filename %} auth-split-brand--has-image{% endif %} d-none d-lg-flex" aria-label="{{ app_name or 'Prismateams' }}">
+
+            <div class="auth-split-brand-bg" aria-hidden="true"></div>
+
+            <div class="auth-split-brand-scrim" aria-hidden="true"></div>
+
+
+
+            <div class="auth-split-brand-stage">
+
+                <div class="auth-split-brand-stage-inner auth-split-brand-inner">
+
+                    <img src="{{ auth_logo_url }}"
+
+                         alt="{{ app_name or 'Prismateams' }}"
+
+                         class="auth-split-brand-logo-img">
+
+                    {% if auth_brand_text %}
+
+                    <p class="auth-split-brand-text">{{ auth_brand_text }}</p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+
+        <main class="auth-split-form">
+
+            <div class="auth-split-form-center">
+
+                <div class="auth-split-form-stack">
+
+                    <div class="auth-card">
+
+                        <div class="auth-panel auth-panel--glass">
+
+                            <div class="auth-panel-body">
+
+                                <header class="auth-form-header">
+
+                                    <h2 class="auth-form-title">{{ title }}</h2>
+
+                                    {% if subtitle %}
+
+                                    <p class="auth-subtitle">{{ subtitle }}</p>
+
+                                    {% endif %}
+
+                                </header>
+
+
+
+                                {{ caller() }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            {% if show_legal %}
+
+            <nav class="auth-legal-links auth-legal-links--corner" aria-label="{{ _('auth.legal.nav_label') }}">
+
+                <a href="{{ url_for('auth.terms') }}">{{ _('auth.legal.terms') }}</a>
+
+                <span class="auth-legal-sep" aria-hidden="true">·</span>
+
+                <a href="{{ url_for('auth.privacy') }}">{{ _('auth.legal.privacy') }}</a>
+
+                <span class="auth-legal-sep" aria-hidden="true">·</span>
+
+                <a href="{{ url_for('auth.imprint') }}">{{ _('auth.legal.imprint') }}</a>
+
+            </nav>
+
+            {% endif %}
+
+        </main>
+
+    </div>
+
+</div>
+
+
+
+<script src="{{ url_for('static', filename='js/auth-transitions.js') }}"></script>
+
+{% endmacro %}
+

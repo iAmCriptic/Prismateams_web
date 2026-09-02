@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError
 from app import db, limiter
@@ -22,12 +22,22 @@ auth_bp = Blueprint('auth', __name__)
 
 def _auth_template_kwargs(**extra):
     """Common template context for auth pages including bot protection."""
-    kwargs = {'color_gradient': get_color_gradient()}
+    from app.utils.auth_branding import get_auth_branding_context
+
+    kwargs = get_auth_branding_context()
+    kwargs['color_gradient'] = kwargs.get('auth_form_gradient') or get_color_gradient()
     try:
         from app.utils.google_login import google_login_ready
         kwargs['google_login_ready'] = google_login_ready()
     except Exception:
         kwargs['google_login_ready'] = False
+    try:
+        from app.utils.webauthn_helper import passkeys_supported_for_request, localhost_passkey_url
+        kwargs['passkeys_supported'] = passkeys_supported_for_request()
+        kwargs['passkeys_localhost_url'] = localhost_passkey_url()
+    except Exception:
+        kwargs['passkeys_supported'] = False
+        kwargs['passkeys_localhost_url'] = None
     kwargs.update(get_template_context())
     kwargs.update(extra)
     return kwargs
@@ -82,6 +92,20 @@ def _clear_pending_2fa_login():
     session.pop('pending_2fa_user_id', None)
     session.pop('pending_2fa_remember', None)
     session.pop('pending_2fa_next', None)
+    session.pop('pending_2fa_recovery_sent_at', None)
+
+
+def _login_2fa_template_context(user, has_passkeys):
+    recovery_pending = bool(
+        user.totp_recovery_code
+        and user.totp_recovery_code_expires
+        and portal_now_naive() <= user.totp_recovery_code_expires
+    )
+    return {
+        'has_passkeys': has_passkeys,
+        'recovery_code_pending': recovery_pending,
+        **_auth_template_kwargs(),
+    }
 
 
 def _sanitize_next_page(candidate):
@@ -105,6 +129,25 @@ def _sanitize_next_page(candidate):
         return f"{parsed.path or '/'}{('?' + parsed.query) if parsed.query else ''}"
 
     return None
+
+
+def _validate_user_for_login(user):
+    """Gemeinsame Login-Validierung (Passwort, Passkey, Google)."""
+    if user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+        remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+        raise ValueError(translate('auth.flash.account_locked', seconds=remaining_seconds))
+
+    if user.is_guest and user.guest_expires_at:
+        if portal_now_naive() > user.guest_expires_at:
+            if user.is_active:
+                user.is_active = False
+                db.session.commit()
+            raise ValueError(translate('auth.flash.guest_access_expired_contact_admin'))
+
+    if not user.is_active:
+        if user.is_guest:
+            raise ValueError(translate('auth.flash.guest_access_expired_contact_admin'))
+        raise ValueError(translate('auth.flash.account_not_activated'))
 
 
 def _finalize_portal_login(user, remember=False, next_page=None):
@@ -757,6 +800,11 @@ def login_2fa():
         flash(translate('auth.flash.enter_email_password'), 'warning')
         return redirect(url_for('auth.login'))
 
+    from app.models.passkey import UserPasskey
+    has_passkeys = (
+        UserPasskey.query.filter_by(user_id=user.id).count() > 0
+    )
+
     if user.failed_login_until and datetime.utcnow() < user.failed_login_until:
         _clear_pending_2fa_login()
         remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
@@ -767,22 +815,222 @@ def login_2fa():
         totp_code = request.form.get('totp_code', '').strip()
         if not totp_code:
             flash(translate('auth.flash.enter_2fa_code'), 'danger')
-            return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
+            return render_template(
+                'auth/login_2fa.html',
+                **_login_2fa_template_context(user, has_passkeys),
+            )
 
-        if not verify_totp(user.totp_secret, totp_code):
+        verified = verify_totp(user.totp_secret, totp_code)
+        if not verified:
+            from app.utils.email_sender import verify_and_consume_2fa_recovery_code
+            verified = verify_and_consume_2fa_recovery_code(user, totp_code)
+
+        if not verified:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= 5:
                 user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
                 user.failed_login_attempts = 0
             db.session.commit()
             flash(translate('auth.flash.invalid_2fa_code'), 'danger')
-            return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
+            return render_template(
+                'auth/login_2fa.html',
+                **_login_2fa_template_context(user, has_passkeys),
+            )
 
         # Erfolgreicher 2FA-Schritt
         _clear_pending_2fa_login()
         return _finalize_portal_login(user, remember=remember, next_page=next_page)
 
-    return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
+    return render_template(
+        'auth/login_2fa.html',
+        **_login_2fa_template_context(user, has_passkeys),
+    )
+
+
+@auth_bp.route('/login/2fa/recovery', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def login_2fa_recovery():
+    """Sendet einen 2FA-Wiederherstellungscode per E-Mail (5 Min. gültig)."""
+    import time
+    from app.utils.email_sender import send_2fa_recovery_email, _mail_configured
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+
+    pending_user_id = session.get('pending_2fa_user_id')
+    if not pending_user_id:
+        flash(translate('auth.flash.enter_email_password'), 'warning')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.get(pending_user_id)
+    if not user or not user.totp_enabled or user.is_guest:
+        _clear_pending_2fa_login()
+        flash(translate('auth.flash.enter_email_password'), 'warning')
+        return redirect(url_for('auth.login'))
+
+    if not _mail_configured():
+        flash(translate('auth.flash.2fa_recovery_mail_not_configured'), 'danger')
+        return redirect(url_for('auth.login_2fa'))
+
+    last_sent = session.get('pending_2fa_recovery_sent_at')
+    if last_sent and (time.time() - float(last_sent)) < 120:
+        flash(translate('auth.flash.2fa_recovery_rate_limited'), 'warning')
+        return redirect(url_for('auth.login_2fa'))
+
+    if send_2fa_recovery_email(user):
+        session['pending_2fa_recovery_sent_at'] = time.time()
+        flash(translate('auth.flash.2fa_recovery_email_sent', email=user.email), 'success')
+    else:
+        flash(translate('auth.flash.2fa_recovery_email_failed'), 'danger')
+
+    return redirect(url_for('auth.login_2fa'))
+
+
+@auth_bp.route('/passkey/login/options', methods=['POST'])
+@limiter.limit("20 per 15 minutes")
+def passkey_login_options():
+    """WebAuthn-Optionen für passwordlosen Passkey-Login."""
+    from app.utils.webauthn_helper import WebAuthnError, build_login_options, passkeys_supported_for_request
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('auth.passkey.https_required')}), 400
+
+    try:
+        options = build_login_options()
+        return jsonify({'success': True, 'options': options})
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        logging.exception('Passkey login options failed')
+        return jsonify({'success': False, 'error': translate('auth.passkey.login_failed')}), 500
+
+
+@auth_bp.route('/passkey/login/verify', methods=['POST'])
+@limiter.limit("20 per 15 minutes")
+def passkey_login_verify():
+    """Passkey-Login abschließen (passwordless)."""
+    from app.utils.webauthn_helper import (
+        WebAuthnError,
+        apply_verification_result,
+        passkeys_supported_for_request,
+        verify_login,
+    )
+
+    if current_user.is_authenticated:
+        return jsonify({'success': True, 'redirect': url_for('dashboard.index')})
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('auth.passkey.https_required')}), 400
+
+    data = request.get_json(silent=True) or {}
+    credential = data.get('credential')
+    if not credential:
+        return jsonify({'success': False, 'error': translate('auth.passkey.invalid_response')}), 400
+
+    try:
+        passkey, verification = verify_login(credential)
+        user = passkey.user
+        _validate_user_for_login(user)
+
+        user.failed_login_attempts = 0
+        user.failed_login_until = None
+        apply_verification_result(passkey, verification)
+        db.session.commit()
+
+        _clear_pending_2fa_login()
+        response = _finalize_portal_login(user, remember=False, next_page=None)
+        return jsonify({'success': True, 'redirect': response.location})
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 403
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        logging.exception('Passkey login verify failed')
+        db.session.rollback()
+        return jsonify({'success': False, 'error': translate('auth.passkey.login_failed')}), 500
+
+
+@auth_bp.route('/passkey/2fa/options', methods=['POST'])
+@limiter.limit("20 per 15 minutes")
+def passkey_2fa_options():
+    """WebAuthn-Optionen als 2FA-Alternative."""
+    from app.models.passkey import UserPasskey
+    from app.utils.webauthn_helper import WebAuthnError, build_2fa_options, passkeys_supported_for_request
+
+    pending_user_id = session.get('pending_2fa_user_id')
+    if not pending_user_id:
+        return jsonify({'success': False, 'error': translate('auth.flash.enter_email_password')}), 400
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('auth.passkey.https_required')}), 400
+
+    passkeys = UserPasskey.query.filter_by(user_id=pending_user_id).all()
+    try:
+        options = build_2fa_options(passkeys)
+        return jsonify({'success': True, 'options': options})
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        logging.exception('Passkey 2FA options failed')
+        return jsonify({'success': False, 'error': translate('auth.passkey.verify_failed')}), 500
+
+
+@auth_bp.route('/passkey/2fa/verify', methods=['POST'])
+@limiter.limit("20 per 15 minutes")
+def passkey_2fa_verify():
+    """Passkey als 2FA-Schritt abschließen."""
+    from app.models.passkey import UserPasskey
+    from app.utils.webauthn_helper import (
+        WebAuthnError,
+        apply_verification_result,
+        passkeys_supported_for_request,
+        verify_2fa,
+    )
+
+    pending_user_id = session.get('pending_2fa_user_id')
+    remember = bool(session.get('pending_2fa_remember', False))
+    next_page = _sanitize_next_page(session.get('pending_2fa_next'))
+
+    if not pending_user_id:
+        return jsonify({'success': False, 'error': translate('auth.flash.enter_email_password')}), 400
+
+    user = User.query.get(pending_user_id)
+    if not user or not user.totp_enabled:
+        _clear_pending_2fa_login()
+        return jsonify({'success': False, 'error': translate('auth.flash.enter_email_password')}), 400
+
+    if not passkeys_supported_for_request():
+        return jsonify({'success': False, 'error': translate('auth.passkey.https_required')}), 400
+
+    data = request.get_json(silent=True) or {}
+    credential = data.get('credential')
+    if not credential:
+        return jsonify({'success': False, 'error': translate('auth.passkey.invalid_response')}), 400
+
+    passkeys = UserPasskey.query.filter_by(user_id=user.id).all()
+    try:
+        passkey, verification = verify_2fa(passkeys, credential)
+        apply_verification_result(passkey, verification)
+        user.failed_login_attempts = 0
+        user.failed_login_until = None
+        db.session.commit()
+
+        _clear_pending_2fa_login()
+        result = _finalize_portal_login(user, remember=remember, next_page=next_page)
+        if hasattr(result, 'location'):
+            return jsonify({'success': True, 'redirect': result.location})
+        return jsonify({'success': True, 'redirect': url_for('dashboard.index')})
+    except WebAuthnError as exc:
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= 5:
+            user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+            user.failed_login_attempts = 0
+        db.session.commit()
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        logging.exception('Passkey 2FA verify failed')
+        db.session.rollback()
+        return jsonify({'success': False, 'error': translate('auth.passkey.verify_failed')}), 500
 
 
 @auth_bp.route('/confirm-email', methods=['GET', 'POST'])
@@ -949,7 +1197,7 @@ def forgot_password():
         
         if not email:
             flash(translate('auth.flash.enter_email'), 'danger')
-            return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+            return render_template('auth/forgot_password.html', **_auth_template_kwargs())
         
         # Rate Limiting: Prüfe ob zu viele Anfragen in der letzten Stunde
         # Suche nach User mit dieser E-Mail
@@ -970,7 +1218,7 @@ def forgot_password():
             if recent_resets >= 3:
                 # Zeige trotzdem Erfolgsmeldung (Sicherheit)
                 flash(translate('auth.flash.password_reset_email_sent'), 'success')
-                return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+                return render_template('auth/forgot_password.html', **_auth_template_kwargs())
             
             # Sende Passwort-Reset-E-Mail
             from app.utils.email_sender import send_password_reset_email
@@ -982,9 +1230,9 @@ def forgot_password():
         
         # Zeige immer Erfolgsmeldung (auch wenn E-Mail nicht existiert - Sicherheit)
         flash(translate('auth.flash.password_reset_email_sent'), 'success')
-        return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+        return render_template('auth/forgot_password.html', **_auth_template_kwargs())
     
-    return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+    return render_template('auth/forgot_password.html', **_auth_template_kwargs())
 
 
 @auth_bp.route('/reset-password', methods=['GET', 'POST'])
@@ -1007,29 +1255,29 @@ def reset_password():
         # Validierung
         if not all([email, reset_code, new_password, confirm_password]):
             flash(translate('auth.flash.fill_all_fields'), 'danger')
-            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Finde User
         user = User.query.filter_by(email=email).first()
         if not user or user.is_guest:
             flash(translate('auth.flash.invalid_reset_code'), 'danger')
-            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Prüfe Reset-Code
         from app.utils.email_sender import verify_password_reset_code
         if not verify_password_reset_code(user, reset_code):
             flash(translate('auth.flash.invalid_reset_code'), 'danger')
-            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Prüfe Passwort-Bestätigung
         if new_password != confirm_password:
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
-            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Prüfe Passwort-Länge
         if len(new_password) < 8:
             flash(translate('auth.flash.password_too_short'), 'danger')
-            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Setze neues Passwort
         user.set_password(new_password)
@@ -1043,7 +1291,7 @@ def reset_password():
     
     # GET: Zeige Formular
     email = request.args.get('email', '')
-    return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+    return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
 
 
 @auth_bp.route('/logout')

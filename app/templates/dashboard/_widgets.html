@@ -168,7 +168,7 @@ data-col-span="{{ col_span }}"
     </div>
     {% if unread_messages %}
     <div class="dash-widget-list">
-        {% for message in unread_messages[:3] %}
+        {% for message in unread_messages %}
         <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ message.sender.full_name }}</p>
@@ -208,7 +208,7 @@ data-col-span="{{ col_span }}"
     </div>
     {% if recent_emails %}
     <div class="dash-widget-list">
-        {% for email in recent_emails[:3] %}
+        {% for email in recent_emails %}
         <div class="dash-widget-row dash-widget-row--email" data-stop-nav>
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ email.subject|decode_email_header }}</p>

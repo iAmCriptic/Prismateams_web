@@ -53,6 +53,23 @@
     margin-bottom: 1rem;
 }
 
+.media-youtube-auth-bar {
+    position: relative;
+    z-index: 5;
+}
+
+.media-youtube-auth-bar--highlight {
+    animation: media-youtube-auth-pulse 0.85s ease-in-out 3;
+    border-radius: 1rem;
+    outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
+    outline-offset: 4px;
+}
+
+@keyframes media-youtube-auth-pulse {
+    0%, 100% { outline-color: color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent); }
+    50% { outline-color: color-mix(in srgb, var(--accent-color, #0d6efd) 70%, transparent); }
+}
+
 .media-download-header {
     margin-bottom: 1.25rem;
 }

@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu, calendar_view_pills, calendar_search with context %}
+{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_options, calendar_view_pills with context %}
 
 {% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
 {% set calendar_export_enabled = calendar_export_enabled|default(true) %}
@@ -35,7 +35,7 @@
             </h1>
         </div>
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
-            {{ calendar_more_menu(align_end=true) }}
+            {{ calendar_more_options(align_end=true, show_new_calendar=true) }}
             {% if sc %}
             {% set new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
             <a href="{{ url_for('calendar.create_event', calendar_id=new_cal_id) if new_cal_id else url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
@@ -43,9 +43,6 @@
             </a>
             {% endif %}
         </div>
-    </div>
-    <div class="calendar-mobile-search mt-2">
-        {{ calendar_search('Mobile') }}
     </div>
 </div>
 {% elif not calendar_multi_enabled %}
@@ -56,16 +53,13 @@
             <span>{{ _('calendar.index.heading') }}</span>
         </h1>
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
-            {{ calendar_more_menu(align_end=true) }}
+            {{ calendar_more_options(align_end=true, show_new_calendar=true) }}
             {% if can_create_focus %}
             <a href="{{ url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
             {% endif %}
         </div>
-    </div>
-    <div class="calendar-mobile-search mt-2">
-        {{ calendar_search('Mobile') }}
     </div>
 </div>
 {% endif %}
@@ -78,8 +72,9 @@
     </div>
 </div>
 
+<div class="calendar-view-stage">
 <!-- Monatsansicht -->
-<div id="monthView" class="calendar-view" style="display: flex;">
+<div id="monthView" class="calendar-view calendar-view--active">
     <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
         <div class="col min-width-0">
             <h3 id="currentMonth" class="mb-0 text-truncate"></h3>
@@ -207,6 +202,8 @@
     </div>
     <div id="dayCalendar" class="calendar-fill-host"></div>
 </div>
+
+</div>{# calendar-view-stage #}
 
 </div>{# calendar-main #}
 
@@ -476,16 +473,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resetDesktop) resetDesktop.addEventListener('click', resetCalendars);
         if (resetMobile) resetMobile.addEventListener('click', resetCalendars);
 
-        const search = document.getElementById('calendarPeopleSearch');
-        if (search) {
-            search.addEventListener('input', function() {
+        function bindPeopleSearch(input, scope) {
+            if (!input) return;
+            input.addEventListener('input', function() {
                 const q = this.value.trim().toLowerCase();
-                document.querySelectorAll('#calendarOthersList .calendar-nav-item').forEach(item => {
+                const root = scope || document;
+                root.querySelectorAll('#calendarOthersList .calendar-nav-item').forEach(item => {
                     const name = (item.dataset.calendarName || '').toLowerCase();
                     item.style.display = (!q || name.includes(q)) ? '' : 'none';
                 });
             });
         }
+        bindPeopleSearch(document.getElementById('calendarPeopleSearchSidebar'), document.getElementById('calendarSidebarNav'));
 
         const mobileNav = document.getElementById('calendarMobileNavBody');
         const desktopNav = document.getElementById('calendarSidebarNav');
@@ -500,17 +499,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     onVisibilityCheckboxChange(this);
                 });
             });
-            const mobileSearch = mobileNav.querySelector('input[type="search"]');
-            if (mobileSearch) {
-                mobileSearch.addEventListener('input', function() {
-                    const q = this.value.trim().toLowerCase();
-                    mobileNav.querySelectorAll('.calendar-nav-item').forEach(item => {
-                        if (item.dataset.calendarType === 'personal' || item.dataset.calendarType === 'public') return;
-                        const name = (item.dataset.calendarName || '').toLowerCase();
-                        item.style.display = (!q || name.includes(q)) ? '' : 'none';
-                    });
-                });
-            }
+            bindPeopleSearch(document.getElementById('calendarPeopleSearchSidebar_m'), mobileNav);
         }
     }
 
@@ -569,26 +558,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function switchView(viewKey) {
-        const activeView = viewMap[viewKey];
-        if (!activeView) return;
+    let currentViewKey = 'month';
+    let viewSwitchAnimating = false;
+    const VIEW_ANIM_MS = 220;
 
-        Object.keys(viewMap).forEach(function(key) {
-            viewMap[key].style.display = 'none';
-        });
+    function prefersReducedMotion() {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
 
+    function showViewElement(viewEl, viewKey) {
         const useFlex = viewKey === 'month' || viewKey === 'week' || viewKey === 'day' || viewKey === 'list';
-        activeView.style.display = useFlex ? 'flex' : 'block';
-        setViewPillsActive(viewKey);
+        viewEl.style.display = useFlex ? 'flex' : 'block';
+        viewEl.classList.add('calendar-view--active');
+    }
+
+    function hideViewElement(viewEl) {
+        viewEl.style.display = 'none';
+        viewEl.classList.remove('calendar-view--active', 'calendar-view--leaving', 'calendar-view--entering');
+    }
+
+    function refreshViewContent(viewKey) {
+        if (viewKey === 'month') updateCalendar();
+        else if (viewKey === 'week') generateWeekView();
+        else if (viewKey === 'day') generateDayView();
+    }
+
+    function switchView(viewKey, options) {
+        const opts = options || {};
+        const animate = opts.animate !== false;
+        const incoming = viewMap[viewKey];
+        if (!incoming) return;
+        if (viewKey === currentViewKey && !opts.force) return;
+        if (viewSwitchAnimating) return;
+
+        const outgoing = viewMap[currentViewKey];
+        const reducedMotion = prefersReducedMotion();
+
+        function finishSwitch() {
+            if (outgoing && outgoing !== incoming) {
+                hideViewElement(outgoing);
+            }
+            showViewElement(incoming, viewKey);
+            refreshViewContent(viewKey);
+            setViewPillsActive(viewKey);
+            currentViewKey = viewKey;
+            viewSwitchAnimating = false;
+        }
+
+        if (!animate || reducedMotion || !outgoing || outgoing === incoming) {
+            Object.keys(viewMap).forEach(function(key) {
+                if (viewMap[key] !== incoming) hideViewElement(viewMap[key]);
+            });
+            finishSwitch();
+            return;
+        }
+
+        viewSwitchAnimating = true;
+        outgoing.classList.add('calendar-view--leaving');
+
+        window.setTimeout(function() {
+            hideViewElement(outgoing);
+            showViewElement(incoming, viewKey);
+            incoming.classList.add('calendar-view--entering');
+            refreshViewContent(viewKey);
+            setViewPillsActive(viewKey);
+            currentViewKey = viewKey;
+
+            window.setTimeout(function() {
+                incoming.classList.remove('calendar-view--entering');
+                viewSwitchAnimating = false;
+            }, VIEW_ANIM_MS);
+        }, VIEW_ANIM_MS);
     }
 
     document.querySelectorAll('[data-calendar-view]').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const viewKey = btn.getAttribute('data-calendar-view');
             switchView(viewKey);
-            if (viewKey === 'month') updateCalendar();
-            else if (viewKey === 'week') generateWeekView();
-            else if (viewKey === 'day') generateDayView();
         });
     });
     

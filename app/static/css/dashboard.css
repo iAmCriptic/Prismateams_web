@@ -391,7 +391,24 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
+}
+
+.dash-widget-row.is-clipped {
+    display: none !important;
+}
+
+.dash-widget-more {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.2rem 0.55rem 0;
+    text-align: center;
+}
+
+.dash-widget-more.is-clipped {
+    display: none !important;
 }
 
 .dash-widget-row {
@@ -1949,7 +1966,9 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 }
 
 .dashboard-action-btn--neu:hover,
-.dashboard-action-btn--neu:focus {
+.dashboard-action-btn--neu:focus,
+.dashboard-action-btn--tour:hover,
+.dashboard-action-btn--tour:focus {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
     outline: none;
 }
@@ -2222,4 +2241,202 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 [data-bs-theme="dark"] .dashboard-edit-bar {
     background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, transparent);
     border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Portal onboarding spotlight tour */
+body.portal-onboarding-active {
+    overflow: hidden;
+}
+
+.portal-onboarding {
+    position: fixed;
+    inset: 0;
+    z-index: 1085;
+    pointer-events: none;
+}
+
+.portal-onboarding.is-open {
+    pointer-events: auto;
+}
+
+.portal-onboarding-backdrop {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    pointer-events: auto;
+}
+
+.portal-onboarding-spotlight {
+    position: fixed;
+    background: transparent;
+    border: none;
+    pointer-events: none;
+    transition: top 0.22s ease, left 0.22s ease, width 0.22s ease, height 0.22s ease, border-radius 0.22s ease;
+    z-index: 1;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78);
+}
+
+.portal-onboarding-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 3px solid var(--accent-color, #0d6efd);
+    box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent),
+        0 0 0 8px color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent),
+        0 0 28px color-mix(in srgb, var(--accent-color, #0d6efd) 65%, transparent),
+        inset 0 0 18px color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    animation: portal-onboarding-ring-pulse 2.2s ease-in-out infinite;
+}
+
+.portal-onboarding-spotlight[data-compact="1"] .portal-onboarding-ring {
+    border-width: 3px;
+    box-shadow:
+        0 0 0 5px color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent),
+        0 0 0 10px color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent),
+        0 0 36px color-mix(in srgb, var(--accent-color, #0d6efd) 75%, transparent),
+        inset 0 0 22px color-mix(in srgb, #fff 18%, transparent);
+}
+
+@keyframes portal-onboarding-ring-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.02);
+        opacity: 0.92;
+    }
+}
+
+body.portal-onboarding-active .portal-onboarding-target {
+    position: relative;
+    z-index: 1090 !important;
+    isolation: isolate;
+    filter: brightness(1.12) saturate(1.08);
+}
+
+.portal-onboarding-card {
+    position: fixed;
+    z-index: 2;
+    width: min(22rem, calc(100vw - 2rem));
+    padding: 1.15rem 1.25rem 1rem;
+    border-radius: 1.35rem;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 85%, transparent);
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 94%, var(--portal-bg, #f0f2f5));
+    color: var(--bs-body-color, #212529);
+    box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.12);
+    pointer-events: auto;
+}
+
+.portal-onboarding-card--centered {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%);
+}
+
+.portal-onboarding-progress {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent-color, #0d6efd);
+    margin-bottom: 0.45rem;
+}
+
+.portal-onboarding-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    color: var(--bs-body-color, #212529);
+    margin: 0 0 0.45rem;
+}
+
+.portal-onboarding-text {
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin: 0 0 1rem;
+    line-height: 1.45;
+}
+
+.portal-onboarding-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.portal-onboarding-skip {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+}
+
+.portal-onboarding-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.portal-onboarding-back,
+.portal-onboarding-next,
+.portal-onboarding-finish {
+    white-space: nowrap;
+}
+
+[data-bs-theme="dark"] .portal-onboarding-spotlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.84);
+}
+
+[data-bs-theme="dark"] .portal-onboarding-ring {
+    border-color: var(--accent-color, #4dabf7);
+    box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--accent-color, #4dabf7) 32%, transparent),
+        0 0 0 8px color-mix(in srgb, var(--accent-color, #4dabf7) 16%, transparent),
+        0 0 34px color-mix(in srgb, var(--accent-color, #4dabf7) 72%, transparent),
+        inset 0 0 20px color-mix(in srgb, var(--accent-color, #4dabf7) 28%, transparent);
+}
+
+[data-bs-theme="dark"] .portal-onboarding-target {
+    filter: brightness(1.22) saturate(1.12);
+}
+
+[data-bs-theme="dark"] .portal-onboarding-card {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 6%);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #e9ecef);
+    box-shadow: 0 0.55rem 1.6rem rgba(0, 0, 0, 0.45);
+}
+
+[data-bs-theme="dark"] .portal-onboarding-title {
+    color: var(--bs-body-color, #e9ecef);
+}
+
+[data-bs-theme="dark"] .portal-onboarding-text {
+    color: var(--bs-secondary-color, #adb5bd);
+}
+
+[data-oled-mode="true"] .portal-onboarding-card {
+    background: var(--bs-body-bg, #000);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 575.98px) {
+    .portal-onboarding-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .portal-onboarding-nav {
+        margin-left: 0;
+        justify-content: flex-end;
+    }
+
+    .portal-onboarding-next,
+    .portal-onboarding-finish {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
 }

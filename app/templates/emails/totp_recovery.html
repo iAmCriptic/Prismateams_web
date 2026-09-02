@@ -1,0 +1,27 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}2FA-Wiederherstellung - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block content %}
+<h2>Hallo {{ user.first_name }}!</h2>
+<p>Sie haben einen Wiederherstellungscode für die Zwei-Faktor-Authentifizierung bei <strong>{{ app_name or 'Prismateams' }}</strong> angefordert.</p>
+<p>Geben Sie den folgenden Code auf der 2FA-Anmeldeseite ein (statt des Authenticator-Codes):</p>
+
+<div class="email-code-box">
+    <div class="email-code-label">Ihr 6-stelliger Wiederherstellungscode</div>
+    <span class="email-code">{{ recovery_code }}</span>
+</div>
+
+<div class="email-note">
+    <p style="margin: 0 0 8px 0; font-weight: 600;">So melden Sie sich an:</p>
+    <ol style="margin: 0; padding-left: 20px;">
+        <li>Kehren Sie zur 2FA-Anmeldeseite zurück.</li>
+        <li>Geben Sie diesen Code im Code-Feld ein.</li>
+        <li>Klicken Sie auf „Anmelden“.</li>
+    </ol>
+</div>
+
+<div class="email-security">
+    <strong>Sicherheitshinweis:</strong> Dieser Code ist 5 Minuten gültig und kann nur einmal verwendet werden. Falls Sie diese Anfrage nicht gestellt haben, ändern Sie bitte umgehend Ihr Passwort und wenden Sie sich an einen Administrator.
+</div>
+
+<p style="margin-bottom: 0;">Mit freundlichen Grüßen,<br>Ihr {{ app_name or 'Prismateams' }} Team</p>
+{% endblock %}

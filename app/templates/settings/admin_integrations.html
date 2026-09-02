@@ -11,147 +11,97 @@
     </div>
 
     <form method="POST" class="settings-admin-email-form">
-        <section class="settings-admin-email-card mb-3">
-            <div class="settings-admin-email-card-head">
-                <h2 class="settings-admin-email-section-title mb-0">
-                    <i class="bi bi-google me-1" aria-hidden="true"></i>
-                    {{ _('settings.integrations.google_title') }}
-                </h2>
-                <button type="button"
-                        class="settings-admin-email-info"
-                        data-bs-toggle="modal"
-                        data-bs-target="#googleOAuthHelpModal"
-                        aria-label="{{ _('settings.integrations.google_help_open') }}"
-                        title="{{ _('settings.integrations.google_help_open') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
-            </div>
-            <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.google_help') }}</p>
-            <div class="settings-admin-email-fields">
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="google_client_id">{{ _('settings.integrations.client_id') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="google_client_id" name="google_client_id"
-                           value="{{ google.client_id }}" autocomplete="off" spellcheck="false">
-                    <div class="form-text">{{ _('settings.integrations.google_client_id_help') }}</div>
+        <div class="settings-integrations-grid">
+            <section class="settings-admin-email-card">
+                <div class="settings-admin-email-card-head">
+                    <h2 class="settings-admin-email-section-title mb-0">
+                        <i class="bi bi-google me-1" aria-hidden="true"></i>
+                        {{ _('settings.integrations.google_title') }}
+                    </h2>
+                    <button type="button"
+                            class="settings-admin-email-info"
+                            data-bs-toggle="modal"
+                            data-bs-target="#googleOAuthHelpModal"
+                            aria-label="{{ _('settings.integrations.google_help_open') }}"
+                            title="{{ _('settings.integrations.google_help_open') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
                 </div>
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="google_client_secret">{{ _('settings.integrations.client_secret') }}</label>
-                    <input type="password" class="form-control settings-admin-email-input" id="google_client_secret" name="google_client_secret"
-                           value="{{ google.client_secret }}" autocomplete="new-password">
-                </div>
-                <div class="settings-admin-email-field mailbox-wizard-field--full">
-                    <label class="form-label" for="google_api_key">{{ _('settings.integrations.api_key') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="google_api_key" name="google_api_key"
-                           value="{{ google.api_key }}" autocomplete="off" spellcheck="false">
-                    <div class="form-text">{{ _('settings.integrations.api_key_help') }}</div>
-                </div>
-            </div>
-            <div class="form-text mt-2">
-                {{ _('settings.integrations.redirect_hint', url=google_redirect) }}
-            </div>
-        </section>
-
-        <section class="settings-admin-email-card mb-3">
-            <h2 class="settings-admin-email-section-title">
-                <i class="bi bi-microsoft me-1" aria-hidden="true"></i>
-                {{ _('settings.integrations.microsoft_title') }}
-            </h2>
-            <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.microsoft_help') }}</p>
-            <div class="settings-admin-email-fields">
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="microsoft_client_id">{{ _('settings.integrations.client_id') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="microsoft_client_id" name="microsoft_client_id"
-                           value="{{ microsoft.client_id }}" autocomplete="off">
-                </div>
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="microsoft_client_secret">{{ _('settings.integrations.client_secret') }}</label>
-                    <input type="password" class="form-control settings-admin-email-input" id="microsoft_client_secret" name="microsoft_client_secret"
-                           value="{{ microsoft.client_secret }}" autocomplete="new-password">
-                </div>
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="microsoft_tenant">{{ _('settings.integrations.tenant') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="microsoft_tenant" name="microsoft_tenant"
-                           value="{{ microsoft.tenant }}" placeholder="common" autocomplete="off">
-                    <div class="form-text">{{ _('settings.integrations.tenant_help') }}</div>
-                </div>
-            </div>
-            <div class="form-text mt-2">
-                {{ _('settings.integrations.redirect_hint', url=microsoft_redirect) }}
-            </div>
-        </section>
-
-        <section class="settings-admin-email-card mb-3" id="spotify" aria-labelledby="integrations-spotify-title">
-            <div class="settings-admin-email-card-head">
-                <h2 id="integrations-spotify-title" class="settings-admin-email-section-title mb-0">
-                    <i class="bi bi-spotify me-1" aria-hidden="true"></i>
-                    {{ _('music.admin.spotify.title') }}
-                </h2>
-            </div>
-            <div class="alert alert-permanent portal-msg portal-msg--{% if spotify_connected %}success{% else %}warning{% endif %} settings-admin-music-msg mb-3" role="status">
-                <div class="portal-msg__body">
-                    <div class="portal-msg__content">
-                        <p class="portal-msg__text mb-2">
-                            {% if spotify_connected %}{{ _('music.admin.spotify.connected') }}{% else %}{{ _('music.admin.spotify.not_connected') }}{% endif %}
-                        </p>
-                        <div class="portal-msg__actions">
-                            {% if spotify_connected %}
-                            <a href="{{ url_for('music.disconnect', provider='spotify') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">{{ _('music.admin.spotify.disconnect') }}</a>
-                            {% else %}
-                            <a href="{{ url_for('music.connect_spotify') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--primary">{{ _('music.admin.spotify.connect') }}</a>
-                            {% endif %}
-                        </div>
+                <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.google_help') }}</p>
+                <div class="settings-admin-email-fields settings-admin-email-fields--stack">
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="google_client_id">{{ _('settings.integrations.client_id') }}</label>
+                        <input type="text" class="form-control settings-admin-email-input" id="google_client_id" name="google_client_id"
+                               value="{{ google.client_id }}" autocomplete="off" spellcheck="false">
+                        <div class="form-text">{{ _('settings.integrations.google_client_id_help') }}</div>
+                    </div>
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="google_client_secret">{{ _('settings.integrations.client_secret') }}</label>
+                        <input type="password" class="form-control settings-admin-email-input" id="google_client_secret" name="google_client_secret"
+                               value="{{ google.client_secret }}" autocomplete="new-password">
+                    </div>
+                    <div class="settings-admin-email-field mailbox-wizard-field--full">
+                        <label class="form-label" for="google_api_key">{{ _('settings.integrations.api_key') }}</label>
+                        <input type="text" class="form-control settings-admin-email-input" id="google_api_key" name="google_api_key"
+                               value="{{ google.api_key }}" autocomplete="off" spellcheck="false">
+                        <div class="form-text">{{ _('settings.integrations.api_key_help') }}</div>
                     </div>
                 </div>
-            </div>
-            <div class="settings-admin-email-fields">
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="spotify_client_id">{{ _('music.admin.spotify.client_id') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="spotify_client_id" name="spotify_client_id" value="{{ spotify_client_id }}" autocomplete="off">
+                <div class="form-text mt-2">
+                    {{ _('settings.integrations.redirect_hint', url=google_redirect) }}
                 </div>
-                <div class="settings-admin-email-field">
-                    <label class="form-label" for="spotify_client_secret">{{ _('music.admin.spotify.client_secret') }}</label>
-                    <input type="password" class="form-control settings-admin-email-input" id="spotify_client_secret" name="spotify_client_secret" value="{{ spotify_client_secret }}" autocomplete="new-password">
-                </div>
-            </div>
-            <p class="form-text mt-2">{{ _('settings.integrations.redirect_hint', url=spotify_redirect_uri) }}</p>
-        </section>
+            </section>
 
-        <section class="settings-admin-email-card mb-3" id="youtube" aria-labelledby="integrations-youtube-title">
-            <div class="settings-admin-email-card-head">
-                <h2 id="integrations-youtube-title" class="settings-admin-email-section-title mb-0">
-                    <i class="bi bi-youtube me-1" aria-hidden="true"></i>
-                    {{ _('music.admin.youtube.title') }}
+            <section class="settings-admin-email-card">
+                <h2 class="settings-admin-email-section-title">
+                    <i class="bi bi-microsoft me-1" aria-hidden="true"></i>
+                    {{ _('settings.integrations.microsoft_title') }}
                 </h2>
-            </div>
-            {% if youtube_connected %}
-            <div class="alert alert-permanent portal-msg portal-msg--success mb-3" role="status">
-                <div class="portal-msg__body">
-                    <div class="portal-msg__content">
-                        <p class="portal-msg__text mb-2">{{ _('music.admin.youtube.connected') }}</p>
-                        <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">{{ _('music.admin.youtube.disconnect') }}</a>
+                <p class="settings-admin-email-subtitle mb-3">{{ _('settings.integrations.microsoft_help') }}</p>
+                <div class="settings-admin-email-fields settings-admin-email-fields--stack">
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="microsoft_client_id">{{ _('settings.integrations.client_id') }}</label>
+                        <input type="text" class="form-control settings-admin-email-input" id="microsoft_client_id" name="microsoft_client_id"
+                               value="{{ microsoft.client_id }}" autocomplete="off">
+                    </div>
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="microsoft_client_secret">{{ _('settings.integrations.client_secret') }}</label>
+                        <input type="password" class="form-control settings-admin-email-input" id="microsoft_client_secret" name="microsoft_client_secret"
+                               value="{{ microsoft.client_secret }}" autocomplete="new-password">
+                    </div>
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="microsoft_tenant">{{ _('settings.integrations.tenant') }}</label>
+                        <input type="text" class="form-control settings-admin-email-input" id="microsoft_tenant" name="microsoft_tenant"
+                               value="{{ microsoft.tenant }}" placeholder="common" autocomplete="off">
+                        <div class="form-text">{{ _('settings.integrations.tenant_help') }}</div>
                     </div>
                 </div>
-            </div>
-            {% else %}
-            <p class="settings-admin-email-subtitle mb-2">{{ _('music.admin.youtube.use_google_keys') }}</p>
-            <a href="{{ url_for('music.connect_youtube') }}" class="btn btn-sm btn-outline-primary mb-2">{{ _('music.admin.youtube.connect') }}</a>
-            {% endif %}
-            <p class="form-text mb-0">{{ _('settings.integrations.redirect_hint', url=youtube_redirect_uri) }}</p>
-        </section>
+                <div class="form-text mt-2">
+                    {{ _('settings.integrations.redirect_hint', url=microsoft_redirect) }}
+                </div>
+            </section>
 
-        <section class="settings-admin-email-card mb-3" id="deezer" aria-labelledby="integrations-deezer-title">
-            <div class="settings-admin-email-card-head">
-                <h2 id="integrations-deezer-title" class="settings-admin-email-section-title mb-0">
-                    <i class="bi bi-music-note-list me-1" aria-hidden="true"></i>
-                    {{ _('music.admin.deezer.title') }}
-                </h2>
-            </div>
-            <div class="settings-admin-email-field">
-                <label class="form-label" for="deezer_app_id">{{ _('music.admin.deezer.app_id_label') }}</label>
-                <input type="text" class="form-control settings-admin-email-input" id="deezer_app_id" name="deezer_app_id" value="{{ deezer_app_id }}" autocomplete="off">
-                <div class="form-text">{{ _('music.admin.deezer.app_id_help', link='https://developers.deezer.com/myapps') | safe }}</div>
-            </div>
-        </section>
+            <section class="settings-admin-email-card" id="spotify" aria-labelledby="integrations-spotify-title">
+                <div class="settings-admin-email-card-head">
+                    <h2 id="integrations-spotify-title" class="settings-admin-email-section-title mb-0">
+                        <i class="bi bi-spotify me-1" aria-hidden="true"></i>
+                        {{ _('music.admin.spotify.title') }}
+                    </h2>
+                </div>
+                <p class="settings-admin-email-subtitle mb-3">{{ _('music.admin.spotify.credentials_hint') }}</p>
+                <div class="settings-admin-email-fields settings-admin-email-fields--stack">
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="spotify_client_id">{{ _('music.admin.spotify.client_id') }}</label>
+                        <input type="text" class="form-control settings-admin-email-input" id="spotify_client_id" name="spotify_client_id" value="{{ spotify_client_id }}" autocomplete="off">
+                    </div>
+                    <div class="settings-admin-email-field">
+                        <label class="form-label" for="spotify_client_secret">{{ _('music.admin.spotify.client_secret') }}</label>
+                        <input type="password" class="form-control settings-admin-email-input" id="spotify_client_secret" name="spotify_client_secret" value="{{ spotify_client_secret }}" autocomplete="new-password">
+                    </div>
+                </div>
+                <p class="form-text mt-2 mb-0">{{ _('settings.integrations.redirect_hint', url=spotify_redirect_uri) }}</p>
+            </section>
+        </div>
 
         <button type="submit" class="btn btn-accent settings-admin-email-submit">
             <i class="bi bi-save" aria-hidden="true"></i>
@@ -215,7 +165,6 @@
         document.body.appendChild(el);
     }
     el.addEventListener('show.bs.modal', function () {
-        // Backdrop-Klasse setzen, sobald Bootstrap ihn erzeugt
         var tries = 0;
         var timer = setInterval(function () {
             var bds = document.querySelectorAll('.modal-backdrop');

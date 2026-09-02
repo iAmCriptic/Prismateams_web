@@ -734,6 +734,63 @@ def verify_password_reset_code(user, code):
         return False
     return True
 
+
+def send_2fa_recovery_email(user):
+    """Sendet einen einmaligen 2FA-Wiederherstellungscode (5 Minuten gültig)."""
+    try:
+        recovery_code = generate_confirmation_code()
+        expires_at = portal_now_naive() + timedelta(minutes=5)
+        user.totp_recovery_code = recovery_code
+        user.totp_recovery_code_expires = expires_at
+        from app import db
+        db.session.commit()
+
+        if not _mail_configured():
+            logging.warning(
+                'E-Mail-Konfiguration unvollständig. 2FA-Recovery-E-Mail an %s nicht gesendet.',
+                user.email,
+            )
+            return False
+
+        portal_name = _portal_name()
+        plain_text = (
+            f'2FA-Wiederherstellungscode: {recovery_code}\n\n'
+            'Geben Sie diesen Code auf der 2FA-Anmeldeseite ein. Der Code ist 5 Minuten gültig.'
+        )
+        ok = render_and_send_portal_email(
+            subject=f'2FA-Wiederherstellung - {portal_name}',
+            recipients=[user.email],
+            template_name='emails/totp_recovery.html',
+            body_text=plain_text,
+            user=user,
+            recovery_code=recovery_code,
+        )
+        if not ok:
+            logging.error('2FA recovery email send returned False for %s', user.email)
+            return False
+        logging.info('2FA recovery email sent to %s', user.email)
+        return True
+    except Exception as e:
+        logging.error('Failed to send 2FA recovery email to %s: %s', user.email, e)
+        return False
+
+
+def verify_and_consume_2fa_recovery_code(user, code):
+    """Prüft den 2FA-Wiederherstellungscode und invalidiert ihn bei Erfolg."""
+    if not code or not user.totp_recovery_code or not user.totp_recovery_code_expires:
+        return False
+    if portal_now_naive() > user.totp_recovery_code_expires:
+        return False
+    if user.totp_recovery_code != code.strip():
+        return False
+
+    user.totp_recovery_code = None
+    user.totp_recovery_code_expires = None
+    from app import db
+    db.session.commit()
+    return True
+
+
 def _checkout_recipient_email(checkout):
     """Empfänger für Inventar-Mails: contact_email oder Portal-User-E-Mail."""
     email = (getattr(checkout, 'contact_email', None) or '').strip()

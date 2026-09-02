@@ -19,6 +19,30 @@
         return mode;
     }
 
+    function modeChipHtml(mode) {
+        const label = modeLabel(mode);
+        let cls = 'files-share-chip--view';
+        let icon = 'bi-eye';
+        if (mode === 'edit') {
+            cls = 'files-share-chip--edit';
+            icon = 'bi-pencil';
+        } else if (mode === 'dropbox') {
+            cls = 'files-share-chip--dropbox';
+            icon = 'bi-mailbox';
+        }
+        return `<span class="files-share-chip ${cls}"><i class="bi ${icon}" aria-hidden="true"></i>${escapeHtml(label)}</span>`;
+    }
+
+    function shareStatusChipHtml(link) {
+        if (!link.enabled) {
+            return '<span class="files-share-status files-share-status--off">aus</span>';
+        }
+        if (link.is_expired) {
+            return '<span class="files-share-status files-share-status--expired">abgelaufen</span>';
+        }
+        return '<span class="files-share-status files-share-status--active">aktiv</span>';
+    }
+
     const MAX_UPLOAD_BYTES = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
     const UPLOAD_HISTORY_KEY = 'filesUploadHistoryV1';
 
@@ -879,17 +903,16 @@
 
         const rows = links.map(link => {
             const url = link.share_url || '';
-            const status = !link.enabled ? 'aus' : (link.is_expired ? 'abgelaufen' : 'aktiv');
             return `
                 <tr data-share-id="${link.id}">
-                    <td><span class="badge text-bg-secondary">${escapeHtml(modeLabel(link.mode))}</span></td>
+                    <td>${modeChipHtml(link.mode)}</td>
                     <td>${escapeHtml(link.label || '–')}</td>
                     <td>
                         <input type="text" class="form-control form-control-sm files-share-link-input" value="${escapeHtml(url)}" readonly title="${escapeHtml(url)}">
                     </td>
                     <td>${link.has_password ? 'Ja' : 'Nein'}</td>
                     <td>${escapeHtml(formatExpires(link.expires_at))}</td>
-                    <td>${status}</td>
+                    <td>${shareStatusChipHtml(link)}</td>
                     <td>${shareIconActionsHtml(formAction, link)}</td>
                 </tr>`;
         }).join('');
@@ -900,10 +923,10 @@
                 <div class="files-share-card">
                     <div class="d-flex justify-content-between align-items-start gap-2">
                         <div>
-                            <span class="badge text-bg-secondary">${escapeHtml(modeLabel(link.mode))}</span>
+                            ${modeChipHtml(link.mode)}
                             <strong class="ms-1">${escapeHtml(link.label || modeLabel(link.mode))}</strong>
                         </div>
-                        <small class="text-muted">${!link.enabled ? 'aus' : (link.is_expired ? 'abgelaufen' : 'aktiv')}</small>
+                        ${shareStatusChipHtml(link)}
                     </div>
                     <input type="text" class="form-control form-control-sm files-share-link-input mt-2" value="${escapeHtml(url)}" readonly title="${escapeHtml(url)}">
                     <div class="small text-muted mt-2">Passwort: ${link.has_password ? 'Ja' : 'Nein'} · Ablauf: ${escapeHtml(formatExpires(link.expires_at))}</div>
@@ -912,7 +935,7 @@
         }).join('');
 
         const addForm = modeOptions.length ? `
-            <hr>
+            <div class="files-share-add-section">
             <h6 class="mb-2">${L.add_link || 'Neuen Link anlegen'}</h6>
             <form method="POST" action="${formAction}" class="row g-2 align-items-end files-share-add-form" id="shareAddLinkForm">
                 <div class="col-md-3">
@@ -935,7 +958,8 @@
                     <button type="submit" name="action" value="add_link" class="btn btn-accent files-pill-btn"><i class="bi bi-plus-lg"></i> Link erstellen</button>
                     <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger files-pill-btn" formnovalidate>Alle deaktivieren</button>
                 </div>
-            </form>` : `<p class="text-muted">Keine Link-Typen aktiviert.</p>`;
+            </form>
+            </div>` : `<p class="text-muted">Keine Link-Typen aktiviert.</p>`;
 
         return `
             <div class="files-share-mgmt">

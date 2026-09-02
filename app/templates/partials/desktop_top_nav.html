@@ -35,7 +35,7 @@
         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">0</span>
     </button>
 
-    <a href="{{ url_for('settings.index') }}" class="top-navbar-icon-btn{% if _current_key == 'settings' %} is-open{% endif %}" aria-label="{{ _('layout.nav.settings') }}" title="{{ _('layout.nav.settings') }}">
+    <a href="{{ url_for('settings.index') }}" class="top-navbar-icon-btn{% if _current_key == 'settings' %} is-open{% endif %}" data-portal-onboarding="settings" aria-label="{{ _('layout.nav.settings') }}" title="{{ _('layout.nav.settings') }}">
         <i class="bi bi-gear"></i>
     </a>
 
@@ -54,6 +54,7 @@
             class="top-navbar-icon-btn top-navbar-avatar-btn"
             id="accountMenuBtn"
             data-account-toggle
+            data-portal-onboarding="settings-mobile"
             aria-label="{{ _('layout.account.open') }}"
             aria-expanded="false"
             aria-haspopup="true"

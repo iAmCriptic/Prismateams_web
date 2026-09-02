@@ -652,6 +652,69 @@ def iter_youtube_proxy_response(requests_response):
         requests_response.close()
 
 
+YOUTUBE_TV_OAUTH_UA = 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version'
+YOUTUBE_TV_OAUTH_TV_SCRIPT_RE = re.compile(
+    r'<script\s+id="base-js"\s+src="([^"]+)"[^>]*></script>',
+)
+YOUTUBE_TV_OAUTH_CLIENT_IDENTITY_RE = re.compile(
+    r'clientId:"(?P<client_id>[^"]+)",[^"]*?:"(?P<client_secret>[^"]+)"',
+)
+_YT_TV_OAUTH_CACHE = {'expires_at': 0.0, 'client': None}
+YOUTUBE_TV_OAUTH_CACHE_TTL_SECONDS = 3600
+
+
+def fetch_youtube_tv_oauth_client(cache_ttl_seconds=YOUTUBE_TV_OAUTH_CACHE_TTL_SECONDS):
+    """
+    Fetch YouTube TV OAuth client credentials (same source as youtubei.js getClientID).
+
+    Server-side fetch avoids browser CORS/proxy issues that cause
+    "Could not obtain client ID" in the client module.
+    """
+    import time
+    import requests
+
+    now = time.time()
+    cached = _YT_TV_OAUTH_CACHE.get('client')
+    if cached and _YT_TV_OAUTH_CACHE.get('expires_at', 0) > now:
+        return dict(cached)
+
+    headers = {
+        'User-Agent': YOUTUBE_TV_OAUTH_UA,
+        'Referer': 'https://www.youtube.com/tv',
+        'Accept-Language': 'en-US',
+    }
+    response = requests.get('https://www.youtube.com/tv', headers=headers, timeout=20)
+    response.raise_for_status()
+    script_match = YOUTUBE_TV_OAUTH_TV_SCRIPT_RE.search(response.text)
+    if not script_match:
+        raise RuntimeError('YouTube TV script URL not found')
+
+    script_path = script_match.group(1)
+    if script_path.startswith('http'):
+        script_url = script_path
+    else:
+        script_url = f'https://www.youtube.com{script_path}'
+
+    script_response = requests.get(
+        script_url,
+        headers={'User-Agent': YOUTUBE_TV_OAUTH_UA},
+        timeout=30,
+    )
+    script_response.raise_for_status()
+    identity = YOUTUBE_TV_OAUTH_CLIENT_IDENTITY_RE.search(script_response.text)
+    if not identity:
+        raise RuntimeError('YouTube TV OAuth client credentials not found in script')
+
+    client = {
+        'client_id': identity.group('client_id'),
+        'client_secret': identity.group('client_secret'),
+    }
+    _YT_TV_OAUTH_CACHE['client'] = client
+    _YT_TV_OAUTH_CACHE['expires_at'] = now + cache_ttl_seconds
+    logger.info('YouTube TV OAuth client credentials refreshed')
+    return dict(client)
+
+
 YOUTUBEI_JS_VERSION = '18.0.0'
 YOUTUBEI_JS_URL = f'https://unpkg.com/youtubei.js@{YOUTUBEI_JS_VERSION}/bundle/browser.js'
 YOUTUBEI_JS_MIN_BYTES = 100_000

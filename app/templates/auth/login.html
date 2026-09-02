@@ -1,99 +1,99 @@
 {% set force_light_theme = true %}
 {% extends "base.html" %}
+{% from 'auth/_auth_shell.html' import auth_shell with context %}
 
 {% block title %}{{ _('auth.login.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container auth-login">
-    <div class="auth-card">
-        <div class="auth-panel">
-            <div class="auth-panel-body">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-shield-lock text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-2">{{ _('auth.login.title') }}</h5>
-                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.login.subtitle') }}</p>
+{% call auth_shell(_('auth.login.title'), _('auth.login.subtitle'), body_class='auth-login', show_legal=true, brand_icon='bi-shield-lock') %}
+<form method="POST" id="loginForm">
+    {% if request.args.get('next') %}
+    <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+    {% endif %}
+    <div class="mb-3">
+        <label for="email" class="form-label">E-Mail oder Benutzername</label>
+        <input type="text" class="form-control" id="email" name="email" autocomplete="username webauthn" required autofocus>
+    </div>
 
-                <form method="POST">
-                    {% if request.args.get('next') %}
-                    <input type="hidden" name="next" value="{{ request.args.get('next') }}">
-                    {% endif %}
-                    <div class="mb-3">
-                        <label for="email" class="form-label">E-Mail oder Benutzername</label>
-                        <input type="text" class="form-control" id="email" name="email" autocomplete="username" required autofocus>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="password" class="form-label">{{ _('auth.login.password') }}</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="password" name="password" required>
-                            <button class="btn btn-outline-secondary password-toggle" type="button">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                        <label class="form-check-label" for="remember">
-                            {{ _('auth.login.remember_me') }}
-                        </label>
-                    </div>
-
-                    {% set bot_context = 'login' %}
-                    {% include 'auth/_bot_protection.html' %}
-
-                    <div class="auth-login-actions mb-3{% if google_login_ready|default(false) %} auth-login-actions--with-google{% endif %}">
-                        {% if google_login_ready|default(false) %}
-                        <a href="{{ url_for('auth.google_login_start', next=request.args.get('next')) }}"
-                           class="btn btn-outline-primary auth-google-btn"
-                           aria-label="{{ _('auth.google.login_with_aria') }}">
-                            <span>{{ _('auth.google.login_with') }}</span>
-                            <span class="auth-google-logo" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
-                                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
-                                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
-                                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z"/>
-                                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
-                                </svg>
-                            </span>
-                        </a>
-                        {% endif %}
-                        <button type="submit" class="btn btn-accent">{{ _('auth.login.submit') }}</button>
-                    </div>
-                </form>
-
-                <div class="text-center mb-3">
-                    <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">
-                        {{ _('auth.login.forgot_password') }}
-                    </a>
-                </div>
-
-                <hr class="my-4">
-
-                <p class="text-center mb-0">
-                    {{ _('auth.login.register_link_prefix') }}
-                    <a href="{{ url_for('auth.register') }}">{{ _('auth.login.register_link_cta') }}</a>
-                </p>
-            </div>
+    <div class="mb-3">
+        <label for="password" class="form-label">{{ _('auth.login.password') }}</label>
+        <div class="input-group">
+            <input type="password" class="form-control" id="password" name="password" required>
+            <button class="btn btn-outline-secondary password-toggle" type="button">
+                <i class="bi bi-eye"></i>
+            </button>
         </div>
     </div>
 
-    <nav class="auth-legal-links" aria-label="{{ _('auth.legal.nav_label') }}">
-        <a href="{{ url_for('auth.terms') }}">{{ _('auth.legal.terms') }}</a>
-        <span class="auth-legal-sep" aria-hidden="true">·</span>
-        <a href="{{ url_for('auth.privacy') }}">{{ _('auth.legal.privacy') }}</a>
-        <span class="auth-legal-sep" aria-hidden="true">·</span>
-        <a href="{{ url_for('auth.imprint') }}">{{ _('auth.legal.imprint') }}</a>
-    </nav>
+    <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+        <label class="form-check-label" for="remember">
+            {{ _('auth.login.remember_me') }}
+        </label>
+    </div>
+
+    {% set bot_context = 'login' %}
+    {% include 'auth/_bot_protection.html' %}
+
+    <div class="auth-login-actions mb-3{% if google_login_ready|default(false) %} auth-login-actions--with-google{% endif %}">
+        {% if passkeys_localhost_url|default(false) %}
+        <div class="alert alert-permanent portal-msg portal-msg--warning mb-3" role="status">
+            <div class="portal-msg__body">
+                <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portal-msg__content">
+                    <p class="portal-msg__text">{{ _('auth.passkey.use_localhost') }}</p>
+                    <div class="portal-msg__actions">
+                        <a href="{{ passkeys_localhost_url }}" class="btn btn-sm portal-msg__btn portal-msg__btn--primary">{{ _('auth.passkey.open_localhost') }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if google_login_ready|default(false) %}
+        <a href="{{ url_for('auth.google_login_start', next=request.args.get('next')) }}"
+           class="btn btn-outline-primary auth-google-btn"
+           aria-label="{{ _('auth.google.login_with_aria') }}">
+            <span>{{ _('auth.google.login_with') }}</span>
+            <span class="auth-google-logo" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
+                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
+                </svg>
+            </span>
+        </a>
+        {% endif %}
+        <button type="submit" class="btn btn-accent auth-login-submit-btn">{{ _('auth.login.submit') }}</button>
+    </div>
+</form>
+
+<div class="text-center mb-3">
+    <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">
+        {{ _('auth.login.forgot_password') }}
+    </a>
 </div>
 
-{% include 'auth/_auth_bg.html' %}
+<hr class="my-4">
+
+<p class="text-center mb-0">
+    {{ _('auth.login.register_link_prefix') }}
+    <a href="{{ url_for('auth.register') }}" class="auth-page-switch" data-auth-transition="to-register">{{ _('auth.login.register_link_cta') }}</a>
+</p>
+{% endcall %}
+
+{% if passkeys_supported|default(false) %}
+<script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.PrismateamsPasskeys) {
+        window.PrismateamsPasskeys.initLogin({
+            optionsUrl: {{ url_for('auth.passkey_login_options')|tojson }},
+            verifyUrl: {{ url_for('auth.passkey_login_verify')|tojson }},
+            conditional: true,
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

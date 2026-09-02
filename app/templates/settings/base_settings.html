@@ -90,6 +90,23 @@ document.querySelectorAll('form').forEach(function (form) {
             if (instance) instance.hide();
         });
     });
+
+    function bindSidebarWheel(sidebar) {
+        if (!sidebar || sidebar.dataset.settingsWheelBound === '1') return;
+        var scrollEl = sidebar.querySelector('.settings-sidebar-scroll');
+        if (!scrollEl) return;
+        sidebar.dataset.settingsWheelBound = '1';
+        sidebar.addEventListener('wheel', function (e) {
+            if (e.target.closest('.mod-sidebar-brand')) return;
+            if (scrollEl.scrollHeight <= scrollEl.clientHeight) return;
+            e.preventDefault();
+            scrollEl.scrollTop += e.deltaY;
+        }, { passive: false });
+    }
+
+    bindSidebarWheel(document.querySelector('.settings-shell .mod-sidebar'));
+    var mobileNav = document.getElementById('settingsMobileNav');
+    if (mobileNav) bindSidebarWheel(mobileNav);
 })();
 </script>
 {% if settings_search_catalog_json is defined %}

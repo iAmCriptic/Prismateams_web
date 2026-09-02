@@ -37,6 +37,7 @@
 {% block content %}
 {% if not current_user.is_guest %}
 {% include 'dashboard/_whats_new_modal.html' %}
+{% include 'dashboard/_onboarding_overlay.html' %}
 {% endif %}
 
 <div class="dashboard-shell dashboard-page dashboard-page--live"
@@ -85,9 +86,13 @@
                     <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
                 </span>
             </button>
-            <span class="dashboard-action-btn dashboard-action-btn--placeholder"
-                  aria-hidden="true"
-                  title="{{ _('dashboard.action_bar.placeholder') }}"></span>
+            <button type="button"
+                    class="dashboard-action-btn dashboard-action-btn--tour"
+                    id="portalOnboardingBtn"
+                    aria-label="{{ _('dashboard.onboarding.button_aria') }}">
+                <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                <span>{{ _('dashboard.onboarding.button_label') }}</span>
+            </button>
             {% endif %}
         </div>
 
@@ -147,6 +152,37 @@ window.DASHBOARD_BOOT = {
 };
 </script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if not current_user.is_guest %}
+<script>
+window.PORTAL_ONBOARDING_BOOT = {
+    autoOpen: {{ 'true' if show_portal_onboarding|default(false) else 'false' }},
+    alreadyCompleted: {{ 'true' if not (show_portal_onboarding|default(false)) else 'false' }},
+    completeUrl: {{ url_for('dashboard.api_onboarding_complete')|tojson }},
+    progressTemplate: {{ _('dashboard.onboarding.progress', current='{current}', total='{total}')|tojson }},
+    steps: [
+        {
+            target: '[data-portal-onboarding="settings"]',
+            targetMobile: '[data-portal-onboarding="settings-mobile"]',
+            title: {{ _('dashboard.onboarding.steps.settings.title')|tojson }},
+            text: {{ _('dashboard.onboarding.steps.settings.text')|tojson }}
+        },
+        {
+            target: '#moduleLauncherBtn',
+            targetMobile: '.mobile-nav-action-btn[data-launcher-toggle]',
+            title: {{ _('dashboard.onboarding.steps.modules.title')|tojson }},
+            text: {{ (_('dashboard.onboarding.steps.modules.text_admin') if current_user.is_admin else _('dashboard.onboarding.steps.modules.text'))|tojson }}
+        },
+        {
+            target: '.dashboard-edit-bar',
+            targetMobile: '.dashboard-edit-bar',
+            title: {{ _('dashboard.onboarding.steps.dashboard.title')|tojson }},
+            text: {{ _('dashboard.onboarding.steps.dashboard.text')|tojson }}
+        }
+    ]
+};
+</script>
+<script src="{{ url_for('static', filename='js/dashboard_onboarding.js') }}"></script>
+{% endif %}
 <script>
 const DASHBOARD_I18N = window.DASHBOARD_I18N || {};
 const dashboardCredentialCache = {};

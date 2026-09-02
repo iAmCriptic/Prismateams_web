@@ -94,15 +94,34 @@ def generate_totp_secret():
     return pyotp.random_base32()
 
 
+def get_totp_issuer_name() -> str:
+    """Portalname für TOTP-Issuer (Authenticator-App-Anzeige)."""
+    issuer = None
+    try:
+        from app.models.settings import SystemSettings
+        row = SystemSettings.query.filter_by(key='portal_name').first()
+        if row and row.value and str(row.value).strip():
+            issuer = str(row.value).strip()
+    except Exception:
+        pass
+
+    if not issuer:
+        try:
+            issuer = current_app.config.get('APP_NAME', 'Prismateams')
+        except Exception:
+            issuer = 'Prismateams'
+
+    # Kompatibilität mit älteren Authenticator-Apps
+    if len(issuer) > 32:
+        issuer = issuer[:32]
+    return issuer
+
+
 def get_totp_uri(user_email, secret, issuer_name=None):
     """Erstellt eine TOTP-URI für QR-Code-Generierung."""
     if not issuer_name:
-        try:
-            from flask import current_app
-            issuer_name = current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            issuer_name = 'Prismateams'
-    
+        issuer_name = get_totp_issuer_name()
+
     totp = pyotp.TOTP(secret)
     return totp.provisioning_uri(
         name=user_email,
@@ -110,25 +129,56 @@ def get_totp_uri(user_email, secret, issuer_name=None):
     )
 
 
-def generate_qr_code(uri):
+def _overlay_logo_on_qr(qr_img, logo_path):
+    """Zentriertes Logo auf dem QR-Code (nur visuelle Darstellung in der UI)."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return qr_img
+
+    if not logo_path or not os.path.isfile(logo_path):
+        return qr_img
+
+    try:
+        logo = Image.open(logo_path).convert('RGBA')
+        qr_width, qr_height = qr_img.size
+        logo_size = int(min(qr_width, qr_height) * 0.22)
+        logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+
+        bg_size = logo_size + 8
+        bg = Image.new('RGBA', (bg_size, bg_size), (255, 255, 255, 255))
+        offset = (bg_size - logo_size) // 2
+        bg.paste(logo, (offset, offset), logo)
+
+        pos = ((qr_width - bg_size) // 2, (qr_height - bg_size) // 2)
+        if qr_img.mode != 'RGBA':
+            qr_img = qr_img.convert('RGBA')
+        qr_img.paste(bg, pos, bg)
+        return qr_img.convert('RGB')
+    except Exception:
+        return qr_img
+
+
+def generate_qr_code(uri, logo_path=None):
     """Generiert einen QR-Code aus einer TOTP-URI."""
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=qrcode.constants.ERROR_CORRECT_H if logo_path else qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
         border=4,
     )
     qr.add_data(uri)
     qr.make(fit=True)
-    
+
     img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Konvertiere zu Base64 für HTML-Einbettung
+    if logo_path:
+        img = _overlay_logo_on_qr(img, logo_path)
+
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
     buffer.seek(0)
     img_base64 = base64.b64encode(buffer.getvalue()).decode()
-    
+
     return f"data:image/png;base64,{img_base64}"
 
 

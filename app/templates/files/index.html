@@ -99,6 +99,40 @@
 </div>
 {% endmacro %}
 
+{% macro files_item_chips(folder=none, file=none) %}
+{% if folder and (folder.is_dropbox or folder.share_enabled) %}
+<div class="files-item-chips" onclick="event.stopPropagation()">
+    {% if folder.is_dropbox %}
+    <span class="files-item-chip files-item-chip--dropbox"><i class="bi bi-mailbox" aria-hidden="true"></i>{{ _('files.index.modals.share.mode_dropbox') }}</span>
+    {% endif %}
+    {% if folder.share_enabled %}
+    <span class="files-item-chip files-item-chip--share"><i class="bi bi-share" aria-hidden="true"></i>{{ _('files.index.nav.freigaben') }}</span>
+    {% endif %}
+</div>
+{% elif file and file.share_enabled %}
+<div class="files-item-chips" onclick="event.stopPropagation()">
+    <span class="files-item-chip files-item-chip--share"><i class="bi bi-share" aria-hidden="true"></i>{{ _('files.index.nav.freigaben') }}</span>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro files_list_chips(folder=none, file=none) %}
+{% if folder and (folder.is_dropbox or folder.share_enabled) %}
+<div class="files-list-chips">
+    {% if folder.is_dropbox %}
+    <span class="files-item-chip files-item-chip--dropbox"><i class="bi bi-mailbox" aria-hidden="true"></i>{{ _('files.index.modals.share.mode_dropbox') }}</span>
+    {% endif %}
+    {% if folder.share_enabled %}
+    <span class="files-item-chip files-item-chip--share"><i class="bi bi-share" aria-hidden="true"></i>{{ _('files.index.nav.freigaben') }}</span>
+    {% endif %}
+</div>
+{% elif file and file.share_enabled %}
+<div class="files-list-chips">
+    <span class="files-item-chip files-item-chip--share"><i class="bi bi-share" aria-hidden="true"></i>{{ _('files.index.nav.freigaben') }}</span>
+</div>
+{% endif %}
+{% endmacro %}
+
 <div class="files-shell {% if files_view %}files-shell--private{% endif %}">
 {% if files_view %}
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
@@ -256,7 +290,8 @@
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <div class="files-view-toggle" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
+            <div class="files-view-toggle" data-view="grid" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
+                <span class="files-view-toggle__indicator" aria-hidden="true"></span>
                 <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
                     <i class="bi bi-list"></i>
                 </button>
@@ -383,7 +418,8 @@
 <div id="filesContentMeta" hidden
      data-has-folders="{{ '1' if subfolders else '0' }}"
      data-has-files="{{ '1' if files else '0' }}"></div>
-<div id="gridViewContainer" style="display: none;">
+<div id="filesViewStage" class="files-view-stage" data-view="grid">
+<div id="gridViewContainer" class="files-view-pane files-view-pane--active">
     {% if not subfolders and not files %}
     <div class="mod-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
     {% endif %}
@@ -417,6 +453,7 @@
         {% for folder in subfolders %}
         <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
             <div class="card folder-item h-100 files-drop-target files-draggable-item position-relative" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
+                {{ files_item_chips(folder=folder) }}
                 {% if not folder.is_personal_root|default(false) %}
                 <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
                     <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="folder" data-item-id="{{ folder.id }}">
@@ -570,6 +607,7 @@
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
+                {{ files_item_chips(file=file) }}
                 <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
                     <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="file" data-item-id="{{ file.id }}">
                 </label>
@@ -740,6 +778,7 @@
     </div>
 </div>
 
+<div id="listViewWrapper" class="files-view-pane" style="display: none;">
 <!-- Inline Folder Creation (List View) -->
 <div id="inlineFolderCreateList" class="list-group mb-4" style="display: none;">
     <div class="list-group-item">
@@ -781,7 +820,7 @@
 </div>
 
 <!-- LIST VIEW (detailed table) -->
-<div id="listViewContainer" style="display: none;">
+<div id="listViewContainer">
     {% if not subfolders and not files %}
     <div class="mod-empty-state" id="filesEmptyStateList">{{ _('files.index.labels.nothing_present') }}</div>
     {% else %}
@@ -816,6 +855,7 @@
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="folder-{{ folder.id }}" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
                             <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="files-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
                         </a>
+                        {{ files_list_chips(folder=folder) }}
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else '—' }}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
@@ -878,6 +918,7 @@
                             {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="files-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
                         </a>
                         <span class="files-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
+                        {{ files_list_chips(file=file) }}
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
                     <td class="d-none d-md-table-cell"><span class="badge bg-secondary">v{{ file.version_number }}</span></td>
@@ -925,6 +966,8 @@
         </table>
     </div>
     {% endif %}
+</div>
+</div>
 </div>
 
 <div class="modal fade" id="uploadModal" tabindex="-1">
@@ -1163,6 +1206,7 @@
 }
 </style>
 
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script>
 const FILES_I18N = {{ current_translations.get('files', {}).get('index', {})|tojson }};
 const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
@@ -2060,33 +2104,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // View mode toggle
-    const listViewBtn = document.getElementById('listViewBtn');
-    const gridViewBtn = document.getElementById('gridViewBtn');
-    const listViewContainer = document.getElementById('listViewContainer');
-    const gridViewContainer = document.getElementById('gridViewContainer');
-    
     function isInlinePanelOpen(el) {
         return el && el.style.display !== 'none' && window.getComputedStyle(el).display !== 'none';
     }
 
-    if (listViewBtn && gridViewBtn) {
-        listViewBtn.addEventListener('click', function() {
-            // List View Container ANZEIGEN
-            if (listViewContainer) {
-                listViewContainer.style.display = 'block';
-            }
-            
-            // Grid View Container AUSBLENDEN
-            if (gridViewContainer) {
-                gridViewContainer.style.display = 'none';
-            }
-            
-            // Switch inline creation views
-            const inlineFolderGrid = document.getElementById('inlineFolderCreateGrid');
-            const inlineFolderList = document.getElementById('inlineFolderCreateList');
-            const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
-            const inlineFileList = document.getElementById('inlineFileCreateList');
-            
+    function switchInlineCreatePanels(mode) {
+        const inlineFolderGrid = document.getElementById('inlineFolderCreateGrid');
+        const inlineFolderList = document.getElementById('inlineFolderCreateList');
+        const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
+        const inlineFileList = document.getElementById('inlineFileCreateList');
+
+        if (mode === 'list') {
             if (isInlinePanelOpen(inlineFolderGrid)) {
                 inlineFolderGrid.style.display = 'none';
                 if (inlineFolderList) inlineFolderList.style.display = 'block';
@@ -2095,29 +2123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 inlineFileGrid.style.display = 'none';
                 if (inlineFileList) inlineFileList.style.display = 'block';
             }
-            
-            listViewBtn.classList.add('active', 'is-active');
-            gridViewBtn.classList.remove('active', 'is-active');
-            localStorage.setItem('filesViewMode', 'list');
-        });
-        
-        gridViewBtn.addEventListener('click', function() {
-            // Grid View Container ANZEIGEN - IMMER anzeigen, unabhängig von Ordnern oder Dateien!
-            if (gridViewContainer) {
-                gridViewContainer.style.display = 'block';
-            }
-            
-            // List View Container AUSBLENDEN
-            if (listViewContainer) {
-                listViewContainer.style.display = 'none';
-            }
-            
-            // Switch inline creation views
-            const inlineFolderGrid = document.getElementById('inlineFolderCreateGrid');
-            const inlineFolderList = document.getElementById('inlineFolderCreateList');
-            const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
-            const inlineFileList = document.getElementById('inlineFileCreateList');
-            
+        } else {
             if (inlineFolderList && inlineFolderList.style.display === 'block') {
                 inlineFolderList.style.display = 'none';
                 if (inlineFolderGrid) inlineFolderGrid.style.display = '';
@@ -2126,38 +2132,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 inlineFileList.style.display = 'none';
                 if (inlineFileGrid) inlineFileGrid.style.display = '';
             }
-            
-            gridViewBtn.classList.add('active', 'is-active');
-            listViewBtn.classList.remove('active', 'is-active');
-            localStorage.setItem('filesViewMode', 'grid');
-        });
-        
-        // Initialisiere Standard-Ansicht: Grid View ist Standard
-        const savedViewMode = localStorage.getItem('filesViewMode');
-        
-        if (savedViewMode === 'list') {
-            // List View aktivieren
-            if (listViewContainer) {
-                listViewContainer.style.display = 'block';
-            }
-            if (gridViewContainer) {
-                gridViewContainer.style.display = 'none';
-            }
-            // Buttons
-            listViewBtn.classList.add('active', 'is-active');
-            gridViewBtn.classList.remove('active', 'is-active');
-        } else {
-            // Grid View ist Standard - IMMER anzeigen, unabhängig von Ordnern oder Dateien!
-            if (gridViewContainer) {
-                gridViewContainer.style.display = 'block';
-            }
-            if (listViewContainer) {
-                listViewContainer.style.display = 'none';
-            }
-            // Buttons
-            gridViewBtn.classList.add('active', 'is-active');
-            listViewBtn.classList.remove('active', 'is-active');
         }
+    }
+
+    if (typeof window.initFilesViewToggle === 'function') {
+        window.initFilesViewToggle({
+            toggleEl: document.querySelector('.files-toolbar-actions .files-view-toggle'),
+            listBtn: document.getElementById('listViewBtn'),
+            gridBtn: document.getElementById('gridViewBtn'),
+            listPane: document.getElementById('listViewWrapper'),
+            gridPane: document.getElementById('gridViewContainer'),
+            stageEl: document.getElementById('filesViewStage'),
+            storageKey: 'filesViewMode',
+            defaultMode: 'grid',
+            onSwitch: switchInlineCreatePanels,
+        });
     }
 
     // Lokale Suche im aktuellen Ordner (Grid + Liste)
@@ -2461,7 +2450,7 @@ function openDropboxSettings(folderId) {
             if (data.success) {
                 const folder = data.folder;
                 content.innerHTML = `
-                    <div class="mb-4">
+                    <div class="files-settings-section">
                         <h6>${dropboxLabels.link_label}</h6>
                         <div class="input-group">
                             <input type="text" class="form-control" id="dropboxUrl" value="${folder.dropbox_url}" readonly>
@@ -2472,7 +2461,7 @@ function openDropboxSettings(folderId) {
                         <div class="form-text">${dropboxLabels.info_text}</div>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="files-settings-section">
                         <h6>${dropboxLabels.password_section}</h6>
                         ${folder.has_password ? `
                             <div class="files-hint files-hint--info" role="status">
@@ -2498,7 +2487,7 @@ function openDropboxSettings(folderId) {
                         </form>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="files-settings-section">
                         <h6>${dropboxLabels.regenerate_title}</h6>
                         <form method="POST" action="/files/folder/${folderId}/dropbox-settings">
                             <input type="hidden" name="action" value="regenerate_token">
@@ -2509,7 +2498,7 @@ function openDropboxSettings(folderId) {
                         <div class="form-text text-warning">${dropboxLabels.regenerate_hint}</div>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="files-settings-section">
                         <h6>${dropboxLabels.disable_title}</h6>
                         <form method="POST" action="/files/folder/${folderId}/disable-dropbox">
                             <button type="submit" class="btn btn-outline-danger" data-confirm-delete="${FILES_I18N.alerts.dropbox_disable}">

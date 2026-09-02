@@ -7,36 +7,43 @@ const clientUrl = new URL(
     import.meta.url,
 ).href;
 
-const {
-    configure,
-    resolveVideoId,
-    resolvePlaylistId,
-    isPlaylistUrl,
-    canonicalizePlaylistUrl,
-    getVideoMetadata,
-    downloadMedia,
-    getPlaylistEntries,
-    mapClientError,
-    ClientDownloadError,
-    signInToYoutube,
-    signOutFromYoutube,
-    isYoutubeSignedIn,
-} = await import(/* webpackIgnore: true */ clientUrl);
+try {
+    const {
+        configure,
+        resolveVideoId,
+        resolvePlaylistId,
+        isPlaylistUrl,
+        canonicalizePlaylistUrl,
+        getVideoMetadata,
+        downloadMedia,
+        getPlaylistEntries,
+        mapClientError,
+        ClientDownloadError,
+        signInToYoutube,
+        signOutFromYoutube,
+        isYoutubeSignedIn,
+        cancelYoutubeSignIn,
+    } = await import(/* webpackIgnore: true */ clientUrl);
 
-window.MediaDownloaderClient = {
-    configure,
-    resolveVideoId,
-    resolvePlaylistId,
-    isPlaylistUrl,
-    canonicalizePlaylistUrl,
-    getVideoMetadata,
-    downloadMedia,
-    getPlaylistEntries,
-    mapClientError,
-    ClientDownloadError,
-    signInToYoutube,
-    signOutFromYoutube,
-    isYoutubeSignedIn,
-};
+    window.MediaDownloaderClient = {
+        configure,
+        resolveVideoId,
+        resolvePlaylistId,
+        isPlaylistUrl,
+        canonicalizePlaylistUrl,
+        getVideoMetadata,
+        downloadMedia,
+        getPlaylistEntries,
+        mapClientError,
+        ClientDownloadError,
+        signInToYoutube,
+        signOutFromYoutube,
+        isYoutubeSignedIn,
+        cancelYoutubeSignIn,
+    };
 
-window.dispatchEvent(new CustomEvent('media-downloader-client-ready'));
+    window.dispatchEvent(new CustomEvent('media-downloader-client-ready'));
+} catch (err) {
+    console.error('[MediaDownloader] Client bootstrap failed:', err);
+    window.dispatchEvent(new CustomEvent('media-downloader-client-error', { detail: err }));
+}

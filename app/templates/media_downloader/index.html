@@ -167,6 +167,7 @@
      data-clear-all-url="{{ url_for('media_downloader.clear_all') }}"
      data-youtube-search-url="{{ url_for('media_downloader.youtube_search') }}"
      data-youtube-proxy-url="{{ url_for('media_downloader.youtube_proxy') }}"
+     data-youtube-oauth-client-url="{{ url_for('media_downloader.youtube_oauth_client') }}"
      data-youtubei-url="{{ url_for('media_downloader.youtubei_vendor') }}"
      data-download-url-template="{{ url_for('media_downloader.download_file', job_id=0) }}"
      data-status-url-template="{{ url_for('media_downloader.job_status', job_id=0) }}"
@@ -210,7 +211,8 @@
      data-i18n-view-grid="{{ _('media_downloader.jobs.view_grid') }}"
      data-i18n-youtube-auth-loading="{{ _('media_downloader.youtube_auth.loading') }}"
      data-i18n-youtube-auth-failed="{{ _('media_downloader.youtube_auth.failed') }}"
-     data-i18n-youtube-auth-unavailable="{{ _('media_downloader.youtube_auth.unavailable') }}">
+     data-i18n-youtube-auth-unavailable="{{ _('media_downloader.youtube_auth.unavailable') }}"
+     data-i18n-youtube-auth-required="{{ _('media_downloader.errors.err_bot_check') }}">
 
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -259,6 +261,19 @@
         </h1>
     </div>
 
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3 media-youtube-auth-bar" id="youtubeAuthBar">
+        <span class="badge rounded-pill bg-secondary" id="youtubeAuthStatusSignedOut">{{ _('media_downloader.youtube_auth.signed_out') }}</span>
+        <span class="badge rounded-pill bg-success d-none" id="youtubeAuthStatusSignedIn">{{ _('media_downloader.youtube_auth.signed_in') }}</span>
+        <button type="button" class="btn btn-accent rounded-pill btn-sm" id="youtubeSignInBtn">
+            <span class="spinner-border spinner-border-sm me-1 d-none" data-yt-auth-spinner role="status" aria-hidden="true"></span>
+            <span data-yt-auth-label><i class="bi bi-youtube me-1" aria-hidden="true"></i>{{ _('media_downloader.youtube_auth.sign_in') }}</span>
+        </button>
+        <button type="button" class="btn btn-outline-secondary rounded-pill btn-sm d-none" id="youtubeSignOutBtn">
+            {{ _('media_downloader.youtube_auth.sign_out') }}
+        </button>
+        <div class="alert alert-danger py-2 px-3 mb-0 d-none w-100" id="youtubeAuthError" role="alert"></div>
+    </div>
+
     {# —— Download panel —— #}
     <div class="media-panel" id="media-panel-download" data-media-panel="download" role="tabpanel">
         <div class="media-download-header d-lg-none">
@@ -277,19 +292,6 @@
                     <p class="portal-msg__text mb-0">{{ _('media_downloader.client_notice') }}</p>
                 </div>
             </div>
-        </div>
-
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="youtubeAuthBar">
-            <span class="badge rounded-pill bg-secondary" id="youtubeAuthStatusSignedOut">{{ _('media_downloader.youtube_auth.signed_out') }}</span>
-            <span class="badge rounded-pill bg-success d-none" id="youtubeAuthStatusSignedIn">{{ _('media_downloader.youtube_auth.signed_in') }}</span>
-            <button type="button" class="btn btn-accent rounded-pill btn-sm" id="youtubeSignInBtn">
-                <span class="spinner-border spinner-border-sm me-1 d-none" data-yt-auth-spinner role="status" aria-hidden="true"></span>
-                <span data-yt-auth-label><i class="bi bi-youtube me-1" aria-hidden="true"></i>{{ _('media_downloader.youtube_auth.sign_in') }}</span>
-            </button>
-            <button type="button" class="btn btn-outline-secondary rounded-pill btn-sm d-none" id="youtubeSignOutBtn">
-                {{ _('media_downloader.youtube_auth.sign_out') }}
-            </button>
-            <div class="alert alert-danger py-2 px-3 mb-0 d-none w-100" id="youtubeAuthError" role="alert"></div>
         </div>
 
         <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm" class="media-download-form">

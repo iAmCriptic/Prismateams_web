@@ -124,6 +124,29 @@ def _actor_user_id(board: KanbanBoard | None = None) -> int | None:
     return None
 
 
+def _enqueue_kanban_notify(
+    board: KanbanBoard,
+    card_id: int,
+    event_kind: str,
+    *,
+    detail: str | None = None,
+    push_suffix: str | None = None,
+) -> None:
+    from app.utils.notifications import enqueue_kanban_notification
+
+    actor_id = _actor_user_id(board)
+    if not actor_id:
+        return
+    enqueue_kanban_notification(
+        board_id=board.id,
+        actor_id=actor_id,
+        event_kind=event_kind,
+        card_id=card_id,
+        detail=detail,
+        push_suffix=push_suffix,
+    )
+
+
 def _can_view_board_ctx(board: KanbanBoard) -> bool:
     if current_user.is_authenticated:
         if can_view_board(current_user, board):
@@ -1001,6 +1024,16 @@ def api_card(card_id):
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
+
+    _notify_keys = {'title', 'description', 'due_date', 'completed', 'archived', 'list_id', 'position'}
+    if any(k in data for k in _notify_keys):
+        _enqueue_kanban_notify(
+            board,
+            card.id,
+            'change',
+            push_suffix=f'change:{card.id}:{int(portal_now_naive().timestamp())}',
+        )
+
     return jsonify({'success': True, 'card': payload})
 
 
@@ -1033,6 +1066,7 @@ def api_move_card(board_id):
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_moved', payload)
+    _enqueue_kanban_notify(board, card.id, 'change', push_suffix=f'move:{card.id}:{int(portal_now_naive().timestamp())}')
     return jsonify({'success': True, 'card': payload})
 
 
@@ -1163,6 +1197,13 @@ def api_add_checklist_item(checklist_id):
     db.session.commit()
     payload = _serialize_card_detail(cl.card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
+    _enqueue_kanban_notify(
+        board,
+        cl.card.id,
+        'checklist',
+        detail=text,
+        push_suffix=f'checklist-add:{item.id}',
+    )
     return jsonify({'success': True, 'card': payload}), 201
 
 
@@ -1175,10 +1216,18 @@ def api_checklist_item(item_id):
     if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
+        item_text = item.text
         db.session.delete(item)
         db.session.commit()
         payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
+        _enqueue_kanban_notify(
+            board,
+            card.id,
+            'checklist',
+            detail=item_text,
+            push_suffix=f'checklist-del:{item_id}',
+        )
         return jsonify({'success': True, 'card': payload})
     data = request.get_json(silent=True) or {}
     if 'done' in data:
@@ -1209,6 +1258,14 @@ def api_checklist_item(item_id):
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
+    if any(k in data for k in ('done', 'text')):
+        _enqueue_kanban_notify(
+            board,
+            card.id,
+            'checklist',
+            detail=item.text,
+            push_suffix=f'checklist-upd:{item.id}:{int(portal_now_naive().timestamp())}',
+        )
     return jsonify({'success': True, 'card': payload})
 
 
@@ -1553,6 +1610,13 @@ def api_upload_attachment(card_id):
         db.session.commit()
         payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
+        _enqueue_kanban_notify(
+            board,
+            card.id,
+            'upload',
+            detail=title,
+            push_suffix=f'upload:{att.id}',
+        )
         return jsonify({
             'success': True,
             'card': payload,
@@ -1584,6 +1648,13 @@ def api_upload_attachment(card_id):
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
+    _enqueue_kanban_notify(
+        board,
+        card.id,
+        'upload',
+        detail=original,
+        push_suffix=f'upload:{att.id}',
+    )
     return jsonify({
         'success': True,
         'card': payload,

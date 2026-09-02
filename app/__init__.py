@@ -314,6 +314,23 @@ def create_app(config_name='default'):
         logger.debug("Socket.IO: Client getrennt")
     
     @app.before_request
+    def redirect_loopback_ip_to_localhost():
+        """Passkeys/WebAuthn: Browser lehnen 127.0.0.1 ab — lokal auf localhost umleiten."""
+        if not app.debug:
+            return
+        from flask import redirect
+        host = (request.host or '').split(':')[0].lower()
+        if host != '127.0.0.1':
+            return
+        port = request.host.split(':', 1)[1] if ':' in (request.host or '') else ''
+        target_host = f'localhost:{port}' if port else 'localhost'
+        scheme = request.headers.get('X-Forwarded-Proto', request.scheme or 'http')
+        path = request.full_path
+        if path.endswith('?') and not request.query_string:
+            path = path[:-1]
+        return redirect(f'{scheme}://{target_host}{path}', code=302)
+
+    @app.before_request
     def csrf_same_origin_guard():
         """
         CSRF mitigation without breaking existing forms/AJAX:
@@ -400,6 +417,7 @@ def create_app(config_name='default'):
              request.endpoint == 'booking.public_view' or
              request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo' or
+             request.endpoint == 'settings.auth_brand_image' or
              request.endpoint == 'music.public_wishlist' or
              request.endpoint == 'music.public_search' or
              request.endpoint.startswith('surveys.public_') or
@@ -596,12 +614,15 @@ def create_app(config_name='default'):
                 color_gradient = gradient_setting.value
         except:
             pass
-        
+
         if app_logo and app_logo.startswith('static/'):
             app_logo = app_logo[7:]
-        
+
         from app.utils.onlyoffice import is_onlyoffice_enabled
+        from app.utils.auth_branding import get_auth_branding_context
+
         onlyoffice_available = is_onlyoffice_enabled()
+        auth_branding = get_auth_branding_context()
 
         from app.utils.common import is_module_enabled
         
@@ -642,124 +663,6 @@ def create_app(config_name='default'):
                     return member.user
             return None
         
-        def get_back_url():
-            """Bestimmt die logische Zurück-URL basierend auf dem aktuellen Endpoint."""
-            from flask import request, url_for
-            
-            if not request.endpoint:
-                return url_for('dashboard.index')
-            
-            endpoint = request.endpoint
-            
-            specific_mappings = {
-                'inventory.product_edit': 'inventory.stock',
-                'inventory.product_new': 'inventory.stock',
-                'inventory.product_documents': 'inventory.stock',
-                'inventory.product_borrow': 'inventory.stock',
-                'inventory.product_document_upload': 'inventory.stock',
-                'inventory.product_document_delete': 'inventory.stock',
-                'inventory.product_document_download': 'inventory.stock',
-                'inventory.set_view': 'inventory.sets',
-                'inventory.set_edit': 'inventory.sets',
-                'inventory.set_borrow': 'inventory.sets',
-                'inventory.set_form': 'inventory.sets',
-                'inventory.folders': 'inventory.stock',
-                'settings.profile': 'settings.index',
-                'settings.appearance': 'settings.index',
-                'settings.notifications': 'settings.index',
-                'settings.about': 'settings.index',
-                'settings.admin': 'settings.index',
-                'settings.admin_users': 'settings.index',
-                'settings.admin_email_permissions': 'settings.index',
-                'settings.admin_email_footer': 'settings.index',
-                'settings.admin_system': 'settings.index',
-                'settings.admin_modules': 'settings.index',
-                'settings.admin_backup': 'settings.index',
-                'settings.admin_whitelist': 'settings.index',
-                'settings.add_whitelist_entry': 'settings.index',
-                'settings.toggle_whitelist_entry': 'settings.index',
-                'settings.delete_whitelist_entry': 'settings.index',
-                'settings.admin_file_settings': 'settings.index',
-                'settings.booking_forms': 'settings.index',
-                'settings.booking_form_create': 'settings.index',
-                'settings.booking_form_edit': 'settings.index',
-                'settings.booking_form_delete': 'settings.index',
-                'settings.booking_field_add': 'settings.index',
-                'settings.booking_field_edit': 'settings.index',
-                'settings.booking_field_delete': 'settings.index',
-                'settings.booking_field_order': 'settings.index',
-                'settings.booking_image_upload': 'settings.index',
-                'settings.booking_image_delete': 'settings.index',
-                'settings.booking_image': 'settings.index',
-                'auth.show_confirmation_codes': 'settings.index',
-                'auth.test_email': 'settings.index',
-                'calendar.view': 'calendar.index',
-                'calendar.edit_event': 'calendar.index',
-                'calendar.create': 'calendar.index',
-                'events.view_event': 'events.index',
-                'events.edit_event': 'events.index',
-                'events.create_event': 'events.index',
-                'email.view_email': 'email.index',
-                'email.compose': 'email.index',
-                'email.reply': 'email.index',
-                'email.reply_all': 'email.index',
-                'email.forward': 'email.index',
-                'chat.view_chat': 'chat.index',
-                'chat.create': 'chat.index',
-                'wiki.view': 'wiki.index',
-                'wiki.edit': 'wiki.index',
-                'wiki.create': 'wiki.index',
-                'credentials.view': 'credentials.index',
-                'credentials.edit': 'credentials.index',
-                'credentials.create': 'credentials.index',
-                'manuals.view': 'manuals.index',
-                'manuals.raw': 'manuals.index',
-                'manuals.edit': 'manuals.index',
-                'manuals.create': 'manuals.index',
-                'assessment.lists.manage_list_subjects_page': 'assessment.lists.manage_lists_page',
-                'assessment.auth.admin_setup': 'assessment.general.home',
-            }
-            
-            if endpoint in specific_mappings:
-                return url_for(specific_mappings[endpoint])
-            
-            if endpoint == 'files.browse_folder':
-                folder_id = request.view_args.get('folder_id') if request.view_args else None
-                if folder_id:
-                    from app.models.file import Folder
-                    folder = Folder.query.get(folder_id)
-                    if folder and folder.parent_id:
-                        return url_for('files.browse_folder', folder_id=folder.parent_id)
-                return url_for('files.index')
-            
-            if endpoint.startswith('settings.admin_'):
-                return url_for('settings.index')
-            
-            module_mapping = {
-                'inventory': 'inventory.dashboard',
-                'email': 'email.index',
-                'chat': 'chat.index',
-                'files': 'files.index',
-                'calendar': 'calendar.index',
-                'events': 'events.index',
-                'contacts': 'contacts.index',
-                'credentials': 'credentials.index',
-                'manuals': 'manuals.index',
-                'wiki': 'wiki.index',
-                'excalidraw': 'excalidraw.index',
-                'shortlinks': 'shortlinks.index',
-                'settings': 'settings.index',
-                'assessment': 'assessment.general.home'
-            }
-            
-            for module_prefix, index_endpoint in module_mapping.items():
-                if endpoint.startswith(module_prefix + '.'):
-                    if endpoint == index_endpoint:
-                        return url_for('dashboard.index')
-                    return url_for(index_endpoint)
-            
-            return url_for('dashboard.index')
-        
         mobile_nav_slots = None
         mobile_nav_left = None
         mobile_nav_right = None
@@ -798,16 +701,25 @@ def create_app(config_name='default'):
         except Exception:
             pass
 
+        passkeys_supported = False
+        passkeys_localhost_url = None
+        try:
+            from app.utils.webauthn_helper import passkeys_supported_for_request, localhost_passkey_url
+            passkeys_supported = passkeys_supported_for_request()
+            passkeys_localhost_url = localhost_passkey_url()
+        except Exception:
+            pass
+
         return {
             'app_name': app_name,
             'app_logo': app_logo,
             'color_gradient': color_gradient,
             'portal_logo_filename': portal_logo_filename,
+            **auth_branding,
             'onlyoffice_available': onlyoffice_available,
             'is_module_enabled': is_module_enabled,
             'is_email_multi_enabled': is_email_multi_enabled,
             'has_module_access': has_module_access,
-            'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name,
             'get_other_chat_user': get_other_chat_user,
             'mobile_nav_slots': mobile_nav_slots,
@@ -818,6 +730,8 @@ def create_app(config_name='default'):
             'current_nav_module': current_nav_module,
             'nav_storage_usage': nav_storage_usage,
             'robots_meta': robots_meta,
+            'passkeys_supported': passkeys_supported,
+            'passkeys_localhost_url': passkeys_localhost_url,
         }
     
     @app.template_filter('decode_email_header')
@@ -1272,6 +1186,7 @@ def create_app(config_name='default'):
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
                 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
+                from app.models.passkey import UserPasskey
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
@@ -1415,6 +1330,22 @@ def create_app(config_name='default'):
                         _log_startup("[INFO] Erstelle credential_folders ...")
                         CredentialFolder.__table__.create(db.engine, checkfirst=True)
                         _log_startup("[OK] credential_folders erstellt")
+                    elif 'credential_folders' in table_names:
+                        folder_columns = {col['name'] for col in inspector.get_columns('credential_folders')}
+                        if 'visibility' not in folder_columns:
+                            _log_startup("[INFO] Ergänze credential_folders.visibility ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE credential_folders ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT 'public'"
+                                ))
+                            _log_startup("[OK] credential_folders.visibility hinzugefügt")
+                        if 'team_id' not in folder_columns:
+                            _log_startup("[INFO] Ergänze credential_folders.team_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE credential_folders ADD COLUMN team_id INTEGER NULL"
+                                ))
+                            _log_startup("[OK] credential_folders.team_id hinzugefügt")
 
                     if 'credentials' in table_names:
                         credential_columns = {col['name'] for col in inspector.get_columns('credentials')}
