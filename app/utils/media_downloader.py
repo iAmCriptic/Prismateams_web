@@ -545,6 +545,19 @@ YOUTUBE_PROXY_DEFAULT_UA = (
     'Chrome/125.0.0.0 Safari/537.36'
 )
 
+YOUTUBE_PROXY_ORIGIN = 'https://www.youtube.com'
+YOUTUBE_PROXY_REFERER = 'https://www.youtube.com/'
+
+# Browsers cannot set Origin/Referer on fetch(); clients send these aliases instead.
+YOUTUBE_PROXY_HEADER_ALIASES = {
+    'x-youtube-origin': 'Origin',
+    'x-ytdown-origin': 'Origin',
+    'x-origin': 'Origin',
+    'x-youtube-referer': 'Referer',
+    'x-ytdown-referer': 'Referer',
+    'x-referer': 'Referer',
+}
+
 
 def is_allowed_youtube_proxy_url(url):
     """Return True when URL may be fetched through the media downloader proxy."""
@@ -568,6 +581,33 @@ def is_allowed_youtube_proxy_url(url):
     )
 
 
+def _apply_youtube_proxy_header_aliases(headers):
+    """Restore forbidden browser headers sent under safe alias names."""
+    normalized = {}
+    for key, value in headers.items():
+        if not key or value is None:
+            continue
+        lower = key.lower()
+        if lower in YOUTUBE_PROXY_SKIP_REQUEST_HEADERS:
+            continue
+        real_name = YOUTUBE_PROXY_HEADER_ALIASES.get(lower)
+        if real_name:
+            normalized[real_name] = str(value)
+            continue
+        normalized[key] = str(value)
+    return normalized
+
+
+def _ensure_youtube_proxy_context_headers(headers, *, include_stream_context=False):
+    """YouTube rejects InnerTube and googlevideo requests without Origin/Referer."""
+    if not any(k.lower() == 'origin' for k in headers):
+        headers['Origin'] = YOUTUBE_PROXY_ORIGIN
+    if not any(k.lower() == 'referer' for k in headers):
+        headers['Referer'] = YOUTUBE_PROXY_REFERER
+    if include_stream_context:
+        headers.setdefault('Accept', '*/*')
+
+
 def build_youtube_proxy_request(data):
     """
     Build kwargs for requests.request() from a JSON proxy payload.
@@ -586,24 +626,17 @@ def build_youtube_proxy_request(data):
     if method not in ('GET', 'POST', 'HEAD'):
         return None, 'invalid_method'
 
-    headers = {}
     raw_headers = data.get('headers') or {}
-    if isinstance(raw_headers, dict):
-        for key, value in raw_headers.items():
-            if not key or value is None:
-                continue
-            lower = key.lower()
-            if lower in YOUTUBE_PROXY_SKIP_REQUEST_HEADERS:
-                continue
-            headers[key] = str(value)
+    headers = _apply_youtube_proxy_header_aliases(raw_headers if isinstance(raw_headers, dict) else {})
 
     parsed = urlparse(target_url)
     host = (parsed.hostname or '').lower()
     is_googlevideo = host.endswith('.googlevideo.com')
 
     if is_googlevideo:
-        # Stream URLs are signature-bound to the Innertube client UA. Keep headers minimal.
+        # Stream URLs are signature-bound to the Innertube client UA.
         range_header = headers.get('Range') or headers.get('range')
+        authorization = headers.get('Authorization') or headers.get('authorization')
         if 'c=IOS' in target_url or 'c=iOS' in target_url:
             headers = {'User-Agent': YOUTUBE_PROXY_IOS_UA, 'Accept': '*/*'}
         elif 'c=ANDROID' in target_url:
@@ -615,8 +648,13 @@ def build_youtube_proxy_request(data):
             }
         if range_header:
             headers['Range'] = range_header
-    elif not any(k.lower() == 'user-agent' for k in headers):
-        headers['User-Agent'] = YOUTUBE_PROXY_DEFAULT_UA
+        if authorization:
+            headers['Authorization'] = authorization
+        _ensure_youtube_proxy_context_headers(headers, include_stream_context=True)
+    else:
+        if not any(k.lower() == 'user-agent' for k in headers):
+            headers['User-Agent'] = YOUTUBE_PROXY_DEFAULT_UA
+        _ensure_youtube_proxy_context_headers(headers)
 
     body = None
     if method == 'POST':

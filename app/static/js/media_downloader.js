@@ -133,7 +133,17 @@
                     onAuthPending: showYoutubeAuthModal,
                     onAuthStateChange: updateYoutubeAuthUi,
                 });
-                updateYoutubeAuthUi(window.MediaDownloaderClient.isYoutubeSignedIn?.());
+                const client = window.MediaDownloaderClient;
+                if (client.isYoutubeSignedIn?.()) {
+                    updateYoutubeAuthUi(true);
+                    client.warmupYoutubeSession?.().then((ok) => {
+                        updateYoutubeAuthUi(Boolean(ok));
+                    }).catch(() => {
+                        updateYoutubeAuthUi(false);
+                    });
+                } else {
+                    updateYoutubeAuthUi(false);
+                }
             }
         }
 
@@ -450,6 +460,9 @@
                 const errorKey = client ? client.mapClientError(err) : 'client_download_failed';
                 if (errorKey === 'err_bot_check' && !authRetry && client?.signInToYoutube) {
                     promptYoutubeAuthAttention(errorKey);
+                    if (client.isYoutubeSignedIn?.()) {
+                        await client.signOutFromYoutube?.().catch(() => {});
+                    }
                     try {
                         await promptYoutubeSignIn();
                         return runClientJob(job, true);
