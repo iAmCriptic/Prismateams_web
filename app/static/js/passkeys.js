@@ -145,10 +145,21 @@
                 if (!credential) {
                     throw new Error('No credential');
                 }
-                var label = global.prompt(button.getAttribute('data-label-prompt') || 'Gerätename (optional):', '');
-                return postJson(verifyUrl, {
-                    credential: credentialToJSON(credential),
-                    device_label: label || null,
+                var promptMessage = button.getAttribute('data-label-prompt') || 'Gerätename (optional):';
+                var promptOpts = {
+                    title: button.getAttribute('data-label-title') || promptMessage,
+                    placeholder: button.getAttribute('data-label-placeholder') || '',
+                    confirmLabel: button.getAttribute('data-label-ok') || undefined,
+                };
+                var askLabel = typeof global.ptPrompt === 'function'
+                    ? global.ptPrompt(promptMessage, promptOpts)
+                    : Promise.resolve(global.prompt(promptMessage, ''));
+                return askLabel.then(function (label) {
+                    // Abbrechen → null: Registrierung ohne Gerätename fortsetzen (optional)
+                    return postJson(verifyUrl, {
+                        credential: credentialToJSON(credential),
+                        device_label: label || null,
+                    });
                 });
             })
             .then(function (res) {
@@ -209,7 +220,12 @@
                 if (err && err.name === 'NotAllowedError') {
                     return;
                 }
-                global.alert(err.message || 'Passkey registration failed');
+                var msg = err.message || 'Passkey registration failed';
+                if (typeof global.showAppBanner === 'function') {
+                    global.showAppBanner(msg, 'danger');
+                } else {
+                    global.alert(msg);
+                }
             });
         });
     }

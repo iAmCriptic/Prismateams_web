@@ -270,12 +270,16 @@
                     </div>
                 </div>
                 <div class="settings-security-device-actions">
-                    <form method="POST" action="{{ url_for('settings.passkey_delete', passkey_id=pk.id) }}" class="settings-security-passkey-delete-form">
-                        <input type="password" name="password" class="form-control form-control-sm settings-security-input mb-1" placeholder="{{ _('settings.security.passkeys.delete_password_placeholder') }}" autocomplete="current-password" required>
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn"
-                                data-pt-confirm="{{ _('settings.security.passkeys.delete_confirm') }}"
-                                data-pt-confirm-danger="true"
-                                data-pt-confirm-ok="{{ _('settings.security.passkeys.delete_button') }}">
+                    <form method="POST"
+                          action="{{ url_for('settings.passkey_delete', passkey_id=pk.id) }}"
+                          class="settings-security-passkey-delete-form"
+                          data-password-message="{{ _('settings.security.passkeys.delete_confirm') }}"
+                          data-password-placeholder="{{ _('settings.security.passkeys.delete_password_placeholder') }}"
+                          data-password-title="{{ _('settings.security.passkeys.delete_button') }}"
+                          data-password-ok="{{ _('settings.security.passkeys.delete_button') }}"
+                          data-password-empty="{{ _('settings.security.passkeys.enter_password') }}">
+                        <input type="hidden" name="password" value="">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn">
                             {{ _('settings.security.passkeys.delete_button') }}
                         </button>
                     </form>
@@ -294,7 +298,8 @@
                 id="passkey-register-btn"
                 data-options-url="{{ url_for('settings.passkey_register_options') }}"
                 data-verify-url="{{ url_for('settings.passkey_register_verify') }}"
-                data-label-prompt="{{ _('settings.security.passkeys.device_label_prompt') }}">
+                data-label-prompt="{{ _('settings.security.passkeys.device_label_prompt') }}"
+                data-label-title="{{ _('settings.security.passkeys.add_button') }}">
             <i class="bi bi-fingerprint" aria-hidden="true"></i>
             {{ _('settings.security.passkeys.add_button') }}
         </button>
@@ -417,6 +422,47 @@ document.addEventListener('DOMContentLoaded', function () {
     if (window.PrismateamsPasskeys) {
         window.PrismateamsPasskeys.initRegisterButton('#passkey-register-btn');
     }
+
+    document.querySelectorAll('.settings-security-passkey-delete-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            if (form.dataset.passwordReady === '1') {
+                form.dataset.passwordReady = '';
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+
+            var askPassword = typeof window.ptPrompt === 'function'
+                ? window.ptPrompt(form.getAttribute('data-password-message') || '', {
+                    title: form.getAttribute('data-password-title') || '',
+                    placeholder: form.getAttribute('data-password-placeholder') || '',
+                    confirmLabel: form.getAttribute('data-password-ok') || undefined,
+                    inputType: 'password',
+                    autocomplete: 'current-password',
+                    danger: true,
+                })
+                : Promise.resolve(window.prompt(form.getAttribute('data-password-placeholder') || '', ''));
+
+            askPassword.then(function (password) {
+                if (password === null) return;
+                if (!String(password).trim()) {
+                    var emptyMsg = form.getAttribute('data-password-empty') || '';
+                    if (emptyMsg && typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(emptyMsg, 'warning');
+                    }
+                    return;
+                }
+                var input = form.querySelector('input[name="password"]');
+                if (input) input.value = password;
+                form.dataset.passwordReady = '1';
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
+        });
+    });
 });
 </script>
 {% endblock %}

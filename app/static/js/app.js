@@ -169,7 +169,7 @@ window.ptConfirm = function ptConfirm(message, options) {
 /**
  * App-styled prompt dialog (Promise). Prefer over window.prompt().
  * @param {string} message
- * @param {{ title?: string, defaultValue?: string, confirmLabel?: string, cancelLabel?: string, placeholder?: string }} [options]
+ * @param {{ title?: string, defaultValue?: string, confirmLabel?: string, cancelLabel?: string, placeholder?: string, inputType?: string, autocomplete?: string, danger?: boolean }} [options]
  * @returns {Promise<string|null>} entered value, or null if cancelled
  */
 window.ptPrompt = function ptPrompt(message, options) {
@@ -189,24 +189,41 @@ window.ptPrompt = function ptPrompt(message, options) {
     }
 
     const titleEl = document.getElementById('ptPromptTitleText');
+    const iconEl = modalEl.querySelector('.modal-title i');
     const msgEl = document.getElementById('ptPromptMessage');
     const inputEl = document.getElementById('ptPromptInput');
+    const labelEl = document.getElementById('ptPromptInputLabel');
     const okBtn = document.getElementById('ptPromptOkBtn');
     const cancelBtn = document.getElementById('ptPromptCancelBtn');
     const i18nCommon = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: true });
+    const isPassword = opts.inputType === 'password';
+    const isDanger = !!opts.danger;
 
     const applyCopy = () => {
         if (titleEl) {
             titleEl.textContent = opts.title || i18nCommon.confirm || 'Eingabe';
+        }
+        if (iconEl) {
+            iconEl.className = isPassword
+                ? (isDanger
+                    ? 'bi bi-shield-lock-fill text-danger flex-shrink-0'
+                    : 'bi bi-shield-lock-fill text-primary flex-shrink-0')
+                : 'bi bi-pencil-square text-primary flex-shrink-0';
         }
         if (msgEl) {
             msgEl.textContent = String(message || '');
             msgEl.hidden = !message;
         }
         if (inputEl) {
+            inputEl.type = isPassword ? 'password' : 'text';
             inputEl.value = opts.defaultValue != null ? String(opts.defaultValue) : '';
             inputEl.placeholder = opts.placeholder || '';
+            inputEl.autocomplete = opts.autocomplete || (isPassword ? 'current-password' : 'off');
+            inputEl.spellcheck = !isPassword;
+        }
+        if (labelEl) {
+            labelEl.textContent = opts.placeholder || opts.title || message || i18nCommon.confirm || 'Eingabe';
         }
         if (okBtn) {
             okBtn.textContent =
@@ -214,6 +231,7 @@ window.ptPrompt = function ptPrompt(message, options) {
                 modalEl.getAttribute('data-i18n-ok') ||
                 i18nCommon.confirm ||
                 'OK';
+            okBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-outline-primary';
         }
         if (cancelBtn) {
             cancelBtn.textContent =
@@ -222,6 +240,14 @@ window.ptPrompt = function ptPrompt(message, options) {
                 i18nCommon.cancel ||
                 'Abbrechen';
         }
+    };
+
+    const resetInput = () => {
+        if (!inputEl) return;
+        inputEl.value = '';
+        inputEl.type = 'text';
+        inputEl.autocomplete = 'off';
+        inputEl.placeholder = '';
     };
 
     const openPrompt = () => {
@@ -235,6 +261,8 @@ window.ptPrompt = function ptPrompt(message, options) {
                 okBtn?.removeEventListener('click', onOk);
                 inputEl?.removeEventListener('keydown', onKey);
                 modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                resetInput();
+                if (okBtn) okBtn.className = 'btn btn-outline-primary';
                 resolve(value);
             };
             const onOk = () => {
@@ -258,7 +286,7 @@ window.ptPrompt = function ptPrompt(message, options) {
                 }
                 if (inputEl) {
                     inputEl.focus();
-                    inputEl.select();
+                    if (!isPassword) inputEl.select();
                 }
             };
 
