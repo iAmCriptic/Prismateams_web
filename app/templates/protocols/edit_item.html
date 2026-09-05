@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.title }} — {{ protocol.title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="protocols-workspace protocols-workspace--editor">
+    <header class="protocols-workspace-toolbar">
+        <div class="protocols-workspace-toolbar-start">
+            <a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.steps.agenda') }}</span>
+            </a>
+            <div class="protocols-workspace-brand min-width-0">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                <div class="min-width-0">
+                    <div class="protocols-workspace-title text-truncate">{{ _('protocols.steps.content') }}</div>
+                    <div class="protocols-workspace-subtitle text-truncate">{{ protocol.title }} · TOP {{ item_index + 1 }}/{{ items|length }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="protocols-workspace-toolbar-end">
+            <nav class="protocols-item-nav protocols-item-nav--toolbar" aria-label="{{ _('protocols.item.nav_label') }}">
+                {% for it in items %}
+                <a class="protocols-item-nav-link {% if it.id == item.id %}is-active{% endif %}"
+                   href="{{ url_for('protocols.edit_item', protocol_id=protocol.id, item_id=it.id) }}">
+                    {{ loop.index }}
+                </a>
+                {% endfor %}
+            </nav>
+            {% if prev_item %}
+            <button type="submit" form="protocolsItemForm" name="action" value="prev" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            {% endif %}
+            <button type="submit" form="protocolsItemForm" name="action" value="save" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-save"></i>
+                <span class="d-none d-md-inline">{{ _('protocols.actions.save_draft') }}</span>
+            </button>
+            {% if next_item %}
+            <button type="submit" form="protocolsItemForm" name="action" value="next" class="btn btn-accent rounded-pill">
+                {{ _('protocols.item.next') }} <i class="bi bi-arrow-right"></i>
+            </button>
+            {% else %}
+            <button type="submit" form="protocolsItemForm" name="action" value="finalize" class="btn btn-accent rounded-pill"
+                    data-confirm-finalize="{{ _('protocols.actions.finalize_confirm') }}">
+                <i class="bi bi-check2-circle"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.actions.finalize') }}</span>
+            </button>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="protocols-workspace-body protocols-workspace-body--editor">
+        <form method="POST" class="protocols-editor-form" id="protocolsItemForm"
+              action="{{ url_for('protocols.edit_item', protocol_id=protocol.id, item_id=item.id) }}"
+              data-autosave-url="{{ url_for('protocols.autosave_item', protocol_id=protocol.id, item_id=item.id) }}">
+            <div class="protocols-editor-top">
+                <label for="itemTitle" class="form-label visually-hidden">{{ _('protocols.item.title_label') }}</label>
+                <input type="text" class="form-control form-control-lg protocols-editor-title" id="itemTitle" name="title" value="{{ item.title }}" required>
+                <div class="protocols-autosave-status text-muted small" id="protocolsAutosaveStatus" aria-live="polite"></div>
+            </div>
+            <div class="protocols-editor-quill-wrap">
+                <div id="protocolsEditor" class="protocols-quill protocols-quill--fill"></div>
+                <input type="hidden" name="content_html" id="contentHtml" value="">
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script>
+window.PROTOCOLS_INITIAL_HTML = {{ (item.content_html or '')|tojson }};
+window.PROTOCOLS_I18N = {
+    autosaved: {{ _('protocols.item.autosaved')|tojson }},
+    saving: {{ _('protocols.item.saving')|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/protocols.js') }}"></script>
+{% endblock %}

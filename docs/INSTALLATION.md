@@ -180,7 +180,7 @@ curl -s http://127.0.0.1:8080/welcome/ | head
 
 **Wichtig:** Notieren Sie den `JWT_SECRET`-Wert – er muss mit `ONLYOFFICE_SECRET_KEY` in der `.env` übereinstimmen.
 
-**Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` in der `.env` leer lassen.
+**Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT lokal: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` leer lassen (Dev erlaubt unsigned Callbacks automatisch). In **Production** ohne Secret werden Callbacks abgelehnt – entweder Secret setzen oder explizit `ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true`.
 
 #### Schriftarten für Rendering / PDF / Druck
 

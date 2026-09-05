@@ -1,6 +1,7 @@
 """
 Zugriffskontroll-Utilities für modulbasierte Rollen.
 """
+from datetime import datetime
 from functools import wraps
 from flask import abort, redirect, url_for, flash
 from flask_login import current_user
@@ -11,6 +12,34 @@ import logging
 import re
 
 logger = logging.getLogger(__name__)
+
+# Share-Modes für Gast-Schreibzugriff (Upload) bzw. Bearbeiten bestehender Dateien
+GUEST_WRITE_MODES = frozenset({'edit', 'dropbox'})
+GUEST_EDIT_MODES = frozenset({'edit'})
+
+
+def _legacy_share_is_expired(resource) -> bool:
+    """True wenn File/Folder.share_expires_at in der Vergangenheit liegt."""
+    expires_at = getattr(resource, 'share_expires_at', None)
+    return bool(expires_at and datetime.utcnow() > expires_at)
+
+
+def _share_mode_allowed(mode, allowed_modes) -> bool:
+    """None = alle Modes; sonst nur Modes aus dem frozenset."""
+    if allowed_modes is None:
+        return True
+    from app.utils.public_share import normalize_share_mode
+    return normalize_share_mode(mode) in allowed_modes
+
+
+def _public_share_is_usable(share, allowed_modes=None) -> bool:
+    """Enabled, nicht abgelaufen, optional Mode-Filter."""
+    if share is None or not share.enabled:
+        return False
+    from app.utils.public_share import share_is_expired
+    if share_is_expired(share):
+        return False
+    return _share_mode_allowed(share.mode, allowed_modes)
 
 
 def _roles_flag_enabled(value):
@@ -277,23 +306,62 @@ def has_guest_share_access(user, share_token, share_type):
     return False
 
 
-def guest_has_file_access(user, file):
+def guest_has_folder_access(user, folder, *, modes=None):
+    """
+    Prüft ob ein Gast Zugriff auf einen Ordner hat (direkt oder über Ancestor-Share).
+
+    modes: optional frozenset erlaubter Share-Modes (z.B. GUEST_WRITE_MODES).
+           None = jeder Mode (Lesen).
+    """
+    if not hasattr(user, 'is_guest') or not user.is_guest or folder is None:
+        return False
+
+    from app.models.file import Folder
+    from app.models.public_share import PublicShare
+    from app.models.guest import GuestShareAccess
+
+    chain = []
+    current = folder
+    while current:
+        chain.append(current)
+        current = Folder.query.get(current.parent_id) if current.parent_id else None
+    chain_ids = {f.id for f in chain}
+
+    for access in GuestShareAccess.query.filter_by(user_id=user.id).all():
+        token = _normalize_guest_share_token(access.share_token)
+        if not token:
+            continue
+        share = PublicShare.query.filter_by(token=token, enabled=True).first()
+        if not _public_share_is_usable(share, modes):
+            continue
+        if share.resource_type == 'folder' and share.resource_id in chain_ids:
+            return True
+
+    for ancestor in chain:
+        if not (ancestor.share_token and ancestor.share_enabled):
+            continue
+        if _legacy_share_is_expired(ancestor):
+            continue
+        if not _share_mode_allowed(getattr(ancestor, 'share_mode', 'edit'), modes):
+            continue
+        if has_guest_share_access(user, ancestor.share_token, 'folder'):
+            return True
+
+    return False
+
+
+def guest_has_file_access(user, file, *, modes=None):
     """
     Prüft ob ein Gast-Account Zugriff auf eine Datei hat.
-    Berücksichtigt sowohl direkte Datei-Freigaben als auch Dateien in freigegebenen Ordnern.
-    
-    Args:
-        user: User-Objekt (muss Gast-Account sein)
-        file: File-Objekt
-        
-    Returns:
-        True wenn Zugriff vorhanden, False sonst
+    Berücksichtigt direkte Datei-Freigaben und Dateien in freigegebenen Ordnern.
+
+    modes: optional frozenset erlaubter Share-Modes.
+           None = jeder Mode (Lesen); GUEST_EDIT_MODES für Bearbeiten.
     """
     if not hasattr(user, 'is_guest') or not user.is_guest:
         return False
     
     from app.models.file import Folder
-    
     from app.models.public_share import PublicShare
     from app.models.guest import GuestShareAccess
 
@@ -302,31 +370,27 @@ def guest_has_file_access(user, file):
         if not token:
             continue
         share = PublicShare.query.filter_by(token=token, enabled=True).first()
-        if share and share.resource_type == 'file' and share.resource_id == file.id:
+        if not _public_share_is_usable(share, modes):
+            continue
+        if share.resource_type == 'file' and share.resource_id == file.id:
             return True
-        if share and share.resource_type == 'folder' and file.folder_id:
+        if share.resource_type == 'folder' and file.folder_id:
             folder = Folder.query.get(file.folder_id)
             while folder:
                 if folder.id == share.resource_id:
                     return True
                 folder = Folder.query.get(folder.parent_id) if folder.parent_id else None
 
-    if file.share_token and file.share_enabled:
-        if has_guest_share_access(user, file.share_token, 'file'):
-            return True
+    if file.share_token and file.share_enabled and not _legacy_share_is_expired(file):
+        if _share_mode_allowed(getattr(file, 'share_mode', 'edit'), modes):
+            if has_guest_share_access(user, file.share_token, 'file'):
+                return True
 
     if file.folder_id:
         folder = Folder.query.get(file.folder_id)
-        if folder and folder.share_token and folder.share_enabled:
-            if has_guest_share_access(user, folder.share_token, 'folder'):
-                return True
-        current_folder = folder
-        while current_folder and current_folder.parent_id:
-            current_folder = Folder.query.get(current_folder.parent_id)
-            if current_folder and current_folder.share_token and current_folder.share_enabled:
-                if has_guest_share_access(user, current_folder.share_token, 'folder'):
-                    return True
-    
+        if folder and guest_has_folder_access(user, folder, modes=modes):
+            return True
+
     return False
 
 
@@ -346,6 +410,8 @@ def get_guest_accessible_items(user):
     
     from app.models.guest import GuestShareAccess
     from app.models.file import File, Folder
+    from app.models.public_share import PublicShare
+    from app.utils.public_share import resolve_resource, share_is_expired
     
     # Hole alle Share-Tokens für diesen Gast
     guest_accesses = GuestShareAccess.query.filter_by(user_id=user.id).all()
@@ -377,9 +443,6 @@ def get_guest_accessible_items(user):
         if not normalized_token:
             continue
 
-        from app.models.public_share import PublicShare
-        from app.utils.public_share import resolve_resource, share_is_expired
-
         file_item = None
         folder_item = None
 
@@ -392,16 +455,28 @@ def get_guest_accessible_items(user):
                 folder_item = resolved
         elif normalized_type == 'file':
             file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if file_item and _legacy_share_is_expired(file_item):
+                file_item = None
             if not file_item:
                 folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+                if folder_item and _legacy_share_is_expired(folder_item):
+                    folder_item = None
         elif normalized_type == 'folder':
             folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if folder_item and _legacy_share_is_expired(folder_item):
+                folder_item = None
             if not folder_item:
                 file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+                if file_item and _legacy_share_is_expired(file_item):
+                    file_item = None
         else:
             file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if file_item and _legacy_share_is_expired(file_item):
+                file_item = None
             if not file_item:
                 folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+                if folder_item and _legacy_share_is_expired(folder_item):
+                    folder_item = None
 
         if file_item and file_item not in files:
             files.append(file_item)
@@ -439,6 +514,8 @@ def get_guest_directly_shared_folders(user):
 
     from app.models.guest import GuestShareAccess
     from app.models.file import Folder
+    from app.models.public_share import PublicShare
+    from app.utils.public_share import resolve_resource, share_is_expired
 
     guest_accesses = GuestShareAccess.query.filter_by(user_id=user.id).all()
     directly_shared_folders = []
@@ -449,15 +526,14 @@ def get_guest_directly_shared_folders(user):
         if not normalized_token:
             continue
 
-        from app.models.public_share import PublicShare
-        from app.utils.public_share import resolve_resource, share_is_expired
-
         folder = None
         share = PublicShare.query.filter_by(token=normalized_token, enabled=True).first()
         if share and share.resource_type == 'folder' and not share_is_expired(share):
             folder = resolve_resource(share)
         if not folder:
             folder = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if folder and _legacy_share_is_expired(folder):
+                folder = None
         if folder and folder.id not in processed_folder_ids:
             directly_shared_folders.append(folder)
             processed_folder_ids.add(folder.id)

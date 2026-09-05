@@ -15,6 +15,7 @@ TEAM_SECTION_MODULES = {
     'shortlinks': 'module_shortlinks',
     'excalidraw': 'module_excalidraw',
     'surveys': 'module_surveys',
+    'protocols': 'module_protocols',
     'kanban': 'module_kanban',
     'calendar': 'module_calendar',
     'files': 'module_files',

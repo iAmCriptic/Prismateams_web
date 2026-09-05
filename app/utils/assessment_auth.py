@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import abort, flash, redirect, request, url_for
+from flask import abort, current_app, flash, redirect, request, url_for
 from flask_login import current_user
 
 from app.models.assessment import AssessmentUser
@@ -18,9 +18,61 @@ SECTION_ROLE_MAP = {
     "admin": {"Administrator"},
 }
 
+VALID_ASSESSMENT_ROLES = frozenset(
+    {"Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"}
+)
+# Non-admin portal users may never escalate to Assessment-Administrator via config.
+PORTAL_NON_ADMIN_ALLOWED_ROLES = VALID_ASSESSMENT_ROLES - {"Administrator"}
+DEFAULT_PORTAL_NON_ADMIN_ROLES = ["Bewerter"]
+
 
 def is_assessment_user():
     return isinstance(current_user, AssessmentUser)
+
+
+def _parse_role_list(raw_value):
+    """Parse comma/semicolon/whitespace-separated role names."""
+    if raw_value is None:
+        return []
+    if isinstance(raw_value, (list, tuple, set)):
+        parts = list(raw_value)
+    else:
+        text = str(raw_value).replace(";", ",").replace("|", ",")
+        parts = [p.strip() for p in text.split(",")]
+    roles = []
+    for part in parts:
+        if part in VALID_ASSESSMENT_ROLES and part not in roles:
+            roles.append(part)
+    return roles
+
+
+def get_portal_assessment_roles(user):
+    """
+    Assessment roles for a Teamportal user with module_assessment access.
+
+    Least privilege:
+    - Portal admins / super-admins → Administrator
+    - Other portal users → ASSESSMENT_PORTAL_DEFAULT_ROLES (default: Bewerter),
+      never Administrator (cannot be escalated via env/setting)
+    """
+    if getattr(user, "is_super_admin", False) or getattr(user, "is_admin", False):
+        return ["Administrator"]
+
+    raw = current_app.config.get("ASSESSMENT_PORTAL_DEFAULT_ROLES")
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        try:
+            from app.blueprints.assessment.helpers import get_setting
+
+            raw = get_setting("portal_default_roles", "Bewerter")
+        except Exception:
+            raw = "Bewerter"
+
+    roles = [
+        role
+        for role in _parse_role_list(raw)
+        if role in PORTAL_NON_ADMIN_ALLOWED_ROLES
+    ]
+    return roles or list(DEFAULT_PORTAL_NON_ADMIN_ROLES)
 
 
 def get_assessment_identity():
@@ -31,9 +83,7 @@ def get_assessment_identity():
         return "ass", current_user.id, current_user.role_names
 
     if has_module_access(current_user, "module_assessment"):
-        # Teamportal-Freischaltung fuer das Bewertungsmodul bedeutet immer Vollzugriff.
-        # Dadurch ist kein separates Assessment-Passwort/-Rollenset notwendig.
-        return "portal", current_user.id, ["Administrator"]
+        return "portal", current_user.id, get_portal_assessment_roles(current_user)
 
     return None, None, []
 

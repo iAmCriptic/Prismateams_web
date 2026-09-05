@@ -28,6 +28,7 @@ AVAILABLE_MODULES = [
     'module_kanban',
     'module_excalidraw',
     'module_surveys',
+    'module_protocols',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

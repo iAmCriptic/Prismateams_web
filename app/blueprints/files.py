@@ -1521,18 +1521,22 @@ def upload_file():
             })
         return redirect(url)
 
-    # Gast-Accounts können nur in freigegebenen Ordnern hochladen
+    # Gast-Accounts: Upload nur in Ordnern mit edit-/dropbox-Freigabe (nicht view-only)
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         folder_id = request.form.get('folder_id')
         folder_id = int(folder_id) if folder_id else None
-        
-        # Prüfe ob Gast Zugriff auf diesen Ordner hat
+
         if folder_id:
-            from app.utils.access_control import get_guest_accessible_items
-            accessible_files, accessible_folders = get_guest_accessible_items(current_user)
-            folder_with_access = next((f for f in accessible_folders if f.id == folder_id), None)
-            if not folder_with_access:
-                flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
+            from app.utils.access_control import GUEST_WRITE_MODES, guest_has_folder_access
+            target_folder = Folder.query.get(folder_id)
+            if not target_folder or not guest_has_folder_access(
+                current_user, target_folder, modes=GUEST_WRITE_MODES
+            ):
+                flash(
+                    'Keine Upload-Berechtigung für diesen Ordner '
+                    '(nur Bearbeiten- oder Dropbox-Freigaben).',
+                    'danger',
+                )
                 return _finish(request.referrer or url_for('files.index'))
         else:
             flash('Gast-Accounts können nur in freigegebenen Ordnern Dateien hochladen.', 'danger')
@@ -2112,12 +2116,12 @@ def edit_file(file_id):
     """Edit a text file online."""
     file = File.query.get_or_404(file_id)
     
-    # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
+    # Für Gast-Accounts: Bearbeiten nur mit edit-Freigabe (nicht view/dropbox)
     guest_accessible_folder_ids = None
     if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file):
-            flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
+            flash('Sie haben keine Bearbeitungsrechte für diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     elif not can_edit_file(file, current_user) and not current_user.is_admin:
@@ -4426,8 +4430,8 @@ def api_onlyoffice_presence():
         return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
     file_obj = File.query.get_or_404(file_id)
     if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file_obj):
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file_obj, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
     display_name = current_user.full_name if current_user.is_authenticated else 'Gast'
     avatar = getattr(current_user, 'profile_picture', None) if current_user.is_authenticated else None
@@ -4502,8 +4506,8 @@ def api_file_edit_lock():
             'error': 'Edit-Lock gilt nur für Markdown-Dateien.',
         }), 400
     if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file_obj):
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file_obj, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
 
     lock, blocker = file_edit_lock_util.acquire(
@@ -4534,12 +4538,12 @@ def edit_onlyoffice(file_id):
     
     file = File.query.get_or_404(file_id)
     
-    # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
+    # Für Gast-Accounts: OnlyOffice-Edit nur mit edit-Freigabe
     guest_accessible_folder_ids = None
     if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file):
-            flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
+            flash('Sie haben keine Bearbeitungsrechte für diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     elif not can_edit_file(file, current_user) and not current_user.is_admin:
@@ -5147,8 +5151,8 @@ def onlyoffice_forcesave(file_id):
     """Force-save an open OnlyOffice document for a logged-in user."""
     file = File.query.get_or_404(file_id)
     if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file):
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
 
     payload = request.get_json(silent=True) or {}

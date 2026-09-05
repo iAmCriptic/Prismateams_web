@@ -33,7 +33,8 @@
       "shortlinks": "Kurzlinks",
       "assessment": "Bewertung",
       "surveys": "Umfragen",
-      "file_converter": "Dateikonverter"
+      "file_converter": "Dateikonverter",
+      "protocols": "Protokollführung"
     },
     "brand": {
       "separator": "–",
@@ -3334,7 +3335,8 @@
       "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Einträge liegen wieder direkt im Bereich."
     },
     "errors": {
-      "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
+      "decrypt_error": "Fehler beim Entschlüsseln des Passworts",
+      "encryption_key_missing": "Verschlüsselungsschlüssel fehlt (CREDENTIAL_ENCRYPTION_KEY). Bitte in der .env setzen."
     },
     "index": {
       "page_title": "Zugangsdaten - Team Portal",
@@ -3541,7 +3543,37 @@
         "copied_phone": "Telefonnummer kopiert",
         "copy_error": "Kopieren fehlgeschlagen."
       },
-      "empty_message": "Keine Kontakte vorhanden."
+      "empty_message": "Keine Kontakte vorhanden.",
+      "empty_cta": "Neuer Kontakt"
+    },
+    "bulk": {
+      "selected": "ausgewählt",
+      "select": "Auswählen",
+      "select_all": "Alle auswählen",
+      "select_all_short": "Alle",
+      "deselect": "Auswahl aufheben",
+      "deselect_short": "Keine",
+      "download": "Herunterladen",
+      "download_ok": "Download gestartet.",
+      "download_error": "Download fehlgeschlagen.",
+      "email_all": "E-Mail an alle",
+      "email_none": "Keine E-Mail-Adresse in der Auswahl",
+      "email_partial": "{have} von {total} Empfänger haben eine Adresse",
+      "share": "Teilen",
+      "share_one": "Zum Teilen genau einen Kontakt wählen",
+      "share_title": "Kontakt teilen",
+      "share_hint": "Kopiere die Kontaktdaten und teile sie beliebig weiter.",
+      "share_copy": "Kopieren",
+      "share_copied": "Kontaktkarte kopiert",
+      "share_copy_error": "Kopieren fehlgeschlagen.",
+      "delete_confirm": "Wirklich {count} Kontakt(e) löschen?",
+      "delete_ok": "Gelöscht.",
+      "delete_error": "Löschen fehlgeschlagen.",
+      "deleted": "{count} Kontakt(e) gelöscht.",
+      "errors": {
+        "none_selected": "Keine Kontakte ausgewählt.",
+        "none_accessible": "Keine zugänglichen Kontakte gefunden."
+      }
     },
     "form": {
       "back": "Zurück",
@@ -6674,6 +6706,98 @@
       "output_not_found": "Ausgabedatei wurde nicht erzeugt.",
       "timeout": "Die Konvertierung hat das Zeitlimit überschritten.",
       "upload_failed": "Upload fehlgeschlagen."
+    }
+  },
+  "protocols": {
+    "nav": {
+      "title": "Protokollführung",
+      "all": "Alle",
+      "create": "Neues Protokoll",
+      "new": "Neues Protokoll"
+    },
+    "status": {
+      "draft": "Entwurf",
+      "finalized": "Abgeschlossen"
+    },
+    "steps": {
+      "meta": "Angaben",
+      "agenda": "Tagesordnung",
+      "content": "Inhalt"
+    },
+    "index": {
+      "search_placeholder": "Protokolle suchen…",
+      "empty": "Noch keine Protokolle vorhanden.",
+      "open": "Öffnen",
+      "edit": "Bearbeiten",
+      "pdf": "PDF herunterladen",
+      "delete_confirm": "Protokoll wirklich löschen?",
+      "nav": {
+        "menu": "Protokoll-Menü"
+      },
+      "list": {
+        "title": "Titel",
+        "date": "Datum",
+        "status": "Status",
+        "visibility": "Bereich"
+      }
+    },
+    "create": {
+      "subtitle": "Datum, Teilnehmer und Sichtbarkeit festlegen.",
+      "title_label": "Name der Besprechung",
+      "title_placeholder": "z. B. Gesamtteamsitzung",
+      "title_required": "Bitte geben Sie einen Namen für das Protokoll ein.",
+      "date_label": "Datum",
+      "start_time_label": "Startzeit",
+      "participants_label": "Teilnehmer*innen",
+      "participants_placeholder": "Namen, kommasepariert oder je Zeile",
+      "excused_label": "Entschuldigt",
+      "excused_placeholder": "Entschuldigte Personen",
+      "absent_label": "Unentschuldigt",
+      "absent_placeholder": "Unentschuldigt fehlende Personen",
+      "submit": "Weiter zu Tagesordnung",
+      "continue": "Weiter",
+      "chip_placeholder": "Name eingeben und Enter drücken…",
+      "chip_hint": "Mit Enter als Pille hinzufügen, mit × wieder entfernen."
+    },
+    "meta": {
+      "edit_title": "Protokoll bearbeiten"
+    },
+    "agenda": {
+      "title": "Tagesordnungspunkte",
+      "hint": "Legen Sie die TOPs fest. Die Reihenfolge können Sie per Drag & Drop ändern.",
+      "item_placeholder": "z. B. Update Projektstatus",
+      "add": "TOP hinzufügen",
+      "continue": "Weiter zu Inhalten",
+      "reorder": "Verschieben",
+      "min_one": "Bitte legen Sie mindestens einen Tagesordnungspunkt an."
+    },
+    "item": {
+      "title_label": "Tagesordnungspunkt",
+      "content_label": "Inhalt",
+      "nav_label": "TOPs",
+      "prev": "Vorheriger TOP",
+      "next": "Nächster TOP",
+      "autosaved": "Zwischengespeichert",
+      "saving": "Speichern…"
+    },
+    "actions": {
+      "save_draft": "Zwischenspeichern",
+      "finalize": "Als abgeschlossen speichern",
+      "finalize_confirm": "Protokoll wirklich abschließen? Danach ist keine Bearbeitung mehr möglich."
+    },
+    "view": {
+      "agenda": "Tagesordnung",
+      "content": "Protokollinhalt",
+      "no_content": "Keine Inhalte vorhanden."
+    },
+    "flash": {
+      "module_disabled": "Das Modul Protokollführung ist deaktiviert.",
+      "created": "Protokoll angelegt.",
+      "saved": "Gespeichert.",
+      "finalized": "Protokoll abgeschlossen.",
+      "deleted": "Protokoll gelöscht.",
+      "finalized_readonly": "Abgeschlossene Protokolle können nicht mehr bearbeitet werden.",
+      "pdf_only_finalized": "PDF ist erst nach Abschluss verfügbar."
     }
   }
 }

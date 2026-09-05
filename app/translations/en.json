@@ -33,7 +33,8 @@
       "shortlinks": "Short links",
       "assessment": "Assessment",
       "surveys": "Surveys",
-      "file_converter": "File Converter"
+      "file_converter": "File Converter",
+      "protocols": "Meeting Minutes"
     },
     "brand": {
       "separator": "–",
@@ -4312,7 +4313,8 @@
       "folder_deleted": "Folder \"{folder_name}\" was deleted. Entries are back in the area without a folder."
     },
     "errors": {
-      "decrypt_error": "Error decrypting password"
+      "decrypt_error": "Error decrypting password",
+      "encryption_key_missing": "Encryption key missing (CREDENTIAL_ENCRYPTION_KEY). Please set it in .env."
     }
   },
   "contacts": {
@@ -4403,7 +4405,37 @@
         "copied_phone": "Phone number copied",
         "copy_error": "Could not copy."
       },
-      "empty_message": "No contacts available."
+      "empty_message": "No contacts available.",
+      "empty_cta": "New contact"
+    },
+    "bulk": {
+      "selected": "selected",
+      "select": "Select",
+      "select_all": "Select all",
+      "select_all_short": "All",
+      "deselect": "Clear selection",
+      "deselect_short": "None",
+      "download": "Download",
+      "download_ok": "Download started.",
+      "download_error": "Download failed.",
+      "email_all": "Email all",
+      "email_none": "No email address in selection",
+      "email_partial": "{have} of {total} recipients have an address",
+      "share": "Share",
+      "share_one": "Select exactly one contact to share",
+      "share_title": "Share contact",
+      "share_hint": "Copy the contact details and share them as you like.",
+      "share_copy": "Copy",
+      "share_copied": "Contact card copied",
+      "share_copy_error": "Could not copy.",
+      "delete_confirm": "Really delete {count} contact(s)?",
+      "delete_ok": "Deleted.",
+      "delete_error": "Delete failed.",
+      "deleted": "{count} contact(s) deleted.",
+      "errors": {
+        "none_selected": "No contacts selected.",
+        "none_accessible": "No accessible contacts found."
+      }
     },
     "form": {
       "back": "Back",
@@ -6674,6 +6706,98 @@
       "output_not_found": "Output file was not created.",
       "timeout": "Conversion timed out.",
       "upload_failed": "Upload failed."
+    }
+  },
+  "protocols": {
+    "nav": {
+      "title": "Meeting Minutes",
+      "all": "All",
+      "create": "New protocol",
+      "new": "New protocol"
+    },
+    "status": {
+      "draft": "Draft",
+      "finalized": "Finalized"
+    },
+    "steps": {
+      "meta": "Details",
+      "agenda": "Agenda",
+      "content": "Content"
+    },
+    "index": {
+      "search_placeholder": "Search protocols…",
+      "empty": "No protocols yet.",
+      "open": "Open",
+      "edit": "Edit",
+      "pdf": "Download PDF",
+      "delete_confirm": "Really delete this protocol?",
+      "nav": {
+        "menu": "Protocols menu"
+      },
+      "list": {
+        "title": "Title",
+        "date": "Date",
+        "status": "Status",
+        "visibility": "Scope"
+      }
+    },
+    "create": {
+      "subtitle": "Set date, participants and visibility.",
+      "title_label": "Meeting name",
+      "title_placeholder": "e.g. Team meeting",
+      "title_required": "Please enter a name for the protocol.",
+      "date_label": "Date",
+      "start_time_label": "Start time",
+      "participants_label": "Participants",
+      "participants_placeholder": "Names, comma-separated or one per line",
+      "excused_label": "Excused",
+      "excused_placeholder": "Excused absences",
+      "absent_label": "Unexcused",
+      "absent_placeholder": "Unexcused absences",
+      "submit": "Continue to agenda",
+      "continue": "Continue",
+      "chip_placeholder": "Type a name and press Enter…",
+      "chip_hint": "Press Enter to add a pill, × to remove."
+    },
+    "meta": {
+      "edit_title": "Edit protocol"
+    },
+    "agenda": {
+      "title": "Agenda items",
+      "hint": "Define agenda items. Reorder via drag and drop.",
+      "item_placeholder": "e.g. Project update",
+      "add": "Add item",
+      "continue": "Continue to content",
+      "reorder": "Move",
+      "min_one": "Please add at least one agenda item."
+    },
+    "item": {
+      "title_label": "Agenda item",
+      "content_label": "Content",
+      "nav_label": "Items",
+      "prev": "Previous",
+      "next": "Next",
+      "autosaved": "Saved",
+      "saving": "Saving…"
+    },
+    "actions": {
+      "save_draft": "Save draft",
+      "finalize": "Mark as finalized",
+      "finalize_confirm": "Finalize this protocol? It can no longer be edited afterwards."
+    },
+    "view": {
+      "agenda": "Agenda",
+      "content": "Minutes",
+      "no_content": "No content yet."
+    },
+    "flash": {
+      "module_disabled": "The protocols module is disabled.",
+      "created": "Protocol created.",
+      "saved": "Saved.",
+      "finalized": "Protocol finalized.",
+      "deleted": "Protocol deleted.",
+      "finalized_readonly": "Finalized protocols cannot be edited.",
+      "pdf_only_finalized": "PDF is only available after finalization."
     }
   }
 }

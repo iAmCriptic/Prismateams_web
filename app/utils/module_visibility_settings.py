@@ -16,6 +16,7 @@ VISIBILITY_MODULE_KEYS = (
     'shortlinks',
     'excalidraw',
     'surveys',
+    'protocols',
 )
 
 
@@ -49,7 +50,8 @@ def sync_legacy_visibility_keys(allow_private: bool, allow_team: bool, allow_pub
     from app.utils.module_visibility import setting_key
 
     for module in VISIBILITY_MODULE_KEYS:
-        upsert_setting(setting_key(module, 'private'), str(allow_private).lower(), f'{module}: Privat')
+        priv = False if module == 'protocols' else allow_private
+        upsert_setting(setting_key(module, 'private'), str(priv).lower(), f'{module}: Privat')
         upsert_setting(setting_key(module, 'team'), str(allow_team).lower(), f'{module}: Team')
         upsert_setting(setting_key(module, 'public'), str(allow_public).lower(), f'{module}: Public')
 

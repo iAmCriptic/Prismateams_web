@@ -10,7 +10,7 @@ class Contact(db.Model):
     salutation = db.Column(db.String(50), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False, index=True)
     sort_name = db.Column(db.String(255), nullable=False, index=True)
-    email = db.Column(db.String(255), nullable=False, index=True)
+    email = db.Column(db.String(255), nullable=True, index=True)
     phone = db.Column(db.String(50), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     visibility = db.Column(db.String(20), nullable=False, default='public')
@@ -42,7 +42,7 @@ class Contact(db.Model):
             'salutation': self.salutation or '',
             'name': self.name,
             'sort_name': self.sort_name,
-            'email': self.email,
+            'email': self.email or '',
             'phone': self.phone or '',
             'notes': self.notes or '',
             'created_at': self.created_at.isoformat() if self.created_at else None,

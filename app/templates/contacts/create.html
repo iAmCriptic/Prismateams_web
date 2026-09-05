@@ -3,55 +3,11 @@
 {% block title %}{{ _('contacts.form.create.page_title') }}{% endblock %}
 
 {% block content %}
-{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
+{% from 'contacts/_sidebar.html' import contacts_form_sidebar with context %}
 {% set create_url = url_for('contacts.create') %}
 {% set active_nav = active_nav|default('all') %}
 <div class="contacts-shell mod-shell--nav">
-<aside class="mod-sidebar d-none d-lg-flex flex-column">
-    <div class="mod-sidebar-brand">
-        <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
-        <span>{{ _('contacts.index.heading') }}</span>
-    </div>
-    <div class="mod-sidebar-new-wrap w-100">
-        <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
-            <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
-        </a>
-    </div>
-    <nav class="mod-sidebar-nav nav flex-column gap-1">
-        <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
-            <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
-        </a>
-        {% if show_favorites_nav|default(false) %}
-        <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
-            <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
-        </a>
-        {% endif %}
-        {{ visibility_space_links('contacts.index', {}, '', allowed_visibilities, visibility_teams, active_nav) }}
-    </nav>
-</aside>
-
-<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="contactsMobileNavLabel">
-            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
-            <span>{{ _('contacts.index.heading') }}</span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
-    </div>
-    <div class="offcanvas-body pt-0">
-        <nav class="mod-sidebar-nav nav flex-column gap-1">
-            <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
-                <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
-            </a>
-            {% if show_favorites_nav|default(false) %}
-            <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
-                <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
-            </a>
-            {% endif %}
-            {{ visibility_space_links('contacts.index', {}, 'data-contacts-dismiss-offcanvas="1"', allowed_visibilities, visibility_teams, active_nav) }}
-        </nav>
-    </div>
-</div>
+{{ contacts_form_sidebar(create_url, active_nav, show_favorites_nav|default(false)) }}
 
 <div class="mod-main flex-grow-1 min-width-0">
     <div class="mod-mobile-topbar d-lg-none mb-3">
@@ -70,10 +26,12 @@
 
     <div class="contacts-form">
         <div class="contacts-form-header">
-            <a href="{{ url_for('contacts.index') }}" class="contacts-form-back">
-                <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                <span>{{ _('contacts.form.back') }}</span>
-            </a>
+            <div class="mod-back-row">
+                <a href="{{ url_for('contacts.index') }}" class="mod-back-link contacts-form-back">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>{{ _('layout.nav.back') }}</span>
+                </a>
+            </div>
             <div class="d-none d-lg-block">
                 <h1 class="contacts-form-title">{{ _('contacts.form.create.card_title') }}</h1>
                 <p class="contacts-form-subtitle">{{ _('contacts.form.create.subtitle') }}</p>
@@ -92,4 +50,15 @@
     </div>
 </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document.querySelector('.contacts-form') || document);
+    }
+});
+</script>
 {% endblock %}

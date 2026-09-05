@@ -296,11 +296,53 @@
 </div>
 {% endmacro %}
 
+{% macro contacts_visibility_badge(contact) %}
+{% set vis = contact.visibility|default('public') %}
+{% if vis == 'public' %}
+<span class="badge contacts-vis-badge contacts-vis-badge--public">{{ _('visibility.nav.public') }}</span>
+{% elif vis == 'team' %}
+<span class="badge contacts-vis-badge contacts-vis-badge--team">{{ _('visibility.nav.team') }}</span>
+{% else %}
+<span class="badge contacts-vis-badge contacts-vis-badge--private">{{ _('visibility.nav.private') }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro contacts_empty_state() %}
+<div class="mod-empty-state">
+    <div class="text-center">
+        <i class="bi {% if active_favorites %}bi-star{% else %}bi-person-lines-fill{% endif %} display-6 d-block mb-2 opacity-50"></i>
+        <p class="mb-3">
+            {% if active_favorites %}
+            {{ _('contacts.index.folders.favorites_empty') }}
+            {% else %}
+            {{ _('contacts.index.empty_message') }}
+            {% endif %}
+        </p>
+        {% if not active_favorites %}
+        <a href="{{ create_url }}" class="btn btn-accent rounded-pill">
+            <i class="bi bi-plus-lg me-1"></i>{{ _('contacts.index.empty_cta') }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
 {% macro render_contact_card(contact) %}
 {% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
 <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
-    <div class="card h-100 contacts-card">
+    <div class="card h-100 contacts-card"
+         data-item-type="contact"
+         data-item-id="{{ contact.id }}"
+         data-contact-email="{{ contact.email or '' }}"
+         data-contact-name="{{ display_name }}"
+         data-contact-phone="{{ contact.phone or '' }}"
+         data-contact-notes="{{ contact.notes or '' }}">
         {{ contact_context_menu(contact, '-grid') }}
+        <label class="files-select-check" onclick="event.stopPropagation()" title="{{ _('contacts.bulk.select') }}">
+            <input type="checkbox" class="form-check-input files-item-checkbox"
+                   data-item-type="contact" data-item-id="{{ contact.id }}">
+        </label>
         <div class="card-body d-flex flex-column">
             <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
                 <div class="contacts-card-avatar contacts-avatar-main flex-shrink-0" aria-hidden="true">
@@ -348,9 +390,13 @@
                     </div>
                 </div>
             </div>
-            <h5 class="card-title text-truncate mb-1" title="{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}">
-                {{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}
+            <h5 class="card-title text-truncate mb-1" title="{{ display_name }}">
+                {{ display_name }}
             </h5>
+            {% if active_nav == 'all' and not active_favorites %}
+            <div class="mb-2">{{ contacts_visibility_badge(contact) }}</div>
+            {% endif %}
+            {% if contact.email %}
             <a
                 href="{% if can_write_mail %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}"
                 class="contacts-card-meta text-decoration-none d-inline-flex align-items-center gap-1 mb-2 text-truncate"
@@ -359,6 +405,9 @@
                 <i class="bi bi-envelope flex-shrink-0"></i>
                 <span class="text-truncate">{{ contact.email }}</span>
             </a>
+            {% else %}
+            <p class="contacts-card-meta text-muted mb-2">—</p>
+            {% endif %}
 
             {% if contact.phone %}
             <p class="contacts-card-meta mb-2">
@@ -377,16 +426,40 @@
 
 {% macro render_contact_list_row(contact) %}
 {% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
-<tr class="mod-list-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-list">
-    <td>
+{% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
+<tr class="mod-list-row"
+    data-context-zone
+    data-context-menu="template"
+    data-context-menu-id="context-menu-contact-{{ contact.id }}-list"
+    data-item-type="contact"
+    data-item-id="{{ contact.id }}"
+    data-contact-email="{{ contact.email or '' }}"
+    data-contact-name="{{ display_name }}"
+    data-contact-phone="{{ contact.phone or '' }}"
+    data-contact-notes="{{ contact.notes or '' }}">
+    <td class="files-list-name-cell">
         {{ contact_context_menu(contact, '-list') }}
-        <span class="mod-list-name">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</span>
+        <label class="files-select-check files-select-check--list" onclick="event.stopPropagation()" title="{{ _('contacts.bulk.select') }}">
+            <input type="checkbox" class="form-check-input files-item-checkbox"
+                   data-item-type="contact" data-item-id="{{ contact.id }}">
+        </label>
+        <div class="d-flex align-items-center gap-2 min-width-0">
+            <span class="contacts-list-avatar flex-shrink-0" aria-hidden="true">{{ (contact.name or '?')[0]|upper }}</span>
+            <span class="mod-list-name text-truncate">{{ display_name }}</span>
+            {% if active_nav == 'all' and not active_favorites %}
+            <span class="d-none d-xl-inline-flex flex-shrink-0">{{ contacts_visibility_badge(contact) }}</span>
+            {% endif %}
+        </div>
     </td>
     <td class="text-nowrap d-none d-md-table-cell">
+        {% if contact.email %}
         <a href="{% if can_write_mail %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" class="text-decoration-none">
             {{ contact.email }}
             <i class="bi bi-envelope"></i>
         </a>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
     </td>
     <td class="text-nowrap d-none d-lg-table-cell">
         {% if contact.phone %}
@@ -508,6 +581,38 @@
         </div>
     </div>
 
+    <div id="contactsBulkToolbar" class="files-bulk-bar mb-3" style="display: none;">
+        <div class="files-bulk-inner">
+            <div>
+                <span class="text-muted">
+                    <strong id="contactsBulkCount">0</strong> {{ _('contacts.bulk.selected') }}
+                </span>
+            </div>
+            <div class="files-bulk-actions">
+                <button type="button" id="contactsBulkSelectAllBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.select_all') }}">
+                    <i class="bi bi-check-square"></i> {{ _('contacts.bulk.select_all_short') }}
+                </button>
+                <button type="button" id="contactsBulkDeselectBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--muted" title="{{ _('contacts.bulk.deselect') }}">
+                    <i class="bi bi-square"></i> {{ _('contacts.bulk.deselect_short') }}
+                </button>
+                <button type="button" id="contactsBulkDownloadBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.download') }}">
+                    <i class="bi bi-download"></i> {{ _('contacts.bulk.download') }}
+                </button>
+                {% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+                <button type="button" id="contactsBulkEmailBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.email_all') }}" disabled>
+                    <i class="bi bi-envelope"></i> {{ _('contacts.bulk.email_all') }}
+                </button>
+                {% endif %}
+                <button type="button" id="contactsBulkShareBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.share') }}" disabled>
+                    <i class="bi bi-share"></i> {{ _('contacts.bulk.share') }}
+                </button>
+                <button type="button" id="contactsBulkDeleteBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--danger" title="{{ _('common.delete') }}">
+                    <i class="bi bi-trash"></i> {{ _('common.delete') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="contactsViewStage" class="files-view-stage">
     <div id="gridViewContainer" class="files-view-pane" style="display: none;">
         {% if contacts %}
@@ -517,16 +622,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="mod-empty-state">
-            <div>
-                <i class="bi {% if active_favorites %}bi-star{% else %}bi-person-lines-fill{% endif %} display-6 d-block mb-2 opacity-50"></i>
-                {% if active_favorites %}
-                {{ _('contacts.index.folders.favorites_empty') }}
-                {% else %}
-                {{ _('contacts.index.empty_message') }}
-                {% endif %}
-            </div>
-        </div>
+        {{ contacts_empty_state() }}
         {% endif %}
     </div>
 
@@ -536,7 +632,12 @@
             <table class="table mod-list-table align-middle">
                 <thead>
                     <tr>
-                        <th scope="col">{{ _('contacts.form.fields.name') }}</th>
+                        <th scope="col">
+                            <span class="files-list-select-all-wrap me-2">
+                                <input type="checkbox" class="form-check-input" id="contactsSelectAllCheckbox" title="{{ _('contacts.bulk.select_all') }}">
+                            </span>
+                            {{ _('contacts.form.fields.name') }}
+                        </th>
                         <th scope="col" class="d-none d-md-table-cell">{{ _('contacts.form.fields.email') }}</th>
                         <th scope="col" class="d-none d-lg-table-cell">{{ _('contacts.form.fields.phone') }}</th>
                         <th scope="col" class="d-none d-xl-table-cell">{{ _('contacts.form.fields.notes') }}</th>
@@ -551,26 +652,61 @@
             </table>
         </div>
         {% else %}
-        <div class="mod-empty-state">
-            <div>
-                <i class="bi {% if active_favorites %}bi-star{% else %}bi-person-lines-fill{% endif %} display-6 d-block mb-2 opacity-50"></i>
-                {% if active_favorites %}
-                {{ _('contacts.index.folders.favorites_empty') }}
-                {% else %}
-                {{ _('contacts.index.empty_message') }}
-                {% endif %}
-            </div>
-        </div>
+        {{ contacts_empty_state() }}
         {% endif %}
     </div>
     </div>
 </div>
+</div>
+
+<div class="modal fade" id="contactsShareModal" tabindex="-1" aria-labelledby="contactsShareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contactsShareModalLabel">{{ _('contacts.bulk.share_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">{{ _('contacts.bulk.share_hint') }}</p>
+                <pre id="contactsSharePreview" class="contacts-share-preview mb-0"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+                <button type="button" id="contactsShareCopyBtn" class="btn btn-accent rounded-pill">
+                    <i class="bi bi-clipboard me-1"></i>{{ _('contacts.bulk.share_copy') }}
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+window.CONTACTS_BULK_DOWNLOAD_URL = {{ url_for('contacts.api_download_vcf')|tojson }};
+window.CONTACTS_BULK_DELETE_URL = {{ url_for('contacts.api_bulk_delete')|tojson }};
+{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+window.CONTACTS_COMPOSE_URL = {{ url_for('email.compose')|tojson }};
+{% endif %}
+window.CONTACTS_BULK_I18N = {
+    select: {{ _('contacts.bulk.select')|tojson }},
+    email_all: {{ _('contacts.bulk.email_all')|tojson }},
+    email_none: {{ _('contacts.bulk.email_none')|tojson }},
+    email_partial: {{ _('contacts.bulk.email_partial')|tojson }},
+    share: {{ _('contacts.bulk.share')|tojson }},
+    share_one: {{ _('contacts.bulk.share_one')|tojson }},
+    share_copied: {{ _('contacts.bulk.share_copied')|tojson }},
+    share_copy_error: {{ _('contacts.bulk.share_copy_error')|tojson }},
+    download_ok: {{ _('contacts.bulk.download_ok')|tojson }},
+    download_error: {{ _('contacts.bulk.download_error')|tojson }},
+    delete_confirm: {{ _('contacts.bulk.delete_confirm')|tojson }},
+    delete_error: {{ _('contacts.bulk.delete_error')|tojson }},
+    delete_ok: {{ _('contacts.bulk.delete_ok')|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/contacts-bulk.js') }}"></script>
 <script>
 const CONTACTS_I18N = {{ current_translations.get('contacts', {}).get('index', {})|tojson }};
 

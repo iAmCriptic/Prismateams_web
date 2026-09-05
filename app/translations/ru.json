@@ -27,7 +27,8 @@
       "booking": "Бронирования",
       "media_downloader": "Загрузчик медиа",
       "surveys": "Опросы",
-      "file_converter": "File Converter"
+      "file_converter": "File Converter",
+      "protocols": "Протоколы"
     },
     "cookie_consent": {
       "title": "Cookies и конфиденциальность",
@@ -1353,6 +1354,98 @@
       "error_invalid_zip": "Invalid ZIP file",
       "error_empty_zip": "ZIP has no JSON/CSV files",
       "visibility": "Видимость"
+    }
+  },
+  "protocols": {
+    "nav": {
+      "title": "Протоколы",
+      "all": "Все",
+      "create": "Новый протокол",
+      "new": "Новый протокол"
+    },
+    "status": {
+      "draft": "Черновик",
+      "finalized": "Завершён"
+    },
+    "steps": {
+      "meta": "Данные",
+      "agenda": "Повестка",
+      "content": "Содержание"
+    },
+    "index": {
+      "search_placeholder": "Поиск протоколов…",
+      "empty": "Протоколов пока нет.",
+      "open": "Открыть",
+      "edit": "Изменить",
+      "pdf": "Скачать PDF",
+      "delete_confirm": "Удалить протокол?",
+      "nav": {
+        "menu": "Меню протоколов"
+      },
+      "list": {
+        "title": "Название",
+        "date": "Дата",
+        "status": "Статус",
+        "visibility": "Область"
+      }
+    },
+    "create": {
+      "subtitle": "Укажите дату, участников и видимость.",
+      "title_label": "Название совещания",
+      "title_placeholder": "напр. Общая встреча",
+      "title_required": "Введите название протокола.",
+      "date_label": "Дата",
+      "start_time_label": "Время начала",
+      "participants_label": "Участники",
+      "participants_placeholder": "Имена через запятую или с новой строки",
+      "excused_label": "По уважительной причине",
+      "excused_placeholder": "Отсутствующие по уважительной причине",
+      "absent_label": "Без уважительной причины",
+      "absent_placeholder": "Отсутствующие без уважительной причины",
+      "submit": "К повестке",
+      "continue": "Далее",
+      "chip_placeholder": "Введите имя и нажмите Enter…",
+      "chip_hint": "Enter — добавить как метку, × — удалить."
+    },
+    "meta": {
+      "edit_title": "Редактировать протокол"
+    },
+    "agenda": {
+      "title": "Пункты повестки",
+      "hint": "Задайте пункты. Порядок можно менять перетаскиванием.",
+      "item_placeholder": "напр. Обновление проекта",
+      "add": "Добавить пункт",
+      "continue": "К содержанию",
+      "reorder": "Переместить",
+      "min_one": "Добавьте хотя бы один пункт повестки."
+    },
+    "item": {
+      "title_label": "Пункт",
+      "content_label": "Содержание",
+      "nav_label": "Пункты",
+      "prev": "Назад",
+      "next": "Далее",
+      "autosaved": "Сохранено",
+      "saving": "Сохранение…"
+    },
+    "actions": {
+      "save_draft": "Сохранить черновик",
+      "finalize": "Завершить",
+      "finalize_confirm": "Завершить протокол? После этого редактирование будет недоступно."
+    },
+    "view": {
+      "agenda": "Повестка",
+      "content": "Содержание",
+      "no_content": "Нет содержания."
+    },
+    "flash": {
+      "module_disabled": "Модуль протоколов отключён.",
+      "created": "Протокол создан.",
+      "saved": "Сохранено.",
+      "finalized": "Протокол завершён.",
+      "deleted": "Протокол удалён.",
+      "finalized_readonly": "Завершённые протоколы нельзя редактировать.",
+      "pdf_only_finalized": "PDF доступен только после завершения."
     }
   }
 }

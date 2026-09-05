@@ -35,6 +35,15 @@ class Config:
     SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    # Remember-Me (Flask-Login) — gleiche Härtung wie Session-Cookies
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
+    REMEMBER_COOKIE_SECURE = False
+
+    # Portal-Nutzer mit module_assessment (ohne is_admin): Assessment-Rollen (kommagetrennt)
+    ASSESSMENT_PORTAL_DEFAULT_ROLES = os.environ.get(
+        'ASSESSMENT_PORTAL_DEFAULT_ROLES', 'Bewerter'
+    )
     
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
@@ -75,6 +84,17 @@ class Config:
     ONLYOFFICE_DOCUMENT_SERVER_URL = os.environ.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
     ONLYOFFICE_SECRET_KEY = os.environ.get('ONLYOFFICE_SECRET_KEY', '')
     ONLYOFFICE_PUBLIC_URL = os.environ.get('ONLYOFFICE_PUBLIC_URL', '')
+    # Unsigned callbacks (JWT_ENABLED=false am Document Server):
+    # None = auto (nur Dev/Test), True/False = explizit aus .env
+    _oo_unsigned = os.environ.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
+    if _oo_unsigned is None or str(_oo_unsigned).strip() == '':
+        ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS = None
+    else:
+        ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS = (
+            str(_oo_unsigned).strip().lower() in ('1', 'true', 'yes', 'on')
+        )
+
+    CREDENTIAL_ENCRYPTION_KEY = (os.environ.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
     
     EXCALIDRAW_ENABLED = os.environ.get('EXCALIDRAW_ENABLED', 'False').lower() == 'true'
     EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')
@@ -110,6 +130,11 @@ class ProductionConfig(Config):
     # Default True (HTTPS). Ohne SSL muss .env SESSION_COOKIE_SECURE=False setzen,
     # sonst speichert der Browser Session-Cookies nicht und Login/Setup brechen.
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+    # Remember-Me: Default wie Session; separat überschreibbar
+    REMEMBER_COOKIE_SECURE = os.environ.get(
+        'REMEMBER_COOKIE_SECURE',
+        os.environ.get('SESSION_COOKIE_SECURE', 'True'),
+    ).lower() == 'true'
 
 
 class TestingConfig(Config):

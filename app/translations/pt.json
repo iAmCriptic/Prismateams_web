@@ -27,7 +27,8 @@
       "booking": "Reservas",
       "media_downloader": "Downloader de mídia",
       "surveys": "Inquéritos",
-      "file_converter": "File Converter"
+      "file_converter": "File Converter",
+      "protocols": "Atas"
     },
     "cookie_consent": {
       "title": "Cookies e privacidade",
@@ -1353,6 +1354,98 @@
       "error_invalid_zip": "Invalid ZIP file",
       "error_empty_zip": "ZIP has no JSON/CSV files",
       "visibility": "Visibilidade"
+    }
+  },
+  "protocols": {
+    "nav": {
+      "title": "Atas",
+      "all": "Todas",
+      "create": "Nova ata",
+      "new": "Nova ata"
+    },
+    "status": {
+      "draft": "Rascunho",
+      "finalized": "Concluída"
+    },
+    "steps": {
+      "meta": "Dados",
+      "agenda": "Pauta",
+      "content": "Conteúdo"
+    },
+    "index": {
+      "search_placeholder": "Pesquisar atas…",
+      "empty": "Ainda não há atas.",
+      "open": "Abrir",
+      "edit": "Editar",
+      "pdf": "Transferir PDF",
+      "delete_confirm": "Eliminar esta ata?",
+      "nav": {
+        "menu": "Menu de atas"
+      },
+      "list": {
+        "title": "Título",
+        "date": "Data",
+        "status": "Estado",
+        "visibility": "Âmbito"
+      }
+    },
+    "create": {
+      "subtitle": "Defina data, participantes e visibilidade.",
+      "title_label": "Nome da reunião",
+      "title_placeholder": "ex. Reunião de equipa",
+      "title_required": "Introduza um nome para a ata.",
+      "date_label": "Data",
+      "start_time_label": "Hora de início",
+      "participants_label": "Participantes",
+      "participants_placeholder": "Nomes, separados por vírgulas ou por linha",
+      "excused_label": "Justificados",
+      "excused_placeholder": "Ausências justificadas",
+      "absent_label": "Injustificados",
+      "absent_placeholder": "Ausências injustificadas",
+      "submit": "Continuar para a pauta",
+      "continue": "Continuar",
+      "chip_placeholder": "Escreva um nome e prima Enter…",
+      "chip_hint": "Enter para adicionar como pill, × para remover."
+    },
+    "meta": {
+      "edit_title": "Editar ata"
+    },
+    "agenda": {
+      "title": "Pontos da pauta",
+      "hint": "Defina os pontos. Pode reordenar por arrastar.",
+      "item_placeholder": "ex. Atualização do projeto",
+      "add": "Adicionar ponto",
+      "continue": "Continuar para o conteúdo",
+      "reorder": "Mover",
+      "min_one": "Adicione pelo menos um ponto da pauta."
+    },
+    "item": {
+      "title_label": "Ponto",
+      "content_label": "Conteúdo",
+      "nav_label": "Pontos",
+      "prev": "Anterior",
+      "next": "Seguinte",
+      "autosaved": "Guardado",
+      "saving": "A guardar…"
+    },
+    "actions": {
+      "save_draft": "Guardar rascunho",
+      "finalize": "Marcar como concluída",
+      "finalize_confirm": "Concluir a ata? Depois já não poderá ser editada."
+    },
+    "view": {
+      "agenda": "Pauta",
+      "content": "Conteúdo",
+      "no_content": "Sem conteúdo."
+    },
+    "flash": {
+      "module_disabled": "O módulo de atas está desativado.",
+      "created": "Ata criada.",
+      "saved": "Guardado.",
+      "finalized": "Ata concluída.",
+      "deleted": "Ata eliminada.",
+      "finalized_readonly": "Atas concluídas não podem ser editadas.",
+      "pdf_only_finalized": "O PDF só está disponível após a conclusão."
     }
   }
 }

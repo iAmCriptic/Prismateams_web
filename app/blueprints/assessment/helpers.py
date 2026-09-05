@@ -56,9 +56,10 @@ def actor_is_admin(actor=None):
 def lists_for_actor(actor=None, require_active=True):
     """Aktive Listen, die der Actor bewerten/sehen darf.
 
-    - Administrator / Portal-Vollzugriff: immer alle Listen
+    - Assessment-Administrator / Portal-Admin: immer alle Listen
     - Assessment-User ohne Zuordnung: alle Listen
     - Assessment-User mit Zuordnung: nur zugeordnete Listen
+    - Portal-Nutzer ohne Admin (z.B. Bewerter): alle Listen
     """
     actor = actor or current_actor()
     query = AssessmentList.query

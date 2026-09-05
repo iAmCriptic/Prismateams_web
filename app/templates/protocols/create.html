@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('protocols.nav.create') if not editing else _('protocols.meta.edit_title') }}{% endblock %}
+
+{% block content %}
+{% from 'protocols/_sidebar.html' import protocols_create_url with context %}
+{% set editing = editing|default(false) %}
+{% set create_url = protocols_create_url() %}
+{% if section_filter == 'team' and filter_team_id %}
+{% set index_url = url_for('protocols.index', view='team', team_id=filter_team_id) %}
+{% elif section_filter == 'public' %}
+{% set index_url = url_for('protocols.index', view='public') %}
+{% else %}
+{% set index_url = url_for('protocols.index') %}
+{% endif %}
+{% set form_action = url_for('protocols.edit_meta', protocol_id=protocol.id) if editing else create_url %}
+
+<div class="protocols-workspace">
+    <header class="protocols-workspace-toolbar">
+        <div class="protocols-workspace-toolbar-start">
+            <a href="{{ index_url }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i>
+                <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
+            </a>
+            <div class="protocols-workspace-brand min-width-0">
+                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                <div class="min-width-0">
+                    <div class="protocols-workspace-title text-truncate">{{ _('protocols.nav.create') if not editing else _('protocols.meta.edit_title') }}</div>
+                    <div class="protocols-workspace-subtitle text-truncate">{{ _('protocols.create.subtitle') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="protocols-workspace-toolbar-end">
+            {% if editing %}
+            <div class="protocols-steps protocols-steps--toolbar">
+                <span class="protocols-step is-active">1. {{ _('protocols.steps.meta') }}</span>
+                <span class="protocols-step"><a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}">2. {{ _('protocols.steps.agenda') }}</a></span>
+                <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
+            </div>
+            {% endif %}
+            <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill">
+                <i class="bi bi-arrow-right"></i>
+                {{ _('protocols.create.submit') if not editing else _('protocols.create.continue') }}
+            </button>
+        </div>
+    </header>
+
+    <div class="protocols-workspace-body protocols-workspace-body--scroll">
+        <form method="POST" class="protocols-form protocols-form--wide" id="protocolsMetaForm" action="{{ form_action }}">
+            <section class="protocols-form-card">
+                <div class="protocols-form-fields">
+                    <div class="protocols-form-field">
+                        <label for="protocolTitle" class="form-label">{{ _('protocols.create.title_label') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg" id="protocolTitle" name="title" value="{{ form.title|default('') }}" placeholder="{{ _('protocols.create.title_placeholder') }}" required autofocus>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="meetingDate" class="form-label">{{ _('protocols.create.date_label') }}</label>
+                            <input type="date" class="form-control" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="startTime" class="form-label">{{ _('protocols.create.start_time_label') }}</label>
+                            <input type="time" class="form-control" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
+                        </div>
+                    </div>
+
+                    <div class="protocols-form-field">
+                        <label class="form-label" for="participantsChipInput">{{ _('protocols.create.participants_label') }}</label>
+                        <div class="protocols-chip-field" data-chip-field>
+                            <div class="protocols-chip-list" data-chip-list></div>
+                            <input type="text" class="protocols-chip-input" id="participantsChipInput" data-chip-input autocomplete="off" placeholder="{{ _('protocols.create.chip_placeholder') }}">
+                            <input type="hidden" name="participants_text" data-chip-value value="{{ form.participants_text|default('') }}">
+                        </div>
+                        <div class="form-text">{{ _('protocols.create.chip_hint') }}</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="excusedChipInput">{{ _('protocols.create.excused_label') }}</label>
+                            <div class="protocols-chip-field" data-chip-field>
+                                <div class="protocols-chip-list" data-chip-list></div>
+                                <input type="text" class="protocols-chip-input" id="excusedChipInput" data-chip-input autocomplete="off" placeholder="{{ _('protocols.create.chip_placeholder') }}">
+                                <input type="hidden" name="excused_text" data-chip-value value="{{ form.excused_text|default('') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="absentChipInput">{{ _('protocols.create.absent_label') }}</label>
+                            <div class="protocols-chip-field" data-chip-field>
+                                <div class="protocols-chip-list" data-chip-list></div>
+                                <input type="text" class="protocols-chip-input" id="absentChipInput" data-chip-input autocomplete="off" placeholder="{{ _('protocols.create.chip_placeholder') }}">
+                                <input type="hidden" name="absent_text" data-chip-value value="{{ form.absent_text|default('') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="protocols-form-field">
+                        {% from 'partials/visibility_select.html' import visibility_select with context %}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+                    </div>
+                </div>
+            </section>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/protocols.js') }}"></script>
+{% endblock %}

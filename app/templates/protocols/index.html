@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('protocols.nav.title') }}{% endblock %}
+
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           value="{{ search_query|default('') }}"
+           class="form-control protocols-search-input"
+           placeholder="{{ _('protocols.index.search_placeholder') }}"
+           aria-label="{{ _('protocols.index.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('protocols.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+       class="btn protocols-search-clear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+{% from 'protocols/_sidebar.html' import protocols_sidebar_chrome, protocols_create_url with context %}
+{% set create_url = protocols_create_url() %}
+{% if active_nav == 'public' %}
+{% set heading_label = _('visibility.nav.public') %}
+{% elif active_nav and active_nav.startswith('team-') %}
+{% set heading_label = _('visibility.nav.team') %}
+{% else %}
+{% set heading_label = _('protocols.nav.all') %}
+{% endif %}
+
+<div class="protocols-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+            <span>{{ _('protocols.nav.title') }}</span>
+        </div>
+        {{ protocols_sidebar_chrome() }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="protocolsMobileNav" aria-labelledby="protocolsMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="protocolsMobileNavLabel">
+                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                <span>{{ _('protocols.nav.title') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            {{ protocols_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true, include_new=false) }}
+        </div>
+    </div>
+
+    <div class="mod-main protocols-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#protocolsMobileNav" aria-controls="protocolsMobileNav" aria-label="{{ _('protocols.index.nav.menu') }}">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                        <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                        <span>{{ heading_label }}</span>
+                    </h1>
+                </div>
+                <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i> {{ _('protocols.nav.new') }}
+                </a>
+            </div>
+            <div class="mt-2">
+                <form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
+                    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+                    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+                    <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
+                    <input type="search" name="q" value="{{ search_query|default('') }}" class="form-control protocols-search-input" placeholder="{{ _('protocols.index.search_placeholder') }}" autocomplete="off">
+                </form>
+            </div>
+        </div>
+
+        <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+            <div class="col min-width-0">
+                <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
+            </div>
+        </div>
+
+        {% if protocols %}
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('protocols.index.list.title') }}</th>
+                        <th scope="col">{{ _('protocols.index.list.date') }}</th>
+                        <th scope="col">{{ _('protocols.index.list.status') }}</th>
+                        <th scope="col" class="d-none d-md-table-cell">{{ _('protocols.index.list.visibility') }}</th>
+                        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in protocols %}
+                    {% set open_url = url_for('protocols.view', protocol_id=p.id) if p.is_finalized else url_for('protocols.edit_meta', protocol_id=p.id) %}
+                    <tr class="mod-list-row">
+                        <td>
+                            <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ open_url }}">
+                                <i class="bi bi-journal-richtext flex-shrink-0 text-muted"></i>
+                                <span class="text-truncate">{{ p.title }}</span>
+                            </a>
+                        </td>
+                        <td class="text-muted">
+                            {{ p.meeting_date.strftime('%d.%m.%Y') if p.meeting_date else '—' }}
+                            {% if p.start_time %}<span class="d-none d-sm-inline"> · {{ p.start_time.strftime('%H:%M') }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.is_finalized %}
+                            <span class="badge bg-success">{{ _('protocols.status.finalized') }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _('protocols.status.draft') }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <span class="badge bg-light text-dark border">{{ visibility_label(p) }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="mod-list-actions">
+                                <div class="mod-list-hover-actions">
+                                    <a class="btn btn-sm btn-link" href="{{ open_url }}" title="{{ _('protocols.index.open') }}">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if p.is_finalized %}
+                                    <a class="btn btn-sm btn-link" href="{{ url_for('protocols.pdf', protocol_id=p.id) }}" title="{{ _('protocols.index.pdf') }}">
+                                        <i class="bi bi-filetype-pdf"></i>
+                                    </a>
+                                    {% else %}
+                                    <a class="btn btn-sm btn-link" href="{{ url_for('protocols.edit_agenda', protocol_id=p.id) }}" title="{{ _('protocols.index.edit') }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ open_url }}">
+                                                <i class="bi bi-eye me-2"></i>{{ _('protocols.index.open') }}
+                                            </a>
+                                        </li>
+                                        {% if not p.is_finalized %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('protocols.edit_meta', protocol_id=p.id) }}">
+                                                <i class="bi bi-pencil me-2"></i>{{ _('protocols.index.edit') }}
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('protocols.pdf', protocol_id=p.id) }}">
+                                                <i class="bi bi-filetype-pdf me-2"></i>{{ _('protocols.index.pdf') }}
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('protocols.delete', protocol_id=p.id) }}" class="d-inline">
+                                                <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('protocols.index.delete_confirm') }}">
+                                                    <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="protocols-empty text-center py-5">
+            <i class="bi bi-journal-richtext display-4 text-muted"></i>
+            <p class="text-muted mt-3">{{ _('protocols.index.empty') }}</p>
+            <a href="{{ create_url }}" class="btn btn-accent rounded-pill">{{ _('protocols.nav.new') }}</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    document.querySelectorAll('[data-protocols-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('protocolsMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+    document.querySelectorAll('[data-confirm-delete]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            if (!window.confirm(btn.getAttribute('data-confirm-delete'))) {
+                e.preventDefault();
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

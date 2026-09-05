@@ -333,10 +333,12 @@ def get_portal_name():
 
 
 def build_standard_header(title, subtitle=None, pagesize=A4, logo_size=2.0 * cm,
-                          content_width=None, show_logo=True, show_accent=True):
+                          content_width=None, show_logo=True, show_accent=True,
+                          logo_align='left'):
     """
-    Einheitlicher PDF-Kopf: Portal-Logo links, Titel (und optional Untertitel) daneben,
+    Einheitlicher PDF-Kopf: Portal-Logo und Titel (optional Untertitel),
     darunter dezente Akzentlinie. show_logo=False für QR-Bögen.
+    logo_align: 'left' (Standard) oder 'right' (z. B. Protokolle).
     """
     ps = pdf_paragraph_styles()
     usable_width = content_width if content_width is not None else (pagesize[0] - 4 * cm)
@@ -357,18 +359,37 @@ def build_standard_header(title, subtitle=None, pagesize=A4, logo_size=2.0 * cm,
     if show_logo and logo_cell != '':
         logo_col = logo_size + 0.6 * cm
         text_col = max(usable_width - logo_col, 8 * cm)
-        header = Table([[logo_cell, text_block]], colWidths=[logo_col, text_col])
+        if logo_align == 'right':
+            header = Table([[text_block, logo_cell]], colWidths=[text_col, logo_col])
+            header.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+        else:
+            header = Table([[logo_cell, text_block]], colWidths=[logo_col, text_col])
+            header.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
     else:
         header = Table([[text_block]], colWidths=[usable_width])
-
-    header.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
+        header.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
 
     if not show_accent:
         return header

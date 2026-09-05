@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
 from app.models.contact import Contact, ContactFavorite
@@ -70,6 +70,52 @@ def contacts_sidebar_context(item=None):
 def _contacts_denied():
     flash(translate('visibility.flash.access_denied'), 'danger')
     return redirect(url_for('contacts.index'))
+
+
+def _escape_vcard(value):
+    """Escape special characters for vCard 3.0 text values."""
+    if not value:
+        return ''
+    text = str(value).replace('\\', '\\\\').replace(';', '\\;').replace(',', '\\,')
+    return text.replace('\n', '\\n').replace('\r', '')
+
+
+def _contact_to_vcard(contact):
+    """Build a single vCard 3.0 block for a contact."""
+    display = f"{(contact.salutation + ' ') if contact.salutation else ''}{contact.name}".strip()
+    lines = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        f'FN:{_escape_vcard(display)}',
+        f'N:{_escape_vcard(contact.name)};;;;',
+    ]
+    if contact.email:
+        lines.append(f'EMAIL;TYPE=INTERNET:{contact.email}')
+    if contact.phone:
+        lines.append(f'TEL;TYPE=VOICE:{_escape_vcard(contact.phone)}')
+    if contact.notes:
+        lines.append(f'NOTE:{_escape_vcard(contact.notes)}')
+    lines.append('END:VCARD')
+    return '\n'.join(lines)
+
+
+def _parse_contact_ids(payload):
+    """Extract unique positive contact ids from JSON payload."""
+    raw = payload.get('ids') if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        return []
+    ids = []
+    seen = set()
+    for value in raw:
+        try:
+            cid = int(value)
+        except (TypeError, ValueError):
+            continue
+        if cid <= 0 or cid in seen:
+            continue
+        seen.add(cid)
+        ids.append(cid)
+    return ids
 
 
 @contacts_bp.route('/')
@@ -161,7 +207,7 @@ def create():
     if request.method == 'POST':
         salutation = request.form.get('salutation', '').strip()
         name = request.form.get('name', '').strip()
-        email = request.form.get('email', '').strip().lower()
+        email = request.form.get('email', '').strip().lower() or None
         phone = request.form.get('phone', '').strip()
         notes = request.form.get('notes', '').strip()
         
@@ -172,25 +218,13 @@ def create():
                 'contacts/create.html',
                 salutation=salutation,
                 name=name,
-                email=email,
+                email=email or '',
                 phone=phone,
                 notes=notes,
                 **contacts_sidebar_context(),
             )
         
-        if not email:
-            flash(translate('contacts.flash.email_required'), 'danger')
-            return render_template(
-                'contacts/create.html',
-                salutation=salutation,
-                name=name,
-                email=email,
-                phone=phone,
-                notes=notes,
-                **contacts_sidebar_context(),
-            )
-        
-        if not Contact.is_valid_email(email):
+        if email and not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
             return render_template(
                 'contacts/create.html',
@@ -203,9 +237,10 @@ def create():
             )
         
         # Prüfe auf Duplikat (optional, nur Warnung)
-        existing = Contact.query.filter_by(email=email).first()
-        if existing:
-            flash(translate('contacts.flash.duplicate_email'), 'warning')
+        if email:
+            existing = Contact.query.filter_by(email=email).first()
+            if existing:
+                flash(translate('contacts.flash.duplicate_email'), 'warning')
         
         # Erstelle Kontakt
         contact = Contact(
@@ -232,7 +267,7 @@ def create():
                 'contacts/create.html',
                 salutation=salutation,
                 name=name,
-                email=email,
+                email=email or '',
                 phone=phone,
                 notes=notes,
                 **contacts_sidebar_context(),
@@ -253,7 +288,7 @@ def edit(contact_id):
     if request.method == 'POST':
         salutation = request.form.get('salutation', '').strip()
         name = request.form.get('name', '').strip()
-        email = request.form.get('email', '').strip().lower()
+        email = request.form.get('email', '').strip().lower() or None
         phone = request.form.get('phone', '').strip()
         notes = request.form.get('notes', '').strip()
         
@@ -268,17 +303,7 @@ def edit(contact_id):
             contact.notes = notes
             return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
         
-        if not email:
-            flash(translate('contacts.flash.email_required'), 'danger')
-            contact.salutation = salutation
-            contact.name = name
-            contact.sort_name = name
-            contact.email = email
-            contact.phone = phone
-            contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
-        
-        if not Contact.is_valid_email(email):
+        if email and not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
             contact.salutation = salutation
             contact.name = name
@@ -289,7 +314,7 @@ def edit(contact_id):
             return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context(contact))
         
         # Prüfe auf Duplikat (wenn E-Mail geändert wurde)
-        if email != contact.email:
+        if email and email != contact.email:
             existing = Contact.query.filter_by(email=email).first()
             if existing:
                 flash(translate('contacts.flash.duplicate_email'), 'warning')
@@ -336,6 +361,77 @@ def delete(contact_id):
         flash(translate('contacts.flash.delete_error'), 'danger')
     
     return redirect(url_for('contacts.index'))
+
+
+@contacts_bp.route('/api/download-vcf', methods=['POST'])
+@login_required
+@check_module_access('module_contacts')
+def api_download_vcf():
+    """Download selected contacts as a multi-vCard file."""
+    payload = request.get_json(silent=True) or {}
+    ids = _parse_contact_ids(payload)
+    if not ids:
+        return jsonify({'success': False, 'error': translate('contacts.bulk.errors.none_selected')}), 400
+
+    contacts = (
+        accessible_query(current_user, Contact, 'contacts')
+        .filter(Contact.id.in_(ids))
+        .order_by(asc(Contact.name), asc(Contact.email))
+        .all()
+    )
+    if not contacts:
+        return jsonify({'success': False, 'error': translate('contacts.bulk.errors.none_accessible')}), 404
+
+    body = '\n'.join(_contact_to_vcard(c) for c in contacts) + '\n'
+    return Response(
+        body,
+        mimetype='text/vcard; charset=utf-8',
+        headers={
+            'Content-Disposition': 'attachment; filename="Kontakte.vcf"',
+        },
+    )
+
+
+@contacts_bp.route('/api/bulk-delete', methods=['POST'])
+@login_required
+@check_module_access('module_contacts')
+def api_bulk_delete():
+    """Hard-delete multiple contacts the user may edit."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
+
+    payload = request.get_json(silent=True) or {}
+    ids = _parse_contact_ids(payload)
+    if not ids:
+        return jsonify({'success': False, 'error': translate('contacts.bulk.errors.none_selected')}), 400
+
+    deleted = 0
+    skipped = 0
+    for contact in Contact.query.filter(Contact.id.in_(ids)).all():
+        if not can_view_item(current_user, contact, 'contacts') or not can_edit_item(current_user, contact, 'contacts'):
+            skipped += 1
+            continue
+        try:
+            ContactFavorite.query.filter_by(contact_id=contact.id).delete()
+            db.session.delete(contact)
+            deleted += 1
+        except Exception as exc:
+            logging.error(f"Bulk-Delete Kontakt {contact.id}: {exc}")
+            skipped += 1
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logging.error(f"Bulk-Delete Kontakte fehlgeschlagen: {exc}")
+        return jsonify({'success': False, 'error': translate('contacts.flash.delete_error')}), 500
+
+    return jsonify({
+        'success': deleted > 0,
+        'deleted': deleted,
+        'skipped': skipped,
+        'message': translate('contacts.bulk.deleted', count=deleted),
+    })
 
 
 @contacts_bp.route('/favorite/<int:contact_id>', methods=['POST'])
@@ -393,6 +489,8 @@ def search():
     ).limit(10).all()
     
     for contact in contacts:
+        if not contact.email:
+            continue
         email_lower = contact.email.lower()
         if email_lower not in seen_emails:
             seen_emails.add(email_lower)

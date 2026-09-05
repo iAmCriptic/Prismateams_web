@@ -1,4 +1,4 @@
-/* Kontakt-Chip-Komponente Styles */
+/* Kontakt-Chip-Komponente (E-Mail-Compose) + Modul-UI (Shell / Listen / Form) */
 
 .contact-chip-wrapper {
     position: relative;
@@ -489,6 +489,7 @@
 
 /* ——— Grid-Karten ——— */
 .contacts-card {
+    position: relative;
     border-radius: var(--mod-radius-card, 0.9rem);
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
     overflow: visible;
@@ -722,4 +723,85 @@
     --contacts-form-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
     --contacts-form-elevated: var(--bs-body-bg, #212529);
     --contacts-form-border: rgba(255, 255, 255, 0.12);
+}
+
+/* ——— Multi-select / Premium list polish ——— */
+.contacts-card:hover .files-select-check,
+.contacts-card.is-selected .files-select-check,
+body.files-has-selection .contacts-card .files-select-check {
+    opacity: 1;
+}
+
+.contacts-card.is-selected {
+    outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
+    outline-offset: 1px;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
+}
+
+.contacts-list-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 650;
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff;
+    line-height: 1;
+}
+
+.mod-list-row:hover .files-list-name-cell > .d-flex,
+.mod-list-row.is-selected .files-list-name-cell > .d-flex,
+body.files-has-selection .files-list-name-cell > .d-flex {
+    padding-left: 1.55rem;
+    transition: padding-left 0.12s ease;
+}
+
+.contacts-shell .files-list-name-cell {
+    max-width: 18rem;
+}
+
+.contacts-vis-badge {
+    font-weight: 550;
+    font-size: 0.72rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.25em 0.65em;
+}
+
+.contacts-vis-badge--public {
+    background: color-mix(in srgb, #0dcaf0 22%, transparent);
+    color: var(--bs-body-color);
+}
+
+.contacts-vis-badge--team {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    color: var(--bs-body-color);
+}
+
+.contacts-vis-badge--private {
+    background: var(--bs-secondary-bg, #e9ecef);
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.contacts-share-preview {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0.85rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    max-height: 14rem;
+    overflow: auto;
+}
+
+.contacts-form-header .mod-back-row {
+    margin-bottom: 0.35rem;
+}
+
+.contacts-form .inv-pill-select {
+    width: 100%;
 }

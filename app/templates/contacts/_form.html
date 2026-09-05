@@ -20,10 +20,10 @@
                    value="{{ contact.name if contact else name|default('') }}" required>
         </div>
         <div class="contacts-form-field">
-            <label class="form-label" for="email">{{ _('contacts.form.fields.email') }} <span class="text-danger">*</span></label>
+            <label class="form-label" for="email">{{ _('contacts.form.fields.email') }}</label>
             <input type="email" class="form-control" id="email" name="email"
                    placeholder="{{ _('contacts.form.placeholders.email') }}"
-                   value="{{ contact.email if contact else email|default('') }}" required>
+                   value="{{ contact.email if contact else email|default('') }}">
         </div>
         <div class="contacts-form-field">
             <label class="form-label" for="phone">{{ _('contacts.form.fields.phone') }}</label>

@@ -506,7 +506,8 @@ def admin_users():
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
         ('module_excalidraw', 'Excalidraw'),
-        ('module_surveys', 'Umfragen')
+        ('module_surveys', 'Umfragen'),
+        ('module_protocols', 'Protokollführung')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -3234,6 +3235,11 @@ VISIBILITY_SETTINGS_MODULES = {
         'label_key': 'layout.nav.surveys',
         'icon': 'bi-ui-checks-grid',
     },
+    'protocols': {
+        'module_key': 'module_protocols',
+        'label_key': 'layout.nav.protocols',
+        'icon': 'bi-journal-richtext',
+    },
 }
 
 
@@ -4372,6 +4378,7 @@ def admin_roles_user_update(user_id):
             'module_kanban',
             'module_excalidraw',
             'module_surveys',
+            'module_protocols',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -4468,7 +4475,8 @@ def admin_roles_default():
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
         ('module_excalidraw', 'Excalidraw'),
-        ('module_surveys', 'Umfragen')
+        ('module_surveys', 'Umfragen'),
+        ('module_protocols', 'Protokollführung')
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

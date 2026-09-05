@@ -134,6 +134,9 @@
         {% elif request.endpoint.startswith('surveys.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+        {% elif request.endpoint.startswith('protocols.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/protocols.css') }}">
         {% elif request.endpoint.startswith('dashboard.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}

@@ -27,7 +27,8 @@
       "booking": "Reservas",
       "media_downloader": "Descargador de medios",
       "surveys": "Encuestas",
-      "file_converter": "File Converter"
+      "file_converter": "File Converter",
+      "protocols": "Actas"
     },
     "cookie_consent": {
       "title": "Cookies y privacidad",
@@ -1353,6 +1354,98 @@
       "error_invalid_zip": "Invalid ZIP file",
       "error_empty_zip": "ZIP has no JSON/CSV files",
       "visibility": "Visibilidad"
+    }
+  },
+  "protocols": {
+    "nav": {
+      "title": "Actas",
+      "all": "Todas",
+      "create": "Nueva acta",
+      "new": "Nueva acta"
+    },
+    "status": {
+      "draft": "Borrador",
+      "finalized": "Finalizada"
+    },
+    "steps": {
+      "meta": "Datos",
+      "agenda": "Orden del día",
+      "content": "Contenido"
+    },
+    "index": {
+      "search_placeholder": "Buscar actas…",
+      "empty": "Aún no hay actas.",
+      "open": "Abrir",
+      "edit": "Editar",
+      "pdf": "Descargar PDF",
+      "delete_confirm": "¿Eliminar esta acta?",
+      "nav": {
+        "menu": "Menú de actas"
+      },
+      "list": {
+        "title": "Título",
+        "date": "Fecha",
+        "status": "Estado",
+        "visibility": "Ámbito"
+      }
+    },
+    "create": {
+      "subtitle": "Defina fecha, participantes y visibilidad.",
+      "title_label": "Nombre de la reunión",
+      "title_placeholder": "p. ej. Reunión de equipo",
+      "title_required": "Introduzca un nombre para el acta.",
+      "date_label": "Fecha",
+      "start_time_label": "Hora de inicio",
+      "participants_label": "Participantes",
+      "participants_placeholder": "Nombres, separados por comas o por línea",
+      "excused_label": "Justificados",
+      "excused_placeholder": "Ausencias justificadas",
+      "absent_label": "Injustificados",
+      "absent_placeholder": "Ausencias injustificadas",
+      "submit": "Continuar al orden del día",
+      "continue": "Continuar",
+      "chip_placeholder": "Escriba un nombre y pulse Enter…",
+      "chip_hint": "Enter para añadir como pastilla, × para quitar."
+    },
+    "meta": {
+      "edit_title": "Editar acta"
+    },
+    "agenda": {
+      "title": "Puntos del orden del día",
+      "hint": "Defina los puntos. Puede reordenar arrastrando.",
+      "item_placeholder": "p. ej. Actualización del proyecto",
+      "add": "Añadir punto",
+      "continue": "Continuar al contenido",
+      "reorder": "Mover",
+      "min_one": "Añada al menos un punto del orden del día."
+    },
+    "item": {
+      "title_label": "Punto",
+      "content_label": "Contenido",
+      "nav_label": "Puntos",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "autosaved": "Guardado",
+      "saving": "Guardando…"
+    },
+    "actions": {
+      "save_draft": "Guardar borrador",
+      "finalize": "Marcar como finalizada",
+      "finalize_confirm": "¿Finalizar el acta? Después ya no se podrá editar."
+    },
+    "view": {
+      "agenda": "Orden del día",
+      "content": "Contenido",
+      "no_content": "Sin contenido."
+    },
+    "flash": {
+      "module_disabled": "El módulo de actas está desactivado.",
+      "created": "Acta creada.",
+      "saved": "Guardado.",
+      "finalized": "Acta finalizada.",
+      "deleted": "Acta eliminada.",
+      "finalized_readonly": "Las actas finalizadas no se pueden editar.",
+      "pdf_only_finalized": "El PDF solo está disponible tras finalizar."
     }
   }
 }

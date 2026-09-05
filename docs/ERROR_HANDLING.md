@@ -123,7 +123,8 @@ sudo nginx -t && sudo systemctl reload nginx
 
 - Stellen Sie sicher, dass `ONLYOFFICE_SECRET_KEY` in `.env` mit dem OnlyOffice `JWT_SECRET` übereinstimmt
 - Prüfen Sie die OnlyOffice-Logs: `sudo docker logs onlyoffice-documentserver`
-- Wenn OnlyOffice ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` in der `.env` leer
+- Wenn OnlyOffice lokal ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` leer (Dev/Test akzeptiert unsigned Callbacks)
+- In Production ohne Secret: Callbacks werden abgelehnt, außer `ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true`
 
 ## OnlyOffice: Schriften fehlen / PDF sieht falsch aus (falls installiert)
 

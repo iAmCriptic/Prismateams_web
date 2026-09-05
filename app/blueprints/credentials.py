@@ -18,7 +18,6 @@ from app.utils.module_visibility import (
     visibility_form_context,
     visibility_nav_context,
 )
-from cryptography.fernet import Fernet
 import os
 import requests
 from urllib.parse import urlparse
@@ -29,29 +28,35 @@ logger = logging.getLogger(__name__)
 credentials_bp = Blueprint('credentials', __name__)
 
 
+class CredentialEncryptionError(RuntimeError):
+    """Raised when CREDENTIAL_ENCRYPTION_KEY is missing or unusable."""
+
+
 def get_encryption_key():
-    """Get or create encryption key for credentials."""
-    # Versuche zuerst aus Umgebungsvariable zu lesen
-    key = os.environ.get('CREDENTIAL_ENCRYPTION_KEY')
-    if key:
-        # Wenn als String, in Bytes konvertieren
-        if isinstance(key, str):
-            return key.encode('utf-8')
-        return key
-    
-    # Fallback: Versuche aus Datei zu lesen (für Migration)
-    key_file = 'credential_key.key'
-    if os.path.exists(key_file):
-        with open(key_file, 'rb') as f:
-            return f.read()
-    
-    # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
-    # In Produktion sollte der Key immer in .env gesetzt sein
-    key = Fernet.generate_key()
-    logger.warning(
-        "CREDENTIAL_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei."
-    )
-    return key
+    """
+    Load Fernet key for credential passwords.
+
+    Fail-closed: only from CREDENTIAL_ENCRYPTION_KEY (env/config). No ephemeral
+    key and no CWD file fallback — those break at-rest encryption guarantees.
+    """
+    key = (current_app.config.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
+    if not key:
+        key = (os.environ.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
+    if not key:
+        raise CredentialEncryptionError(
+            "CREDENTIAL_ENCRYPTION_KEY fehlt in der .env. "
+            "Erzeugen mit: python scripts/generate_encryption_keys.py"
+        )
+    return key.encode('utf-8')
+
+
+def _credentials_key_missing_response(*, as_json=False):
+    msg = translate('credentials.errors.encryption_key_missing')
+    logger.error("CREDENTIAL_ENCRYPTION_KEY fehlt — Credentials-Aktion abgebrochen.")
+    if as_json:
+        return jsonify({'error': msg}), 503
+    flash(msg, 'danger')
+    return redirect(url_for('credentials.index'))
 
 
 def get_favicon_url(website_url):
@@ -381,8 +386,10 @@ def create():
         )
         apply_visibility_from_form(credential, 'credentials', current_user)
 
-        # Encrypt and set password
-        key = get_encryption_key()
+        try:
+            key = get_encryption_key()
+        except CredentialEncryptionError:
+            return _credentials_key_missing_response()
         credential.set_password(password, key)
 
         db.session.add(credential)
@@ -414,7 +421,10 @@ def edit(credential_id):
     credential = Credential.query.get_or_404(credential_id)
     if not can_edit_item(current_user, credential, 'credentials'):
         return _credentials_denied()
-    key = get_encryption_key()
+    try:
+        key = get_encryption_key()
+    except CredentialEncryptionError:
+        return _credentials_key_missing_response()
     
     if request.method == 'POST':
         credential.website_url = request.form.get('website_url', '').strip()
@@ -483,7 +493,10 @@ def view_password(credential_id):
     credential = Credential.query.get_or_404(credential_id)
     if not can_view_item(current_user, credential, 'credentials'):
         return jsonify({'error': translate('visibility.flash.access_denied')}), 403
-    key = get_encryption_key()
+    try:
+        key = get_encryption_key()
+    except CredentialEncryptionError:
+        return _credentials_key_missing_response(as_json=True)
     
     try:
         password = credential.get_password(key)

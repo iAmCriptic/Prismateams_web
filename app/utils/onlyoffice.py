@@ -33,6 +33,27 @@ def is_onlyoffice_enabled():
     return current_app.config.get('ONLYOFFICE_ENABLED', False)
 
 
+def get_onlyoffice_secret_key():
+    """Return trimmed ONLYOFFICE_SECRET_KEY (empty if unset)."""
+    return (current_app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+
+
+def onlyoffice_allows_unsigned_callbacks():
+    """
+    Whether callbacks may be accepted without JWT when no secret is configured.
+
+    Compatibility:
+    - Document Server with JWT_ENABLED=false needs empty ONLYOFFICE_SECRET_KEY.
+    - Auto (config None): allow unsigned only in debug/testing (local setups).
+    - Production: reject unsigned unless ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true.
+    - When ONLYOFFICE_SECRET_KEY is set, JWT is always required (this flag ignored).
+    """
+    configured = current_app.config.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
+    if configured is not None:
+        return bool(configured)
+    return bool(current_app.debug or current_app.testing)
+
+
 def get_file_mtime(file_path):
     """Return integer mtime for a file path, or 0 if unavailable."""
     if not file_path:
@@ -106,7 +127,7 @@ def send_onlyoffice_command(command, document_key, userdata=None):
 
     headers = {'Content-Type': 'application/json'}
     body = dict(payload)
-    secret_key = (current_app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+    secret_key = get_onlyoffice_secret_key()
     if secret_key and JWT_AVAILABLE:
         try:
             token = jwt.encode(payload, secret_key, algorithm='HS256')
@@ -306,9 +327,9 @@ def generate_onlyoffice_token(payload):
     Returns:
         str: JWT token string, or None if JWT is not available or secret key is not set
     """
-    secret_key = current_app.config.get('ONLYOFFICE_SECRET_KEY', '').strip()
+    secret_key = get_onlyoffice_secret_key()
     
-    # If no secret key is set, return None (token not required)
+    # If no secret key is set, return None (token not required / unsigned DS mode)
     if not secret_key:
         current_app.logger.debug("ONLYOFFICE_SECRET_KEY not set, skipping token generation")
         return None
@@ -403,15 +424,21 @@ def verify_onlyoffice_callback_token(raw_body, auth_header=None):
     """
     Verify ONLYOFFICE callback JWT token and return signed payload.
 
-    Compatibility behavior:
-    - If ONLYOFFICE_SECRET_KEY is empty, callbacks are accepted (token optional mode).
-    - If ONLYOFFICE_SECRET_KEY is set, a valid JWT is required either in:
-      - Authorization: Bearer <token>
-      - JSON body field: token
+    Behavior:
+    - If ONLYOFFICE_SECRET_KEY is set: valid JWT required (Authorization Bearer or body.token).
+    - If secret is empty and unsigned callbacks are allowed (dev/test auto, or explicit
+      ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true): accept body as-is for JWT_ENABLED=false DS.
+    - If secret is empty and unsigned is not allowed (production default): reject.
     """
-    secret_key = (current_app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+    secret_key = get_onlyoffice_secret_key()
     if not secret_key:
-        return True, raw_body, "secret_not_configured"
+        if onlyoffice_allows_unsigned_callbacks():
+            current_app.logger.warning(
+                "ONLYOFFICE callback accepted without JWT (no ONLYOFFICE_SECRET_KEY). "
+                "For production set ONLYOFFICE_SECRET_KEY to match Document Server JWT_SECRET."
+            )
+            return True, raw_body, "secret_not_configured_allowed"
+        return False, None, "secret_required"
 
     if not JWT_AVAILABLE:
         return False, None, "jwt_library_missing"

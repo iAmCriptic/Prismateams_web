@@ -23,6 +23,7 @@ MODULE_KEYS = {
     'shortlinks': 'module_shortlinks',
     'excalidraw': 'module_excalidraw',
     'surveys': 'module_surveys',
+    'protocols': 'module_protocols',
 }
 
 OWNER_ATTRS = {
@@ -33,6 +34,7 @@ OWNER_ATTRS = {
     'shortlinks': 'created_by',
     'excalidraw': 'created_by',
     'surveys': 'created_by',
+    'protocols': 'created_by',
 }
 
 DEFAULT_VISIBILITY = {
@@ -43,7 +45,11 @@ DEFAULT_VISIBILITY = {
     'shortlinks': VISIBILITY_PRIVATE,
     'excalidraw': VISIBILITY_PUBLIC,
     'surveys': VISIBILITY_PRIVATE,
+    'protocols': VISIBILITY_PUBLIC,
 }
+
+# Modules that never support private items (team/public only).
+NO_PRIVATE_MODULES = frozenset({'protocols'})
 
 
 def setting_key(module: str, kind: str) -> str:
@@ -57,6 +63,15 @@ def _setting_bool(key: str, default: bool = True) -> bool:
     return str(row.value).lower() in ('true', '1', 'yes', 'on')
 
 
+def _fallback_visibility(module: str) -> str:
+    allowed = get_allowed_visibilities(module)
+    if allowed:
+        return allowed[0]
+    if module in NO_PRIVATE_MODULES:
+        return VISIBILITY_PUBLIC
+    return VISIBILITY_PRIVATE
+
+
 def get_allowed_visibilities(module: str) -> list[str]:
     from app.utils.module_visibility_settings import (
         is_global_private_enabled,
@@ -65,13 +80,22 @@ def get_allowed_visibilities(module: str) -> list[str]:
     )
 
     allowed = []
-    if is_global_private_enabled() and _setting_bool(setting_key(module, 'private'), True):
+    allow_private = module not in NO_PRIVATE_MODULES
+    if (
+        allow_private
+        and is_global_private_enabled()
+        and _setting_bool(setting_key(module, 'private'), True)
+    ):
         allowed.append(VISIBILITY_PRIVATE)
     if is_global_team_enabled() and _setting_bool(setting_key(module, 'team'), True):
         allowed.append(VISIBILITY_TEAM)
     if is_global_public_enabled() and _setting_bool(setting_key(module, 'public'), True):
         allowed.append(VISIBILITY_PUBLIC)
-    return allowed or [VISIBILITY_PRIVATE]
+    if allowed:
+        return allowed
+    if module in NO_PRIVATE_MODULES:
+        return [VISIBILITY_PUBLIC]
+    return [VISIBILITY_PRIVATE]
 
 
 def visibility_allowed(module: str, visibility: str) -> bool:
@@ -201,16 +225,15 @@ def parse_visibility_value(raw, module: str, user=None):
         visibility = value
 
     if not visibility_allowed(module, visibility):
-        allowed = get_allowed_visibilities(module)
-        visibility = allowed[0] if allowed else VISIBILITY_PRIVATE
+        visibility = _fallback_visibility(module)
         team_id = None
 
     if visibility == VISIBILITY_TEAM:
         if user is not None and not user_may_use_team(user, module, team_id):
-            visibility = VISIBILITY_PRIVATE
+            visibility = _fallback_visibility(module)
             team_id = None
         elif not team_id:
-            visibility = VISIBILITY_PRIVATE
+            visibility = _fallback_visibility(module)
             team_id = None
     else:
         team_id = None

@@ -54,6 +54,7 @@ from .survey import (
     SurveyEmailVerification,
     SurveyResponseLock,
 )
+from .protocol import Protocol, ProtocolAgendaItem
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -116,6 +117,7 @@ __all__ = [
     'ExcalidrawDrawing', 'ExcalidrawDrawingVersion',
     'Survey', 'SurveyPage', 'SurveyQuestion', 'SurveyLogicRule',
     'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
+    'Protocol', 'ProtocolAgendaItem',
 ]
 
 

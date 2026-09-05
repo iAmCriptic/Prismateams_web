@@ -129,6 +129,19 @@ def create_app(config_name='default'):
             "Production requires a strong SECRET_KEY via environment variable SECRET_KEY."
         )
 
+    if (
+        config_name == 'production'
+        and app.config.get('ONLYOFFICE_ENABLED')
+        and not (app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
+        and not app.config.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
+    ):
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "ONLYOFFICE is enabled without ONLYOFFICE_SECRET_KEY in production. "
+            "Callbacks will be rejected until the secret matches Document Server JWT_SECRET "
+            "(or set ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true for JWT_ENABLED=false)."
+        )
+
     # Relative UPLOAD_FOLDER must resolve to project root, not app package
     # (Flask send_file joins relative paths with app.root_path = .../app).
     upload_folder = app.config.get('UPLOAD_FOLDER') or 'uploads'
@@ -994,6 +1007,7 @@ def create_app(config_name='default'):
     from app.blueprints.kanban import kanban_bp
     from app.blueprints.excalidraw import excalidraw_bp
     from app.blueprints.surveys import surveys_bp
+    from app.blueprints.protocols import protocols_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -1025,6 +1039,7 @@ def create_app(config_name='default'):
     app.register_blueprint(kanban_bp, url_prefix='/kanban')
     app.register_blueprint(excalidraw_bp)
     app.register_blueprint(surveys_bp)
+    app.register_blueprint(protocols_bp)
     
     @app.route('/manifest.json')
     def manifest():
