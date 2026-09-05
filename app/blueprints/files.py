@@ -84,6 +84,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask import url_for as flask_url_for
+from app.utils.upload_policy import is_allowed_upload_filename
 import os
 import shutil
 import logging
@@ -176,12 +177,18 @@ def _send_inline_media(file_obj):
     file_path = _resolve_absolute_file_path(file_obj.file_path)
     if not file_path or not os.path.exists(file_path):
         abort(404)
-    return send_file(
+    return _response_with_nosniff(send_file(
         file_path,
         mimetype=media_mimetype(file_ext),
         as_attachment=False,
         conditional=True,
-    )
+    ))
+
+
+def _response_with_nosniff(response):
+    """Verhindert MIME-Sniffing bei Downloads/Inline-Auslieferung."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 def _split_filename_parts(filename):
@@ -205,6 +212,9 @@ def _generate_unique_filename_in_folder(filename, folder_id):
 
 def _create_new_file_version(existing_file, uploaded_file, user_id):
     """Create a new version for an existing file."""
+    if not is_allowed_upload_filename(existing_file.name):
+        raise ValueError('disallowed_extension')
+
     version_number = existing_file.version_number + 1
 
     old_version = FileVersion(
@@ -1584,6 +1594,10 @@ def upload_file():
                 # Process file path to maintain folder structure
                 file_path_parts = file.filename.replace('\\', '/').split('/')
                 file_name = secure_filename(file_path_parts[-1])
+                if not file_name or not is_allowed_upload_filename(file_name):
+                    skipped_count += 1
+                    skipped_files.append(file.filename)
+                    continue
                 
                 # Determine target folder - create subfolders if needed
                 target_folder_id = folder_id
@@ -1706,7 +1720,7 @@ def upload_file():
                 continue
 
             original_name = secure_filename(uploaded_file.filename)
-            if not original_name:
+            if not original_name or not is_allowed_upload_filename(original_name):
                 skipped_count += 1
                 skipped_files.append(uploaded_file.filename)
                 continue
@@ -1796,6 +1810,9 @@ def upload_file():
         original_name = secure_filename(file.filename)
         if not original_name:
             flash('Ungültiger Dateiname.', 'danger')
+            return _finish(request.referrer or url_for('files.index'))
+        if not is_allowed_upload_filename(original_name):
+            flash('Dieser Dateityp ist nicht erlaubt.', 'danger')
             return _finish(request.referrer or url_for('files.index'))
 
         # Check if file with same name exists in folder
@@ -1959,6 +1976,9 @@ def upload_conflicts():
 
 def _process_file_upload(file, original_name, folder_id, user_id, space='public', team_id=None):
     """Helper function to process a single file upload."""
+    if not is_allowed_upload_filename(original_name):
+        raise ValueError('disallowed_extension')
+
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     filename = f"{timestamp}_{original_name}"
     filepath = os.path.join('uploads', 'files', filename)
@@ -2022,7 +2042,7 @@ def serve_pdf(file_id):
         flash('Diese Route ist nur für PDF-Dateien.', 'danger')
         return redirect(url_for('files.index'))
     
-    return send_file(file_path, mimetype='application/pdf')
+    return _response_with_nosniff(send_file(file_path, mimetype='application/pdf'))
 
 
 @files_bp.route('/serve-media/<int:file_id>')
@@ -2064,12 +2084,12 @@ def download_file(file_id):
     file_ext = _file_extension(file.original_name)
     mimetype = _mimetype_for_extension(file_ext)
 
-    return send_file(
+    return _response_with_nosniff(send_file(
         file_path, 
         as_attachment=True, 
         download_name=file.original_name,
         mimetype=mimetype
-    )
+    ))
 
 
 @files_bp.route('/download-version/<int:version_id>')
@@ -2101,12 +2121,12 @@ def download_version(version_id):
     name_without_ext = os.path.splitext(file.original_name)[0]
     versioned_filename = f"{name_without_ext}_v{version.version_number}{file_ext}"
     
-    return send_file(
+    return _response_with_nosniff(send_file(
         file_path, 
         as_attachment=True, 
         download_name=versioned_filename,
         mimetype=mimetype
-    )
+    ))
 
 
 @files_bp.route('/edit/<int:file_id>', methods=['GET', 'POST'])
@@ -2796,12 +2816,12 @@ def api_download_zip():
                 pass
             return response
 
-        return send_file(
+        return _response_with_nosniff(send_file(
             tmp_path,
             as_attachment=True,
             download_name=download_name,
             mimetype='application/zip',
-        )
+        ))
     except Exception as e:
         logging.error(f'ZIP-Erstellung fehlgeschlagen: {e}')
         try:
@@ -3291,6 +3311,9 @@ def dropbox_upload_file(token):
             
             # Process filename with date suffix if duplicate
             original_name = secure_filename(file.filename)
+            if not original_name or not is_allowed_upload_filename(original_name):
+                skipped_count += 1
+                continue
             file_name = original_name
             
             # Check for duplicate
@@ -3827,7 +3850,7 @@ def public_share_download(token):
     log_share_access(share, 'download', request, guest_name=guest_name)
     db.session.commit()
     file_path = shared_file.file_path if os.path.isabs(shared_file.file_path) else os.path.join(os.getcwd(), shared_file.file_path)
-    return send_file(file_path, as_attachment=True, download_name=shared_file.original_name)
+    return _response_with_nosniff(send_file(file_path, as_attachment=True, download_name=shared_file.original_name))
 
 
 @files_bp.route('/share/<token>/view', methods=['GET'])
@@ -3922,7 +3945,7 @@ def public_share_pdf(token):
         abort(404)
     log_share_access(share, 'view_pdf', request, guest_name=guest_name)
     db.session.commit()
-    return send_file(file_path, mimetype='application/pdf')
+    return _response_with_nosniff(send_file(file_path, mimetype='application/pdf'))
 
 
 @files_bp.route('/share/<token>/media', methods=['GET'])
@@ -3959,7 +3982,7 @@ def public_share_folder_file_download(token, file_id):
     log_share_access(share, 'download', request, guest_name=guest_name)
     db.session.commit()
     file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
-    return send_file(file_path, as_attachment=True, download_name=file.original_name)
+    return _response_with_nosniff(send_file(file_path, as_attachment=True, download_name=file.original_name))
 
 
 @files_bp.route('/share/<token>/file/<int:file_id>/view', methods=['GET'])
@@ -4065,7 +4088,7 @@ def public_share_folder_file_pdf(token, file_id):
         abort(404)
     log_share_access(share, 'view_pdf', request, guest_name=guest_name)
     db.session.commit()
-    return send_file(file_path, mimetype='application/pdf')
+    return _response_with_nosniff(send_file(file_path, mimetype='application/pdf'))
 
 
 @files_bp.route('/share/<token>/file/<int:file_id>/media', methods=['GET'])
@@ -4126,6 +4149,8 @@ def public_share_upload(token):
                 continue
             # Derive unique name
             original_name = secure_filename(f.filename)
+            if not original_name or not is_allowed_upload_filename(original_name):
+                continue
             name = original_name
             existing = File.query.filter_by(name=name, folder_id=shared_folder.id, is_current=True).first()
             if existing:

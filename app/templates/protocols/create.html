@@ -18,7 +18,7 @@
 <div class="protocols-workspace">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ index_url }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+            <a href="{{ index_url }}" class="mod-back-link">
                 <i class="bi bi-arrow-left"></i>
                 <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
             </a>
@@ -38,7 +38,7 @@
                 <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
             </div>
             {% endif %}
-            <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill">
+            <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill protocols-btn-pill">
                 <i class="bi bi-arrow-right"></i>
                 {{ _('protocols.create.submit') if not editing else _('protocols.create.continue') }}
             </button>
@@ -51,16 +51,16 @@
                 <div class="protocols-form-fields">
                     <div class="protocols-form-field">
                         <label for="protocolTitle" class="form-label">{{ _('protocols.create.title_label') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-lg" id="protocolTitle" name="title" value="{{ form.title|default('') }}" placeholder="{{ _('protocols.create.title_placeholder') }}" required autofocus>
+                        <input type="text" class="form-control form-control-lg protocols-pill-input" id="protocolTitle" name="title" value="{{ form.title|default('') }}" placeholder="{{ _('protocols.create.title_placeholder') }}" required autofocus>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="meetingDate" class="form-label">{{ _('protocols.create.date_label') }}</label>
-                            <input type="date" class="form-control" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
+                            <input type="date" class="form-control protocols-pill-input" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
                         </div>
                         <div class="col-md-6">
                             <label for="startTime" class="form-label">{{ _('protocols.create.start_time_label') }}</label>
-                            <input type="time" class="form-control" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
+                            <input type="time" class="form-control protocols-pill-input" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
                         </div>
                     </div>
 
@@ -95,7 +95,7 @@
 
                     <div class="protocols-form-field">
                         {% from 'partials/visibility_select.html' import visibility_select with context %}
-                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility, select_class='form-select protocols-pill-input', attrs='data-inv-pill-select') }}
                     </div>
                 </div>
             </section>
@@ -105,5 +105,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/protocols.js') }}"></script>
 {% endblock %}

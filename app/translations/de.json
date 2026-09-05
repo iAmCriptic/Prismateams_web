@@ -2683,8 +2683,12 @@
         "unmute": "Benachrichtigungen aktivieren",
         "permission_title": "Mikrofon",
         "permission_message": "Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.",
-        "microphone_denied": "Mikrofonzugriff wurde verweigert. Bitte erlauben Sie den Zugriff in Ihren Browser-Einstellungen."
-      }
+        "microphone_denied": "Mikrofonzugriff wurde verweigert. Bitte erlauben Sie den Zugriff in Ihren Browser-Einstellungen.",
+        "load_older": "Ältere Nachrichten laden",
+        "load_older_loading": "Laden…",
+        "load_older_error": "Ältere Nachrichten konnten nicht geladen werden"
+      },
+      "load_older": "Ältere Nachrichten laden"
     },
     "settings": {
       "page_title": "Chat-Einstellungen - {name}",
@@ -3113,7 +3117,8 @@
       "sync_already_running": "⚠️ Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.",
       "deleted": "E-Mail wurde erfolgreich gelöscht.",
       "target_folder_not_specified": "Zielordner nicht angegeben.",
-      "draft_no_print": "Entwürfe können nicht als PDF gedruckt werden."
+      "draft_no_print": "Entwürfe können nicht als PDF gedruckt werden.",
+      "sync_started": "Synchronisation gestartet. Die Seite aktualisiert sich, sobald sie fertig ist."
     },
     "index": {
       "page_title": "E-Mail - Team Portal",
@@ -3191,6 +3196,12 @@
         "move_error": "E-Mail konnte nicht verschoben werden",
         "folder_deleted": "Ordner gelöscht",
         "color_local_only": "Farbpunkt nur lokal gespeichert (IMAP unterstützt keine Keywords)."
+      },
+      "pagination": {
+        "prev": "Zurück",
+        "next": "Weiter",
+        "info": "Seite {page} von {pages} ({total})",
+        "aria": "E-Mail-Seiten"
       }
     },
     "compose": {
@@ -3845,6 +3856,12 @@
       "empty": {
         "default": "Noch keine Wiki-Seiten vorhanden. Erstellen Sie die erste Seite!",
         "filtered": "Keine Seiten gefunden. Versuchen Sie andere Suchkriterien."
+      },
+      "pagination": {
+        "prev": "Zurück",
+        "next": "Weiter",
+        "info": "Seite {page} von {pages} ({total})",
+        "aria": "Wiki-Seiten"
       },
       "js": {
         "favorite_error": "Fehler beim Aktualisieren der Favoriten.",
@@ -6725,7 +6742,7 @@
       "content": "Inhalt"
     },
     "index": {
-      "search_placeholder": "Protokolle suchen…",
+      "search_placeholder": "Suchen nach Titel, Name oder Datum (z. B. 05.09.2026)…",
       "empty": "Noch keine Protokolle vorhanden.",
       "open": "Öffnen",
       "edit": "Bearbeiten",
@@ -6739,6 +6756,25 @@
         "date": "Datum",
         "status": "Status",
         "visibility": "Bereich"
+      },
+      "sort": {
+        "heading": "Sortierung",
+        "field": "Feld",
+        "dir": "Richtung",
+        "date": "Sitzungsdatum",
+        "title": "Titel",
+        "updated": "Zuletzt geändert",
+        "created": "Erstellt",
+        "asc": "Aufsteigend",
+        "desc": "Absteigend",
+        "apply": "Anwenden"
+      },
+      "filter": {
+        "heading": "Filter",
+        "status": "Status",
+        "all": "Alle",
+        "apply": "Anwenden",
+        "reset": "Reset"
       }
     },
     "create": {
@@ -6788,7 +6824,10 @@
     "view": {
       "agenda": "Tagesordnung",
       "content": "Protokollinhalt",
-      "no_content": "Keine Inhalte vorhanden."
+      "no_content": "Keine Inhalte vorhanden.",
+      "time_label": "Uhrzeit",
+      "attendance": "Anwesenheit",
+      "finalized_at": "Abgeschlossen am"
     },
     "flash": {
       "module_disabled": "Das Modul Protokollführung ist deaktiviert.",

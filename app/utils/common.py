@@ -177,17 +177,13 @@ def is_module_enabled(module_key):
         True wenn das Modul aktiviert ist, False sonst. Standardmäßig True wenn nicht gesetzt.
     """
     try:
-        from app.models.settings import SystemSettings
-        setting = SystemSettings.query.filter_by(key=module_key).first()
-        enabled = False
-        if setting:
-            # Prüfe ob der Wert 'true' ist (case-insensitive)
-            enabled = str(setting.value).lower() == 'true'
-        else:
+        from app.utils.system_settings_cache import get_setting
+
+        value = get_setting(module_key)
+        if value is None:
             # Standardmäßig aktiviert wenn nicht gesetzt (für Rückwärtskompatibilität)
-            enabled = True
-        
-        return enabled
+            return True
+        return str(value).lower() == 'true'
     except Exception:
         # Bei Fehlern (z.B. während Setup) standardmäßig aktiviert
         return True

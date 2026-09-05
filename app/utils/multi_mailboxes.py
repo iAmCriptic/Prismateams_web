@@ -109,18 +109,22 @@ def apply_provider_preset(mailbox: Mailbox, provider: str) -> None:
 
 
 def _setting_bool(key: str, default: bool = False) -> bool:
-    setting = SystemSettings.query.filter_by(key=key).first()
-    if not setting or setting.value is None or str(setting.value).strip() == '':
+    from app.utils.system_settings_cache import get_setting
+
+    value = get_setting(key)
+    if value is None:
         return default
-    return str(setting.value).lower() == 'true'
+    return str(value).lower() == 'true'
 
 
 def _setting_int(key: str, default: int) -> int:
-    setting = SystemSettings.query.filter_by(key=key).first()
-    if not setting or setting.value is None or str(setting.value).strip() == '':
+    from app.utils.system_settings_cache import get_setting
+
+    value = get_setting(key)
+    if value is None:
         return default
     try:
-        return int(setting.value)
+        return int(value)
     except (TypeError, ValueError):
         return default
 
@@ -157,7 +161,11 @@ def can_manage_team(user, team_id: int) -> bool:
 
 
 def _encryption_key() -> bytes:
-    """Fernet key from SystemSettings or derived from SECRET_KEY."""
+    """
+    Fernet key from SystemSettings or derived from SECRET_KEY.
+
+    Fail-closed: kein fester Fallback-Seed. In Tests darf ein Test-Seed greifen.
+    """
     setting = SystemSettings.query.filter_by(key=ENC_KEY_SETTING).first()
     if setting and setting.value:
         try:
@@ -167,7 +175,20 @@ def _encryption_key() -> bytes:
         except Exception:
             pass
 
-    secret_seed = current_app.config.get('SECRET_KEY') or os.environ.get('SECRET_KEY') or 'prismateams-fallback'
+    secret_seed = (
+        (current_app.config.get('SECRET_KEY') or '')
+        or (os.environ.get('SECRET_KEY') or '')
+    ).strip()
+
+    if not secret_seed:
+        if current_app.testing:
+            secret_seed = 'prismateams-test-mailbox-key'
+        else:
+            raise RuntimeError(
+                'SECRET_KEY erforderlich für Postfach-Verschlüsselung '
+                '(kein Fallback-Seed).'
+            )
+
     digest = hashlib.sha256(f'email-mailbox:{secret_seed}'.encode('utf-8')).digest()
     key = base64.urlsafe_b64encode(digest)
 
@@ -187,8 +208,12 @@ def _encryption_key() -> bytes:
 def encrypt_password(plain: str) -> Optional[str]:
     if plain is None or plain == '':
         return None
-    f = Fernet(_encryption_key())
-    return f.encrypt(plain.encode('utf-8')).decode('utf-8')
+    try:
+        f = Fernet(_encryption_key())
+        return f.encrypt(plain.encode('utf-8')).decode('utf-8')
+    except Exception as exc:
+        current_app.logger.error('Mailbox-Passwort-Verschlüsselung fehlgeschlagen: %s', exc)
+        raise
 
 
 def decrypt_password(enc: Optional[str]) -> Optional[str]:

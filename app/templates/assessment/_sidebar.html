@@ -106,13 +106,14 @@
 {% endif %}
 {{ assessment_sidebar_nav(dismiss_offcanvas) }}
 {% if session.get('user_scope') == 'assessment' %}
+{% from 'partials/logout_form.html' import logout_form %}
 <div class="mod-sidebar-footer mt-auto pt-3">
     <div class="mod-sidebar-user text-truncate" title="{{ current_user.full_name }}">
         <i class="bi bi-person-circle me-2" aria-hidden="true"></i>{{ current_user.full_name }}
     </div>
-    <a href="{{ url_for('auth.logout') }}" class="nav-link mod-nav-link assessment-logout-link"{{ assessment_nav_attr(dismiss_offcanvas) }}>
+    {% call logout_form(button_class='nav-link mod-nav-link assessment-logout-link logout-nav-btn', button_attrs=assessment_nav_attr(dismiss_offcanvas)) %}
         <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>{{ _('layout.nav.logout') }}
-    </a>
+    {% endcall %}
 </div>
 {% endif %}
 {% endmacro %}

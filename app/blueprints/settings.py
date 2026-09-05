@@ -5184,8 +5184,8 @@ def security_passwords():
                 flash(translate('settings.security.password.passwords_dont_match'), 'danger')
                 return redirect(url_for('settings.security_passwords'))
             
-            # Validiere Passwort-Policy
-            is_valid, error_msg = validate_password(new_password, min_length=8, require_complexity=False)
+            # Validiere Passwort-Policy (einheitlich)
+            is_valid, error_msg = validate_password(new_password)
             if not is_valid:
                 flash(error_msg or translate('settings.security.password.invalid'), 'danger')
                 return redirect(url_for('settings.security_passwords'))

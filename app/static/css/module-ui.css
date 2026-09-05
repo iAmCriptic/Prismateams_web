@@ -367,6 +367,7 @@
 /* ——— Nav links (calendar-style pills) ——— */
 .mod-nav-link,
 a.mod-nav-link,
+button.mod-nav-link,
 .nav-link.mod-nav-link {
     display: flex;
     align-items: center;
@@ -381,10 +382,13 @@ a.mod-nav-link,
     width: 100%;
     min-width: 0;
     font-weight: 500;
+    cursor: pointer;
+    font: inherit;
 }
 
 .mod-nav-link:hover,
 a.mod-nav-link:hover,
+button.mod-nav-link:hover,
 .nav-link.mod-nav-link:hover {
     background: rgba(127, 127, 127, 0.12);
     color: inherit !important;
@@ -392,6 +396,7 @@ a.mod-nav-link:hover,
 
 .mod-nav-link.active,
 a.mod-nav-link.active,
+button.mod-nav-link.active,
 .nav-link.mod-nav-link.active {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
     color: var(--accent-color, #0d6efd) !important;

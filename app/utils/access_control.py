@@ -20,8 +20,8 @@ GUEST_EDIT_MODES = frozenset({'edit'})
 
 def _legacy_share_is_expired(resource) -> bool:
     """True wenn File/Folder.share_expires_at in der Vergangenheit liegt."""
-    expires_at = getattr(resource, 'share_expires_at', None)
-    return bool(expires_at and datetime.utcnow() > expires_at)
+    from app.utils.public_share import legacy_share_resource_is_expired
+    return legacy_share_resource_is_expired(resource)
 
 
 def _share_mode_allowed(mode, allowed_modes) -> bool:

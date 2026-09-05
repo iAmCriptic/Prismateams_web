@@ -34,8 +34,8 @@ class ChatMember(db.Model):
     __tablename__ = 'chat_members'
     
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_read_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -55,7 +55,7 @@ class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'
     
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     content = db.Column(db.Text, nullable=True)  # Nullable for media-only messages
     message_type = db.Column(db.String(20), default='text', nullable=False)  # text, image, video, voice, file, folder_link, calendar_event, poll
@@ -68,6 +68,10 @@ class ChatMessage(db.Model):
     # Relationships
     chat = db.relationship('Chat', back_populates='messages')
     sender = db.relationship('User', back_populates='sent_messages')
+
+    __table_args__ = (
+        db.Index('ix_chat_messages_chat_created', 'chat_id', 'created_at'),
+    )
     
     def __repr__(self):
         return f'<ChatMessage {self.id} from user {self.sender_id}>'

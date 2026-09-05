@@ -40,10 +40,30 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_SECURE = False
 
+    # CSRF (Flask-WTF)
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = None
+    WTF_CSRF_HEADERS = ['X-CSRFToken', 'X-CSRF-Token']
+
+    # Passwort-Policy (einheitlich für Register/Change/Reset/Setup/Assessment)
+    PASSWORD_MIN_LENGTH = int(os.environ.get('PASSWORD_MIN_LENGTH', '12'))
+    PASSWORD_REQUIRE_COMPLEXITY = os.environ.get(
+        'PASSWORD_REQUIRE_COMPLEXITY', 'True'
+    ).lower() in ('1', 'true', 'yes', 'on')
+
     # Portal-Nutzer mit module_assessment (ohne is_admin): Assessment-Rollen (kommagetrennt)
     ASSESSMENT_PORTAL_DEFAULT_ROLES = os.environ.get(
         'ASSESSMENT_PORTAL_DEFAULT_ROLES', 'Bewerter'
     )
+    # Assessment-Sessions (kein Portal-user_sessions): Absolute- und Idle-Timeout
+    ASSESSMENT_SESSION_MAX_HOURS = float(os.environ.get('ASSESSMENT_SESSION_MAX_HOURS', '12'))
+    ASSESSMENT_SESSION_INACTIVITY_HOURS = float(
+        os.environ.get('ASSESSMENT_SESSION_INACTIVITY_HOURS', '8')
+    )
+
+    # Socket.IO CORS: leer = same-origin (Host); '*' = offen; sonst Komma-Liste
+    SOCKETIO_CORS_ORIGINS = (os.environ.get('SOCKETIO_CORS_ORIGINS') or '').strip()
+    PUBLIC_BASE_URL = (os.environ.get('PUBLIC_BASE_URL') or '').strip().rstrip('/')
     
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
@@ -63,7 +83,13 @@ class Config:
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
     # Request-Deckel: Start-Default; wird nach DB-Sync aus Datei-Einstellungen gesetzt
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024
-    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'md', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar'}
+    ALLOWED_EXTENSIONS = {
+        'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp',
+        'mp4', 'webm', 'ogg', 'mp3', 'wav', 'mov',
+        'md', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'odt', 'ods', 'odp', 'csv', 'rtf',
+        'zip', 'rar', '7z',
+    }
     
     APP_NAME = os.environ.get('APP_NAME', 'Prismateams')
     APP_LOGO = os.environ.get('APP_LOGO', 'static/img/logo.png')

@@ -18,12 +18,43 @@ from app.utils.module_visibility import (
     visibility_nav_context,
 )
 from datetime import datetime
+from sqlalchemy.orm import defer, joinedload, selectinload
 import os
 import re
 
 wiki_bp = Blueprint('wiki', __name__, url_prefix='/wiki')
 
 MAX_WIKI_VERSIONS = 3
+WIKI_LIST_PER_PAGE = 24
+
+
+def _wiki_index_page_url(
+    page,
+    *,
+    search_query='',
+    category_id=None,
+    tag_id=None,
+    sort_by='updated',
+    sort_dir='desc',
+    favorites_only=False,
+    section=None,
+    filter_team_id=None,
+):
+    """Build wiki index URL preserving filters and pagination."""
+    kwargs = {'page': page, 'sort': sort_by, 'dir': sort_dir}
+    if search_query:
+        kwargs['q'] = search_query
+    if category_id:
+        kwargs['category'] = category_id
+    if tag_id:
+        kwargs['tag'] = tag_id
+    if favorites_only:
+        kwargs['view'] = 'favorites'
+    elif section in ('private', 'team', 'public'):
+        kwargs['view'] = section
+        if section == 'team' and filter_team_id:
+            kwargs['team_id'] = filter_team_id
+    return url_for('wiki.index', **kwargs)
 
 
 def check_wiki_module():
@@ -107,13 +138,19 @@ def index():
     favorites_only = request.args.get('favorites', type=int) == 1 or section == 'favorites'
     sort_by = request.args.get('sort', 'updated')  # updated, created, title
     sort_dir = request.args.get('dir', 'desc')
+    list_page = max(1, request.args.get('page', 1, type=int) or 1)
     if sort_dir not in ('asc', 'desc'):
         sort_dir = 'desc'
     if sort_by not in ('updated', 'created', 'title'):
         sort_by = 'updated'
     
-    # Basis-Query
-    query = accessible_query(current_user, WikiPage, 'wiki')
+    # Basis-Query (ohne Markdown-Content in der Liste)
+    query = accessible_query(current_user, WikiPage, 'wiki').options(
+        defer(WikiPage.content),
+        joinedload(WikiPage.category),
+        joinedload(WikiPage.creator),
+        selectinload(WikiPage.tags),
+    )
     favorite_rows = WikiFavorite.query.filter_by(user_id=current_user.id).all()
     favorite_ids = [fav.wiki_page_id for fav in favorite_rows]
     show_favorites_nav = bool(favorite_ids)
@@ -127,14 +164,14 @@ def index():
     elif section in ('private', 'team', 'public'):
         query = apply_section_filter(query, WikiPage, section, filter_team_id)
     
-    # Suche
+    # Suche: Titel/Slug immer; Content nur als Filter (Spalte bleibt deferred)
     if search_query:
         search_filter = f'%{search_query}%'
         query = query.filter(
             db.or_(
                 WikiPage.title.ilike(search_filter),
+                WikiPage.slug.ilike(search_filter),
                 WikiPage.content.ilike(search_filter),
-                WikiPage.slug.ilike(search_filter)
             )
         )
     
@@ -159,12 +196,32 @@ def index():
     else:
         query = query.order_by(sort_col.desc())
     
-    pages = query.all()
+    pagination = query.paginate(page=list_page, per_page=WIKI_LIST_PER_PAGE, error_out=False)
+    pages = pagination.items
     sidebar = _wiki_sidebar_context()
     nav = visibility_nav_context('wiki', current_user, section, filter_team_id)
+    url_kwargs = dict(
+        search_query=search_query,
+        category_id=category_id,
+        tag_id=tag_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        favorites_only=favorites_only,
+        section=section,
+        filter_team_id=filter_team_id,
+    )
     
     return render_template('wiki/index.html',
                          pages=pages,
+                         pagination=pagination,
+                         wiki_prev_url=(
+                             _wiki_index_page_url(pagination.prev_num, **url_kwargs)
+                             if pagination.has_prev else None
+                         ),
+                         wiki_next_url=(
+                             _wiki_index_page_url(pagination.next_num, **url_kwargs)
+                             if pagination.has_next else None
+                         ),
                          categories=sidebar['categories'],
                          tags=sidebar['tags'],
                          search_query=search_query,

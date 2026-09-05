@@ -496,6 +496,12 @@
       "favorites": {
         "title": "Favoritos",
         "empty": "Sin favoritos"
+      },
+      "pagination": {
+        "prev": "Anterior",
+        "next": "Siguiente",
+        "info": "Página {page} de {pages} ({total})",
+        "aria": "Páginas wiki"
       }
     }
   },
@@ -553,6 +559,14 @@
       "search": {
         "placeholder": "Buscar personas...",
         "empty": "No se encontraron personas."
+      }
+    },
+    "view": {
+      "load_older": "Cargar mensajes anteriores",
+      "js": {
+        "load_older": "Cargar mensajes anteriores",
+        "load_older_loading": "Cargando…",
+        "load_older_error": "No se pudieron cargar mensajes anteriores"
       }
     }
   },
@@ -623,6 +637,17 @@
       "mailbox_label": "Mailbox",
       "use_team_logo": "Use team logo",
       "use_team_logo_help": "If off: portal logo instead of team logo in HTML design."
+    },
+    "index": {
+      "pagination": {
+        "prev": "Anterior",
+        "next": "Siguiente",
+        "info": "Página {page} de {pages} ({total})",
+        "aria": "Páginas de correo"
+      }
+    },
+    "flash": {
+      "sync_started": "Sincronización iniciada. La página se actualizará al finalizar."
     }
   },
   "files": {
@@ -1373,7 +1398,7 @@
       "content": "Contenido"
     },
     "index": {
-      "search_placeholder": "Buscar actas…",
+      "search_placeholder": "Buscar por título, nombre o fecha (p. ej. 05.09.2026)…",
       "empty": "Aún no hay actas.",
       "open": "Abrir",
       "edit": "Editar",
@@ -1387,6 +1412,25 @@
         "date": "Fecha",
         "status": "Estado",
         "visibility": "Ámbito"
+      },
+      "sort": {
+        "heading": "Orden",
+        "field": "Campo",
+        "dir": "Dirección",
+        "date": "Fecha",
+        "title": "Título",
+        "updated": "Actualizado",
+        "created": "Creado",
+        "asc": "Ascendente",
+        "desc": "Descendente",
+        "apply": "Aplicar"
+      },
+      "filter": {
+        "heading": "Filtro",
+        "status": "Estado",
+        "all": "Todos",
+        "apply": "Aplicar",
+        "reset": "Reset"
       }
     },
     "create": {
@@ -1436,7 +1480,10 @@
     "view": {
       "agenda": "Orden del día",
       "content": "Contenido",
-      "no_content": "Sin contenido."
+      "no_content": "Sin contenido.",
+      "time_label": "Hora",
+      "attendance": "Asistencia",
+      "finalized_at": "Finalizado el"
     },
     "flash": {
       "module_disabled": "El módulo de actas está desactivado.",

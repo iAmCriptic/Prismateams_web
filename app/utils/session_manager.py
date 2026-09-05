@@ -2,11 +2,20 @@
 Session-Management Utility für die Verwaltung von Benutzer-Sessions.
 """
 from flask import session, request
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db
 from app.models.user_session import UserSession
 import secrets
 import re
+
+# Short-TTL cache in Flask-Session: skip DB lookup on most requests
+_PORTAL_SESS_OK_AT = '_portal_sess_ok_at'
+_PORTAL_SESS_OK_SID = '_portal_sess_ok_sid'
+_PORTAL_SESS_LAST_ACTIVITY = '_portal_sess_last_activity'
+_PORTAL_SESS_DIRTY = '_portal_sess_dirty_activity'
+PORTAL_SESSION_CACHE_TTL = timedelta(seconds=60)
+PORTAL_SESSION_ACTIVITY_INTERVAL = timedelta(minutes=1)
+PORTAL_SESSION_INACTIVITY_LIMIT = timedelta(days=30)
 
 
 def generate_session_id():
@@ -66,6 +75,82 @@ def format_device_label(user_agent):
         return sanitized[:80] if sanitized else "Unbekanntes Gerät"
 
     return f"{platform} · {browser}"
+
+
+def rotate_session_on_login(preserve_keys=None):
+    """
+    Leert die Flask-Session vor dem Setzen von Auth-Keys (Session-Fixation-Schutz).
+
+    Erhält ausgewählte Keys (Sprache, Cookie-Consent, OAuth-Zwischenstände).
+    """
+    if preserve_keys is None:
+        preserve_keys = (
+            'language',
+            'cookie_consent',
+            'cookie_consent_v',
+            'google_oauth_state',
+            'google_oauth_next',
+            'google_register_prefill',
+        )
+    preserved = {key: session[key] for key in preserve_keys if key in session}
+    session.clear()
+    session.update(preserved)
+
+
+def _parse_session_iso(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def start_assessment_session():
+    """
+    Markiert eine Assessment-Session (kein Portal-user_sessions wegen FK auf users).
+
+    Tracking läuft über Flask-Session-Timestamps + kürzere Lifetime.
+    """
+    now = datetime.utcnow().isoformat()
+    session['user_scope'] = 'assessment'
+    session['assessment_session_started'] = now
+    session['assessment_last_activity'] = now
+    session.permanent = True
+
+
+def touch_assessment_session():
+    """Aktualisiert die letzte Assessment-Aktivität."""
+    session['assessment_last_activity'] = datetime.utcnow().isoformat()
+
+
+def assessment_session_is_expired(max_hours, inactivity_hours):
+    """
+    Prüft Absolute- und Inaktivitäts-Timeout für Assessment-Sessions.
+
+    Returns:
+        (expired: bool, reason: str|None)
+    """
+    started = _parse_session_iso(session.get('assessment_session_started'))
+    last_activity = _parse_session_iso(session.get('assessment_last_activity')) or started
+    if not started or not last_activity:
+        return True, 'missing_tracking'
+
+    now = datetime.utcnow()
+    try:
+        max_hours = float(max_hours)
+    except (TypeError, ValueError):
+        max_hours = 12
+    try:
+        inactivity_hours = float(inactivity_hours)
+    except (TypeError, ValueError):
+        inactivity_hours = 8
+
+    if max_hours > 0 and (now - started).total_seconds() >= max_hours * 3600:
+        return True, 'max_lifetime'
+    if inactivity_hours > 0 and (now - last_activity).total_seconds() >= inactivity_hours * 3600:
+        return True, 'inactivity'
+    return False, None
 
 
 def create_session(user_id):
@@ -133,6 +218,90 @@ def get_user_sessions(user_id, include_current=True):
     return sessions
 
 
+def clear_portal_session_cache():
+    """Drop short-TTL portal session validation cache from the Flask session."""
+    for key in (
+        _PORTAL_SESS_OK_AT,
+        _PORTAL_SESS_OK_SID,
+        _PORTAL_SESS_LAST_ACTIVITY,
+        _PORTAL_SESS_DIRTY,
+    ):
+        session.pop(key, None)
+
+
+def _store_portal_session_cache(session_id: str, last_activity: datetime | None):
+    now = datetime.utcnow()
+    session[_PORTAL_SESS_OK_AT] = now.isoformat()
+    session[_PORTAL_SESS_OK_SID] = session_id
+    session[_PORTAL_SESS_LAST_ACTIVITY] = (last_activity or now).isoformat()
+    session.pop(_PORTAL_SESS_DIRTY, None)
+
+
+def touch_portal_session_cached(user_id):
+    """
+    Validate portal UserSession with a short Flask-session TTL.
+
+    Returns:
+        ('ok', None) — session valid (DB skipped or refreshed)
+        ('invalid', error_code) — logout caller
+        ('error', None) — unexpected failure; caller may log and continue
+    """
+    current_session_id = session.get('session_id')
+    if not current_session_id:
+        clear_portal_session_cache()
+        return 'invalid', 'missing_session_id'
+
+    now = datetime.utcnow()
+    cache_sid = session.get(_PORTAL_SESS_OK_SID)
+    cache_ok_at = _parse_session_iso(session.get(_PORTAL_SESS_OK_AT))
+    cache_last = _parse_session_iso(session.get(_PORTAL_SESS_LAST_ACTIVITY))
+    cache_fresh = (
+        cache_sid == current_session_id
+        and cache_ok_at is not None
+        and cache_last is not None
+        and (now - cache_ok_at) < PORTAL_SESSION_CACHE_TTL
+    )
+
+    if cache_fresh:
+        if (now - cache_last) >= PORTAL_SESSION_INACTIVITY_LIMIT:
+            clear_portal_session_cache()
+            return 'invalid', 'inactivity'
+        # Mark activity dirty in cookie; flush to DB on next cache miss / TTL expiry
+        if (now - cache_last) >= PORTAL_SESSION_ACTIVITY_INTERVAL:
+            session[_PORTAL_SESS_LAST_ACTIVITY] = now.isoformat()
+            session[_PORTAL_SESS_DIRTY] = True
+        return 'ok', None
+
+    try:
+        current_session = get_current_session(user_id)
+        if current_session is None:
+            clear_portal_session_cache()
+            return 'invalid', 'revoked'
+
+        last_seen = current_session.last_activity or current_session.created_at
+        if last_seen and (now - last_seen) >= PORTAL_SESSION_INACTIVITY_LIMIT:
+            revoke_session(user_id, current_session_id)
+            db.session.commit()
+            clear_portal_session_cache()
+            return 'invalid', 'inactivity'
+
+        needs_activity_write = (
+            session.pop(_PORTAL_SESS_DIRTY, None)
+            or not current_session.last_activity
+            or (now - current_session.last_activity) >= PORTAL_SESSION_ACTIVITY_INTERVAL
+        )
+        if needs_activity_write:
+            current_session.last_activity = now
+            db.session.commit()
+            last_seen = now
+
+        _store_portal_session_cache(current_session_id, last_seen)
+        return 'ok', None
+    except Exception:
+        clear_portal_session_cache()
+        raise
+
+
 def get_current_session(user_id):
     """Holt die aktuelle Session eines Benutzers."""
     current_session_id = session.get('session_id')
@@ -163,6 +332,8 @@ def revoke_session(user_id, session_id):
     
     if user_session:
         user_session.revoke()
+        if session.get('session_id') == session_id:
+            clear_portal_session_cache()
         return True
     
     return False
@@ -196,6 +367,8 @@ def revoke_session_by_id(session_id):
     
     if user_session:
         user_session.revoke()
+        if session.get('session_id') == session_id:
+            clear_portal_session_cache()
         return True
     
     return False

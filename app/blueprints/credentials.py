@@ -19,7 +19,6 @@ from app.utils.module_visibility import (
     visibility_nav_context,
 )
 import os
-import requests
 from urllib.parse import urlparse
 import logging
 
@@ -60,28 +59,25 @@ def _credentials_key_missing_response(*, as_json=False):
 
 
 def get_favicon_url(website_url):
-    """Get favicon URL for a website."""
+    """
+    Favicon-URL nur über öffentliches CDN aus dem Domain-Label.
+
+    Kein Server-seitiger Fetch gegen User-URLs (SSRF-/Intranet-Probe).
+    """
     try:
-        parsed = urlparse(website_url)
-        domain = f"{parsed.scheme}://{parsed.netloc}"
-        
-        # Try common favicon locations
-        favicon_urls = [
-            f"{domain}/favicon.ico",
-            f"https://www.google.com/s2/favicons?domain={parsed.netloc}&sz=32",
-        ]
-        
-        for url in favicon_urls:
-            try:
-                response = requests.head(url, timeout=2)
-                if response.status_code == 200:
-                    return url
-            except:
-                continue
-        
-        # Fallback to Google's favicon service
-        return f"https://www.google.com/s2/favicons?domain={parsed.netloc}&sz=32"
-    except:
+        parsed = urlparse((website_url or '').strip())
+        host = (parsed.hostname or '').strip().lower().rstrip('.')
+        if not host:
+            # Fallback: netloc ohne Port/Userinfo grob parsen
+            netloc = (parsed.netloc or '').strip().lower()
+            if '@' in netloc:
+                netloc = netloc.rsplit('@', 1)[-1]
+            host = netloc.split(':', 1)[0].rstrip('.')
+        if not host or host in {'localhost', '127.0.0.1', '::1'} or host.endswith('.local'):
+            return None
+        # Nur Label an CDN — keine Requests vom Server
+        return f'https://www.google.com/s2/favicons?domain={host}&sz=32'
+    except Exception:
         return None
 
 

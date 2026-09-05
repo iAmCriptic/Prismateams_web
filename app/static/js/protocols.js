@@ -32,15 +32,20 @@
                 hidden.value = names.join(', ');
             }
 
+            var animateNext = false;
+
             function render() {
+                var prevCount = list.querySelectorAll('.protocols-chip').length;
                 list.innerHTML = names.map(function (name, idx) {
+                    var enterClass = (animateNext && idx >= prevCount) ? ' is-entering' : '';
                     return (
-                        '<span class="protocols-chip" data-chip-index="' + idx + '">' +
+                        '<span class="protocols-chip' + enterClass + '" data-chip-index="' + idx + '">' +
                         '<span class="protocols-chip-label">' + escapeHtml(name) + '</span>' +
                         '<button type="button" class="protocols-chip-remove" data-chip-remove aria-label="Remove">&times;</button>' +
                         '</span>'
                     );
                 }).join('');
+                animateNext = false;
                 syncHidden();
             }
 
@@ -48,12 +53,17 @@
                 var name = String(raw || '').trim();
                 if (!name) return;
                 // Split pasted "a, b" into multiple chips
+                var added = false;
                 parseNames(name).forEach(function (part) {
                     var exists = names.some(function (n) {
                         return n.toLowerCase() === part.toLowerCase();
                     });
-                    if (!exists) names.push(part);
+                    if (!exists) {
+                        names.push(part);
+                        added = true;
+                    }
                 });
+                if (added) animateNext = true;
                 render();
             }
 
@@ -142,11 +152,15 @@
 
         addBtn.addEventListener('click', function () {
             var node = tpl.content.firstElementChild.cloneNode(true);
+            node.classList.add('is-entering');
             list.appendChild(node);
             bindRemove(node);
             node.setAttribute('draggable', 'true');
             var input = node.querySelector('input[name="titles"]');
             if (input) input.focus();
+            window.setTimeout(function () {
+                node.classList.remove('is-entering');
+            }, 320);
         });
 
         var dragEl = null;
@@ -254,14 +268,8 @@
         var titleInput = document.getElementById('itemTitle');
         if (titleInput) titleInput.addEventListener('input', scheduleAutosave);
 
-        form.addEventListener('submit', function (e) {
+        form.addEventListener('submit', function () {
             syncHidden();
-            var submitter = e.submitter;
-            if (submitter && submitter.getAttribute('data-confirm-finalize')) {
-                if (!window.confirm(submitter.getAttribute('data-confirm-finalize'))) {
-                    e.preventDefault();
-                }
-            }
         });
     }
 

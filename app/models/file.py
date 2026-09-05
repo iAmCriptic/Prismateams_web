@@ -7,7 +7,7 @@ class Folder(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -28,7 +28,7 @@ class Folder(db.Model):
     is_personal_root = db.Column(db.Boolean, default=False, nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
     is_team_root = db.Column(db.Boolean, default=False, nullable=False)
-    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
@@ -55,13 +55,13 @@ class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     original_name = db.Column(db.String(255), nullable=False)
-    folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
+    folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True, index=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
     file_size = db.Column(db.BigInteger, nullable=False)
     mime_type = db.Column(db.String(100), nullable=True)
     version_number = db.Column(db.Integer, default=1, nullable=False)
-    is_current = db.Column(db.Boolean, default=True, nullable=False)
+    is_current = db.Column(db.Boolean, default=True, nullable=False, index=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -76,12 +76,16 @@ class File(db.Model):
 
     space = db.Column(db.String(16), nullable=False, default='public')
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
-    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     folder = db.relationship('Folder', back_populates='files')
     uploader = db.relationship('User', foreign_keys=[uploaded_by], back_populates='uploaded_files')
     versions = db.relationship('FileVersion', back_populates='file', cascade='all, delete-orphan', order_by='FileVersion.version_number.desc()')
+
+    __table_args__ = (
+        db.Index('ix_files_folder_deleted', 'folder_id', 'deleted_at'),
+    )
     
     def __repr__(self):
         return f'<File {self.name}>'
@@ -132,14 +136,18 @@ class ResourceACL(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resource_type = db.Column(db.String(16), nullable=False)  # file | folder
     resource_id = db.Column(db.Integer, nullable=False)
-    grantee_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    grantee_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
+    grantee_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    grantee_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
     permission = db.Column(db.String(16), nullable=False, default='view')  # view | edit
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     grantee = db.relationship('User', foreign_keys=[grantee_user_id])
     creator = db.relationship('User', foreign_keys=[created_by])
+
+    __table_args__ = (
+        db.Index('ix_resource_acl_type_id', 'resource_type', 'resource_id'),
+    )
 
     @property
     def share_all(self):

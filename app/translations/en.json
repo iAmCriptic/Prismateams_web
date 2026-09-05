@@ -2657,8 +2657,12 @@
         "unmute": "Enable notifications",
         "permission_title": "Microphone",
         "permission_message": "Microphone access is required for voice messages.",
-        "microphone_denied": "Microphone access was denied. Please allow it in your browser settings."
-      }
+        "microphone_denied": "Microphone access was denied. Please allow it in your browser settings.",
+        "load_older": "Load older messages",
+        "load_older_loading": "Loading…",
+        "load_older_error": "Could not load older messages"
+      },
+      "load_older": "Load older messages"
     },
     "settings": {
       "page_title": "Chat settings - {name}",
@@ -3324,6 +3328,12 @@
       "empty": {
         "default": "No wiki pages yet. Create the first page!",
         "filtered": "No pages found. Try different search criteria."
+      },
+      "pagination": {
+        "prev": "Previous",
+        "next": "Next",
+        "info": "Page {page} of {pages} ({total})",
+        "aria": "Wiki pages"
       },
       "js": {
         "favorite_error": "Failed to update favorites.",
@@ -4041,6 +4051,12 @@
         "move_error": "Could not move email",
         "folder_deleted": "Folder deleted",
         "color_local_only": "Color dot stored locally only (IMAP does not support keywords)."
+      },
+      "pagination": {
+        "prev": "Previous",
+        "next": "Next",
+        "info": "Page {page} of {pages} ({total})",
+        "aria": "Email pages"
       }
     },
     "compose": {
@@ -4174,7 +4190,8 @@
       "sync_already_running": "⚠️ Synchronization is already running in another worker. Please wait a moment.",
       "deleted": "Email has been successfully deleted.",
       "target_folder_not_specified": "Target folder not specified.",
-      "draft_no_print": "Drafts cannot be printed as PDF."
+      "draft_no_print": "Drafts cannot be printed as PDF.",
+      "sync_started": "Synchronization started. The page will refresh when it finishes."
     },
     "multi": {
       "main_mailbox": "Main mailbox",
@@ -6725,7 +6742,7 @@
       "content": "Content"
     },
     "index": {
-      "search_placeholder": "Search protocols…",
+      "search_placeholder": "Search by title, name or date (e.g. 05.09.2026)…",
       "empty": "No protocols yet.",
       "open": "Open",
       "edit": "Edit",
@@ -6739,6 +6756,25 @@
         "date": "Date",
         "status": "Status",
         "visibility": "Scope"
+      },
+      "sort": {
+        "heading": "Sort",
+        "field": "Field",
+        "dir": "Direction",
+        "date": "Meeting date",
+        "title": "Title",
+        "updated": "Last updated",
+        "created": "Created",
+        "asc": "Ascending",
+        "desc": "Descending",
+        "apply": "Apply"
+      },
+      "filter": {
+        "heading": "Filter",
+        "status": "Status",
+        "all": "All",
+        "apply": "Apply",
+        "reset": "Reset"
       }
     },
     "create": {
@@ -6788,7 +6824,10 @@
     "view": {
       "agenda": "Agenda",
       "content": "Minutes",
-      "no_content": "No content yet."
+      "no_content": "No content yet.",
+      "time_label": "Time",
+      "attendance": "Attendance",
+      "finalized_at": "Finalized on"
     },
     "flash": {
       "module_disabled": "The protocols module is disabled.",

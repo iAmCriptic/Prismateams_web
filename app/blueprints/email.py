@@ -26,6 +26,7 @@ from markupsafe import Markup
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy import func, cast, Integer, or_
+from sqlalchemy.orm import defer
 import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
@@ -38,6 +39,8 @@ from app.utils.common import format_datetime
 
 email_bp = Blueprint('email', __name__)
 logger = logging.getLogger(__name__)
+
+EMAIL_LIST_PER_PAGE = 50
 
 
 def get_portal_display_name():
@@ -3315,16 +3318,40 @@ def _escape_like(value: str) -> str:
     return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
 
-def _emails_for_folder(folder_name: str, search_query: str = '', mailbox_id=None):
-    """Load emails for a folder, optionally filtered by subject search and mailbox."""
-    query = EmailMessage.query.filter_by(folder=folder_name).filter(
+def _emails_for_folder(
+    folder_name: str,
+    search_query: str = '',
+    mailbox_id=None,
+    page: int = 1,
+    per_page: int = EMAIL_LIST_PER_PAGE,
+):
+    """Load a page of emails for a folder (bodies: text only, no HTML)."""
+    query = EmailMessage.query.options(
+        defer(EmailMessage.body_html),
+    ).filter_by(folder=folder_name).filter(
         _message_mailbox_filter(mailbox_id)
     )
     if search_query:
         query = query.filter(
             EmailMessage.subject.ilike(f'%{_escape_like(search_query)}%', escape='\\')
         )
-    return query.order_by(EmailMessage.received_at.desc()).all()
+    page = max(1, int(page or 1))
+    per_page = min(max(1, int(per_page or EMAIL_LIST_PER_PAGE)), EMAIL_LIST_PER_PAGE)
+    return query.order_by(EmailMessage.received_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+
+def _email_list_page_url(folder_name: str, page: int, search_query: str = '', mailbox_id=None):
+    """Build folder list URL preserving search and mailbox filters."""
+    from app.utils.multi_mailboxes import is_email_multi_enabled
+
+    kwargs = {'folder_name': folder_name, 'page': page}
+    if search_query:
+        kwargs['q'] = search_query
+    if is_email_multi_enabled():
+        kwargs['mailbox'] = mailbox_id or 'main'
+    return url_for('email.folder_view', **kwargs)
 
 
 def _restore_false_deleted_flags(emails, folder_name: str) -> None:
@@ -3371,20 +3398,18 @@ def index():
     
     current_folder = request.args.get('folder', 'INBOX')
     search_query = (request.args.get('q') or '').strip()
+    page = request.args.get('page', 1, type=int) or 1
     active_mailbox, mailbox_id = _resolve_request_mailbox('read')
-    emails = _emails_for_folder(current_folder, search_query, mailbox_id=mailbox_id)
+    pagination = _emails_for_folder(
+        current_folder, search_query, mailbox_id=mailbox_id, page=page
+    )
+    emails = pagination.items
     _restore_false_deleted_flags(emails, current_folder)
 
     folder_obj = _find_email_folder(current_folder, mailbox_id)
     folder_display_name = folder_obj.display_name if folder_obj else current_folder
 
     folders, folder_tree = _folder_tree_context(mailbox_id=mailbox_id)
-
-    for email_obj in emails:
-        if email_obj.attachments:
-            email_obj.has_attachments = True
-        else:
-            email_obj.has_attachments = False
 
     try:
         from app.utils.notifications import mark_in_app_notifications_read
@@ -3412,6 +3437,15 @@ def index():
     return render_template(
         'email/index.html',
         emails=emails,
+        pagination=pagination,
+        email_prev_url=(
+            _email_list_page_url(current_folder, pagination.prev_num, search_query, mailbox_id)
+            if pagination.has_prev else None
+        ),
+        email_next_url=(
+            _email_list_page_url(current_folder, pagination.next_num, search_query, mailbox_id)
+            if pagination.has_next else None
+        ),
         folders=folders,
         folder_tree=folder_tree,
         folder_unread_counts=count_unread_emails_by_folder(
@@ -3463,10 +3497,14 @@ def folder_view(folder_name):
         return redirect(url_for('email.index', mailbox=mailbox_id or 'main'))
     
     search_query = (request.args.get('q') or '').strip()
-    emails = _emails_for_folder(folder_name, search_query, mailbox_id=mailbox_id)
+    page = request.args.get('page', 1, type=int) or 1
+    pagination = _emails_for_folder(
+        folder_name, search_query, mailbox_id=mailbox_id, page=page
+    )
+    emails = pagination.items
     _restore_false_deleted_flags(emails, folder_name)
     
-    logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails")
+    logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails (page {pagination.page}/{pagination.pages or 1})")
 
     folders, folder_tree = _folder_tree_context(mailbox_id=mailbox_id)
     folder_display_name = folder_obj.display_name if folder_obj else folder_name
@@ -3486,6 +3524,15 @@ def folder_view(folder_name):
     return render_template(
         'email/index.html',
         emails=emails,
+        pagination=pagination,
+        email_prev_url=(
+            _email_list_page_url(folder_name, pagination.prev_num, search_query, mailbox_id)
+            if pagination.has_prev else None
+        ),
+        email_next_url=(
+            _email_list_page_url(folder_name, pagination.next_num, search_query, mailbox_id)
+            if pagination.has_next else None
+        ),
         folders=folders,
         folder_tree=folder_tree,
         folder_unread_counts=count_unread_emails_by_folder(
@@ -4784,7 +4831,7 @@ def preview_custom_email():
 @login_required
 @check_module_access('module_email')
 def sync_emails():
-    """Sync emails from IMAP server (runs in background)."""
+    """Sync emails from IMAP server (always runs in a background thread)."""
     if not check_email_permission('read'):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').startswith('application/json'):
             return jsonify({'success': False, 'error': 'Nicht autorisiert'}), 403
@@ -4796,45 +4843,13 @@ def sync_emails():
         or request.headers.get('Accept', '').startswith('application/json')
     )
     current_folder = request.form.get('folder') or None
-    active_mailbox, mailbox_id = _resolve_request_mailbox('read')
+    _, mailbox_id = _resolve_request_mailbox('read')
     folder_label = None
     if current_folder:
         folder_obj = _find_email_folder(current_folder, mailbox_id)
         folder_label = folder_obj.display_name if folder_obj else current_folder
 
-    if not is_async_request:
-        try:
-            # Non-blocking: nicht hinter anderem Worker/Sync warten
-            with acquire_email_sync_lock(timeout=0) as acquired:
-                if acquired:
-                    if active_mailbox is not None:
-                        # Multi-Postfach: immer Ordnerliste + alle Ordner (Gmail [Gmail]/*)
-                        success, message = sync_emails_from_server(mailbox=active_mailbox)
-                    elif current_folder:
-                        sync_imap_folders(mailbox=None)
-                        success, message = sync_emails_from_folder(
-                            current_folder, mailbox=None
-                        )
-                    else:
-                        # Nur Hauptpostfach — nicht alle Multi-Postfächer in denselben Sync mischen
-                        success, message = sync_emails_from_server(mailbox=None)
-                    
-                    if success:
-                        flash(f'✅ {message}', 'success')
-                    else:
-                        flash(f'❌ FEHLER: {message}', 'danger')
-                else:
-                    flash(translate('email.flash.sync_already_running'), 'warning')
-        except Exception as exc:
-            current_app.logger.error(f"E-Mail-Synchronisation Fehler (synchron): {exc}", exc_info=True)
-            flash(f'❌ FEHLER bei der Synchronisation: {str(exc)}', 'danger')
-        
-        target_endpoint = 'email.folder_view' if current_folder else 'email.index'
-        target_kwargs = {'folder_name': current_folder} if current_folder else {}
-        if mailbox_id:
-            target_kwargs['mailbox'] = mailbox_id
-        return redirect(url_for(target_endpoint, **target_kwargs))
-    
+    # Always background — never run IMAP in the request worker
     user_id = current_user.id
     job_id = f"{user_id}-{uuid4().hex}"
     app_instance = current_app._get_current_object()
@@ -4911,6 +4926,14 @@ def sync_emails():
     thread = threading.Thread(target=sync_in_background, name=f"email-sync-{job_id}")
     thread.daemon = True
     thread.start()
+
+    if not is_async_request:
+        flash(translate('email.flash.sync_started'), 'info')
+        target_endpoint = 'email.folder_view' if current_folder else 'email.index'
+        target_kwargs = {'folder_name': current_folder} if current_folder else {}
+        if mailbox_id:
+            target_kwargs['mailbox'] = mailbox_id
+        return redirect(url_for(target_endpoint, **target_kwargs))
     
     response_message = 'Synchronisation gestartet.'
     if sync_mailbox_id:

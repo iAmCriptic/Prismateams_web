@@ -273,17 +273,31 @@ def register_chat_routes(api_bp, require_api_auth):
             return error
 
         since_id = request.args.get("since", type=int)
-        limit = request.args.get("limit", default=200, type=int)
+        before_id = request.args.get("before", type=int)
+        limit = request.args.get("limit", default=50, type=int)
         if limit is None or limit < 1:
-            limit = 200
-        limit = min(limit, 500)
+            limit = 50
+        limit = min(limit, 200)
 
         query = ChatMessage.query.filter_by(chat_id=actual_chat_id, is_deleted=False)
         if since_id:
             query = query.filter(ChatMessage.id > since_id)
-        messages = query.order_by(ChatMessage.created_at.desc()).limit(limit).all()
+        elif before_id:
+            query = query.filter(ChatMessage.id < before_id)
+
+        # One extra row to detect whether older messages remain (before-cursor only)
+        fetch_limit = limit + 1 if before_id and not since_id else limit
+        messages = query.order_by(ChatMessage.created_at.desc()).limit(fetch_limit).all()
+        has_more = False
+        if before_id and not since_id and len(messages) > limit:
+            has_more = True
+            messages = messages[:limit]
         messages.reverse()
-        return jsonify({"success": True, "messages": [_serialize_message(msg) for msg in messages]}), 200
+        return jsonify({
+            "success": True,
+            "messages": [_serialize_message(msg) for msg in messages],
+            "has_more": has_more,
+        }), 200
 
     @api_bp.route("/chats/<int:chat_id>/send", methods=["POST"])
     @require_api_auth
@@ -420,20 +434,22 @@ def register_chat_routes(api_bp, require_api_auth):
             pass
 
         try:
+            from app.utils.chat_unread import total_unread_counts_for_users
+
             chat_members = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
-            for member in chat_members:
-                if member.user_id == current_user.id:
-                    continue
-                user_memberships = ChatMember.query.filter_by(user_id=member.user_id).all()
-                unread_count = 0
-                for m in user_memberships:
-                    unread_count += ChatMessage.query.filter(
-                        ChatMessage.chat_id == m.chat_id,
-                        ChatMessage.sender_id != member.user_id,
-                        ChatMessage.created_at > m.last_read_at,
-                        ChatMessage.is_deleted == False,
-                    ).count()
-                emit_dashboard_update(member.user_id, "chat_update", {"count": unread_count})
+            member_ids = [
+                member.user_id
+                for member in chat_members
+                if member.user_id != current_user.id
+            ]
+            if member_ids:
+                unread_by_user = total_unread_counts_for_users(member_ids)
+                for user_id in member_ids:
+                    emit_dashboard_update(
+                        user_id,
+                        "chat_update",
+                        {"count": unread_by_user.get(user_id, 0)},
+                    )
         except Exception:
             pass
 
@@ -802,17 +818,9 @@ def register_chat_routes(api_bp, require_api_auth):
         if access_error:
             return access_error
         try:
-            user_chat_members = ChatMember.query.filter_by(user_id=current_user.id).all()
-            unread_count = 0
-            for member in user_chat_members:
-                chat_unread = ChatMessage.query.filter(
-                    ChatMessage.chat_id == member.chat_id,
-                    ChatMessage.sender_id != current_user.id,
-                    ChatMessage.created_at > member.last_read_at,
-                    ChatMessage.is_deleted == False,
-                ).count()
-                unread_count += chat_unread
-            return jsonify({"count": unread_count})
+            from app.utils.chat_unread import total_unread_count_for_user
+
+            return jsonify({"count": total_unread_count_for_user(current_user.id)})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 

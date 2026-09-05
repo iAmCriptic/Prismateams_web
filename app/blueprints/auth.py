@@ -8,7 +8,7 @@ from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.models.settings import SystemSettings
 from app.utils.i18n import translate
-from app.utils.session_manager import create_session, revoke_session_by_id
+from app.utils.session_manager import create_session, rotate_session_on_login, revoke_session_by_id
 from app.utils.totp import verify_totp
 from app.utils.password_policy import validate_password
 from app.utils.bot_protection import get_template_context, validate_bot_protection
@@ -72,7 +72,9 @@ def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verifie
         if google_verified:
             flash(translate('auth.flash.register_success_google_whitelisted'), 'success')
             return _finalize_portal_login(new_user, remember=False)
+        rotate_session_on_login()
         login_user(new_user, remember=False)
+        session['user_scope'] = 'portal'
         if email_sent:
             flash(translate('auth.flash.register_success_whitelisted'), 'success')
         else:
@@ -155,7 +157,9 @@ def _finalize_portal_login(user, remember=False, next_page=None):
     # Gast-Accounts benötigen keine E-Mail-Bestätigung
     # Normale Accounts: Check if email confirmation is required (nicht für Admins)
     if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
+        rotate_session_on_login()
         login_user(user, remember=remember)
+        session['user_scope'] = 'portal'
         create_session(user.id)
         flash(translate('auth.flash.confirm_email_required'), 'info')
         return redirect(url_for('auth.confirm_email'))
@@ -164,7 +168,8 @@ def _finalize_portal_login(user, remember=False, next_page=None):
     user.last_login = datetime.utcnow()
     db.session.commit()
 
-    # Log user in
+    # Session-Fixation-Schutz: Cookie-Session rotieren, dann Auth setzen
+    rotate_session_on_login()
     login_user(user, remember=remember)
     session['user_scope'] = 'portal'
 
@@ -286,7 +291,7 @@ def register():
             return render_template('auth/register.html', **_google_register_template_kwargs())
 
         # Registrierung: mind. 12 Zeichen + Groß-/Kleinbuchstaben, Zahl, Sonderzeichen
-        is_valid, _ = validate_password(password, min_length=12, require_complexity=True)
+        is_valid, _ = validate_password(password)
         if not is_valid:
             flash(translate('auth.flash.password_requirements'), 'danger')
             return render_template('auth/register.html', **_google_register_template_kwargs())
@@ -464,8 +469,11 @@ def login():
 
             assessment_user.last_login = datetime.utcnow()
             db.session.commit()
-            login_user(assessment_user, remember=remember)
-            session['user_scope'] = 'assessment'
+            from app.utils.session_manager import start_assessment_session
+            rotate_session_on_login()
+            # Kein Remember-Me: Assessment nutzt kurze Session-Lifetime statt user_sessions.
+            login_user(assessment_user, remember=False)
+            start_assessment_session()
             if assessment_user.must_change_password:
                 return redirect(url_for('assessment.auth.admin_setup'))
             return redirect(url_for('assessment.general.home'))
@@ -1193,9 +1201,10 @@ def change_password():
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
             return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
         
-        # Prüfe Passwort-Länge
-        if len(new_password) < 8:
-            flash(translate('auth.flash.password_too_short'), 'danger')
+        # Prüfe Passwort-Policy (einheitlich mit Register)
+        is_valid, error_msg = validate_password(new_password)
+        if not is_valid:
+            flash(error_msg or translate('auth.flash.password_too_short'), 'danger')
             return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
         
         # Passwort ändern
@@ -1302,9 +1311,10 @@ def reset_password():
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
             return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
-        # Prüfe Passwort-Länge
-        if len(new_password) < 8:
-            flash(translate('auth.flash.password_too_short'), 'danger')
+        # Prüfe Passwort-Policy (einheitlich mit Register)
+        is_valid, error_msg = validate_password(new_password)
+        if not is_valid:
+            flash(error_msg or translate('auth.flash.password_too_short'), 'danger')
             return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Setze neues Passwort
@@ -1322,17 +1332,16 @@ def reset_password():
     return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
-    """User logout."""
-    # Melde Session ab
+    """User logout (nur POST + CSRF — kein Logout per GET)."""
     session_id = session.get('session_id')
     if session_id:
         revoke_session_by_id(session_id)
-    
-    session.pop('user_scope', None)
+
     logout_user()
+    rotate_session_on_login()
     flash(translate('auth.flash.logout_success'), 'success')
     return redirect(url_for('auth.login'))
 

@@ -509,6 +509,13 @@
     padding: 0.7rem 0.45rem;
     border-radius: 0.6rem;
     font-size: 0.92rem;
+    cursor: pointer;
+    font: inherit;
+}
+
+.account-popup-actions .logout-form {
+    display: block;
+    width: 100%;
 }
 
 .account-popup-action:hover,

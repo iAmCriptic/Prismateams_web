@@ -1,5 +1,24 @@
 {% from 'partials/visibility_nav.html' import visibility_space_links with context %}
 
+{% macro protocols_list_query_args(extra={}) %}
+{%- set args = {
+  'q': search_query if search_query else none,
+  'status': status_filter if status_filter else none,
+  'sort': sort_by|default('date'),
+  'dir': sort_dir|default('desc'),
+} -%}
+{%- if section_filter and section_filter != 'all' -%}
+{%- set _ = args.update({'view': section_filter}) -%}
+{%- endif -%}
+{%- if filter_team_id -%}
+{%- set _ = args.update({'team_id': filter_team_id}) -%}
+{%- endif -%}
+{%- if extra -%}
+{%- set _ = args.update(extra) -%}
+{%- endif -%}
+{{- args -}}
+{% endmacro %}
+
 {% macro protocols_create_url() %}
 {%- if active_nav|default('all') == 'public' -%}
 {{ url_for('protocols.create', view='public') }}
@@ -12,21 +31,92 @@
 
 {% macro protocols_folder_nav(dismiss_offcanvas=false) %}
 {% set active_nav = active_nav|default('all') %}
-<nav class="mod-sidebar-nav nav flex-column gap-1">
+<nav class="mod-sidebar-nav nav flex-column gap-1 mb-3">
     <a class="nav-link mod-nav-link {% if active_nav == 'all' %}active{% endif %}"
-       href="{{ url_for('protocols.index') }}"
+       href="{{ url_for('protocols.index', sort=sort_by|default('date'), dir=sort_dir|default('desc'), status=status_filter or none, q=search_query or none) }}"
        {% if dismiss_offcanvas %}data-protocols-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-journal-richtext me-2"></i>{{ _('protocols.nav.all') }}
     </a>
     {{ visibility_space_links(
         'protocols.index',
-        {},
+        {'sort': sort_by|default('date'), 'dir': sort_dir|default('desc'), 'status': status_filter or none, 'q': search_query or none},
         'data-protocols-dismiss-offcanvas="1"' if dismiss_offcanvas else '',
         allowed_visibilities,
         visibility_teams,
         active_nav
     ) }}
 </nav>
+{% endmacro %}
+
+{% macro protocols_sidebar_tools(id_suffix='') %}
+{% set has_filter_state = status_filter %}
+<div class="mod-sidebar-tools">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-sort-down me-1"></i>{{ _('protocols.index.sort.heading') }}
+        </div>
+        <form method="GET" action="{{ url_for('protocols.index') }}" class="mod-sidebar-form d-grid gap-2">
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+            {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+            <div>
+                <label for="protocols-sort-field{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.sort.field') }}</label>
+                <select id="protocols-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort" data-inv-pill-select>
+                    <option value="date" {% if sort_by|default('date') == 'date' %}selected{% endif %}>{{ _('protocols.index.sort.date') }}</option>
+                    <option value="title" {% if sort_by|default('date') == 'title' %}selected{% endif %}>{{ _('protocols.index.sort.title') }}</option>
+                    <option value="updated" {% if sort_by|default('date') == 'updated' %}selected{% endif %}>{{ _('protocols.index.sort.updated') }}</option>
+                    <option value="created" {% if sort_by|default('date') == 'created' %}selected{% endif %}>{{ _('protocols.index.sort.created') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="protocols-sort-dir{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.sort.dir') }}</label>
+                <select id="protocols-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir" data-inv-pill-select>
+                    <option value="desc" {% if sort_dir|default('desc') == 'desc' %}selected{% endif %}>{{ _('protocols.index.sort.desc') }}</option>
+                    <option value="asc" {% if sort_dir|default('desc') == 'asc' %}selected{% endif %}>{{ _('protocols.index.sort.asc') }}</option>
+                </select>
+            </div>
+            <button type="submit" class="btn mod-sidebar-action w-100">
+                <i class="bi bi-check2"></i>
+                <span>{{ _('protocols.index.sort.apply') }}</span>
+            </button>
+        </form>
+    </div>
+
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-funnel me-1"></i>{{ _('protocols.index.filter.heading') }}
+        </div>
+        <form method="GET" action="{{ url_for('protocols.index') }}" class="mod-sidebar-form d-grid gap-2">
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            <input type="hidden" name="sort" value="{{ sort_by|default('date') }}">
+            <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
+            {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+            {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+            <div>
+                <label for="protocols-filter-status{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.filter.status') }}</label>
+                <select id="protocols-filter-status{{ id_suffix }}" class="form-select form-select-sm" name="status" data-inv-pill-select>
+                    <option value="" {% if not status_filter %}selected{% endif %}>{{ _('protocols.index.filter.all') }}</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>{{ _('protocols.status.draft') }}</option>
+                    <option value="finalized" {% if status_filter == 'finalized' %}selected{% endif %}>{{ _('protocols.status.finalized') }}</option>
+                </select>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="submit" class="btn mod-sidebar-action flex-grow-1">
+                    <i class="bi bi-check2"></i>
+                    <span>{{ _('protocols.index.filter.apply') }}</span>
+                </button>
+                {% if has_filter_state %}
+                <a href="{{ url_for('protocols.index', q=search_query or none, sort=sort_by|default('date'), dir=sort_dir|default('desc'), view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+                   class="btn mod-sidebar-action mod-sidebar-action--muted">
+                    <i class="bi bi-x-lg"></i>
+                    <span>{{ _('protocols.index.filter.reset') }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
 {% endmacro %}
 
 {% macro protocols_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
@@ -40,4 +130,5 @@
 </div>
 {% endif %}
 {{ protocols_folder_nav(dismiss_offcanvas) }}
+{{ protocols_sidebar_tools(id_suffix) }}
 {% endmacro %}

@@ -22,7 +22,7 @@ class EmailMessage(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     is_sent = db.Column(db.Boolean, default=False)  # True if sent from portal
     has_attachments = db.Column(db.Boolean, default=False)
-    folder = db.Column(db.String(100), default='INBOX', nullable=False)  # IMAP folder
+    folder = db.Column(db.String(100), default='INBOX', nullable=False, index=True)  # IMAP folder
     
     # IMAP synchronization tracking
     imap_uid = db.Column(db.String(100), nullable=True)  # IMAP UID for this specific folder
@@ -50,6 +50,11 @@ class EmailMessage(db.Model):
     # Relationships
     attachments = db.relationship('EmailAttachment', back_populates='email', cascade='all, delete-orphan')
     mailbox = db.relationship('Mailbox', back_populates='messages')
+
+    __table_args__ = (
+        db.Index('ix_email_messages_mailbox_folder_received', 'mailbox_id', 'folder', 'received_at'),
+        db.Index('ix_email_messages_folder_is_read', 'folder', 'is_read'),
+    )
     
     def __repr__(self):
         return f'<EmailMessage {self.subject}>'
@@ -59,7 +64,7 @@ class EmailAttachment(db.Model):
     __tablename__ = 'email_attachments'
     
     id = db.Column(db.Integer, primary_key=True)
-    email_id = db.Column(db.Integer, db.ForeignKey('email_messages.id'), nullable=False)
+    email_id = db.Column(db.Integer, db.ForeignKey('email_messages.id'), nullable=False, index=True)
     
     filename = db.Column(db.String(500), nullable=False)  # Erweitert von 255 auf 500 für längere Dateinamen
     content_type = db.Column(db.String(100), nullable=False)

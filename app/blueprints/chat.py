@@ -21,7 +21,6 @@ from app.utils.chat_nav import (
 )
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from sqlalchemy import and_
 import os
 import json
 import logging
@@ -29,6 +28,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 chat_bp = Blueprint('chat', __name__)
+
+# Initial page load: newest N messages; older via API ?before=
+CHAT_INITIAL_MESSAGE_LIMIT = 50
 
 
 def allowed_file(filename):
@@ -217,11 +219,32 @@ def view_chat(chat_id):
         # list=1 prevents /chat/ → /chat/1 redirect loop on desktop
         return redirect(url_for('chat.index', list=1))
     
-    # Get all messages
-    messages = ChatMessage.query.filter_by(
-        chat_id=actual_chat_id,
-        is_deleted=False
-    ).order_by(ChatMessage.created_at).all()
+    # Get newest messages only (older history via API cursor)
+    messages = (
+        ChatMessage.query.filter_by(
+            chat_id=actual_chat_id,
+            is_deleted=False,
+        )
+        .order_by(ChatMessage.created_at.desc())
+        .limit(CHAT_INITIAL_MESSAGE_LIMIT)
+        .all()
+    )
+    messages.reverse()
+
+    has_older_messages = False
+    if messages:
+        oldest_id = messages[0].id
+        has_older_messages = (
+            db.session.query(ChatMessage.id)
+            .filter(
+                ChatMessage.chat_id == actual_chat_id,
+                ChatMessage.is_deleted.is_(False),
+                ChatMessage.id < oldest_id,
+            )
+            .limit(1)
+            .first()
+            is not None
+        )
     
     # Update last read timestamp
     membership.last_read_at = datetime.utcnow()
@@ -256,6 +279,7 @@ def view_chat(chat_id):
         'chat/view.html',
         chat=chat,
         messages=messages,
+        has_older_messages=has_older_messages,
         members=members,
         nav_items=nav_items,
         active_chat_id=active_nav_id,
@@ -410,28 +434,19 @@ def send_message(chat_id):
     
     # Sende Dashboard-Updates an alle Chat-Mitglieder (außer dem Sender)
     try:
+        from app.utils.chat_unread import total_unread_counts_for_users
+        from app.utils.dashboard_events import emit_dashboard_update
+
         chat_members = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
         member_ids = [cm.user_id for cm in chat_members if cm.user_id != current_user.id]
-        
         if member_ids:
-            # Berechne unread_count für jeden Benutzer
+            unread_by_user = total_unread_counts_for_users(member_ids)
             for user_id in member_ids:
-                user_memberships = ChatMember.query.filter_by(user_id=user_id).all()
-                unread_count = 0
-                for member in user_memberships:
-                    chat_unread = ChatMessage.query.filter(
-                        and_(
-                            ChatMessage.chat_id == member.chat_id,
-                            ChatMessage.sender_id != user_id,
-                            ChatMessage.created_at > member.last_read_at,
-                            ChatMessage.is_deleted == False
-                        )
-                    ).count()
-                    unread_count += chat_unread
-                
-                # Emittiere Dashboard-Update für jeden Benutzer
-                from app.utils.dashboard_events import emit_dashboard_update
-                emit_dashboard_update(user_id, 'chat_update', {'count': unread_count})
+                emit_dashboard_update(
+                    user_id,
+                    'chat_update',
+                    {'count': unread_by_user.get(user_id, 0)},
+                )
     except Exception as e:
         current_app.logger.error(f"Fehler beim Senden der Dashboard-Updates für Chat: {e}")
     

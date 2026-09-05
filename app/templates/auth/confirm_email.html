@@ -67,10 +67,11 @@
                 <hr class="my-4">
 
                 <p class="text-center mb-0">
-                    <a href="{{ url_for('auth.logout') }}" class="text-muted">
+                    {% from 'partials/logout_form.html' import logout_form %}
+                    {% call logout_form(button_class='btn btn-link text-muted p-0 text-decoration-none') %}
                         <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>
                         {{ _('layout.nav.logout') }}
-                    </a>
+                    {% endcall %}
                 </p>
             </div>
         </div>

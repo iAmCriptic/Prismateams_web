@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 
 from flask import (
     Blueprint,
@@ -15,7 +16,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy import cast, or_, String
 
 from app import db
 from app.models.protocol import (
@@ -107,6 +108,86 @@ def _now_defaults():
     return now.date(), now.time().replace(second=0, microsecond=0)
 
 
+def _parse_search_date(raw: str):
+    """Parse user search input into a date or (year, month) / year for partial match."""
+    q = (raw or '').strip()
+    if not q:
+        return None
+    for fmt in ('%d.%m.%Y', '%d.%m.%y', '%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+        try:
+            return ('exact', datetime.strptime(q, fmt).date())
+        except ValueError:
+            continue
+    # DD.MM.YYYY with optional leading zeros already covered; try month.year
+    m = re.fullmatch(r'(\d{1,2})\.(\d{4})', q)
+    if m:
+        month, year = int(m.group(1)), int(m.group(2))
+        if 1 <= month <= 12:
+            return ('month', year, month)
+    m = re.fullmatch(r'(\d{4})-(\d{1,2})', q)
+    if m:
+        year, month = int(m.group(1)), int(m.group(2))
+        if 1 <= month <= 12:
+            return ('month', year, month)
+    m = re.fullmatch(r'(\d{4})', q)
+    if m:
+        return ('year', int(m.group(1)))
+    # DD.MM. (current/any year) — match month-day via string patterns later
+    m = re.fullmatch(r'(\d{1,2})\.(\d{1,2})\.?', q)
+    if m:
+        day, month = int(m.group(1)), int(m.group(2))
+        if 1 <= day <= 31 and 1 <= month <= 12:
+            return ('day_month', day, month)
+    return None
+
+
+def _protocol_search_clause(search_query: str):
+    from sqlalchemy import extract, func
+
+    like = f'%{search_query}%'
+    clauses = [
+        Protocol.title.ilike(like),
+        Protocol.participants_text.ilike(like),
+        Protocol.excused_text.ilike(like),
+        Protocol.absent_text.ilike(like),
+        # ISO date string (e.g. 2026-09-05 / 2026-09)
+        cast(Protocol.meeting_date, String).ilike(like),
+    ]
+    parsed = _parse_search_date(search_query)
+    if parsed:
+        kind = parsed[0]
+        if kind == 'exact':
+            clauses.append(Protocol.meeting_date == parsed[1])
+        elif kind == 'month':
+            year, month = parsed[1], parsed[2]
+            clauses.append(
+                (extract('year', Protocol.meeting_date) == year)
+                & (extract('month', Protocol.meeting_date) == month)
+            )
+        elif kind == 'year':
+            clauses.append(extract('year', Protocol.meeting_date) == parsed[1])
+        elif kind == 'day_month':
+            day, month = parsed[1], parsed[2]
+            clauses.append(
+                (extract('day', Protocol.meeting_date) == day)
+                & (extract('month', Protocol.meeting_date) == month)
+            )
+
+    if re.search(r'\d', search_query) and '.' in search_query:
+        dialect_name = ''
+        try:
+            dialect_name = db.session.get_bind().dialect.name
+        except Exception:
+            pass
+        if dialect_name == 'sqlite':
+            clauses.append(func.strftime('%d.%m.%Y', Protocol.meeting_date).ilike(like))
+            clauses.append(func.strftime('%d.%m.%y', Protocol.meeting_date).ilike(like))
+        elif dialect_name == 'mysql':
+            clauses.append(func.date_format(Protocol.meeting_date, '%d.%m.%Y').ilike(like))
+
+    return or_(*clauses)
+
+
 def _visibility_label(protocol: Protocol) -> str:
     if protocol.visibility == 'team' and protocol.team:
         return protocol.team.name
@@ -175,26 +256,50 @@ def index():
         return redirect(url_for('dashboard.index'))
 
     search_query = (request.args.get('q') or '').strip()
+    status_filter = (request.args.get('status') or '').strip().lower()
+    if status_filter not in ('', 'draft', 'finalized'):
+        status_filter = ''
+    sort_by = (request.args.get('sort') or 'date').strip().lower()
+    if sort_by not in ('date', 'title', 'updated', 'created'):
+        sort_by = 'date'
+    sort_dir = (request.args.get('dir') or 'desc').strip().lower()
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'desc'
+
     section, filter_team_id = parse_section_args('protocols', current_user)
     query = accessible_query(current_user, Protocol, 'protocols')
     if section in ('team', 'public'):
         query = apply_section_filter(query, Protocol, section, filter_team_id)
 
-    if search_query:
-        like = f'%{search_query}%'
-        query = query.filter(
-            or_(
-                Protocol.title.ilike(like),
-                Protocol.participants_text.ilike(like),
-            )
-        )
+    if status_filter:
+        query = query.filter(Protocol.status == status_filter)
 
-    protocols = query.order_by(Protocol.meeting_date.desc(), Protocol.updated_at.desc()).all()
+    if search_query:
+        query = query.filter(_protocol_search_clause(search_query))
+
+    sort_map = {
+        'date': Protocol.meeting_date,
+        'title': Protocol.title,
+        'updated': Protocol.updated_at,
+        'created': Protocol.created_at,
+    }
+    sort_col = sort_map[sort_by]
+    order_expr = sort_col.asc() if sort_dir == 'asc' else sort_col.desc()
+    # Stable secondary sort
+    if sort_by == 'date':
+        query = query.order_by(order_expr, Protocol.start_time.desc() if sort_dir == 'desc' else Protocol.start_time.asc())
+    else:
+        query = query.order_by(order_expr, Protocol.meeting_date.desc())
+
+    protocols = query.all()
     ctx = _sidebar_context()
     return render_template(
         'protocols/index.html',
         protocols=protocols,
         search_query=search_query,
+        status_filter=status_filter,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
         visibility_label=_visibility_label,
         **ctx,
     )

@@ -511,15 +511,26 @@ def delete_job_file(job):
                 pass
 
 
+YOUTUBE_PROXY_ALLOWED_HOSTS = frozenset({
+    'youtu.be',
+    'youtube.com',
+    'www.youtube.com',
+    'm.youtube.com',
+    'music.youtube.com',
+    'www.music.youtube.com',
+    'youtube-nocookie.com',
+    'www.youtube-nocookie.com',
+    # InnerTube API (kein generisches *.googleapis.com)
+    'youtubei.googleapis.com',
+})
+
+# Nur Video/CDN-Suffixe — bewusst ohne *.googleapis.com / *.googleusercontent.com / *.gstatic.com
 YOUTUBE_PROXY_ALLOWED_SUFFIXES = (
     '.youtube.com',
+    '.youtube-nocookie.com',
     '.googlevideo.com',
-    '.ggpht.com',
-    '.googleusercontent.com',
-    '.googleapis.com',
-    '.gstatic.com',
     '.ytimg.com',
-    'youtubei.googleapis.com',
+    '.ggpht.com',
 )
 
 YOUTUBE_PROXY_SKIP_REQUEST_HEADERS = frozenset({
@@ -572,13 +583,10 @@ def is_allowed_youtube_proxy_url(url):
     host = (parsed.hostname or '').lower().rstrip('.')
     if not host:
         return False
-    if host == 'youtu.be':
+    if host in YOUTUBE_PROXY_ALLOWED_HOSTS:
         return True
 
-    return any(
-        host == suffix.lstrip('.') or host.endswith(suffix)
-        for suffix in YOUTUBE_PROXY_ALLOWED_SUFFIXES
-    )
+    return any(host.endswith(suffix) for suffix in YOUTUBE_PROXY_ALLOWED_SUFFIXES)
 
 
 def _apply_youtube_proxy_header_aliases(headers):

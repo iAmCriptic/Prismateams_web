@@ -1,6 +1,7 @@
 {# Visibility select for create/edit forms.
-   Pass allowed/teams/selected explicitly — imported macros have no caller context. #}
-{% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select') %}
+   Pass allowed/teams/selected explicitly — imported macros have no caller context.
+   Optional attrs= is appended inside the <select> tag (e.g. 'data-inv-pill-select'). #}
+{% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select', attrs='') %}
 {% set vis_allowed = allowed if allowed is sequence else allowed_visibilities|default([]) %}
 {% set vis_teams = teams if teams is sequence else visibility_teams|default([]) %}
 {% set vis_selected = selected if selected else selected_visibility|default('') %}
@@ -9,7 +10,7 @@
 <div class="{{ extra_class }}">
     <label class="form-label" for="{{ field_id }}">{{ _('visibility.form.label') }}</label>
 {% endif %}
-    <select class="{{ select_class }}" id="{{ field_id }}" name="visibility">
+    <select class="{{ select_class }}" id="{{ field_id }}" name="visibility"{% if attrs %} {{ attrs|safe }}{% endif %}>
         {% if 'private' in vis_allowed %}
         <option value="private" {% if vis_selected == 'private' %}selected{% endif %}>{{ _('visibility.form.private') }}</option>
         {% endif %}

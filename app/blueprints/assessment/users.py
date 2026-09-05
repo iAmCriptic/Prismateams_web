@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, render_template, request
 from app import db
 from app.models.assessment import AssessmentList, AssessmentRole, AssessmentUser
 from app.utils.assessment_auth import assessment_role_required
+from app.utils.password_policy import validate_password
 
 users_bp = Blueprint("users", __name__)
 
@@ -64,6 +65,9 @@ def api_users():
                 "success": False,
                 "message": "Bitte Benutzername, Passwort, Anzeigename und mindestens eine Rolle angeben.",
             }), 400
+        is_valid, error_msg = validate_password(password)
+        if not is_valid:
+            return jsonify({"success": False, "message": error_msg or "Passwort entspricht nicht der Policy."}), 400
         if AssessmentUser.query.filter_by(username=username).first():
             return jsonify({"success": False, "message": "Benutzername existiert bereits."}), 409
 
@@ -92,6 +96,9 @@ def api_users():
         user.display_name = (data.get("display_name") or user.display_name).strip()
         new_password = (data.get("password") or "").strip()
         if new_password:
+            is_valid, error_msg = validate_password(new_password)
+            if not is_valid:
+                return jsonify({"success": False, "message": error_msg or "Passwort entspricht nicht der Policy."}), 400
             user.set_password(new_password)
 
         role_ids = data.get("role_ids")

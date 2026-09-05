@@ -38,6 +38,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ app_name or 'Prismateams' }}">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- Favicon -->
     {% if portal_logo_filename %}
@@ -461,6 +462,7 @@
         }
     } | tojson }};
     </script>
+    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
     {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}

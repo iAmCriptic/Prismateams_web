@@ -10,7 +10,7 @@
 <div class="protocols-workspace protocols-workspace--editor">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+            <a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}" class="mod-back-link">
                 <i class="bi bi-arrow-left"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.steps.agenda') }}</span>
             </a>
@@ -32,21 +32,24 @@
                 {% endfor %}
             </nav>
             {% if prev_item %}
-            <button type="submit" form="protocolsItemForm" name="action" value="prev" class="btn btn-outline-secondary rounded-pill">
+            <button type="submit" form="protocolsItemForm" name="action" value="prev" class="btn protocols-btn-pill protocols-btn-pill--icon" title="{{ _('layout.nav.back') }}">
                 <i class="bi bi-arrow-left"></i>
             </button>
             {% endif %}
-            <button type="submit" form="protocolsItemForm" name="action" value="save" class="btn btn-outline-secondary rounded-pill">
+            <button type="submit" form="protocolsItemForm" name="action" value="save" class="btn protocols-btn-pill">
                 <i class="bi bi-save"></i>
                 <span class="d-none d-md-inline">{{ _('protocols.actions.save_draft') }}</span>
             </button>
             {% if next_item %}
-            <button type="submit" form="protocolsItemForm" name="action" value="next" class="btn btn-accent rounded-pill">
+            <button type="submit" form="protocolsItemForm" name="action" value="next" class="btn btn-accent rounded-pill protocols-btn-pill">
                 {{ _('protocols.item.next') }} <i class="bi bi-arrow-right"></i>
             </button>
             {% else %}
-            <button type="submit" form="protocolsItemForm" name="action" value="finalize" class="btn btn-accent rounded-pill"
-                    data-confirm-finalize="{{ _('protocols.actions.finalize_confirm') }}">
+            <button type="submit" form="protocolsItemForm" name="action" value="finalize" class="btn btn-accent rounded-pill protocols-btn-pill"
+                    data-pt-confirm="{{ _('protocols.actions.finalize_confirm') }}"
+                    data-pt-confirm-title="{{ _('protocols.actions.finalize') }}"
+                    data-pt-confirm-ok="{{ _('protocols.actions.finalize') }}"
+                    data-pt-confirm-danger="false">
                 <i class="bi bi-check2-circle"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.actions.finalize') }}</span>
             </button>

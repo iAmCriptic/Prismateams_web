@@ -496,6 +496,12 @@
       "favorites": {
         "title": "Favoritos",
         "empty": "Sem favoritos"
+      },
+      "pagination": {
+        "prev": "Anterior",
+        "next": "Seguinte",
+        "info": "Página {page} de {pages} ({total})",
+        "aria": "Páginas wiki"
       }
     }
   },
@@ -553,6 +559,14 @@
       "search": {
         "placeholder": "Pesquisar pessoas...",
         "empty": "Nenhuma pessoa encontrada."
+      }
+    },
+    "view": {
+      "load_older": "Carregar mensagens anteriores",
+      "js": {
+        "load_older": "Carregar mensagens anteriores",
+        "load_older_loading": "A carregar…",
+        "load_older_error": "Não foi possível carregar mensagens anteriores"
       }
     }
   },
@@ -623,6 +637,17 @@
       "mailbox_label": "Mailbox",
       "use_team_logo": "Use team logo",
       "use_team_logo_help": "If off: portal logo instead of team logo in HTML design."
+    },
+    "index": {
+      "pagination": {
+        "prev": "Anterior",
+        "next": "Seguinte",
+        "info": "Página {page} de {pages} ({total})",
+        "aria": "Páginas de e-mail"
+      }
+    },
+    "flash": {
+      "sync_started": "Sincronização iniciada. A página será atualizada quando terminar."
     }
   },
   "files": {
@@ -1373,7 +1398,7 @@
       "content": "Conteúdo"
     },
     "index": {
-      "search_placeholder": "Pesquisar atas…",
+      "search_placeholder": "Pesquisar por título, nome ou data (ex. 05.09.2026)…",
       "empty": "Ainda não há atas.",
       "open": "Abrir",
       "edit": "Editar",
@@ -1387,6 +1412,25 @@
         "date": "Data",
         "status": "Estado",
         "visibility": "Âmbito"
+      },
+      "sort": {
+        "heading": "Ordenação",
+        "field": "Campo",
+        "dir": "Direção",
+        "date": "Data",
+        "title": "Título",
+        "updated": "Atualizado",
+        "created": "Criado",
+        "asc": "Ascendente",
+        "desc": "Descendente",
+        "apply": "Aplicar"
+      },
+      "filter": {
+        "heading": "Filtro",
+        "status": "Estado",
+        "all": "Todos",
+        "apply": "Aplicar",
+        "reset": "Reset"
       }
     },
     "create": {
@@ -1436,7 +1480,10 @@
     "view": {
       "agenda": "Pauta",
       "content": "Conteúdo",
-      "no_content": "Sem conteúdo."
+      "no_content": "Sem conteúdo.",
+      "time_label": "Hora",
+      "attendance": "Presença",
+      "finalized_at": "Concluído em"
     },
     "flash": {
       "module_disabled": "O módulo de atas está desativado.",

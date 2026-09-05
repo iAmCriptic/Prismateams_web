@@ -147,7 +147,17 @@ def sync_legacy_share_flags(resource_type: ResourceType, resource: File | Folder
 
 
 def share_is_expired(share: PublicShare) -> bool:
-    return bool(share.expires_at and datetime.utcnow() > share.expires_at)
+    if share is None or share.expires_at is None:
+        return False
+    return datetime.utcnow() > share.expires_at
+
+
+def legacy_share_resource_is_expired(resource: File | Folder | None) -> bool:
+    """True wenn Legacy File/Folder.share_expires_at abgelaufen ist."""
+    if resource is None:
+        return False
+    expires_at = getattr(resource, 'share_expires_at', None)
+    return bool(expires_at and datetime.utcnow() > expires_at)
 
 
 def share_url(share: PublicShare, *, external: bool = True) -> str:
@@ -248,9 +258,13 @@ def resolve_token_to_share_and_resource(
 
     file_obj = File.query.filter_by(share_token=token, share_enabled=True).first()
     if file_obj:
+        if legacy_share_resource_is_expired(file_obj):
+            return None, None
         return None, file_obj
     folder = Folder.query.filter_by(share_token=token, share_enabled=True).first()
     if folder:
+        if legacy_share_resource_is_expired(folder):
+            return None, None
         return None, folder
     return None, None
 
@@ -265,6 +279,8 @@ def resolve_dropbox_folder(token: str) -> tuple[PublicShare | None, Folder | Non
 
     folder = Folder.query.filter_by(dropbox_token=token, is_dropbox=True).first()
     if folder:
+        if legacy_share_resource_is_expired(folder):
+            return None, None
         return None, folder
     return None, None
 

@@ -1,4 +1,5 @@
 {# Requires qa_variant = 'sidebar' | 'mobile' set by caller #}
+{% from 'partials/logout_form.html' import logout_form %}
 {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
 {% set link_map = {
     'files': {'url': url_for('files.index'), 'icon': 'bi-folder', 'label_key': 'layout.nav.files', 'module': 'module_files'},
@@ -33,9 +34,21 @@
     'assessment_warnings': {'url': url_for('assessment.warnings.warnings_page'), 'icon': 'bi-exclamation-octagon', 'label_key': 'dashboard.edit.quick_access.items.assessment_warnings', 'module': 'module_assessment'},
     'settings': {'url': url_for('settings.index'), 'icon': 'bi-gear', 'label_key': 'layout.nav.settings', 'module': None},
     'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
-    'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
+    'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None, 'is_logout': true}
 } %}
 {% set is_sidebar = qa_variant == 'sidebar' %}
+
+{% macro qa_logout_control() -%}
+{% if is_sidebar %}
+{% call logout_form(button_class='mod-nav-link logout-nav-btn') %}
+<i class="bi {{ link_map['logout'].icon }}"></i><span>{{ _(link_map['logout'].label_key) }}</span>
+{% endcall %}
+{% else %}
+{% call logout_form(button_class='dashboard-qa-tile dashboard-qa-tile--danger logout-nav-btn') %}
+<i class="bi {{ link_map['logout'].icon }}"></i><span>{{ _(link_map['logout'].label_key) }}</span>
+{% endcall %}
+{% endif %}
+{%- endmacro %}
 
 {% if current_user.is_guest %}
     {% set module_to_link_key = {
@@ -68,19 +81,21 @@
     {% endfor %}
     {% if is_sidebar %}
     <a class="mod-nav-link" href="{{ link_map['settings'].url }}"><i class="bi {{ link_map['settings'].icon }}"></i><span>{{ _(link_map['settings'].label_key) }}</span></a>
-    <a class="mod-nav-link" href="{{ link_map['logout'].url }}"><i class="bi {{ link_map['logout'].icon }}"></i><span>{{ _(link_map['logout'].label_key) }}</span></a>
+    {{ qa_logout_control() }}
     {% else %}
     <a class="dashboard-qa-tile" href="{{ link_map['settings'].url }}"><i class="bi {{ link_map['settings'].icon }}"></i><span>{{ _(link_map['settings'].label_key) }}</span></a>
-    <a class="dashboard-qa-tile dashboard-qa-tile--danger" href="{{ link_map['logout'].url }}"><i class="bi {{ link_map['logout'].icon }}"></i><span>{{ _(link_map['logout'].label_key) }}</span></a>
+    {{ qa_logout_control() }}
     {% endif %}
 {% else %}
     {% for link_key in quick_access_links if link_key in link_map %}
         {% set link = link_map[link_key] %}
         {% if link.module is none or is_module_enabled(link.module) %}
-            {% if is_sidebar %}
+            {% if link.get('is_logout') %}
+            {{ qa_logout_control() }}
+            {% elif is_sidebar %}
             <a class="mod-nav-link" href="{{ link.url }}"><i class="bi {{ link.icon }}"></i><span>{% if link.label_key %}{{ _(link.label_key) }}{% else %}{{ link.fallback_label }}{% endif %}</span></a>
             {% else %}
-            <a class="dashboard-qa-tile {% if link_key == 'logout' %}dashboard-qa-tile--danger{% endif %}" href="{{ link.url }}"><i class="bi {{ link.icon }}"></i><span>{% if link.label_key %}{{ _(link.label_key) }}{% else %}{{ link.fallback_label }}{% endif %}</span></a>
+            <a class="dashboard-qa-tile" href="{{ link.url }}"><i class="bi {{ link.icon }}"></i><span>{% if link.label_key %}{{ _(link.label_key) }}{% else %}{{ link.fallback_label }}{% endif %}</span></a>
             {% endif %}
         {% endif %}
     {% endfor %}

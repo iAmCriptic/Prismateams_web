@@ -374,6 +374,24 @@
         {% endif %}
     </div>
     </div>
+
+    {% if pagination is defined and pagination and pagination.pages > 1 %}
+    <nav class="wiki-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2" aria-label="{{ _('wiki.index.pagination.aria') }}">
+        <span class="text-muted small">{{ _('wiki.index.pagination.info', page=pagination.page, pages=pagination.pages, total=pagination.total) }}</span>
+        <div class="d-flex gap-2">
+            {% if wiki_prev_url %}
+            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ wiki_prev_url }}">{{ _('wiki.index.pagination.prev') }}</a>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('wiki.index.pagination.prev') }}</button>
+            {% endif %}
+            {% if wiki_next_url %}
+            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ wiki_next_url }}">{{ _('wiki.index.pagination.next') }}</a>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('wiki.index.pagination.next') }}</button>
+            {% endif %}
+        </div>
+    </nav>
+    {% endif %}
 </div>
 </div>
 

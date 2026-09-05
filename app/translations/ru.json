@@ -496,6 +496,12 @@
       "favorites": {
         "title": "Избранное",
         "empty": "Нет избранного"
+      },
+      "pagination": {
+        "prev": "Назад",
+        "next": "Далее",
+        "info": "Страница {page} из {pages} ({total})",
+        "aria": "Страницы вики"
       }
     }
   },
@@ -553,6 +559,14 @@
       "search": {
         "placeholder": "Искать людей...",
         "empty": "Никого не найдено."
+      }
+    },
+    "view": {
+      "load_older": "Загрузить более ранние сообщения",
+      "js": {
+        "load_older": "Загрузить более ранние сообщения",
+        "load_older_loading": "Загрузка…",
+        "load_older_error": "Не удалось загрузить более ранние сообщения"
       }
     }
   },
@@ -623,6 +637,17 @@
       "mailbox_label": "Mailbox",
       "use_team_logo": "Use team logo",
       "use_team_logo_help": "If off: portal logo instead of team logo in HTML design."
+    },
+    "index": {
+      "pagination": {
+        "prev": "Назад",
+        "next": "Далее",
+        "info": "Страница {page} из {pages} ({total})",
+        "aria": "Страницы почты"
+      }
+    },
+    "flash": {
+      "sync_started": "Синхронизация запущена. Страница обновится по завершении."
     }
   },
   "files": {
@@ -1373,7 +1398,7 @@
       "content": "Содержание"
     },
     "index": {
-      "search_placeholder": "Поиск протоколов…",
+      "search_placeholder": "Поиск по названию, имени или дате (напр. 05.09.2026)…",
       "empty": "Протоколов пока нет.",
       "open": "Открыть",
       "edit": "Изменить",
@@ -1387,6 +1412,25 @@
         "date": "Дата",
         "status": "Статус",
         "visibility": "Область"
+      },
+      "sort": {
+        "heading": "Сортировка",
+        "field": "Поле",
+        "dir": "Направление",
+        "date": "Дата",
+        "title": "Название",
+        "updated": "Изменено",
+        "created": "Создано",
+        "asc": "По возрастанию",
+        "desc": "По убыванию",
+        "apply": "Применить"
+      },
+      "filter": {
+        "heading": "Фильтр",
+        "status": "Статус",
+        "all": "Все",
+        "apply": "Применить",
+        "reset": "Сброс"
       }
     },
     "create": {
@@ -1436,7 +1480,10 @@
     "view": {
       "agenda": "Повестка",
       "content": "Содержание",
-      "no_content": "Нет содержания."
+      "no_content": "Нет содержания.",
+      "time_label": "Время",
+      "attendance": "Присутствие",
+      "finalized_at": "Завершено"
     },
     "flash": {
       "module_disabled": "Модуль протоколов отключён.",

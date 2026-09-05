@@ -329,6 +329,26 @@
 </div>
 {% endmacro %}
 
+{% macro email_list_pagination() %}
+{% if pagination is defined and pagination and pagination.pages > 1 %}
+<nav class="email-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-top" aria-label="{{ _('email.index.pagination.aria') }}">
+    <span class="text-muted small">{{ _('email.index.pagination.info', page=pagination.page, pages=pagination.pages, total=pagination.total) }}</span>
+    <div class="btn-group">
+        {% if email_prev_url %}
+        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ email_prev_url }}">{{ _('email.index.pagination.prev') }}</a>
+        {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('email.index.pagination.prev') }}</button>
+        {% endif %}
+        {% if email_next_url %}
+        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ email_next_url }}">{{ _('email.index.pagination.next') }}</a>
+        {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('email.index.pagination.next') }}</button>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+{% endmacro %}
+
 {% macro email_folder_create_inline(form_id) %}
 {% set parent_none_label = _('email.index.folder_create.parent_none') %}
 <div class="email-folder-inline" id="{{ form_id }}Wrap" hidden>
@@ -445,6 +465,7 @@
                     {{ email_list_item(email, 'mobile', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
+            {{ email_list_pagination() }}
             {% else %}
             {{ email_empty_state() }}
             {% endif %}
@@ -551,6 +572,7 @@
                         {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                     {% endfor %}
                 </div>
+                {{ email_list_pagination() }}
                 {% else %}
                 {{ email_empty_state() }}
                 {% endif %}
@@ -609,6 +631,7 @@
                     {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
+            {{ email_list_pagination() }}
             {% else %}
             {{ email_empty_state() }}
             {% endif %}

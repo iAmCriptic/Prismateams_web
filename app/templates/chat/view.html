@@ -283,6 +283,11 @@
     
     <div class="chat-messages-column">
     <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px;">
+        <div id="chat-load-older-wrap" class="chat-load-older-wrap"{% if not has_older_messages %} hidden{% endif %}>
+            <button type="button" id="chat-load-older" class="btn btn-sm btn-outline-secondary rounded-pill">
+                {{ _('chat.view.load_older') }}
+            </button>
+        </div>
         {% if messages %}
             {% for message in messages %}
             <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}"
@@ -483,7 +488,7 @@
             </div>
             {% endfor %}
         {% else %}
-            <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #6c757d; padding: 2rem;">
+            <div class="chat-empty-state" style="flex: 1; display: flex; align-items: center; justify-content: center; color: #6c757d; padding: 2rem;">
                 <div style="text-align: center;">
                     <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.5; margin-bottom: 1rem;"></i>
                     <p style="margin: 0;">{{ _('chat.view.no_messages.title') }}</p>
@@ -560,6 +565,8 @@
         chatId: {{ 1 if chat.is_main_chat else chat.id }},
         currentUserId: {{ current_user.id }},
         lastMessageId: {{ messages[-1].id if messages else 0 }},
+        oldestMessageId: {{ messages[0].id if messages else 0 }},
+        hasOlderMessages: {{ 'true' if has_older_messages else 'false' }},
         initialMemberCount: {{ members|length }},
         language: "{{ current_language }}",
         isGuest: {{ 'true' if current_user.is_guest else 'false' }},

@@ -11,30 +11,27 @@ from app.utils.music_oauth import (
 from app.utils.music_api import search_music, get_track, search_music_multi_provider
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.system_settings_cache import get_setting
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, case
 from datetime import datetime
 import secrets
 import logging
-from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
 
 
-# Cache für SystemSettings (5 Minuten TTL)
-@lru_cache(maxsize=128)
 def get_cached_system_setting(key):
-    """Holt eine System-Einstellung mit LRU-Cache."""
-    from app.models.settings import SystemSettings
-    setting = SystemSettings.query.filter_by(key=key).first()
-    return setting.value if setting else None
+    """Compat: SystemSettings über Request-Cache (eine Query pro Request)."""
+    return get_setting(key)
 
 
 def invalidate_system_settings_cache():
-    """Invalidiert den SystemSettings-Cache."""
-    get_cached_system_setting.cache_clear()
+    """Invalidiert den SystemSettings-Cache für den aktuellen Request."""
+    from app.utils.system_settings_cache import invalidate_system_settings_cache as _invalidate
+    _invalidate()
 
 
 # Öffentliche Route (kein Login erforderlich)

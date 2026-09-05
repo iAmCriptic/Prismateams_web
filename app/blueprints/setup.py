@@ -508,7 +508,7 @@ def setup_step2():
                     **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
                 )
             from app.utils.password_policy import validate_password
-            is_valid, _ = validate_password(password, min_length=8, require_complexity=False)
+            is_valid, _ = validate_password(password)
             if not is_valid:
                 flash(translate('setup.flash.password_too_short'), 'danger')
                 return render_template(
@@ -603,7 +603,8 @@ def setup_step2():
             # Wie beim normalen Login: Flask-Login + Portal-Session (session_id).
             # Ohne create_session wirft ensure_portal_session_tracking den User
             # beim Redirect auf Step 3 sofort wieder zum Login.
-            from app.utils.session_manager import create_session
+            from app.utils.session_manager import create_session, rotate_session_on_login
+            rotate_session_on_login()
             login_user(admin_user)
             session['user_scope'] = 'portal'
             create_session(admin_user.id)

@@ -10,14 +10,25 @@
     }
 
     let lastMessageId = cfg.lastMessageId || 0;
+    let oldestMessageId = cfg.oldestMessageId || 0;
+    let hasOlderMessages = Boolean(cfg.hasOlderMessages);
     let isPolling = true;
     let isSendingMessage = false;
+    let isLoadingOlder = false;
     let currentMemberCount = cfg.initialMemberCount || 0;
     let notificationsMuted = false;
     let cachedFolderOptions = null;
     let cachedCalendarOptions = null;
     let mediaRecorder;
     let audioChunks = [];
+    let pollTimer = null;
+    let structuredTimer = null;
+    let markReadTimer = null;
+
+    const MESSAGE_POLL_MS = 5000;
+    const STRUCTURED_POLL_MS = 10000;
+    const MARK_READ_MS = 30000;
+    const OLDER_PAGE_SIZE = 50;
 
     function byId(id) {
         return document.getElementById(id);
@@ -261,7 +272,89 @@
     function addMessageToChat(message) {
         const container = byId("messages-container");
         if (!container) return;
+        const emptyState = container.querySelector(".chat-empty-state");
+        if (emptyState) emptyState.remove();
         container.appendChild(renderMessage(message));
+        if (message.id && (!oldestMessageId || message.id < oldestMessageId)) {
+            oldestMessageId = message.id;
+        }
+    }
+
+    function prependMessagesToChat(messages) {
+        const container = byId("messages-container");
+        const anchor = byId("chat-load-older-wrap");
+        if (!container || !messages.length) return;
+        const emptyState = container.querySelector(".chat-empty-state");
+        if (emptyState) emptyState.remove();
+
+        const previousHeight = container.scrollHeight;
+        const previousTop = container.scrollTop;
+        const fragment = document.createDocumentFragment();
+        messages.forEach((message) => {
+            if (container.querySelector(`.chat-message[data-message-id="${message.id}"]`)) return;
+            fragment.appendChild(renderMessage(message));
+        });
+        if (anchor && anchor.nextSibling) {
+            container.insertBefore(fragment, anchor.nextSibling);
+        } else if (anchor) {
+            container.appendChild(fragment);
+        } else {
+            container.insertBefore(fragment, container.firstChild);
+        }
+        container.scrollTop = previousTop + (container.scrollHeight - previousHeight);
+
+        const first = messages[0];
+        if (first && first.id) {
+            oldestMessageId = first.id;
+        }
+    }
+
+    function updateLoadOlderVisibility(visible) {
+        hasOlderMessages = Boolean(visible);
+        const wrap = byId("chat-load-older-wrap");
+        if (!wrap) return;
+        wrap.hidden = !hasOlderMessages;
+    }
+
+    async function loadOlderMessages() {
+        if (!hasOlderMessages || isLoadingOlder || !oldestMessageId) return;
+        const button = byId("chat-load-older");
+        isLoadingOlder = true;
+        if (button) {
+            button.disabled = true;
+            button.textContent = i18n.load_older_loading || "Laden…";
+        }
+        try {
+            const response = await fetch(
+                `/api/chats/${chatId}/messages?before=${oldestMessageId}&limit=${OLDER_PAGE_SIZE}`,
+                { headers: { "X-Requested-With": "XMLHttpRequest" } }
+            );
+            if (!response.ok) throw new Error("load older failed");
+            const payload = await response.json();
+            const messages = Array.isArray(payload.messages) ? payload.messages : [];
+            if (messages.length) {
+                prependMessagesToChat(messages);
+            }
+            updateLoadOlderVisibility(Boolean(payload.has_more));
+        } catch (e) {
+            console.error(e);
+            notify(i18n.load_older_error || "Ältere Nachrichten konnten nicht geladen werden");
+        } finally {
+            isLoadingOlder = false;
+            if (button) {
+                button.disabled = false;
+                button.textContent = i18n.load_older || "Ältere Nachrichten laden";
+            }
+        }
+    }
+
+    function clearPollTimers() {
+        if (pollTimer) clearTimeout(pollTimer);
+        if (structuredTimer) clearTimeout(structuredTimer);
+        if (markReadTimer) clearTimeout(markReadTimer);
+        pollTimer = null;
+        structuredTimer = null;
+        markReadTimer = null;
     }
 
     function replacePollCardInMessage(messageElement, message) {
@@ -416,9 +509,11 @@
     };
 
     async function pollMessages() {
-        if (!isPolling) return;
+        if (!isPolling || document.hidden) return;
         try {
-            const response = await fetch(`/api/chats/${chatId}/messages?since=${lastMessageId}`, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+            const response = await fetch(`/api/chats/${chatId}/messages?since=${lastMessageId}&limit=100`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
             if (response.ok) {
                 const payload = await response.json();
                 const messages = Array.isArray(payload) ? payload : (payload.messages || []);
@@ -433,13 +528,24 @@
         } catch (e) {
             console.error(e);
         }
-        setTimeout(pollMessages, 2000);
+        if (isPolling && !document.hidden) {
+            pollTimer = setTimeout(pollMessages, MESSAGE_POLL_MS);
+        }
     }
 
     async function syncStructuredMessageUpdates() {
-        if (!isPolling) return;
+        if (!isPolling || document.hidden) return;
+        const structuredEls = document.querySelectorAll(
+            ".chat-message[data-poll-updated-at], .chat-message[data-calendar-updated-at]"
+        );
+        if (!structuredEls.length) {
+            if (isPolling && !document.hidden) {
+                structuredTimer = setTimeout(syncStructuredMessageUpdates, STRUCTURED_POLL_MS);
+            }
+            return;
+        }
         try {
-            const response = await fetch(`/api/chats/${chatId}/messages?limit=200`, {
+            const response = await fetch(`/api/chats/${chatId}/messages?limit=50`, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
             });
             if (response.ok) {
@@ -469,7 +575,9 @@
         } catch (e) {
             console.error(e);
         }
-        setTimeout(syncStructuredMessageUpdates, 3000);
+        if (isPolling && !document.hidden) {
+            structuredTimer = setTimeout(syncStructuredMessageUpdates, STRUCTURED_POLL_MS);
+        }
     }
 
     function syncMobileComposerSpacing() {
@@ -589,7 +697,7 @@
     }
 
     async function markRead() {
-        if (!isPolling) return;
+        if (!isPolling || document.hidden) return;
         try {
             await fetch(`/api/chats/${chatId}/mark-read`, {
                 method: "POST",
@@ -598,7 +706,9 @@
         } catch (e) {
             console.error(e);
         }
-        setTimeout(markRead, 15000);
+        if (isPolling && !document.hidden) {
+            markReadTimer = setTimeout(markRead, MARK_READ_MS);
+        }
     }
 
     async function updateMuteState(enabled) {
@@ -912,6 +1022,22 @@
         if (window.visualViewport) {
             window.visualViewport.addEventListener("resize", syncMobileComposerSpacing);
         }
+        const loadOlderBtn = byId("chat-load-older");
+        if (loadOlderBtn) {
+            loadOlderBtn.addEventListener("click", loadOlderMessages);
+        }
+        updateLoadOlderVisibility(hasOlderMessages);
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+                clearPollTimers();
+                return;
+            }
+            if (!isPolling) return;
+            clearPollTimers();
+            pollMessages();
+            syncStructuredMessageUpdates();
+            markRead();
+        });
         setTimeout(scrollToBottom, 120);
         pollMessages();
         syncStructuredMessageUpdates();

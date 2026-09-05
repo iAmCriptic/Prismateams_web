@@ -1,0 +1,9 @@
+{# POST-Logout mit CSRF — Button optisch wie Link/Nav-Item #}
+{% macro logout_form(button_class='', button_attrs='') -%}
+<form method="post" action="{{ url_for('auth.logout') }}" class="logout-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="{{ button_class }}"{{ button_attrs|safe }}>
+        {{ caller() }}
+    </button>
+</form>
+{%- endmacro %}

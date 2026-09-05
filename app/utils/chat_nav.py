@@ -3,9 +3,11 @@
 from datetime import datetime
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload, selectinload
 
 from app import db
 from app.models.chat import Chat, ChatMember, ChatMessage, ChatPin
+from app.utils.chat_unread import unread_counts_by_chat_for_user
 
 CHAT_PINS_MAX = 6
 
@@ -13,6 +15,33 @@ CHAT_PINS_MAX = 6
 def _team_chat_visible(team_id) -> bool:
     from app.utils.team_module_settings import is_team_section_enabled
     return is_team_section_enabled(team_id, 'chat')
+
+
+def _visible_team_chat_ids(team_ids) -> set:
+    """Batch-check which team chats are visible (one TeamModuleSetting query)."""
+    ids = {int(tid) for tid in team_ids if tid}
+    if not ids:
+        return set()
+
+    from app.utils.common import is_module_enabled
+    from app.utils.module_visibility_settings import is_global_team_enabled
+    from app.models.team import TeamModuleSetting
+
+    if not is_global_team_enabled() or not is_module_enabled('module_chat'):
+        return set()
+
+    rows = (
+        TeamModuleSetting.query.filter(
+            TeamModuleSetting.team_id.in_(ids),
+            TeamModuleSetting.module_key == 'chat',
+        ).all()
+    )
+    disabled = {
+        int(row.team_id)
+        for row in rows
+        if not bool(row.team_section_enabled)
+    }
+    return ids - disabled
 
 
 def wants_desktop_chat_layout(user, request):
@@ -157,7 +186,14 @@ def build_chat_nav_items(user):
 
     Order: main chat → pinned (by pin created_at) → rest by last message desc.
     """
-    memberships = ChatMember.query.filter_by(user_id=user.id).all()
+    memberships = (
+        ChatMember.query
+        .options(
+            joinedload(ChatMember.chat).selectinload(Chat.members),
+        )
+        .filter_by(user_id=user.id)
+        .all()
+    )
     if not memberships:
         return []
 
@@ -175,14 +211,16 @@ def build_chat_nav_items(user):
     pinned_ids = set(pin_order.keys())
 
     last_times = _last_message_times(chat_ids)
+    unread_by_chat = unread_counts_by_chat_for_user(user.id, chat_ids)
     epoch = datetime.min
 
     main = [c for c in chats if c.is_main_chat][:1]  # only one Haupt-Chat in the nav
+    team_ids_present = {c.team_id for c in chats if c.team_id}
+    visible_teams = _visible_team_chat_ids(team_ids_present)
     team_chats = sorted(
         [
             c for c in chats
-            if not c.is_main_chat and c.team_id
-            and _team_chat_visible(c.team_id)
+            if not c.is_main_chat and c.team_id and c.team_id in visible_teams
         ],
         key=lambda c: (c.name or '').lower(),
     )
@@ -206,7 +244,7 @@ def build_chat_nav_items(user):
             'chat': chat,
             'nav_id': 1 if chat.is_main_chat else chat.id,
             'member_count': len(chat.members) if chat.members is not None else 0,
-            'unread_count': _unread_count_for_membership(membership, user.id) if membership else 0,
+            'unread_count': unread_by_chat.get(chat.id, 0) if membership else 0,
             'is_pinned': chat.id in pinned_ids and not chat.is_main_chat and not is_team,
             'can_pin': not chat.is_main_chat and not is_team,
             'is_team_chat': is_team,

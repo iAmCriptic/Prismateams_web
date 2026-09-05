@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, jsonify, session, url_for as flask_url_for
+from flask import Flask, render_template, request, jsonify, session, url_for as flask_url_for, flash, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from config import config
 import json
 import logging
@@ -16,14 +17,46 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
 limiter = Limiter(key_func=get_remote_address)
+csrf = CSRFProtect()
 
 # SocketIO mit optionaler Redis Message Queue für Multi-Worker-Setups
 def create_socketio():
-    """Erstellt SocketIO-Instanz mit optionaler Redis Message Queue."""
-    # Initial ohne Config (wird später in create_app konfiguriert)
-    return SocketIO(cors_allowed_origins="*")
+    """Erstellt SocketIO-Instanz; CORS wird in create_app gesetzt (Default: same-origin)."""
+    return SocketIO(cors_allowed_origins=None)
 
 socketio = create_socketio()
+
+
+def _resolve_socketio_cors_origins(app):
+    """
+    Socket.IO CORS-Origins.
+
+    - leer: None → Engine.IO erlaubt nur same-origin (Host / X-Forwarded-*)
+    - '*': bewusst offen
+    - Komma-Liste: explizite Origins; PUBLIC_BASE_URL wird ergänzt falls gesetzt
+    """
+    raw = (app.config.get('SOCKETIO_CORS_ORIGINS') or '').strip()
+    if raw == '*':
+        return '*'
+
+    origins = []
+    if raw:
+        origins.extend(part.strip().rstrip('/') for part in raw.split(',') if part.strip())
+
+    public_base = (app.config.get('PUBLIC_BASE_URL') or '').strip().rstrip('/')
+    if public_base and public_base not in origins:
+        origins.append(public_base)
+
+    if origins:
+        # Deduplizieren, Reihenfolge behalten
+        seen = []
+        for origin in origins:
+            if origin and origin not in seen:
+                seen.append(origin)
+        return seen
+
+    # Sicherer Default: same-origin über HTTP_HOST
+    return None
 
 
 def _is_insecure_secret_key(value):
@@ -123,6 +156,7 @@ def create_app(config_name='default'):
 
     app.config.from_object(config[config_name])
     configure_app_logging(app, config_name)
+    csrf.init_app(app)
 
     if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
         raise RuntimeError(
@@ -157,6 +191,11 @@ def create_app(config_name='default'):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count, x_host=proxy_count, x_prefix=proxy_count)
 
     db.init_app(app)
+    try:
+        from app.utils.system_settings_cache import register_settings_cache_invalidation
+        register_settings_cache_invalidation()
+    except Exception:
+        pass
     login_manager.init_app(app)
     mail.init_app(app)
     
@@ -209,6 +248,14 @@ def create_app(config_name='default'):
         else:
             logger.info("Flask-Limiter: Memory-Storage (Dev). Für Multi-Worker: REDIS_ENABLED=True")
         limiter.init_app(app)
+
+    socketio_cors = _resolve_socketio_cors_origins(app)
+    if socketio_cors == '*':
+        logger.warning("Socket.IO CORS: '*' (SOCKETIO_CORS_ORIGINS=*) — nur bewusst einsetzen")
+    elif socketio_cors is None:
+        logger.info("Socket.IO CORS: same-origin (Host/X-Forwarded-*)")
+    else:
+        logger.info("Socket.IO CORS Origins: %s", ", ".join(socketio_cors))
     
     if redis_enabled:
         try:
@@ -224,7 +271,7 @@ def create_app(config_name='default'):
             init_kwargs = {
                 'message_queue': redis_url,
                 'async_mode': async_mode,
-                'cors_allowed_origins': "*",
+                'cors_allowed_origins': socketio_cors,
                 'logger': False,
                 'engineio_logger': False,
                 'ping_timeout': 60,
@@ -247,7 +294,7 @@ def create_app(config_name='default'):
             # Fallback: SocketIO ohne Message Queue (nur für Single-Worker)
             socketio.init_app(
                 app,
-                cors_allowed_origins="*",
+                cors_allowed_origins=socketio_cors,
                 logger=False,
                 engineio_logger=False,
                 ping_timeout=60,
@@ -262,7 +309,7 @@ def create_app(config_name='default'):
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
         socketio.init_app(
             app,
-            cors_allowed_origins="*",
+            cors_allowed_origins=socketio_cors,
             logger=False,
             engineio_logger=False,
             ping_timeout=60,
@@ -386,13 +433,26 @@ def create_app(config_name='default'):
             return jsonify({'error': 'CSRF validation failed'}), 403
 
         # Einige Reverse-Proxy/Client-Kombinationen senden kein Origin/Referer.
-        # Wenn Browser den Request als same-origin/same-site/none klassifiziert,
-        # akzeptieren wir den State-Change trotzdem.
-        if sec_fetch_site in {'same-origin', 'same-site', 'none'}:
+        # Dann greift CSRFProtect (Token). Sec-Fetch-Site allein reicht nicht mehr.
+        if sec_fetch_site in {'same-origin', 'same-site'}:
             return
 
         app.logger.warning("CSRF blocked: missing Origin/Referer for %s %s", request.method, request.path)
         return jsonify({'error': 'CSRF validation failed'}), 403
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        app.logger.warning("CSRFProtect rejected %s %s: %s", request.method, request.path, error.description)
+        wants_json = (
+            request.is_json
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.accept_mimetypes.best or '')
+        )
+        if wants_json:
+            return jsonify({'error': 'CSRF validation failed', 'detail': error.description}), 400
+        flash('Sicherheitsprüfung fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.', 'danger')
+        target = request.referrer if request.referrer and _is_same_origin(request.referrer, request.host) else None
+        return redirect(target or flask_url_for('dashboard.index'))
 
     @app.before_request
     def check_email_confirmation():
@@ -451,15 +511,11 @@ def create_app(config_name='default'):
 
     @app.before_request
     def ensure_portal_session_tracking():
-        """Sorgt dafür, dass authentifizierte Portal-Sessions in user_sessions erfasst sind."""
+        """Portal: user_sessions; Assessment: kürzere Session-Lifetime per Flask-Session."""
         from flask import redirect, url_for, flash
         from flask_login import current_user, logout_user
 
         if not current_user.is_authenticated:
-            return
-
-        # Assessment-Logins nutzen einen separaten Scope und kein Portal-Session-Tracking.
-        if session.get('user_scope') == 'assessment':
             return
 
         # Socket.IO-Handshake/Events sind keine klassischen HTTP-Seitenaufrufe.
@@ -469,13 +525,55 @@ def create_app(config_name='default'):
         if request.endpoint and request.endpoint.startswith('static'):
             return
 
+        # Assessment-Logins: separates Tracking (kein FK auf users.id).
+        if session.get('user_scope') == 'assessment':
+            from datetime import datetime, timedelta
+            from app.utils.session_manager import (
+                assessment_session_is_expired,
+                touch_assessment_session,
+                rotate_session_on_login,
+            )
+
+            try:
+                if not getattr(current_user, 'is_active', True):
+                    logout_user()
+                    rotate_session_on_login()
+                    return redirect(url_for('auth.login'))
+
+                if not session.get('assessment_session_started'):
+                    # Remember-/Restored-Session ohne Tracking → neu starten nicht erlaubt
+                    logout_user()
+                    rotate_session_on_login()
+                    flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                    return redirect(url_for('auth.login'))
+
+                expired, _reason = assessment_session_is_expired(
+                    app.config.get('ASSESSMENT_SESSION_MAX_HOURS', 12),
+                    app.config.get('ASSESSMENT_SESSION_INACTIVITY_HOURS', 8),
+                )
+                if expired:
+                    logout_user()
+                    rotate_session_on_login()
+                    flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                    return redirect(url_for('auth.login'))
+
+                last = session.get('assessment_last_activity')
+                try:
+                    last_dt = datetime.fromisoformat(str(last)) if last else None
+                except (TypeError, ValueError):
+                    last_dt = None
+                if not last_dt or (datetime.utcnow() - last_dt) >= timedelta(minutes=1):
+                    touch_assessment_session()
+            except Exception as exc:
+                app.logger.warning("Assessment-Session-Tracking fehlgeschlagen: %s", exc)
+            return
+
         # Setup-Wizard: Session-Tracking erst nach Abschluss erzwingen.
         # Sonst landet man nach Admin-Anlage (login_user ohne session_id) sofort auf /login.
         if request.endpoint and request.endpoint.startswith('setup.'):
             return
 
-        from datetime import datetime, timedelta
-        from app.utils.session_manager import get_current_session, revoke_all_sessions
+        from app.utils.session_manager import revoke_all_sessions
         from app.utils.common import portal_now_naive
 
         try:
@@ -508,31 +606,21 @@ def create_app(config_name='default'):
                     return jsonify({'error': 'Session invalidated'}), 401
                 return redirect(url_for('auth.login'))
 
-            current_session = get_current_session(current_user.id)
-            if current_session is None:
-                # WICHTIG: Keine automatische Neuanlage widerrufener Sessions.
+            from app.utils.session_manager import touch_portal_session_cached
+
+            status, reason = touch_portal_session_cached(current_user.id)
+            if status == 'invalid':
                 logout_user()
                 session.clear()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-                    return jsonify({'error': 'Session invalidated'}), 401
-                return redirect(url_for('auth.login'))
-
-            # Last-Activity nicht bei jedem Request schreiben, um DB-Last zu reduzieren.
-            if not current_session.last_activity or (datetime.utcnow() - current_session.last_activity) >= timedelta(minutes=1):
-                current_session.last_activity = datetime.utcnow()
-                db.session.commit()
-
-            inactivity_limit = timedelta(days=30)
-            last_seen = current_session.last_activity or current_session.created_at
-            if last_seen and (datetime.utcnow() - last_seen) >= inactivity_limit:
-                from app.utils.session_manager import revoke_session
-                revoke_session(current_user.id, current_session_id)
-                db.session.commit()
-                logout_user()
-                session.clear()
-                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-                    return jsonify({'error': 'Session expired due to inactivity'}), 401
-                flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                    err = (
+                        'Session expired due to inactivity'
+                        if reason == 'inactivity'
+                        else 'Session invalidated'
+                    )
+                    return jsonify({'error': err}), 401
+                if reason == 'inactivity':
+                    flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
                 return redirect(url_for('auth.login'))
         except Exception as exc:
             app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
@@ -598,6 +686,7 @@ def create_app(config_name='default'):
         from app.utils.common import is_module_enabled
         from app.utils.access_control import has_module_access
         from app.utils.multi_mailboxes import is_email_multi_enabled
+        from app.utils.system_settings_cache import get_setting
         from flask_login import current_user
         app_name = app.config.get('APP_NAME', 'Prismateams')
         app_logo = app.config.get('APP_LOGO')
@@ -605,27 +694,25 @@ def create_app(config_name='default'):
         portal_logo_filename = None
         
         try:
-            from app.models.settings import SystemSettings
-            
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
-                app_name = portal_name_setting.value
+            portal_name = get_setting('portal_name')
+            if portal_name and str(portal_name).strip():
+                app_name = str(portal_name).strip()
             else:
-                org_name_setting = SystemSettings.query.filter_by(key='organization_name').first()
-                if org_name_setting and org_name_setting.value and org_name_setting.value.strip():
-                    app_name = org_name_setting.value
+                org_name = get_setting('organization_name')
+                if org_name and str(org_name).strip():
+                    app_name = str(org_name).strip()
                 else:
                     app_name = app.config.get('APP_NAME', 'Prismateams')
-            
-            portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-            if portal_logo_setting and portal_logo_setting.value:
-                portal_logo_filename = portal_logo_setting.value
+
+            portal_logo = get_setting('portal_logo')
+            if portal_logo:
+                portal_logo_filename = portal_logo
                 app_logo = None
-            
-            gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-            if gradient_setting and gradient_setting.value:
-                color_gradient = gradient_setting.value
-        except:
+
+            gradient = get_setting('color_gradient')
+            if gradient:
+                color_gradient = gradient
+        except Exception:
             pass
 
         if app_logo and app_logo.startswith('static/'):
@@ -637,8 +724,6 @@ def create_app(config_name='default'):
         onlyoffice_available = is_onlyoffice_enabled()
         auth_branding = get_auth_branding_context()
 
-        from app.utils.common import is_module_enabled
-        
         def get_chat_display_name(chat):
             """Returns the display name for a chat. For private chats, shows only the other person's name."""
             from flask_login import current_user
@@ -1040,6 +1125,17 @@ def create_app(config_name='default'):
     app.register_blueprint(excalidraw_bp)
     app.register_blueprint(surveys_bp)
     app.register_blueprint(protocols_bp)
+
+    # Server-to-server / machine callbacks: no browser CSRF token available
+    for endpoint in (
+        'files.onlyoffice_callback',
+        'files.share_onlyoffice_callback',
+        'kanban.onlyoffice_callback',
+        'api.api_login',  # credential login (mobile/API clients)
+    ):
+        view = app.view_functions.get(endpoint)
+        if view is not None:
+            csrf.exempt(view)
     
     @app.route('/manifest.json')
     def manifest():

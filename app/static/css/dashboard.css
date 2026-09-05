@@ -543,6 +543,16 @@
     position: relative;
 }
 
+button.dashboard-qa-tile {
+    cursor: pointer;
+    font: inherit;
+    width: 100%;
+}
+
+.logout-form {
+    display: contents;
+}
+
 .dashboard-qa-tile:hover {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg, #fff));
     color: inherit;

@@ -3,128 +3,183 @@
 {% block title %}{{ protocol.title }}{% endblock %}
 
 {% block content %}
-{% from 'protocols/_sidebar.html' import protocols_sidebar_chrome with context %}
+{% macro people_chips(text) %}
+{% set parts = (text or '').replace(';', ',').replace('\n', ',').split(',') %}
+{% set ns = namespace(has=false) %}
+<div class="protocols-view-chips">
+    {% for part in parts %}
+    {% set name = part.strip() %}
+    {% if name %}
+    {% set ns.has = true %}
+    <span class="protocols-chip"><span class="protocols-chip-label">{{ name }}</span></span>
+    {% endif %}
+    {% endfor %}
+    {% if not ns.has %}<span class="protocols-view-empty">—</span>{% endif %}
+</div>
+{% endmacro %}
 
-<div class="protocols-shell mod-shell--nav">
-    <aside class="mod-sidebar d-none d-lg-flex flex-column">
-        <div class="mod-sidebar-brand">
-            <i class="bi bi-journal-richtext" aria-hidden="true"></i>
-            <span>{{ _('protocols.nav.title') }}</span>
-        </div>
-        {{ protocols_sidebar_chrome() }}
-    </aside>
-
-    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="protocolsMobileNav" aria-labelledby="protocolsMobileNavLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="protocolsMobileNavLabel">{{ _('protocols.nav.title') }}</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
-        </div>
-        <div class="offcanvas-body pt-0">
-            {{ protocols_sidebar_chrome(dismiss_offcanvas=true, include_new=false) }}
-        </div>
-    </div>
-
-    <div class="mod-main flex-grow-1 min-width-0">
-        <div class="protocols-view">
-            <div class="protocols-view-toolbar d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
-                <div>
-                    <a href="{{ url_for('protocols.index') }}" class="mod-back-link mb-2 d-inline-flex">
-                        <i class="bi bi-arrow-left"></i>
-                        <span>{{ _('layout.nav.back') }}</span>
-                    </a>
-                    <h1 class="h3 mb-1">{{ protocol.title }}</h1>
-                    <div class="text-muted">
-                        {{ protocol.meeting_date.strftime('%d.%m.%Y') if protocol.meeting_date else '' }}
+<div class="protocols-workspace protocols-workspace--view">
+    <header class="protocols-workspace-toolbar">
+        <div class="protocols-workspace-toolbar-start">
+            <a href="{{ url_for('protocols.index') }}" class="mod-back-link">
+                <i class="bi bi-arrow-left"></i>
+                <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
+            </a>
+            <div class="protocols-workspace-brand min-width-0">
+                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                <div class="min-width-0">
+                    <div class="protocols-workspace-title text-truncate">{{ protocol.title }}</div>
+                    <div class="protocols-workspace-subtitle text-truncate">
+                        {% if protocol.meeting_date %}{{ protocol.meeting_date.strftime('%d.%m.%Y') }}{% endif %}
                         {% if protocol.start_time %}
-                        · {{ protocol.start_time.strftime('%H:%M') }}{% if protocol.end_time %} – {{ protocol.end_time.strftime('%H:%M') }}{% endif %}
-                        {% endif %}
-                        · <span class="badge bg-light text-dark border">{{ visibility_label }}</span>
-                        {% if protocol.is_finalized %}
-                        <span class="badge bg-success">{{ _('protocols.status.finalized') }}</span>
-                        {% else %}
-                        <span class="badge bg-secondary">{{ _('protocols.status.draft') }}</span>
+                        · {{ protocol.start_time.strftime('%H:%M') }}{% if protocol.end_time %}–{{ protocol.end_time.strftime('%H:%M') }}{% endif %}
                         {% endif %}
                     </div>
                 </div>
-                <div class="d-flex flex-wrap gap-2">
-                    {% if can_edit %}
-                    <a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}" class="btn btn-outline-secondary rounded-pill">
-                        <i class="bi bi-pencil"></i> {{ _('protocols.index.edit') }}
-                    </a>
-                    <form method="POST" action="{{ url_for('protocols.finalize', protocol_id=protocol.id) }}" class="d-inline">
-                        <button type="submit" class="btn btn-accent rounded-pill" data-confirm-finalize="{{ _('protocols.actions.finalize_confirm') }}">
-                            <i class="bi bi-check2-circle"></i> {{ _('protocols.actions.finalize') }}
-                        </button>
-                    </form>
-                    {% endif %}
-                    {% if protocol.is_finalized %}
-                    <a href="{{ url_for('protocols.pdf', protocol_id=protocol.id) }}" class="btn btn-accent rounded-pill">
-                        <i class="bi bi-filetype-pdf"></i> {{ _('protocols.index.pdf') }}
-                    </a>
-                    {% endif %}
-                </div>
             </div>
+        </div>
+        <div class="protocols-workspace-toolbar-end">
+            {% if protocol.is_finalized %}
+            <span class="protocols-status-chip protocols-status-chip--done">{{ _('protocols.status.finalized') }}</span>
+            {% else %}
+            <span class="protocols-status-chip protocols-status-chip--draft">{{ _('protocols.status.draft') }}</span>
+            {% endif %}
+            <span class="protocols-status-chip protocols-status-chip--scope d-none d-md-inline-flex">{{ visibility_label }}</span>
+            {% if can_edit %}
+            <a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}" class="btn protocols-btn-pill">
+                <i class="bi bi-pencil"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.index.edit') }}</span>
+            </a>
+            <form method="POST" action="{{ url_for('protocols.finalize', protocol_id=protocol.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-accent rounded-pill protocols-btn-pill"
+                        data-pt-confirm="{{ _('protocols.actions.finalize_confirm') }}"
+                        data-pt-confirm-title="{{ _('protocols.actions.finalize') }}"
+                        data-pt-confirm-ok="{{ _('protocols.actions.finalize') }}"
+                        data-pt-confirm-danger="false">
+                    <i class="bi bi-check2-circle"></i>
+                    <span class="d-none d-sm-inline">{{ _('protocols.actions.finalize') }}</span>
+                </button>
+            </form>
+            {% endif %}
+            {% if protocol.is_finalized %}
+            <a href="{{ url_for('protocols.pdf', protocol_id=protocol.id) }}" class="btn btn-accent rounded-pill protocols-btn-pill">
+                <i class="bi bi-filetype-pdf"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.index.pdf') }}</span>
+            </a>
+            {% endif %}
+        </div>
+    </header>
 
-            <section class="protocols-view-meta protocols-form-card mb-4">
-                {% macro people_chips(text) %}
-                {% set parts = (text or '').replace(';', ',').replace('\n', ',').split(',') %}
-                {% set ns = namespace(has=false) %}
-                <div class="protocols-view-chips">
-                    {% for part in parts %}
-                    {% set name = part.strip() %}
-                    {% if name %}
-                    {% set ns.has = true %}
-                    <span class="protocols-chip"><span class="protocols-chip-label">{{ name }}</span></span>
-                    {% endif %}
-                    {% endfor %}
-                    {% if not ns.has %}<span class="text-muted">—</span>{% endif %}
+    <div class="protocols-workspace-body protocols-workspace-body--view">
+        <div class="protocols-doc">
+            <header class="protocols-doc-hero">
+                <p class="protocols-doc-kicker">{{ _('protocols.nav.title') }}</p>
+                <h1 class="protocols-doc-title">{{ protocol.title }}</h1>
+                <div class="protocols-doc-meta-row">
+                    <div class="protocols-doc-meta-item">
+                        <span class="protocols-doc-meta-label">{{ _('protocols.create.date_label') }}</span>
+                        <span class="protocols-doc-meta-value">
+                            {{ protocol.meeting_date.strftime('%d.%m.%Y') if protocol.meeting_date else '—' }}
+                        </span>
+                    </div>
+                    <div class="protocols-doc-meta-item">
+                        <span class="protocols-doc-meta-label">{{ _('protocols.view.time_label') }}</span>
+                        <span class="protocols-doc-meta-value">
+                            {% if protocol.start_time %}
+                            {{ protocol.start_time.strftime('%H:%M') }}{% if protocol.end_time %} – {{ protocol.end_time.strftime('%H:%M') }}{% endif %}
+                            {% else %}—{% endif %}
+                        </span>
+                    </div>
+                    <div class="protocols-doc-meta-item">
+                        <span class="protocols-doc-meta-label">{{ _('visibility.form.label') }}</span>
+                        <span class="protocols-doc-meta-value">{{ visibility_label }}</span>
+                    </div>
+                    <div class="protocols-doc-meta-item">
+                        <span class="protocols-doc-meta-label">{{ _('protocols.index.list.status') }}</span>
+                        <span class="protocols-doc-meta-value">
+                            {% if protocol.is_finalized %}{{ _('protocols.status.finalized') }}{% else %}{{ _('protocols.status.draft') }}{% endif %}
+                        </span>
+                    </div>
                 </div>
-                {% endmacro %}
-                <dl class="row mb-0">
-                    <dt class="col-sm-3">{{ _('protocols.create.participants_label') }}</dt>
-                    <dd class="col-sm-9">{{ people_chips(protocol.participants_text) }}</dd>
-                    <dt class="col-sm-3">{{ _('protocols.create.excused_label') }}</dt>
-                    <dd class="col-sm-9">{{ people_chips(protocol.excused_text) }}</dd>
-                    <dt class="col-sm-3">{{ _('protocols.create.absent_label') }}</dt>
-                    <dd class="col-sm-9">{{ people_chips(protocol.absent_text) }}</dd>
-                </dl>
+            </header>
+
+            <section class="protocols-doc-people" aria-label="{{ _('protocols.view.attendance') }}">
+                <div class="protocols-doc-people-grid">
+                    <div class="protocols-doc-people-card">
+                        <h2 class="protocols-doc-people-title">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            {{ _('protocols.create.participants_label') }}
+                        </h2>
+                        {{ people_chips(protocol.participants_text) }}
+                    </div>
+                    <div class="protocols-doc-people-card">
+                        <h2 class="protocols-doc-people-title">
+                            <i class="bi bi-person-check" aria-hidden="true"></i>
+                            {{ _('protocols.create.excused_label') }}
+                        </h2>
+                        {{ people_chips(protocol.excused_text) }}
+                    </div>
+                    <div class="protocols-doc-people-card">
+                        <h2 class="protocols-doc-people-title">
+                            <i class="bi bi-person-x" aria-hidden="true"></i>
+                            {{ _('protocols.create.absent_label') }}
+                        </h2>
+                        {{ people_chips(protocol.absent_text) }}
+                    </div>
+                </div>
             </section>
 
-            <section class="mb-4">
-                <h2 class="h5">{{ _('protocols.view.agenda') }}</h2>
-                <ol class="protocols-view-agenda">
+            {% if protocol.agenda_items %}
+            <section class="protocols-doc-toc" aria-label="{{ _('protocols.view.agenda') }}">
+                <div class="protocols-doc-section-head">
+                    <h2 class="protocols-doc-section-title">{{ _('protocols.view.agenda') }}</h2>
+                </div>
+                <ol class="protocols-doc-toc-list">
                     {% for item in protocol.agenda_items %}
-                    <li><a href="#top-{{ item.id }}">{{ item.title }}</a></li>
-                    {% else %}
-                    <li class="text-muted">—</li>
+                    <li>
+                        <a href="#top-{{ item.id }}" class="protocols-doc-toc-link">
+                            <span class="protocols-doc-toc-num">{{ loop.index }}</span>
+                            <span class="protocols-doc-toc-text">{{ item.title }}</span>
+                        </a>
+                    </li>
                     {% endfor %}
                 </ol>
             </section>
 
-            <section class="protocols-view-content">
-                <h2 class="h5 mb-3">{{ _('protocols.view.content') }}</h2>
+            <section class="protocols-doc-content" aria-label="{{ _('protocols.view.content') }}">
+                <div class="protocols-doc-section-head">
+                    <h2 class="protocols-doc-section-title">{{ _('protocols.view.content') }}</h2>
+                </div>
                 {% for item in protocol.agenda_items %}
-                <article class="protocols-view-top" id="top-{{ item.id }}">
-                    <h3 class="h6">TOP {{ loop.index }}: {{ item.title }}</h3>
-                    <div class="protocols-view-html">{{ (item.content_html or '')|safe }}</div>
+                <article class="protocols-doc-top" id="top-{{ item.id }}">
+                    <header class="protocols-doc-top-head">
+                        <span class="protocols-doc-top-badge">TOP {{ loop.index }}</span>
+                        <h3 class="protocols-doc-top-title">{{ item.title }}</h3>
+                    </header>
+                    <div class="protocols-doc-top-body protocols-view-html">
+                        {% if item.content_html and item.content_html|striptags|trim %}
+                        {{ item.content_html|safe }}
+                        {% else %}
+                        <p class="protocols-view-empty">{{ _('protocols.view.no_content') }}</p>
+                        {% endif %}
+                    </div>
                 </article>
-                {% else %}
-                <p class="text-muted">{{ _('protocols.view.no_content') }}</p>
                 {% endfor %}
             </section>
+            {% else %}
+            <div class="protocols-doc-empty">
+                <i class="bi bi-journal-x" aria-hidden="true"></i>
+                <p>{{ _('protocols.view.no_content') }}</p>
+            </div>
+            {% endif %}
+
+            {% if protocol.finalized_at %}
+            <footer class="protocols-doc-footer">
+                {{ _('protocols.view.finalized_at') }}
+                {{ protocol.finalized_at.strftime('%d.%m.%Y %H:%M') }}
+            </footer>
+            {% endif %}
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-confirm-finalize]').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-        if (!window.confirm(btn.getAttribute('data-confirm-finalize'))) {
-            e.preventDefault();
-        }
-    });
-});
-</script>
 {% endblock %}

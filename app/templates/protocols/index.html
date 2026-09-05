@@ -6,6 +6,9 @@
 <form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    <input type="hidden" name="sort" value="{{ sort_by|default('date') }}">
+    <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
     <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
@@ -17,7 +20,7 @@
            spellcheck="false"
            enterkeyhint="search">
     {% if search_query %}
-    <a href="{{ url_for('protocols.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+    <a href="{{ url_for('protocols.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none, status=status_filter or none, sort=sort_by|default('date'), dir=sort_dir|default('desc')) }}"
        class="btn protocols-search-clear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -79,6 +82,9 @@
                 <form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
                     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
                     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+                    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                    <input type="hidden" name="sort" value="{{ sort_by|default('date') }}">
+                    <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
                     <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
                     <input type="search" name="q" value="{{ search_query|default('') }}" class="form-control protocols-search-input" placeholder="{{ _('protocols.index.search_placeholder') }}" autocomplete="off">
                 </form>
@@ -119,35 +125,35 @@
                         </td>
                         <td>
                             {% if p.is_finalized %}
-                            <span class="badge bg-success">{{ _('protocols.status.finalized') }}</span>
+                            <span class="protocols-status-chip protocols-status-chip--done">{{ _('protocols.status.finalized') }}</span>
                             {% else %}
-                            <span class="badge bg-secondary">{{ _('protocols.status.draft') }}</span>
+                            <span class="protocols-status-chip protocols-status-chip--draft">{{ _('protocols.status.draft') }}</span>
                             {% endif %}
                         </td>
                         <td class="d-none d-md-table-cell">
-                            <span class="badge bg-light text-dark border">{{ visibility_label(p) }}</span>
+                            <span class="protocols-status-chip protocols-status-chip--scope">{{ visibility_label(p) }}</span>
                         </td>
                         <td class="text-end">
                             <div class="mod-list-actions">
                                 <div class="mod-list-hover-actions">
-                                    <a class="btn btn-sm btn-link" href="{{ open_url }}" title="{{ _('protocols.index.open') }}">
+                                    <a class="btn btn-sm" href="{{ open_url }}" title="{{ _('protocols.index.open') }}">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     {% if p.is_finalized %}
-                                    <a class="btn btn-sm btn-link" href="{{ url_for('protocols.pdf', protocol_id=p.id) }}" title="{{ _('protocols.index.pdf') }}">
+                                    <a class="btn btn-sm" href="{{ url_for('protocols.pdf', protocol_id=p.id) }}" title="{{ _('protocols.index.pdf') }}">
                                         <i class="bi bi-filetype-pdf"></i>
                                     </a>
                                     {% else %}
-                                    <a class="btn btn-sm btn-link" href="{{ url_for('protocols.edit_agenda', protocol_id=p.id) }}" title="{{ _('protocols.index.edit') }}">
+                                    <a class="btn btn-sm" href="{{ url_for('protocols.edit_agenda', protocol_id=p.id) }}" title="{{ _('protocols.index.edit') }}">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     {% endif %}
                                 </div>
                                 <div class="dropdown d-inline-block">
-                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                                    <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
+                                    <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
                                         <li>
                                             <a class="dropdown-item" href="{{ open_url }}">
                                                 <i class="bi bi-eye me-2"></i>{{ _('protocols.index.open') }}
@@ -184,10 +190,10 @@
             </table>
         </div>
         {% else %}
-        <div class="protocols-empty text-center py-5">
-            <i class="bi bi-journal-richtext display-4 text-muted"></i>
-            <p class="text-muted mt-3">{{ _('protocols.index.empty') }}</p>
-            <a href="{{ create_url }}" class="btn btn-accent rounded-pill">{{ _('protocols.nav.new') }}</a>
+        <div class="protocols-empty mod-empty-state">
+            <i class="bi bi-journal-richtext protocols-empty-icon" aria-hidden="true"></i>
+            <p>{{ _('protocols.index.empty') }}</p>
+            <a href="{{ create_url }}" class="btn btn-accent rounded-pill protocols-btn-pill">{{ _('protocols.nav.new') }}</a>
         </div>
         {% endif %}
     </div>
@@ -195,6 +201,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
     document.querySelectorAll('[data-protocols-dismiss-offcanvas]').forEach(function (el) {
@@ -203,13 +210,6 @@
             if (offcanvasEl && window.bootstrap) {
                 var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
                 if (instance) instance.hide();
-            }
-        });
-    });
-    document.querySelectorAll('[data-confirm-delete]').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            if (!window.confirm(btn.getAttribute('data-confirm-delete'))) {
-                e.preventDefault();
             }
         });
     });

@@ -8,7 +8,7 @@ from app.models.api_token import ApiToken
 from app.models.user import User
 from app.utils.common import portal_now_naive
 from app.utils.guest_accounts import parse_guest_login_email
-from app.utils.session_manager import create_session
+from app.utils.session_manager import create_session, rotate_session_on_login
 from app.utils.totp import verify_totp
 
 
@@ -107,7 +107,9 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
 
             user.last_login = datetime.utcnow()
             db.session.commit()
+            rotate_session_on_login()
             login_user(user, remember=remember)
+            flask_session['user_scope'] = 'portal'
 
             if not return_token:
                 create_session(user.id)
@@ -119,13 +121,13 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
                 response_data["token_expires_at"] = token.expires_at.isoformat() if token.expires_at else None
 
             return jsonify(response_data), 200
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
+        except Exception:
+            return jsonify({"success": False, "error": "Interner Serverfehler"}), 500
 
     @api_bp.route("/auth/logout", methods=["POST"])
     def api_logout():
         from flask_login import logout_user
-        from app.utils.session_manager import revoke_session_by_id
+        from app.utils.session_manager import revoke_session_by_id, rotate_session_on_login
 
         if current_user.is_authenticated:
             session_id = flask_session.get("session_id")
@@ -140,6 +142,9 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
             if api_token:
                 db.session.delete(api_token)
                 db.session.commit()
+
+        # Scope/Session-Reste (z. B. assessment) entfernen — verhindert Scope-Mixing
+        rotate_session_on_login()
 
         return jsonify({"success": True, "message": "Erfolgreich abgemeldet"}), 200
 

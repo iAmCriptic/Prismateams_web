@@ -3,6 +3,7 @@ from flask_login import current_user
 
 from app import db
 from app.models.assessment import AssessmentUser
+from app.utils.password_policy import validate_password
 from app.utils.assessment_auth import assessment_role_required, is_assessment_user
 
 auth_bp = Blueprint("auth", __name__)
@@ -24,8 +25,9 @@ def admin_setup():
             return jsonify({"success": False, "message": "Bitte Passwort und Bestätigung eingeben."}), 400
         if new_password != confirm_password:
             return jsonify({"success": False, "message": "Passwörter stimmen nicht überein."}), 400
-        if len(new_password) < 8:
-            return jsonify({"success": False, "message": "Passwort muss mindestens 8 Zeichen lang sein."}), 400
+        is_valid, error_msg = validate_password(new_password)
+        if not is_valid:
+            return jsonify({"success": False, "message": error_msg or "Passwort entspricht nicht der Policy."}), 400
 
         user = AssessmentUser.query.get(current_user.id)
         user.display_name = display_name

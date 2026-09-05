@@ -348,29 +348,41 @@ def generate_recurring_instances(master_event, start_date, end_date):
 @login_required
 @check_module_access('module_calendar')
 def index():
-    """Calendar overview."""
+    """Calendar overview (list view: ±1 year window, batched participations)."""
     ctx = _sidebar_context(current_user)
     selected_ids = ctx['selected_calendar_ids']
     multi = ctx['calendar_multi_enabled']
+
+    now = portal_now_naive()
+    window_start = now - relativedelta(years=1)
+    window_end = now + relativedelta(years=1)
+    date_window = [
+        CalendarEvent.start_time >= window_start,
+        CalendarEvent.start_time <= window_end,
+    ]
 
     if multi:
         q = events_query_for_calendars(
             current_user,
             selected_ids,
-            base_filters=[CalendarEvent.is_recurring_instance == False],
+            base_filters=[CalendarEvent.is_recurring_instance == False, *date_window],
         )
         events = q.order_by(CalendarEvent.start_time).all()
     else:
-        events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
+        events = (
+            CalendarEvent.query.filter(*date_window)
+            .order_by(CalendarEvent.start_time)
+            .all()
+        )
 
     participations = {}
-    for event in events:
-        participation = EventParticipant.query.filter_by(
-            event_id=event.id,
-            user_id=current_user.id
-        ).first()
-        if participation:
-            participations[event.id] = participation
+    event_ids = [event.id for event in events]
+    if event_ids:
+        for participation in EventParticipant.query.filter(
+            EventParticipant.event_id.in_(event_ids),
+            EventParticipant.user_id == current_user.id,
+        ).all():
+            participations[participation.event_id] = participation
 
     return render_template(
         'calendar/index.html',

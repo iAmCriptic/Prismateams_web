@@ -134,45 +134,29 @@ def generate_protocol_pdf(protocol, output=None):
         Spacer(1, 0.35 * cm),
     ]
 
-    meta_style = ParagraphStyle(
-        'ProtocolMetaLabel',
-        parent=ps['body'],
-        fontName='Helvetica-Bold',
-        fontSize=9,
-        leading=12,
-    )
     meta_val = ParagraphStyle(
         'ProtocolMetaVal',
         parent=ps['body'],
         fontSize=9,
-        leading=12,
+        leading=13,
     )
 
-    def meta_row_plain(label, value):
-        text = (value or '').strip() or '—'
-        if text != '—':
-            parts = [p.strip() for p in re.split(r'[\n,;]+', text) if p.strip()]
-            text = ', '.join(parts) if parts else '—'
-        return [
-            Paragraph(_esc(label), meta_style),
-            Paragraph(_esc(text), meta_val),
-        ]
+    def format_names_inline(value):
+        """Comma-separated names on one flowing line (no one-name-per-line)."""
+        text = (value or '').strip()
+        if not text:
+            return '—'
+        parts = [p.strip() for p in re.split(r'[\n,;]+', text) if p.strip()]
+        return ', '.join(parts) if parts else '—'
 
-    meta_data = [
-        meta_row_plain('Teilnehmer*innen', protocol.participants_text),
-        meta_row_plain('Entschuldigt', protocol.excused_text),
-        meta_row_plain('Unentschuldigt', protocol.absent_text),
+    meta_lines = [
+        ('Teilnehmer*innen', format_names_inline(protocol.participants_text)),
+        ('Entschuldigt', format_names_inline(protocol.excused_text)),
+        ('Unentschuldigt', format_names_inline(protocol.absent_text)),
     ]
-    meta_table = Table(meta_data, colWidths=[3.6 * cm, usable - 3.6 * cm])
-    meta_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-    ]))
-    story.append(meta_table)
-    story.append(Spacer(1, 0.4 * cm))
+    for label, value in meta_lines:
+        story.append(Paragraph(f'<b>{_esc(label)}:</b> {_esc(value)}', meta_val))
+    story.append(Spacer(1, 0.35 * cm))
 
     items = list(protocol.agenda_items or [])
     story.append(Paragraph('Tagesordnungspunkte', ps['section']))
