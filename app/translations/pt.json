@@ -1321,6 +1321,14 @@
     }
   },
   "kanban": {
+    "board": {
+      "background": "Fundo",
+      "background_image": "Imagem de fundo",
+      "background_upload": "Carregar imagem",
+      "background_clear": "Remover imagem",
+      "background_image_set": "Imagem de fundo definida",
+      "background_image_optional": "Opcional: carregue a sua própria imagem (mostrada sobre a cor)"
+    },
     "export": {
       "title": "Exportar",
       "json": "Como JSON (Trello)",

@@ -705,6 +705,8 @@
       if (data.list) {
         board.lists.push(data.list);
         renderBoard();
+        const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${data.list.id}"]`);
+        markAppear(col);
       } else {
         notify('Liste konnte nicht erstellt werden');
       }
@@ -728,6 +730,8 @@
           list.cards.push(data.card);
         }
         renderBoard();
+        const cardEl = listsEl.querySelector(`.kanban-card[data-card-id="${data.card.id}"]`);
+        markAppear(cardEl);
       } else {
         notify('Karte konnte nicht erstellt werden');
       }
@@ -1813,6 +1817,16 @@
     document.querySelectorAll('#kanbanBoardBgPicker .kanban-bg-swatch').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.bg === ((boardPayload && boardPayload.background) || board.background));
     });
+  }
+
+  function markAppear(el) {
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    el.classList.remove('is-appear');
+    // Force reflow so re-adding the class restarts the animation
+    void el.offsetWidth;
+    el.classList.add('is-appear');
+    const clear = () => el.classList.remove('is-appear');
+    el.addEventListener('animationend', clear, { once: true });
   }
 
   let selectedBoardBg = board.background || 'teal';

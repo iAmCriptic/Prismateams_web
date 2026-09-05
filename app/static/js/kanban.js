@@ -346,13 +346,29 @@
   if (form) {
     var templateWrap = qs('#boardTemplateWrap');
     var templateSelect = qs('#boardTemplate');
+    var createModal = qs('#createBoardModal');
+    var bgImageInput = qs('#boardBackgroundImage');
+
+    if (window.InventoryPillSelect) {
+      window.InventoryPillSelect.enhanceAll(createModal || form);
+    }
+    if (createModal) {
+      createModal.addEventListener('shown.bs.modal', function () {
+        if (window.InventoryPillSelect) {
+          window.InventoryPillSelect.enhanceAll(createModal);
+        }
+      });
+    }
 
     function syncCreateMode() {
       var mode = (form.querySelector('input[name="create_mode"]:checked') || {}).value || 'empty';
       if (templateWrap) templateWrap.style.display = mode === 'template' ? '' : 'none';
       if (templateSelect) {
         templateSelect.required = mode === 'template';
-        if (mode !== 'template') templateSelect.value = '';
+        if (mode !== 'template') {
+          templateSelect.value = '';
+          if (window.InventoryPillSelect) window.InventoryPillSelect.sync(templateSelect);
+        }
       }
     }
     qsa('input[name="create_mode"]', form).forEach(function (radio) {
@@ -372,8 +388,10 @@
       e.preventDefault();
       var fd = new FormData(form);
       var mode = fd.get('create_mode') || 'empty';
+      var imageFile = bgImageInput && bgImageInput.files && bgImageInput.files[0] ? bgImageInput.files[0] : null;
       var payload = Object.fromEntries(fd.entries());
       delete payload.create_mode;
+      delete payload.background_image;
       var visVal = String(payload.visibility || '');
       if (visVal.indexOf('team:') === 0) {
         payload.visibility = 'team';
@@ -389,17 +407,41 @@
         else alert('Bitte eine Vorlage wählen');
         return;
       }
-      var res = await fetch('/kanban/api/boards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify(payload)
-      });
-      var data = await res.json();
-      if (data.success && data.board) {
+      var submitBtn = form.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        var res = await fetch('/kanban/api/boards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload)
+        });
+        var data = await res.json();
+        if (!(data.success && data.board)) {
+          if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
+          else alert(data.error || 'Fehler');
+          return;
+        }
+        if (imageFile && data.board.id) {
+          var imgFd = new FormData();
+          imgFd.append('file', imageFile);
+          var imgRes = await fetch('/kanban/api/boards/' + data.board.id + '/background', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: imgFd
+          });
+          var imgData = await imgRes.json().catch(function () { return {}; });
+          if (!imgRes.ok || imgData.success === false) {
+            if (typeof window.showAppBanner === 'function') {
+              window.showAppBanner(imgData.error || 'Board erstellt, Bild-Upload fehlgeschlagen', 'warning');
+            }
+          }
+        }
         window.location.href = data.board.url;
-      } else {
-        if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
-        else alert(data.error || 'Fehler');
+      } catch (err) {
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(err.message || 'Fehler', 'danger');
+        else alert(err.message || 'Fehler');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     });
   }

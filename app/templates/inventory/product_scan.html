@@ -1,0 +1,154 @@
+{% extends "inventory/layout.html" %}
+
+{% block title %}{{ _('inventory.product_scan.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-clipboard2-pulse{% endblock %}
+{% block inventory_heading %}{{ _('inventory.product_scan.heading') }}{% endblock %}
+
+{% block inventory_content %}
+<p class="text-muted mb-3">{{ _('inventory.product_scan.subtitle') }}</p>
+
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-5">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    {{ _('inventory.product_scan.input_title') }}
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">{{ _('inventory.product_scan.camera_label') }}</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> {{ _('inventory.product_scan.camera_label') }}
+                        </button>
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i>
+                        </button>
+                    </div>
+                    <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                    <div id="scannerFeedback" class="alert mt-2 d-none"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="manualQrInput" class="form-label">{{ _('inventory.product_scan.manual_label') }}</label>
+                    <div class="inventory-manual-input-wrap d-flex gap-2">
+                        <input type="text" class="form-control" id="manualQrInput" autofocus
+                               placeholder="{{ _('inventory.product_scan.manual_placeholder') }}"
+                               autocomplete="off">
+                        <button class="btn btn-accent inventory-pill-btn flex-shrink-0" id="lookupBtn" type="button">
+                            <i class="bi bi-search"></i> {{ _('inventory.product_scan.lookup_button') }}
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label for="productSearchInput" class="form-label">{{ _('inventory.product_scan.search_label') }}</label>
+                    <div class="inventory-manual-input-wrap position-relative">
+                        <input type="text" class="form-control" id="productSearchInput"
+                               placeholder="{{ _('inventory.product_scan.search_placeholder') }}"
+                               autocomplete="off">
+                        <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="inventory-panel h-100 inventory-product-scan-panel">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-box-seam" aria-hidden="true"></i>
+                    {{ _('inventory.product_scan.panel_title') }}
+                </h2>
+                <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline d-none" id="nextScanBtn">
+                    <i class="bi bi-arrow-repeat"></i> {{ _('inventory.product_scan.next_scan') }}
+                </button>
+            </div>
+            <div class="inventory-panel-body" id="productScanWorkArea">
+                <p class="text-muted text-center inventory-empty-hint py-4 mb-0" id="productScanEmpty">
+                    {{ _('inventory.product_scan.empty') }}
+                </p>
+                <div id="productScanCard" class="d-none"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block inventory_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+window.INVENTORY_PRODUCT_SCAN_I18N = {{ {
+  'empty': _('inventory.product_scan.empty'),
+  'save': _('inventory.product_scan.save'),
+  'next_scan': _('inventory.product_scan.next_scan'),
+  'full_edit': _('inventory.product_scan.full_edit'),
+  'all_docs': _('inventory.product_scan.all_docs'),
+  'location': _('inventory.product_scan.fields.location'),
+  'condition': _('inventory.product_scan.fields.condition'),
+  'status': _('inventory.product_scan.fields.status'),
+  'dguv_required': _('inventory.product_scan.fields.dguv_required'),
+  'dguv_last': _('inventory.product_scan.fields.dguv_last'),
+  'dguv_interval': _('inventory.product_scan.fields.dguv_interval'),
+  'dguv_next': _('inventory.product_scan.fields.dguv_next'),
+  'docs_title': _('inventory.product_scan.docs.title'),
+  'docs_upload': _('inventory.product_scan.docs.upload'),
+  'docs_type': _('inventory.product_scan.docs.type'),
+  'docs_empty': _('inventory.product_scan.docs.empty'),
+  'link_manual': _('inventory.product_scan.docs.link_manual'),
+  'link': _('inventory.product_scan.docs.link'),
+  'err_set': _('inventory.product_scan.errors.scan_set'),
+  'err_lookup': _('inventory.product_scan.errors.lookup_failed'),
+  'err_save': _('inventory.product_scan.errors.save_failed'),
+  'err_upload': _('inventory.product_scan.errors.upload_failed'),
+  'saved': _('inventory.product_scan.saved'),
+  'uploaded': _('inventory.product_scan.uploaded'),
+  'condition_new': _('inventory.product.form.condition_new'),
+  'condition_good': _('inventory.product.form.condition_good'),
+  'condition_used': _('inventory.product.form.condition_used'),
+  'condition_damaged': _('inventory.product.form.condition_damaged'),
+  'status_available': _('inventory.stock.filters.available'),
+  'status_borrowed': _('inventory.stock.filters.borrowed'),
+  'status_missing': _('inventory.stock.filters.missing'),
+  'status_defective': _('inventory.stock.filters.defective'),
+  'status_in_repair': _('inventory.stock.filters.in_repair'),
+  'status_retired': _('inventory.stock.filters.retired'),
+  'type_handbook': _('inventory.documents.types.handbook'),
+  'type_datasheet': _('inventory.documents.types.datasheet'),
+  'type_invoice': _('inventory.documents.types.invoice'),
+  'type_warranty': _('inventory.documents.types.warranty'),
+  'type_dguv': _('inventory.documents.types.dguv'),
+  'type_other': _('inventory.documents.types.other'),
+}|tojson }};
+window.INVENTORY_MANUALS = [
+    {% if manuals is defined %}
+    {% for m in manuals %}
+    { id: {{ m.id }}, title: {{ m.title|tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% endif %}
+];
+</script>
+<script src="{{ url_for('static', filename='js/inventory_product_scan.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof ProductScanManager !== 'undefined') {
+        window.productScanManager = new ProductScanManager();
+        window.productScanManager.init();
+    }
+});
+</script>
+{% endblock %}

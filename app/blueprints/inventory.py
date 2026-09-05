@@ -1588,6 +1588,55 @@ def return_complete_borrow():
     return redirect(url_for('inventory.dashboard'))
 
 
+@inventory_bp.route('/product-scan')
+@login_required
+@check_module_access('module_inventory')
+def product_scan():
+    """Scan & Prüfung: Artikel scannen und Felder/Docs bearbeiten."""
+    return render_template(
+        'inventory/product_scan.html',
+        manuals=_accessible_manuals(),
+    )
+
+
+@inventory_bp.route('/api/product-scan', methods=['POST'])
+@login_required
+@check_module_access('module_inventory')
+def api_product_scan():
+    """Lookup per Scan/Inventar-Nr. ohne Side-Effects (kein Cart, keine Inventur)."""
+    data = request.get_json(silent=True) or {}
+    code = _normalize_scanner_code(
+        data.get('code') or data.get('qr_code') or request.form.get('qr_code') or ''
+    )
+    if not code:
+        return jsonify({'error': translate('inventory.errors.qr_data_required')}), 400
+
+    product, product_set = _lookup_product_or_set_by_scan(code)
+    if product_set and not product:
+        return jsonify({
+            'ok': False,
+            'type': 'set',
+            'error': translate('inventory.product_scan.errors.scan_set'),
+            'set': {
+                'id': product_set.id,
+                'name': product_set.name,
+            },
+        }), 400
+
+    if not product:
+        return jsonify({
+            'ok': False,
+            'error': translate('inventory.errors.product_not_found'),
+        }), 404
+
+    product = Product.query.options(joinedload(Product.folder)).get(product.id) or product
+    return jsonify({
+        'ok': True,
+        'type': 'product',
+        'product': _serialize_product_api(product),
+    })
+
+
 @inventory_bp.route('/borrow-scanner', methods=['GET', 'POST'])
 @login_required
 def borrow_scanner():
@@ -2888,15 +2937,19 @@ def api_products():
 def api_product_get(product_id):
     """API: Einzelnes Produkt abrufen."""
     product = Product.query.options(joinedload(Product.folder)).get_or_404(product_id)
-    
+    return jsonify(_serialize_product_api(product))
+
+
+def _serialize_product_api(product):
+    """Einheitliche Produkt-JSON-Antwort für GET/Scan-Lookup."""
     image_path_value = None
     if product.image_path:
         if os.path.isabs(product.image_path):
             image_path_value = os.path.basename(product.image_path)
         else:
             image_path_value = product.image_path
-    
-    return jsonify({
+    folder = getattr(product, 'folder', None)
+    return {
         'id': product.id,
         'name': product.name,
         'description': product.description,
@@ -2907,7 +2960,7 @@ def api_product_get(product_id):
         'length': product.length,
         'length_meters': parse_length_to_meters(product.length),
         'folder_id': product.folder_id,
-        'folder_name': product.folder.name if product.folder else None,
+        'folder_name': folder.name if folder else None,
         'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
         'status': product.status,
         'item_type': product.item_type,
@@ -2915,10 +2968,10 @@ def api_product_get(product_id):
         'available': product.total_available,
         'image_path': image_path_value,
         'qr_code_data': product.qr_code_data,
-        'created_at': product.created_at.isoformat(),
+        'created_at': product.created_at.isoformat() if product.created_at else None,
         'created_by': product.created_by,
         **_product_extra_fields(product),
-    })
+    }
 
 
 @inventory_bp.route('/api/products', methods=['POST'])
@@ -3021,10 +3074,41 @@ def api_product_update(product_id):
             product.purchase_date = datetime.strptime(data['purchase_date'], '%Y-%m-%d').date()
         else:
             product.purchase_date = None
-    
+    if 'status' in data:
+        status_value = (data.get('status') or '').strip()
+        allowed = {'available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired'}
+        if status_value in allowed:
+            product.status = status_value
+            if status_value == 'retired':
+                _apply_retired_folder_assignment(product)
+
+    # DGUV: explicit clear, or update last/interval/next
+    if data.get('dguv_clear') in (True, 1, '1', 'true'):
+        _clear_dguv_fields(product)
+    elif any(k in data for k in ('dguv_last_check', 'dguv_interval_months', 'dguv_next_check', 'dguv_required')):
+        if data.get('dguv_required') in (False, 0, '0', 'false'):
+            _clear_dguv_fields(product)
+        else:
+            _apply_dguv_fields(
+                product,
+                data.get('dguv_last_check'),
+                data.get('dguv_interval_months'),
+                next_equals_created_if_no_last=True,
+            )
+            # Optional override of computed next if client sends one
+            if data.get('dguv_next_check'):
+                next_parsed = _parse_optional_date(data.get('dguv_next_check'))
+                if next_parsed:
+                    product.dguv_next_check = next_parsed
+
     db.session.commit()
-    
-    return jsonify({'message': 'Produkt aktualisiert.'})
+
+    return jsonify({
+        'message': 'Produkt aktualisiert.',
+        'product': _serialize_product_api(
+            Product.query.options(joinedload(Product.folder)).get(product.id) or product
+        ),
+    })
 
 
 @inventory_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
@@ -4335,35 +4419,47 @@ def product_documents(product_id):
 @check_module_access('module_inventory')
 def product_document_upload(product_id):
     """Dokument fuer ein Produkt hochladen (optional mit Manual-Verknuepfung)."""
+    wants_json = (
+        request.accept_mimetypes.best == 'application/json'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.args.get('format') == 'json'
+    )
+
+    def _json_or_redirect(message, category, *, status=200, extra=None):
+        if wants_json:
+            payload = {'ok': category in ('success', 'info'), 'message': message, 'category': category}
+            if extra:
+                payload.update(extra)
+            return jsonify(payload), status
+        flash(message, category)
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
     Product.query.get_or_404(product_id)
 
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(
+            translate('inventory.flash.guests_cannot_edit'), 'danger', status=403
+        )
 
     if 'file' not in request.files:
-        flash(_('inventory.flash.no_file_selected'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(_('inventory.flash.no_file_selected'), 'danger', status=400)
 
     file = request.files['file']
     file_type = _normalize_document_file_type(request.form.get('file_type', 'other'))
     manual_id = request.form.get('manual_id', type=int) or None
 
     if not file or file.filename == '':
-        flash(_('inventory.flash.no_file_selected'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(_('inventory.flash.no_file_selected'), 'danger', status=400)
 
     if not allowed_document_file(file.filename):
-        flash(_('inventory.flash.document_invalid_type'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(_('inventory.flash.document_invalid_type'), 'danger', status=400)
 
     manual = _get_accessible_manual(manual_id) if manual_id else None
     if manual_id and not manual:
-        flash(_('inventory.flash.manual_not_accessible'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(_('inventory.flash.manual_not_accessible'), 'danger', status=400)
 
     abs_path, orig_name, size = _save_document_upload(file)
-    _create_product_document(
+    doc = _create_product_document(
         product_id=product_id,
         file_type=file_type,
         uploaded_by=current_user.id,
@@ -4374,8 +4470,27 @@ def product_document_upload(product_id):
     )
     db.session.commit()
 
-    flash(_('inventory.flash.document_uploaded', filename=orig_name), 'success')
-    return redirect(url_for('inventory.product_documents', product_id=product_id))
+    return _json_or_redirect(
+        _('inventory.flash.document_uploaded', filename=orig_name),
+        'success',
+        extra={
+            'document': {
+                'id': doc.id,
+                'file_name': doc.file_name,
+                'display_name': doc.display_name,
+                'file_type': doc.file_type,
+                'file_size': doc.file_size,
+                'manual_id': doc.manual_id,
+                'has_file': bool(doc.file_path),
+                'download_url': url_for(
+                    'inventory.product_document_download',
+                    product_id=product_id,
+                    document_id=doc.id,
+                ),
+                'created_at': doc.created_at.isoformat() if doc.created_at else None,
+            },
+        },
+    )
 
 
 @inventory_bp.route('/products/<int:product_id>/documents/link-manual', methods=['POST'])

@@ -568,6 +568,8 @@ class StockManager {
             let matchesStatus = true;
             if (status === 'overdue') {
                 matchesStatus = this.overdueProductIds.has(Number(p.id));
+            } else if (status === 'defective_repair') {
+                matchesStatus = p.status === 'defective' || p.status === 'in_repair';
             } else if (status) {
                 matchesStatus = p.status !== null && p.status !== undefined && p.status === status;
             }

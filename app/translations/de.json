@@ -4573,6 +4573,7 @@
         "menu": "Menü",
         "overview": "Übersicht",
         "stock": "Bestand & Geräte",
+        "product_scan": "Scan & Prüfung",
         "quick_scan": "Quick Scan",
         "checkout": "Ausleihe / Rückgabe",
         "borrows": "Ausleih-Historie",
@@ -4737,6 +4738,7 @@
       "hub": {
         "title": "Bereiche",
         "stock_desc": "Geräte und Artikel verwalten",
+        "product_scan_desc": "Scannen und DGUV prüfen",
         "quick_scan_desc": "Schnell per QR ausleihen",
         "checkout_desc": "Ausleihe und Rückgabe",
         "borrows_desc": "Vergangene Ausleihen",
@@ -4762,6 +4764,49 @@
           "download_receipt": "Ausleihschein herunterladen"
         }
       }
+    },
+    "product_scan": {
+      "page_title": "Scan & Prüfung - Team Portal",
+      "heading": "Scan & Prüfung",
+      "subtitle": "Artikel scannen oder suchen, Felder und Dokumente direkt bearbeiten.",
+      "input_title": "Artikel finden",
+      "camera_label": "Kamera scannen",
+      "manual_label": "ID / Inventar-Nr.",
+      "manual_placeholder": "PROD oder Inventar-Nr.",
+      "search_label": "Produkt suchen",
+      "search_placeholder": "Name, Seriennummer, Kategorie…",
+      "lookup_button": "Öffnen",
+      "panel_title": "Produkt",
+      "empty": "Scanne oder suche einen Artikel, um ihn hier zu bearbeiten.",
+      "next_scan": "Nächster Scan",
+      "save": "Speichern",
+      "full_edit": "Vollständig bearbeiten",
+      "all_docs": "Alle Dokumente",
+      "fields": {
+        "location": "Lagerort",
+        "condition": "Zustand",
+        "status": "Status",
+        "dguv_required": "DGUV-Prüfung",
+        "dguv_last": "Letzte Prüfung",
+        "dguv_interval": "Intervall (Monate)",
+        "dguv_next": "Nächste Prüfung"
+      },
+      "docs": {
+        "title": "Dokumente",
+        "upload": "Hochladen",
+        "type": "Typ",
+        "empty": "Noch keine Dokumente.",
+        "link_manual": "Anleitung verknüpfen",
+        "link": "Verknüpfen"
+      },
+      "errors": {
+        "scan_set": "Produktset erkannt – bitte ein Einzelgerät scannen.",
+        "lookup_failed": "Artikel konnte nicht gefunden werden.",
+        "save_failed": "Speichern fehlgeschlagen.",
+        "upload_failed": "Upload fehlgeschlagen."
+      },
+      "saved": "Gespeichert.",
+      "uploaded": "Dokument hochgeladen."
     },
     "stock": {
       "page_title": "Bestandsübersicht - Team Portal",
@@ -6224,7 +6269,13 @@
       "settings": "Einstellungen",
       "close_board": "Board schließen",
       "filter": "Filtern",
-      "save_template": "Als Vorlage"
+      "save_template": "Als Vorlage",
+      "background": "Hintergrund",
+      "background_image": "Hintergrundbild",
+      "background_upload": "Bild hochladen",
+      "background_clear": "Bild entfernen",
+      "background_image_set": "Hintergrundbild ist gesetzt",
+      "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)"
     },
     "custom_fields": {
       "title": "Benutzerdefinierte Felder",

@@ -4573,6 +4573,7 @@
         "menu": "Menu",
         "overview": "Overview",
         "stock": "Stock & equipment",
+        "product_scan": "Scan & inspect",
         "quick_scan": "Quick Scan",
         "checkout": "Borrow / Return",
         "borrows": "Loan history",
@@ -4603,6 +4604,7 @@
       "hub": {
         "title": "Areas",
         "stock_desc": "Manage devices and items",
+        "product_scan_desc": "Scan and update DGUV checks",
         "quick_scan_desc": "Borrow quickly via QR",
         "checkout_desc": "Checkout and returns",
         "borrows_desc": "Past loans",
@@ -4628,6 +4630,49 @@
           "download_receipt": "Download receipt"
         }
       }
+    },
+    "product_scan": {
+      "page_title": "Scan & inspect - Team Portal",
+      "heading": "Scan & inspect",
+      "subtitle": "Scan or search an item, then edit fields and documents immediately.",
+      "input_title": "Find item",
+      "camera_label": "Scan with camera",
+      "manual_label": "ID / Inventory No.",
+      "manual_placeholder": "PROD or inventory number",
+      "search_label": "Search product",
+      "search_placeholder": "Name, serial number, category…",
+      "lookup_button": "Open",
+      "panel_title": "Product",
+      "empty": "Scan or search an item to edit it here.",
+      "next_scan": "Next scan",
+      "save": "Save",
+      "full_edit": "Full edit",
+      "all_docs": "All documents",
+      "fields": {
+        "location": "Location",
+        "condition": "Condition",
+        "status": "Status",
+        "dguv_required": "DGUV inspection",
+        "dguv_last": "Last check",
+        "dguv_interval": "Interval (months)",
+        "dguv_next": "Next check"
+      },
+      "docs": {
+        "title": "Documents",
+        "upload": "Upload",
+        "type": "Type",
+        "empty": "No documents yet.",
+        "link_manual": "Link manual",
+        "link": "Link"
+      },
+      "errors": {
+        "scan_set": "Product set detected – please scan a single device.",
+        "lookup_failed": "Item not found.",
+        "save_failed": "Save failed.",
+        "upload_failed": "Upload failed."
+      },
+      "saved": "Saved.",
+      "uploaded": "Document uploaded."
     },
     "stock": {
       "page_title": "Stock overview - Team Portal",
@@ -6224,7 +6269,13 @@
       "settings": "Settings",
       "close_board": "Close board",
       "filter": "Filter",
-      "save_template": "Save as template"
+      "save_template": "Save as template",
+      "background": "Background",
+      "background_image": "Background image",
+      "background_upload": "Upload image",
+      "background_clear": "Remove image",
+      "background_image_set": "Background image is set",
+      "background_image_optional": "Optional: upload your own image (shown over the color)"
     },
     "custom_fields": {
       "title": "Custom fields",

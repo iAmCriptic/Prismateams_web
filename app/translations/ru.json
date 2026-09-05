@@ -1321,6 +1321,14 @@
     }
   },
   "kanban": {
+    "board": {
+      "background": "Фон",
+      "background_image": "Фоновое изображение",
+      "background_upload": "Загрузить изображение",
+      "background_clear": "Удалить изображение",
+      "background_image_set": "Фоновое изображение установлено",
+      "background_image_optional": "Необязательно: загрузите своё изображение (отображается поверх цвета)"
+    },
     "export": {
       "title": "Экспорт",
       "json": "Как JSON (Trello)",

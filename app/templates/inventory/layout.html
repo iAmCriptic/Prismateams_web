@@ -9,6 +9,7 @@
     'inventory.product_new', 'inventory.product_edit', 'inventory.product_documents',
     'inventory.folders', 'inventory.product_borrow', 'inventory.borrow_multiple'
   ),
+  'product_scan': ep == 'inventory.product_scan',
   'quick_scan': ep == 'inventory.borrow_scanner',
   'checkout': ep in ('inventory.inventory_checkout', 'inventory.inventory_checkout_confirm'),
   'borrows': ep == 'inventory.borrows',
@@ -58,6 +59,11 @@
        href="{{ url_for('inventory.stock') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-seam me-2"></i>{{ _('inventory.shell.nav.stock') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if inv_nav.product_scan %}active{% endif %}"
+       href="{{ url_for('inventory.product_scan') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-clipboard2-pulse me-2"></i>{{ _('inventory.shell.nav.product_scan') }}
     </a>
     <a class="nav-link mod-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
        href="{{ url_for('inventory.borrow_scanner') }}"

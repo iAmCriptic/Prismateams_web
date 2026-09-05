@@ -722,6 +722,20 @@ to {
 }
 
 /* ——— Dashboard stats & panels ——— */
+.inventory-stats-scroll {
+    width: 100%;
+}
+
+.inventory-stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.inventory-stats-item {
+    min-width: 0;
+}
+
 .inventory-stats-card {
     border: 1px solid var(--bs-border-color, #e9ecef);
     border-radius: var(--mod-radius-pill, 1.5rem);
@@ -739,7 +753,8 @@ to {
     color: inherit;
 }
 
-.inventory-stats-card--link:hover {
+.inventory-stats-card--link:hover,
+.inventory-stats-card:hover {
     transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 30%, transparent);
     box-shadow: 0 0.4rem 1.1rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
@@ -769,10 +784,65 @@ to {
     color: var(--bs-secondary-color, #6c757d);
 }
 
+.inv-hub-scroll {
+    width: 100%;
+}
+
 .inv-hub-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
     gap: 0.75rem;
+}
+
+/* Mobile: Stats + Hub horizontal scroll */
+@media (max-width: 767.98px) {
+    .inventory-stats-scroll,
+    .inv-hub-scroll {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scrollbar-width: thin;
+        margin-inline: -0.25rem;
+        padding-inline: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .inventory-stats-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.65rem;
+        width: max-content;
+        min-width: 100%;
+        padding-bottom: 0.15rem;
+    }
+
+    .inventory-stats-item {
+        flex: 0 0 auto;
+        width: 8.75rem;
+    }
+
+    .inventory-stats-card {
+        padding: 0.85rem 0.95rem;
+    }
+
+    .inventory-stats-card .stats-value {
+        font-size: 1.5rem;
+    }
+
+    .inv-hub-grid {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.65rem;
+        width: max-content;
+        min-width: 100%;
+        padding-bottom: 0.15rem;
+    }
+
+    .inv-hub-tile {
+        flex: 0 0 auto;
+        width: 16.5rem;
+    }
 }
 
 .inv-hub-tile {
@@ -2388,6 +2458,49 @@ button.mod-list-name.inventory-item-name {
 }
 
 /* ===== Scanner / checkout panels ===== */
+.inventory-product-scan-panel .inventory-panel-body {
+    min-height: 22rem;
+}
+
+/* Pill-Select-Menüs (z. B. Dokument-Typ) dürfen nicht am Panel-Rand abgeschnitten werden */
+.inventory-product-scan-panel.inventory-panel {
+    overflow: visible;
+}
+
+.inventory-product-scan-panel .inventory-panel-body,
+.inventory-product-scan-panel .inventory-form-card {
+    overflow: visible;
+}
+
+/* Dokumente/Anleitung sitzen unten — Menü nach oben öffnen */
+.inventory-product-scan-panel .inventory-form-card:last-child .inv-pill-select__menu {
+    top: auto;
+    bottom: calc(100% + 0.35rem);
+}
+
+.inventory-product-scan-card {
+    animation: inv-fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.inventory-product-scan-form.inventory-form {
+    max-width: none;
+    grid-template-columns: 1fr;
+}
+
+.inventory-product-scan-form .inventory-form-card {
+    padding: 0.85rem 1rem;
+}
+
+.inventory-product-scan-form .inventory-form-actions {
+    grid-column: auto;
+}
+
+@media (min-width: 992px) {
+    .inventory-product-scan-form.inventory-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .inventory-scan-layout {
     align-items: stretch;
 }
