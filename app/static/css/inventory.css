@@ -476,16 +476,13 @@ html {
     justify-content: center;
 }
 
-/* Product Checkbox Styles */
+/* Product Checkbox Styles — wie Dateien: erst beim Hover / Auswahl sichtbar */
 .product-card .form-check {
     margin: 0;
 }
 
 .product-card .product-checkbox {
     cursor: pointer;
-    opacity: 1 !important;
-    visibility: visible !important;
-    display: block !important;
     margin: 0;
 }
 
@@ -1729,6 +1726,20 @@ to {
 .inventory-list-check-col {
     width: 2.5rem;
     max-width: 2.5rem;
+    vertical-align: middle;
+}
+
+.inventory-list-check-col .product-checkbox {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+    margin: 0;
+}
+
+.mod-list-row:hover .inventory-list-check-col .product-checkbox,
+.mod-list-row.selection-mode .inventory-list-check-col .product-checkbox,
+body.inventory-has-selection .inventory-list-check-col .product-checkbox {
+    opacity: 1;
 }
 
 .mod-list-name.inventory-item-name,
@@ -1881,6 +1892,27 @@ button.mod-list-name.inventory-item-name {
     top: 0.55rem;
     left: 0.55rem;
     z-index: 2;
+    margin: 0;
+    padding: 0.2rem;
+    border-radius: 0.4rem;
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 88%, transparent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+}
+
+.inventory-product-card:hover .inventory-product-preview-check,
+.inventory-product-card.selection-mode .inventory-product-preview-check,
+body.inventory-has-selection .inventory-product-preview-check {
+    opacity: 1;
+}
+
+/* Touch: Checkboxen sichtbar, sonst keine Mehrfachauswahl startbar */
+@media (hover: none) {
+    .inventory-product-preview-check,
+    .inventory-list-check-col .product-checkbox {
+        opacity: 1;
+    }
 }
 
 .inventory-product-preview-check .form-check-input {
@@ -1888,6 +1920,7 @@ button.mod-list-name.inventory-item-name {
     height: 1.15rem;
     background-color: #fff;
     cursor: pointer;
+    margin: 0;
 }
 
 [data-bs-theme="dark"] .inventory-product-preview-check .form-check-input,

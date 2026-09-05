@@ -1512,6 +1512,8 @@ class StockManager {
         const selected = this.getSelectedProducts();
         const bulkToolbar = document.getElementById('bulkSelectionToolbar');
         const bulkSelectionCount = document.getElementById('bulkSelectionCount');
+
+        document.body.classList.toggle('inventory-has-selection', selected.length > 0);
         
         // Toolbar anzeigen/verstecken
         if (bulkToolbar) {
