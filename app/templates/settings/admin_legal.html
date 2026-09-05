@@ -10,7 +10,7 @@
         <p class="settings-admin-system-subtitle">{{ _('settings.admin.legal.subtitle') }}</p>
     </div>
 
-    <form method="POST" class="settings-admin-system-form" id="legalSettingsForm">
+    <form method="POST" class="settings-admin-system-form" id="legalSettingsForm" data-sp-autosave>
         <div class="settings-appearance-type-toggle mb-3" role="tablist" aria-label="{{ _('settings.admin.legal.tabs_label') }}">
             <input type="radio" class="btn-check" name="legal_tab" id="legalTabTerms" autocomplete="off" checked>
             <label class="settings-appearance-type-btn" for="legalTabTerms" data-legal-tab="terms">{{ _('settings.admin.legal.terms_heading') }}</label>

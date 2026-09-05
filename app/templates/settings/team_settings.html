@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.team_settings.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.team_settings.title') }}{% endblock %}
@@ -24,7 +24,7 @@
     <p class="text-muted small mb-3"><strong>{{ team.name }}</strong></p>
     {% endif %}
 
-    <form method="POST" class="settings-admin-modules-form">
+    <form method="POST" data-sp-autosave class="settings-admin-modules-form">
         <input type="hidden" name="team_id" value="{{ team.id }}">
 
         <section class="settings-admin-modules-card" aria-labelledby="team-modules-heading">

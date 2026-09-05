@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('music.admin.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('booking.admin.cards.music_module.title') }}{% endblock %}
@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    <form method="POST" id="musicSettingsForm" class="settings-admin-music-form">
+    <form method="POST" data-sp-autosave id="musicSettingsForm" class="settings-admin-music-form">
         <section class="settings-admin-music-card" aria-labelledby="music-providers-title">
             <div class="settings-admin-music-card-head">
                 <h2 id="music-providers-title" class="settings-admin-music-section-title mb-0">

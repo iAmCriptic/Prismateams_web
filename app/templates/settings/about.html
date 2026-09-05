@@ -1,141 +1,127 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.about.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.index.cards.about.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-about">
-    <div class="settings-about-header">
-        <h1 class="settings-about-title">{{ _('settings.about.heading') }}</h1>
-        <p class="settings-about-subtitle">{{ _('settings.about.subtitle') }}</p>
-    </div>
+<div class="sp-page sp-page--fluid settings-about">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-info-circle" aria-hidden="true"></i><span>{{ _('settings.about.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.about.lead_short') }}</p>
+  </header>
 
-    <section class="settings-about-brand" aria-labelledby="about-product-heading">
-        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ _('settings.about.logo_alt') }}" class="settings-about-logo" width="96" height="96">
-        <div class="settings-about-brand-text">
-            <h2 id="about-product-heading" class="settings-about-product-name">{{ _('settings.about.section_product_title') }}</h2>
-            <p class="settings-about-product-desc">{{ _('settings.about.section_product_description') }}</p>
+  <section class="sp-group settings-about-hero" aria-labelledby="about-product-heading" data-settings-search-id="about-product">
+    <div class="sp-group-body settings-about-hero-body">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ _('settings.about.logo_alt') }}" class="settings-about-logo" width="72" height="72">
+      <div class="settings-about-brand-text">
+        <h2 id="about-product-heading" class="settings-about-product-name">{{ _('settings.about.section_product_title') }}</h2>
+        <p class="settings-about-product-desc">{{ _('settings.about.section_product_description') }}</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="sp-card-grid">
+    <section class="sp-group" aria-labelledby="about-system-heading" id="about-system" data-settings-search-id="about-system">
+      <div class="sp-group-head">
+        <h2 id="about-system-heading" class="sp-group-title"><i class="bi bi-hdd-stack" aria-hidden="true"></i>{{ _('settings.about.section_system_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.release_label') }}</span></div>
+          <div class="sp-row-control"><span class="settings-about-meta-value">{{ release_version }}</span></div>
         </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.build_label') }}</span></div>
+          <div class="sp-row-control"><span class="settings-about-meta-value settings-about-meta-value--mono">{{ build_number }}</span></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.portal_label') }}</span></div>
+          <div class="sp-row-control"><span class="settings-about-meta-value">{{ portal_name or _('settings.about.portal_unset') }}</span></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.creator_label') }}</span></div>
+          <div class="sp-row-control"><span class="settings-about-meta-value">{{ creator_name }}</span></div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.onlyoffice_label') }}</span></div>
+          <div class="sp-row-control">
+            {% if onlyoffice_enabled %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
+            {% if onlyoffice_version %}<span class="settings-about-meta-value--mono ms-2">{{ onlyoffice_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.excalidraw_label_short') }}</span></div>
+          <div class="sp-row-control">
+            {% if excalidraw_enabled %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.excalidraw_active') }}</span>
+            {% if excalidraw_version %}<span class="settings-about-meta-value--mono ms-2">{{ excalidraw_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.excalidraw_inactive') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.media_downloader_label') }}</span></div>
+          <div class="sp-row-control">
+            {% if media_downloader_compatible %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
+            {% if ffmpeg_version %}<span class="settings-about-meta-value--mono ms-2">{{ ffmpeg_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.file_converter_label_short') }}</span></div>
+          <div class="sp-row-control">
+            {% if libreoffice_available %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.libreoffice_available') }}</span>
+            {% if libreoffice_version %}<span class="settings-about-meta-value--mono ms-2">{{ libreoffice_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.libreoffice_missing') }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </section>
 
-    <div class="settings-about-grid">
-        <section class="settings-about-card" aria-labelledby="about-system-heading">
-            <div class="settings-about-card-head">
-                <h2 id="about-system-heading" class="settings-about-section-title mb-0">{{ _('settings.about.section_system_title') }}</h2>
-            </div>
+    <section class="sp-group" aria-labelledby="about-repo-heading" id="about-repo" data-settings-search-id="about-repo">
+      <div class="sp-group-head">
+        <h2 id="about-repo-heading" class="sp-group-title"><i class="bi bi-github" aria-hidden="true"></i>{{ _('settings.about.section_repository_title') }}</h2>
+        {{ sp_info(_('settings.about.section_repository_improvement_note')) }}
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.about.section_repository_description') }}</span>
+          </div>
+          <div class="sp-row-control settings-about-repo-actions">
+            <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-accent rounded-pill sp-btn-pill">
+              <i class="bi bi-github" aria-hidden="true"></i>
+              {{ _('settings.about.section_repository_button') }}
+            </a>
+            <a href="https://github.com/iAmCriptic/Prismateams_web/issues" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary rounded-pill sp-btn-pill">
+              <i class="bi bi-bug" aria-hidden="true"></i>
+              {{ _('settings.about.section_repository_issues_button') }}
+            </a>
+            <a href="https://github.com/iAmCriptic/Prismateams_web/wiki" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary rounded-pill sp-btn-pill">
+              <i class="bi bi-question-circle" aria-hidden="true"></i>
+              {{ _('settings.about.section_repository_help_button') }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 
-            <div class="settings-about-meta-list">
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.release_label') }}</span>
-                    <span class="settings-about-meta-value">{{ release_version }}</span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.build_label') }}</span>
-                    <span class="settings-about-meta-value settings-about-meta-value--mono">{{ build_number }}</span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.portal_label') }}</span>
-                    <span class="settings-about-meta-value">{{ portal_name or _('settings.about.portal_unset') }}</span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.creator_label') }}</span>
-                    <span class="settings-about-meta-value">{{ creator_name }}</span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.onlyoffice_label') }}</span>
-                    <span class="settings-about-meta-value">
-                        {% if onlyoffice_enabled %}
-                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
-                        {% if onlyoffice_version %}
-                        <span class="settings-about-meta-value--mono ms-2">{{ onlyoffice_version }}</span>
-                        {% endif %}
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
-                        {% endif %}
-                    </span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.excalidraw_label') }}</span>
-                    <span class="settings-about-meta-value">
-                        {% if excalidraw_enabled %}
-                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.excalidraw_active') }}</span>
-                        {% if excalidraw_version %}
-                        <span class="settings-about-meta-value--mono ms-2">{{ excalidraw_version }}</span>
-                        {% endif %}
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.excalidraw_inactive') }}</span>
-                        {% endif %}
-                    </span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.media_downloader_label') }}</span>
-                    <span class="settings-about-meta-value">
-                        {% if media_downloader_compatible %}
-                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
-                        {% if ffmpeg_version %}
-                        <span class="settings-about-meta-value--mono ms-2">{{ ffmpeg_version }}</span>
-                        {% endif %}
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
-                        {% endif %}
-                    </span>
-                </div>
-                <div class="settings-about-meta-row">
-                    <span class="settings-about-meta-label">{{ _('settings.about.file_converter_label') }}</span>
-                    <span class="settings-about-meta-value">
-                        {% if libreoffice_available %}
-                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.libreoffice_available') }}</span>
-                        {% if libreoffice_version %}
-                        <span class="settings-about-meta-value--mono ms-2">{{ libreoffice_version }}</span>
-                        {% endif %}
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.libreoffice_missing') }}</span>
-                        {% endif %}
-                    </span>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-about-card" aria-labelledby="about-repo-heading">
-            <div class="settings-about-card-head">
-                <h2 id="about-repo-heading" class="settings-about-section-title mb-0">{{ _('settings.about.section_repository_title') }}</h2>
-                <button type="button" class="settings-about-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.about.section_repository_improvement_note') }}" aria-label="{{ _('settings.about.section_repository_improvement_note') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            <p class="settings-about-hint">{{ _('settings.about.section_repository_description') }}</p>
-
-            <div class="settings-about-repo-actions">
-                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark settings-about-btn">
-                    <i class="bi bi-github" aria-hidden="true"></i>
-                    {{ _('settings.about.section_repository_button') }}
-                </a>
-                <a href="https://github.com/iAmCriptic/Prismateams_web/issues" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary settings-about-btn">
-                    <i class="bi bi-bug" aria-hidden="true"></i>
-                    {{ _('settings.about.section_repository_issues_button') }}
-                </a>
-                <a href="https://github.com/iAmCriptic/Prismateams_web/wiki" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success settings-about-btn">
-                    <i class="bi bi-question-circle" aria-hidden="true"></i>
-                    Hilfe
-                </a>
-            </div>
-        </section>
-    </div>
-
-    <footer class="settings-about-footer">
-        <p class="settings-about-footer-author"><strong>{{ _('settings.about.author_label') }}</strong> Enrico R. Matzke</p>
-        <p class="settings-about-footer-copy">{{ _('settings.about.copyright') }}</p>
-    </footer>
+  <footer class="settings-about-footer">
+    <p class="settings-about-footer-author"><strong>{{ _('settings.about.author_label') }}</strong> Enrico R. Matzke</p>
+    <p class="settings-about-footer-copy">{{ _('settings.about.copyright') }}</p>
+  </footer>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.settings-about [data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-});
-</script>
 {% endblock %}

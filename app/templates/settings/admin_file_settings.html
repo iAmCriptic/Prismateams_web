@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.file_settings.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.file_settings.title') }}{% endblock %}
@@ -12,7 +12,7 @@
 
     <div class="settings-admin-files-layout">
         <div class="settings-admin-files-col settings-admin-files-col--main">
-            <form method="POST" class="settings-admin-files-form">
+            <form method="POST" data-sp-autosave class="settings-admin-files-form">
                 <input type="hidden" name="storage_action" value="save">
 
                 <section class="settings-admin-files-card" aria-labelledby="files-features-title">
@@ -195,7 +195,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <form method="POST" class="settings-admin-files-exception-delete">
+                        <form method="POST" data-sp-autosave class="settings-admin-files-exception-delete">
                             <input type="hidden" name="storage_action" value="delete_exception">
                             <input type="hidden" name="exception_id" value="{{ row.id }}">
                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" title="{{ _('settings.admin.file_settings.exception_delete') }}">
@@ -209,7 +209,7 @@
                 <p class="settings-admin-files-meta settings-admin-files-meta--flush py-3 mb-0">{{ _('settings.admin.file_settings.exceptions_empty') }}</p>
                 {% endif %}
 
-                <form method="POST" class="settings-admin-files-exception-add">
+                <form method="POST" data-sp-autosave class="settings-admin-files-exception-add">
                     <input type="hidden" name="storage_action" value="add_exception">
                     <h3 class="settings-admin-files-subsection-title">{{ _('settings.admin.file_settings.exception_add_title') }}</h3>
 

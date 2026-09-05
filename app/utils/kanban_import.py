@@ -5,10 +5,17 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
+import mimetypes
 import os
+import uuid
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
+
+import requests
+from flask import current_app
+from werkzeug.utils import secure_filename
 
 from app import db
 from app.models.kanban import (
@@ -30,11 +37,40 @@ from app.models.user import User
 from app.utils.kanban_access import (
     VISIBILITY_PRIVATE,
     VISIBILITY_TEAM,
+    KanbanImportPermissionError,
     assert_can_import_board_visibility,
     visibility_allowed,
 )
 
+logger = logging.getLogger(__name__)
+
 _KNOWN_BACKGROUNDS = frozenset({'teal', 'slate', 'ocean', 'forest', 'sunset', 'berry'})
+
+# Map Trello prefs.background color names → our gradient keys
+_TRELLO_BG_MAP = {
+    'teal': 'teal',
+    'slate': 'slate',
+    'ocean': 'ocean',
+    'forest': 'forest',
+    'sunset': 'sunset',
+    'berry': 'berry',
+    'blue': 'ocean',
+    'sky': 'ocean',
+    'orange': 'sunset',
+    'red': 'berry',
+    'purple': 'berry',
+    'pink': 'berry',
+    'green': 'forest',
+    'lime': 'forest',
+    'yellow': 'sunset',
+    'grey': 'slate',
+    'gray': 'slate',
+    'black': 'slate',
+}
+
+_DOWNLOAD_TIMEOUT = 45
+_DOWNLOAD_MAX_BYTES = 40 * 1024 * 1024  # 40 MB
+_IMAGE_EXTS = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'})
 
 TRELLO_COLOR_HEX = {
     'green': '#22c55e',
@@ -119,32 +155,66 @@ def _looks_like_trello_json(data: dict) -> bool:
 
 def detect_import_format(filename: str, raw: bytes) -> str:
     name = (filename or '').lower()
+    if name.endswith('.zip'):
+        return 'zip'
     if name.endswith('.csv'):
         return 'csv'
     if name.endswith('.json'):
         return 'json'
-    head = raw.lstrip()[:1]
-    if head in (b'{', b'['):
+    # Heuristic
+    head = (raw or b'')[:64].lstrip()
+    if head.startswith(b'{') or head.startswith(b'['):
         return 'json'
     return 'csv'
 
 
-def _resolve_users_by_email(emails: set[str]) -> dict[str, User]:
-    cleaned = {e.strip().lower() for e in emails if e and str(e).strip()}
-    if not cleaned:
-        return {}
-    users = User.query.filter(User.email.in_(cleaned), User.is_active.is_(True)).all()
-    return {(u.email or '').strip().lower(): u for u in users}
+def import_boards_from_zip(
+    *,
+    raw: bytes,
+    user: User,
+    visibility: str,
+    team_id: int | None = None,
+) -> tuple[list[KanbanBoard], list[dict]]:
+    """Import every *.json / *.csv entry inside a ZIP. Returns (boards, errors)."""
+    import zipfile
 
+    boards: list[KanbanBoard] = []
+    errors: list[dict] = []
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except Exception as exc:
+        raise KanbanImportError('invalid_zip') from exc
 
-def _color_hex(color: str | None) -> str:
-    if not color:
-        return '#3b82f6'
-    c = color.strip().lower()
-    if c.startswith('#') and len(c) >= 4:
-        return c[:7]
-    base = c.replace('_dark', '').replace('_light', '')
-    return TRELLO_COLOR_HEX.get(c) or TRELLO_COLOR_HEX.get(base) or '#3b82f6'
+    members = [
+        info for info in zf.infolist()
+        if not info.is_dir()
+        and not info.filename.startswith('__MACOSX/')
+        and not os.path.basename(info.filename).startswith('.')
+        and info.filename.lower().endswith(('.json', '.csv'))
+    ]
+    if not members:
+        raise KanbanImportError('empty_zip')
+
+    for info in members:
+        base = os.path.basename(info.filename)
+        try:
+            entry_raw = zf.read(info)
+            board = import_board_from_bytes(
+                raw=entry_raw,
+                filename=base,
+                user=user,
+                visibility=visibility,
+                team_id=team_id,
+            )
+            boards.append(board)
+        except (KanbanImportError, KanbanImportPermissionError) as exc:
+            errors.append({'file': base, 'code': str(exc) or 'invalid'})
+        except Exception:
+            errors.append({'file': base, 'code': 'failed'})
+
+    if not boards and errors:
+        raise KanbanImportError(errors[0].get('code') or 'invalid')
+    return boards, errors
 
 
 def import_board_from_bytes(
@@ -164,6 +234,8 @@ def import_board_from_bytes(
         team_id = None
 
     fmt = detect_import_format(filename, raw)
+    if fmt == 'zip':
+        raise KanbanImportError('use_zip_helper')
     if fmt == 'json':
         try:
             data = json.loads(raw.decode('utf-8-sig'))
@@ -192,6 +264,198 @@ def import_board_from_bytes(
     )
 
 
+def _resolve_users_by_email(emails: set[str]) -> dict[str, User]:
+    cleaned = {e.strip().lower() for e in emails if e and str(e).strip()}
+    if not cleaned:
+        return {}
+    users = User.query.filter(User.email.in_(cleaned), User.is_active.is_(True)).all()
+    return {(u.email or '').strip().lower(): u for u in users}
+
+
+def _color_hex(color: str | None) -> str:
+    if not color:
+        return '#3b82f6'
+    c = color.strip().lower()
+    if c.startswith('#') and len(c) >= 4:
+        return c[:7]
+    base = c.replace('_dark', '').replace('_light', '')
+    return TRELLO_COLOR_HEX.get(c) or TRELLO_COLOR_HEX.get(base) or '#3b82f6'
+
+
+def _kanban_upload_root() -> str:
+    try:
+        root = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'kanban')
+    except RuntimeError:
+        root = os.path.join('uploads', 'kanban')
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def _kanban_boards_upload_root() -> str:
+    root = os.path.join(_kanban_upload_root(), 'boards')
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def _guess_filename_from_url(url: str, fallback: str = 'file') -> str:
+    path = unquote(urlparse(url).path or '')
+    base = os.path.basename(path) or fallback
+    safe = secure_filename(base) or secure_filename(fallback) or 'file'
+    return safe[:200]
+
+
+def _is_image_name_or_mime(name: str | None, mime: str | None) -> bool:
+    mime = (mime or '').lower()
+    if mime.startswith('image/'):
+        return True
+    ext = os.path.splitext(name or '')[1].lower()
+    return ext in _IMAGE_EXTS
+
+
+def _download_remote_file(
+    url: str,
+    *,
+    preferred_name: str | None = None,
+    dest_dir: str | None = None,
+) -> dict[str, Any] | None:
+    """Download a remote URL into the kanban upload folder.
+
+    Returns dict with keys: path, filename, original_filename, mime_type, file_size
+    or None on failure.
+    """
+    url = (url or '').strip()
+    if not url.startswith(('http://', 'https://')):
+        return None
+    dest_dir = dest_dir or _kanban_upload_root()
+    original = preferred_name or _guess_filename_from_url(url)
+    original = secure_filename(original) or _guess_filename_from_url(url)
+    try:
+        with requests.get(
+            url,
+            stream=True,
+            timeout=_DOWNLOAD_TIMEOUT,
+            headers={'User-Agent': 'Prismateams-Kanban-Import/1.0'},
+            allow_redirects=True,
+        ) as resp:
+            if resp.status_code >= 400:
+                logger.info('kanban import download failed %s → %s', url, resp.status_code)
+                return None
+            mime = (resp.headers.get('Content-Type') or '').split(';')[0].strip() or None
+            if not mime or mime in ('application/octet-stream', 'binary/octet-stream'):
+                mime = mimetypes.guess_type(original)[0] or mime
+            # Improve filename from content-disposition if present
+            cd = resp.headers.get('Content-Disposition') or ''
+            if 'filename=' in cd:
+                part = cd.split('filename=')[-1].strip().strip('"\'')
+                if part:
+                    original = secure_filename(part) or original
+            stored = f'{uuid.uuid4().hex}_{original}'
+            path = os.path.join(dest_dir, stored)
+            size = 0
+            with open(path, 'wb') as out:
+                for chunk in resp.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    size += len(chunk)
+                    if size > _DOWNLOAD_MAX_BYTES:
+                        out.close()
+                        try:
+                            os.remove(path)
+                        except OSError:
+                            pass
+                        logger.info('kanban import download too large: %s', url)
+                        return None
+                    out.write(chunk)
+            if size <= 0:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                return None
+            if not mime:
+                mime = mimetypes.guess_type(original)[0] or 'application/octet-stream'
+            return {
+                'path': path,
+                'filename': stored,
+                'original_filename': original[:255],
+                'mime_type': mime,
+                'file_size': size,
+            }
+    except Exception:
+        logger.exception('kanban import download error: %s', url)
+        return None
+
+
+def _map_trello_background(prefs: dict) -> tuple[str, str | None]:
+    """Return (gradient_key, cover_path_or_None) from Trello prefs."""
+    prefs = prefs or {}
+    bg = prefs.get('background')
+    key = 'teal'
+    if isinstance(bg, str) and bg.strip():
+        raw = bg.strip()
+        lower = raw.lower()
+        if lower in _KNOWN_BACKGROUNDS:
+            key = lower
+        elif lower in _TRELLO_BG_MAP:
+            key = _TRELLO_BG_MAP[lower]
+        else:
+            # Trello custom image ids are opaque hashes — color names may appear as prefix
+            for trello_name, mapped in _TRELLO_BG_MAP.items():
+                if lower.startswith(trello_name):
+                    key = mapped
+                    break
+
+    cover_path = None
+    img_url = prefs.get('backgroundImage') or prefs.get('backgroundImageScaled')
+    if isinstance(img_url, list) and img_url:
+        # backgroundImageScaled: list of {width, height, url}
+        best = max(img_url, key=lambda x: (x or {}).get('width') or 0)
+        img_url = (best or {}).get('url')
+    if isinstance(img_url, str) and img_url.startswith(('http://', 'https://')):
+        downloaded = _download_remote_file(
+            img_url,
+            preferred_name='board-background.jpg',
+            dest_dir=_kanban_boards_upload_root(),
+        )
+        if downloaded:
+            cover_path = downloaded['path']
+    return key, cover_path
+
+
+def _create_attachment_from_url(
+    *,
+    card_id: int,
+    url: str,
+    name: str,
+    mime_hint: str | None,
+    file_size_hint: int | None,
+    user_id: int,
+) -> KanbanAttachment:
+    """Try to download URL as a local attachment; fall back to link."""
+    downloaded = _download_remote_file(url, preferred_name=name)
+    if downloaded:
+        return KanbanAttachment(
+            card_id=card_id,
+            filename=downloaded['filename'],
+            original_filename=downloaded['original_filename'] or name[:255],
+            mime_type=downloaded['mime_type'] or mime_hint,
+            file_size=downloaded['file_size'],
+            storage_path=downloaded['path'],
+            url=None,
+            uploaded_by=user_id,
+        )
+    return KanbanAttachment(
+        card_id=card_id,
+        filename='link',
+        original_filename=name[:255],
+        mime_type=mime_hint or 'text/uri-list',
+        file_size=file_size_hint,
+        storage_path='',
+        url=url,
+        uploaded_by=user_id,
+    )
+
+
 def _import_trello_json(
     data: dict,
     *,
@@ -203,9 +467,7 @@ def _import_trello_json(
     title = (title_override or data.get('name') or 'Imported Board').strip()[:200] or 'Imported Board'
     desc = (data.get('desc') or '').strip() or None
     prefs = data.get('prefs') or {}
-    bg = prefs.get('background')
-    # Trello often uses opaque bg ids; keep only our known keys
-    background = bg if isinstance(bg, str) and bg in _KNOWN_BACKGROUNDS else 'teal'
+    background, cover_path = _map_trello_background(prefs)
 
     board = KanbanBoard(
         title=title,
@@ -214,6 +476,7 @@ def _import_trello_json(
         team_id=team_id,
         created_by=user.id,
         background=background,
+        cover_path=cover_path,
         closed_at=_parse_dt(data.get('dateClosed')) if data.get('closed') else None,
     )
     db.session.add(board)
@@ -402,7 +665,7 @@ def _import_trello_json(
                     assignee_id=assignee_id,
                 ))
 
-        # attachments — store as link URLs (Trello export has no binaries)
+        # attachments — download binaries when possible, else keep as links
         cover_tid = card_data.get('idAttachmentCover')
         cover_new_id = None
         for att in card_data.get('attachments') or []:
@@ -410,20 +673,24 @@ def _import_trello_json(
             name = (att.get('name') or att.get('fileName') or url or 'Attachment')[:255]
             if not url:
                 continue
-            # Prefer link attachment; optionally try local download later
-            ka = KanbanAttachment(
+            ka = _create_attachment_from_url(
                 card_id=card.id,
-                filename='link',
-                original_filename=name,
-                mime_type=att.get('mimeType') or 'text/uri-list',
-                file_size=att.get('bytes'),
-                storage_path='',
                 url=url,
-                uploaded_by=user.id,
+                name=name,
+                mime_hint=att.get('mimeType'),
+                file_size_hint=att.get('bytes'),
+                user_id=user.id,
             )
             db.session.add(ka)
             db.session.flush()
             if cover_tid and att.get('id') == cover_tid:
+                cover_new_id = ka.id
+            elif (
+                cover_new_id is None
+                and not cover_tid
+                and not ka.url
+                and _is_image_name_or_mime(ka.original_filename, ka.mime_type)
+            ):
                 cover_new_id = ka.id
         if cover_new_id:
             card.cover_attachment_id = cover_new_id
@@ -574,20 +841,28 @@ def _import_trello_csv(
                     db.session.add(KanbanCardAssignee(card_id=card.id, user_id=u.id))
 
         if c_att:
+            first_image_cover = None
             for url in (row.get(c_att) or '').split():
                 url = url.strip()
                 if not url.startswith(('http://', 'https://')):
                     continue
                 name = os.path.basename(urlparse(url).path) or url
-                db.session.add(KanbanAttachment(
+                ka = _create_attachment_from_url(
                     card_id=card.id,
-                    filename='link',
-                    original_filename=name[:255],
-                    mime_type='text/uri-list',
-                    storage_path='',
                     url=url,
-                    uploaded_by=user.id,
-                ))
+                    name=name[:255],
+                    mime_hint=None,
+                    file_size_hint=None,
+                    user_id=user.id,
+                )
+                db.session.add(ka)
+                db.session.flush()
+                if first_image_cover is None and not ka.url and _is_image_name_or_mime(
+                    ka.original_filename, ka.mime_type
+                ):
+                    first_image_cover = ka.id
+            if first_image_cover:
+                card.cover_attachment_id = first_image_cover
 
     if not list_map:
         db.session.add(KanbanList(board_id=board.id, title='To Do', position=0))

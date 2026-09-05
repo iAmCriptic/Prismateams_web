@@ -886,7 +886,7 @@
       "nav_label": "Settings navigation",
       "menu": "Menu",
       "start": "Home",
-      "admin_heading": "Admin settings",
+      "admin_heading": "Administration",
       "push_subscriptions": "Web push subscriptions",
       "push_subscriptions_desc": "View and manage active browser push registrations for all users.",
       "email_module": "Email settings",
@@ -895,11 +895,13 @@
       "inventory_desc": "Settings for public product pages and QR codes",
       "sections": {
         "account": "Account",
-        "modules": "Module settings"
+        "modules": "Module settings",
+        "tools": "My tools"
       },
       "team_lead_heading": "Team lead",
       "kanban": "Kanban",
-      "kanban_desc": "Visibility Private / Team / Public for boards"
+      "kanban_desc": "Visibility Private / Team / Public for boards",
+      "push": "Push subscriptions"
     },
     "search": {
       "label": "Search settings",
@@ -919,7 +921,9 @@
       "no_modules": "No active modules with a team section.",
       "flash_saved": "Team settings saved.",
       "flash_no_teams": "You are not leading any team.",
-      "flash_email_disabled": "The team email section is disabled for this team."
+      "flash_email_disabled": "The team email section is disabled for this team.",
+      "teams_tile_short": "Members",
+      "tile_short": "Team modules"
     },
     "appearance": {
       "page_title": "Appearance - Settings",
@@ -974,7 +978,13 @@
         "left_label": "Left icon",
         "right_label": "Right icon",
         "help": "Notifications, dashboard and modules are fixed and cannot be changed."
-      }
+      },
+      "lead_short": "Language, theme and accent.",
+      "preview_panel_title": "Live preview",
+      "preview_panel_lead": "How your accent looks in the UI.",
+      "preview_nav": "Navigation",
+      "preview_button": "Action",
+      "preview_card": "Sample card"
     },
     "index": {
       "page_title": "Settings - Team Portal",
@@ -985,32 +995,38 @@
         "profile": {
           "title": "Profile",
           "description": "Personal details and profile picture",
-          "button": "Edit"
+          "button": "Edit",
+          "short": "Name & avatar"
         },
         "appearance": {
           "title": "Appearance",
           "description": "Adjust accent colour, language and dark mode",
-          "button": "Edit"
+          "button": "Edit",
+          "short": "Theme & color"
         },
         "notifications": {
           "title": "Notifications",
           "description": "Push notifications for chat, files, email and calendar",
-          "button": "Edit"
+          "button": "Edit",
+          "short": "Push & channels"
         },
         "security": {
           "title": "Security",
           "description": "Change password, enable 2FA and manage signed-in devices",
-          "button": "Open"
+          "button": "Open",
+          "short": "Password & 2FA"
         },
         "about": {
           "title": "About",
           "description": "Information about Prismateams, version and creator",
-          "button": "Open"
+          "button": "Open",
+          "short": "Version"
         },
         "my_mailboxes": {
           "title": "My mailboxes",
           "description": "Manage and connect private mailboxes",
-          "button": "Open"
+          "button": "Open",
+          "short": "Private mailboxes"
         },
         "admin": {
           "title": "Administration",
@@ -1019,9 +1035,11 @@
         },
         "cloud_import": {
           "title": "Cloud import",
-          "description": "Transfer from Nextcloud and Google Drive."
+          "description": "Transfer from Nextcloud and Google Drive.",
+          "short": "Nextcloud & Drive"
         }
-      }
+      },
+      "lead_short": "Everything in one place."
     },
     "profile": {
       "page_title": "Profile - Settings",
@@ -1162,7 +1180,15 @@
         "reminder_6h": "6 hours before",
         "reminder_8h": "8 hours before",
         "reminder_1d": "1 day before",
-        "reminder_2d": "2 days before"
+        "reminder_2d": "2 days before",
+        "filter_status_label": "Participation",
+        "reminder_30min_short": "30 min",
+        "reminder_1h_short": "1 h",
+        "reminder_2h_short": "2 h",
+        "reminder_6h_short": "6 h",
+        "reminder_8h_short": "8 h",
+        "reminder_1d_short": "1 day",
+        "reminder_2d_short": "2 days"
       },
       "kanban": {
         "title": "Kanban notifications",
@@ -1207,7 +1233,8 @@
         "toggle": "New booking requests",
         "toggle_messages": "New messages",
         "help": "Bell and push when a new booking request arrives or the applicant replies (per toggle)"
-      }
+      },
+      "lead_short": "Push, modules and reminders."
     },
     "security": {
       "page_title": "Security - Settings",
@@ -1328,7 +1355,8 @@
         "link": "Link Google",
         "unlink": "Remove link",
         "unlink_confirm": "Really remove the Google link? The Gmail mailbox will remain."
-      }
+      },
+      "lead_short": "Password, 2FA and devices."
     },
     "about": {
       "page_title": "About Prismateams - Settings",
@@ -1367,7 +1395,11 @@
       "back_button": "Back to settings",
       "file_converter_label": "File converter / LibreOffice",
       "libreoffice_available": "LibreOffice available",
-      "libreoffice_missing": "LibreOffice not found"
+      "libreoffice_missing": "LibreOffice not found",
+      "lead_short": "Product, system and open source.",
+      "section_repository_help_button": "Help",
+      "excalidraw_label_short": "Excalidraw",
+      "file_converter_label_short": "File converter"
     },
     "admin": {
       "page_title": "Administration - Settings",
@@ -1598,7 +1630,8 @@
         "configure_button": "Configure",
         "user_management": {
           "title": "User management",
-          "description": "Manage users, guests and confirmation codes"
+          "description": "Manage users, guests and confirmation codes",
+          "short": "Roles & guests"
         },
         "confirmation_codes": {
           "title": "Confirmation codes",
@@ -1606,7 +1639,8 @@
         },
         "whitelist": {
           "title": "Whitelist management",
-          "description": "Manage email addresses and domains for automatic activation"
+          "description": "Manage email addresses and domains for automatic activation",
+          "short": "Email allowlist"
         },
         "email_permissions": {
           "title": "Email permissions",
@@ -1622,19 +1656,23 @@
         },
         "system_settings": {
           "title": "System settings",
-          "description": "Manage global system configuration"
+          "description": "Manage global system configuration",
+          "short": "Portal & branding"
         },
         "legal": {
           "title": "Privacy & legal notice",
-          "description": "Edit legal texts shown on the login screen"
+          "description": "Edit legal texts shown on the login screen",
+          "short": "Legal pages"
         },
         "modules": {
           "title": "Modules",
-          "description": "Enable or disable modules"
+          "description": "Enable or disable modules",
+          "short": "On / off"
         },
         "backup": {
           "title": "Import/Export",
-          "description": "Create and restore backups"
+          "description": "Create and restore backups",
+          "short": "Import / export"
         },
         "inventory_categories": {
           "title": "Inventory categories",
@@ -1646,19 +1684,32 @@
         },
         "file_settings": {
           "title": "File Settings",
-          "description": "Mailboxes, shares, private folders, document formats and storage limits"
+          "description": "Mailboxes, shares, private folders, document formats and storage limits",
+          "short": "Storage & sharing"
         },
         "calendar_settings": {
           "title": "Calendar Settings",
-          "description": "Private, team and public calendars, import and export"
+          "description": "Private, team and public calendars, import and export",
+          "short": "iCal"
         },
         "registration_options": {
           "title": "Bot protection",
-          "description": "Bot protection for login, registration, mailboxes and shares"
+          "description": "Bot protection for login, registration, mailboxes and shares",
+          "short": "Captcha"
         },
         "teams": {
           "title": "Teams",
-          "description": "Create teams; team leads manage their own members"
+          "description": "Create teams; team leads manage their own members",
+          "short": "Manage teams"
+        },
+        "push": {
+          "short": "Device subscriptions"
+        },
+        "email": {
+          "short": "SMTP & mailboxes"
+        },
+        "inventory": {
+          "short": "Ownership text"
         }
       },
       "registration": {
@@ -2247,7 +2298,11 @@
         "allow_team": "Team boards",
         "allow_public": "Public boards (entire portal)",
         "save": "Save",
-        "flash_saved": "Kanban settings saved."
+        "flash_saved": "Kanban settings saved.",
+        "lead_short": "Visibility and import.",
+        "short": "Visibility & import",
+        "module_disabled": "Kanban module is disabled",
+        "import_hint": "Multiple boards via ZIP supported."
       },
       "visibility": {
         "page_title": "{module} – Visibility",
@@ -2399,7 +2454,8 @@
       "google_help_oauth_step4": "Create credentials → OAuth client ID → application type Web application. Add the single redirect URI shown below (one URL for everything).",
       "google_help_oauth_step5": "Paste Client ID and Secret here and save — then Google login, mailbox OAuth and YouTube work.",
       "google_help_api_heading": "API key (for YouTube)",
-      "redirect_hint_login": "Redirect URI: {url}"
+      "redirect_hint_login": "Redirect URI: {url}",
+      "short": "OAuth & APIs"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -2446,7 +2502,41 @@
         "browse_failed": "Could not load folder.",
         "no_selection": "Select at least one file or folder.",
         "space_forbidden": "You may not import into this destination."
-      }
+      },
+      "lead_short": "One-time transfer from Nextcloud or Google Drive."
+    },
+    "autosave": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Could not save"
+    },
+    "kanban_import": {
+      "nav": "Board import",
+      "page_title": "Board import",
+      "heading": "Import boards",
+      "lead": "JSON, CSV or ZIP with multiple files.",
+      "short": "JSON / CSV / ZIP",
+      "upload_title": "Upload",
+      "drop_title": "Drop file here",
+      "drop_meta": ".json, .csv or .zip",
+      "submit": "Import",
+      "open": "Open",
+      "need_file": "Please choose a file",
+      "done_one": "Board imported",
+      "done_many": "{count} boards imported",
+      "failed": "Import failed",
+      "unavailable": "Kanban unavailable",
+      "no_targets": "No import target allowed",
+      "visibility_info": "Visibility for new boards",
+      "tip_body": "A ZIP with multiple JSON/CSV files creates multiple boards at once.",
+      "formats_title": "Formats",
+      "formats_body": "JSON and CSV for single boards, ZIP for multiple files."
+    },
+    "hub": {
+      "quick_title": "Quick access",
+      "quick_lead": "Frequently used areas",
+      "tip_title": "Tip",
+      "tip_body": "Use the search above to jump to any setting."
     }
   },
   "chat": {
@@ -5581,11 +5671,13 @@
       "cards": {
         "booking_forms": {
           "title": "Booking Forms",
-          "description": "Create, edit and manage booking forms"
+          "description": "Create, edit and manage booking forms",
+          "short": "Forms"
         },
         "music_module": {
           "title": "Music Module",
-          "description": "Connect and configure Spotify and YouTube Music"
+          "description": "Connect and configure Spotify and YouTube Music",
+          "short": "Providers"
         }
       }
     },
@@ -6193,7 +6285,9 @@
       "error_team": "Please select a team.",
       "error_team_leader": "Only team leaders may import team boards.",
       "error_visibility": "This visibility is not allowed.",
-      "error_failed": "Import failed."
+      "error_failed": "Import failed.",
+      "error_invalid_zip": "Invalid ZIP file",
+      "error_empty_zip": "ZIP has no JSON/CSV files"
     }
   },
   "visibility": {

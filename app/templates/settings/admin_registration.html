@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.registration.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.registration_options.title') }}{% endblock %}
@@ -10,7 +10,7 @@
         <p class="settings-admin-registration-subtitle">{{ _('settings.admin.registration.subtitle') }}</p>
     </div>
 
-    <form method="POST" id="bot-protection-form" class="settings-admin-registration-form">
+    <form method="POST" data-sp-autosave id="bot-protection-form" class="settings-admin-registration-form">
         <section class="settings-admin-registration-card" aria-labelledby="bot-provider-title">
             <div class="settings-admin-registration-card-head">
                 <h2 id="bot-provider-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.provider_label') }}</h2>

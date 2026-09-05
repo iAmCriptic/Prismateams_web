@@ -10,7 +10,7 @@
         <p class="settings-profile-subtitle">{{ _('settings.profile.subtitle') }}</p>
     </div>
 
-    <form method="POST" enctype="multipart/form-data" class="settings-profile-form" id="profileForm">
+    <form method="POST" enctype="multipart/form-data" class="settings-profile-form" id="profileForm" data-sp-autosave data-sp-save-url="{{ url_for('settings.profile') }}">
         <section class="settings-profile-card" aria-labelledby="profile-avatar-title">
             <div class="settings-profile-card-head">
                 <h2 id="profile-avatar-title" class="settings-profile-section-title mb-0">

@@ -603,7 +603,7 @@
     listsEl.querySelectorAll('[data-list-cards]').forEach((container) => {
       sortableInstances.push(Sortable.create(container, {
         group: 'kanban-cards',
-        animation: 150,
+        animation: 200,
         ghostClass: 'opacity-50',
         onEnd: async (evt) => {
           const cardId = Number(evt.item.dataset.cardId);
@@ -625,7 +625,7 @@
       }));
     });
     sortableInstances.push(Sortable.create(listsEl, {
-      animation: 150,
+      animation: 200,
       handle: '.kanban-list-col__head',
       draggable: '.kanban-list-col',
       filter: '.kanban-add-list-wrap',
@@ -1795,6 +1795,105 @@
   document.getElementById('kanbanShareBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
     openShareModal();
+  });
+
+  function applyBoardPageBackground(boardPayload) {
+    const css = (boardPayload && boardPayload.background_css) || app.style.getPropertyValue('--kanban-bg');
+    const img = boardPayload && boardPayload.cover_path;
+    if (css) app.style.setProperty('--kanban-bg', css);
+    if (img) {
+      app.style.setProperty('--kanban-bg-image', `url('${img}')`);
+      app.classList.add('has-bg-image');
+      app.dataset.bgImageUrl = img;
+    } else {
+      app.style.removeProperty('--kanban-bg-image');
+      app.classList.remove('has-bg-image');
+      app.dataset.bgImageUrl = '';
+    }
+    document.querySelectorAll('#kanbanBoardBgPicker .kanban-bg-swatch').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.bg === ((boardPayload && boardPayload.background) || board.background));
+    });
+  }
+
+  let selectedBoardBg = board.background || 'teal';
+  document.getElementById('kanbanBgBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectedBoardBg = board.background || 'teal';
+    document.querySelectorAll('#kanbanBoardBgPicker .kanban-bg-swatch').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.bg === selectedBoardBg);
+    });
+    const input = document.getElementById('kanbanBoardBgImageInput');
+    if (input) input.value = '';
+    getModal('kanbanBoardBgModal')?.show();
+  });
+
+  document.querySelectorAll('#kanbanBoardBgPicker .kanban-bg-swatch').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#kanbanBoardBgPicker .kanban-bg-swatch').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      selectedBoardBg = btn.dataset.bg;
+    });
+  });
+
+  document.getElementById('kanbanBoardBgSave')?.addEventListener('click', async () => {
+    try {
+      const data = await api(`/kanban/api/boards/${boardId}`, {
+        method: 'PATCH',
+        body: { background: selectedBoardBg },
+      });
+      if (data.board) {
+        Object.assign(board, data.board);
+        applyBoardPageBackground(data.board);
+      }
+      getModal('kanbanBoardBgModal')?.hide();
+    } catch (err) {
+      notify(err.message || 'Fehler');
+    }
+  });
+
+  document.getElementById('kanbanBoardBgImageUpload')?.addEventListener('click', async () => {
+    const input = document.getElementById('kanbanBoardBgImageInput');
+    if (!input || !input.files || !input.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    try {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (shareToken) headers['X-Share-Token'] = shareToken;
+      const res = await fetch(`/kanban/api/boards/${boardId}/background`, {
+        method: 'POST',
+        body: fd,
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) throw new Error(data.error || 'Upload fehlgeschlagen');
+      if (data.board) {
+        Object.assign(board, data.board);
+        applyBoardPageBackground(data.board);
+      }
+      input.value = '';
+      notify(i18n.backgroundUpload || 'Hintergrund gespeichert', 'success');
+    } catch (err) {
+      notify(err.message || 'Fehler');
+    }
+  });
+
+  document.getElementById('kanbanBoardBgImageClear')?.addEventListener('click', async () => {
+    try {
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (shareToken) headers['X-Share-Token'] = shareToken;
+      const res = await fetch(`/kanban/api/boards/${boardId}/background`, {
+        method: 'DELETE',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) throw new Error(data.error || 'Fehler');
+      if (data.board) {
+        Object.assign(board, data.board);
+        applyBoardPageBackground(data.board);
+      }
+    } catch (err) {
+      notify(err.message || 'Fehler');
+    }
   });
 
   document.getElementById('kanbanShareForm')?.addEventListener('submit', async (e) => {

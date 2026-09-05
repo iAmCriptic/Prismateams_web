@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.calendar_settings.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.calendar_settings.title') }}{% endblock %}
@@ -19,7 +19,7 @@
         </div>
     </div>
 
-    <form method="POST" class="settings-admin-calendar-form">
+    <form method="POST" data-sp-autosave class="settings-admin-calendar-form">
         <section class="settings-admin-calendar-card" aria-labelledby="calendar-features-title">
             <div class="settings-admin-calendar-card-head">
                 <h2 id="calendar-features-title" class="settings-admin-calendar-section-title mb-0">

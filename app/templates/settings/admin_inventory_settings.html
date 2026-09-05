@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.inventory.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.sidebar.inventory') }}{% endblock %}
@@ -10,7 +10,7 @@
         <p class="settings-admin-inventory-subtitle">{{ _('settings.admin.inventory.subtitle') }}</p>
     </div>
 
-    <form method="POST" class="settings-admin-inventory-form">
+    <form method="POST" data-sp-autosave class="settings-admin-inventory-form">
         <section class="settings-admin-inventory-card" aria-labelledby="inventory-public-title">
             <div class="settings-admin-inventory-card-head">
                 <h2 id="inventory-public-title" class="settings-admin-inventory-section-title mb-0">

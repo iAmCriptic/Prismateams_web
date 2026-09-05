@@ -422,6 +422,16 @@
     },
     "request_detail": {
       "actions_heading": "Действия"
+    },
+    "admin": {
+      "cards": {
+        "booking_forms": {
+          "short": "Forms"
+        },
+        "music_module": {
+          "short": "Providers"
+        }
+      }
     }
   },
   "music": {
@@ -693,7 +703,44 @@
       "cards": {
         "teams": {
           "title": "Teams",
-          "description": "Create teams and assign users"
+          "description": "Create teams and assign users",
+          "short": "Manage teams"
+        },
+        "user_management": {
+          "short": "Roles & guests"
+        },
+        "whitelist": {
+          "short": "Email allowlist"
+        },
+        "system_settings": {
+          "short": "Portal & branding"
+        },
+        "legal": {
+          "short": "Legal pages"
+        },
+        "modules": {
+          "short": "On / off"
+        },
+        "backup": {
+          "short": "Import / export"
+        },
+        "registration_options": {
+          "short": "Captcha"
+        },
+        "push": {
+          "short": "Device subscriptions"
+        },
+        "email": {
+          "short": "SMTP & mailboxes"
+        },
+        "inventory": {
+          "short": "Ownership text"
+        },
+        "calendar_settings": {
+          "short": "iCal"
+        },
+        "file_settings": {
+          "short": "Storage & sharing"
         }
       },
       "email_module": {
@@ -712,6 +759,12 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys"
+      },
+      "kanban": {
+        "lead_short": "Visibility and import.",
+        "short": "Visibility & import",
+        "module_disabled": "Kanban module is disabled",
+        "import_hint": "Multiple boards via ZIP supported."
       }
     },
     "notifications": {
@@ -725,6 +778,17 @@
         "changes_help": "Название, описание, срок, перемещение или выполнение",
         "checklist": "Чек-листы",
         "checklist_help": "Новые, изменённые или выполненные пункты"
+      },
+      "lead_short": "Push, модули и напоминания.",
+      "calendar": {
+        "filter_status_label": "Участие",
+        "reminder_30min_short": "30 мин",
+        "reminder_1h_short": "1 ч",
+        "reminder_2h_short": "2 ч",
+        "reminder_6h_short": "6 ч",
+        "reminder_8h_short": "8 ч",
+        "reminder_1d_short": "1 день",
+        "reminder_2d_short": "2 дня"
       }
     },
     "profile": {
@@ -834,7 +898,13 @@
       "oauth_error": "OAuth ошибка: {error}"
     },
     "sidebar": {
-      "team_lead_heading": "Team lead"
+      "team_lead_heading": "Team lead",
+      "sections": {
+        "tools": "Мои инструменты"
+      },
+      "push": "Push-подписки",
+      "kanban": "Kanban",
+      "admin_heading": "Администрирование"
     },
     "integrations": {
       "page_title": "Интеграции",
@@ -875,12 +945,17 @@
       "google_help_oauth_step4": "Создать учётные данные → OAuth Client ID → тип «Веб-приложение». Добавьте redirect URI, указанный ниже на странице.",
       "google_help_oauth_step5": "Вставьте Client ID и Client Secret сюда и сохраните — после этого OAuth работает в мастере.",
       "google_help_api_heading": "API-ключ (для YouTube)",
-      "redirect_hint_login": "Redirect URI (вход / безопасность): {url}"
+      "redirect_hint_login": "Redirect URI (вход / безопасность): {url}",
+      "short": "OAuth & APIs"
     },
     "about": {
       "file_converter_label": "File converter / LibreOffice",
       "libreoffice_available": "LibreOffice available",
-      "libreoffice_missing": "LibreOffice not found"
+      "libreoffice_missing": "LibreOffice not found",
+      "lead_short": "Продукт, система и open source.",
+      "section_repository_help_button": "Справка",
+      "excalidraw_label_short": "Excalidraw",
+      "file_converter_label_short": "Конвертер"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -927,15 +1002,84 @@
         "browse_failed": "Could not load folder.",
         "no_selection": "Select at least one file or folder.",
         "space_forbidden": "You may not import into this destination."
-      }
+      },
+      "lead_short": "Разовый перенос из Nextcloud или Google Drive."
     },
     "index": {
       "cards": {
         "cloud_import": {
           "title": "Cloud import",
-          "description": "Transfer from Nextcloud and Google Drive."
+          "description": "Transfer from Nextcloud and Google Drive.",
+          "short": "Nextcloud & Drive"
+        },
+        "profile": {
+          "short": "Name & avatar"
+        },
+        "appearance": {
+          "short": "Theme & color"
+        },
+        "notifications": {
+          "short": "Push & channels"
+        },
+        "security": {
+          "short": "Password & 2FA"
+        },
+        "about": {
+          "short": "Version"
+        },
+        "my_mailboxes": {
+          "short": "Private mailboxes"
         }
-      }
+      },
+      "lead_short": "Всё в одном месте."
+    },
+    "autosave": {
+      "saving": "Сохранение…",
+      "saved": "Сохранено",
+      "error": "Не удалось сохранить"
+    },
+    "appearance": {
+      "lead_short": "Язык, тема и акцент.",
+      "preview_panel_title": "Предпросмотр",
+      "preview_panel_lead": "How your accent looks in the UI.",
+      "preview_nav": "Navigation",
+      "preview_button": "Action",
+      "preview_card": "Sample card"
+    },
+    "kanban_import": {
+      "nav": "Импорт досок",
+      "page_title": "Board import",
+      "heading": "Import boards",
+      "lead": "JSON, CSV or ZIP with multiple files.",
+      "short": "JSON / CSV / ZIP",
+      "upload_title": "Upload",
+      "drop_title": "Drop file here",
+      "drop_meta": ".json, .csv or .zip",
+      "submit": "Import",
+      "open": "Open",
+      "need_file": "Please choose a file",
+      "done_one": "Board imported",
+      "done_many": "{count} boards imported",
+      "failed": "Import failed",
+      "unavailable": "Kanban unavailable",
+      "no_targets": "No import target allowed",
+      "visibility_info": "Visibility for new boards",
+      "tip_body": "ZIP с несколькими JSON/CSV создаёт несколько досок сразу.",
+      "formats_title": "Форматы",
+      "formats_body": "JSON и CSV для одной доски, ZIP для нескольких файлов."
+    },
+    "team_settings": {
+      "teams_tile_short": "Members",
+      "tile_short": "Team modules"
+    },
+    "hub": {
+      "quick_title": "Quick access",
+      "quick_lead": "Frequently used areas",
+      "tip_title": "Подсказка",
+      "tip_body": "Use the search above to jump to any setting."
+    },
+    "security": {
+      "lead_short": "Пароль, 2FA и устройства."
     }
   },
   "surveys": {
@@ -1155,7 +1299,9 @@
       "error_team": "Выберите команду.",
       "error_team_leader": "Командные доски могут импортировать только лидеры.",
       "error_visibility": "Эта видимость не разрешена.",
-      "error_failed": "Ошибка импорта."
+      "error_failed": "Ошибка импорта.",
+      "error_invalid_zip": "Invalid ZIP file",
+      "error_empty_zip": "ZIP has no JSON/CSV files"
     }
   }
 }

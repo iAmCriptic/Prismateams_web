@@ -1,319 +1,358 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.notifications.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.index.cards.notifications.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-notifications">
-    <div class="settings-notifications-header">
-        <h1 class="settings-notifications-title">{{ _('settings.notifications.heading') }}</h1>
-        <p class="settings-notifications-subtitle">{{ _('settings.notifications.subtitle') }}</p>
+<div class="sp-page sp-page--fluid">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-bell" aria-hidden="true"></i><span>{{ _('settings.notifications.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.notifications.lead_short') }}</p>
+  </header>
+
+  {# Push — full width #}
+  <section class="sp-group" id="notif-push" data-settings-search-id="notif-push">
+    <div class="sp-group-head">
+      <h2 class="sp-group-title"><i class="bi bi-phone" aria-hidden="true"></i>{{ _('settings.notifications.permissions.push.title') }}</h2>
+      {{ sp_info(_('settings.notifications.push_status.supported')) }}
     </div>
+    <div class="sp-group-body">
+      <div class="sp-row sp-row--stack">
+        <div class="sp-row-label">
+          <span class="sp-row-label-text" id="push-support-status"
+                data-ok="{{ _('settings.notifications.push_status.supported') }}"
+                data-no="{{ _('settings.notifications.push_status.unsupported') }}">
+            {{ _('settings.notifications.push_status.checking') }}
+          </span>
+          <span class="sp-row-meta"><span id="push-status">{{ _('settings.notifications.js.checking') }}</span></span>
+        </div>
+        <div class="sp-row-control sp-notif-push-actions">
+          <button type="button" class="btn btn-accent rounded-pill sp-btn-pill" id="subscribe-push-btn">
+            {{ _('settings.notifications.permissions.push.activate') }}
+          </button>
+          <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill" id="test-push-btn">
+            {{ _('settings.notifications.permissions.push.test') }}
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill sp-btn-pill" id="reset-push-btn">
+            {{ _('settings.notifications.permissions.push.reset') }}
+          </button>
+        </div>
+      </div>
+      <div id="cooldown-container" class="sp-notif-cooldown" style="display:none;padding:0 1.25rem 1rem;">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <small class="text-muted">{{ _('settings.notifications.permissions.push.cooldown_label') }}</small>
+          <small class="text-muted" id="cooldown-timer">{{ _('settings.notifications.permissions.push.cooldown_timer') }}</small>
+        </div>
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar bg-warning" id="cooldown-progress" role="progressbar" style="width:0%"></div>
+        </div>
+      </div>
+      <div id="https-warning" class="sp-notif-warn" style="display:none;">{{ _('settings.notifications.status.https_warning') }}</div>
+      <div id="push-setup-alert" style="display:none;" aria-hidden="true"></div>
+    </div>
+  </section>
 
-    {# —— Push —— #}
-    <section class="settings-notifications-push settings-notifications-push--animate" aria-labelledby="notif-push-heading">
-        <div class="settings-notifications-push-main">
-            <h2 id="notif-push-heading" class="settings-notifications-section-title mb-0">{{ _('settings.notifications.permissions.push.title') }}</h2>
-            <p id="push-support-status" class="settings-notifications-push-status" data-ok="{{ _('settings.notifications.push_status.supported') }}" data-no="{{ _('settings.notifications.push_status.unsupported') }}">
-                {{ _('settings.notifications.push_status.checking') }}
-            </p>
-            <span id="push-status" class="settings-notifications-push-badge">{{ _('settings.notifications.js.checking') }}</span>
+  <form method="POST" id="notificationForm" data-sp-autosave data-sp-save-url="{{ url_for('settings.notifications') }}">
+    <div class="sp-card-grid">
+
+      {# Kalender #}
+      <section class="sp-group sp-group--span2" id="notif-calendar" data-settings-search-id="notif-calendar">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-calendar-event" aria-hidden="true"></i>{{ _('settings.notifications.calendar.title') }}</h2>
+          {{ sp_info(_('settings.notifications.calendar.help')) }}
         </div>
-        <div class="settings-notifications-push-actions">
-            <button type="button" class="btn btn-outline-primary settings-notifications-btn" id="subscribe-push-btn">
-                {{ _('settings.notifications.permissions.push.activate') }}
-            </button>
-            <button type="button" class="btn btn-outline-secondary settings-notifications-btn" id="test-push-btn">
-                {{ _('settings.notifications.permissions.push.test') }}
-            </button>
-            <button type="button" class="btn btn-outline-danger settings-notifications-btn" id="reset-push-btn">
-                {{ _('settings.notifications.permissions.push.reset') }}
-            </button>
-        </div>
-        <div id="cooldown-container" class="settings-notifications-cooldown" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <small class="text-muted">{{ _('settings.notifications.permissions.push.cooldown_label') }}</small>
-                <small class="text-muted" id="cooldown-timer">{{ _('settings.notifications.permissions.push.cooldown_timer') }}</small>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.calendar.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="calendar_notifications_enabled" name="calendar_notifications_enabled" {% if settings.calendar_notifications_enabled %}checked{% endif %}>
+              </div>
             </div>
-            <div class="progress" style="height: 6px;">
-                <div class="progress-bar bg-warning" id="cooldown-progress" role="progressbar" style="width: 0%"></div>
-            </div>
-        </div>
-        <div id="https-warning" class="settings-notifications-warn" style="display: none;">
-            {{ _('settings.notifications.status.https_warning') }}
-        </div>
-        <div id="push-setup-alert" style="display: none;" aria-hidden="true"></div>
-    </section>
-
-    <form method="POST" id="notificationForm" class="settings-notifications-form">
-        <div class="settings-notifications-grid">
-            {# Kalender #}
-            <section class="settings-notifications-card settings-notifications-card--animate" aria-labelledby="notif-calendar-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-calendar-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-calendar-event" aria-hidden="true"></i> {{ _('settings.notifications.calendar.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.calendar.help') }}" aria-label="{{ _('settings.notifications.calendar.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
+          </div>
+          <div id="calendarSpecificSettings" class="sp-nested{% if settings.calendar_notifications_enabled %} is-open{% endif %}">
+            <div class="sp-nested-inner">
+              <div class="sp-row sp-row--stack">
+                <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.calendar.filter_question') }}</span></div>
+                <div class="sp-row-control">
+                  <div class="sp-seg" role="radiogroup" aria-label="{{ _('settings.notifications.calendar.filter_question') }}">
+                    <input type="radio" class="btn-check" id="calendar_all_events" name="calendar_event_filter" value="all" {% if settings.calendar_all_events %}checked{% endif %}>
+                    <label for="calendar_all_events">{{ _('settings.notifications.calendar.filter_all') }}</label>
+                    <input type="radio" class="btn-check" id="calendar_selective_events" name="calendar_event_filter" value="selective" {% if not settings.calendar_all_events %}checked{% endif %}>
+                    <label for="calendar_selective_events">{{ _('settings.notifications.calendar.filter_selective') }}</label>
+                  </div>
                 </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="calendar_notifications_enabled" name="calendar_notifications_enabled" {% if settings.calendar_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="calendar_notifications_enabled">{{ _('settings.notifications.calendar.toggle') }}</label>
-                </div>
-                <div id="calendarSpecificSettings" class="settings-notifications-nested{% if settings.calendar_notifications_enabled %} is-expanded{% endif %}">
-                    <p class="settings-notifications-nested-label">{{ _('settings.notifications.calendar.filter_question') }}</p>
-                    <div class="settings-notifications-radio-row">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="calendar_all_events" name="calendar_event_filter" value="all" {% if settings.calendar_all_events %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_all_events">{{ _('settings.notifications.calendar.filter_all') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="calendar_selective_events" name="calendar_event_filter" value="selective" {% if not settings.calendar_all_events %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_selective_events">{{ _('settings.notifications.calendar.filter_selective') }}</label>
-                        </div>
-                    </div>
-                    <div id="selectiveEventSettings" class="settings-notifications-checks settings-notifications-nested-inline mt-2{% if not settings.calendar_all_events %} is-expanded{% endif %}">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="calendar_participating_only" name="calendar_participating_only" {% if settings.calendar_participating_only %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_participating_only">{{ _('settings.notifications.calendar.filter_participating') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="calendar_not_participating" name="calendar_not_participating" {% if settings.calendar_not_participating %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_not_participating">{{ _('settings.notifications.calendar.filter_not_participating') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="calendar_no_response" name="calendar_no_response" {% if settings.calendar_no_response %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_no_response">{{ _('settings.notifications.calendar.filter_no_response') }}</label>
-                        </div>
-                    </div>
-                    <div class="settings-notifications-reminders mt-2">
-                        <div class="settings-notifications-card-head mb-1">
-                            <p class="settings-notifications-nested-label mb-0">{{ _('settings.notifications.calendar.reminders_title') }}</p>
-                            <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.calendar.reminders_help') }}" aria-label="{{ _('settings.notifications.calendar.reminders_help') }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div class="settings-notifications-reminder-grid">
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_30min" name="reminder_times" value="30"><label class="form-check-label" for="reminder_30min">{{ _('settings.notifications.calendar.reminder_30min') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_1h" name="reminder_times" value="60"><label class="form-check-label" for="reminder_1h">{{ _('settings.notifications.calendar.reminder_1h') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_2h" name="reminder_times" value="120"><label class="form-check-label" for="reminder_2h">{{ _('settings.notifications.calendar.reminder_2h') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_6h" name="reminder_times" value="360"><label class="form-check-label" for="reminder_6h">{{ _('settings.notifications.calendar.reminder_6h') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_8h" name="reminder_times" value="480"><label class="form-check-label" for="reminder_8h">{{ _('settings.notifications.calendar.reminder_8h') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_1d" name="reminder_times" value="1440"><label class="form-check-label" for="reminder_1d">{{ _('settings.notifications.calendar.reminder_1d') }}</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="reminder_2d" name="reminder_times" value="2880"><label class="form-check-label" for="reminder_2d">{{ _('settings.notifications.calendar.reminder_2d') }}</label></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {# Dateien #}
-            <section class="settings-notifications-card settings-notifications-card--animate" aria-labelledby="notif-files-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-files-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-folder" aria-hidden="true"></i> {{ _('settings.notifications.files.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.files.help') }}" aria-label="{{ _('settings.notifications.files.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="file_notifications_enabled" name="file_notifications_enabled" {% if settings.file_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="file_notifications_enabled">{{ _('settings.notifications.files.toggle') }}</label>
-                </div>
-                <div id="fileSpecificSettings" class="settings-notifications-nested{% if settings.file_notifications_enabled %} is-expanded{% endif %}">
-                    <div class="settings-notifications-checks">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="file_new_notifications" name="file_new_notifications" {% if settings.file_new_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="file_new_notifications">
-                                {{ _('settings.notifications.files.new') }}
-                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.files.new_help') }}" aria-label="{{ _('settings.notifications.files.new_help') }}" onclick="event.preventDefault()">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="file_modified_notifications" name="file_modified_notifications" {% if settings.file_modified_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="file_modified_notifications">
-                                {{ _('settings.notifications.files.modified') }}
-                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.files.modified_help') }}" aria-label="{{ _('settings.notifications.files.modified_help') }}" onclick="event.preventDefault()">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {# E-Mail #}
-            <section class="settings-notifications-card settings-notifications-card--animate" aria-labelledby="notif-email-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-email-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-envelope" aria-hidden="true"></i> {{ _('settings.notifications.email.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.email.help') }}" aria-label="{{ _('settings.notifications.email.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" {% if settings.email_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="email_notifications_enabled">{{ _('settings.notifications.email.toggle') }}</label>
-                </div>
-            </section>
-
-            {# Buchungsanfragen #}
-            <section class="settings-notifications-card settings-notifications-card--animate" aria-labelledby="notif-booking-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-booking-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-calendar2-check" aria-hidden="true"></i> {{ _('settings.notifications.booking.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.booking.help') }}" aria-label="{{ _('settings.notifications.booking.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="booking_notifications_enabled" name="booking_notifications_enabled" {% if settings.booking_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="booking_notifications_enabled">{{ _('settings.notifications.booking.toggle') }}</label>
-                </div>
-                <div class="form-check form-switch mt-2">
-                    <input class="form-check-input" type="checkbox" id="booking_message_notifications_enabled" name="booking_message_notifications_enabled" {% if settings.booking_message_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="booking_message_notifications_enabled">{{ _('settings.notifications.booking.toggle_messages') }}</label>
-                </div>
-            </section>
-
-            {% if kanban_module_enabled %}
-            {# Kanban #}
-            <section class="settings-notifications-card settings-notifications-card--animate" aria-labelledby="notif-kanban-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-kanban-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-kanban" aria-hidden="true"></i> {{ _('settings.notifications.kanban.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.kanban.help') }}" aria-label="{{ _('settings.notifications.kanban.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="kanban_notifications_enabled" name="kanban_notifications_enabled" {% if settings.kanban_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="kanban_notifications_enabled">{{ _('settings.notifications.kanban.toggle') }}</label>
-                </div>
-                <div id="kanbanSpecificSettings" class="settings-notifications-nested{% if settings.kanban_notifications_enabled %} is-expanded{% endif %}">
-                    <div class="settings-notifications-checks">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="kanban_upload_notifications" name="kanban_upload_notifications" {% if settings.kanban_upload_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="kanban_upload_notifications">
-                                {{ _('settings.notifications.kanban.uploads') }}
-                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.kanban.uploads_help') }}" aria-label="{{ _('settings.notifications.kanban.uploads_help') }}" onclick="event.preventDefault()">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="kanban_change_notifications" name="kanban_change_notifications" {% if settings.kanban_change_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="kanban_change_notifications">
-                                {{ _('settings.notifications.kanban.changes') }}
-                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.kanban.changes_help') }}" aria-label="{{ _('settings.notifications.kanban.changes_help') }}" onclick="event.preventDefault()">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="kanban_checklist_notifications" name="kanban_checklist_notifications" {% if settings.kanban_checklist_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="kanban_checklist_notifications">
-                                {{ _('settings.notifications.kanban.checklist') }}
-                                <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" title="{{ _('settings.notifications.kanban.checklist_help') }}" aria-label="{{ _('settings.notifications.kanban.checklist_help') }}" onclick="event.preventDefault()">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# Chat — neben Kanban #}
-            <section class="settings-notifications-card settings-notifications-card--animate{% if not kanban_module_enabled %} settings-notifications-card--wide{% endif %}" aria-labelledby="notif-chat-heading">
-                <div class="settings-notifications-card-head">
-                    <h2 id="notif-chat-heading" class="settings-notifications-section-title mb-0">
-                        <i class="bi bi-chat-dots" aria-hidden="true"></i> {{ _('settings.notifications.chat.title') }}
-                    </h2>
-                    <button type="button" class="settings-notifications-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.notifications.chat.help') }}" aria-label="{{ _('settings.notifications.chat.help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="chat_notifications_enabled" name="chat_notifications_enabled" {% if settings.chat_notifications_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="chat_notifications_enabled">{{ _('settings.notifications.chat.toggle') }}</label>
-                </div>
-                <div id="chatSpecificSettings" class="settings-notifications-nested{% if settings.chat_notifications_enabled %} is-expanded{% endif %}">
-                    <p class="settings-notifications-nested-label">{{ _('settings.notifications.chat.table_title') }}</p>
-                    <div class="settings-notifications-chat-list">
-                        {% for chat in user_chats %}
-                        <label class="settings-notifications-chat-row" for="chat_{{ chat.id }}">
-                            <span class="settings-notifications-chat-name">
-                                <i class="bi bi-{% if chat.is_main_chat %}house-door{% elif chat.is_direct_message %}person{% else %}people{% endif %}" aria-hidden="true"></i>
-                                {{ chat.name }}
-                            </span>
-                            <input class="form-check-input" type="checkbox" id="chat_{{ chat.id }}" name="chat_{{ chat.id }}" {% if chat_notification_settings[chat.id] %}checked{% endif %}>
+              </div>
+              <div id="selectiveEventSettings" class="sp-nested{% if not settings.calendar_all_events %} is-open{% endif %}">
+                <div class="sp-nested-inner">
+                  <div class="sp-row sp-row--stack">
+                    <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.calendar.filter_status_label') }}</span></div>
+                    <div class="sp-row-control">
+                      <div class="sp-chip-grid">
+                        <label class="sp-chip">
+                          <input type="checkbox" id="calendar_participating_only" name="calendar_participating_only" {% if settings.calendar_participating_only %}checked{% endif %}>
+                          <span>{{ _('settings.notifications.calendar.filter_participating') }}</span>
                         </label>
-                        {% else %}
-                        <p class="text-muted small mb-0">{{ _('settings.notifications.chat.empty') }}</p>
-                        {% endfor %}
+                        <label class="sp-chip">
+                          <input type="checkbox" id="calendar_not_participating" name="calendar_not_participating" {% if settings.calendar_not_participating %}checked{% endif %}>
+                          <span>{{ _('settings.notifications.calendar.filter_not_participating') }}</span>
+                        </label>
+                        <label class="sp-chip">
+                          <input type="checkbox" id="calendar_no_response" name="calendar_no_response" {% if settings.calendar_no_response %}checked{% endif %}>
+                          <span>{{ _('settings.notifications.calendar.filter_no_response') }}</span>
+                        </label>
+                      </div>
                     </div>
+                  </div>
                 </div>
-            </section>
+              </div>
+              <div class="sp-row sp-row--stack">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.calendar.reminders_title') }}</span>
+                  {{ sp_info(_('settings.notifications.calendar.reminders_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="sp-chip-grid">
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="30" id="reminder_30min"><span>{{ _('settings.notifications.calendar.reminder_30min_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="60" id="reminder_1h"><span>{{ _('settings.notifications.calendar.reminder_1h_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="120" id="reminder_2h"><span>{{ _('settings.notifications.calendar.reminder_2h_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="360" id="reminder_6h"><span>{{ _('settings.notifications.calendar.reminder_6h_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="480" id="reminder_8h"><span>{{ _('settings.notifications.calendar.reminder_8h_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="1440" id="reminder_1d"><span>{{ _('settings.notifications.calendar.reminder_1d_short') }}</span></label>
+                    <label class="sp-chip"><input type="checkbox" name="reminder_times" value="2880" id="reminder_2d"><span>{{ _('settings.notifications.calendar.reminder_2d_short') }}</span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div class="settings-notifications-actions">
-            <button type="submit" class="btn btn-accent rounded-pill settings-notifications-submit">{{ _('settings.notifications.save_button') }}</button>
-            <a href="{{ url_for('settings.index') }}" class="btn settings-notifications-cancel">{{ _('common.cancel') }}</a>
+      {# Dateien #}
+      <section class="sp-group" id="notif-files" data-settings-search-id="notif-files">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-folder" aria-hidden="true"></i>{{ _('settings.notifications.files.title') }}</h2>
+          {{ sp_info(_('settings.notifications.files.help')) }}
         </div>
-    </form>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.files.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="file_notifications_enabled" name="file_notifications_enabled" {% if settings.file_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div id="fileSpecificSettings" class="sp-nested{% if settings.file_notifications_enabled %} is-open{% endif %}">
+            <div class="sp-nested-inner">
+              <div class="sp-row">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.files.new') }}</span>
+                  {{ sp_info(_('settings.notifications.files.new_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="file_new_notifications" name="file_new_notifications" {% if settings.file_new_notifications %}checked{% endif %}>
+                  </div>
+                </div>
+              </div>
+              <div class="sp-row">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.files.modified') }}</span>
+                  {{ sp_info(_('settings.notifications.files.modified_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="file_modified_notifications" name="file_modified_notifications" {% if settings.file_modified_notifications %}checked{% endif %}>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {# E-Mail #}
+      <section class="sp-group" id="notif-email" data-settings-search-id="notif-email">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-envelope" aria-hidden="true"></i>{{ _('settings.notifications.email.title') }}</h2>
+          {{ sp_info(_('settings.notifications.email.help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.email.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" {% if settings.email_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {# Booking #}
+      <section class="sp-group" id="notif-booking" data-settings-search-id="notif-booking">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-calendar2-check" aria-hidden="true"></i>{{ _('settings.notifications.booking.title') }}</h2>
+          {{ sp_info(_('settings.notifications.booking.help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.booking.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="booking_notifications_enabled" name="booking_notifications_enabled" {% if settings.booking_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.booking.toggle_messages') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="booking_message_notifications_enabled" name="booking_message_notifications_enabled" {% if settings.booking_message_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {% if kanban_module_enabled %}
+      <section class="sp-group" id="notif-kanban" data-settings-search-id="notif-kanban">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-kanban" aria-hidden="true"></i>{{ _('settings.notifications.kanban.title') }}</h2>
+          {{ sp_info(_('settings.notifications.kanban.help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.kanban.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="kanban_notifications_enabled" name="kanban_notifications_enabled" {% if settings.kanban_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div id="kanbanSpecificSettings" class="sp-nested{% if settings.kanban_notifications_enabled %} is-open{% endif %}">
+            <div class="sp-nested-inner">
+              <div class="sp-row">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.kanban.uploads') }}</span>
+                  {{ sp_info(_('settings.notifications.kanban.uploads_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="kanban_upload_notifications" name="kanban_upload_notifications" {% if settings.kanban_upload_notifications %}checked{% endif %}>
+                  </div>
+                </div>
+              </div>
+              <div class="sp-row">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.kanban.changes') }}</span>
+                  {{ sp_info(_('settings.notifications.kanban.changes_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="kanban_change_notifications" name="kanban_change_notifications" {% if settings.kanban_change_notifications %}checked{% endif %}>
+                  </div>
+                </div>
+              </div>
+              <div class="sp-row">
+                <div class="sp-row-label">
+                  <span class="sp-row-label-text">{{ _('settings.notifications.kanban.checklist') }}</span>
+                  {{ sp_info(_('settings.notifications.kanban.checklist_help')) }}
+                </div>
+                <div class="sp-row-control">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="kanban_checklist_notifications" name="kanban_checklist_notifications" {% if settings.kanban_checklist_notifications %}checked{% endif %}>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {# Chat #}
+      <section class="sp-group{% if not kanban_module_enabled %} sp-group--span2{% endif %}" id="notif-chat" data-settings-search-id="notif-chat">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-chat-dots" aria-hidden="true"></i>{{ _('settings.notifications.chat.title') }}</h2>
+          {{ sp_info(_('settings.notifications.chat.help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.chat.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="chat_notifications_enabled" name="chat_notifications_enabled" {% if settings.chat_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div id="chatSpecificSettings" class="sp-nested{% if settings.chat_notifications_enabled %} is-open{% endif %}">
+            <div class="sp-nested-inner">
+              <div class="sp-row sp-row--stack">
+                <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.chat.table_title') }}</span></div>
+                <div class="sp-row-control">
+                  <div class="sp-chat-list">
+                    {% for chat in user_chats %}
+                    <label class="sp-chat-row" for="chat_{{ chat.id }}">
+                      <span>
+                        <i class="bi bi-{% if chat.is_main_chat %}house-door{% elif chat.is_direct_message %}person{% else %}people{% endif %}" aria-hidden="true"></i>
+                        {{ chat.name }}
+                      </span>
+                      <input class="form-check-input" type="checkbox" id="chat_{{ chat.id }}" name="chat_{{ chat.id }}" {% if chat_notification_settings[chat.id] %}checked{% endif %}>
+                    </label>
+                    {% else %}
+                    <p class="text-muted small mb-0">{{ _('settings.notifications.chat.empty') }}</p>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.settings-notifications [data-bs-toggle="tooltip"]').forEach(function(el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
+document.addEventListener('DOMContentLoaded', function () {
+  function bindNested(toggleId, nestedId) {
+    var toggle = document.getElementById(toggleId);
+    var nested = document.getElementById(nestedId);
+    if (!toggle || !nested) return;
+    toggle.addEventListener('change', function () {
+      nested.classList.toggle('is-open', this.checked);
     });
+  }
+  bindNested('chat_notifications_enabled', 'chatSpecificSettings');
+  bindNested('file_notifications_enabled', 'fileSpecificSettings');
+  bindNested('calendar_notifications_enabled', 'calendarSpecificSettings');
+  bindNested('kanban_notifications_enabled', 'kanbanSpecificSettings');
 
-    function bindNestedToggle(toggleId, nestedId) {
-        const toggle = document.getElementById(toggleId);
-        const nested = document.getElementById(nestedId);
-        if (!toggle || !nested) return;
-        toggle.addEventListener('change', function() {
-            nested.classList.toggle('is-expanded', this.checked);
-        });
-    }
+  var allEvents = document.getElementById('calendar_all_events');
+  var selective = document.getElementById('calendar_selective_events');
+  var selectiveBox = document.getElementById('selectiveEventSettings');
+  function updateSelective() {
+    if (!selectiveBox) return;
+    selectiveBox.classList.toggle('is-open', !!(selective && selective.checked));
+  }
+  if (allEvents) allEvents.addEventListener('change', updateSelective);
+  if (selective) selective.addEventListener('change', updateSelective);
 
-    bindNestedToggle('chat_notifications_enabled', 'chatSpecificSettings');
-    bindNestedToggle('file_notifications_enabled', 'fileSpecificSettings');
-    bindNestedToggle('calendar_notifications_enabled', 'calendarSpecificSettings');
-    bindNestedToggle('kanban_notifications_enabled', 'kanbanSpecificSettings');
+  ({{ settings.get_reminder_times() | tojson }} || []).forEach(function (time) {
+    var cb = document.querySelector('input[name="reminder_times"][value="' + String(time) + '"]');
+    if (cb) cb.checked = true;
+  });
 
-    const allEventsRadio = document.getElementById('calendar_all_events');
-    const selectiveRadio = document.getElementById('calendar_selective_events');
-    const selectiveSettings = document.getElementById('selectiveEventSettings');
-    function updateSelective() {
-        if (!selectiveSettings) return;
-        selectiveSettings.classList.toggle('is-expanded', !!(selectiveRadio && selectiveRadio.checked));
-    }
-    if (allEventsRadio) allEventsRadio.addEventListener('change', updateSelective);
-    if (selectiveRadio) selectiveRadio.addEventListener('change', updateSelective);
-
-    const reminderTimes = {{ settings.get_reminder_times() | tojson }};
-    reminderTimes.forEach(function(time) {
-        const checkbox = document.querySelector('input[name="reminder_times"][value="' + time + '"]');
-        if (checkbox) checkbox.checked = true;
-    });
-
-    if (!window.isSecureContext) {
-        const httpsWarning = document.getElementById('https-warning');
-        if (httpsWarning) httpsWarning.style.display = 'block';
-    }
+  if (!window.isSecureContext) {
+    var warn = document.getElementById('https-warning');
+    if (warn) warn.style.display = 'block';
+  }
 });
 </script>
 {% endblock %}

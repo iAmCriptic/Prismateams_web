@@ -1,0 +1,170 @@
+{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
+
+{% block title %}{{ _('settings.kanban_import.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.kanban_import.nav') }}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-layout">
+  <div class="sp-page sp-page--fluid">
+    <header class="sp-page-header">
+      <h1 class="sp-page-title"><i class="bi bi-kanban" aria-hidden="true"></i><span>{{ _('settings.kanban_import.heading') }}</span></h1>
+      <p class="sp-page-lead">{{ _('settings.kanban_import.lead') }}</p>
+    </header>
+
+    <section class="sp-group" id="kanban-import" data-settings-search-id="kanban-import">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title"><i class="bi bi-upload" aria-hidden="true"></i>{{ _('settings.kanban_import.upload_title') }}</h2>
+        {{ sp_info(_('settings.kanban_import.visibility_info')) }}
+      </div>
+      <div class="sp-group-body">
+        <form id="settingsKanbanImportForm" data-sp-no-autosave>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('kanban.import.visibility') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <select class="form-select" name="visibility" id="settingsKanbanVisibility" style="min-width:14rem">
+                {% for t in import_targets %}
+                <option value="{% if t.visibility == 'team' %}team:{{ t.team_id }}{% else %}{{ t.visibility }}{% endif %}">
+                  {% if t.team_name %}{{ _(t.label_key) }}: {{ t.team_name }}{% else %}{{ _(t.label_key) }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-control" style="width:100%">
+              <label class="sp-dropzone" id="settingsKanbanDropzone" for="settingsKanbanFile">
+                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                <p class="sp-dropzone-title">{{ _('settings.kanban_import.drop_title') }}</p>
+                <p class="sp-dropzone-meta">{{ _('settings.kanban_import.drop_meta') }}</p>
+                <input type="file" id="settingsKanbanFile" name="file" class="d-none" accept=".json,.csv,.zip,application/json,text/csv,application/zip">
+              </label>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-control" style="justify-content:flex-start;width:100%">
+              <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" id="settingsKanbanSubmit">
+                <i class="bi bi-upload" aria-hidden="true"></i> {{ _('settings.kanban_import.submit') }}
+              </button>
+            </div>
+          </div>
+          <div class="px-3 pb-3">
+            <div class="sp-import-results" id="settingsKanbanResults" hidden></div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <aside class="sp-sidepanel" aria-label="{{ _('settings.hub.tip_title') }}">
+    <div class="sp-sidepanel-card">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-lightbulb" aria-hidden="true"></i>{{ _('settings.hub.tip_title') }}</h2>
+      <p class="sp-sidepanel-lead">{{ _('settings.kanban_import.tip_body') }}</p>
+    </div>
+    <div class="sp-sidepanel-card sp-sidepanel-card--muted">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>{{ _('settings.kanban_import.formats_title') }}</h2>
+      <p class="sp-sidepanel-lead mb-0">{{ _('settings.kanban_import.formats_body') }}</p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var form = document.getElementById('settingsKanbanImportForm');
+  var fileInput = document.getElementById('settingsKanbanFile');
+  var dropzone = document.getElementById('settingsKanbanDropzone');
+  var results = document.getElementById('settingsKanbanResults');
+  var btn = document.getElementById('settingsKanbanSubmit');
+  var url = {{ kanban_import_url|tojson }};
+
+  function showResults(boards, errors) {
+    results.hidden = false;
+    results.innerHTML = '';
+    (boards || []).forEach(function (b) {
+      var row = document.createElement('div');
+      row.className = 'sp-import-result is-ok';
+      row.innerHTML = '<i class="bi bi-check-circle"></i><span></span>';
+      row.querySelector('span').textContent = b.title || b.name || ('#' + b.id);
+      if (b.url) {
+        var a = document.createElement('a');
+        a.href = b.url;
+        a.className = 'ms-auto';
+        a.textContent = {{ _('settings.kanban_import.open')|tojson }};
+        row.appendChild(a);
+      }
+      results.appendChild(row);
+    });
+    (errors || []).forEach(function (e) {
+      var row = document.createElement('div');
+      row.className = 'sp-import-result is-err';
+      row.innerHTML = '<i class="bi bi-x-circle"></i><span></span>';
+      row.querySelector('span').textContent = (e.file || '') + ': ' + (e.code || 'error');
+      results.appendChild(row);
+    });
+  }
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.add('is-dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove('is-dragover');
+    });
+  });
+  dropzone.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      fileInput.files = e.dataTransfer.files;
+    }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!fileInput.files || !fileInput.files.length) {
+      if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.need_file')|tojson }}, 'error');
+      return;
+    }
+    var fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    var visVal = document.getElementById('settingsKanbanVisibility').value;
+    if (visVal.indexOf('team:') === 0) {
+      fd.append('visibility', 'team');
+      fd.append('team_id', visVal.slice(5));
+    } else {
+      fd.append('visibility', visVal);
+    }
+    btn.disabled = true;
+    if (window.SettingsToast) SettingsToast.show({{ _('settings.autosave.saving')|tojson }}, 'saving');
+    try {
+      var res = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
+      var data = await res.json().catch(function () { return {}; });
+      if (data.success) {
+        var boards = data.boards || (data.board ? [data.board] : []);
+        showResults(boards, data.errors || []);
+        if (window.SettingsToast) {
+          SettingsToast.show(
+            boards.length === 1
+              ? {{ _('settings.kanban_import.done_one')|tojson }}
+              : ({{ _('settings.kanban_import.done_many')|tojson }}).replace('{count}', String(boards.length)),
+            'success'
+          );
+        }
+      } else {
+        if (window.SettingsToast) SettingsToast.show(data.error || {{ _('settings.kanban_import.failed')|tojson }}, 'error');
+      }
+    } catch (err) {
+      if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.failed')|tojson }}, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

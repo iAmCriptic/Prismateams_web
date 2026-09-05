@@ -1,0 +1,45 @@
+{# Shared Settings Premium macros #}
+
+{% macro sp_info(text) -%}
+<button type="button" class="sp-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ text }}" aria-label="{{ text }}">
+  <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+{%- endmacro %}
+
+{% macro sp_page_start(title, icon='bi-gear', lead='', wide=false) -%}
+<div class="sp-page{% if wide %} sp-page--wide{% endif %}">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi {{ icon }}" aria-hidden="true"></i><span>{{ title }}</span></h1>
+    {% if lead %}<p class="sp-page-lead">{{ lead }}</p>{% endif %}
+  </header>
+{%- endmacro %}
+
+{% macro sp_page_end() -%}
+</div>
+{%- endmacro %}
+
+{% macro sp_group_start(title, icon='', id='') -%}
+<section class="sp-group"{% if id %} id="{{ id }}" data-settings-search-id="{{ id }}"{% endif %}>
+  {% if title %}
+  <div class="sp-group-head">
+    <h2 class="sp-group-title">{% if icon %}<i class="bi {{ icon }}" aria-hidden="true"></i>{% endif %}{{ title }}</h2>
+  </div>
+  {% endif %}
+  <div class="sp-group-body">
+{%- endmacro %}
+
+{% macro sp_group_end() -%}
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro sp_hub_tile(url, icon, title, desc='') -%}
+<a href="{{ url }}" class="sp-hub-tile">
+  <span class="sp-hub-tile-icon"><i class="bi {{ icon }}" aria-hidden="true"></i></span>
+  <span class="sp-hub-tile-body">
+    <span class="sp-hub-tile-title">{{ title }}</span>
+    {% if desc %}<span class="sp-hub-tile-desc">{{ desc }}</span>{% endif %}
+  </span>
+  <i class="bi bi-chevron-right sp-hub-tile-chevron" aria-hidden="true"></i>
+</a>
+{%- endmacro %}

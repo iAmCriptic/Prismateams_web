@@ -36,7 +36,7 @@ settings_bp = Blueprint('settings', __name__)
 
 @settings_bp.context_processor
 def inject_settings_search_catalog():
-    """JSON catalog for settings sidebar search."""
+    """JSON catalog for settings sidebar search + kanban import targets."""
     from flask_login import current_user
     if not current_user.is_authenticated:
         return {}
@@ -44,7 +44,17 @@ def inject_settings_search_catalog():
         return {}
     from app.utils.settings_catalog import build_settings_catalog
     catalog = build_settings_catalog(current_user)
-    return {'settings_search_catalog_json': json.dumps(catalog, ensure_ascii=False)}
+    ctx = {'settings_search_catalog_json': json.dumps(catalog, ensure_ascii=False)}
+    try:
+        from app.utils.common import is_module_enabled
+        from app.utils.kanban_access import allowed_import_board_targets
+        if is_module_enabled('module_kanban'):
+            ctx['kanban_import_targets'] = allowed_import_board_targets(current_user)
+        else:
+            ctx['kanban_import_targets'] = []
+    except Exception:
+        ctx['kanban_import_targets'] = []
+    return ctx
 
 
 def _settings_redirect(endpoint, **values):
@@ -52,6 +62,25 @@ def _settings_redirect(endpoint, **values):
     if request.args.get('embed') or request.form.get('embed'):
         values.setdefault('embed', 1)
     return redirect(url_for(endpoint, **values))
+
+
+def _wants_json_response() -> bool:
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    return best == 'application/json'
+
+
+def _settings_save_response(ok: bool, message: str, redirect_endpoint: str | None = None, status: int = 200, redirect_kwargs: dict | None = None, **extra):
+    """JSON for autosave clients, otherwise flash + redirect."""
+    if _wants_json_response():
+        payload = {'ok': ok, 'message': message}
+        payload.update(extra)
+        return jsonify(payload), (status if not ok else 200)
+    flash(message, 'success' if ok else 'danger')
+    if redirect_endpoint:
+        return _settings_redirect(redirect_endpoint, **(redirect_kwargs or {}))
+    return redirect(request.url)
 
 
 def _guest_account_form_options():
@@ -128,8 +157,12 @@ def profile():
                     
                     max_size = 5 * 1024 * 1024  # 5MB in bytes
                     if file_size > max_size:
-                        flash(translate('settings.profile.flash_picture_too_large', size=file_size / (1024*1024)), 'danger')
-                        return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
+                        return _settings_save_response(
+                            False,
+                            translate('settings.profile.flash_picture_too_large', size=file_size / (1024*1024)),
+                            'settings.profile',
+                            status=400,
+                        )
                     
                     # Create filename with timestamp
                     filename = secure_filename(file.filename)
@@ -155,14 +188,16 @@ def profile():
                             pass  # Ignore if file doesn't exist
                     
                     current_user.profile_picture = filename
-                    flash(translate('settings.profile.flash_picture_uploaded'), 'success')
                 else:
-                    flash(translate('settings.profile.flash_picture_invalid_type'), 'danger')
-                    return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
+                    return _settings_save_response(
+                        False,
+                        translate('settings.profile.flash_picture_invalid_type'),
+                        'settings.profile',
+                        status=400,
+                    )
         
         db.session.commit()
-        flash(translate('settings.profile.flash_profile_updated'), 'success')
-        return redirect(url_for('settings.profile'))
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.profile')
     
     return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
 
@@ -312,8 +347,7 @@ def notifications():
         sync_user_notification_flags(current_user, settings)
 
         db.session.commit()
-        flash(translate('settings.notifications.flash_saved'), 'success')
-        return redirect(url_for('settings.notifications'))
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.notifications')
     
     # Hole Benachrichtigungseinstellungen
     settings = get_or_create_notification_settings(current_user.id)
@@ -349,6 +383,7 @@ def appearance():
     language_codes = list(available_languages())
     selected_language = request.form.get('language') if request.method == 'POST' else current_user.language
     is_guest = hasattr(current_user, 'is_guest') and current_user.is_guest
+    previous_language = current_user.language
 
     if request.method == 'POST':
         color_type = request.form.get('color_type', 'solid')
@@ -359,8 +394,12 @@ def appearance():
         preferred_layout = request.form.get('preferred_layout', 'auto')
 
         if selected_language and selected_language not in language_codes:
-            flash(translate('settings.appearance.flash_invalid_language'), 'danger')
-            return redirect(url_for('settings.appearance'))
+            return _settings_save_response(
+                False,
+                translate('settings.appearance.flash_invalid_language'),
+                'settings.appearance',
+                status=400,
+            )
 
         if preferred_layout not in ['auto', 'mobile', 'desktop']:
             preferred_layout = 'auto'
@@ -383,13 +422,25 @@ def appearance():
         else:
             current_user.accent_gradient = None
 
-        if selected_language:
+        language_changed = False
+        if selected_language and selected_language != previous_language:
             current_user.language = selected_language
             g.language = selected_language
+            language_changed = True
 
         db.session.commit()
-        flash(translate('settings.appearance.flash_success'), 'success')
-        return redirect(url_for('settings.appearance'))
+        return _settings_save_response(
+            True,
+            translate('settings.autosave.saved'),
+            'settings.appearance',
+            accent_color=current_user.accent_color,
+            accent_gradient=current_user.accent_gradient,
+            dark_mode=current_user.dark_mode,
+            oled_mode=current_user.oled_mode,
+            language=current_user.language,
+            preferred_layout=current_user.preferred_layout,
+            reload=language_changed,
+        )
 
     language_options = []
     for code in language_codes:
@@ -1572,8 +1623,12 @@ def team_settings():
             enabled = request.form.get(f'team_module_{module_key}') == 'on'
             set_team_section_enabled(team.id, module_key, enabled)
         db.session.commit()
-        flash(translate('settings.team_settings.flash_saved'), 'success')
-        return redirect(url_for('settings.team_settings', team_id=team.id))
+        return _settings_save_response(
+            True,
+            translate('settings.autosave.saved'),
+            'settings.team_settings',
+            redirect_kwargs={'team_id': team.id},
+        )
 
     states = get_team_section_states(team.id)
     modules = []
@@ -2280,8 +2335,7 @@ def admin_system():
             ))
         
         db.session.commit()
-        flash(translate('settings.admin.system.flash_updated'), 'success')
-        return redirect(url_for('settings.admin_system'))
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_system')
     
     # Get current settings
     from app.utils.guest_accounts import get_guest_email_domain
@@ -2343,8 +2397,7 @@ def admin_legal():
         set_legal_content('privacy', request.form.get('privacy_text', ''))
         set_legal_content('imprint', request.form.get('imprint_text', ''))
         db.session.commit()
-        flash(translate('settings.admin.legal.flash_saved'), 'success')
-        return _settings_redirect('settings.admin_legal')
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_legal')
 
     return render_template(
         'settings/admin_legal.html',
@@ -2434,8 +2487,7 @@ def admin_registration():
             upsert_setting(SETTING_KEYS['honeypot_field'], honeypot_field)
 
         db.session.commit()
-        flash(translate('settings.admin.registration.flash_updated'), 'success')
-        return redirect(url_for('settings.admin_registration'))
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_registration')
 
     config = get_config()
     return render_template('settings/admin_registration.html', config=config)
@@ -2791,8 +2843,7 @@ def admin_modules():
         sync_legacy_visibility_keys(allow_private, allow_team, allow_public)
 
         db.session.commit()
-        flash(translate('settings.admin.admin_modules.flash_updated'), 'success')
-        return redirect(url_for('settings.admin_modules'))
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_modules')
     
     # Get module settings
     from app.utils.common import is_module_enabled, AVAILABLE_MODULES
@@ -2847,8 +2898,7 @@ def admin_integrations():
                 db.session.add(MusicSettings(key=key, value=value, description=desc))
 
         db.session.commit()
-        flash(translate('settings.integrations.flash_saved'), 'success')
-        return _settings_redirect('settings.admin_integrations')
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_integrations')
 
     google = get_google_credentials()
     microsoft = get_microsoft_credentials()
@@ -3098,8 +3148,7 @@ def admin_inventory_settings():
             db.session.add(ownership_setting)
         
         db.session.commit()
-        flash(translate('settings.admin.inventory.flash_saved'), 'success')
-        return _settings_redirect('settings.admin_inventory_settings')
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_inventory_settings')
     
     # Lade aktuelle Einstellungen
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
@@ -3111,8 +3160,79 @@ def admin_inventory_settings():
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])
 @login_required
 def admin_kanban_settings():
-    """Legacy route — visibility moved to module settings."""
-    return redirect(url_for('settings.admin_modules'))
+    """Kanban visibility + board import (admin)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.kanban_access import (
+        SETTING_ALLOW_PRIVATE,
+        SETTING_ALLOW_PUBLIC,
+        SETTING_ALLOW_TEAM,
+        allowed_import_board_targets,
+    )
+    from app.utils.common import is_module_enabled
+
+    if not is_module_enabled('module_kanban'):
+        flash(translate('settings.admin.kanban.module_disabled'), 'warning')
+        return redirect(url_for('settings.admin_modules'))
+
+    def _upsert(key, value, description):
+        row = SystemSettings.query.filter_by(key=key).first()
+        if not row:
+            row = SystemSettings(key=key, value=str(value).lower(), description=description)
+            db.session.add(row)
+        else:
+            row.value = str(value).lower()
+
+    if request.method == 'POST':
+        allow_private = 'allow_private' in request.form
+        allow_team = 'allow_team' in request.form
+        allow_public = 'allow_public' in request.form
+        _upsert(SETTING_ALLOW_PRIVATE, allow_private, 'Kanban: private boards')
+        _upsert(SETTING_ALLOW_TEAM, allow_team, 'Kanban: team boards')
+        _upsert(SETTING_ALLOW_PUBLIC, allow_public, 'Kanban: public boards')
+        db.session.commit()
+        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_kanban_settings')
+
+    def _get_bool(key, default=True):
+        row = SystemSettings.query.filter_by(key=key).first()
+        if row is None:
+            return default
+        return str(row.value).lower() in ('true', '1', 'yes', 'on')
+
+    return render_template(
+        'settings/admin_kanban_settings.html',
+        allow_private=_get_bool(SETTING_ALLOW_PRIVATE, True),
+        allow_team=_get_bool(SETTING_ALLOW_TEAM, True),
+        allow_public=_get_bool(SETTING_ALLOW_PUBLIC, True),
+        import_targets=allowed_import_board_targets(current_user),
+        kanban_import_url=url_for('kanban.api_import_board'),
+    )
+
+
+@settings_bp.route('/kanban-import')
+@login_required
+def kanban_import():
+    """User-facing Kanban board import (JSON/CSV/ZIP)."""
+    from app.utils.common import is_module_enabled
+    from app.utils.kanban_access import allowed_import_board_targets
+    from app.utils.access_control import has_module_access
+
+    if not is_module_enabled('module_kanban') or not has_module_access(current_user, 'module_kanban'):
+        flash(translate('settings.kanban_import.unavailable'), 'warning')
+        return redirect(url_for('settings.index'))
+
+    targets = allowed_import_board_targets(current_user)
+    if not targets:
+        flash(translate('settings.kanban_import.no_targets'), 'warning')
+        return redirect(url_for('settings.index'))
+
+    return render_template(
+        'settings/kanban_import.html',
+        import_targets=targets,
+        kanban_import_url=url_for('kanban.api_import_board'),
+    )
 
 
 VISIBILITY_SETTINGS_MODULES = {

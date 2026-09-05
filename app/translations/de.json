@@ -886,7 +886,7 @@
       "nav_label": "Einstellungen Navigation",
       "menu": "Menü",
       "start": "Start",
-      "admin_heading": "Admineinstellungen",
+      "admin_heading": "Administration",
       "push_subscriptions": "Web-Push-Abonnements",
       "push_subscriptions_desc": "Aktive Browser-Push-Registrierungen aller Nutzer einsehen und verwalten.",
       "email_module": "E-Mail-Einstellungen",
@@ -895,11 +895,13 @@
       "inventory_desc": "Einstellungen für öffentliche Produktseiten und QR-Codes",
       "sections": {
         "account": "Konto",
-        "modules": "Moduleinstellungen"
+        "modules": "Moduleinstellungen",
+        "tools": "Meine Tools"
       },
       "team_lead_heading": "Teamleitung",
       "kanban": "Kanban",
-      "kanban_desc": "Sichtbarkeit Private / Team / Public für Boards"
+      "kanban_desc": "Sichtbarkeit Private / Team / Public für Boards",
+      "push": "Push-Abos"
     },
     "search": {
       "label": "Einstellungen durchsuchen",
@@ -919,7 +921,9 @@
       "no_modules": "Keine aktiven Module mit Team-Bereich.",
       "flash_saved": "Teameinstellungen wurden gespeichert.",
       "flash_no_teams": "Sie leiten derzeit kein Team.",
-      "flash_email_disabled": "E-Mail-Team-Bereich ist für dieses Team deaktiviert."
+      "flash_email_disabled": "E-Mail-Team-Bereich ist für dieses Team deaktiviert.",
+      "teams_tile_short": "Mitglieder",
+      "tile_short": "Team-Module"
     },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
@@ -974,7 +978,13 @@
         "left_label": "Linkes Icon",
         "right_label": "Rechtes Icon",
         "help": "Benachrichtigungen, Dashboard und Module sind fest und können nicht geändert werden."
-      }
+      },
+      "lead_short": "Sprache, Theme und Akzent.",
+      "preview_panel_title": "Live-Vorschau",
+      "preview_panel_lead": "So wirkt dein Akzent in der Oberfläche.",
+      "preview_nav": "Navigation",
+      "preview_button": "Aktion",
+      "preview_card": "Beispielkarte"
     },
     "index": {
       "page_title": "Einstellungen - Team Portal",
@@ -985,32 +995,38 @@
         "profile": {
           "title": "Profil",
           "description": "Persönliche Daten und Profilbild",
-          "button": "Bearbeiten"
+          "button": "Bearbeiten",
+          "short": "Name & Avatar"
         },
         "appearance": {
           "title": "Darstellung",
           "description": "Akzentfarbe, Sprache und Dark Mode anpassen",
-          "button": "Bearbeiten"
+          "button": "Bearbeiten",
+          "short": "Theme & Farbe"
         },
         "notifications": {
           "title": "Benachrichtigungen",
           "description": "Push-Benachrichtigungen für Chat, Dateien, E-Mails und Termine",
-          "button": "Bearbeiten"
+          "button": "Bearbeiten",
+          "short": "Push & Kanäle"
         },
         "security": {
           "title": "Sicherheit",
           "description": "Passwort ändern, 2FA aktivieren und angemeldete Geräte verwalten",
-          "button": "Öffnen"
+          "button": "Öffnen",
+          "short": "Passwort & 2FA"
         },
         "about": {
           "title": "Über",
           "description": "Informationen über PrismaTeams, Version und Ersteller",
-          "button": "Öffnen"
+          "button": "Öffnen",
+          "short": "Version"
         },
         "my_mailboxes": {
           "title": "Meine Postfächer",
           "description": "Private Postfächer verwalten und verbinden",
-          "button": "Öffnen"
+          "button": "Öffnen",
+          "short": "Private Postfächer"
         },
         "admin": {
           "title": "Administration",
@@ -1019,9 +1035,11 @@
         },
         "cloud_import": {
           "title": "Cloud-Import",
-          "description": "Nextcloud und Google Drive nach PrismaTeams übertragen."
+          "description": "Nextcloud und Google Drive nach PrismaTeams übertragen.",
+          "short": "Nextcloud & Drive"
         }
-      }
+      },
+      "lead_short": "Alles an einem Ort."
     },
     "profile": {
       "title": "Profil",
@@ -1197,7 +1215,8 @@
         "link": "Mit Google verknüpfen",
         "unlink": "Verknüpfung entfernen",
         "unlink_confirm": "Google-Verknüpfung wirklich entfernen? Das Gmail-Postfach bleibt erhalten."
-      }
+      },
+      "lead_short": "Passwort, 2FA und Geräte."
     },
     "notifications": {
       "page_title": "Benachrichtigungen - Einstellungen",
@@ -1298,7 +1317,15 @@
         "reminder_6h": "6 Stunden vorher",
         "reminder_8h": "8 Stunden vorher",
         "reminder_1d": "1 Tag vorher",
-        "reminder_2d": "2 Tage vorher"
+        "reminder_2d": "2 Tage vorher",
+        "filter_status_label": "Teilnahmestatus",
+        "reminder_30min_short": "30 Min",
+        "reminder_1h_short": "1 Std",
+        "reminder_2h_short": "2 Std",
+        "reminder_6h_short": "6 Std",
+        "reminder_8h_short": "8 Std",
+        "reminder_1d_short": "1 Tag",
+        "reminder_2d_short": "2 Tage"
       },
       "kanban": {
         "title": "Kanban-Benachrichtigungen",
@@ -1328,7 +1355,8 @@
         "toast_mic_denied_message": "Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.",
         "toast_app_installed_title": "App installiert",
         "toast_app_installed_message": "Die App wurde erfolgreich installiert!"
-      }
+      },
+      "lead_short": "Push, Module und Erinnerungen."
     },
     "about": {
       "page_title": "Über PrismaTeams - Einstellungen",
@@ -1367,7 +1395,11 @@
       "back_button": "Zurück zu Einstellungen",
       "file_converter_label": "Dateikonverter / LibreOffice",
       "libreoffice_available": "LibreOffice verfügbar",
-      "libreoffice_missing": "LibreOffice nicht gefunden"
+      "libreoffice_missing": "LibreOffice nicht gefunden",
+      "lead_short": "Produkt, System und Open Source.",
+      "section_repository_help_button": "Hilfe",
+      "excalidraw_label_short": "Excalidraw",
+      "file_converter_label_short": "Dateikonverter"
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
@@ -2002,7 +2034,8 @@
         "configure_button": "Konfigurieren",
         "user_management": {
           "title": "Benutzerverwaltung",
-          "description": "Benutzer, Gäste und Bestätigungscodes verwalten"
+          "description": "Benutzer, Gäste und Bestätigungscodes verwalten",
+          "short": "Rollen & Gäste"
         },
         "confirmation_codes": {
           "title": "Bestätigungscodes",
@@ -2010,7 +2043,8 @@
         },
         "whitelist": {
           "title": "Whitelist-Verwaltung",
-          "description": "E-Mail-Adressen und Domains für automatische Aktivierung"
+          "description": "E-Mail-Adressen und Domains für automatische Aktivierung",
+          "short": "E-Mail-Freigabe"
         },
         "email_permissions": {
           "title": "E-Mail-Berechtigungen",
@@ -2026,19 +2060,23 @@
         },
         "system_settings": {
           "title": "System-Einstellungen",
-          "description": "Globale System-Einstellungen verwalten"
+          "description": "Globale System-Einstellungen verwalten",
+          "short": "Portal & Branding"
         },
         "legal": {
           "title": "Rechtliche Hinweise",
-          "description": "Rechtliche Texte für den Anmeldebildschirm bearbeiten"
+          "description": "Rechtliche Texte für den Anmeldebildschirm bearbeiten",
+          "short": "Rechtstexte"
         },
         "modules": {
           "title": "Module",
-          "description": "Module aktivieren oder deaktivieren"
+          "description": "Module aktivieren oder deaktivieren",
+          "short": "An / Aus"
         },
         "backup": {
           "title": "Import/Export",
-          "description": "Backups erstellen und wiederherstellen"
+          "description": "Backups erstellen und wiederherstellen",
+          "short": "Import / Export"
         },
         "inventory_categories": {
           "title": "Lager-Kategorien",
@@ -2050,19 +2088,32 @@
         },
         "file_settings": {
           "title": "Datei-Einstellungen",
-          "description": "Briefkästen, Freigaben, private Ordner, Dokumentformate und Speicherlimits"
+          "description": "Briefkästen, Freigaben, private Ordner, Dokumentformate und Speicherlimits",
+          "short": "Speicher & Sharing"
         },
         "calendar_settings": {
           "title": "Kalender-Einstellungen",
-          "description": "Private, Team- und Public-Kalender, Import und Export"
+          "description": "Private, Team- und Public-Kalender, Import und Export",
+          "short": "iCal"
         },
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
-          "description": "Bot-Schutz für Login, Registrierung, Briefkästen und Freigaben"
+          "description": "Bot-Schutz für Login, Registrierung, Briefkästen und Freigaben",
+          "short": "Captcha"
         },
         "teams": {
           "title": "Teams",
-          "description": "Teams anlegen; Teamleitung verwaltet Mitglieder selbst"
+          "description": "Teams anlegen; Teamleitung verwaltet Mitglieder selbst",
+          "short": "Teams verwalten"
+        },
+        "push": {
+          "short": "Geräte-Abos"
+        },
+        "email": {
+          "short": "SMTP & Postfächer"
+        },
+        "inventory": {
+          "short": "Ownership-Text"
         }
       },
       "registration": {
@@ -2247,7 +2298,11 @@
         "allow_team": "Team-Boards",
         "allow_public": "Öffentliche Boards (gesamtes Portal)",
         "save": "Speichern",
-        "flash_saved": "Kanban-Einstellungen gespeichert."
+        "flash_saved": "Kanban-Einstellungen gespeichert.",
+        "lead_short": "Sichtbarkeit und Import.",
+        "short": "Sichtbarkeit & Import",
+        "module_disabled": "Kanban-Modul ist deaktiviert",
+        "import_hint": "Mehrere Boards per ZIP möglich."
       },
       "visibility": {
         "page_title": "{module} – Sichtbarkeit",
@@ -2399,7 +2454,8 @@
       "google_help_oauth_step4": "„Anmeldedaten erstellen“ → „OAuth-Client-ID“ → Anwendungstyp „Webanwendung“. Als autorisierte Redirect-URI die unten angezeigte Callback-URL eintragen (eine URL für alles).",
       "google_help_oauth_step5": "Client-ID und Client-Secret hier einfügen und speichern – danach sind Google-Login, Postfach-OAuth und YouTube nutzbar.",
       "google_help_api_heading": "API-Schlüssel (für YouTube)",
-      "redirect_hint_login": "Redirect-URI: {url}"
+      "redirect_hint_login": "Redirect-URI: {url}",
+      "short": "OAuth & APIs"
     },
     "cloud_import": {
       "page_title": "Cloud-Import",
@@ -2446,7 +2502,41 @@
         "browse_failed": "Ordner konnte nicht geladen werden.",
         "no_selection": "Bitte mindestens eine Datei oder einen Ordner auswählen.",
         "space_forbidden": "Keine Berechtigung für diesen Zielbereich."
-      }
+      },
+      "lead_short": "Nextcloud oder Google Drive einmalig übertragen."
+    },
+    "autosave": {
+      "saving": "Speichern…",
+      "saved": "Gespeichert",
+      "error": "Speichern fehlgeschlagen"
+    },
+    "kanban_import": {
+      "nav": "Board-Import",
+      "page_title": "Board-Import",
+      "heading": "Boards importieren",
+      "lead": "JSON, CSV oder ZIP mit mehreren Dateien.",
+      "short": "JSON / CSV / ZIP",
+      "upload_title": "Upload",
+      "drop_title": "Datei hier ablegen",
+      "drop_meta": ".json, .csv oder .zip",
+      "submit": "Importieren",
+      "open": "Öffnen",
+      "need_file": "Bitte Datei wählen",
+      "done_one": "Board importiert",
+      "done_many": "{count} Boards importiert",
+      "failed": "Import fehlgeschlagen",
+      "unavailable": "Kanban nicht verfügbar",
+      "no_targets": "Kein Import-Ziel erlaubt",
+      "visibility_info": "Sichtbarkeit für neue Boards",
+      "tip_body": "ZIP mit mehreren JSON/CSV-Dateien erzeugt mehrere Boards auf einmal.",
+      "formats_title": "Formate",
+      "formats_body": "JSON und CSV für einzelne Boards, ZIP für mehrere Dateien."
+    },
+    "hub": {
+      "quick_title": "Schnellzugriff",
+      "quick_lead": "Häufig genutzte Bereiche",
+      "tip_title": "Tipp",
+      "tip_body": "Nutze die Suche oben, um Einstellungen direkt zu finden."
     }
   },
   "chat": {
@@ -5598,11 +5688,13 @@
       "cards": {
         "booking_forms": {
           "title": "Buchungsformulare",
-          "description": "Buchungsformulare erstellen, bearbeiten und verwalten"
+          "description": "Buchungsformulare erstellen, bearbeiten und verwalten",
+          "short": "Formulare"
         },
         "music_module": {
           "title": "Musikmodul",
-          "description": "Spotify und YouTube Music verbinden und konfigurieren"
+          "description": "Spotify und YouTube Music verbinden und konfigurieren",
+          "short": "Provider"
         }
       }
     }
@@ -6193,7 +6285,9 @@
       "error_team": "Bitte ein Team auswählen.",
       "error_team_leader": "Team-Boards dürfen nur Teamleiter importieren.",
       "error_visibility": "Diese Sichtbarkeit ist nicht erlaubt.",
-      "error_failed": "Import fehlgeschlagen."
+      "error_failed": "Import fehlgeschlagen.",
+      "error_invalid_zip": "Ungültige ZIP-Datei",
+      "error_empty_zip": "ZIP enthält keine JSON/CSV-Dateien"
     }
   },
   "visibility": {

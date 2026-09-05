@@ -6,14 +6,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="kanban-board-page" id="kanbanBoardApp"
+<div class="kanban-board-page{% if background_image_url %} has-bg-image{% endif %}" id="kanbanBoardApp"
      data-board-id="{{ board.id }}"
      data-can-edit="{{ '1' if can_edit else '0' }}"
      data-can-manage="{{ '1' if can_manage else '0' }}"
      data-share-token="{{ share_token or '' }}"
      data-is-share="{{ '1' if is_share else '0' }}"
      data-sse-url="{% if not is_share %}{{ url_for('sse.kanban_events', board_id=board.id) }}{% endif %}"
-     style="--kanban-bg: {{ background_css }};">
+     data-bg-image-url="{{ background_image_url or '' }}"
+     style="--kanban-bg: {{ background_css }};{% if background_image_url %} --kanban-bg-image: url('{{ background_image_url }}');{% endif %}">
 
   <header class="kanban-board-topbar">
     <div class="kanban-board-topbar__left">
@@ -53,6 +54,9 @@
         </ul>
       </div>
       {% if can_manage %}
+      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanBgBtn" title="{{ _('kanban.board.background') }}">
+        <i class="bi bi-palette" aria-hidden="true"></i>
+      </button>
       <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
       </button>
@@ -508,6 +512,41 @@
 </div>
 
 <span id="current-user-id" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}" hidden></span>
+
+{% if can_manage %}
+<div class="modal fade" id="kanbanBoardBgModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.board.background') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-grid gap-3">
+        <div>
+          <div class="form-label">{{ _('kanban.index.background') }}</div>
+          <div class="kanban-bg-picker" id="kanbanBoardBgPicker">
+            {% for bg in backgrounds %}
+            <button type="button" class="kanban-bg-swatch{% if (board.background or 'teal') == bg.key %} is-active{% endif %}"
+                    data-bg="{{ bg.key }}" data-css="{{ bg.css }}" style="background:{{ bg.css }};" aria-label="{{ bg.key }}"></button>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="kanbanBoardBgImageInput">{{ _('kanban.board.background_image') }}</label>
+          <input type="file" class="form-control" id="kanbanBoardBgImageInput" accept="image/*">
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-accent rounded-pill" id="kanbanBoardBgImageUpload">{{ _('kanban.board.background_upload') }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" id="kanbanBoardBgImageClear">{{ _('kanban.board.background_clear') }}</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-accent rounded-pill" id="kanbanBoardBgSave">{{ _('common.save') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -558,8 +597,12 @@
     typeSelect: {{ _('kanban.custom_fields.type_select') | tojson }},
     typeDate: {{ _('kanban.custom_fields.type_date') | tojson }},
     typeTime: {{ _('kanban.custom_fields.type_time') | tojson }},
-    typeCheckbox: {{ _('kanban.custom_fields.type_checkbox') | tojson }}
+    typeCheckbox: {{ _('kanban.custom_fields.type_checkbox') | tojson }},
+    background: {{ _('kanban.board.background') | tojson }},
+    backgroundUpload: {{ _('kanban.board.background_upload') | tojson }},
+    backgroundClear: {{ _('kanban.board.background_clear') | tojson }}
   };
+  window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>

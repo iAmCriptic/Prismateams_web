@@ -1,475 +1,262 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.appearance.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.index.cards.appearance.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-appearance">
-    <div class="settings-appearance-header">
-        <h1 class="settings-appearance-title">{{ _('settings.appearance.heading') }}</h1>
-        <p class="settings-appearance-subtitle">{{ _('settings.appearance.subtitle') }}</p>
-    </div>
+<div class="sp-layout">
+  <div class="sp-page sp-page--fluid">
+    <header class="sp-page-header">
+      <h1 class="sp-page-title"><i class="bi bi-palette" aria-hidden="true"></i><span>{{ _('settings.appearance.heading') }}</span></h1>
+      <p class="sp-page-lead">{{ _('settings.appearance.lead_short') }}</p>
+    </header>
 
-    <form method="POST" class="settings-appearance-form">
-        <div class="settings-appearance-grid">
-            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-language">
-                <div class="settings-appearance-card-head">
-                    <h2 id="appearance-section-language" class="settings-appearance-section-title mb-0">
-                        <i class="bi bi-translate" aria-hidden="true"></i>
-                        {{ _('settings.appearance.section_language') }}
-                    </h2>
-                    <button type="button" class="settings-appearance-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.appearance.language_help') }}" aria-label="{{ _('settings.appearance.language_help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="settings-appearance-field mb-0">
-                    <label for="language" class="form-label">{{ _('settings.appearance.language_label') }}</label>
-                    <div class="settings-appearance-language-row">
-                        <select class="form-select settings-appearance-input" id="language" name="language">
-                            {% for option in language_options %}
-                            <option
-                                value="{{ option.code }}"
-                                {% if option.code == user.language %}selected{% endif %}
-                                {% if option.badge %} data-badge="{{ option.badge }}"{% endif %}
-                                {% if option.badge_grade %} data-grade="{{ option.badge_grade }}"{% endif %}
-                                {% if option.completeness is not none %} data-completeness="{{ option.completeness }}"{% endif %}
-                            >{{ option.label }}{% if option.badge %} ({{ option.badge }}){% endif %}</option>
-                            {% endfor %}
-                        </select>
-                        {% set selected_lang = language_options|selectattr('code', 'equalto', user.language)|list|first %}
-                        {% if selected_lang and selected_lang.badge %}
-                        <span class="badge rounded-pill settings-appearance-lang-badge settings-appearance-lang-badge--{{ selected_lang.badge_grade }}" id="language-completeness-badge" aria-hidden="true">{{ selected_lang.badge }}</span>
-                        {% else %}
-                        <span class="badge rounded-pill settings-appearance-lang-badge d-none" id="language-completeness-badge" aria-hidden="true"></span>
-                        {% endif %}
-                    </div>
-                </div>
-            </section>
-
-            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-theme">
-                <div class="settings-appearance-card-head">
-                    <h2 id="appearance-section-theme" class="settings-appearance-section-title mb-0">
-                        <i class="bi bi-moon-stars" aria-hidden="true"></i>
-                        {{ _('settings.appearance.section_theme') }}
-                    </h2>
-                </div>
-                <div class="settings-appearance-switch-list">
-                    <div class="settings-appearance-switch-row">
-                        <div class="form-check form-switch settings-appearance-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode" {% if user.dark_mode %}checked{% endif %}>
-                            <label class="form-check-label" for="dark_mode">
-                                <span class="settings-appearance-switch-name">
-                                    <i class="bi bi-moon-stars" aria-hidden="true"></i>
-                                    {{ _('settings.appearance.dark_mode') }}
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="settings-appearance-switch-row">
-                        <div class="form-check form-switch settings-appearance-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="oled_mode" name="oled_mode" {% if user.oled_mode %}checked{% endif %} {% if not user.dark_mode %}disabled{% endif %}>
-                            <label class="form-check-label" for="oled_mode">
-                                <span class="settings-appearance-switch-name">
-                                    <i class="bi bi-display" aria-hidden="true"></i>
-                                    {{ _('settings.appearance.oled_mode') }}
-                                </span>
-                            </label>
-                        </div>
-                        <button type="button" class="settings-appearance-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.appearance.oled_help') }}" aria-label="{{ _('settings.appearance.oled_help') }}">
-                            <i class="bi bi-info-circle" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <section class="settings-appearance-card settings-appearance-card--color settings-appearance-card--animate" aria-labelledby="appearance-section-color">
-            <div class="settings-appearance-card-head">
-                <h2 id="appearance-section-color" class="settings-appearance-section-title mb-0">
-                    <i class="bi bi-palette" aria-hidden="true"></i>
-                    {{ _('settings.appearance.section_color') }}
-                </h2>
+    <form method="POST" class="sp-autosave-form" data-sp-autosave data-sp-save-url="{{ url_for('settings.appearance') }}">
+      <section class="sp-group" id="appearance-language" data-settings-search-id="appearance-language">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-translate" aria-hidden="true"></i>{{ _('settings.appearance.section_language') }}</h2>
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.language_label') }}</span>
+              {{ sp_info(_('settings.appearance.language_help')) }}
             </div>
+            <div class="sp-row-control">
+              <select class="form-select" id="language" name="language" style="min-width:12rem">
+                {% for option in language_options %}
+                <option value="{{ option.code }}" {% if option.code == user.language %}selected{% endif %}
+                  {% if option.badge %} data-badge="{{ option.badge }}"{% endif %}
+                  {% if option.badge_grade %} data-grade="{{ option.badge_grade }}"{% endif %}>
+                  {{ option.label }}{% if option.badge %} ({{ option.badge }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <div class="settings-appearance-type-toggle" role="group" aria-label="{{ _('settings.appearance.color_type_label') }}">
+      <section class="sp-group" id="appearance-theme" data-settings-search-id="appearance-theme">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-moon-stars" aria-hidden="true"></i>{{ _('settings.appearance.section_theme') }}</h2>
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.dark_mode') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode" {% if user.dark_mode %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.oled_mode') }}</span>
+              {{ sp_info(_('settings.appearance.oled_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="oled_mode" name="oled_mode" {% if user.oled_mode %}checked{% endif %} {% if not user.dark_mode %}disabled{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sp-group" id="appearance-accent" data-settings-search-id="appearance-accent">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-palette2" aria-hidden="true"></i>{{ _('settings.appearance.section_color') }}</h2>
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.color_type_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="sp-seg" role="group">
                 <input type="radio" class="btn-check" name="color_type" id="color_solid" value="solid" {% if not user.accent_gradient %}checked{% endif %}>
-                <label class="settings-appearance-type-btn" for="color_solid">
-                    <i class="bi bi-palette" aria-hidden="true"></i> {{ _('settings.appearance.color_type_solid') }}
-                </label>
+                <label for="color_solid">{{ _('settings.appearance.color_type_solid') }}</label>
                 <input type="radio" class="btn-check" name="color_type" id="color_gradient" value="gradient" {% if user.accent_gradient %}checked{% endif %}>
-                <label class="settings-appearance-type-btn" for="color_gradient">
-                    <i class="bi bi-palette2" aria-hidden="true"></i> {{ _('settings.appearance.color_type_gradient') }}
-                </label>
+                <label for="color_gradient">{{ _('settings.appearance.color_type_gradient') }}</label>
+              </div>
             </div>
-
-            <div id="solid-color-section" class="settings-appearance-color-block">
-                <label for="accent_color" class="form-label">{{ _('settings.appearance.accent_color_label') }}</label>
-                <div class="settings-appearance-color-row">
-                    <input type="color" class="form-control form-control-color settings-appearance-color-picker" id="accent_color" name="accent_color" value="{{ user.accent_color }}" title="{{ _('settings.appearance.accent_color_label') }}">
-                    <span id="color-preview" class="settings-appearance-preview" style="background-color: {{ user.accent_color }};">{{ _('settings.appearance.preview') }}</span>
-                </div>
+          </div>
+          <div class="sp-row" id="solid-color-section">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.accent_color_label') }}</span>
             </div>
-
-            <div id="gradient-section" class="settings-appearance-color-block" hidden>
-                <div class="settings-appearance-fields">
-                    <div class="settings-appearance-field">
-                        <label for="gradient_start" class="form-label">{{ _('settings.appearance.gradient_start') }}</label>
-                        <input type="color" class="form-control form-control-color settings-appearance-color-picker" id="gradient_start" name="gradient_start" value="#667eea">
-                    </div>
-                    <div class="settings-appearance-field">
-                        <label for="gradient_end" class="form-label">{{ _('settings.appearance.gradient_end') }}</label>
-                        <input type="color" class="form-control form-control-color settings-appearance-color-picker" id="gradient_end" name="gradient_end" value="#764ba2">
-                    </div>
-                    <div class="settings-appearance-field settings-appearance-field--full">
-                        <label for="gradient_direction" class="form-label">{{ _('settings.appearance.gradient_direction') }}</label>
-                        <select class="form-select settings-appearance-input" id="gradient_direction" name="gradient_direction">
-                            <option value="135deg">{{ _('settings.appearance.gradient_direction_diag_rt') }}</option>
-                            <option value="90deg">{{ _('settings.appearance.gradient_direction_horizontal') }}</option>
-                            <option value="180deg">{{ _('settings.appearance.gradient_direction_vertical') }}</option>
-                            <option value="45deg">{{ _('settings.appearance.gradient_direction_diag_lt') }}</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="settings-appearance-color-row mt-3">
-                    <span id="gradient-preview" class="settings-appearance-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">{{ _('settings.appearance.preview') }}</span>
-                </div>
-
-                <div class="settings-appearance-presets mt-3">
-                    <label class="form-label">{{ _('settings.appearance.presets_label') }}</label>
-                    <div class="settings-appearance-preset-grid">
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#667eea" data-end="#764ba2" title="{{ _('settings.appearance.presets.purple_blue') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.purple_blue') }}</span>
-                        </button>
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#f093fb" data-end="#f5576c" title="{{ _('settings.appearance.presets.pink_red') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.pink_red') }}</span>
-                        </button>
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#4facfe" data-end="#00f2fe" title="{{ _('settings.appearance.presets.blue_cyan') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.blue_cyan') }}</span>
-                        </button>
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#43e97b" data-end="#38f9d7" title="{{ _('settings.appearance.presets.green_teal') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.green_teal') }}</span>
-                        </button>
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#fa709a" data-end="#fee140" title="{{ _('settings.appearance.presets.pink_yellow') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.pink_yellow') }}</span>
-                        </button>
-                        <button type="button" class="settings-appearance-preset preset-gradient" data-start="#a8edea" data-end="#fed6e3" title="{{ _('settings.appearance.presets.pastel') }}">
-                            <span class="settings-appearance-preset-swatch" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);"></span>
-                            <span class="settings-appearance-preset-label">{{ _('settings.appearance.presets.pastel') }}</span>
-                        </button>
-                    </div>
-                </div>
+            <div class="sp-row-control">
+              <input type="color" class="form-control form-control-color" id="accent_color" name="accent_color" value="{{ user.accent_color }}">
+              <span id="color-preview" class="sp-color-preview" style="background-color: {{ user.accent_color }};">{{ _('settings.appearance.preview') }}</span>
             </div>
-
-            <input type="hidden" id="accent_gradient" name="accent_gradient" value="{{ user.accent_gradient or '' }}">
-            </section>
-
-            <section class="settings-appearance-card settings-appearance-card--animate" aria-labelledby="appearance-section-layout">
-            <div class="settings-appearance-card-head">
-                <h2 id="appearance-section-layout" class="settings-appearance-section-title mb-0">
-                    <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
-                    {{ _('settings.appearance.section_layout') }}
-                </h2>
-                <button type="button" class="settings-appearance-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.appearance.layout_preference_help') }}" aria-label="{{ _('settings.appearance.layout_preference_help') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
+          </div>
+          <div id="gradient-section" hidden>
+            <div class="sp-row">
+              <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.appearance.gradient_start') }}</span></div>
+              <div class="sp-row-control">
+                <input type="color" class="form-control form-control-color" id="gradient_start" name="gradient_start" value="#667eea">
+              </div>
             </div>
-
-            <div class="settings-appearance-field">
-                <label for="preferred_layout" class="form-label">{{ _('settings.appearance.layout_preference_label') }}</label>
-                <select class="form-select settings-appearance-input" id="preferred_layout" name="preferred_layout">
-                    <option value="auto" {% if (user.preferred_layout or 'auto') == 'auto' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_auto') }}</option>
-                    <option value="mobile" {% if user.preferred_layout == 'mobile' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_mobile') }}</option>
-                    <option value="desktop" {% if user.preferred_layout == 'desktop' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_desktop') }}</option>
+            <div class="sp-row">
+              <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.appearance.gradient_end') }}</span></div>
+              <div class="sp-row-control">
+                <input type="color" class="form-control form-control-color" id="gradient_end" name="gradient_end" value="#764ba2">
+              </div>
+            </div>
+            <div class="sp-row">
+              <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.appearance.gradient_direction') }}</span></div>
+              <div class="sp-row-control">
+                <select class="form-select" id="gradient_direction" name="gradient_direction" style="min-width:12rem">
+                  <option value="135deg">{{ _('settings.appearance.gradient_direction_diag_rt') }}</option>
+                  <option value="90deg">{{ _('settings.appearance.gradient_direction_horizontal') }}</option>
+                  <option value="180deg">{{ _('settings.appearance.gradient_direction_vertical') }}</option>
+                  <option value="45deg">{{ _('settings.appearance.gradient_direction_diag_lt') }}</option>
                 </select>
+              </div>
             </div>
-
-            </section>
+            <div class="sp-row">
+              <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.appearance.preview') }}</span></div>
+              <div class="sp-row-control">
+                <span id="gradient-preview" class="sp-color-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-width:8rem;">{{ _('settings.appearance.preview') }}</span>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="accent_gradient" name="accent_gradient" value="{{ user.accent_gradient or '' }}">
         </div>
+      </section>
 
-        <div class="settings-appearance-actions">
-            <button type="submit" class="btn btn-accent rounded-pill settings-appearance-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('settings.appearance.save_button') }}
-            </button>
+      <section class="sp-group" id="appearance-layout" data-settings-search-id="appearance-layout">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-layout-sidebar" aria-hidden="true"></i>{{ _('settings.appearance.section_layout') }}</h2>
         </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.appearance.layout_preference_label') }}</span>
+              {{ sp_info(_('settings.appearance.layout_preference_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <select class="form-select" id="preferred_layout" name="preferred_layout" style="min-width:12rem">
+                <option value="auto" {% if (user.preferred_layout or 'auto') == 'auto' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_auto') }}</option>
+                <option value="mobile" {% if user.preferred_layout == 'mobile' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_mobile') }}</option>
+                <option value="desktop" {% if user.preferred_layout == 'desktop' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_desktop') }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
     </form>
+  </div>
+
+  <aside class="sp-sidepanel" aria-label="{{ _('settings.appearance.preview_panel_title') }}">
+    <div class="sp-sidepanel-card">
+      <h2 class="sp-sidepanel-title">{{ _('settings.appearance.preview_panel_title') }}</h2>
+      <p class="sp-sidepanel-lead">{{ _('settings.appearance.preview_panel_lead') }}</p>
+      <div class="sp-live-preview" id="spLivePreview">
+        <div class="sp-live-preview-nav">
+          <span class="sp-live-preview-dot"></span>
+          <span>{{ _('settings.appearance.preview_nav') }}</span>
+        </div>
+        <div class="sp-live-preview-body">
+          <div class="sp-live-preview-card">{{ _('settings.appearance.preview_card') }}</div>
+          <button type="button" class="btn btn-accent rounded-pill sp-btn-pill sp-live-preview-btn">{{ _('settings.appearance.preview_button') }}</button>
+        </div>
+      </div>
+    </div>
+  </aside>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.settings-appearance [data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
+  var solidSection = document.getElementById('solid-color-section');
+  var gradientSection = document.getElementById('gradient-section');
+  var accentGradient = document.getElementById('accent_gradient');
+  var form = document.querySelector('form[data-sp-autosave]');
+  var live = document.getElementById('spLivePreview');
 
-    var languageSelect = document.getElementById('language');
-    var languageBadge = document.getElementById('language-completeness-badge');
-    var languageGradeClasses = [
-        'settings-appearance-lang-badge--low',
-        'settings-appearance-lang-badge--mid',
-        'settings-appearance-lang-badge--high',
-        'settings-appearance-lang-badge--full'
-    ];
-    if (languageSelect && languageBadge) {
-        var syncLanguageBadge = function () {
-            var selected = languageSelect.options[languageSelect.selectedIndex];
-            var badge = selected ? selected.getAttribute('data-badge') : null;
-            var grade = selected ? selected.getAttribute('data-grade') : null;
-            languageBadge.classList.remove.apply(languageBadge.classList, languageGradeClasses);
-            if (badge) {
-                languageBadge.textContent = badge;
-                languageBadge.classList.remove('d-none');
-                if (grade) {
-                    languageBadge.classList.add('settings-appearance-lang-badge--' + grade);
-                }
-            } else {
-                languageBadge.textContent = '';
-                languageBadge.classList.add('d-none');
-            }
-        };
-        languageSelect.addEventListener('change', syncLanguageBadge);
-        syncLanguageBadge();
+  function syncLivePreview() {
+    if (!live) return;
+    var solid = document.getElementById('color_solid');
+    var accent = document.getElementById('accent_color');
+    if (solid && solid.checked && accent) {
+      live.style.setProperty('--sp-preview-accent', accent.value);
+    } else {
+      var g = accentGradient && accentGradient.value;
+      live.style.setProperty('--sp-preview-accent', g || (accent && accent.value) || 'var(--accent-color)');
     }
+  }
 
-    var solidSection = document.getElementById('solid-color-section');
-    var gradientSection = document.getElementById('gradient-section');
-    var accentGradient = document.getElementById('accent_gradient');
+  function showSolid() {
+    if (gradientSection) gradientSection.setAttribute('hidden', '');
+    if (solidSection) solidSection.removeAttribute('hidden');
+    if (accentGradient) accentGradient.value = '';
+    syncLivePreview();
+  }
+  function updateGradientPreview() {
+    var start = document.getElementById('gradient_start').value;
+    var end = document.getElementById('gradient_end').value;
+    var direction = document.getElementById('gradient_direction').value;
+    var gradient = 'linear-gradient(' + direction + ', ' + start + ' 0%, ' + end + ' 100%)';
+    document.getElementById('gradient-preview').style.background = gradient;
+    accentGradient.value = gradient;
+    syncLivePreview();
+  }
+  function showGradient() {
+    if (solidSection) solidSection.setAttribute('hidden', '');
+    if (gradientSection) gradientSection.removeAttribute('hidden');
+    updateGradientPreview();
+  }
 
-    function pulsePreview(el) {
-        if (!el) return;
-        el.classList.remove('is-pulsing');
-        void el.offsetWidth;
-        el.classList.add('is-pulsing');
+  document.getElementById('color_solid').addEventListener('change', function () { if (this.checked) showSolid(); });
+  document.getElementById('color_gradient').addEventListener('change', function () { if (this.checked) showGradient(); });
+  document.getElementById('accent_color').addEventListener('input', function (e) {
+    document.getElementById('color-preview').style.backgroundColor = e.target.value;
+    syncLivePreview();
+  });
+  ['gradient_start', 'gradient_end'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', updateGradientPreview);
+  });
+  document.getElementById('gradient_direction').addEventListener('change', updateGradientPreview);
+
+  document.getElementById('dark_mode').addEventListener('change', function () {
+    var oled = document.getElementById('oled_mode');
+    if (!this.checked) { oled.checked = false; oled.disabled = true; }
+    else { oled.disabled = false; }
+  });
+
+  {% if user.accent_gradient %}
+  document.getElementById('color_gradient').checked = true;
+  showGradient();
+  (function () {
+    var saved = {{ (user.accent_gradient or '')|tojson }};
+    var match = saved && saved.match(/linear-gradient\(\s*([^,]+)\s*,\s*(#[0-9a-fA-F]{3,8})\s+0%\s*,\s*(#[0-9a-fA-F]{3,8})\s+100%\s*\)/);
+    if (match) {
+      document.getElementById('gradient_direction').value = match[1].trim();
+      document.getElementById('gradient_start').value = match[2];
+      document.getElementById('gradient_end').value = match[3];
     }
+    document.getElementById('gradient-preview').style.background = saved;
+    accentGradient.value = saved;
+    syncLivePreview();
+  })();
+  {% else %}
+  syncLivePreview();
+  {% endif %}
 
-    function showSolid() {
-        if (gradientSection) {
-            gradientSection.classList.remove('is-visible');
-            gradientSection.setAttribute('hidden', '');
-        }
-        if (solidSection) {
-            solidSection.removeAttribute('hidden');
-            requestAnimationFrame(function () {
-                solidSection.classList.add('is-visible');
-            });
-        }
-        if (accentGradient) accentGradient.value = '';
-    }
-
-    function showGradient() {
-        if (solidSection) {
-            solidSection.classList.remove('is-visible');
-            solidSection.setAttribute('hidden', '');
-        }
-        if (gradientSection) {
-            gradientSection.removeAttribute('hidden');
-            requestAnimationFrame(function () {
-                gradientSection.classList.add('is-visible');
-            });
-        }
-        updateGradientPreview();
-    }
-
-    if (solidSection && !solidSection.hasAttribute('hidden')) {
-        solidSection.classList.add('is-visible');
-    }
-
-    document.getElementById('color_solid').addEventListener('change', function () {
-        if (this.checked) showSolid();
+  if (form) {
+    form.addEventListener('sp:saved', function (ev) {
+      if (window.SettingsUI && SettingsUI.applyLiveAppearance) {
+        SettingsUI.applyLiveAppearance(ev.detail || {});
+      }
+      syncLivePreview();
     });
-    document.getElementById('color_gradient').addEventListener('change', function () {
-        if (this.checked) showGradient();
-    });
-
-    document.getElementById('accent_color').addEventListener('input', function (e) {
-        var preview = document.getElementById('color-preview');
-        preview.style.backgroundColor = e.target.value;
-        pulsePreview(preview);
-    });
-
-    function updateGradientPreview() {
-        var start = document.getElementById('gradient_start').value;
-        var end = document.getElementById('gradient_end').value;
-        var direction = document.getElementById('gradient_direction').value;
-        var gradient = 'linear-gradient(' + direction + ', ' + start + ' 0%, ' + end + ' 100%)';
-        var preview = document.getElementById('gradient-preview');
-        preview.style.background = gradient;
-        accentGradient.value = gradient;
-        pulsePreview(preview);
-    }
-
-    document.getElementById('gradient_start').addEventListener('input', updateGradientPreview);
-    document.getElementById('gradient_end').addEventListener('input', updateGradientPreview);
-    document.getElementById('gradient_direction').addEventListener('change', updateGradientPreview);
-
-    document.querySelectorAll('.preset-gradient').forEach(function (button) {
-        button.addEventListener('click', function () {
-            document.getElementById('gradient_start').value = this.dataset.start;
-            document.getElementById('gradient_end').value = this.dataset.end;
-            document.getElementById('color_gradient').checked = true;
-            showGradient();
-            updateGradientPreview();
-        });
-    });
-
-    {% if user.accent_gradient %}
-    document.getElementById('color_gradient').checked = true;
-    showGradient();
-    (function initGradientFromSaved() {
-        var saved = {{ (user.accent_gradient or '')|tojson }};
-        if (!saved) return;
-        var match = saved.match(/linear-gradient\(\s*([^,]+)\s*,\s*(#[0-9a-fA-F]{3,8})\s+0%\s*,\s*(#[0-9a-fA-F]{3,8})\s+100%\s*\)/);
-        if (match) {
-            document.getElementById('gradient_direction').value = match[1].trim();
-            document.getElementById('gradient_start').value = match[2];
-            document.getElementById('gradient_end').value = match[3];
-        }
-        document.getElementById('gradient-preview').style.background = saved;
-        accentGradient.value = saved;
-    })();
-    {% endif %}
-
-    document.getElementById('dark_mode').addEventListener('change', function () {
-        var oledModeCheckbox = document.getElementById('oled_mode');
-        if (!this.checked) {
-            oledModeCheckbox.checked = false;
-            oledModeCheckbox.disabled = true;
-        } else {
-            oledModeCheckbox.disabled = false;
-        }
-    });
-
-    (function enhanceAppearancePillSelects() {
-        function closeAll(except) {
-            document.querySelectorAll('.settings-pill-select.is-open').forEach(function (wrap) {
-                if (wrap !== except) wrap.classList.remove('is-open');
-            });
-        }
-
-        function optionBaseLabel(opt) {
-            var raw = (opt.textContent || '').trim();
-            var badge = opt.getAttribute('data-badge');
-            if (badge) {
-                var suffix = ' (' + badge + ')';
-                if (raw.endsWith(suffix)) {
-                    return raw.slice(0, -suffix.length).trim();
-                }
-            }
-            return raw;
-        }
-
-        function renderOptionLabel(target, opt) {
-            target.textContent = '';
-            var label = document.createElement('span');
-            label.className = 'settings-pill-select__label';
-            label.textContent = optionBaseLabel(opt);
-            target.appendChild(label);
-            var badge = opt.getAttribute('data-badge');
-            if (badge) {
-                var badgeEl = document.createElement('span');
-                var grade = opt.getAttribute('data-grade') || '';
-                badgeEl.className = 'settings-pill-select__badge' + (grade ? ' settings-pill-select__badge--' + grade : '');
-                badgeEl.textContent = '(' + badge + ')';
-                badgeEl.setAttribute('title', badge + ' complete');
-                target.appendChild(badgeEl);
-            }
-        }
-
-        function syncLabel(select, valueEl) {
-            var selected = select.options[select.selectedIndex];
-            if (!selected) {
-                valueEl.textContent = '';
-                return;
-            }
-            renderOptionLabel(valueEl, selected);
-        }
-
-        function buildOptions(select, menu, valueEl) {
-            menu.innerHTML = '';
-            Array.from(select.options).forEach(function (opt) {
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'settings-pill-select__option' + (opt.selected ? ' is-active' : '');
-                renderOptionLabel(btn, opt);
-                btn.dataset.value = opt.value;
-                btn.setAttribute('role', 'option');
-                btn.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
-                btn.addEventListener('click', function () {
-                    select.value = opt.value;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    syncLabel(select, valueEl);
-                    menu.querySelectorAll('.settings-pill-select__option').forEach(function (el) {
-                        var active = el.dataset.value === select.value;
-                        el.classList.toggle('is-active', active);
-                        el.setAttribute('aria-selected', active ? 'true' : 'false');
-                    });
-                    closeAll();
-                });
-                menu.appendChild(btn);
-            });
-        }
-
-        document.querySelectorAll('.settings-appearance select.form-select').forEach(function (select) {
-            if (select.dataset.pillEnhanced === '1') return;
-            select.dataset.pillEnhanced = '1';
-
-            var wrap = document.createElement('div');
-            wrap.className = 'settings-pill-select';
-            select.parentNode.insertBefore(wrap, select);
-            wrap.appendChild(select);
-            select.classList.add('settings-pill-select__native');
-
-            var trigger = document.createElement('button');
-            trigger.type = 'button';
-            trigger.className = 'settings-pill-select__trigger';
-            trigger.setAttribute('aria-haspopup', 'listbox');
-            trigger.setAttribute('aria-expanded', 'false');
-
-            var valueEl = document.createElement('span');
-            valueEl.className = 'settings-pill-select__value';
-            var caret = document.createElement('i');
-            caret.className = 'bi bi-chevron-down settings-pill-select__caret';
-            caret.setAttribute('aria-hidden', 'true');
-            trigger.appendChild(valueEl);
-            trigger.appendChild(caret);
-
-            var menu = document.createElement('div');
-            menu.className = 'settings-pill-select__menu';
-            menu.setAttribute('role', 'listbox');
-
-            wrap.appendChild(trigger);
-            wrap.appendChild(menu);
-
-            syncLabel(select, valueEl);
-            buildOptions(select, menu, valueEl);
-
-            trigger.addEventListener('click', function () {
-                var willOpen = !wrap.classList.contains('is-open');
-                closeAll(wrap);
-                wrap.classList.toggle('is-open', willOpen);
-                trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-            });
-
-            select.addEventListener('change', function () {
-                syncLabel(select, valueEl);
-                buildOptions(select, menu, valueEl);
-            });
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!e.target.closest('.settings-pill-select')) closeAll();
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeAll();
-        });
-    })();
+  }
 });
 </script>
 {% endblock %}

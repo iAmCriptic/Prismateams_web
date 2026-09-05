@@ -22,13 +22,13 @@
 {% macro settings_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
 {% set ep = request.endpoint or '' %}
 
-{# Active groups #}
 {% set start_active = ep == 'settings.index' %}
 {% set profile_active = ep in ['settings.profile', 'settings.remove_profile_picture'] %}
 {% set appearance_active = ep == 'settings.appearance' %}
 {% set notifications_active = ep == 'settings.notifications' %}
 {% set security_active = ep.startswith('settings.security') %}
 {% set about_active = ep == 'settings.about' %}
+{% set kanban_import_active = ep == 'settings.kanban_import' %}
 
 {% set users_active = ep in [
     'settings.admin_users',
@@ -83,13 +83,16 @@
 {% set integrations_active = ep == 'settings.admin_integrations' %}
 {% set backup_active = ep == 'settings.admin_backup' %}
 {% set registration_active = ep == 'settings.admin_registration' %}
+{% set push_active = ep == 'settings.admin_push_subscriptions' %}
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
+{% set kanban_admin_active = ep == 'settings.admin_kanban_settings' %}
 {% set cloud_import_active = ep.startswith('settings.cloud_import') %}
 {% set show_cloud_import = is_module_enabled('module_files') %}
+{% set show_kanban_import = is_module_enabled('module_kanban') and (kanban_import_targets is defined and kanban_import_targets) %}
 
 <div class="settings-sidebar-scroll">
 <nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
@@ -100,7 +103,6 @@
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.account') }}</div>
     </div>
-
     <a href="{{ url_for('settings.profile') }}" class="nav-link mod-nav-link{% if profile_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-person-circle me-2"></i>{{ _('settings.index.cards.profile.title') }}
     </a>
@@ -117,16 +119,25 @@
         <i class="bi bi-info-circle me-2"></i>{{ _('settings.index.cards.about.title') }}
     </a>
 
+    {% if show_cloud_import or (is_module_enabled('module_email') and is_email_multi_enabled()) or show_kanban_import %}
+    <div class="settings-nav-section">
+        <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.tools') }}</div>
+    </div>
     {% if show_cloud_import %}
     <a href="{{ url_for('settings.cloud_import') }}" class="nav-link mod-nav-link{% if cloud_import_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-cloud-arrow-down me-2"></i>{{ _('settings.cloud_import.title') }}
     </a>
     {% endif %}
-
     {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
     <a href="{{ url_for('settings.my_mailboxes') }}" class="nav-link mod-nav-link{% if my_mailboxes_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-mailbox me-2"></i>{{ _('settings.mailboxes.my_title') }}
     </a>
+    {% endif %}
+    {% if show_kanban_import %}
+    <a href="{{ url_for('settings.kanban_import') }}" class="nav-link mod-nav-link{% if kanban_import_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-kanban me-2"></i>{{ _('settings.kanban_import.nav') }}
+    </a>
+    {% endif %}
     {% endif %}
 
     {% if show_teams_nav and not current_user.is_admin %}
@@ -178,6 +189,9 @@
     <a href="{{ url_for('settings.admin_registration') }}" class="nav-link mod-nav-link{% if registration_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-lock me-2"></i>{{ _('settings.admin.cards.registration_options.title') }}
     </a>
+    <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="nav-link mod-nav-link{% if push_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-phone me-2"></i>{{ _('settings.sidebar.push') }}
+    </a>
 
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
@@ -210,6 +224,11 @@
     <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-folder me-2"></i>{{ _('settings.admin.cards.file_settings.title') }}
     </a>
+    {% if is_module_enabled('module_kanban') %}
+    <a href="{{ url_for('settings.admin_kanban_settings') }}" class="nav-link mod-nav-link{% if kanban_admin_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-kanban me-2"></i>{{ _('settings.sidebar.kanban') }}
+    </a>
+    {% endif %}
     {% endif %}
 </nav>
 </div>

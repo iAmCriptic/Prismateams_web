@@ -44,6 +44,34 @@ def build_settings_catalog(user) -> list[dict]:
         'darstellung theme dark mode sprache akzentfarbe layout',
     ))
     catalog.append(_entry(
+        translate('settings.appearance.section_language'),
+        'settings.appearance',
+        'user',
+        'sprache language',
+        anchor='appearance-language',
+    ))
+    catalog.append(_entry(
+        translate('settings.appearance.section_theme'),
+        'settings.appearance',
+        'user',
+        'dark mode oled theme',
+        anchor='appearance-theme',
+    ))
+    catalog.append(_entry(
+        translate('settings.appearance.section_color'),
+        'settings.appearance',
+        'user',
+        'akzentfarbe gradient farbe accent',
+        anchor='appearance-accent',
+    ))
+    catalog.append(_entry(
+        translate('settings.appearance.section_layout'),
+        'settings.appearance',
+        'user',
+        'layout mobile desktop',
+        anchor='appearance-layout',
+    ))
+    catalog.append(_entry(
         translate('settings.index.cards.notifications.title'),
         'settings.notifications',
         'user',
@@ -69,6 +97,20 @@ def build_settings_catalog(user) -> list[dict]:
             'user',
             'cloud import nextcloud google drive umzug sync dateien transfer',
         ))
+
+    if is_module_enabled('module_kanban'):
+        try:
+            from app.utils.kanban_access import allowed_import_board_targets
+            from app.utils.access_control import has_module_access
+            if has_module_access(user, 'module_kanban') and allowed_import_board_targets(user):
+                catalog.append(_entry(
+                    translate('settings.kanban_import.nav'),
+                    'settings.kanban_import',
+                    'user',
+                    'kanban board import json csv zip trello',
+                ))
+        except Exception:
+            pass
 
     if is_module_enabled('module_email') and is_email_multi_enabled():
         catalog.append(_entry(
@@ -171,6 +213,12 @@ def build_settings_catalog(user) -> list[dict]:
         'admin',
         'registrierung bot schutz captcha recaptcha turnstile',
     ))
+    catalog.append(_entry(
+        translate('settings.sidebar.push'),
+        'settings.admin_push_subscriptions',
+        'admin',
+        'push abo subscription geräte',
+    ))
 
     if is_module_enabled('module_booking'):
         catalog.append(_entry(
@@ -213,5 +261,12 @@ def build_settings_catalog(user) -> list[dict]:
         'admin',
         'dateien speicher sharing dropbox onlyoffice format',
     ))
+    if is_module_enabled('module_kanban'):
+        catalog.append(_entry(
+            translate('settings.sidebar.kanban'),
+            'settings.admin_kanban_settings',
+            'admin',
+            'kanban board sichtbarkeit import zip',
+        ))
 
     return catalog

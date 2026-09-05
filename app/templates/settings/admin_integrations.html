@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.integrations.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.integrations.heading') }}{% endblock %}
@@ -10,7 +10,7 @@
         <p class="settings-admin-email-subtitle">{{ _('settings.integrations.subtitle') }}</p>
     </div>
 
-    <form method="POST" class="settings-admin-email-form">
+    <form method="POST" data-sp-autosave class="settings-admin-email-form">
         <div class="settings-integrations-grid">
             <section class="settings-admin-email-card">
                 <div class="settings-admin-email-card-head">

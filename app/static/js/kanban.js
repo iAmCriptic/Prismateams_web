@@ -8,10 +8,12 @@
     bgMap[b.key] = b.css;
   });
 
-  // Overview: list/grid toggle (Files-kompatibel: active + is-active)
+  // Overview: list/grid toggle (Files-kompatibel: indicator + data-view + active)
   var listBtn = qs('#kanbanListViewBtn');
   var gridBtn = qs('#kanbanGridViewBtn');
+  var viewToggle = qs('.kanban-toolbar .files-view-toggle') || qs('.files-view-toggle');
   function applyView(mode) {
+    if (mode !== 'list' && mode !== 'grid') mode = 'grid';
     localStorage.setItem('kanbanViewMode', mode);
     qsa('[data-view-grid]').forEach(function (el) {
       el.style.display = mode === 'grid' ? '' : 'none';
@@ -19,6 +21,7 @@
     qsa('[data-view-list]').forEach(function (el) {
       el.style.display = mode === 'list' ? '' : 'none';
     });
+    if (viewToggle) viewToggle.dataset.view = mode;
     if (listBtn && gridBtn) {
       listBtn.classList.toggle('active', mode === 'list');
       listBtn.classList.toggle('is-active', mode === 'list');
@@ -171,22 +174,26 @@
     });
   }
 
-  function openColorModal(id, currentBg, title) {
-    closeOpenDropdowns();
-    qs('#kanbanColorBoardId').value = id;
-    qs('#kanbanColorSelected').value = currentBg || 'teal';
-    qs('#kanbanColorModalTitle').textContent = title || '';
-    qsa('#kanbanColorPicker .kanban-bg-swatch').forEach(function (btn) {
-      btn.classList.toggle('is-active', btn.dataset.bg === (currentBg || 'teal'));
-    });
-    var modal = bootstrap.Modal.getOrCreateInstance(qs('#kanbanColorModal'));
-    modal.show();
-  }
-
-  function applyBoardColor(id, key) {
+  function applyBoardColor(id, key, coverUrl) {
     var css = bgMap[key] || bgMap.teal || '';
     qsa('[data-board-cover="' + id + '"]').forEach(function (el) {
       el.style.background = css;
+      var img = el.querySelector('[data-board-cover-img="' + id + '"], .kanban-grid-cover__img');
+      var icon = el.querySelector('.bi-kanban');
+      if (coverUrl) {
+        if (img) {
+          img.src = coverUrl;
+          img.hidden = false;
+        } else {
+          el.insertAdjacentHTML('afterbegin', '<img src="' + coverUrl + '" alt="" class="kanban-grid-cover__img" data-board-cover-img="' + id + '">');
+        }
+        if (icon) icon.remove();
+      } else if (coverUrl === null || coverUrl === '') {
+        if (img) img.remove();
+        if (!el.querySelector('.bi-kanban')) {
+          el.insertAdjacentHTML('beforeend', '<i class="bi bi-kanban text-white" aria-hidden="true"></i>');
+        }
+      }
     });
     qsa('[data-board-swatch="' + id + '"]').forEach(function (el) {
       el.style.background = css;
@@ -194,6 +201,26 @@
     qsa('[data-kanban-color="' + id + '"]').forEach(function (btn) {
       btn.setAttribute('data-kanban-bg', key);
     });
+  }
+
+  function setColorImageHint(hasImage) {
+    var hint = qs('#kanbanColorImageHint');
+    if (hint) hint.hidden = !hasImage;
+  }
+
+  function openColorModal(id, currentBg, title, hasCover) {
+    closeOpenDropdowns();
+    qs('#kanbanColorBoardId').value = id;
+    qs('#kanbanColorSelected').value = currentBg || 'teal';
+    qs('#kanbanColorModalTitle').textContent = title || '';
+    qsa('#kanbanColorPicker .kanban-bg-swatch').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.bg === (currentBg || 'teal'));
+    });
+    var fileInput = qs('#kanbanColorImageInput');
+    if (fileInput) fileInput.value = '';
+    setColorImageHint(!!hasCover);
+    var modal = bootstrap.Modal.getOrCreateInstance(qs('#kanbanColorModal'));
+    modal.show();
   }
 
   window.kanbanStartRename = function (btn) {
@@ -209,10 +236,13 @@
 
   window.kanbanOpenColor = function (btn) {
     if (!btn) return;
+    var id = btn.getAttribute('data-kanban-color');
+    var hasCover = !!document.querySelector('[data-board-cover-img="' + id + '"]');
     openColorModal(
-      btn.getAttribute('data-kanban-color'),
+      id,
       btn.getAttribute('data-kanban-bg') || 'teal',
-      btn.getAttribute('data-kanban-title') || ''
+      btn.getAttribute('data-kanban-title') || '',
+      hasCover
     );
   };
 
@@ -263,11 +293,51 @@
     });
     var data = await res.json().catch(function () { return {}; });
     if (data.success !== false && res.ok) {
-      applyBoardColor(id, (data.board && data.board.background) || bg);
+      var board = data.board || {};
+      applyBoardColor(id, board.background || bg, board.cover_path || undefined);
       bootstrap.Modal.getInstance(qs('#kanbanColorModal'))?.hide();
     } else {
       if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
       else alert(data.error || 'Fehler');
+    }
+  });
+
+  qs('#kanbanColorImageUpload')?.addEventListener('click', async function () {
+    var id = qs('#kanbanColorBoardId').value;
+    var input = qs('#kanbanColorImageInput');
+    if (!id || !input || !input.files || !input.files[0]) return;
+    var fd = new FormData();
+    fd.append('file', input.files[0]);
+    var res = await fetch('/kanban/api/boards/' + id + '/background', {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (data.success !== false && res.ok) {
+      var board = data.board || {};
+      applyBoardColor(id, board.background || qs('#kanbanColorSelected').value || 'teal', board.cover_path || null);
+      setColorImageHint(!!board.cover_path);
+      input.value = '';
+    } else if (typeof window.showAppBanner === 'function') {
+      window.showAppBanner(data.error || 'Fehler', 'danger');
+    } else {
+      alert(data.error || 'Fehler');
+    }
+  });
+
+  qs('#kanbanColorImageClear')?.addEventListener('click', async function () {
+    var id = qs('#kanbanColorBoardId').value;
+    if (!id) return;
+    var res = await fetch('/kanban/api/boards/' + id + '/background', {
+      method: 'DELETE',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (data.success !== false && res.ok) {
+      var board = data.board || {};
+      applyBoardColor(id, board.background || qs('#kanbanColorSelected').value || 'teal', null);
+      setColorImageHint(false);
     }
   });
 
@@ -330,48 +400,6 @@
       } else {
         if (typeof window.showAppBanner === 'function') window.showAppBanner(data.error || 'Fehler', 'danger');
         else alert(data.error || 'Fehler');
-      }
-    });
-  }
-
-  // Import board (Trello JSON / CSV)
-  var importForm = qs('#importBoardForm');
-  if (importForm) {
-    importForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var fileInput = qs('#importBoardFile');
-      if (!fileInput || !fileInput.files || !fileInput.files.length) {
-        if (typeof window.showAppBanner === 'function') window.showAppBanner('Bitte eine Datei wählen', 'warning');
-        else alert('Bitte eine Datei wählen');
-        return;
-      }
-      var fd = new FormData(importForm);
-      var visVal = String(fd.get('visibility') || '');
-      if (visVal.indexOf('team:') === 0) {
-        fd.set('visibility', 'team');
-        fd.set('team_id', visVal.slice(5));
-      }
-      var btn = qs('#importBoardSubmit');
-      if (btn) btn.disabled = true;
-      try {
-        var res = await fetch(window.KANBAN_IMPORT_URL || '/kanban/api/boards/import', {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
-          body: fd
-        });
-        var data = await res.json().catch(function () { return {}; });
-        if (data.success && data.board && data.board.url) {
-          window.location.href = data.board.url;
-          return;
-        }
-        var err = data.error || 'Import fehlgeschlagen';
-        if (typeof window.showAppBanner === 'function') window.showAppBanner(err, 'danger');
-        else alert(err);
-      } catch (err) {
-        if (typeof window.showAppBanner === 'function') window.showAppBanner('Import fehlgeschlagen', 'danger');
-        else alert('Import fehlgeschlagen');
-      } finally {
-        if (btn) btn.disabled = false;
       }
     });
   }

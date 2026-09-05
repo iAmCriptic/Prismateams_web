@@ -1,45 +1,70 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.kanban.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.sidebar.kanban') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-inventory">
-    <div class="settings-admin-inventory-header">
-        <h1 class="settings-admin-inventory-title">{{ _('settings.admin.kanban.heading') }}</h1>
-        <p class="settings-admin-inventory-subtitle">{{ _('settings.admin.kanban.subtitle') }}</p>
-    </div>
+<div class="sp-page">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-kanban" aria-hidden="true"></i><span>{{ _('settings.admin.kanban.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.kanban.lead_short') }}</p>
+  </header>
 
-    <form method="POST" class="settings-admin-inventory-form">
-        <section class="settings-admin-inventory-card" aria-labelledby="kanban-vis-title">
-            <div class="settings-admin-inventory-card-head">
-                <h2 id="kanban-vis-title" class="settings-admin-inventory-section-title mb-0">
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                    {{ _('settings.admin.kanban.visibility_title') }}
-                </h2>
-            </div>
-            <p class="settings-admin-inventory-hint">{{ _('settings.admin.kanban.visibility_lead') }}</p>
-
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="allow_private" name="allow_private" {% if allow_private %}checked{% endif %}>
-                <label class="form-check-label" for="allow_private">{{ _('settings.admin.kanban.allow_private') }}</label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="allow_team" name="allow_team" {% if allow_team %}checked{% endif %}>
-                <label class="form-check-label" for="allow_team">{{ _('settings.admin.kanban.allow_team') }}</label>
-            </div>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_kanban_settings') }}">
+    <section class="sp-group" id="kanban-visibility" data-settings-search-id="kanban-visibility">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title"><i class="bi bi-eye" aria-hidden="true"></i>{{ _('settings.admin.kanban.visibility_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.kanban.allow_private') }}</span>
+            {{ sp_info(_('settings.admin.kanban.visibility_lead')) }}
+          </div>
+          <div class="sp-row-control">
             <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" id="allow_public" name="allow_public" {% if allow_public %}checked{% endif %}>
-                <label class="form-check-label" for="allow_public">{{ _('settings.admin.kanban.allow_public') }}</label>
+              <input class="form-check-input" type="checkbox" id="allow_private" name="allow_private" {% if allow_private %}checked{% endif %}>
             </div>
-        </section>
-
-        <div class="settings-admin-inventory-actions">
-            <button type="submit" class="btn btn-accent settings-admin-inventory-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('settings.admin.kanban.save') }}
-            </button>
+          </div>
         </div>
-    </form>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.kanban.allow_team') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="allow_team" name="allow_team" {% if allow_team %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.kanban.allow_public') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="allow_public" name="allow_public" {% if allow_public %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+
+  {% if import_targets %}
+  <section class="sp-group" id="kanban-admin-import" data-settings-search-id="kanban-admin-import">
+    <div class="sp-group-head">
+      <h2 class="sp-group-title"><i class="bi bi-upload" aria-hidden="true"></i>{{ _('settings.kanban_import.upload_title') }}</h2>
+    </div>
+    <div class="sp-group-body" style="padding:1rem 1.25rem">
+      <p class="sp-page-lead mb-3">{{ _('settings.admin.kanban.import_hint') }}</p>
+      <a href="{{ url_for('settings.kanban_import') }}" class="btn btn-accent rounded-pill sp-btn-pill">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+        {{ _('settings.kanban_import.nav') }}
+      </a>
+    </div>
+  </section>
+  {% endif %}
 </div>
 {% endblock %}

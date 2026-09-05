@@ -1,4 +1,4 @@
-{% extends "settings/base_settings.html" %}
+﻿{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.admin_modules.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.modules.title') }}{% endblock %}
@@ -10,7 +10,7 @@
         <p class="settings-admin-modules-subtitle">{{ _('settings.admin.admin_modules.subtitle') }}</p>
     </div>
 
-    <form method="POST" class="settings-admin-modules-form">
+    <form method="POST" data-sp-autosave class="settings-admin-modules-form">
         <section class="settings-admin-modules-card" aria-labelledby="modules-list-heading">
             <div class="settings-admin-modules-card-head">
                 <h2 id="modules-list-heading" class="settings-admin-modules-section-title mb-0">{{ _('settings.admin.admin_modules.section_modules') }}</h2>

@@ -58,7 +58,6 @@ from app.utils.kanban_access import (
     VISIBILITY_PUBLIC,
     VISIBILITY_TEAM,
     accessible_boards_query,
-    allowed_import_board_targets,
     can_edit_board,
     can_manage_board,
     can_view_board,
@@ -169,6 +168,11 @@ def _can_manage_board_ctx(board: KanbanBoard) -> bool:
     return bool(current_user.is_authenticated and can_manage_board(current_user, board))
 
 
+@kanban_bp.app_template_global('kanban_board_cover_url')
+def kanban_board_cover_url(board: KanbanBoard) -> str | None:
+    return _board_cover_url(board)
+
+
 def login_or_share_required(f):
     """Allow authenticated users or a valid share token (checked later per-board)."""
     @wraps(f)
@@ -208,6 +212,66 @@ def _upload_root():
     root = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'kanban')
     os.makedirs(root, exist_ok=True)
     return root
+
+
+def _boards_upload_root():
+    root = os.path.join(_upload_root(), 'boards')
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def _board_cover_file_path(board: KanbanBoard) -> str | None:
+    """Return absolute filesystem path if cover_path points to a local file."""
+    path = (board.cover_path or '').strip()
+    if not path:
+        return None
+    if path.startswith(('http://', 'https://')):
+        return None
+    if os.path.isfile(path):
+        return path
+    # Relative to upload root / project
+    candidates = [
+        path,
+        os.path.join(_upload_root(), path),
+        os.path.join(_boards_upload_root(), os.path.basename(path)),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def _board_cover_url(board: KanbanBoard) -> str | None:
+    """Public URL for board background/cover image."""
+    path = (board.cover_path or '').strip()
+    if not path:
+        return None
+    if path.startswith(('http://', 'https://')):
+        return path
+    if path.startswith('/') and not path.startswith('//'):
+        # Already an app-relative URL (legacy)
+        return path
+    if _board_cover_file_path(board):
+        return url_for('kanban.board_background', board_id=board.id)
+    return None
+
+
+def _board_background_css(board: KanbanBoard) -> str:
+    bg = next(
+        (b for b in BOARD_BACKGROUNDS if b['key'] == (board.background or 'teal')),
+        BOARD_BACKGROUNDS[0],
+    )
+    return bg['css']
+
+
+def _delete_board_cover_file(board: KanbanBoard) -> None:
+    path = _board_cover_file_path(board)
+    if path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    board.cover_path = None
 
 
 def _serialize_board_members(board: KanbanBoard) -> list[dict]:
@@ -274,10 +338,12 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
     is_link = bool(att.url)
     mime = att.mime_type or ''
     name = att.original_filename or att.filename or (att.url or 'Link')
-    ext = (os.path.splitext(name)[1] or '').lower().lstrip('.') if not is_link else ''
+    ext = (os.path.splitext(name)[1] or '').lower().lstrip('.')
+    is_image = mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')
     if is_link:
         file_url = att.url
-        preview_url = None
+        # External image links can still act as card covers / previews
+        preview_url = att.url if is_image else None
     elif share_token:
         file_url = url_for('kanban.share_download_attachment', token=share_token, attachment_id=att.id)
         preview_url = url_for('kanban.share_preview_attachment', token=share_token, attachment_id=att.id)
@@ -293,7 +359,7 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
         'external_url': att.url,
         'preview_url': preview_url,
         'is_link': is_link,
-        'is_image': (not is_link) and (mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')),
+        'is_image': is_image and (not is_link or bool(preview_url)),
         'is_pdf': (not is_link) and (mime == 'application/pdf' or ext == 'pdf'),
         'is_office': (not is_link) and (is_onlyoffice_file_type(ext) if ext else False),
         'onlyoffice_enabled': is_onlyoffice_enabled() and not share_token,
@@ -463,8 +529,10 @@ def _serialize_board(
         'id': board.id,
         'title': board.title,
         'description': board.description,
-        'cover_path': board.cover_path,
+        'cover_path': _board_cover_url(board),
+        'has_cover_image': bool(_board_cover_url(board)),
         'background': board.background or 'teal',
+        'background_css': _board_background_css(board),
         'visibility': board.visibility,
         'team_id': board.team_id,
         'team_name': board.team.name if board.team else None,
@@ -638,8 +706,6 @@ def index():
         if can_manage_board(current_user, b)
     }
 
-    import_targets = allowed_import_board_targets(current_user)
-
     active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
 
     return render_template(
@@ -655,7 +721,6 @@ def index():
         backgrounds=BOARD_BACKGROUNDS,
         show_closed_link=True,
         manageable_ids=manageable_ids,
-        import_targets=import_targets,
         section_filter=section,
         filter_team_id=filter_team_id,
         active_nav=active_nav,
@@ -679,7 +744,6 @@ def closed_boards():
         boards=boards,
         allowed_visibilities=get_allowed_visibilities(),
         teams=_user_kanban_teams(current_user),
-        import_targets=[],
         active_nav='closed',
         create_modal=False,
     )
@@ -701,12 +765,13 @@ def board(board_id):
     _track_view(board_obj)
     db.session.commit()
 
-    bg = next((b for b in BOARD_BACKGROUNDS if b['key'] == (board_obj.background or 'teal')), BOARD_BACKGROUNDS[0])
+    cover_url = _board_cover_url(board_obj)
     return render_template(
         'kanban/board.html',
         board=board_obj,
         board_json=_serialize_board(board_obj, full=True),
-        background_css=bg['css'],
+        background_css=_board_background_css(board_obj),
+        background_image_url=cover_url,
         backgrounds=BOARD_BACKGROUNDS,
         can_edit=can_edit_board(current_user, board_obj),
         can_manage=can_manage_board(current_user, board_obj),
@@ -872,9 +937,27 @@ def api_import_board():
     if not raw:
         return jsonify({'error': translate('kanban.import.error_empty'), 'code': 'empty'}), 400
 
-    from app.utils.kanban_import import KanbanImportError, import_board_from_bytes
+    from app.utils.kanban_import import KanbanImportError, detect_import_format, import_board_from_bytes, import_boards_from_zip
 
     try:
+        fmt = detect_import_format(f.filename, raw)
+        if fmt == 'zip':
+            boards, errors = import_boards_from_zip(
+                raw=raw,
+                user=current_user,
+                visibility=visibility,
+                team_id=team_id,
+            )
+            for board in boards:
+                _log_activity(board.id, 'board_imported', board.title, user_id=current_user.id)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'boards': [_serialize_board(b) for b in boards],
+                'board': _serialize_board(boards[0]) if boards else None,
+                'errors': errors,
+            }), 201
+
         board = import_board_from_bytes(
             raw=raw,
             filename=f.filename,
@@ -901,6 +984,8 @@ def api_import_board():
             'not_trello_json': translate('kanban.import.error_invalid'),
             'invalid_csv': translate('kanban.import.error_invalid'),
             'empty_csv': translate('kanban.import.error_empty'),
+            'invalid_zip': translate('kanban.import.error_invalid_zip'),
+            'empty_zip': translate('kanban.import.error_empty_zip'),
             'visibility_not_allowed': translate('kanban.import.error_visibility'),
         }.get(code, translate('kanban.import.error_invalid'))
         return jsonify({'error': msg, 'code': code}), 400
@@ -910,7 +995,7 @@ def api_import_board():
 
     _log_activity(board.id, 'board_imported', board.title, user_id=current_user.id)
     db.session.commit()
-    return jsonify({'success': True, 'board': _serialize_board(board)}), 201
+    return jsonify({'success': True, 'board': _serialize_board(board), 'boards': [_serialize_board(board)], 'errors': []}), 201
 
 
 @kanban_bp.route('/api/boards/<int:board_id>', methods=['GET', 'PATCH', 'DELETE'])
@@ -942,12 +1027,65 @@ def api_board(board_id):
         bg = (data['background'] or '').strip()
         if bg in {b['key'] for b in BOARD_BACKGROUNDS}:
             board.background = bg
+    if 'clear_cover' in data and data.get('clear_cover'):
+        _delete_board_cover_file(board)
     if 'closed' in data:
         board.closed_at = portal_now_naive() if data['closed'] else None
         _log_activity(board.id, 'board_closed' if board.closed_at else 'board_reopened')
     db.session.commit()
     _emit_board(board.id, 'board_updated', _serialize_board(board, full=True))
     return jsonify({'success': True, 'board': _serialize_board(board, full=True)})
+
+
+@kanban_bp.route('/boards/<int:board_id>/background')
+@login_or_share_required
+def board_background(board_id):
+    """Serve the board background/cover image."""
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+    path = _board_cover_file_path(board)
+    if not path:
+        # Redirect external/legacy URLs
+        url = (board.cover_path or '').strip()
+        if url.startswith(('http://', 'https://')):
+            return redirect(url)
+        return ('', 404)
+    mime = mimetypes.guess_type(path)[0] or 'image/jpeg'
+    return send_file(path, mimetype=mime, conditional=True)
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/background', methods=['POST', 'DELETE'])
+@login_required
+@check_module_access('module_kanban')
+def api_board_background(board_id):
+    board = KanbanBoard.query.get_or_404(board_id)
+    if not can_manage_board(current_user, board):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    if request.method == 'DELETE':
+        _delete_board_cover_file(board)
+        db.session.commit()
+        payload = _serialize_board(board, full=True)
+        _emit_board(board.id, 'board_updated', payload)
+        return jsonify({'success': True, 'board': payload})
+
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'No file'}), 400
+    original = secure_filename(f.filename) or 'background.jpg'
+    mime = f.mimetype or mimetypes.guess_type(original)[0] or ''
+    if not mime.startswith('image/'):
+        return jsonify({'error': 'Image required'}), 400
+    stored = f'{uuid.uuid4().hex}_{original}'
+    path = os.path.join(_boards_upload_root(), stored)
+    _delete_board_cover_file(board)
+    f.save(path)
+    board.cover_path = path
+    db.session.commit()
+    payload = _serialize_board(board, full=True)
+    _emit_board(board.id, 'board_updated', payload)
+    return jsonify({'success': True, 'board': payload}), 201
 
 
 # ── Lists ──────────────────────────────────────────────────────────────
@@ -2525,14 +2663,15 @@ def public_share(token):
     session['kanban_share_token'] = token
     session.modified = True
     can_edit_share = share.mode == 'edit'
-    bg = next((b for b in BOARD_BACKGROUNDS if b['key'] == (board.background or 'teal')), BOARD_BACKGROUNDS[0])
+    cover_url = _board_cover_url(board)
     return render_template(
         'kanban/board.html',
         board=board,
         board_json=_serialize_board(board, full=True, share_token=token),
         can_edit=can_edit_share,
         can_manage=False,
-        background_css=bg['css'],
+        background_css=_board_background_css(board),
+        background_image_url=cover_url,
         backgrounds=BOARD_BACKGROUNDS,
         onlyoffice_enabled=False,
         share_token=token,
