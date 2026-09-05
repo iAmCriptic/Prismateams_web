@@ -2937,6 +2937,10 @@ def api_product_create():
         normalized_length, _unused = normalize_length_input(str(length_raw))
         if normalized_length is None:
             return jsonify({'error': translate('inventory.errors.invalid_length_format')}), 400
+
+    external_barcode = _normalize_external_barcode(data.get('external_barcode'))
+    if external_barcode and _external_barcode_taken(external_barcode):
+        return jsonify({'error': translate('inventory.flash.external_barcode_taken', code=external_barcode)}), 400
     
     product = Product(
         name=data['name'],
@@ -2948,6 +2952,7 @@ def api_product_create():
         length=normalized_length,
         purchase_date=datetime.strptime(data['purchase_date'], '%Y-%m-%d').date() if data.get('purchase_date') else None,
         status='available',
+        external_barcode=external_barcode,
         created_by=current_user.id
     )
     
@@ -2990,6 +2995,11 @@ def api_product_update(product_id):
         product.category = data.get('category')
     if 'serial_number' in data:
         product.serial_number = data.get('serial_number')
+    if 'external_barcode' in data:
+        external_barcode = _normalize_external_barcode(data.get('external_barcode'))
+        if external_barcode and _external_barcode_taken(external_barcode, exclude_product_id=product.id):
+            return jsonify({'error': translate('inventory.flash.external_barcode_taken', code=external_barcode)}), 400
+        product.external_barcode = external_barcode
     if 'condition' in data:
         product.condition = data.get('condition')
     if 'location' in data:
