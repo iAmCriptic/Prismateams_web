@@ -1033,14 +1033,19 @@ def export_product_set_items() -> List[Dict]:
 
 def export_product_documents() -> List[Dict]:
     """Exportiert Produktdokumente."""
+    from app.models.manual import Manual
+
     documents = ProductDocument.query.all()
     result = []
     for d in documents:
+        manual = Manual.query.get(d.manual_id) if d.manual_id else None
         doc_data = {
             'product_name': Product.query.get(d.product_id).name if Product.query.get(d.product_id) else None,
             'file_name': d.file_name,
             'file_type': d.file_type,
             'file_size': d.file_size,
+            'manual_id': d.manual_id,
+            'manual_title': manual.title if manual else None,
             'uploaded_by_email': User.query.get(d.uploaded_by).email if User.query.get(d.uploaded_by) else None,
             'created_at': d.created_at.isoformat() if d.created_at else None
         }
@@ -3336,7 +3341,9 @@ def import_product_set_items(items_data: List[Dict], set_map: Dict[str, int], pr
 
 
 def import_product_documents(documents_data: List[Dict], product_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Produktdokumente."""
+    """Importiert Produktdokumente (Datei und/oder Manual-Verknüpfung)."""
+    from app.models.manual import Manual
+
     for d_data in documents_data:
         product_name = d_data.get('product_name')
         uploaded_by_email = d_data.get('uploaded_by_email')
@@ -3358,36 +3365,61 @@ def import_product_documents(documents_data: List[Dict], product_map: Dict[str, 
             uploaded_by_id = user_map[uploaded_by_email]
         
         product_id = product_map[product_name]
+        has_content = bool(d_data.get('content_base64'))
+        file_name = d_data.get('file_name')
+
+        manual_id = d_data.get('manual_id')
+        if manual_id and not Manual.query.get(manual_id):
+            # Fallback: per Titel suchen
+            manual_title = (d_data.get('manual_title') or '').strip()
+            if manual_title:
+                found = Manual.query.filter_by(title=manual_title).first()
+                manual_id = found.id if found else None
+            else:
+                manual_id = None
+
+        if not has_content and not manual_id:
+            continue
         
         document = ProductDocument(
             product_id=product_id,
-            file_name=d_data['file_name'],
-            file_type=d_data['file_type'],
+            file_name=file_name,
+            file_type=d_data.get('file_type') or 'other',
             file_size=d_data.get('file_size'),
+            manual_id=manual_id,
             uploaded_by=uploaded_by_id
         )
         
         # Dateiinhalt speichern wenn vorhanden
-        if d_data.get('content_base64'):
+        if has_content:
             try:
                 import base64
                 content = base64.b64decode(d_data['content_base64'])
                 
                 from werkzeug.utils import secure_filename
-                filename = secure_filename(d_data['file_name'])
+                filename = secure_filename(file_name or 'document')
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
                 
-                upload_dir = os.path.join(current_app.root_path, '..', current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'product_documents')
+                upload_dir = os.path.join(
+                    current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+                    'inventory',
+                    'product_documents',
+                )
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 
                 with open(file_path, 'wb') as f:
                     f.write(content)
                 
-                document.file_path = file_path
+                document.file_path = os.path.abspath(file_path)
+                document.file_size = len(content)
+                if not document.file_name:
+                    document.file_name = file_name or filename
             except Exception as e:
-                current_app.logger.error(f"Fehler beim Speichern von Produktdokument {d_data['file_name']}: {str(e)}")
+                current_app.logger.error(f"Fehler beim Speichern von Produktdokument {file_name}: {str(e)}")
+                if not manual_id:
+                    continue
         
         db.session.add(document)
 

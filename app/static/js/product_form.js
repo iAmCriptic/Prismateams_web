@@ -500,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProductFormTooltips();
     setupDguvRequiredToggle();
     setupDguvAutoNext();
+    initExternalBarcodeQuantityGuard();
 });
 
 function setupProductFormTooltips() {
@@ -594,4 +595,29 @@ function setupDguvAutoNext() {
     intervalInput.addEventListener('change', refresh);
     intervalInput.addEventListener('input', refresh);
     refresh();
+}
+
+/** Inventar-Nr. nur bei Menge 1 (Create-Formular). */
+function initExternalBarcodeQuantityGuard() {
+    const qtyInput = document.getElementById('quantity');
+    const barcodeInput = document.getElementById('external_barcode');
+    if (!qtyInput || !barcodeInput) return;
+
+    const help = document.getElementById('externalBarcodeHelp');
+    const qtyHint = document.getElementById('externalBarcodeQtyHint');
+
+    const sync = () => {
+        const qty = parseInt(qtyInput.value, 10) || 1;
+        const multi = qty > 1;
+        barcodeInput.disabled = multi;
+        if (multi) {
+            barcodeInput.value = '';
+        }
+        if (help) help.classList.toggle('d-none', multi);
+        if (qtyHint) qtyHint.classList.toggle('d-none', !multi);
+    };
+
+    qtyInput.addEventListener('change', sync);
+    qtyInput.addEventListener('input', sync);
+    sync();
 }

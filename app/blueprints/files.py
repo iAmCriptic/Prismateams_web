@@ -839,6 +839,10 @@ def browse_folder(folder_id):
     if files_view == 'team' and files_team_id:
         files_team_name = next((t.name for t in nav_teams if t.id == files_team_id), None)
 
+    from app.utils.webdav import is_webdav_enabled
+    files_webdav_enabled = is_webdav_enabled()
+    webdav_url = f"{request.url_root.rstrip('/')}/webdav"
+
     return render_template(
         'files/index.html',
         current_folder=current_folder if current_folder != 'forbidden' else None,
@@ -850,6 +854,8 @@ def browse_folder(folder_id):
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=private_enabled,
         files_team_folders_enabled=team_enabled,
+        files_webdav_enabled=files_webdav_enabled,
+        webdav_url=webdav_url,
         files_nav_teams=nav_teams,
         files_team_id=files_team_id,
         files_team_name=files_team_name,

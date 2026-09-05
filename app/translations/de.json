@@ -1016,6 +1016,10 @@
           "title": "Administration",
           "description": "Benutzerverwaltung und System-Einstellungen",
           "button": "Öffnen"
+        },
+        "cloud_import": {
+          "title": "Cloud-Import",
+          "description": "Nextcloud und Google Drive nach PrismaTeams übertragen."
         }
       }
     },
@@ -2108,6 +2112,11 @@
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
         "sharing_label": "Freigaben aktivieren",
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
+        "webdav_label": "WebDAV / Explorer-Zugriff",
+        "webdav_help": "Ermöglicht den Zugriff auf Dateien über Windows Explorer als Netzlaufwerk (WebDAV unter /webdav).",
+        "webdav_url_label": "Verbindungs-URL",
+        "webdav_connect_help": "Unter Windows: Dieser PC → Netzlaufwerk verbinden → Ordner: die URL oben. Anmeldung mit E-Mail und Passwort.",
+        "webdav_2fa_warning": "Hinweis: Bei WebDAV wird die Zwei-Faktor-Authentifizierung (2FA) nicht geprüft — nur E-Mail und Passwort.",
         "private_folders_label": "Private Ordner aktivieren",
         "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
         "team_folders_label": "Team-Ablagen aktivieren",
@@ -2391,6 +2400,53 @@
       "google_help_oauth_step5": "Client-ID und Client-Secret hier einfügen und speichern – danach sind Google-Login, Postfach-OAuth und YouTube nutzbar.",
       "google_help_api_heading": "API-Schlüssel (für YouTube)",
       "redirect_hint_login": "Redirect-URI: {url}"
+    },
+    "cloud_import": {
+      "page_title": "Cloud-Import",
+      "title": "Cloud-Import",
+      "heading": "Cloud-Import",
+      "subtitle": "Ordner und Dateien einmalig von Nextcloud oder Google Drive nach PrismaTeams übertragen.",
+      "target_space": "Zielbereich",
+      "target_space_hint": "Admin: öffentlich · Teamleiter: Team · Sie: persönlich.",
+      "space": {
+        "public": "Öffentlich",
+        "team": "Team",
+        "personal": "Persönlich"
+      },
+      "no_spaces": "Kein Zielbereich verfügbar.",
+      "dest_folder": "Zielordner",
+      "dest_root": "Stammordner",
+      "connections": "Verbindungen",
+      "connect_nextcloud": "Nextcloud verbinden",
+      "connect_google": "Google Drive verbinden",
+      "connect": "Verbinden",
+      "nextcloud": {
+        "server": "Server-URL",
+        "username": "Benutzername",
+        "app_password": "App-Passwort",
+        "hint": "Verwenden Sie ein App-Passwort aus den Nextcloud-Sicherheitseinstellungen."
+      },
+      "no_connections": "Noch keine Verbindung eingerichtet.",
+      "browse": "Quelle auswählen",
+      "col": {
+        "name": "Name",
+        "size": "Größe"
+      },
+      "start": "Import starten",
+      "jobs": "Import-Aufträge",
+      "no_jobs": "Noch keine Aufträge.",
+      "flash": {
+        "module_disabled": "Das Dateien-Modul ist deaktiviert.",
+        "credentials_incomplete": "Bitte Server, Benutzername und App-Passwort angeben.",
+        "nextcloud_connect_failed": "Verbindung zu Nextcloud fehlgeschlagen. Zugangsdaten prüfen.",
+        "google_not_configured": "Google ist in den Verknüpfungen nicht konfiguriert.",
+        "google_oauth_error": "Google-Anmeldung fehlgeschlagen: %(error)s",
+        "google_connected": "Google Drive wurde verbunden.",
+        "connection_in_use": "Verbindung wird noch von einem laufenden Import genutzt.",
+        "browse_failed": "Ordner konnte nicht geladen werden.",
+        "no_selection": "Bitte mindestens eine Datei oder einen Ordner auswählen.",
+        "space_forbidden": "Keine Berechtigung für diesen Zielbereich."
+      }
     }
   },
   "chat": {
@@ -2617,6 +2673,27 @@
         "add": "Zu Favoriten",
         "remove": "Aus Favoriten entfernen",
         "limit": "Maximal 10 Favoriten."
+      },
+      "webdav_connect_btn": "In System einbinden",
+      "webdav_hint": "Explorer (WebDAV)",
+      "webdav_modal": {
+        "title": "Dateien im System einbinden",
+        "intro": "Verbinden Sie die Ablage als Netzlaufwerk. Danach erscheinen Private, Public und Teams wie normale Ordner im Dateimanager.",
+        "url_label": "Verbindungs-URL",
+        "copy": "URL kopieren",
+        "auth_hint": "Benutzername = nur Ihre Portal-E-Mail (ohne MicrosoftAccount\\). Passwort = Portal-Passwort, nicht das Microsoft-Konto-Passwort.",
+        "disabled_hint": "WebDAV ist noch deaktiviert. Ein Administrator kann es unter Einstellungen → Datei-Einstellungen einschalten. Danach funktioniert die Verbindung mit der URL unten.",
+        "windows_title": "Windows (Explorer)",
+        "windows_step1": "Dienst \"WebClient\" starten (services.msc → WebClient → Starten, Starttyp Automatisch).",
+        "windows_step2": "Bei HTTP/localhost: Registry HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters → DWORD BasicAuthLevel = 2, WebClient neu starten. Sonst sendet Windows die Anmeldung nicht.",
+        "windows_step3": "Netzwerkadresse hinzufügen / Netzlaufwerk: URL oben. Im Anmeldedialog \"Weitere Optionen\" → \"Anderes Konto\" und nur die E-Mail eintragen (MicrosoftAccount\\ löschen).",
+        "windows_step4": "Portal-Passwort eingeben. Wenn der Dialog immer wieder kommt: BasicAuthLevel prüfen oder Cyberduck/WinSCP nutzen.",
+        "mac_title": "Apple (macOS Finder)",
+        "mac_step1": "Finder öffnen → Menü „Gehe zu“ → „Mit Server verbinden…“ (⌘K).",
+        "mac_step2": "Die Verbindungs-URL oben einfügen und „Verbinden“ wählen.",
+        "mac_step3": "Als registrierter Benutzer anmelden.",
+        "mac_step4": "E-Mail und Passwort eingeben. Die Freigabe erscheint in der Finder-Seitenleiste.",
+        "security_note": "Hinweis: 2FA wird bei WebDAV nicht geprüft. Windows hängt oft \"MicrosoftAccount\\\" vor die E-Mail — das muss weg. Unter Windows ist HTTPS zuverlässiger als HTTP/localhost."
       },
       "storage": {
         "title": "Speicherplatz",
@@ -4501,7 +4578,15 @@
       "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
       "file_not_found": "Die Datei konnte nicht gefunden werden.",
       "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
-      "invalid_date": "Ungültiges Datum."
+      "invalid_date": "Ungültiges Datum.",
+      "document_attach_error": "Das Produkt wurde gespeichert, aber Dokumente konnten nicht angehängt werden.",
+      "document_invalid_type": "Ungültiger Dateityp. Erlaubt: PDF, PNG, JPEG, DOC, DOCX, XLS, XLSX.",
+      "manual_not_accessible": "Die gewählte Anleitung ist nicht verfügbar.",
+      "manual_link_required": "Bitte eine Anleitung auswählen.",
+      "manual_already_linked": "Anleitung \"{title}\" ist bereits verknüpft.",
+      "manual_linked": "Anleitung \"{title}\" wurde verknüpft.",
+      "external_barcode_taken": "Inventar-Nr. \"{code}\" ist bereits vergeben.",
+      "external_barcode_qty": "Inventar-Nr. kann nur gesetzt werden, wenn die Menge 1 ist."
     },
     "cart": {
       "set_badge": "Set",
@@ -4745,7 +4830,8 @@
           "values": "Kauf & Werte",
           "dimensions": "Maße & Gewicht",
           "dguv": "DGUV",
-          "media": "Status & Medien"
+          "media": "Status & Medien",
+          "documents": "Dokumente & Anleitungen"
         },
         "folder_name": "Ordnername",
         "category_name": "Kategoriename",
@@ -4769,11 +4855,19 @@
         "dguv_interval_help": "Prüfintervall in Monaten (beim Anlegen/Bearbeiten einstellbar).",
         "dguv_interval_readonly_help": "Festes Prüfintervall (nicht änderbar).",
         "dguv_next_auto_help": "Automatisch berechnet (oder Anlagedatum, wenn keine letzte Prüfung).",
-        "external_barcode": "Externer Barcode / QR-ID",
-        "external_barcode_placeholder": "Eigene Barcode-ID",
+        "external_barcode": "Inventar-Nr.",
+        "external_barcode_placeholder": "z.B. 001 (vom Esto-Etikett)",
         "current_image": "Aktuelles Bild:",
         "remove_image": "Bild entfernen",
-        "remove_image_confirm": "Möchten Sie das Produktbild wirklich entfernen?"
+        "remove_image_confirm": "Möchten Sie das Produktbild wirklich entfernen?",
+        "documents_upload": "Dokumente hochladen",
+        "documents_help": "Mehrere Dateien möglich (PDF, PNG, JPEG, Office). Werden beim Speichern angehängt.",
+        "document_type": "Dokumenttyp für Uploads",
+        "link_manuals": "Anleitungen verknüpfen",
+        "link_manuals_help": "Mehrfachauswahl: bestehende Bedienungsanleitungen ohne Datei-Upload.",
+        "manage_documents": "Alle Dokumente verwalten",
+        "external_barcode_help": "Code vom Inventar-Etikett tippen oder per Handscanner hier einscannen. Für QuickScan & Ausleihe.",
+        "external_barcode_qty_hint": "Inventar-Nr. nur bei Menge 1 möglich (jede Nummer ist eindeutig)."
       },
       "list": {
         "page_title": "Inventurliste - Team Portal",
@@ -5065,6 +5159,43 @@
       },
       "errors": {
         "no_selection": "Bitte wählen Sie mindestens ein Produkt aus."
+      }
+    },
+    "documents": {
+      "page_title": "Dokumente - {name}",
+      "heading": "Dokumente für \"{name}\"",
+      "list_title": "Dokumente",
+      "upload_btn": "Dokument hochladen",
+      "link_manual_btn": "Anleitung verknüpfen",
+      "edit_product": "Produkt bearbeiten",
+      "col_name": "Name",
+      "col_type": "Typ",
+      "col_size": "Größe",
+      "col_date": "Hochgeladen",
+      "col_actions": "Aktionen",
+      "linked_manual": "Verknüpft mit Anleitung",
+      "manual_link_only": "Nur Anleitungs-Verknüpfung",
+      "download": "Herunterladen",
+      "open_manual": "Anleitung öffnen",
+      "delete_confirm": "Möchten Sie dieses Dokument wirklich löschen?",
+      "empty": "Noch keine Dokumente vorhanden.",
+      "upload_title": "Dokument hochladen",
+      "file_label": "Datei",
+      "file_help": "PDF, PNG, JPEG sowie DOC/DOCX/XLS/XLSX.",
+      "type_label": "Dokumenttyp",
+      "link_manual_optional": "Mit Anleitung verknüpfen (optional)",
+      "no_manual_link": "Keine Verknüpfung",
+      "link_manual_title": "Anleitung verknüpfen",
+      "manual_label": "Anleitung",
+      "select_manual": "Anleitung auswählen…",
+      "link_manual_help": "Verknüpft eine bestehende Bedienungsanleitung ohne Datei zu duplizieren.",
+      "types": {
+        "handbook": "Handbuch / Anleitung",
+        "datasheet": "Datenblatt",
+        "invoice": "Rechnung",
+        "warranty": "Garantieschein",
+        "dguv": "DGUV-Prüfbericht",
+        "other": "Sonstiges"
       }
     }
   },
@@ -6041,6 +6172,28 @@
       "reopen": "Wieder öffnen",
       "delete": "Löschen",
       "empty": "Keine geschlossenen Boards."
+    },
+    "export": {
+      "title": "Exportieren",
+      "json": "Als JSON (Trello)",
+      "csv": "Als CSV (Trello)"
+    },
+    "import": {
+      "title": "Board importieren",
+      "hint": "Trello-Export als JSON oder CSV hochladen. Es wird ein neues Board angelegt.",
+      "file": "Exportdatei",
+      "title_optional": "Titel (optional)",
+      "title_ph": "Leer = Name aus der Datei",
+      "submit": "Importieren",
+      "error_no_file": "Bitte eine Datei auswählen.",
+      "error_empty": "Die Datei ist leer.",
+      "error_invalid": "Ungültiges Trello-Exportformat.",
+      "error_forbidden": "Keine Berechtigung für den Import.",
+      "error_admin": "Öffentliche Boards dürfen nur Admins importieren.",
+      "error_team": "Bitte ein Team auswählen.",
+      "error_team_leader": "Team-Boards dürfen nur Teamleiter importieren.",
+      "error_visibility": "Diese Sichtbarkeit ist nicht erlaubt.",
+      "error_failed": "Import fehlgeschlagen."
     }
   },
   "visibility": {

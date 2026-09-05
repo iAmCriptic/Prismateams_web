@@ -1996,6 +1996,12 @@ def create_app(config_name='default'):
 
         from app.tasks.file_converter_cleanup import start_file_converter_cleanup
         start_file_converter_cleanup(app)
+
+    try:
+        from app.utils.webdav import mount_webdav
+        mount_webdav(app)
+    except Exception as webdav_err:
+        _log_startup(f"[WARNUNG] WebDAV-Mount fehlgeschlagen: {webdav_err}")
     
     return app
 

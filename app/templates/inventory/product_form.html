@@ -166,6 +166,16 @@
         </div>
         <div class="inventory-form-fields inventory-form-fields--3 inventory-form-fields--identity">
             <div class="inventory-form-field">
+                <label for="external_barcode" class="form-label">{{ _('inventory.product.form.external_barcode') }}</label>
+                <input type="text" class="form-control" id="external_barcode" name="external_barcode"
+                       value="{{ product.external_barcode if product and product.external_barcode else '' }}"
+                       placeholder="{{ _('inventory.product.form.external_barcode_placeholder') }}"
+                       autocomplete="off"
+                       maxlength="100">
+                <small class="form-text text-muted" id="externalBarcodeHelp">{{ _('inventory.product.form.external_barcode_help') }}</small>
+                <small class="form-text text-warning d-none" id="externalBarcodeQtyHint">{{ _('inventory.product.form.external_barcode_qty_hint') }}</small>
+            </div>
+            <div class="inventory-form-field">
                 <label for="serial_number" class="form-label">{{ _('inventory.product.form.serial_number') }}</label>
                 <input type="text" class="form-control" id="serial_number" name="serial_number"
                        value="{{ product.serial_number if product else '' }}">
@@ -392,6 +402,52 @@
                 </div>
                 {% endif %}
             </div>
+        </div>
+    </section>
+
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-documents">
+        <div class="inventory-form-card-head">
+            <h2 id="inv-form-documents" class="inventory-form-section-title">
+                <i class="bi bi-file-earmark" aria-hidden="true"></i>
+                {{ _('inventory.product.form.sections.documents') }}
+            </h2>
+        </div>
+        <div class="inventory-form-fields inventory-form-fields--2">
+            <div class="inventory-form-field">
+                <label for="documents" class="form-label">{{ _('inventory.product.form.documents_upload') }}</label>
+                <input type="file" class="form-control" id="documents" name="documents" multiple
+                       accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,application/pdf,image/png,image/jpeg">
+                <div class="form-text">{{ _('inventory.product.form.documents_help') }}</div>
+            </div>
+            <div class="inventory-form-field">
+                <label for="document_file_type" class="form-label">{{ _('inventory.product.form.document_type') }}</label>
+                <select class="form-select" id="document_file_type" name="document_file_type">
+                    <option value="handbook">{{ _('inventory.documents.types.handbook') }}</option>
+                    <option value="datasheet">{{ _('inventory.documents.types.datasheet') }}</option>
+                    <option value="invoice">{{ _('inventory.documents.types.invoice') }}</option>
+                    <option value="warranty">{{ _('inventory.documents.types.warranty') }}</option>
+                    <option value="dguv">{{ _('inventory.documents.types.dguv') }}</option>
+                    <option value="other" selected>{{ _('inventory.documents.types.other') }}</option>
+                </select>
+            </div>
+            {% if manuals is defined and manuals %}
+            <div class="inventory-form-field inventory-form-field--span-2">
+                <label for="link_manual_ids" class="form-label">{{ _('inventory.product.form.link_manuals') }}</label>
+                <select class="form-select" id="link_manual_ids" name="link_manual_ids" multiple size="{% if manuals|length < 6 %}{{ manuals|length }}{% else %}6{% endif %}">
+                    {% for manual in manuals %}
+                    <option value="{{ manual.id }}">{{ manual.title }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">{{ _('inventory.product.form.link_manuals_help') }}</div>
+            </div>
+            {% endif %}
+            {% if product %}
+            <div class="inventory-form-field inventory-form-field--span-2">
+                <a href="{{ url_for('inventory.product_documents', product_id=product.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+                    <i class="bi bi-files"></i> {{ _('inventory.product.form.manage_documents') }}
+                </a>
+            </div>
+            {% endif %}
         </div>
     </section>
 

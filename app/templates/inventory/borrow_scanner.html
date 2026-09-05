@@ -45,10 +45,10 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="manualQrInput" class="form-label">ID</label>
+                    <label for="manualQrInput" class="form-label">ID / Inventar-Nr.</label>
                     <div class="inventory-manual-input-wrap">
                         <input type="text" class="form-control" id="manualQrInput" autofocus
-                               placeholder="PROD, SET, BORROW"
+                               placeholder="PROD, SET, BORROW oder Inventar-Nr."
                                autocomplete="off">
                     </div>
                 </div>
@@ -115,6 +115,7 @@
 
 {% block inventory_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

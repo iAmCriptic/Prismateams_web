@@ -302,15 +302,22 @@ class ProductSetItem(db.Model):
 
 
 class ProductDocument(db.Model):
-    """Dokumente für Produkte (Handbücher, Datenblätter, etc.)."""
+    """Dokumente für Produkte (Handbücher, Datenblätter, etc.).
+
+    Entweder eine hochgeladene Datei (file_path) und/oder eine Verknüpfung
+    zu einer Bedienungsanleitung (manual_id). Mindestens eines von beiden
+    muss gesetzt sein (App-Validierung).
+    """
     __tablename__ = 'product_documents'
     
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
-    manual_id = db.Column(db.Integer, db.ForeignKey('manuals.id'), nullable=True, index=True)  # Optional: Verknüpfung mit Manual-Modul
-    file_path = db.Column(db.String(500), nullable=False)
-    file_name = db.Column(db.String(255), nullable=False)
-    file_type = db.Column(db.String(50), nullable=False)  # 'handbook', 'datasheet', 'invoice', 'warranty', 'other'
+    manual_id = db.Column(db.Integer, db.ForeignKey('manuals.id'), nullable=True, index=True)
+    # Nullable: reine Manual-Verknüpfung ohne lokale Datei
+    file_path = db.Column(db.String(500), nullable=True)
+    file_name = db.Column(db.String(255), nullable=True)
+    # handbook|datasheet|invoice|warranty|dguv|other
+    file_type = db.Column(db.String(50), nullable=False)
     file_size = db.Column(db.Integer, nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -319,9 +326,21 @@ class ProductDocument(db.Model):
     product = db.relationship('Product', backref='documents')
     manual = db.relationship('Manual', foreign_keys=[manual_id])
     uploader = db.relationship('User', foreign_keys=[uploaded_by])
+
+    @property
+    def has_file(self):
+        return bool(self.file_path)
+
+    @property
+    def display_name(self):
+        if self.file_name:
+            return self.file_name
+        if self.manual is not None:
+            return self.manual.title
+        return f'Document #{self.id}'
     
     def __repr__(self):
-        return f'<ProductDocument {self.file_name} for Product {self.product_id}>'
+        return f'<ProductDocument {self.display_name} for Product {self.product_id}>'
 
 
 class SavedFilter(db.Model):

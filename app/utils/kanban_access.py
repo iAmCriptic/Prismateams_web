@@ -54,6 +54,79 @@ def visibility_allowed(visibility: str) -> bool:
     return visibility in get_allowed_visibilities()
 
 
+class KanbanImportPermissionError(PermissionError):
+    """Raised when the user may not import a board into the requested visibility."""
+
+
+def assert_can_import_board_visibility(user, visibility: str, team_id: int | None = None) -> None:
+    """Import rights: private=self, team=team leader, public=admin (and visibility must be enabled)."""
+    if not user or not getattr(user, 'id', None):
+        raise KanbanImportPermissionError('not_authenticated')
+
+    visibility = (visibility or '').strip().lower()
+    if visibility not in VALID_VISIBILITIES:
+        raise KanbanImportPermissionError('invalid_visibility')
+    if not visibility_allowed(visibility):
+        raise KanbanImportPermissionError('visibility_not_allowed')
+
+    if visibility == VISIBILITY_PRIVATE:
+        return
+
+    if visibility == VISIBILITY_PUBLIC:
+        if not getattr(user, 'is_admin', False):
+            raise KanbanImportPermissionError('admin_required')
+        return
+
+    # team
+    if not team_id:
+        raise KanbanImportPermissionError('team_required')
+    from app.utils.multi_mailboxes import can_manage_team
+
+    if not can_manage_team(user, int(team_id)):
+        raise KanbanImportPermissionError('team_forbidden')
+
+
+def allowed_import_board_targets(user) -> list[dict]:
+    """Space options the user may import a board into (for UI)."""
+    options: list[dict] = []
+    if not user or not getattr(user, 'id', None):
+        return options
+
+    allowed = set(get_allowed_visibilities())
+
+    if VISIBILITY_PRIVATE in allowed:
+        options.append({
+            'visibility': VISIBILITY_PRIVATE,
+            'team_id': None,
+            'label_key': 'kanban.index.vis_private',
+        })
+
+    if VISIBILITY_PUBLIC in allowed and getattr(user, 'is_admin', False):
+        options.insert(0, {
+            'visibility': VISIBILITY_PUBLIC,
+            'team_id': None,
+            'label_key': 'kanban.index.vis_public',
+        })
+
+    if VISIBILITY_TEAM in allowed:
+        from app.utils.multi_mailboxes import can_manage_team, get_led_teams
+
+        if getattr(user, 'is_admin', False):
+            teams = Team.query.order_by(Team.name).all()
+        else:
+            teams = get_led_teams(user)
+        for team in teams or []:
+            if can_manage_team(user, team.id):
+                options.append({
+                    'visibility': VISIBILITY_TEAM,
+                    'team_id': team.id,
+                    'team_name': team.name,
+                    'label_key': 'kanban.index.vis_team',
+                })
+
+    return options
+
+
 def user_team_ids(user) -> set[int]:
     if not user or not getattr(user, 'id', None):
         return set()

@@ -1197,6 +1197,7 @@ class StockManager {
                         <h2 class="inventory-form-section-title"><i class="bi bi-info-circle"></i> Stammdaten</h2>
                     </div>
                     <div class="inventory-detail-list">
+                        ${product.external_barcode ? row('Inventar-Nr.', `<strong>${val(product.external_barcode)}</strong>`) : ''}
                         ${row('Seriennummer', val(product.serial_number))}
                         ${row('Lagerort', val(product.location))}
                         ${row('Zustand', val(product.condition))}
@@ -3173,6 +3174,75 @@ class BorrowScannerManager {
         this.scanning = false;
         this.lastAction = null;
         this.lastRetryCallback = null;
+        this._zxingReader = null;
+        this._zxingFrameSkip = 0;
+    }
+
+    _ensureZxingReader() {
+        if (this._zxingReader) return this._zxingReader;
+        const ZX = window.ZXing;
+        if (!ZX || !ZX.BrowserMultiFormatReader) return null;
+        try {
+            const hints = new Map();
+            if (ZX.DecodeHintType && ZX.BarcodeFormat) {
+                hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+                    ZX.BarcodeFormat.QR_CODE,
+                    ZX.BarcodeFormat.CODE_128,
+                    ZX.BarcodeFormat.CODE_39,
+                    ZX.BarcodeFormat.EAN_13,
+                    ZX.BarcodeFormat.EAN_8,
+                    ZX.BarcodeFormat.ITF,
+                    ZX.BarcodeFormat.CODABAR,
+                ]);
+                hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+            }
+            this._zxingReader = new ZX.BrowserMultiFormatReader(hints);
+            return this._zxingReader;
+        } catch (err) {
+            console.warn('ZXing Init fehlgeschlagen:', err);
+            return null;
+        }
+    }
+
+    _decodeWithZxing(canvas) {
+        const reader = this._ensureZxingReader();
+        if (!reader || !canvas) return null;
+        try {
+            // decodeFromCanvas ist sync in @zxing/browser UMD
+            if (typeof reader.decodeFromCanvas === 'function') {
+                const result = reader.decodeFromCanvas(canvas);
+                return result && result.getText ? result.getText() : (result && result.text) || null;
+            }
+        } catch (_notFound) {
+            // Kein Code in diesem Frame
+        }
+        // Fallback: MultiFormatReader + LuminanceSource
+        const ZX = window.ZXing;
+        if (!ZX || !ZX.HTMLCanvasElementLuminanceSource || !ZX.BinaryBitmap) return null;
+        try {
+            if (!this._zxingMultiReader) {
+                this._zxingMultiReader = new ZX.MultiFormatReader();
+                const hints = new Map();
+                if (ZX.DecodeHintType && ZX.BarcodeFormat) {
+                    hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+                        ZX.BarcodeFormat.CODE_128,
+                        ZX.BarcodeFormat.CODE_39,
+                        ZX.BarcodeFormat.EAN_13,
+                        ZX.BarcodeFormat.EAN_8,
+                        ZX.BarcodeFormat.ITF,
+                        ZX.BarcodeFormat.CODABAR,
+                    ]);
+                    hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+                }
+                this._zxingMultiReader.setHints(hints);
+            }
+            const luminance = new ZX.HTMLCanvasElementLuminanceSource(canvas);
+            const binary = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance));
+            const result = this._zxingMultiReader.decode(binary);
+            return result && result.getText ? result.getText() : null;
+        } catch (_err) {
+            return null;
+        }
     }
     
     init() {
@@ -3593,10 +3663,43 @@ class BorrowScannerManager {
                     this.addToCart(qrCodeData);
                 });
                 return; // Verhindere weiteres Scannen bis addToCart fertig ist
-            } else {
-                // Weiter scannen - kontinuierlich
-                requestAnimationFrame(() => this.scanForQR());
             }
+
+            // 1D-Barcodes (Esto Inventar-Etiketten): ZXing alle paar Frames
+            this._zxingFrameSkip = (this._zxingFrameSkip + 1) % 3;
+            let barcodeText = null;
+            if (this._zxingFrameSkip === 0) {
+                barcodeText = this._decodeWithZxing(canvas);
+            }
+            if (barcodeText) {
+                this.scanning = false;
+                const qrCodeData = barcodeText;
+                this.freezeAndAnimate().then(() => {
+                    this.showScanSuccess();
+                    this.addToCart(qrCodeData).then(() => {
+                        setTimeout(() => {
+                            if (this.stream && !this.scanning) {
+                                this.scanning = true;
+                                this.scanForQR();
+                            }
+                        }, 2500);
+                    }).catch((error) => {
+                        console.error('addToCart Fehler:', error);
+                        setTimeout(() => {
+                            if (this.stream && !this.scanning) {
+                                this.scanning = true;
+                                this.scanForQR();
+                            }
+                        }, 2500);
+                    });
+                }).catch(() => {
+                    this.addToCart(qrCodeData);
+                });
+                return;
+            }
+
+            // Weiter scannen - kontinuierlich
+            requestAnimationFrame(() => this.scanForQR());
         } catch (error) {
             console.error('Fehler beim Scannen (BorrowScanner):', error);
             setTimeout(() => this.scanForQR(), 200);

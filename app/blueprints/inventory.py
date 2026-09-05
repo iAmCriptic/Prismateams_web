@@ -30,6 +30,8 @@ import re
 inventory_bp = Blueprint('inventory', __name__)
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'xls', 'xlsx'}
+DOCUMENT_FILE_TYPES = {'handbook', 'datasheet', 'invoice', 'warranty', 'dguv', 'other'}
 DEFAULT_DGUV_INTERVAL_MONTHS = 12
 CART_SET_META_KEY = 'borrow_cart_set_meta'
 CART_QTY_META_KEY = 'borrow_cart_quantities'
@@ -118,6 +120,73 @@ def _normalize_scanner_code(value):
     if parsed and parsed[0] == 'borrow':
         return f'BORROW-{parsed[1]}'
     return text
+
+
+def _normalize_external_barcode(value):
+    """Inventar-Nr. vom Etikett: trimmen, Steuerzeichen entfernen, exakt behalten (inkl. führender Nullen)."""
+    if value is None:
+        return None
+    text = re.sub(r'[\x00-\x1F\x7F]+', '', str(value)).strip()
+    return text or None
+
+
+def _external_barcode_taken(code, exclude_product_id=None):
+    if not code:
+        return False
+    q = Product.query.filter_by(external_barcode=code)
+    if exclude_product_id is not None:
+        q = q.filter(Product.id != exclude_product_id)
+    return q.first() is not None
+
+
+def _can_use_as_numeric_product_id(code):
+    """Numerische Produkt-ID nur ohne führende Nullen (sonst Kollision mit Inventar-Nr. 001)."""
+    if not code or not str(code).isdigit():
+        return False
+    s = str(code)
+    if len(s) > 1 and s.startswith('0'):
+        return False
+    return True
+
+
+def _find_product_by_external_barcode(code):
+    if not code:
+        return None
+    return Product.query.filter_by(external_barcode=code).first()
+
+
+def _lookup_product_or_set_by_scan(code):
+    """
+    Löst Scan-Code zu (product, product_set) auf.
+    Reihenfolge: Inventar-Nr. → Portal-QR (PROD/SET) → numerische ID ohne führende Nullen.
+    BORROW wird nicht hier aufgelöst (None, None).
+    """
+    from app.utils.qr_code import parse_qr_code
+
+    code = (code or '').strip()
+    if not code:
+        return None, None
+
+    product = _find_product_by_external_barcode(code)
+    if product:
+        return product, None
+
+    parsed = parse_qr_code(code)
+    if parsed:
+        qr_type, qr_id = parsed
+        if qr_type == 'product':
+            return Product.query.get(qr_id), None
+        if qr_type == 'set':
+            return None, ProductSet.query.get(qr_id)
+        return None, None
+
+    if _can_use_as_numeric_product_id(code):
+        try:
+            return Product.query.get(int(code)), None
+        except (TypeError, ValueError):
+            pass
+
+    return None, None
 
 
 def _get_cart_set_meta():
@@ -252,6 +321,145 @@ def _source_set_api_payload(source_set):
 def allowed_file(filename):
     """Prüft ob die Dateiendung erlaubt ist."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def allowed_document_file(filename):
+    """Prüft ob eine Dokument-Endung erlaubt ist (PDF/PNG/JPEG + Office)."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENT_EXTENSIONS
+
+
+def _normalize_document_file_type(raw):
+    value = (raw or 'other').strip().lower()
+    return value if value in DOCUMENT_FILE_TYPES else 'other'
+
+
+def _product_documents_dir():
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents')
+    os.makedirs(upload_dir, exist_ok=True)
+    return upload_dir
+
+
+def _accessible_manuals():
+    """Sichtbare Manuals für den aktuellen User (leer wenn Modul aus)."""
+    from app.models.manual import Manual
+    from app.utils.common import is_module_enabled
+    from app.utils.module_visibility import accessible_query
+
+    if not is_module_enabled('module_manuals'):
+        return []
+    return accessible_query(current_user, Manual, 'manuals').order_by(Manual.title).all()
+
+
+def _get_accessible_manual(manual_id):
+    if not manual_id:
+        return None
+    from app.models.manual import Manual
+    from app.utils.common import is_module_enabled
+    from app.utils.module_visibility import can_view_item
+
+    if not is_module_enabled('module_manuals'):
+        return None
+    manual = Manual.query.get(manual_id)
+    if not manual or not can_view_item(current_user, manual, 'manuals'):
+        return None
+    return manual
+
+
+def _save_document_upload(file_storage, *, copy_from_path=None, original_name=None):
+    """Speichert Upload oder kopiert bestehende Datei. Returns (abs_path, file_name, size)."""
+    import shutil
+
+    upload_dir = _product_documents_dir()
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+
+    if copy_from_path:
+        base_name = secure_filename(original_name or os.path.basename(copy_from_path) or 'document')
+        stored = f"{timestamp}_{secrets.token_hex(4)}_{base_name}"
+        dest = os.path.join(upload_dir, stored)
+        shutil.copy2(copy_from_path, dest)
+        return os.path.abspath(dest), original_name or base_name, os.path.getsize(dest)
+
+    filename = secure_filename(file_storage.filename or 'document')
+    stored = f"{timestamp}_{filename}"
+    dest = os.path.join(upload_dir, stored)
+    file_storage.save(dest)
+    abs_path = os.path.abspath(dest)
+    return abs_path, file_storage.filename or filename, os.path.getsize(abs_path)
+
+
+def _create_product_document(*, product_id, file_type, uploaded_by, file_path=None, file_name=None, file_size=None, manual_id=None):
+    if not file_path and not manual_id:
+        raise ValueError('file_path or manual_id required')
+    doc = ProductDocument(
+        product_id=product_id,
+        manual_id=manual_id,
+        file_path=file_path,
+        file_name=file_name,
+        file_type=_normalize_document_file_type(file_type),
+        file_size=file_size,
+        uploaded_by=uploaded_by,
+    )
+    db.session.add(doc)
+    return doc
+
+
+def _attach_form_documents_to_products(products, form, files):
+    """Hängt Uploads und Manual-Links aus dem Produktformular an alle Produkte."""
+    if not products:
+        return 0
+
+    file_type = _normalize_document_file_type(form.get('document_file_type', 'other'))
+    uploaded = files.getlist('documents') if files else []
+    saved_uploads = []
+    for f in uploaded:
+        if not f or not f.filename:
+            continue
+        if not allowed_document_file(f.filename):
+            continue
+        abs_path, orig_name, size = _save_document_upload(f)
+        saved_uploads.append((abs_path, orig_name, size))
+
+    manual_ids = []
+    raw_ids = form.getlist('link_manual_ids') if hasattr(form, 'getlist') else []
+    if not raw_ids:
+        single = form.get('link_manual_id', type=int) if hasattr(form, 'get') else None
+        if single:
+            raw_ids = [single]
+    for raw in raw_ids:
+        try:
+            mid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if _get_accessible_manual(mid):
+            manual_ids.append(mid)
+
+    count = 0
+    for idx, product in enumerate(products):
+        for abs_path, orig_name, size in saved_uploads:
+            if idx == 0:
+                path, name, fsize = abs_path, orig_name, size
+            else:
+                path, name, fsize = _save_document_upload(
+                    None, copy_from_path=abs_path, original_name=orig_name
+                )
+            _create_product_document(
+                product_id=product.id,
+                file_type=file_type,
+                uploaded_by=current_user.id,
+                file_path=path,
+                file_name=name,
+                file_size=fsize,
+            )
+            count += 1
+        for mid in manual_ids:
+            _create_product_document(
+                product_id=product.id,
+                file_type='handbook',
+                uploaded_by=current_user.id,
+                manual_id=mid,
+            )
+            count += 1
+    return count
 
 
 def _parse_optional_float(value):
@@ -795,7 +1003,7 @@ def product_new():
             flash(translate('inventory.flash.product_name_required'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
-            return render_template('inventory/product_form.html', categories=categories, folders=folders)
+            return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
         
         description = request.form.get('description', '').strip()
         category = request.form.get('category', '').strip()
@@ -808,7 +1016,7 @@ def product_new():
             flash(_('inventory.flash.invalid_length'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
-            return render_template('inventory/product_form.html', categories=categories, folders=folders)
+            return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
         folder_id = request.form.get('folder_id', '').strip()
         purchase_date_str = request.form.get('purchase_date', '').strip()
         
@@ -836,12 +1044,24 @@ def product_new():
                 flash(_('inventory.flash.quantity_range'), 'danger')
                 categories = get_inventory_categories()
                 folders = get_product_folders()
-                return render_template('inventory/product_form.html', categories=categories, folders=folders)
+                return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
         except ValueError:
             flash(_('inventory.flash.invalid_quantity'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
-            return render_template('inventory/product_form.html', categories=categories, folders=folders)
+            return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
+
+        external_barcode = _normalize_external_barcode(request.form.get('external_barcode'))
+        if external_barcode and quantity > 1:
+            flash(_('inventory.flash.external_barcode_qty'), 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
+        if external_barcode and _external_barcode_taken(external_barcode):
+            flash(_('inventory.flash.external_barcode_taken', code=external_barcode), 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            return render_template('inventory/product_form.html', categories=categories, folders=folders, manuals=_accessible_manuals())
         
         image_path = None
         if 'image' in request.files:
@@ -872,6 +1092,7 @@ def product_new():
                     status='available',
                     item_type='asset',
                     image_path=image_path,  # Gleiches Bild für alle
+                    external_barcode=external_barcode if quantity == 1 else None,
                     created_by=current_user.id,
                     weight_kg=_parse_optional_float(request.form.get('weight_kg')),
                     width_cm=_parse_optional_float(request.form.get('width_cm')),
@@ -896,6 +1117,14 @@ def product_new():
             
             db.session.commit()
 
+            try:
+                _attach_form_documents_to_products(created_products, request.form, request.files)
+                db.session.commit()
+            except Exception as doc_err:
+                db.session.rollback()
+                current_app.logger.error(f"Fehler beim Anhängen von Dokumenten: {doc_err}", exc_info=True)
+                flash(_('inventory.flash.document_attach_error'), 'warning')
+
             # Flash-Nachricht anpassen je nach Anzahl
             if quantity == 1:
                 flash(_('inventory.flash.product_created', name=name), 'success')
@@ -909,12 +1138,22 @@ def product_new():
             flash(_('inventory.flash.create_error'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
-            return render_template('inventory/product_form.html', categories=categories, folders=folders)
+            return render_template(
+                'inventory/product_form.html',
+                categories=categories,
+                folders=folders,
+                manuals=_accessible_manuals(),
+            )
     
     categories = get_inventory_categories()
     folders = get_product_folders()
     
-    return render_template('inventory/product_form.html', categories=categories, folders=folders)
+    return render_template(
+        'inventory/product_form.html',
+        categories=categories,
+        folders=folders,
+        manuals=_accessible_manuals(),
+    )
 
 
 @inventory_bp.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
@@ -935,7 +1174,7 @@ def product_edit(product_id):
             flash(translate('inventory.flash.product_name_required'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
-            return render_template('inventory/product_form.html', product=product, categories=categories, folders=folders)
+            return render_template('inventory/product_form.html', product=product, categories=categories, folders=folders, manuals=_accessible_manuals())
         
         product.name = name
         product.description = request.form.get('description', '').strip() or None
@@ -943,6 +1182,22 @@ def product_edit(product_id):
         product.serial_number = request.form.get('serial_number', '').strip() or None
         product.condition = request.form.get('condition', '').strip() or None
         product.location = request.form.get('location', '').strip() or None
+
+        external_barcode = _normalize_external_barcode(request.form.get('external_barcode'))
+        if external_barcode and _external_barcode_taken(external_barcode, exclude_product_id=product.id):
+            flash(_('inventory.flash.external_barcode_taken', code=external_barcode), 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
+            return render_template(
+                'inventory/product_form.html',
+                product=product,
+                purchase_date_formatted=purchase_date_formatted,
+                categories=categories,
+                folders=folders,
+                manuals=_accessible_manuals(),
+            )
+        product.external_barcode = external_barcode
         
         length_input = request.form.get('length', '').strip()
         if length_input:
@@ -952,7 +1207,7 @@ def product_edit(product_id):
                 categories = get_inventory_categories()
                 folders = get_product_folders()
                 purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
-                return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders)
+                return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders, manuals=_accessible_manuals())
             product.length = normalized_length
         else:
             product.length = None
@@ -1071,6 +1326,15 @@ def product_edit(product_id):
                 flash(f'{len(merged_products)} ähnliche Einzelartikel wurden auf "ausgemustert" gesetzt.', 'info')
         
         db.session.commit()
+
+        try:
+            attached = _attach_form_documents_to_products([product], request.form, request.files)
+            if attached:
+                db.session.commit()
+        except Exception as doc_err:
+            db.session.rollback()
+            current_app.logger.error(f"Fehler beim Anhängen von Dokumenten: {doc_err}", exc_info=True)
+            flash(_('inventory.flash.document_attach_error'), 'warning')
         
         if request.form.get('convert_to_cable') != '1':
             flash(_('inventory.flash.product_updated', name=name), 'success')
@@ -1081,7 +1345,14 @@ def product_edit(product_id):
     categories = get_inventory_categories()
     folders = get_product_folders()
     
-    return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders)
+    return render_template(
+        'inventory/product_form.html',
+        product=product,
+        purchase_date_formatted=purchase_date_formatted,
+        categories=categories,
+        folders=folders,
+        manuals=_accessible_manuals(),
+    )
 
 
 @inventory_bp.route('/public/product-images/<path:filename>')
@@ -1350,9 +1621,14 @@ def borrow_scanner():
             product_set = None
             
             if qr_code:
-                parsed = parse_qr_code(qr_code)
+                # 1) Inventar-Nr. (Esto) zuerst — vor numerischer Produkt-ID
+                product = _find_product_by_external_barcode(qr_code)
+                if product:
+                    current_app.logger.debug(f'Inventar-Nr. Treffer: {product.id}')
+
+                parsed = parse_qr_code(qr_code) if not product else None
                 current_app.logger.debug(f'QR-Code geparst: {parsed}, Original: {qr_code}')
-                if parsed:
+                if not product and parsed:
                     qr_type, qr_id = parsed
                     if qr_type == 'borrow':
                         try:
@@ -1374,7 +1650,7 @@ def borrow_scanner():
                     elif qr_type == 'set':
                         product_set = ProductSet.query.get(qr_id)
                         current_app.logger.debug(f'Set gefunden: {product_set.id if product_set else None}')
-                elif looks_like_return_qr(qr_code):
+                elif not product and looks_like_return_qr(qr_code):
                     try:
                         checkout = return_checkout_by_ref(qr_code)
                         return jsonify({
@@ -1388,16 +1664,15 @@ def borrow_scanner():
                         })
                     except ValueError as exc:
                         return jsonify({'error': str(exc), 'is_return': True}), 400
-                else:
+                elif not product and not product_set and _can_use_as_numeric_product_id(qr_code):
                     try:
-                        direct_product_id = int(qr_code)
-                        product = Product.query.get(direct_product_id)
-                        current_app.logger.debug(f'Direkte Produkt-ID: {direct_product_id}, Produkt gefunden: {product.id if product else None}')
+                        product = Product.query.get(int(qr_code))
+                        current_app.logger.debug(
+                            f'Direkte Produkt-ID: {qr_code}, Produkt gefunden: {product.id if product else None}'
+                        )
                     except (ValueError, TypeError):
-                        current_app.logger.debug(f'QR-Code konnte nicht als Produkt-ID interpretiert werden: {qr_code}')
-                        pass  # Keine gültige Produkt-ID
-                if not product and not product_set and qr_code:
-                    product = Product.query.filter_by(external_barcode=qr_code).first()
+                        pass
+
                 # Klartext: Produkt- oder Set-Name (exakt, sonst eindeutiger Teiltreffer)
                 if not product and not product_set and qr_code:
                     name_q = qr_code.strip()
@@ -1405,6 +1680,7 @@ def borrow_scanner():
                         parse_qr_code(name_q)
                         or looks_like_return_qr(name_q)
                         or name_q.isdigit()
+                        or _find_product_by_external_barcode(name_q)
                     )
                     if not looks_like_code:
                         product = Product.query.filter(Product.name.ilike(name_q)).first()
@@ -2205,23 +2481,14 @@ def api_inventory_scan(inventory_id):
         return jsonify({'error': translate('inventory.errors.inventory_not_active')}), 400
     
     data = request.get_json()
-    qr_data = data.get('qr_data', '').strip()
+    qr_data = _normalize_scanner_code((data.get('qr_data') or '').strip())
     
     if not qr_data:
         return jsonify({'error': translate('inventory.errors.qr_data_required')}), 400
-    
-    # QR-Code parsen
-    parsed = parse_qr_code(qr_data)
-    if not parsed:
-        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
-    
-    qr_type, qr_id = parsed
-    
-    if qr_type == 'product':
-        product = Product.query.get(qr_id)
-        if not product:
-            return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
-        
+
+    # Inventar-Nr. → PROD/SET → numerische ID (ohne führende Nullen)
+    product, product_set = _lookup_product_or_set_by_scan(qr_data)
+    if product:
         item = InventoryItem.query.filter_by(
             inventory_id=inventory_id,
             product_id=product.id
@@ -2242,7 +2509,8 @@ def api_inventory_scan(inventory_id):
                 'name': product.name,
                 'category': product.category,
                 'location': product.location,
-                'condition': product.condition
+                'condition': product.condition,
+                'external_barcode': product.external_barcode,
             },
             'item': {
                 'id': item.id,
@@ -2254,10 +2522,7 @@ def api_inventory_scan(inventory_id):
                 'new_condition': item.new_condition
             }
         })
-    elif qr_type == 'set':
-        product_set = ProductSet.query.get(qr_id)
-        if not product_set:
-            return jsonify({'error': 'Set nicht gefunden.'}), 404
+    if product_set:
         checked = []
         missing = []
         for set_item in product_set.items:
@@ -2284,8 +2549,8 @@ def api_inventory_scan(inventory_id):
             'missing_products': missing,
             'checked_count': len(checked),
         })
-    else:
-        return jsonify({'error': translate('inventory.errors.only_product_qr_supported')}), 400
+
+    return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
 
 
 @inventory_bp.route('/folders', methods=['GET', 'POST'])
@@ -4032,122 +4297,198 @@ def api_sets_bulk_delete():
 
 @inventory_bp.route('/products/<int:product_id>/documents')
 @login_required
+@check_module_access('module_inventory')
 def product_documents(product_id):
     """Dokumente eines Produkts anzeigen."""
     product = Product.query.get_or_404(product_id)
-    documents = ProductDocument.query.filter_by(product_id=product_id).order_by(ProductDocument.created_at.desc()).all()
-    from app.models.manual import Manual
-    manuals = Manual.query.order_by(Manual.title).all()
-    return render_template('inventory/product_documents.html', product=product, documents=documents, manuals=manuals)
+    documents = (
+        ProductDocument.query
+        .options(joinedload(ProductDocument.manual))
+        .filter_by(product_id=product_id)
+        .order_by(ProductDocument.created_at.desc())
+        .all()
+    )
+    manuals = _accessible_manuals()
+    return render_template(
+        'inventory/product_documents.html',
+        product=product,
+        documents=documents,
+        manuals=manuals,
+    )
 
 
 @inventory_bp.route('/products/<int:product_id>/documents/upload', methods=['POST'])
 @login_required
+@check_module_access('module_inventory')
 def product_document_upload(product_id):
-    """Dokument für ein Produkt hochladen."""
-    product = Product.query.get_or_404(product_id)
-    
+    """Dokument fuer ein Produkt hochladen (optional mit Manual-Verknuepfung)."""
+    Product.query.get_or_404(product_id)
+
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
     if 'file' not in request.files:
         flash(_('inventory.flash.no_file_selected'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
-    
+
     file = request.files['file']
-    file_type = request.form.get('file_type', 'other')
+    file_type = _normalize_document_file_type(request.form.get('file_type', 'other'))
     manual_id = request.form.get('manual_id', type=int) or None
-    
-    if file.filename == '':
+
+    if not file or file.filename == '':
         flash(_('inventory.flash.no_file_selected'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
-    
-    # Datei speichern
-    filename = secure_filename(file.filename)
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    stored_filename = f"{timestamp}_{filename}"
-    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents')
-    os.makedirs(upload_dir, exist_ok=True)
-    filepath = os.path.join(upload_dir, stored_filename)
-    file.save(filepath)
-    absolute_filepath = os.path.abspath(filepath)
-    
-    # Dokument-Eintrag erstellen
-    document = ProductDocument(
+
+    if not allowed_document_file(file.filename):
+        flash(_('inventory.flash.document_invalid_type'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    manual = _get_accessible_manual(manual_id) if manual_id else None
+    if manual_id and not manual:
+        flash(_('inventory.flash.manual_not_accessible'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    abs_path, orig_name, size = _save_document_upload(file)
+    _create_product_document(
         product_id=product_id,
-        manual_id=manual_id,
-        file_path=absolute_filepath,
-        file_name=filename,
         file_type=file_type,
-        file_size=os.path.getsize(absolute_filepath),
-        uploaded_by=current_user.id
+        uploaded_by=current_user.id,
+        file_path=abs_path,
+        file_name=orig_name,
+        file_size=size,
+        manual_id=manual.id if manual else None,
     )
-    
-    db.session.add(document)
     db.session.commit()
-    
-    flash(_('inventory.flash.document_uploaded', filename=filename), 'success')
+
+    flash(_('inventory.flash.document_uploaded', filename=orig_name), 'success')
+    return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+
+@inventory_bp.route('/products/<int:product_id>/documents/link-manual', methods=['POST'])
+@login_required
+@check_module_access('module_inventory')
+def product_document_link_manual(product_id):
+    """Reine Verknuepfung einer Bedienungsanleitung ohne Datei-Upload."""
+    Product.query.get_or_404(product_id)
+
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    manual_id = request.form.get('manual_id', type=int)
+    file_type = _normalize_document_file_type(request.form.get('file_type', 'handbook'))
+    manual = _get_accessible_manual(manual_id)
+    if not manual:
+        flash(_('inventory.flash.manual_link_required'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    existing = ProductDocument.query.filter_by(
+        product_id=product_id, manual_id=manual.id, file_path=None
+    ).first()
+    if existing:
+        flash(_('inventory.flash.manual_already_linked', title=manual.title), 'info')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    _create_product_document(
+        product_id=product_id,
+        file_type=file_type,
+        uploaded_by=current_user.id,
+        manual_id=manual.id,
+    )
+    db.session.commit()
+    flash(_('inventory.flash.manual_linked', title=manual.title), 'success')
     return redirect(url_for('inventory.product_documents', product_id=product_id))
 
 
 @inventory_bp.route('/products/<int:product_id>/documents/<int:document_id>/delete', methods=['POST'])
 @login_required
+@check_module_access('module_inventory')
 def product_document_delete(product_id, document_id):
-    """Dokument löschen."""
+    """Dokument loeschen (Datei und/oder Verknuepfung; Manual selbst bleibt)."""
     document = ProductDocument.query.get_or_404(document_id)
-    
+
     if document.product_id != product_id:
         flash(translate('inventory.flash.invalid_request'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
-    
-    # Datei löschen
-    if os.path.exists(document.file_path):
+
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+    if document.file_path and os.path.exists(document.file_path):
         try:
             os.remove(document.file_path)
         except Exception as e:
-            current_app.logger.error(f"Fehler beim Löschen der Datei: {e}")
-    
-    filename = document.file_name
+            current_app.logger.error(f"Fehler beim Loeschen der Datei: {e}")
+
+    label = document.display_name
     db.session.delete(document)
     db.session.commit()
-    
-    flash(_('inventory.flash.document_deleted', filename=filename), 'success')
+
+    flash(_('inventory.flash.document_deleted', filename=label), 'success')
     return redirect(url_for('inventory.product_documents', product_id=product_id))
 
 
 @inventory_bp.route('/products/<int:product_id>/documents/<int:document_id>/download')
 @login_required
+@check_module_access('module_inventory')
 def product_document_download(product_id, document_id):
-    """Dokument herunterladen."""
+    """Dokument herunterladen (nur wenn lokale Datei vorhanden)."""
     document = ProductDocument.query.get_or_404(document_id)
-    
+
     if document.product_id != product_id:
-        flash(_('inventory.flash.invalid_request'), 'danger')
+        flash(translate('inventory.flash.invalid_request'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
-    
-    if not os.path.exists(document.file_path):
+
+    if not document.file_path or not os.path.exists(document.file_path):
+        if document.manual_id:
+            return redirect(url_for('manuals.view', manual_id=document.manual_id))
         flash(_('inventory.flash.file_not_found'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
-    
-    return send_file(document.file_path, as_attachment=True, download_name=document.file_name)
+
+    return send_file(
+        document.file_path,
+        as_attachment=True,
+        download_name=document.file_name or os.path.basename(document.file_path),
+    )
 
 
 @inventory_bp.route('/api/products/<int:product_id>/documents', methods=['GET'])
 @login_required
+@check_module_access('module_inventory')
 def api_product_documents(product_id):
     """API: Liste aller Dokumente eines Produkts."""
-    product = Product.query.get_or_404(product_id)
-    documents = ProductDocument.query.filter_by(product_id=product_id).order_by(ProductDocument.created_at.desc()).all()
-    
+    Product.query.get_or_404(product_id)
+    documents = (
+        ProductDocument.query
+        .options(joinedload(ProductDocument.manual))
+        .filter_by(product_id=product_id)
+        .order_by(ProductDocument.created_at.desc())
+        .all()
+    )
+
     result = []
     for doc in documents:
+        manual_title = doc.manual.title if doc.manual else None
         result.append({
             'id': doc.id,
             'file_name': doc.file_name,
+            'display_name': doc.display_name,
             'file_type': doc.file_type,
             'file_size': doc.file_size,
             'manual_id': doc.manual_id,
+            'manual_title': manual_title,
+            'manual_view_url': url_for('manuals.view', manual_id=doc.manual_id) if doc.manual_id else None,
+            'has_file': bool(doc.file_path),
+            'download_url': (
+                url_for('inventory.product_document_download', product_id=product_id, document_id=doc.id)
+                if doc.file_path else None
+            ),
             'created_at': doc.created_at.isoformat(),
-            'uploaded_by': doc.uploaded_by
+            'uploaded_by': doc.uploaded_by,
         })
-    
+
     return jsonify(result)
 
 
@@ -4726,12 +5067,34 @@ def api_mobile_scan():
         return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     data = request.get_json()
-    qr_data = data.get('qr_data', '').strip()
+    qr_data = _normalize_scanner_code((data.get('qr_data') or '').strip())
     
     if not qr_data:
         return jsonify({'error': translate('inventory.errors.qr_data_required')}), 400
+
+    product, product_set = _lookup_product_or_set_by_scan(qr_data)
+    if product:
+        return jsonify({
+            'type': 'product',
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'status': product.status,
+                'location': product.location,
+                'external_barcode': product.external_barcode,
+            }
+        })
+    if product_set:
+        return jsonify({
+            'type': 'set',
+            'set': {
+                'id': product_set.id,
+                'name': product_set.name,
+                'product_count': product_set.product_count,
+            }
+        })
     
-    # QR-Code parsen
+    # QR-Code parsen (Borrow / Checkout)
     parsed = parse_qr_code(qr_data)
     if not parsed:
         # Fallback: raw checkout number

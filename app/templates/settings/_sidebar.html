@@ -88,6 +88,8 @@
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
+{% set cloud_import_active = ep.startswith('settings.cloud_import') %}
+{% set show_cloud_import = is_module_enabled('module_files') %}
 
 <div class="settings-sidebar-scroll">
 <nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
@@ -114,6 +116,12 @@
     <a href="{{ url_for('settings.about') }}" class="nav-link mod-nav-link{% if about_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-info-circle me-2"></i>{{ _('settings.index.cards.about.title') }}
     </a>
+
+    {% if show_cloud_import %}
+    <a href="{{ url_for('settings.cloud_import') }}" class="nav-link mod-nav-link{% if cloud_import_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-cloud-arrow-down me-2"></i>{{ _('settings.cloud_import.title') }}
+    </a>
+    {% endif %}
 
     {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
     <a href="{{ url_for('settings.my_mailboxes') }}" class="nav-link mod-nav-link{% if my_mailboxes_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>

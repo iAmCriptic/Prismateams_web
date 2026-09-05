@@ -1,9 +1,8 @@
 {% extends "inventory/layout.html" %}
 
-{% block title %}Dokumente - {{ product.name }}{% endblock %}
+{% block title %}{{ _('inventory.documents.page_title', name=product.name) }}{% endblock %}
 {% block inventory_heading_icon %}bi-file-earmark{% endblock %}
-{% block inventory_heading %}Dokumente für "{{ product.name }}"{% endblock %}
-
+{% block inventory_heading %}{{ _('inventory.documents.heading', name=product.name) }}{% endblock %}
 
 {% block inventory_content %}
 <div class="inventory-back-row mb-3">
@@ -12,139 +11,228 @@
         <span>{{ _('layout.nav.back') }}</span>
     </a>
 </div>
-<div class="row">
-    <div class="col-12 col-lg-8">
-        <!-- Dokumente-Liste -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-files"></i> Dokumente</h5>
-                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                    <i class="bi bi-upload"></i> Dokument hochladen
-                </button>
-            </div>
-            <div class="card-body">
-                {% if documents %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Dateiname</th>
-                                <th>Typ</th>
-                                <th>Größe</th>
-                                <th>Hochgeladen</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for doc in documents %}
-                            <tr>
-                                <td>
-                                    <i class="bi bi-file-earmark-{{ 'pdf' if doc.file_name.endswith('.pdf') else 'text' }}"></i>
-                                    {{ doc.file_name }}
-                                </td>
-                                <td>
-                                    {% if doc.file_type == 'handbook' %}
-                                    <span class="badge bg-primary">Handbuch</span>
-                                    {% elif doc.file_type == 'datasheet' %}
-                                    <span class="badge bg-info">Datenblatt</span>
-                                    {% elif doc.file_type == 'invoice' %}
-                                    <span class="badge bg-warning">Rechnung</span>
-                                    {% elif doc.file_type == 'warranty' %}
-                                    <span class="badge bg-success">Garantieschein</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Sonstiges</span>
-                                    {% endif %}
-                                    {% if doc.manual_id %}
-                                    <br><small class="text-muted">Verknüpft mit Manual</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if doc.file_size %}
-                                    {{ (doc.file_size / 1024) | round(2) }} KB
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {{ doc.created_at|localdatetime('%d.%m.%Y') }}
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ url_for('inventory.product_document_download', product_id=product.id, document_id=doc.id) }}" 
-                                           class="btn btn-sm btn-outline-primary" title="Herunterladen">
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                        <form method="POST" 
-                                              action="{{ url_for('inventory.product_document_delete', product_id=product.id, document_id=doc.id) }}" 
-                                              class="d-inline">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen"
-                                                    data-confirm-delete="Möchten Sie dieses Dokument wirklich löschen?">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Noch keine Dokumente vorhanden.
-                </div>
-                {% endif %}
-            </div>
+
+<section class="inventory-form-card inventory-form-card--wide mb-3">
+    <div class="inventory-form-card-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h2 class="inventory-form-section-title mb-0">
+            <i class="bi bi-files" aria-hidden="true"></i>
+            {{ _('inventory.documents.list_title') }}
+        </h2>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-upload"></i> {{ _('inventory.documents.upload_btn') }}
+            </button>
+            {% if manuals %}
+            <button type="button" class="btn inventory-pill-btn inventory-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#linkManualModal">
+                <i class="bi bi-link-45deg"></i> {{ _('inventory.documents.link_manual_btn') }}
+            </button>
+            {% endif %}
+            <a href="{{ url_for('inventory.product_edit', product_id=product.id) }}" class="btn inventory-pill-btn inventory-pill-btn--muted">
+                <i class="bi bi-pencil"></i> {{ _('inventory.documents.edit_product') }}
+            </a>
         </div>
     </div>
-</div>
+
+    <div class="inventory-form-fields">
+        {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ _('inventory.documents.col_name') }}</th>
+                        <th>{{ _('inventory.documents.col_type') }}</th>
+                        <th>{{ _('inventory.documents.col_size') }}</th>
+                        <th>{{ _('inventory.documents.col_date') }}</th>
+                        <th>{{ _('inventory.documents.col_actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>
+                            {% if doc.file_path %}
+                                {% set ext = (doc.file_name or '')|lower %}
+                                {% if ext.endswith('.pdf') %}
+                                <i class="bi bi-file-earmark-pdf"></i>
+                                {% elif ext.endswith('.png') or ext.endswith('.jpg') or ext.endswith('.jpeg') %}
+                                <i class="bi bi-file-earmark-image"></i>
+                                {% else %}
+                                <i class="bi bi-file-earmark-text"></i>
+                                {% endif %}
+                                {{ doc.file_name or doc.display_name }}
+                            {% else %}
+                                <i class="bi bi-book"></i>
+                                {{ doc.manual.title if doc.manual else doc.display_name }}
+                            {% endif %}
+                            {% if doc.manual_id and doc.file_path %}
+                            <br><small class="text-muted">{{ _('inventory.documents.linked_manual') }}{% if doc.manual %}: {{ doc.manual.title }}{% endif %}</small>
+                            {% elif doc.manual_id and not doc.file_path %}
+                            <br><small class="text-muted">{{ _('inventory.documents.manual_link_only') }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if doc.file_type == 'handbook' %}
+                            <span class="badge rounded-pill text-bg-primary">{{ _('inventory.documents.types.handbook') }}</span>
+                            {% elif doc.file_type == 'datasheet' %}
+                            <span class="badge rounded-pill text-bg-info">{{ _('inventory.documents.types.datasheet') }}</span>
+                            {% elif doc.file_type == 'invoice' %}
+                            <span class="badge rounded-pill text-bg-warning">{{ _('inventory.documents.types.invoice') }}</span>
+                            {% elif doc.file_type == 'warranty' %}
+                            <span class="badge rounded-pill text-bg-success">{{ _('inventory.documents.types.warranty') }}</span>
+                            {% elif doc.file_type == 'dguv' %}
+                            <span class="badge rounded-pill text-bg-danger">{{ _('inventory.documents.types.dguv') }}</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-secondary">{{ _('inventory.documents.types.other') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if doc.file_size %}
+                            {{ (doc.file_size / 1024) | round(1) }} KB
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.created_at|localdatetime('%d.%m.%Y') }}</td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% if doc.file_path %}
+                                <a href="{{ url_for('inventory.product_document_download', product_id=product.id, document_id=doc.id) }}"
+                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.documents.download') }}">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                {% endif %}
+                                {% if doc.manual_id %}
+                                <a href="{{ url_for('manuals.view', manual_id=doc.manual_id) }}"
+                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.documents.open_manual') }}">
+                                    <i class="bi bi-book"></i>
+                                </a>
+                                {% endif %}
+                                <form method="POST"
+                                      action="{{ url_for('inventory.product_document_delete', product_id=product.id, document_id=doc.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger"
+                                            title="{{ _('common.delete') }}"
+                                            data-confirm-delete="{{ _('inventory.documents.delete_confirm') }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> {{ _('inventory.documents.empty') }}
+        </div>
+        {% endif %}
+    </div>
+</section>
 
 <!-- Upload Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('inventory.product_document_upload', product_id=product.id) }}" 
+            <form method="POST" action="{{ url_for('inventory.product_document_upload', product_id=product.id) }}"
                   enctype="multipart/form-data">
                 <div class="modal-header">
-                    <h5 class="modal-title">Dokument hochladen</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="uploadModalLabel">{{ _('inventory.documents.upload_title') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="file" class="form-label">Datei <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" id="file" name="file" required>
+                        <label for="file" class="form-label">{{ _('inventory.documents.file_label') }} <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required
+                               accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,application/pdf,image/png,image/jpeg">
+                        <div class="form-text">{{ _('inventory.documents.file_help') }}</div>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="file_type" class="form-label">Dokumenttyp <span class="text-danger">*</span></label>
+                        <label for="file_type" class="form-label">{{ _('inventory.documents.type_label') }} <span class="text-danger">*</span></label>
                         <select class="form-select" id="file_type" name="file_type" required>
-                            <option value="handbook">Handbuch</option>
-                            <option value="datasheet">Datenblatt</option>
-                            <option value="invoice">Rechnung</option>
-                            <option value="warranty">Garantieschein</option>
-                            <option value="other">Sonstiges</option>
+                            <option value="handbook">{{ _('inventory.documents.types.handbook') }}</option>
+                            <option value="datasheet">{{ _('inventory.documents.types.datasheet') }}</option>
+                            <option value="invoice">{{ _('inventory.documents.types.invoice') }}</option>
+                            <option value="warranty">{{ _('inventory.documents.types.warranty') }}</option>
+                            <option value="dguv">{{ _('inventory.documents.types.dguv') }}</option>
+                            <option value="other">{{ _('inventory.documents.types.other') }}</option>
                         </select>
                     </div>
-                    
+                    {% if manuals %}
                     <div class="mb-3">
-                        <label for="manual_id" class="form-label">Mit Manual verknüpfen (optional)</label>
-                        <select class="form-select" id="manual_id" name="manual_id">
-                            <option value="">Keine Verknüpfung</option>
+                        <label for="manual_id_upload" class="form-label">{{ _('inventory.documents.link_manual_optional') }}</label>
+                        <select class="form-select" id="manual_id_upload" name="manual_id">
+                            <option value="">{{ _('inventory.documents.no_manual_link') }}</option>
                             {% for manual in manuals %}
                             <option value="{{ manual.id }}">{{ manual.title }}</option>
                             {% endfor %}
                         </select>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> Hochladen
+                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+                        <i class="bi bi-upload"></i> {{ _('inventory.documents.upload_btn') }}
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+{% if manuals %}
+<!-- Link Manual Modal -->
+<div class="modal fade" id="linkManualModal" tabindex="-1" aria-labelledby="linkManualModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('inventory.product_document_link_manual', product_id=product.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="linkManualModalLabel">{{ _('inventory.documents.link_manual_title') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="manual_id_link" class="form-label">{{ _('inventory.documents.manual_label') }} <span class="text-danger">*</span></label>
+                        <select class="form-select" id="manual_id_link" name="manual_id" required>
+                            <option value="">{{ _('inventory.documents.select_manual') }}</option>
+                            {% for manual in manuals %}
+                            <option value="{{ manual.id }}">{{ manual.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">{{ _('inventory.documents.link_manual_help') }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="link_file_type" class="form-label">{{ _('inventory.documents.type_label') }}</label>
+                        <select class="form-select" id="link_file_type" name="file_type">
+                            <option value="handbook" selected>{{ _('inventory.documents.types.handbook') }}</option>
+                            <option value="datasheet">{{ _('inventory.documents.types.datasheet') }}</option>
+                            <option value="other">{{ _('inventory.documents.types.other') }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+                        <i class="bi bi-link-45deg"></i> {{ _('inventory.documents.link_manual_btn') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
+{% block inventory_extra_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
+});
+</script>
+{% endblock %}

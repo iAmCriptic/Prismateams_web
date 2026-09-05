@@ -231,6 +231,7 @@ Prismateams_web/
 |----------|--------|
 | [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) | Ubuntu-Installer (empfohlen, einsatzbereit) |
 | [INSTALLATION.md](INSTALLATION.md) | Manuelle Installation |
+| [WEBDAV.md](WEBDAV.md) | Windows-Explorer-Zugriff (WebDAV) |
 | [WARTUNG.md](WARTUNG.md) | Updates & Backups |
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Troubleshooting |
 | [API_Übersicht.md](API_Übersicht.md) | API-Endpunkte |

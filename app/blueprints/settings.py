@@ -2544,11 +2544,13 @@ def admin_file_settings():
 
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
+        webdav_enabled = request.form.get('files_webdav_enabled') == 'on'
         document_format = (request.form.get('files_document_format') or FORMAT_OFFICE).strip().lower()
         if document_format not in (FORMAT_OFFICE, FORMAT_OPENDOCUMENT):
             document_format = FORMAT_OFFICE
         _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
         _upsert_text('files_sharing_enabled', str(sharing_enabled))
+        _upsert_text('files_webdav_enabled', str(webdav_enabled))
         _upsert_text(
             SETTING_DOCUMENT_FORMAT,
             document_format,
@@ -2587,14 +2589,17 @@ def admin_file_settings():
 
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
+    webdav_setting = SystemSettings.query.filter_by(key='files_webdav_enabled').first()
     private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
     team_setting = SystemSettings.query.filter_by(key='files_team_folders_enabled').first()
 
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
+    files_webdav_enabled = (webdav_setting and str(webdav_setting.value).lower() == 'true') or False
     files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
     files_team_folders_enabled = (team_setting and str(team_setting.value).lower() == 'true') or False
     files_document_format = get_document_format() or FORMAT_OFFICE
+    webdav_url = f"{request.url_root.rstrip('/')}/webdav"
 
     max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
     quota_value, quota_unit = split_bytes_for_ui(get_default_quota())
@@ -2632,6 +2637,8 @@ def admin_file_settings():
         'settings/admin_file_settings.html',
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
+        files_webdav_enabled=files_webdav_enabled,
+        webdav_url=webdav_url,
         files_private_folders_enabled=files_private_folders_enabled,
         files_team_folders_enabled=files_team_folders_enabled,
         files_document_format=files_document_format,
@@ -5349,6 +5356,11 @@ def about():
         excalidraw_enabled=excalidraw_enabled,
         excalidraw_version=excalidraw_version,
     )
+
+
+# Cloud-Import (Nextcloud / Google Drive)
+from app.blueprints.settings_cloud_import import register_cloud_import_routes
+register_cloud_import_routes(settings_bp)
 
 
 LANGUAGE_FALLBACK_NAMES = {

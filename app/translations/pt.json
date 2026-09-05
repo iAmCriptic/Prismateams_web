@@ -881,6 +881,61 @@
       "file_converter_label": "File converter / LibreOffice",
       "libreoffice_available": "LibreOffice available",
       "libreoffice_missing": "LibreOffice not found"
+    },
+    "cloud_import": {
+      "page_title": "Cloud import",
+      "title": "Cloud import",
+      "heading": "Cloud import",
+      "subtitle": "Transfer folders and files once from Nextcloud or Google Drive into PrismaTeams.",
+      "target_space": "Destination",
+      "target_space_hint": "Admin: public · Team leader: team · You: personal.",
+      "space": {
+        "public": "Public",
+        "team": "Team",
+        "personal": "Personal"
+      },
+      "no_spaces": "No destination available.",
+      "dest_folder": "Destination folder",
+      "dest_root": "Root folder",
+      "connections": "Connections",
+      "connect_nextcloud": "Connect Nextcloud",
+      "connect_google": "Connect Google Drive",
+      "connect": "Connect",
+      "nextcloud": {
+        "server": "Server URL",
+        "username": "Username",
+        "app_password": "App password",
+        "hint": "Use an app password from Nextcloud security settings."
+      },
+      "no_connections": "No connection yet.",
+      "browse": "Select source",
+      "col": {
+        "name": "Name",
+        "size": "Size"
+      },
+      "start": "Start import",
+      "jobs": "Import jobs",
+      "no_jobs": "No jobs yet.",
+      "flash": {
+        "module_disabled": "The files module is disabled.",
+        "credentials_incomplete": "Please provide server, username and app password.",
+        "nextcloud_connect_failed": "Could not connect to Nextcloud. Check credentials.",
+        "google_not_configured": "Google is not configured under Integrations.",
+        "google_oauth_error": "Google sign-in failed: %(error)s",
+        "google_connected": "Google Drive connected.",
+        "connection_in_use": "Connection is used by a running import.",
+        "browse_failed": "Could not load folder.",
+        "no_selection": "Select at least one file or folder.",
+        "space_forbidden": "You may not import into this destination."
+      }
+    },
+    "index": {
+      "cards": {
+        "cloud_import": {
+          "title": "Cloud import",
+          "description": "Transfer from Nextcloud and Google Drive."
+        }
+      }
     }
   },
   "surveys": {
@@ -1011,6 +1066,96 @@
       "output_not_found": "Output file was not created.",
       "timeout": "Conversion timed out.",
       "upload_failed": "Upload failed."
+    }
+  },
+  "inventory": {
+    "flash": {
+      "document_attach_error": "O produto foi guardado, mas não foi possível anexar os documentos.",
+      "document_invalid_type": "Tipo de ficheiro inválido. Permitidos: PDF, PNG, JPEG, DOC, DOCX, XLS, XLSX.",
+      "manual_not_accessible": "O manual selecionado não está disponível.",
+      "manual_link_required": "Selecione um manual.",
+      "manual_already_linked": "O manual \"{title}\" já está associado.",
+      "manual_linked": "O manual \"{title}\" foi associado.",
+      "external_barcode_taken": "O N.º de inventário \"{code}\" já está em uso.",
+      "external_barcode_qty": "O N.º de inventário só pode ser definido com quantidade 1."
+    },
+    "documents": {
+      "page_title": "Documentos - {name}",
+      "heading": "Documentos de \"{name}\"",
+      "list_title": "Documentos",
+      "upload_btn": "Carregar documento",
+      "link_manual_btn": "Associar manual",
+      "edit_product": "Editar produto",
+      "col_name": "Nome",
+      "col_type": "Tipo",
+      "col_size": "Tamanho",
+      "col_date": "Carregado",
+      "col_actions": "Ações",
+      "linked_manual": "Associado ao manual",
+      "manual_link_only": "Apenas associação ao manual",
+      "download": "Descarregar",
+      "open_manual": "Abrir manual",
+      "delete_confirm": "Eliminar este documento?",
+      "empty": "Ainda sem documentos.",
+      "upload_title": "Carregar documento",
+      "file_label": "Ficheiro",
+      "file_help": "PDF, PNG, JPEG e DOC/DOCX/XLS/XLSX.",
+      "type_label": "Tipo de documento",
+      "link_manual_optional": "Associar a manual (opcional)",
+      "no_manual_link": "Sem associação",
+      "link_manual_title": "Associar manual",
+      "manual_label": "Manual",
+      "select_manual": "Selecionar manual…",
+      "link_manual_help": "Associa um manual existente sem duplicar o ficheiro.",
+      "types": {
+        "handbook": "Manual",
+        "datasheet": "Ficha técnica",
+        "invoice": "Fatura",
+        "warranty": "Garantia",
+        "dguv": "Relatório DGUV",
+        "other": "Outro"
+      }
+    },
+    "product": {
+      "form": {
+        "sections": {
+          "documents": "Documentos e manuais"
+        },
+        "documents_upload": "Carregar documentos",
+        "documents_help": "Vários ficheiros (PDF, PNG, JPEG, Office). Anexados ao guardar.",
+        "document_type": "Tipo de documento para uploads",
+        "link_manuals": "Associar manuais",
+        "link_manuals_help": "Seleção múltipla: associar manuais existentes sem carregar ficheiro.",
+        "manage_documents": "Gerir todos os documentos",
+        "external_barcode": "N.º de inventário",
+        "external_barcode_placeholder": "ex. 001 (do etiqueta)",
+        "external_barcode_help": "Digite o código da etiqueta ou leia com o scanner. Para QuickScan e empréstimos.",
+        "external_barcode_qty_hint": "N.º de inventário só com quantidade 1 (cada número é único)."
+      }
+    }
+  },
+  "kanban": {
+    "export": {
+      "title": "Exportar",
+      "json": "Como JSON (Trello)",
+      "csv": "Como CSV (Trello)"
+    },
+    "import": {
+      "title": "Importar quadro",
+      "hint": "Envie um export do Trello (JSON ou CSV). Um novo quadro será criado.",
+      "file": "Arquivo de exportação",
+      "title_optional": "Título (opcional)",
+      "title_ph": "Vazio = nome do arquivo",
+      "submit": "Importar",
+      "error_no_file": "Escolha um arquivo.",
+      "error_empty": "O arquivo está vazio.",
+      "error_invalid": "Formato de export Trello inválido.",
+      "error_forbidden": "Sem permissão para importar.",
+      "error_admin": "Apenas admins podem importar quadros públicos.",
+      "error_team": "Selecione uma equipe.",
+      "error_team_leader": "Apenas líderes podem importar quadros de equipe.",
+      "error_visibility": "Esta visibilidade não é permitida.",
+      "error_failed": "Falha na importação."
     }
   }
 }

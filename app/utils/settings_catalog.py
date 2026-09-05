@@ -62,6 +62,14 @@ def build_settings_catalog(user) -> list[dict]:
         'über about version prismateams',
     ))
 
+    if is_module_enabled('module_files'):
+        catalog.append(_entry(
+            translate('settings.cloud_import.title'),
+            'settings.cloud_import',
+            'user',
+            'cloud import nextcloud google drive umzug sync dateien transfer',
+        ))
+
     if is_module_enabled('module_email') and is_email_multi_enabled():
         catalog.append(_entry(
             translate('settings.index.cards.my_mailboxes.title'),

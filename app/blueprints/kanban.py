@@ -58,6 +58,7 @@ from app.utils.kanban_access import (
     VISIBILITY_PUBLIC,
     VISIBILITY_TEAM,
     accessible_boards_query,
+    allowed_import_board_targets,
     can_edit_board,
     can_manage_board,
     can_view_board,
@@ -65,6 +66,7 @@ from app.utils.kanban_access import (
     get_board_member_roles,
     get_board_membership,
     is_effective_board_member,
+    KanbanImportPermissionError,
     visibility_allowed,
 )
 from app.utils.onlyoffice import is_onlyoffice_enabled, is_onlyoffice_file_type
@@ -636,6 +638,8 @@ def index():
         if can_manage_board(current_user, b)
     }
 
+    import_targets = allowed_import_board_targets(current_user)
+
     active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
 
     return render_template(
@@ -651,6 +655,7 @@ def index():
         backgrounds=BOARD_BACKGROUNDS,
         show_closed_link=True,
         manageable_ids=manageable_ids,
+        import_targets=import_targets,
         section_filter=section,
         filter_team_id=filter_team_id,
         active_nav=active_nav,
@@ -803,6 +808,106 @@ def api_create_board():
             db.session.add(KanbanList(board_id=board.id, title=title_l, position=i))
 
     _log_activity(board.id, 'board_created', title)
+    db.session.commit()
+    return jsonify({'success': True, 'board': _serialize_board(board)}), 201
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/export', methods=['GET'])
+@login_or_share_required
+def api_export_board(board_id):
+    """Export board as Trello-compatible JSON or CSV (anyone who can view)."""
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+
+    fmt = (request.args.get('format') or 'json').strip().lower()
+    from app.utils.kanban_export import export_board_csv_bytes, export_board_json_bytes
+
+    if fmt == 'csv':
+        raw, filename = export_board_csv_bytes(board)
+        mimetype = 'text/csv; charset=utf-8'
+    else:
+        raw, filename = export_board_json_bytes(board)
+        mimetype = 'application/json; charset=utf-8'
+
+    from flask import Response
+    return Response(
+        raw,
+        mimetype=mimetype,
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Cache-Control': 'no-store',
+        },
+    )
+
+
+@kanban_bp.route('/api/boards/import', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_import_board():
+    """Import a Trello JSON/CSV export as a new board."""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': translate('kanban.import.error_no_file'), 'code': 'no_file'}), 400
+
+    visibility = (request.form.get('visibility') or VISIBILITY_PRIVATE).strip().lower()
+    team_id = request.form.get('team_id')
+    if visibility.startswith('team:'):
+        try:
+            team_id = int(visibility.split(':', 1)[1])
+        except (TypeError, ValueError):
+            return jsonify({'error': translate('kanban.import.error_team'), 'code': 'invalid_team'}), 400
+        visibility = VISIBILITY_TEAM
+    if team_id in ('', None):
+        team_id = None
+    else:
+        try:
+            team_id = int(team_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': translate('kanban.import.error_team'), 'code': 'invalid_team'}), 400
+
+    title_override = (request.form.get('title') or '').strip() or None
+    raw = f.read()
+    if not raw:
+        return jsonify({'error': translate('kanban.import.error_empty'), 'code': 'empty'}), 400
+
+    from app.utils.kanban_import import KanbanImportError, import_board_from_bytes
+
+    try:
+        board = import_board_from_bytes(
+            raw=raw,
+            filename=f.filename,
+            user=current_user,
+            visibility=visibility,
+            team_id=team_id,
+            title_override=title_override,
+        )
+    except KanbanImportPermissionError as exc:
+        code = str(exc) or 'forbidden'
+        msg = {
+            'not_authenticated': translate('kanban.import.error_forbidden'),
+            'admin_required': translate('kanban.import.error_admin'),
+            'team_required': translate('kanban.import.error_team'),
+            'team_forbidden': translate('kanban.import.error_team_leader'),
+            'visibility_not_allowed': translate('kanban.import.error_visibility'),
+            'invalid_visibility': translate('kanban.import.error_visibility'),
+        }.get(code, translate('kanban.import.error_forbidden'))
+        return jsonify({'error': msg, 'code': code}), 403
+    except KanbanImportError as exc:
+        code = str(exc) or 'invalid'
+        msg = {
+            'invalid_json': translate('kanban.import.error_invalid'),
+            'not_trello_json': translate('kanban.import.error_invalid'),
+            'invalid_csv': translate('kanban.import.error_invalid'),
+            'empty_csv': translate('kanban.import.error_empty'),
+            'visibility_not_allowed': translate('kanban.import.error_visibility'),
+        }.get(code, translate('kanban.import.error_invalid'))
+        return jsonify({'error': msg, 'code': code}), 400
+    except Exception:
+        current_app.logger.exception('Kanban board import failed')
+        return jsonify({'error': translate('kanban.import.error_failed'), 'code': 'failed'}), 500
+
+    _log_activity(board.id, 'board_imported', board.title, user_id=current_user.id)
     db.session.commit()
     return jsonify({'success': True, 'board': _serialize_board(board)}), 201
 

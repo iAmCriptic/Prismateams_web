@@ -595,8 +595,36 @@ def google_callback():
     if state and state == session.get('youtube_oauth_state'):
         return _google_callback_youtube(code, state, err)
 
+    # 2b) Cloud-Import Google Drive
+    if state and state == session.get('cloud_import_google_oauth_state'):
+        return _google_callback_cloud_import(code, state, err)
+
     # 3) Login / Registrierung / Account-Verknüpfung
     return _google_callback_auth(code, state, err)
+
+
+def _google_callback_cloud_import(code, state, err):
+    """Beendet Google-OAuth für Cloud-Import (Drive readonly)."""
+    from flask_login import current_user
+    from app.utils.cloud_import.oauth import handle_google_drive_callback
+
+    if not current_user.is_authenticated:
+        flash(translate('settings.cloud_import.flash.google_oauth_error', error='login_required'), 'danger')
+        return redirect(url_for('auth.login'))
+
+    if err:
+        msg = request.args.get('error_description') or err
+        flash(translate('settings.cloud_import.flash.google_oauth_error', error=msg), 'danger')
+        return redirect(url_for('settings.cloud_import'))
+    if not code:
+        flash(translate('settings.cloud_import.flash.google_oauth_error', error='no_code'), 'danger')
+        return redirect(url_for('settings.cloud_import'))
+    try:
+        handle_google_drive_callback(code, state)
+        flash(translate('settings.cloud_import.flash.google_connected'), 'success')
+    except Exception as e:
+        flash(translate('settings.cloud_import.flash.google_oauth_error', error=str(e)), 'danger')
+    return redirect(url_for('settings.cloud_import'))
 
 
 def _google_callback_mailbox(code, state, err):

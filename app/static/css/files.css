@@ -3165,11 +3165,112 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Speicherplatz-Widget (Sidebar Footer) */
+.files-sidebar-bottom {
+    margin-top: auto;
+    gap: 0.45rem;
+}
+
+.files-webdav-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.35rem 0.15rem;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.files-webdav-connect-btn:hover,
+.files-webdav-connect-btn:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-body-color, #212529);
+}
+
+.files-webdav-connect-btn .bi {
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+#webdavConnectModal {
+    z-index: 11050;
+}
+
+.files-webdav-modal-content {
+    border: none;
+    border-radius: 1.35rem !important;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #212529);
+    box-shadow:
+        0 0.75rem 2rem rgba(0, 0, 0, 0.16),
+        0 0.15rem 0.45rem rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.files-webdav-modal-content .modal-header,
+.files-webdav-modal-content .modal-body,
+.files-webdav-modal-content .modal-footer {
+    background: transparent;
+}
+
+.files-webdav-modal-content .modal-title {
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.files-webdav-url-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.files-webdav-url-row .files-pill-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.files-webdav-copy-btn {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.files-webdav-os-block {
+    padding: 0.95rem 1.05rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    border-radius: var(--mod-radius-pill, 1.25rem);
+    background: var(--bs-body-bg, #fff);
+}
+
+.files-webdav-os-title {
+    font-size: 0.95rem;
+    font-weight: 650;
+    margin-bottom: 0.55rem;
+}
+
+.files-webdav-steps {
+    padding-left: 1.15rem;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.files-webdav-steps li + li {
+    margin-top: 0.35rem;
+}
+
 .files-storage-footer {
     padding-left: 0.15rem;
     padding-right: 0.15rem;
     flex-shrink: 0;
-    margin-top: auto;
 }
 
 .files-storage-widget {
@@ -3251,10 +3352,17 @@ body:has(.dropbox-shell) .container-fluid {
     }
 }
 
-#filesMobileNav .files-storage-footer {
+#filesMobileNav .files-sidebar-bottom {
     margin-top: auto;
     padding-top: 1rem;
     padding-bottom: 0.35rem;
     border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+#filesMobileNav .files-storage-footer {
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: none;
 }
 

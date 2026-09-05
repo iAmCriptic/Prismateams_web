@@ -1016,6 +1016,10 @@
           "title": "Administration",
           "description": "Manage users and system settings",
           "button": "Open"
+        },
+        "cloud_import": {
+          "title": "Cloud import",
+          "description": "Transfer from Nextcloud and Google Drive."
         }
       }
     },
@@ -1704,6 +1708,11 @@
         "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
         "sharing_label": "Enable Shares",
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
+        "webdav_label": "WebDAV / Explorer access",
+        "webdav_help": "Allows accessing files via Windows Explorer as a network drive (WebDAV at /webdav).",
+        "webdav_url_label": "Connection URL",
+        "webdav_connect_help": "On Windows: This PC → Map network drive → Folder: the URL above. Sign in with email and password.",
+        "webdav_2fa_warning": "Note: WebDAV does not require two-factor authentication (2FA) — only email and password.",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
         "team_folders_label": "Enable team folders",
@@ -2391,6 +2400,53 @@
       "google_help_oauth_step5": "Paste Client ID and Secret here and save — then Google login, mailbox OAuth and YouTube work.",
       "google_help_api_heading": "API key (for YouTube)",
       "redirect_hint_login": "Redirect URI: {url}"
+    },
+    "cloud_import": {
+      "page_title": "Cloud import",
+      "title": "Cloud import",
+      "heading": "Cloud import",
+      "subtitle": "Transfer folders and files once from Nextcloud or Google Drive into PrismaTeams.",
+      "target_space": "Destination",
+      "target_space_hint": "Admin: public · Team leader: team · You: personal.",
+      "space": {
+        "public": "Public",
+        "team": "Team",
+        "personal": "Personal"
+      },
+      "no_spaces": "No destination available.",
+      "dest_folder": "Destination folder",
+      "dest_root": "Root folder",
+      "connections": "Connections",
+      "connect_nextcloud": "Connect Nextcloud",
+      "connect_google": "Connect Google Drive",
+      "connect": "Connect",
+      "nextcloud": {
+        "server": "Server URL",
+        "username": "Username",
+        "app_password": "App password",
+        "hint": "Use an app password from Nextcloud security settings."
+      },
+      "no_connections": "No connection yet.",
+      "browse": "Select source",
+      "col": {
+        "name": "Name",
+        "size": "Size"
+      },
+      "start": "Start import",
+      "jobs": "Import jobs",
+      "no_jobs": "No jobs yet.",
+      "flash": {
+        "module_disabled": "The files module is disabled.",
+        "credentials_incomplete": "Please provide server, username and app password.",
+        "nextcloud_connect_failed": "Could not connect to Nextcloud. Check credentials.",
+        "google_not_configured": "Google is not configured under Integrations.",
+        "google_oauth_error": "Google sign-in failed: %(error)s",
+        "google_connected": "Google Drive connected.",
+        "connection_in_use": "Connection is used by a running import.",
+        "browse_failed": "Could not load folder.",
+        "no_selection": "Select at least one file or folder.",
+        "space_forbidden": "You may not import into this destination."
+      }
     }
   },
   "chat": {
@@ -2614,6 +2670,27 @@
         "add": "Add to favorites",
         "remove": "Remove from favorites",
         "limit": "Maximum 10 favorites."
+      },
+      "webdav_connect_btn": "Connect to system",
+      "webdav_hint": "Explorer (WebDAV)",
+      "webdav_modal": {
+        "title": "Connect files to your system",
+        "intro": "Map the file storage as a network drive. Private, Public and Teams then appear as normal folders in your file manager.",
+        "url_label": "Connection URL",
+        "copy": "Copy URL",
+        "auth_hint": "Username = your portal email only (no MicrosoftAccount\\). Password = portal password, not your Microsoft account password.",
+        "disabled_hint": "WebDAV is still disabled. An administrator can enable it under Settings → File settings. After that, the URL below will work.",
+        "windows_title": "Windows (Explorer)",
+        "windows_step1": "Start the \"WebClient\" service (services.msc → WebClient → Start, Startup type Automatic).",
+        "windows_step2": "For HTTP/localhost: registry HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters → DWORD BasicAuthLevel = 2, then restart WebClient. Otherwise Windows will not send credentials.",
+        "windows_step3": "Add network location / map drive using the URL above. In the login dialog choose More options → Use a different account and enter only the email (remove MicrosoftAccount\\).",
+        "windows_step4": "Enter your portal password. If the dialog keeps returning: check BasicAuthLevel or use Cyberduck/WinSCP.",
+        "mac_title": "Apple (macOS Finder)",
+        "mac_step1": "Open Finder → “Go” menu → “Connect to Server…” (⌘K).",
+        "mac_step2": "Paste the connection URL above and choose “Connect”.",
+        "mac_step3": "Sign in as a registered user.",
+        "mac_step4": "Enter your email and password. The share appears in the Finder sidebar.",
+        "security_note": "Note: WebDAV skips 2FA. Windows often prepends \"MicrosoftAccount\\\" to the email — remove it. HTTPS is more reliable than HTTP/localhost on Windows."
       },
       "storage": {
         "title": "Storage",
@@ -4619,7 +4696,8 @@
           "values": "Purchase & values",
           "dimensions": "Dimensions & weight",
           "dguv": "DGUV",
-          "media": "Status & media"
+          "media": "Status & media",
+          "documents": "Documents & manuals"
         },
         "folder_name": "Folder name",
         "category_name": "Category name",
@@ -4643,11 +4721,19 @@
         "dguv_interval_help": "Inspection interval in months (editable when creating/editing).",
         "dguv_interval_readonly_help": "Fixed inspection interval (not editable).",
         "dguv_next_auto_help": "Calculated automatically (or creation date if no last check).",
-        "external_barcode": "External barcode / QR ID",
-        "external_barcode_placeholder": "Custom barcode ID",
+        "external_barcode": "Inventory No.",
+        "external_barcode_placeholder": "e.g. 001 (from label)",
         "current_image": "Current image:",
         "remove_image": "Remove image",
-        "remove_image_confirm": "Really remove the product image?"
+        "remove_image_confirm": "Really remove the product image?",
+        "documents_upload": "Upload documents",
+        "documents_help": "Multiple files allowed (PDF, PNG, JPEG, Office). Attached on save.",
+        "document_type": "Document type for uploads",
+        "link_manuals": "Link manuals",
+        "link_manuals_help": "Multi-select: link existing manuals without uploading a file.",
+        "manage_documents": "Manage all documents",
+        "external_barcode_help": "Type the label code or scan it here with a handheld scanner. Used for QuickScan & checkout.",
+        "external_barcode_qty_hint": "Inventory No. only allowed when quantity is 1 (each number must be unique)."
       },
       "list": {
         "page_title": "Inventory list - Team Portal",
@@ -5006,7 +5092,15 @@
       "document_deleted": "Document \"{filename}\" has been deleted successfully.",
       "file_not_found": "The file could not be found.",
       "fill_all_fields": "Please fill in all fields.",
-      "invalid_date": "Invalid date."
+      "invalid_date": "Invalid date.",
+      "document_attach_error": "The product was saved, but documents could not be attached.",
+      "document_invalid_type": "Invalid file type. Allowed: PDF, PNG, JPEG, DOC, DOCX, XLS, XLSX.",
+      "manual_not_accessible": "The selected manual is not available.",
+      "manual_link_required": "Please select a manual.",
+      "manual_already_linked": "Manual \"{title}\" is already linked.",
+      "manual_linked": "Manual \"{title}\" was linked.",
+      "external_barcode_taken": "Inventory No. \"{code}\" is already in use.",
+      "external_barcode_qty": "Inventory No. can only be set when quantity is 1."
     },
     "cart": {
       "set_badge": "Set",
@@ -5066,6 +5160,43 @@
       "invalid_category_name": "Invalid category name.",
       "category_not_found": "Category not found.",
       "new_category_name_required": "The new category name is required."
+    },
+    "documents": {
+      "page_title": "Documents - {name}",
+      "heading": "Documents for \"{name}\"",
+      "list_title": "Documents",
+      "upload_btn": "Upload document",
+      "link_manual_btn": "Link manual",
+      "edit_product": "Edit product",
+      "col_name": "Name",
+      "col_type": "Type",
+      "col_size": "Size",
+      "col_date": "Uploaded",
+      "col_actions": "Actions",
+      "linked_manual": "Linked to manual",
+      "manual_link_only": "Manual link only",
+      "download": "Download",
+      "open_manual": "Open manual",
+      "delete_confirm": "Do you really want to delete this document?",
+      "empty": "No documents yet.",
+      "upload_title": "Upload document",
+      "file_label": "File",
+      "file_help": "PDF, PNG, JPEG and DOC/DOCX/XLS/XLSX.",
+      "type_label": "Document type",
+      "link_manual_optional": "Link to manual (optional)",
+      "no_manual_link": "No link",
+      "link_manual_title": "Link manual",
+      "manual_label": "Manual",
+      "select_manual": "Select manual…",
+      "link_manual_help": "Links an existing operating manual without duplicating the file.",
+      "types": {
+        "handbook": "Handbook / Manual",
+        "datasheet": "Datasheet",
+        "invoice": "Invoice",
+        "warranty": "Warranty",
+        "dguv": "DGUV inspection report",
+        "other": "Other"
+      }
     }
   },
   "music": {
@@ -6041,6 +6172,28 @@
       "reopen": "Reopen",
       "delete": "Delete",
       "empty": "No closed boards."
+    },
+    "export": {
+      "title": "Export",
+      "json": "As JSON (Trello)",
+      "csv": "As CSV (Trello)"
+    },
+    "import": {
+      "title": "Import board",
+      "hint": "Upload a Trello export as JSON or CSV. A new board will be created.",
+      "file": "Export file",
+      "title_optional": "Title (optional)",
+      "title_ph": "Leave empty to use the name from the file",
+      "submit": "Import",
+      "error_no_file": "Please choose a file.",
+      "error_empty": "The file is empty.",
+      "error_invalid": "Invalid Trello export format.",
+      "error_forbidden": "You are not allowed to import.",
+      "error_admin": "Only admins may import public boards.",
+      "error_team": "Please select a team.",
+      "error_team_leader": "Only team leaders may import team boards.",
+      "error_visibility": "This visibility is not allowed.",
+      "error_failed": "Import failed."
     }
   },
   "visibility": {

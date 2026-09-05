@@ -333,4 +333,46 @@
       }
     });
   }
+
+  // Import board (Trello JSON / CSV)
+  var importForm = qs('#importBoardForm');
+  if (importForm) {
+    importForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var fileInput = qs('#importBoardFile');
+      if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        if (typeof window.showAppBanner === 'function') window.showAppBanner('Bitte eine Datei wählen', 'warning');
+        else alert('Bitte eine Datei wählen');
+        return;
+      }
+      var fd = new FormData(importForm);
+      var visVal = String(fd.get('visibility') || '');
+      if (visVal.indexOf('team:') === 0) {
+        fd.set('visibility', 'team');
+        fd.set('team_id', visVal.slice(5));
+      }
+      var btn = qs('#importBoardSubmit');
+      if (btn) btn.disabled = true;
+      try {
+        var res = await fetch(window.KANBAN_IMPORT_URL || '/kanban/api/boards/import', {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: fd
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (data.success && data.board && data.board.url) {
+          window.location.href = data.board.url;
+          return;
+        }
+        var err = data.error || 'Import fehlgeschlagen';
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(err, 'danger');
+        else alert(err);
+      } catch (err) {
+        if (typeof window.showAppBanner === 'function') window.showAppBanner('Import fehlgeschlagen', 'danger');
+        else alert('Import fehlgeschlagen');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
 })();

@@ -169,18 +169,29 @@
     </div>
     {{ files_nav_links(false) }}
     {{ files_favorites_nav(false) }}
-    <div class="mod-sidebar-footer files-storage-footer" id="filesStorageWidget" hidden>
-        <div class="files-storage-widget" data-files-storage-widget>
-            <div class="files-storage-widget__head">
-                <i class="bi bi-cloud" aria-hidden="true"></i>
-                <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
-                <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+    <div class="mod-sidebar-footer files-sidebar-bottom">
+        {% if not current_user.is_guest %}
+        <button type="button"
+                class="btn files-webdav-connect-btn w-100 text-start"
+                data-bs-toggle="modal"
+                data-bs-target="#webdavConnectModal">
+            <i class="bi bi-hdd-network" aria-hidden="true"></i>
+            <span>{{ _('files.index.webdav_connect_btn') }}</span>
+        </button>
+        {% endif %}
+        <div class="files-storage-footer" id="filesStorageWidget" hidden>
+            <div class="files-storage-widget" data-files-storage-widget>
+                <div class="files-storage-widget__head">
+                    <i class="bi bi-cloud" aria-hidden="true"></i>
+                    <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
+                    <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+                </div>
+                <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
+                    <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
+                </div>
+                <div class="files-storage-widget__usage" data-storage-usage></div>
+                <div class="files-storage-widget__limit" data-storage-limit></div>
             </div>
-            <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
-                <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
-            </div>
-            <div class="files-storage-widget__usage" data-storage-usage></div>
-            <div class="files-storage-widget__limit" data-storage-limit></div>
         </div>
     </div>
 </aside>
@@ -196,18 +207,29 @@
     <div class="offcanvas-body pt-0 d-flex flex-column">
         {{ files_nav_links(true) }}
         {{ files_favorites_nav(true) }}
-        <div class="mod-sidebar-footer files-storage-footer mt-auto" id="filesStorageWidgetMobile" hidden>
-            <div class="files-storage-widget" data-files-storage-widget>
-                <div class="files-storage-widget__head">
-                    <i class="bi bi-cloud" aria-hidden="true"></i>
-                    <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
-                    <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+        <div class="mod-sidebar-footer files-sidebar-bottom mt-auto">
+            {% if not current_user.is_guest %}
+            <button type="button"
+                    class="btn files-webdav-connect-btn w-100 text-start"
+                    data-bs-toggle="modal"
+                    data-bs-target="#webdavConnectModal">
+                <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                <span>{{ _('files.index.webdav_connect_btn') }}</span>
+            </button>
+            {% endif %}
+            <div class="files-storage-footer" id="filesStorageWidgetMobile" hidden>
+                <div class="files-storage-widget" data-files-storage-widget>
+                    <div class="files-storage-widget__head">
+                        <i class="bi bi-cloud" aria-hidden="true"></i>
+                        <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
+                        <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+                    </div>
+                    <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
+                        <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
+                    </div>
+                    <div class="files-storage-widget__usage" data-storage-usage></div>
+                    <div class="files-storage-widget__limit" data-storage-limit></div>
                 </div>
-                <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
-                    <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
-                </div>
-                <div class="files-storage-widget__usage" data-storage-usage></div>
-                <div class="files-storage-widget__limit" data-storage-limit></div>
             </div>
         </div>
     </div>
@@ -1191,6 +1213,84 @@
 </div>
 
 </div></div><!-- /files-shell -->
+
+{% if not current_user.is_guest and webdav_url %}
+<div class="modal fade" id="webdavConnectModal" tabindex="-1" aria-labelledby="webdavConnectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content files-webdav-modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="webdavConnectModalLabel">
+                    <i class="bi bi-hdd-network me-2" aria-hidden="true"></i>{{ _('files.index.webdav_modal.title') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p class="text-muted mb-3">{{ _('files.index.webdav_modal.intro') }}</p>
+
+                {% if not files_webdav_enabled %}
+                <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-0">{{ _('files.index.webdav_modal.disabled_hint') }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="webdavConnectUrl">{{ _('files.index.webdav_modal.url_label') }}</label>
+                    <div class="files-webdav-url-row">
+                        <input type="text" class="form-control files-pill-input user-select-all" id="webdavConnectUrl" value="{{ webdav_url }}" readonly>
+                        <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavCopyUrlBtn" title="{{ _('files.index.webdav_modal.copy') }}">
+                            <i class="bi bi-clipboard" aria-hidden="true"></i>
+                            <span class="visually-hidden">{{ _('files.index.webdav_modal.copy') }}</span>
+                        </button>
+                    </div>
+                    <div class="form-text">{{ _('files.index.webdav_modal.auth_hint') }}</div>
+                </div>
+
+                <div class="files-webdav-os-block mb-3">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-windows me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.windows_title') }}
+                    </h6>
+                    <ol class="files-webdav-steps mb-0">
+                        <li>{{ _('files.index.webdav_modal.windows_step1') }}</li>
+                        <li>{{ _('files.index.webdav_modal.windows_step2') }}</li>
+                        <li>{{ _('files.index.webdav_modal.windows_step3') }}</li>
+                        <li>{{ _('files.index.webdav_modal.windows_step4') }}</li>
+                    </ol>
+                </div>
+
+                <div class="files-webdav-os-block mb-3">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-apple me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.mac_title') }}
+                    </h6>
+                    <ol class="files-webdav-steps mb-0">
+                        <li>{{ _('files.index.webdav_modal.mac_step1') }}</li>
+                        <li>{{ _('files.index.webdav_modal.mac_step2') }}</li>
+                        <li>{{ _('files.index.webdav_modal.mac_step3') }}</li>
+                        <li>{{ _('files.index.webdav_modal.mac_step4') }}</li>
+                    </ol>
+                </div>
+
+                <div class="alert alert-permanent portal-msg portal-msg--warning mb-0" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-0">{{ _('files.index.webdav_modal.security_note') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-accent rounded-pill px-4" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <style>
 /* Dropdown Menu Positioning */
 #newButtonDropdown {
@@ -1267,6 +1367,47 @@ window.FILES_BULK_DELETE_URL = {{ url_for('files.api_bulk_delete')|tojson }};
 window.FILES_BULK_RESTORE_URL = {{ url_for('files.api_bulk_restore')|tojson }};
 window.FILES_MOVE_URL = {{ url_for('files.move_item')|tojson }};
 window.FILES_MOVE_DESTINATIONS_URL = {{ url_for('files.api_move_destinations')|tojson }};
+
+(function () {
+    const modalEl = document.getElementById('webdavConnectModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    if (modalEl) {
+        modalEl.addEventListener('shown.bs.modal', () => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            const last = backdrops[backdrops.length - 1];
+            if (last) {
+                last.style.zIndex = '11040';
+            }
+            modalEl.style.zIndex = '11050';
+        });
+    }
+
+    const copyBtn = document.getElementById('webdavCopyUrlBtn');
+    const urlInput = document.getElementById('webdavConnectUrl');
+    if (!copyBtn || !urlInput) {
+        return;
+    }
+    copyBtn.addEventListener('click', async () => {
+        const value = urlInput.value || '';
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                urlInput.select();
+                document.execCommand('copy');
+            }
+            const icon = copyBtn.querySelector('i');
+            if (icon) {
+                icon.className = 'bi bi-check2';
+                setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
+            }
+        } catch (err) {
+            urlInput.select();
+        }
+    });
+})();
 
 (function () {
     function applyPayload(root, data) {

@@ -9,12 +9,23 @@
 {%- endmacro %}
 
 {% macro board_actions_dropdown(b, manage) %}
-{% if manage %}
 <div class="dropdown">
   <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+    <li>
+      <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=b.id, format='json') }}" onclick="event.stopPropagation();">
+        <i class="bi bi-download me-2"></i>{{ _('kanban.export.json') }}
+      </a>
+    </li>
+    <li>
+      <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=b.id, format='csv') }}" onclick="event.stopPropagation();">
+        <i class="bi bi-filetype-csv me-2"></i>{{ _('kanban.export.csv') }}
+      </a>
+    </li>
+    {% if manage %}
+    <li><hr class="dropdown-divider"></li>
     <li>
       <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" onclick="event.stopPropagation();">
         <i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}
@@ -39,9 +50,9 @@
         <i class="bi bi-x-circle me-2"></i>{{ _('kanban.board.close_board') }}
       </button>
     </li>
+    {% endif %}
   </ul>
 </div>
-{% endif %}
 {% endmacro %}
 
 {% macro board_grid_card(b) %}
@@ -298,8 +309,50 @@
   </div>
 </div>
 
+{% if import_targets %}
+<div class="modal fade" id="importBoardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <form id="importBoardForm" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ _('kanban.import.title') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body d-grid gap-3">
+          <p class="small text-muted mb-0">{{ _('kanban.import.hint') }}</p>
+          <div>
+            <label class="form-label" for="importBoardFile">{{ _('kanban.import.file') }}</label>
+            <input class="form-control files-pill-input" type="file" id="importBoardFile" name="file" accept=".json,.csv,application/json,text/csv" required>
+          </div>
+          <div>
+            <label class="form-label" for="importBoardTitle">{{ _('kanban.import.title_optional') }}</label>
+            <input class="form-control files-pill-input" id="importBoardTitle" name="title" maxlength="200" placeholder="{{ _('kanban.import.title_ph') }}">
+          </div>
+          <div>
+            <label class="form-label" for="importBoardVisibility">{{ _('kanban.index.visibility') }}</label>
+            <select class="form-select files-pill-input" id="importBoardVisibility" name="visibility" required>
+              {% for t in import_targets %}
+                {% if t.visibility == 'team' and t.team_id %}
+                <option value="team:{{ t.team_id }}">{{ t.team_name }}</option>
+                {% else %}
+                <option value="{{ t.visibility }}">{{ _(t.label_key) }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-accent files-pill-new" id="importBoardSubmit">{{ _('kanban.import.submit') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <script>
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
+  window.KANBAN_IMPORT_URL = {{ url_for('kanban.api_import_board')|tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
 {% endblock %}

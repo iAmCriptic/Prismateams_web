@@ -29,13 +29,29 @@
     </div>
     <div class="kanban-board-topbar__right">
       <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
-      <button type="button"
-              class="btn kanban-pill-btn kanban-pill-btn--icon"
-              id="kanbanFilterBtn"
+      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanFilterBtn"
               title="{{ _('kanban.board.filter') }}">
         <i class="bi bi-funnel" aria-hidden="true"></i>
         <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
       </button>
+      <div class="dropdown">
+        <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanExportBtn"
+                data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('kanban.export.title') }}">
+          <i class="bi bi-download" aria-hidden="true"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=board.id, format='json', share_token=share_token if share_token else None) }}">
+              {{ _('kanban.export.json') }}
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=board.id, format='csv', share_token=share_token if share_token else None) }}">
+              {{ _('kanban.export.csv') }}
+            </a>
+          </li>
+        </ul>
+      </div>
       {% if can_manage %}
       <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>

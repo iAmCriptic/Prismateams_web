@@ -3,6 +3,7 @@
 {% set create_modal = create_modal|default(true) %}
 {% set allowed_vis = allowed_visibilities|default(['private', 'team', 'public']) %}
 {% set teams = teams|default([]) %}
+{% set import_targets = import_targets|default([]) %}
 {% macro team_nav_icon(t) -%}
 {%- if t.color -%}
 <span class="kanban-team-dot" style="background:{{ t.color }};" aria-hidden="true"></span>
@@ -15,11 +16,16 @@
     <i class="bi bi-kanban" aria-hidden="true"></i>
     <span>{{ _('kanban.index.title') }}</span>
   </div>
-  <div class="mod-sidebar-new-wrap w-100">
+  <div class="mod-sidebar-new-wrap w-100 d-grid gap-2">
     {% if create_modal %}
     <button type="button" class="btn mod-sidebar-new w-100 text-start" data-bs-toggle="modal" data-bs-target="#createBoardModal">
       <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
     </button>
+    {% if import_targets %}
+    <button type="button" class="btn mod-sidebar-new w-100 text-start" data-bs-toggle="modal" data-bs-target="#importBoardModal">
+      <i class="bi bi-upload me-2"></i>{{ _('kanban.import.title') }}
+    </button>
+    {% endif %}
     {% else %}
     <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('kanban.index') }}">
       <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
@@ -54,6 +60,11 @@
     <button type="button" class="btn mod-sidebar-new w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#createBoardModal" data-bs-dismiss="offcanvas">
       <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
     </button>
+    {% if import_targets %}
+    <button type="button" class="btn mod-sidebar-new w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#importBoardModal" data-bs-dismiss="offcanvas">
+      <i class="bi bi-upload me-2"></i>{{ _('kanban.import.title') }}
+    </button>
+    {% endif %}
     {% else %}
     <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('kanban.index') }}">
       <i class="bi bi-plus-lg me-2"></i>{{ _('kanban.index.new') }}
