@@ -1314,7 +1314,7 @@
         "link_manuals_help": "Seleção múltipla: associar manuais existentes sem carregar ficheiro.",
         "manage_documents": "Gerir todos os documentos",
         "external_barcode": "N.º de inventário",
-        "external_barcode_placeholder": "ex. 001 (do etiqueta)",
+        "external_barcode_placeholder": "ex. 001",
         "external_barcode_help": "Digite o código da etiqueta ou leia com o scanner. Para QuickScan e empréstimos.",
         "external_barcode_qty_hint": "N.º de inventário só com quantidade 1 (cada número é único)."
       }

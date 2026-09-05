@@ -5,42 +5,112 @@
 {% block inventory_heading %}{{ _('inventory.dashboard.heading') }}{% endblock %}
 
 {% block inventory_content %}
-<p class="text-muted mb-4">{{ _('inventory.dashboard.subtitle') }}</p>
+<p class="text-muted mb-4 inv-fade-up">{{ _('inventory.dashboard.subtitle') }}</p>
 
 <div class="row g-3 mb-4 inventory-stats-row">
-    <div class="col-6 col-lg">
+    <div class="col-6 col-lg inv-fade-up" style="--inv-delay: 0.02s">
         <div class="inventory-stats-card">
             <div class="stats-value text-primary">{{ stats.total }}</div>
             <div class="stats-label">{{ _('inventory.dashboard.stats.total') }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg">
+    <div class="col-6 col-lg inv-fade-up" style="--inv-delay: 0.05s">
         <div class="inventory-stats-card">
             <div class="stats-value text-success">{{ stats.available }}</div>
             <div class="stats-label">{{ _('inventory.dashboard.stats.available') }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg">
+    <div class="col-6 col-lg inv-fade-up" style="--inv-delay: 0.08s">
         <div class="inventory-stats-card">
             <div class="stats-value text-info">{{ stats.borrowed }}</div>
             <div class="stats-label">{{ _('inventory.dashboard.stats.borrowed') }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg">
+    <div class="col-6 col-lg inv-fade-up" style="--inv-delay: 0.11s">
         <div class="inventory-stats-card">
             <div class="stats-value text-warning">{{ stats.defective }}</div>
             <div class="stats-label">{{ _('inventory.dashboard.stats.defective') }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg">
-        <div class="inventory-stats-card">
-            <div class="stats-value text-danger">{{ stats.overdue }}</div>
-            <div class="stats-label">{{ _('inventory.dashboard.stats.overdue') }}</div>
-        </div>
+    <div class="col-6 col-lg inv-fade-up" style="--inv-delay: 0.14s">
+        <a href="{{ url_for('inventory.stock') }}?dguv=due" class="inventory-stats-card inventory-stats-card--link text-decoration-none">
+            <div class="stats-value text-danger">{{ stats.dguv_due }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.dguv_due') }}</div>
+        </a>
     </div>
 </div>
 
-<section class="inventory-panel">
+<section class="inv-hub mb-4 inv-fade-up" style="--inv-delay: 0.16s" aria-label="{{ _('inventory.dashboard.hub.title') }}">
+    <h2 class="inv-hub-title">{{ _('inventory.dashboard.hub.title') }}</h2>
+    <div class="inv-hub-grid">
+        <a href="{{ url_for('inventory.stock') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.stock') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.stock_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.borrow_scanner') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.quick_scan') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.quick_scan_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.inventory_checkout') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.checkout') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.checkout_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.borrows') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-clock-history" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.borrows') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.borrows_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.sets') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-collection" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.sets') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.sets_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.inventory_tool') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-clipboard2-check" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.inventory_tool') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.inventory_tool_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.print_qr') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-printer" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.print_qr') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.print_qr_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('inventory.statistics') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-graph-up" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.statistics') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.statistics_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+</section>
+
+<section class="inventory-panel inv-fade-up" style="--inv-delay: 0.22s">
     <div class="inventory-panel-header">
         <h2 class="inventory-panel-title">
             <i class="bi bi-clock-history" aria-hidden="true"></i>

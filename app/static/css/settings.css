@@ -1,6 +1,6 @@
 /* ==========================================================================
    Settings Premium Design System (sp-*)
-   Completely new look â not derived from legacy settings cards.
+   Completely new look Ã¢ÂÂ not derived from legacy settings cards.
    ========================================================================== */
 
 .settings-shell.mod-shell--nav,
@@ -28,7 +28,7 @@
   --sp-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.35);
 }
 
-/* —— Shell / Sidebar (aligned with other mod-shell--nav modules) —— */
+/* ââ Shell / Sidebar (aligned with other mod-shell--nav modules) ââ */
 .settings-shell.mod-shell--nav {
   min-height: 0;
 }
@@ -38,7 +38,7 @@
   flex: 0 0 auto;
 }
 
-/* —— Accent emphasis (solid + gradient via --accent-style) —— */
+/* ââ Accent emphasis (solid + gradient via --accent-style) ââ */
 .settings-shell,
 .settings-embed-shell {
   --sp-accent-fill: var(--accent-style, var(--accent-color, #0d6efd));
@@ -286,7 +286,7 @@
   }
 }
 
-/* —— Search (top navbar, same language as files-search) —— */
+/* ââ Search (top navbar, same language as files-search) ââ */
 .settings-search {
   position: relative;
   min-width: min(18rem, 42vw);
@@ -411,7 +411,7 @@
   font-size: 0.86rem;
 }
 
-/* ââ Page / Groups / Rows ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Page / Groups / Rows Ã¢ÂÂÃ¢ÂÂ */
 .sp-page {
   max-width: 56rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
@@ -610,7 +610,7 @@
   opacity: 0.72;
 }
 
-/* ââ Collapse ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Collapse Ã¢ÂÂÃ¢ÂÂ */
 .sp-collapse-toggle {
   width: 100%;
   display: flex;
@@ -659,7 +659,7 @@
   border-top-color: var(--sp-border);
 }
 
-/* ââ Hub tiles ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Hub tiles Ã¢ÂÂÃ¢ÂÂ */
 .sp-hub {
   max-width: 72rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
@@ -766,7 +766,7 @@
   color: var(--accent-color, #0d6efd);
 }
 
-/* ââ Lists (admin) ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Lists (admin) Ã¢ÂÂÃ¢ÂÂ */
 .sp-list-wrap {
   background: var(--sp-surface-elevated);
   border: 1px solid var(--sp-border);
@@ -817,7 +817,7 @@
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
 }
 
-/* ââ Color / type toggles ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Color / type toggles Ã¢ÂÂÃ¢ÂÂ */
 .sp-seg {
   display: inline-flex;
   padding: 0.2rem;
@@ -877,7 +877,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
-/* ââ Search flash (2 pulses) ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Search flash (2 pulses) Ã¢ÂÂÃ¢ÂÂ */
 .sp-search-flash {
   animation: sp-accent-pulse 0.7s ease-in-out 2;
   border-radius: var(--sp-radius-sm);
@@ -897,7 +897,7 @@
   }
 }
 
-/* ââ Toast (GitHub-style) ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Toast (GitHub-style) Ã¢ÂÂÃ¢ÂÂ */
 .sp-toast-host {
   position: fixed;
   z-index: 1090;
@@ -1084,7 +1084,7 @@
   }
 }
 
-/* ââ Dropzone / import ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Dropzone / import Ã¢ÂÂÃ¢ÂÂ */
 .sp-dropzone {
   border: 1.5px dashed color-mix(in srgb, var(--accent-color, #0d6efd) 40%, var(--sp-border));
   border-radius: var(--sp-radius);
@@ -1137,7 +1137,7 @@
   border-color: color-mix(in srgb, #dc3545 35%, transparent);
 }
 
-/* ââ Actions (exceptions only) ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Actions (exceptions only) Ã¢ÂÂÃ¢ÂÂ */
 .sp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1146,7 +1146,7 @@
   border-top: 1px solid var(--sp-border);
 }
 
-/* Legacy flash hide preference inside settings when using toast â keep visible for errors from redirects */
+/* Legacy flash hide preference inside settings when using toast Ã¢ÂÂ keep visible for errors from redirects */
 .settings-shell .alert {
   border-radius: var(--sp-radius);
   animation: sp-fade-up 0.25s var(--sp-ease);
@@ -1167,7 +1167,7 @@
   color: var(--sp-muted);
 }
 
-/* ï¿½ï¿½ Legacy bridge (until all templates use sp-*) ï¿½ï¿½ */
+/* Ã¯Â¿Â½Ã¯Â¿Â½ Legacy bridge (until all templates use sp-*) Ã¯Â¿Â½Ã¯Â¿Â½ */
 .settings-appearance-actions,
 .settings-notifications-actions,
 .settings-profile-actions,
@@ -1233,6 +1233,99 @@
 .settings-admin-users-btn,
 .settings-profile-btn-pill,
 .settings-admin-inventory-submit { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
+
+/* Admin user modals (Rollen / Gast / Teams) — pill style */
+.settings-admin-roles-modal .modal-content {
+  border-radius: 1.25rem;
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: var(--sp-surface-elevated, var(--bs-body-bg));
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.settings-admin-roles-modal .modal-header {
+  border-bottom: 1px solid var(--sp-border, var(--bs-border-color));
+  padding: 1rem 1.15rem;
+}
+
+.settings-admin-roles-modal .modal-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.settings-admin-roles-modal .modal-body {
+  padding: 1.1rem 1.15rem;
+}
+
+.settings-admin-roles-modal .modal-footer {
+  border-top: 1px solid var(--sp-border, var(--bs-border-color));
+  padding: 0.85rem 1.15rem;
+  gap: 0.5rem;
+}
+
+.settings-admin-roles-modal .settings-admin-roles-cancel,
+.settings-admin-roles-modal .settings-admin-roles-btn {
+  border-radius: var(--mod-radius-pill, 1.5rem) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1.1rem;
+  font-weight: 600;
+}
+
+.settings-admin-roles-modal .settings-admin-roles-btn:disabled {
+  opacity: 0.55;
+}
+
+.settings-admin-teams-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.settings-admin-teams-picker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, var(--accent-color, #0d6efd) 4%);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-admin-teams-picker-item:hover {
+  border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
+}
+
+.settings-admin-teams-picker-item:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #0d6efd) 20%, transparent);
+}
+
+.settings-admin-teams-picker-item .form-check-input {
+  margin-top: 0.2rem;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.settings-admin-teams-picker-item .form-check-input:checked {
+  background-color: var(--accent-color, #0d6efd);
+  background-image: var(--accent-style, var(--accent-color, #0d6efd));
+  border-color: var(--accent-color, #0d6efd);
+}
+
+.settings-admin-teams-chip-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
 .settings-admin-users-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 .settings-admin-users-row,
 .sau-row {
@@ -1297,7 +1390,7 @@ form[data-sp-autosave] .btn[type='submit'].settings-admin-inventory-submit {
 }
 form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) { display: inline-flex; }
 
-/* ï¿½ï¿½ Full-width layout with side panel ï¿½ï¿½ */
+/* Ã¯Â¿Â½Ã¯Â¿Â½ Full-width layout with side panel Ã¯Â¿Â½Ã¯Â¿Â½ */
 .sp-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(15.5rem, 20rem);
@@ -1433,7 +1526,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   }
 }
 
-/* ââ 2-column card grid (notifications + security) ââ */
+/* Ã¢ÂÂÃ¢ÂÂ 2-column card grid (notifications + security) Ã¢ÂÂÃ¢ÂÂ */
 .sp-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1702,7 +1795,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   .sp-card-grid { grid-template-columns: 1fr; }
 }
 
-/* —— Admin users / teams directory —— */
+/* ââ Admin users / teams directory ââ */
 .settings-admin-users.sp-page--fluid,
 .settings-admin-teams.sp-page--fluid {
   max-width: none;
@@ -2071,7 +2164,7 @@ a.sp-dir-card:hover {
   width: 100%;
 }
 
-/* Modules — responsive switch grid */
+/* Modules â responsive switch grid */
 .settings-admin-modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
@@ -2238,7 +2331,7 @@ a.sp-dir-card:hover {
   font-size: 0.9rem;
 }
 
-/* —— Booking forms —— */
+/* ââ Booking forms ââ */
 .settings-admin-booking-header {
   display: flex;
   align-items: flex-start;
@@ -2362,7 +2455,7 @@ a.sp-dir-card:hover {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
 }
 
-/* —— Music module —— */
+/* ââ Music module ââ */
 .settings-admin-music-notice-inner {
   display: flex;
   align-items: flex-start;
@@ -2392,7 +2485,7 @@ a.sp-dir-card:hover {
   gap: 0.35rem;
 }
 
-/* —— E-Mail module —— */
+/* ââ E-Mail module ââ */
 .settings-admin-email-test-list {
   display: flex;
   flex-direction: column;
@@ -2463,7 +2556,7 @@ a.sp-dir-card:hover {
   line-height: 1.45;
 }
 
-/* —— File settings —— */
+/* ââ File settings ââ */
 .settings-admin-files-size-row {
   display: flex;
   align-items: center;

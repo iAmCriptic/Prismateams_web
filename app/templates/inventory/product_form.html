@@ -12,6 +12,8 @@
     </a>
 </div>
 <form method="POST" enctype="multipart/form-data" class="inventory-form">
+
+    {# ——— 1. Stammdaten ——— #}
     <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-basics">
         <div class="inventory-form-card-head">
             <h2 id="inv-form-basics" class="inventory-form-section-title">
@@ -27,11 +29,12 @@
             </div>
             <div class="inventory-form-field">
                 <label for="description" class="form-label">{{ _('inventory.product.form.description') }}</label>
-                <textarea class="form-control" id="description" name="description" rows="2">{{ product.description if product else '' }}</textarea>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
             </div>
         </div>
     </section>
 
+    {# ——— 2. Einordnung ——— #}
     <section class="inventory-form-card" aria-labelledby="inv-form-classify">
         <div class="inventory-form-card-head">
             <h2 id="inv-form-classify" class="inventory-form-section-title">
@@ -157,6 +160,7 @@
         </div>
     </section>
 
+    {# ——— 3. Identifikation & Lager ——— #}
     <section class="inventory-form-card" aria-labelledby="inv-form-identity">
         <div class="inventory-form-card-head">
             <h2 id="inv-form-identity" class="inventory-form-section-title">
@@ -164,15 +168,37 @@
                 {{ _('inventory.product.form.sections.identity') }}
             </h2>
         </div>
-        <div class="inventory-form-fields inventory-form-fields--3 inventory-form-fields--identity">
+        <div class="inventory-form-fields inventory-form-fields--3">
+            {% if not product %}
             <div class="inventory-form-field">
-                <label for="external_barcode" class="form-label">{{ _('inventory.product.form.external_barcode') }}</label>
+                <label for="quantity" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.quantity') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.quantity_help') }}"
+                            aria-label="{{ _('inventory.product.form.quantity_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
+                <input type="number" class="form-control" id="quantity" name="quantity"
+                       value="1" min="1" max="100" required>
+            </div>
+            {% endif %}
+            <div class="inventory-form-field">
+                <label for="external_barcode" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.external_barcode') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.external_barcode_help') }}"
+                            aria-label="{{ _('inventory.product.form.external_barcode_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <input type="text" class="form-control" id="external_barcode" name="external_barcode"
                        value="{{ product.external_barcode if product and product.external_barcode else '' }}"
                        placeholder="{{ _('inventory.product.form.external_barcode_placeholder') }}"
                        autocomplete="off"
                        maxlength="100">
-                <small class="form-text text-muted" id="externalBarcodeHelp">{{ _('inventory.product.form.external_barcode_help') }}</small>
                 <small class="form-text text-warning d-none" id="externalBarcodeQtyHint">{{ _('inventory.product.form.external_barcode_qty_hint') }}</small>
             </div>
             <div class="inventory-form-field">
@@ -180,12 +206,22 @@
                 <input type="text" class="form-control" id="serial_number" name="serial_number"
                        value="{{ product.serial_number if product else '' }}">
             </div>
+            {% if product %}
             <div class="inventory-form-field">
                 <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
                 <input type="text" class="form-control" id="location" name="location"
                        value="{{ product.location if product else '' }}">
             </div>
+            {% endif %}
+        </div>
+        <div class="inventory-form-fields inventory-form-fields--2">
+            {% if not product %}
             <div class="inventory-form-field">
+                <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
+                <input type="text" class="form-control" id="location" name="location" value="">
+            </div>
+            {% endif %}
+            <div class="inventory-form-field{% if product %} inventory-form-field--span-2{% endif %}">
                 {% set length_form_value = request.form.get('length') %}
                 {% if length_form_value %}
                     {% set length_value = length_form_value | replace(',', '.') %}
@@ -194,20 +230,28 @@
                 {% else %}
                     {% set length_value = '' %}
                 {% endif %}
-                <label for="length" class="form-label">{{ _('inventory.product.form.length') }}</label>
+                <label for="length" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.length') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.length_help') }}"
+                            aria-label="{{ _('inventory.product.form.length_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <input type="number" class="form-control" id="length" name="length"
                        value="{{ length_value }}" step="0.01" min="0"
-                       placeholder="z.B. 5.5">
-                <small class="form-text text-muted">{{ _('inventory.product.form.length_help') }}</small>
+                       placeholder="{{ _('inventory.product.form.length_placeholder') }}">
             </div>
         </div>
     </section>
 
-    <section class="inventory-form-card" aria-labelledby="inv-form-values">
+    {# ——— 4. Kauf & Maße ——— #}
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-purchase-dims">
         <div class="inventory-form-card-head">
-            <h2 id="inv-form-values" class="inventory-form-section-title">
-                <i class="bi bi-cash-coin" aria-hidden="true"></i>
-                {{ _('inventory.product.form.sections.values') }}
+            <h2 id="inv-form-purchase-dims" class="inventory-form-section-title">
+                <i class="bi bi-rulers" aria-hidden="true"></i>
+                {{ _('inventory.product.form.sections.purchase_dims') }}
             </h2>
         </div>
         <div class="inventory-form-fields inventory-form-fields--3">
@@ -227,16 +271,7 @@
                        value="{{ product.replacement_value if product and product.replacement_value is not none else '' }}">
             </div>
         </div>
-    </section>
-
-    <section class="inventory-form-card" aria-labelledby="inv-form-dims">
-        <div class="inventory-form-card-head">
-            <h2 id="inv-form-dims" class="inventory-form-section-title">
-                <i class="bi bi-rulers" aria-hidden="true"></i>
-                {{ _('inventory.product.form.sections.dimensions') }}
-            </h2>
-        </div>
-        <div class="inventory-form-fields inventory-form-fields--2 inventory-form-fields--dims">
+        <div class="inventory-form-fields inventory-form-fields--4">
             <div class="inventory-form-field">
                 <label for="weight_kg" class="form-label">{{ _('inventory.product.form.weight_kg') }}</label>
                 <input type="number" step="0.01" min="0" class="form-control" id="weight_kg" name="weight_kg"
@@ -260,7 +295,8 @@
         </div>
     </section>
 
-    <section class="inventory-form-card" aria-labelledby="inv-form-dguv">
+    {# ——— 5. DGUV ——— #}
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-dguv">
         <div class="inventory-form-card-head inventory-form-card-head--split">
             <h2 id="inv-form-dguv" class="inventory-form-section-title">
                 <i class="bi bi-shield-check" aria-hidden="true"></i>
@@ -322,14 +358,15 @@
         </div>
     </section>
 
-    <section class="inventory-form-card" aria-labelledby="inv-form-media">
+    {# ——— 6. Medien & Dokumente ——— #}
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-media-docs">
         <div class="inventory-form-card-head">
-            <h2 id="inv-form-media" class="inventory-form-section-title">
-                <i class="bi bi-image" aria-hidden="true"></i>
-                {{ _('inventory.product.form.sections.media') }}
+            <h2 id="inv-form-media-docs" class="inventory-form-section-title">
+                <i class="bi bi-files" aria-hidden="true"></i>
+                {{ _('inventory.product.form.sections.media_docs') }}
             </h2>
         </div>
-        <div class="inventory-form-fields">
+        <div class="inventory-form-fields inventory-form-fields--2">
             {% if product %}
             <div class="inventory-form-field">
                 <label for="status" class="form-label">{{ _('common.status') }}</label>
@@ -342,38 +379,28 @@
                     <option value="retired" {% if product.status == 'retired' %}selected{% endif %}>{{ _('inventory.stock.filters.retired') }}</option>
                 </select>
             </div>
-            {% endif %}
-            {% if not product %}
             <div class="inventory-form-field">
-                <label for="quantity" class="form-label d-inline-flex align-items-center gap-1">
-                    {{ _('inventory.product.form.quantity') }}
+                <label class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.cable_migration') }}
                     <button type="button" class="inventory-info-btn"
                             data-bs-toggle="tooltip"
-                            title="{{ _('inventory.product.form.quantity_help') }}"
-                            aria-label="{{ _('inventory.product.form.quantity_help') }}">
+                            title="{{ _('inventory.product.form.cable_migration_help') }}"
+                            aria-label="{{ _('inventory.product.form.cable_migration_help') }}">
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="number" class="form-control" id="quantity" name="quantity"
-                       value="1" min="1" max="100" required>
-            </div>
-            {% endif %}
-            {% if product %}
-            <div class="inventory-form-field">
-                <label class="form-label">Kabel-Migration</label>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="convert_to_cable" name="convert_to_cable" value="1">
                     <label class="form-check-label" for="convert_to_cable">
-                        Diesen Artikel in Kabel/Mengenartikel umwandeln
+                        {{ _('inventory.product.form.convert_to_cable') }}
                     </label>
                 </div>
                 <div class="form-check mt-1">
                     <input class="form-check-input" type="checkbox" id="merge_similar_cables" name="merge_similar_cables" value="1">
                     <label class="form-check-label" for="merge_similar_cables">
-                        Ähnliche Einzelartikel (gleicher Name/Kategorie/Länge) zusammenführen
+                        {{ _('inventory.product.form.merge_similar_cables') }}
                     </label>
                 </div>
-                <small class="form-text text-muted">Zusammengeführte Einzelartikel werden auf ausgemustert gesetzt.</small>
             </div>
             {% endif %}
             <div class="inventory-form-field">
@@ -402,22 +429,18 @@
                 </div>
                 {% endif %}
             </div>
-        </div>
-    </section>
-
-    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-documents">
-        <div class="inventory-form-card-head">
-            <h2 id="inv-form-documents" class="inventory-form-section-title">
-                <i class="bi bi-file-earmark" aria-hidden="true"></i>
-                {{ _('inventory.product.form.sections.documents') }}
-            </h2>
-        </div>
-        <div class="inventory-form-fields inventory-form-fields--2">
             <div class="inventory-form-field">
-                <label for="documents" class="form-label">{{ _('inventory.product.form.documents_upload') }}</label>
+                <label for="documents" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.documents_upload') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.documents_help') }}"
+                            aria-label="{{ _('inventory.product.form.documents_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <input type="file" class="form-control" id="documents" name="documents" multiple
                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,application/pdf,image/png,image/jpeg">
-                <div class="form-text">{{ _('inventory.product.form.documents_help') }}</div>
             </div>
             <div class="inventory-form-field">
                 <label for="document_file_type" class="form-label">{{ _('inventory.product.form.document_type') }}</label>
@@ -432,13 +455,20 @@
             </div>
             {% if manuals is defined and manuals %}
             <div class="inventory-form-field inventory-form-field--span-2">
-                <label for="link_manual_ids" class="form-label">{{ _('inventory.product.form.link_manuals') }}</label>
+                <label for="link_manual_ids" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.link_manuals') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.link_manuals_help') }}"
+                            aria-label="{{ _('inventory.product.form.link_manuals_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <select class="form-select" id="link_manual_ids" name="link_manual_ids" multiple size="{% if manuals|length < 6 %}{{ manuals|length }}{% else %}6{% endif %}">
                     {% for manual in manuals %}
                     <option value="{{ manual.id }}">{{ manual.title }}</option>
                     {% endfor %}
                 </select>
-                <div class="form-text">{{ _('inventory.product.form.link_manuals_help') }}</div>
             </div>
             {% endif %}
             {% if product %}
@@ -451,7 +481,7 @@
         </div>
     </section>
 
-    <div class="inventory-form-actions inventory-form-card--wide">
+    <div class="inventory-form-actions">
         <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
             <i class="bi bi-check-circle"></i> {{ _('inventory.product.form.save') }}
         </button>

@@ -458,6 +458,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     window.INVENTORY_RETIRED_FOLDER_ID = {{ retired_folder_id|tojson }};
     window.INVENTORY_IS_RETIRED_FOLDER_VIEW = {{ 'true' if is_retired_folder_view else 'false' }};
+    window.INVENTORY_MANUALS = [
+        {% if manuals is defined %}
+        {% for m in manuals %}
+        { id: {{ m.id }}, title: {{ m.title|tojson }} }{% if not loop.last %},{% endif %}
+        {% endfor %}
+        {% endif %}
+    ];
     try {
         if (typeof StockManager === 'undefined') {
             console.error('StockManager ist nicht definiert!');

@@ -1314,7 +1314,7 @@
         "link_manuals_help": "Множественный выбор: связать существующие инструкции без загрузки файла.",
         "manage_documents": "Управление всеми документами",
         "external_barcode": "Инв. №",
-        "external_barcode_placeholder": "напр. 001 (с этикетки)",
+        "external_barcode_placeholder": "напр. 001",
         "external_barcode_help": "Введите код с этикетки или отсканируйте сюда. Для QuickScan и выдачи.",
         "external_barcode_qty_hint": "Инв. № только при количестве 1 (каждый номер уникален)."
       }

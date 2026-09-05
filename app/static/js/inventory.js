@@ -145,6 +145,7 @@ class StockManager {
         this.setupEventListeners();
         this.setupViewToggle();
         this.setupSortControls();
+        this.applyUrlFilters();
         await this.loadFolders(); // Lade alle Ordner zuerst
         await this.loadCategories(); // Lade alle Kategorien
         await this.loadFilterOptions(); // Lade alle Filter-Optionen vom Server
@@ -156,6 +157,18 @@ class StockManager {
         this.applyFilters();
         if (window.InventoryPillSelect) {
             window.InventoryPillSelect.enhanceAll(document);
+        }
+    }
+
+    applyUrlFilters() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const dguv = (params.get('dguv') || '').trim();
+            const status = (params.get('status') || '').trim();
+            if (dguv) this.setFilterValue('dguvFilter', dguv);
+            if (status) this.setFilterValue('statusFilter', status);
+        } catch (e) {
+            /* ignore */
         }
     }
     
@@ -879,7 +892,7 @@ class StockManager {
             : '';
 
         return `
-            <tr class="mod-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+            <tr class="mod-list-row inventory-list-row-anim ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 <td class="inventory-list-check-col">
                     <input type="checkbox" class="form-check-input product-checkbox"
                            value="${product.id}" data-product-id="${product.id}"
@@ -935,9 +948,16 @@ class StockManager {
             items += `<li><a class="dropdown-item" href="/inventory/products/${id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>`;
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
+        items += `<li><a class="dropdown-item" href="/inventory/products/${id}/documents"><i class="bi bi-file-earmark me-2"></i>Dokumente</a></li>`;
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${id})"><i class="bi bi-star me-2"></i>Favorit</button></li>`;
         items += `<li><hr class="dropdown-divider"></li>`;
-        if (product.status !== 'defective' && product.status !== 'retired') {
+        if (product.status === 'available') {
+            items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); markAsInRepair(${id})"><i class="bi bi-tools me-2"></i>In Reparatur</button></li>`;
+        }
+        if (product.status === 'defective' || product.status === 'in_repair') {
+            items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); markAsAvailable(${id})"><i class="bi bi-check2-circle me-2"></i>Als einsatzbereit</button></li>`;
+        }
+        if (product.status !== 'defective' && product.status !== 'retired' && product.status !== 'in_repair') {
             items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); markAsDefective(${id})"><i class="bi bi-exclamation-triangle me-2"></i>Als defekt markieren</button></li>`;
         }
         items += `<li><button type="button" class="dropdown-item text-danger" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.deleteProduct(${id});}"><i class="bi bi-trash me-2"></i>Löschen</button></li>`;
@@ -1076,7 +1096,7 @@ class StockManager {
             ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-boxes"></i> Bestand: ${this.escapeHtml(String(product.available ?? 0))}</p>`
             : '';
         return `
-            <div class="card h-100 inventory-product-card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+            <div class="card h-100 inventory-product-card product-card inv-item-anim ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 ${this.buildProductContextMenuHtml(product)}
                 <div class="card-body d-flex flex-column">
                     <div class="inventory-product-preview text-center mb-3">
@@ -1128,7 +1148,7 @@ class StockManager {
         `;
     }
     
-    showProductDetail(productId) {
+    async showProductDetail(productId) {
         const product = this.products.find(p => p.id === productId);
         if (!product) {
             console.warn(`Produkt mit ID ${productId} nicht gefunden`);
@@ -1171,6 +1191,27 @@ class StockManager {
                 <span class="inventory-detail-label">${label}</span>
                 <span class="inventory-detail-value">${valueHtml}</span>
             </div>`;
+
+        const manuals = Array.isArray(window.INVENTORY_MANUALS) ? window.INVENTORY_MANUALS : [];
+        const manualsOptions = manuals.map((m) =>
+            `<option value="${m.id}">${this.escapeHtml(m.title || '')}</option>`
+        ).join('');
+        const linkManualHtml = manuals.length
+            ? `<div class="inventory-detail-link-manual mt-3">
+                    <label class="form-label small mb-1" for="detailLinkManualSelect">Anleitung verknüpfen</label>
+                    <div class="d-flex gap-2 flex-wrap align-items-stretch">
+                        <select id="detailLinkManualSelect" class="form-select form-select-sm" style="min-width: 12rem; max-width: 22rem;">
+                            <option value="">Anleitung wählen…</option>
+                            ${manualsOptions}
+                        </select>
+                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline"
+                                id="detailLinkManualBtn"
+                                data-product-id="${product.id}">
+                            <i class="bi bi-link-45deg"></i> Verknüpfen
+                        </button>
+                    </div>
+               </div>`
+            : '';
 
         content.innerHTML = `
             <div class="inventory-inventur-edit-form">
@@ -1234,6 +1275,15 @@ class StockManager {
                     </div>
                 </section>` : ''}
 
+                <section class="inventory-form-card" id="detailDocumentsSection">
+                    <div class="inventory-form-card-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h2 class="inventory-form-section-title mb-0"><i class="bi bi-file-earmark"></i> Dokumente</h2>
+                        <a href="/inventory/products/${product.id}/documents" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">Alle verwalten</a>
+                    </div>
+                    <div id="detailDocumentsList" class="inventory-detail-docs text-muted small">Lade Dokumente…</div>
+                    ${linkManualHtml}
+                </section>
+
                 <section class="inventory-form-card">
                     <div class="inventory-form-card-head">
                         <h2 class="inventory-form-section-title"><i class="bi bi-lightning"></i> Aktionen</h2>
@@ -1251,12 +1301,20 @@ class StockManager {
                                 onclick="toggleFavorite(${product.id});">
                             <i class="bi bi-star"></i> Favorit
                         </button>
-                        ${product.status === 'missing'
-                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
-                            : `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
-                        ${product.status !== 'defective' && product.status !== 'retired'
+                        ${product.status === 'available'
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-warning" onclick="markAsInRepair(${product.id})">In Reparatur</button>`
+                            : ''}
+                        ${(product.status === 'defective' || product.status === 'in_repair')
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsAvailable(${product.id})">Als einsatzbereit</button>`
+                            : ''}
+                        ${product.status !== 'defective' && product.status !== 'retired' && product.status !== 'in_repair'
                             ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsDefective(${product.id})">Als defekt markieren</button>`
                             : ''}
+                        ${product.status === 'missing'
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
+                            : product.status !== 'retired'
+                                ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`
+                                : ''}
                     </div>
                 </section>
             </div>
@@ -1268,6 +1326,77 @@ class StockManager {
             const backdrop = document.querySelector('.modal-backdrop');
             if (backdrop) backdrop.style.zIndex = '1050';
         });
+
+        this.loadProductDetailDocuments(product.id);
+        const linkBtn = document.getElementById('detailLinkManualBtn');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', () => this.linkManualFromDetail(product.id));
+        }
+    }
+
+    async loadProductDetailDocuments(productId) {
+        const listEl = document.getElementById('detailDocumentsList');
+        if (!listEl) return;
+        try {
+            const response = await fetch(`/inventory/api/products/${productId}/documents`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (!response.ok) throw new Error('load_failed');
+            const docs = await response.json();
+            const recent = (Array.isArray(docs) ? docs : []).slice(0, 3);
+            if (!recent.length) {
+                listEl.innerHTML = '<p class="mb-0 text-muted">Noch keine Dokumente.</p>';
+                return;
+            }
+            listEl.innerHTML = `<ul class="list-unstyled mb-0 inventory-detail-docs-list">${recent.map((doc) => {
+                const name = this.escapeHtml(doc.display_name || doc.file_name || doc.manual_title || 'Dokument');
+                const href = doc.download_url || doc.manual_view_url || `/inventory/products/${productId}/documents`;
+                const meta = doc.manual_title && !doc.has_file
+                    ? '<span class="badge rounded-pill bg-secondary-subtle text-secondary">Anleitung</span>'
+                    : (doc.file_type ? `<span class="text-muted">${this.escapeHtml(doc.file_type)}</span>` : '');
+                return `<li class="inventory-detail-doc-item d-flex align-items-center justify-content-between gap-2 py-1">
+                    <a href="${this.escapeHtml(href)}" class="text-decoration-none text-truncate" target="_blank" rel="noopener">
+                        <i class="bi bi-file-earmark me-1"></i>${name}
+                    </a>
+                    ${meta}
+                </li>`;
+            }).join('')}</ul>`;
+        } catch (e) {
+            listEl.innerHTML = '<p class="mb-0 text-danger">Dokumente konnten nicht geladen werden.</p>';
+        }
+    }
+
+    async linkManualFromDetail(productId) {
+        const select = document.getElementById('detailLinkManualSelect');
+        const manualId = select ? parseInt(select.value, 10) : NaN;
+        if (!manualId) {
+            inventoryNotify('Bitte eine Anleitung auswählen.', 'warning');
+            return;
+        }
+        try {
+            const body = new FormData();
+            body.append('manual_id', String(manualId));
+            body.append('file_type', 'handbook');
+            const response = await fetch(`/inventory/products/${productId}/documents/link-manual`, {
+                method: 'POST',
+                body,
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.ok === false) {
+                throw new Error(result.message || 'Verknüpfung fehlgeschlagen');
+            }
+            inventoryNotify(result.message || 'Anleitung verknüpft.', result.category === 'info' ? 'info' : 'success');
+            if (select) select.value = '';
+            await this.loadProductDetailDocuments(productId);
+        } catch (e) {
+            inventoryNotify(e.message || 'Verknüpfung fehlgeschlagen', 'danger');
+        }
     }
 
     formatDateDe(value) {
@@ -1386,20 +1515,56 @@ class StockManager {
         if (bulkToolbar) {
             if (selected.length > 0) {
                 bulkToolbar.style.display = 'block';
+                bulkToolbar.classList.add('is-visible');
             } else {
                 bulkToolbar.style.display = 'none';
+                bulkToolbar.classList.remove('is-visible');
             }
         }
         
         if (bulkSelectionCount) {
             bulkSelectionCount.textContent = selected.length;
         }
+
+        this.updateBulkStatusButtons(selected);
         
         // Stelle sicher, dass alle Karten visuell korrekt aktualisiert sind
         document.querySelectorAll('.product-checkbox').forEach(cb => {
             const productId = parseInt(cb.dataset.productId);
             this.updateCardSelection(productId);
         });
+    }
+
+    updateBulkStatusButtons(selectedIds) {
+        const repairBtn = document.getElementById('bulkRepairBtn');
+        const availableBtn = document.getElementById('bulkAvailableBtn');
+        if (!repairBtn && !availableBtn) return;
+
+        if (!selectedIds || selectedIds.length === 0) {
+            if (repairBtn) repairBtn.classList.remove('d-none');
+            if (availableBtn) availableBtn.classList.remove('d-none');
+            return;
+        }
+
+        const selectedProducts = selectedIds
+            .map((id) => this.products.find((p) => p.id === id))
+            .filter(Boolean);
+        if (!selectedProducts.length) {
+            if (repairBtn) repairBtn.classList.remove('d-none');
+            if (availableBtn) availableBtn.classList.remove('d-none');
+            return;
+        }
+
+        const isBroken = (s) => s === 'defective' || s === 'in_repair';
+        const allAvailable = selectedProducts.every((p) => p.status === 'available');
+        const allBroken = selectedProducts.every((p) => isBroken(p.status));
+
+        if (repairBtn) {
+            repairBtn.classList.toggle('d-none', allBroken);
+        }
+        if (availableBtn) {
+            availableBtn.classList.toggle('d-none', allAvailable);
+        }
     }
     
     async borrowSelected() {
@@ -4841,6 +5006,62 @@ async function markAsDefective(productId) {
     } catch (error) {
         console.error('Fehler:', error);
         inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
+    }
+}
+
+async function markAsInRepair(productId) {
+    if (!(await inventoryConfirm('Produkt auf „In Reparatur“ setzen?', {
+        title: 'In Reparatur',
+        confirmLabel: 'Ja, setzen',
+        danger: false,
+    }))) {
+        return;
+    }
+    try {
+        const response = await fetch('/inventory/api/products/bulk-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_ids: [productId], status: 'in_repair' }),
+            credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Status-Update fehlgeschlagen');
+        inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+        if (window.stockManager && typeof window.stockManager.loadProducts === 'function') {
+            await window.stockManager.loadProducts();
+        } else {
+            window.location.reload();
+        }
+    } catch (e) {
+        inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
+    }
+}
+
+async function markAsAvailable(productId) {
+    if (!(await inventoryConfirm('Produkt wieder als einsatzbereit markieren?', {
+        title: 'Einsatzbereit setzen',
+        confirmLabel: 'Ja, setzen',
+        danger: false,
+    }))) {
+        return;
+    }
+    try {
+        const response = await fetch('/inventory/api/products/bulk-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_ids: [productId], status: 'available' }),
+            credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Status-Update fehlgeschlagen');
+        inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+        if (window.stockManager && typeof window.stockManager.loadProducts === 'function') {
+            await window.stockManager.loadProducts();
+        } else {
+            window.location.reload();
+        }
+    } catch (e) {
+        inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
     }
 }
 

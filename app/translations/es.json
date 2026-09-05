@@ -1314,7 +1314,7 @@
         "link_manuals_help": "Selección múltiple: vincular manuales existentes sin subir archivo.",
         "manage_documents": "Gestionar todos los documentos",
         "external_barcode": "N.º de inventario",
-        "external_barcode_placeholder": "p. ej. 001 (del etiquetado)",
+        "external_barcode_placeholder": "p. ej. 001",
         "external_barcode_help": "Escriba el código de la etiqueta o escanéelo aquí. Para QuickScan y préstamos.",
         "external_barcode_qty_hint": "N.º de inventario solo con cantidad 1 (cada número es único)."
       }

@@ -741,6 +741,7 @@ def dashboard():
             'return_number': checkout.checkout_number,
         })
 
+    today = date_cls.today()
     stats = {
         'total': Product.query.count(),
         'available': Product.query.filter_by(status='available').count(),
@@ -748,9 +749,10 @@ def dashboard():
         'defective': Product.query.filter(
             Product.status.in_(('defective', 'in_repair'))
         ).count(),
-        'overdue': Checkout.query.filter(
-            Checkout.status.in_(('active', 'partially_returned')),
-            Checkout.end_date < datetime.combine(date_cls.today(), datetime.min.time()),
+        'dguv_due': Product.query.filter(
+            Product.dguv_next_check.isnot(None),
+            Product.dguv_next_check <= today,
+            Product.status != 'retired',
         ).count(),
     }
 
@@ -797,6 +799,7 @@ def stock(folder_id=None):
         subfolders=subfolders,
         retired_folder_id=(retired_folder.id if retired_folder else None),
         is_retired_folder_view=is_retired_folder_view,
+        manuals=_accessible_manuals(),
     )
 
 
@@ -4380,25 +4383,51 @@ def product_document_upload(product_id):
 @check_module_access('module_inventory')
 def product_document_link_manual(product_id):
     """Reine Verknuepfung einer Bedienungsanleitung ohne Datei-Upload."""
+    wants_json = (
+        request.accept_mimetypes.best == 'application/json'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.args.get('format') == 'json'
+    )
+
+    def _json_or_redirect(message, category, *, status=200, extra=None):
+        if wants_json:
+            payload = {'ok': category in ('success', 'info'), 'message': message, 'category': category}
+            if extra:
+                payload.update(extra)
+            return jsonify(payload), status
+        flash(message, category)
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+
     Product.query.get_or_404(product_id)
 
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(
+            translate('inventory.flash.guests_cannot_edit'), 'danger', status=403
+        )
 
     manual_id = request.form.get('manual_id', type=int)
-    file_type = _normalize_document_file_type(request.form.get('file_type', 'handbook'))
+    if manual_id is None and request.is_json:
+        manual_id = (request.get_json(silent=True) or {}).get('manual_id')
+        try:
+            manual_id = int(manual_id) if manual_id is not None else None
+        except (TypeError, ValueError):
+            manual_id = None
+    file_type = _normalize_document_file_type(
+        request.form.get('file_type')
+        or ((request.get_json(silent=True) or {}).get('file_type') if request.is_json else None)
+        or 'handbook'
+    )
     manual = _get_accessible_manual(manual_id)
     if not manual:
-        flash(_('inventory.flash.manual_link_required'), 'danger')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(_('inventory.flash.manual_link_required'), 'danger', status=400)
 
     existing = ProductDocument.query.filter_by(
         product_id=product_id, manual_id=manual.id, file_path=None
     ).first()
     if existing:
-        flash(_('inventory.flash.manual_already_linked', title=manual.title), 'info')
-        return redirect(url_for('inventory.product_documents', product_id=product_id))
+        return _json_or_redirect(
+            _('inventory.flash.manual_already_linked', title=manual.title), 'info'
+        )
 
     _create_product_document(
         product_id=product_id,
@@ -4407,8 +4436,11 @@ def product_document_link_manual(product_id):
         manual_id=manual.id,
     )
     db.session.commit()
-    flash(_('inventory.flash.manual_linked', title=manual.title), 'success')
-    return redirect(url_for('inventory.product_documents', product_id=product_id))
+    return _json_or_redirect(
+        _('inventory.flash.manual_linked', title=manual.title),
+        'success',
+        extra={'manual_id': manual.id, 'manual_title': manual.title},
+    )
 
 
 @inventory_bp.route('/products/<int:product_id>/documents/<int:document_id>/delete', methods=['POST'])
