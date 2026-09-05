@@ -679,6 +679,7 @@ def closed_boards():
         boards=boards,
         allowed_visibilities=get_allowed_visibilities(),
         teams=_user_kanban_teams(current_user),
+        import_targets=[],
         active_nav='closed',
         create_modal=False,
     )

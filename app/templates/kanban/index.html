@@ -157,6 +157,9 @@
       <button type="button" class="btn mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#kanbanMobileNav"><i class="bi bi-list"></i></button>
       <span class="mod-mobile-title">{{ _('kanban.index.title') }}</span>
       <button type="button" class="btn files-pill-new btn-accent" data-bs-toggle="modal" data-bs-target="#createBoardModal"><i class="bi bi-plus-lg"></i></button>
+      {% if import_targets %}
+      <button type="button" class="btn files-pill-new" data-bs-toggle="modal" data-bs-target="#importBoardModal" title="{{ _('kanban.import.title') }}"><i class="bi bi-upload"></i></button>
+      {% endif %}
     </div>
 
     <div class="page-toolbar-row kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">

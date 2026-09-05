@@ -41,12 +41,12 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
-            <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=board.id, format='json', share_token=share_token if share_token else None) }}">
+            <a class="dropdown-item" href="{% if share_token %}{{ url_for('kanban.api_export_board', board_id=board.id, format='json', share_token=share_token) }}{% else %}{{ url_for('kanban.api_export_board', board_id=board.id, format='json') }}{% endif %}">
               {{ _('kanban.export.json') }}
             </a>
           </li>
           <li>
-            <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=board.id, format='csv', share_token=share_token if share_token else None) }}">
+            <a class="dropdown-item" href="{% if share_token %}{{ url_for('kanban.api_export_board', board_id=board.id, format='csv', share_token=share_token) }}{% else %}{{ url_for('kanban.api_export_board', board_id=board.id, format='csv') }}{% endif %}">
               {{ _('kanban.export.csv') }}
             </a>
           </li>

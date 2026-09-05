@@ -11,7 +11,7 @@ from typing import Any
 
 from flask import has_request_context, url_for
 
-from app.models.kanban import KanbanBoard, KanbanCard
+from app.models.kanban import KanbanBoard
 from app.models.user import User
 from app.utils.kanban_access import get_board_member_roles
 
