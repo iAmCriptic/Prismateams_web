@@ -1,514 +1,273 @@
 ﻿{% extends "settings/base_settings.html" %}
-
-
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.system.page_title') }}{% endblock %}
-
 {% block settings_mobile_title %}{{ _('settings.admin.cards.system_settings.title') }}{% endblock %}
 
-
-
 {% block settings_content %}
+<div class="sp-page sp-page--fluid settings-admin-system">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-sliders" aria-hidden="true"></i><span>{{ _('settings.admin.system.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.system.lead_short') }}</p>
+  </header>
 
-<div class="settings-admin-system">
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_system') }}" enctype="multipart/form-data">
+    <div class="sp-card-grid">
+      <section class="sp-group" id="system-portal" data-settings-search-id="system-portal">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-building" aria-hidden="true"></i>{{ _('settings.admin.system.section_portal') }}</h2>
+          {{ sp_info(_('settings.admin.system.portal_name_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.portal_name_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="{{ _('settings.admin.system.portal_name_placeholder') }}" autocomplete="organization" style="min-width:14rem">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.portal_logo_label') }}</span>
+              {{ sp_info(_('settings.admin.system.portal_logo_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.65rem">
+              {% if portal_logo %}
+              <div class="settings-admin-system-logo" id="portal-logo-preview">
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="{{ _('settings.admin.system.portal_logo_label') }}" class="settings-admin-system-logo-img">
+                <div class="settings-admin-system-logo-meta">
+                  <span class="settings-admin-system-logo-caption">{{ _('settings.admin.system.current_logo') }}</span>
+                  <button type="submit" name="remove_portal_logo" value="1" class="btn btn-sm btn-outline-danger rounded-pill" data-sp-keep-submit data-confirm-delete="{{ _('settings.admin.system.remove_logo_confirm') }}" title="{{ _('settings.admin.system.remove_logo') }}">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                    {{ _('settings.admin.system.remove_logo') }}
+                  </button>
+                </div>
+              </div>
+              {% endif %}
+              <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
+            </div>
+          </div>
+        </div>
+      </section>
 
-    <div class="settings-admin-system-header">
+      <section class="sp-group" id="system-timezone" data-settings-search-id="system-timezone">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-clock" aria-hidden="true"></i>{{ _('settings.admin.system.section_timezone') }}</h2>
+          {{ sp_info(_('settings.admin.system.timezone_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.timezone_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <select class="form-select" id="portal_timezone" name="portal_timezone" style="min-width:14rem">
+                {% for tz_value, tz_label in timezone_choices %}
+                <option value="{{ tz_value }}" {% if portal_timezone == tz_value %}selected{% endif %}>{{ tz_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <h1 class="settings-admin-system-title">{{ _('settings.admin.system.heading') }}</h1>
+      <section class="sp-group" id="system-guest-domain" data-settings-search-id="system-guest-domain">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-person-badge" aria-hidden="true"></i>{{ _('settings.admin.system.section_guest_domain') }}</h2>
+          {{ sp_info(_('settings.admin.system.guest_email_domain_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.guest_email_domain_label') }}</span>
+            </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.35rem">
+              <div class="input-group">
+                <span class="input-group-text rounded-pill-start">@</span>
+                <input type="text" class="form-control" id="guest_email_domain" name="guest_email_domain"
+                       value="{{ guest_email_domain }}" placeholder="{{ _('settings.admin.system.guest_email_domain_placeholder') }}"
+                       autocomplete="off" spellcheck="false">
+              </div>
+              <p class="sp-row-meta mb-0" id="guest-email-domain-preview">
+                {{ _('settings.admin.system.guest_email_domain_preview', domain=guest_email_domain) }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <p class="settings-admin-system-subtitle">{{ _('settings.admin.system.subtitle') }}</p>
+      <section class="sp-group" id="system-indexing" data-settings-search-id="system-indexing">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-search" aria-hidden="true"></i>{{ _('settings.admin.system.section_indexing') }}</h2>
+          {{ sp_info(_('settings.admin.system.indexing_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.indexing_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="search_indexing_enabled" name="search_indexing_enabled" {% if search_indexing_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0">{{ _('settings.admin.system.indexing_hint') }}</p>
+            <div class="sp-row-control" style="justify-content:flex-start;gap:0.5rem">
+              <a href="{{ url_for('robots_txt') }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary rounded-pill">robots.txt</a>
+              <a href="{{ url_for('sitemap_xml') }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary rounded-pill">sitemap.xml</a>
+            </div>
+          </div>
+        </div>
+      </section>
 
+      <section class="sp-group sp-group--span2" id="system-branding" data-settings-search-id="system-branding">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-brush" aria-hidden="true"></i>{{ _('settings.admin.system.section_branding') }}</h2>
+          {{ sp_info(_('settings.admin.system.default_accent_color_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.default_accent_color_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color }}" title="{{ _('settings.admin.system.default_accent_color_label') }}">
+              <span id="default-color-preview" class="sp-color-preview" style="background-color: {{ default_accent_color }};">{{ _('settings.admin.system.preview') }}</span>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.color_gradient_label') }}</span>
+              {{ sp_info(_('settings.admin.system.color_gradient_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <div class="settings-admin-system-preset-grid" role="radiogroup" aria-label="{{ _('settings.admin.system.color_gradient_label') }}">
+                {% set gradients = [
+                  ('', _('settings.admin.system.color_gradient_default'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
+                  ('linear-gradient(135deg, #667eea 0%, #764ba2 100%)', _('settings.admin.system.color_gradient_purple_blue'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
+                  ('linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', _('settings.admin.system.color_gradient_pink_red'), 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'),
+                  ('linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', _('settings.admin.system.color_gradient_blue_cyan'), 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'),
+                  ('linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', _('settings.admin.system.color_gradient_green_teal'), 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'),
+                  ('linear-gradient(135deg, #fa709a 0%, #fee140 100%)', _('settings.admin.system.color_gradient_pink_yellow'), 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'),
+                  ('linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', _('settings.admin.system.color_gradient_pastel'), 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'),
+                  ('linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', _('settings.admin.system.color_gradient_rose_pastel'), 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'),
+                  ('linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', _('settings.admin.system.color_gradient_orange_pastel'), 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
+                ] %}
+                {% for value, label, swatch in gradients %}
+                {% set gid = 'sys_grad_' ~ loop.index0 %}
+                <div class="settings-admin-system-preset">
+                  <input type="radio" class="btn-check" name="color_gradient" id="{{ gid }}" value="{{ value }}" {% if color_gradient == value or (not color_gradient and value == '') %}checked{% endif %}>
+                  <label class="settings-admin-system-preset-btn" for="{{ gid }}" title="{{ label }}">
+                    <span class="settings-admin-system-preset-swatch" style="background: {{ swatch }};"></span>
+                    <span class="settings-admin-system-preset-label">{{ label }}</span>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.auth_brand_image_label') }}</span>
+              {{ sp_info(_('settings.admin.system.auth_brand_image_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.65rem">
+              {% if auth_brand_image %}
+              <div class="settings-admin-system-logo" id="auth-brand-image-preview">
+                <img src="{{ url_for('settings.auth_brand_image', filename=auth_brand_image) }}" alt="" class="settings-admin-system-logo-img settings-admin-system-brand-preview">
+                <div class="settings-admin-system-logo-meta">
+                  <button type="submit" name="remove_auth_brand_image" value="1" class="btn btn-sm btn-outline-danger rounded-pill" data-sp-keep-submit data-confirm-delete="{{ _('settings.admin.system.remove_auth_brand_image_confirm') }}">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                    {{ _('settings.admin.system.remove_auth_brand_image') }}
+                  </button>
+                </div>
+              </div>
+              {% endif %}
+              <input type="file" class="form-control" id="auth_brand_image" name="auth_brand_image" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+            </div>
+          </div>
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.auth_brand_color_label') }}</span>
+              {{ sp_info(_('settings.admin.system.auth_brand_color_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <input type="color" class="form-control form-control-color" id="auth_brand_color" name="auth_brand_color" value="{{ auth_brand_color }}" title="{{ _('settings.admin.system.auth_brand_color_label') }}">
+              <span id="auth-brand-color-preview" class="sp-color-preview" style="background-color: {{ auth_brand_color }};">{{ _('settings.admin.system.preview') }}</span>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.auth_brand_logo_position_label') }}</span>
+              {{ sp_info(_('settings.admin.system.auth_brand_logo_position_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <div class="settings-admin-system-position-grid" role="radiogroup" aria-label="{{ _('settings.admin.system.auth_brand_logo_position_label') }}">
+                {% for pos in auth_brand_logo_positions %}
+                {% set pos_id = 'auth_brand_pos_' ~ pos %}
+                <div class="settings-admin-system-position-cell settings-admin-system-position-cell--{{ pos }}">
+                  <input type="radio" class="btn-check" name="auth_brand_logo_position" id="{{ pos_id }}" value="{{ pos }}" {% if auth_brand_logo_position == pos %}checked{% endif %}>
+                  <label class="settings-admin-system-position-btn" for="{{ pos_id }}" title="{{ _('settings.admin.system.auth_brand_position.' ~ pos) }}">
+                    <span class="settings-admin-system-position-dot" aria-hidden="true"></span>
+                    <span class="visually-hidden">{{ _('settings.admin.system.auth_brand_position.' ~ pos) }}</span>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.auth_brand_text_label') }}</span>
+              {{ sp_info(_('settings.admin.system.auth_brand_text_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <textarea class="form-control" id="auth_brand_text" name="auth_brand_text" rows="3" maxlength="280" placeholder="{{ _('settings.admin.system.auth_brand_text_placeholder') }}">{{ auth_brand_text }}</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-
-
-
-    <form method="POST" data-sp-autosave enctype="multipart/form-data" class="settings-admin-system-form">
-
-        <div class="settings-admin-system-grid">
-
-            <section class="settings-admin-system-card" aria-labelledby="system-section-portal">
-
-                <div class="settings-admin-system-card-head">
-
-                    <h2 id="system-section-portal" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_portal') }}</h2>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.portal_name_help') }}" aria-label="{{ _('settings.admin.system.portal_name_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-
-
-                <div class="settings-admin-system-field">
-
-                    <label for="portal_name" class="form-label">{{ _('settings.admin.system.portal_name_label') }}</label>
-
-                    <input type="text" class="form-control settings-admin-system-input" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="{{ _('settings.admin.system.portal_name_placeholder') }}" autocomplete="organization">
-
-                </div>
-
-
-
-                <div class="settings-admin-system-field mb-0">
-
-                    <div class="settings-admin-system-label-row">
-
-                        <label for="portal_logo" class="form-label mb-0">{{ _('settings.admin.system.portal_logo_label') }}</label>
-
-                        <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.portal_logo_help') }}" aria-label="{{ _('settings.admin.system.portal_logo_help') }}">
-
-                            <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                        </button>
-
-                    </div>
-
-                    {% if portal_logo %}
-
-                    <div class="settings-admin-system-logo" id="portal-logo-preview">
-
-                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="{{ _('settings.admin.system.portal_logo_label') }}" class="settings-admin-system-logo-img">
-
-                        <div class="settings-admin-system-logo-meta">
-
-                            <span class="settings-admin-system-logo-caption">{{ _('settings.admin.system.current_logo') }}</span>
-
-                            <button type="submit" name="remove_portal_logo" value="1" class="btn btn-sm btn-outline-danger settings-admin-system-logo-remove" data-confirm-delete="{{ _('settings.admin.system.remove_logo_confirm') }}" title="{{ _('settings.admin.system.remove_logo') }}">
-
-                                <i class="bi bi-trash" aria-hidden="true"></i>
-
-                                {{ _('settings.admin.system.remove_logo') }}
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                    {% endif %}
-
-                    <input type="file" class="form-control settings-admin-system-input settings-admin-system-file" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
-
-                </div>
-
-            </section>
-
-
-
-            <section class="settings-admin-system-card" aria-labelledby="system-section-timezone">
-
-                <div class="settings-admin-system-card-head">
-
-                    <h2 id="system-section-timezone" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_timezone') }}</h2>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.timezone_help') }}" aria-label="{{ _('settings.admin.system.timezone_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-
-
-                <div class="settings-admin-system-field mb-0">
-
-                    <label for="portal_timezone" class="form-label">{{ _('settings.admin.system.timezone_label') }}</label>
-
-                    <select class="form-select settings-admin-system-input" id="portal_timezone" name="portal_timezone">
-
-                        {% for tz_value, tz_label in timezone_choices %}
-
-                        <option value="{{ tz_value }}" {% if portal_timezone == tz_value %}selected{% endif %}>{{ tz_label }}</option>
-
-                        {% endfor %}
-
-                    </select>
-
-                </div>
-
-            </section>
-
-        </div>
-
-
-
-        <div class="settings-admin-system-grid">
-
-            <section class="settings-admin-system-card" aria-labelledby="system-section-guest-domain">
-
-                <div class="settings-admin-system-card-head">
-
-                    <h2 id="system-section-guest-domain" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_guest_domain') }}</h2>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.guest_email_domain_help') }}" aria-label="{{ _('settings.admin.system.guest_email_domain_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-
-
-                <div class="settings-admin-system-field mb-0">
-
-                    <label for="guest_email_domain" class="form-label">{{ _('settings.admin.system.guest_email_domain_label') }}</label>
-
-                    <div class="input-group">
-
-                        <span class="input-group-text">@</span>
-
-                        <input type="text" class="form-control settings-admin-system-input" id="guest_email_domain" name="guest_email_domain"
-
-                               value="{{ guest_email_domain }}" placeholder="{{ _('settings.admin.system.guest_email_domain_placeholder') }}"
-
-                               autocomplete="off" spellcheck="false">
-
-                    </div>
-
-                    <p class="form-text mb-0 mt-2" id="guest-email-domain-preview">
-
-                        {{ _('settings.admin.system.guest_email_domain_preview', domain=guest_email_domain) }}
-
-                    </p>
-
-                </div>
-
-            </section>
-
-
-
-            <section class="settings-admin-system-card" aria-labelledby="system-section-indexing">
-
-                <div class="settings-admin-system-card-head">
-
-                    <h2 id="system-section-indexing" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_indexing') }}</h2>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.indexing_help') }}" aria-label="{{ _('settings.admin.system.indexing_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-
-
-                <div class="form-check form-switch mb-2">
-
-                    <input class="form-check-input" type="checkbox" role="switch" id="search_indexing_enabled" name="search_indexing_enabled" {% if search_indexing_enabled %}checked{% endif %}>
-
-                    <label class="form-check-label" for="search_indexing_enabled">{{ _('settings.admin.system.indexing_label') }}</label>
-
-                </div>
-
-                <p class="form-text mb-2">{{ _('settings.admin.system.indexing_hint') }}</p>
-
-                <p class="form-text mb-0 settings-admin-system-indexing-links">
-
-                    <a href="{{ url_for('robots_txt') }}" target="_blank" rel="noopener">robots.txt</a>
-
-                    <span aria-hidden="true">·</span>
-
-                    <a href="{{ url_for('sitemap_xml') }}" target="_blank" rel="noopener">sitemap.xml</a>
-
-                </p>
-
-            </section>
-
-        </div>
-
-
-
-        <section class="settings-admin-system-card settings-admin-system-card--wide" aria-labelledby="system-section-branding">
-
-            <div class="settings-admin-system-card-head">
-
-                <h2 id="system-section-branding" class="settings-admin-system-section-title mb-0">{{ _('settings.admin.system.section_branding') }}</h2>
-
-                <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.default_accent_color_help') }}" aria-label="{{ _('settings.admin.system.default_accent_color_help') }}">
-
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                </button>
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field">
-
-                <label for="default_accent_color" class="form-label">{{ _('settings.admin.system.default_accent_color_label') }}</label>
-
-                <div class="settings-admin-system-color-row">
-
-                    <input type="color" class="form-control form-control-color settings-admin-system-color-picker" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color }}" title="{{ _('settings.admin.system.default_accent_color_label') }}">
-
-                    <span id="default-color-preview" class="settings-admin-system-preview" style="background-color: {{ default_accent_color }};">{{ _('settings.admin.system.preview') }}</span>
-
-                </div>
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field">
-
-                <div class="settings-admin-system-label-row">
-
-                    <span class="form-label mb-0">{{ _('settings.admin.system.color_gradient_label') }}</span>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.color_gradient_help') }}" aria-label="{{ _('settings.admin.system.color_gradient_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-                <div class="settings-admin-system-preset-grid" role="radiogroup" aria-label="{{ _('settings.admin.system.color_gradient_label') }}">
-
-                    {% set gradients = [
-
-                        ('', _('settings.admin.system.color_gradient_default'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
-
-                        ('linear-gradient(135deg, #667eea 0%, #764ba2 100%)', _('settings.admin.system.color_gradient_purple_blue'), 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
-
-                        ('linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', _('settings.admin.system.color_gradient_pink_red'), 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'),
-
-                        ('linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', _('settings.admin.system.color_gradient_blue_cyan'), 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'),
-
-                        ('linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', _('settings.admin.system.color_gradient_green_teal'), 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'),
-
-                        ('linear-gradient(135deg, #fa709a 0%, #fee140 100%)', _('settings.admin.system.color_gradient_pink_yellow'), 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'),
-
-                        ('linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', _('settings.admin.system.color_gradient_pastel'), 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'),
-
-                        ('linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', _('settings.admin.system.color_gradient_rose_pastel'), 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'),
-
-                        ('linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', _('settings.admin.system.color_gradient_orange_pastel'), 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
-
-                    ] %}
-
-                    {% for value, label, swatch in gradients %}
-
-                    {% set gid = 'sys_grad_' ~ loop.index0 %}
-
-                    <div class="settings-admin-system-preset">
-
-                        <input type="radio" class="btn-check" name="color_gradient" id="{{ gid }}" value="{{ value }}" {% if color_gradient == value or (not color_gradient and value == '') %}checked{% endif %}>
-
-                        <label class="settings-admin-system-preset-btn" for="{{ gid }}" title="{{ label }}">
-
-                            <span class="settings-admin-system-preset-swatch" style="background: {{ swatch }};"></span>
-
-                            <span class="settings-admin-system-preset-label">{{ label }}</span>
-
-                        </label>
-
-                    </div>
-
-                    {% endfor %}
-
-                </div>
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field">
-
-                <div class="settings-admin-system-label-row">
-
-                    <span class="form-label mb-0">{{ _('settings.admin.system.auth_brand_image_label') }}</span>
-
-                    <button type="button" class="settings-admin-system-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.system.auth_brand_image_help') }}" aria-label="{{ _('settings.admin.system.auth_brand_image_help') }}">
-
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-
-                    </button>
-
-                </div>
-
-                {% if auth_brand_image %}
-
-                <div class="settings-admin-system-logo mb-2" id="auth-brand-image-preview">
-
-                    <img src="{{ url_for('settings.auth_brand_image', filename=auth_brand_image) }}" alt="" class="settings-admin-system-logo-img settings-admin-system-brand-preview">
-
-                    <div class="settings-admin-system-logo-meta">
-
-                        <button type="submit" name="remove_auth_brand_image" value="1" class="btn btn-sm btn-outline-danger settings-admin-system-logo-remove" data-confirm-delete="{{ _('settings.admin.system.remove_auth_brand_image_confirm') }}" title="{{ _('settings.admin.system.remove_auth_brand_image') }}">
-
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-
-                            {{ _('settings.admin.system.remove_auth_brand_image') }}
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-                {% endif %}
-
-                <input type="file" class="form-control settings-admin-system-input settings-admin-system-file" id="auth_brand_image" name="auth_brand_image" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field">
-
-                <label for="auth_brand_color" class="form-label">{{ _('settings.admin.system.auth_brand_color_label') }}</label>
-
-                <div class="settings-admin-system-color-row">
-
-                    <input type="color" class="form-control form-control-color settings-admin-system-color-picker" id="auth_brand_color" name="auth_brand_color" value="{{ auth_brand_color }}" title="{{ _('settings.admin.system.auth_brand_color_label') }}">
-
-                    <span id="auth-brand-color-preview" class="settings-admin-system-preview" style="background-color: {{ auth_brand_color }};">{{ _('settings.admin.system.preview') }}</span>
-
-                </div>
-
-                <div class="form-text">{{ _('settings.admin.system.auth_brand_color_help') }}</div>
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field">
-
-                <label class="form-label">{{ _('settings.admin.system.auth_brand_logo_position_label') }}</label>
-
-                <p class="form-text mb-2">{{ _('settings.admin.system.auth_brand_logo_position_help') }}</p>
-
-                <div class="settings-admin-system-position-grid" role="radiogroup" aria-label="{{ _('settings.admin.system.auth_brand_logo_position_label') }}">
-
-                    {% for pos in auth_brand_logo_positions %}
-
-                    {% set pos_id = 'auth_brand_pos_' ~ pos %}
-
-                    <div class="settings-admin-system-position-cell settings-admin-system-position-cell--{{ pos }}">
-
-                        <input type="radio" class="btn-check" name="auth_brand_logo_position" id="{{ pos_id }}" value="{{ pos }}" {% if auth_brand_logo_position == pos %}checked{% endif %}>
-
-                        <label class="settings-admin-system-position-btn" for="{{ pos_id }}" title="{{ _('settings.admin.system.auth_brand_position.' ~ pos) }}">
-
-                            <span class="settings-admin-system-position-dot" aria-hidden="true"></span>
-
-                            <span class="visually-hidden">{{ _('settings.admin.system.auth_brand_position.' ~ pos) }}</span>
-
-                        </label>
-
-                    </div>
-
-                    {% endfor %}
-
-                </div>
-
-            </div>
-
-
-
-            <div class="settings-admin-system-field mb-0">
-
-                <label for="auth_brand_text" class="form-label">{{ _('settings.admin.system.auth_brand_text_label') }}</label>
-
-                <textarea class="form-control settings-admin-system-input" id="auth_brand_text" name="auth_brand_text" rows="3" maxlength="280" placeholder="{{ _('settings.admin.system.auth_brand_text_placeholder') }}">{{ auth_brand_text }}</textarea>
-
-                <div class="form-text">{{ _('settings.admin.system.auth_brand_text_help') }}</div>
-
-            </div>
-
-        </section>
-
-
-
-        <div class="settings-admin-system-actions">
-
-            <button type="submit" class="btn btn-accent rounded-pill settings-admin-system-submit">{{ _('settings.admin.system.save_button') }}</button>
-
-        </div>
-
-    </form>
-
+  </form>
 </div>
-
-
-
-<script>
-
-document.addEventListener('DOMContentLoaded', function () {
-
-    var defaultAccentColor = document.getElementById('default_accent_color');
-
-    var colorPreview = document.getElementById('default-color-preview');
-
-    if (defaultAccentColor && colorPreview) {
-
-        defaultAccentColor.addEventListener('input', function () {
-
-            colorPreview.style.backgroundColor = this.value;
-
-        });
-
-    }
-
-
-
-    var authBrandColor = document.getElementById('auth_brand_color');
-
-    var authBrandColorPreview = document.getElementById('auth-brand-color-preview');
-
-    if (authBrandColor && authBrandColorPreview) {
-
-        authBrandColor.addEventListener('input', function () {
-
-            authBrandColorPreview.style.backgroundColor = this.value;
-
-        });
-
-    }
-
-
-
-    var guestDomainInput = document.getElementById('guest_email_domain');
-
-    var guestDomainPreview = document.getElementById('guest-email-domain-preview');
-
-    var guestPreviewTpl = {{ _('settings.admin.system.guest_email_domain_preview')|tojson }};
-
-    if (guestDomainInput && guestDomainPreview) {
-
-        guestDomainInput.addEventListener('input', function () {
-
-            var domain = (this.value || '').trim().replace(/^@+/, '').toLowerCase() || '…';
-
-            guestDomainPreview.textContent = guestPreviewTpl.replace('{domain}', domain);
-
-        });
-
-    }
-
-
-
-    document.querySelectorAll('.settings-admin-system [data-bs-toggle="tooltip"]').forEach(function (el) {
-
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-
-            new bootstrap.Tooltip(el);
-
-        }
-
-    });
-
-});
-
-</script>
-
 {% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var defaultAccentColor = document.getElementById('default_accent_color');
+  var colorPreview = document.getElementById('default-color-preview');
+  if (defaultAccentColor && colorPreview) {
+    defaultAccentColor.addEventListener('input', function () {
+      colorPreview.style.backgroundColor = this.value;
+    });
+  }
+
+  var authBrandColor = document.getElementById('auth_brand_color');
+  var authBrandColorPreview = document.getElementById('auth-brand-color-preview');
+  if (authBrandColor && authBrandColorPreview) {
+    authBrandColor.addEventListener('input', function () {
+      authBrandColorPreview.style.backgroundColor = this.value;
+    });
+  }
+
+  var guestDomainInput = document.getElementById('guest_email_domain');
+  var guestDomainPreview = document.getElementById('guest-email-domain-preview');
+  var guestPreviewTpl = {{ _('settings.admin.system.guest_email_domain_preview')|tojson }};
+  if (guestDomainInput && guestDomainPreview) {
+    guestDomainInput.addEventListener('input', function () {
+      var domain = (this.value || '').trim().replace(/^@+/, '').toLowerCase() || '…';
+      guestDomainPreview.textContent = guestPreviewTpl.replace('{domain}', domain);
+    });
+  }
+});
+</script>
+{% endblock %}

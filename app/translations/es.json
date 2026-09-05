@@ -698,7 +698,14 @@
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
         "flash_cannot_remove_leader": "The team lead cannot be removed. Assign a different lead first.",
-        "flash_user_teams_updated": "Teams for {name} were updated."
+        "flash_user_teams_updated": "Teams for {name} were updated.",
+        "lead_short": "Crear equipos y asignar miembros.",
+        "view_list": "Lista",
+        "view_grid": "Cuadrícula",
+        "col_name": "Equipo",
+        "col_members": "Miembros",
+        "col_leader": "Responsable",
+        "preview_title": "Vista previa"
       },
       "cards": {
         "teams": {
@@ -758,13 +765,46 @@
       },
       "admin_modules": {
         "module_file_converter": "File Converter",
-        "module_surveys": "Surveys"
+        "module_surveys": "Surveys",
+        "lead_short": "Activar y desactivar módulos."
       },
       "kanban": {
         "lead_short": "Visibility and import.",
         "short": "Visibility & import",
         "module_disabled": "Kanban module is disabled",
         "import_hint": "Multiple boards via ZIP supported."
+      },
+      "users": {
+        "lead_short": "Usuarios, invitados y códigos.",
+        "view_list": "Lista",
+        "view_grid": "Cuadrícula",
+        "col_name": "Nombre",
+        "col_email": "Correo",
+        "col_login": "Último acceso",
+        "col_status": "Estado",
+        "queue_title": "Cola"
+      },
+      "whitelist": {
+        "lead_short": "Correos y dominios para activación automática.",
+        "view_list": "Lista",
+        "view_grid": "Cuadrícula",
+        "col_entry": "Entrada",
+        "col_status": "Estado"
+      },
+      "legal": {
+        "lead_short": "Textos para login y páginas públicas.",
+        "tip_body": "Los cambios se guardan automáticamente. Usa la vista previa.",
+        "markdown_hint": "**negrita**, *cursiva*, [enlace](url), listas con -.",
+        "tool_link": "Enlace"
+      },
+      "system": {
+        "lead_short": "Nombre, logo, zona horaria y marca."
+      },
+      "backup": {
+        "lead_short": "Exportar e importar copias de seguridad del portal."
+      },
+      "registration": {
+        "lead_short": "Captcha y honeypot para inicio de sesión y formularios."
       }
     },
     "notifications": {
@@ -946,7 +986,8 @@
       "google_help_oauth_step5": "Pega Client ID y Client Secret aquí y guarda – después OAuth funciona en el asistente.",
       "google_help_api_heading": "API key (para YouTube)",
       "redirect_hint_login": "URI de redirección (login / seguridad): {url}",
-      "short": "OAuth & APIs"
+      "short": "OAuth & APIs",
+      "lead_short": "Google, Microsoft y Spotify."
     },
     "about": {
       "file_converter_label": "File converter / LibreOffice",
@@ -1066,7 +1107,8 @@
       "visibility_info": "Visibility for new boards",
       "tip_body": "Un ZIP con varios JSON/CSV crea varios tableros a la vez.",
       "formats_title": "Formatos",
-      "formats_body": "JSON y CSV para tableros sueltos, ZIP para varios archivos."
+      "formats_body": "JSON y CSV para tableros sueltos, ZIP para varios archivos.",
+      "visibility_label": "Visibilidad"
     },
     "team_settings": {
       "teams_tile_short": "Members",
@@ -1301,7 +1343,8 @@
       "error_visibility": "Esta visibilidad no está permitida.",
       "error_failed": "Error al importar.",
       "error_invalid_zip": "Invalid ZIP file",
-      "error_empty_zip": "ZIP has no JSON/CSV files"
+      "error_empty_zip": "ZIP has no JSON/CSV files",
+      "visibility": "Visibilidad"
     }
   }
 }

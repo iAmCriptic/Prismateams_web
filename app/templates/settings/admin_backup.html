@@ -1,133 +1,138 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.backup.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.backup.title') }}{% endblock %}
 
 {% block settings_content %}
 {% set cats = category_definitions if category_definitions is defined else [] %}
-<div class="settings-admin-backup">
-    <div class="settings-admin-backup-header">
-        <h1 class="settings-admin-backup-title">{{ _('settings.admin.backup.heading') }}</h1>
-        <p class="settings-admin-backup-subtitle">{{ _('settings.admin.backup.subtitle') }}</p>
-    </div>
+<div class="sp-page sp-page--fluid settings-admin-backup">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-archive" aria-hidden="true"></i><span>{{ _('settings.admin.backup.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.backup.lead_short') }}</p>
+  </header>
 
-    <div class="settings-admin-backup-grid">
-        <section class="settings-admin-backup-card" aria-labelledby="backup-export-title">
-            <div class="settings-admin-backup-card-head">
-                <h2 id="backup-export-title" class="settings-admin-backup-section-title mb-0">
-                    <i class="bi bi-download" aria-hidden="true"></i>
-                    {{ _('settings.admin.backup.export_title') }}
-                </h2>
+  <div class="sp-card-grid">
+    <section class="sp-group" id="backup-export" data-settings-search-id="backup-export" aria-labelledby="backup-export-title">
+      <div class="sp-group-head">
+        <h2 id="backup-export-title" class="sp-group-title"><i class="bi bi-download" aria-hidden="true"></i>{{ _('settings.admin.backup.export_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-0">{{ _('settings.admin.backup.export_lead') }}</p>
+
+        <form method="POST" id="exportForm" data-sp-no-autosave>
+          <input type="hidden" name="action" value="export">
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.backup.categories_label') }}</span>
+              <div class="settings-admin-backup-select-btns">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-backup-select="export" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-backup-select="export" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
+              </div>
             </div>
-            <p class="settings-admin-backup-card-lead">{{ _('settings.admin.backup.export_lead') }}</p>
-
-            <form method="POST" id="exportForm" class="settings-admin-backup-form">
-                <input type="hidden" name="action" value="export">
-
-                <div class="settings-admin-backup-field">
-                    <div class="settings-admin-backup-label-row">
-                        <span class="form-label mb-0">{{ _('settings.admin.backup.categories_label') }}</span>
-                        <div class="settings-admin-backup-select-btns">
-                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="export" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="export" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
-                        </div>
-                    </div>
-                    <div class="settings-admin-backup-chips" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
-                        {% for cat in cats %}
-                        {% set cid = 'export_' ~ cat.key %}
-                        <div class="settings-admin-backup-chip-wrap">
-                            <input type="checkbox" class="btn-check" name="export_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
-                            <label class="settings-admin-backup-chip" for="{{ cid }}">
-                                <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
-                                <span>{{ _(cat.label_key) }}</span>
-                            </label>
-                            <button type="button" class="settings-admin-backup-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _(cat.help_key) }}" aria-label="{{ _(cat.help_key) }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        {% endfor %}
-                    </div>
+            <div class="sp-row-control" style="width:100%">
+              <div class="settings-admin-backup-chips sp-chip-grid" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
+                {% for cat in cats %}
+                {% set cid = 'export_' ~ cat.key %}
+                <div class="settings-admin-backup-chip-wrap">
+                  <label class="sp-chip settings-admin-backup-chip">
+                    <input type="checkbox" name="export_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
+                    <span><i class="bi {{ cat.icon }}" aria-hidden="true"></i> {{ _(cat.label_key) }}</span>
+                  </label>
+                  {{ sp_info(_(cat.help_key)) }}
                 </div>
-
-                <p class="settings-admin-backup-hint">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    {{ _('settings.admin.backup.export_hint') }}
-                </p>
-                <p class="settings-admin-backup-warn">
-                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-                    {{ _('settings.admin.backup.credentials_warn') }}
-                </p>
-
-                <div class="settings-admin-backup-actions">
-                    <button type="submit" class="btn btn-accent settings-admin-backup-submit">
-                        <i class="bi bi-download" aria-hidden="true"></i>
-                        {{ _('settings.admin.backup.export_submit') }}
-                    </button>
-                </div>
-            </form>
-        </section>
-
-        <section class="settings-admin-backup-card" aria-labelledby="backup-import-title">
-            <div class="settings-admin-backup-card-head">
-                <h2 id="backup-import-title" class="settings-admin-backup-section-title mb-0">
-                    <i class="bi bi-upload" aria-hidden="true"></i>
-                    {{ _('settings.admin.backup.import_title') }}
-                </h2>
+                {% endfor %}
+              </div>
             </div>
-            <p class="settings-admin-backup-card-lead">{{ _('settings.admin.backup.import_lead') }}</p>
+          </div>
 
-            <form method="POST" enctype="multipart/form-data" id="importForm" class="settings-admin-backup-form">
-                <input type="hidden" name="action" value="import">
+          <p class="sp-row-meta mb-1 px-0">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            {{ _('settings.admin.backup.export_hint') }}
+          </p>
+          <p class="settings-admin-backup-warn mb-3">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            {{ _('settings.admin.backup.credentials_warn') }}
+          </p>
 
-                <div class="settings-admin-backup-field">
-                    <label for="backup_file" class="form-label">{{ _('settings.admin.backup.file_label') }}</label>
-                    <input type="file" class="form-control settings-admin-backup-file" id="backup_file" name="backup_file" accept=".prismateams" required>
-                    <div class="form-text">{{ _('settings.admin.backup.file_help') }}</div>
+          <div class="sp-row">
+            <div class="sp-row-control" style="justify-content:flex-start;width:100%">
+              <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>
+                <i class="bi bi-download" aria-hidden="true"></i>
+                {{ _('settings.admin.backup.export_submit') }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="sp-group" id="backup-import" data-settings-search-id="backup-import" aria-labelledby="backup-import-title">
+      <div class="sp-group-head">
+        <h2 id="backup-import-title" class="sp-group-title"><i class="bi bi-upload" aria-hidden="true"></i>{{ _('settings.admin.backup.import_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-0">{{ _('settings.admin.backup.import_lead') }}</p>
+
+        <form method="POST" enctype="multipart/form-data" id="importForm" data-sp-no-autosave>
+          <input type="hidden" name="action" value="import">
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.backup.file_label') }}</span>
+              {{ sp_info(_('settings.admin.backup.file_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".prismateams" required>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.backup.categories_label') }}</span>
+              <div class="settings-admin-backup-select-btns">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-backup-select="import" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-backup-select="import" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
+              </div>
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <div class="settings-admin-backup-chips sp-chip-grid" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
+                {% for cat in cats %}
+                {% set cid = 'import_' ~ cat.key %}
+                <div class="settings-admin-backup-chip-wrap">
+                  <label class="sp-chip settings-admin-backup-chip">
+                    <input type="checkbox" name="import_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
+                    <span><i class="bi {{ cat.icon }}" aria-hidden="true"></i> {{ _(cat.label_key) }}</span>
+                  </label>
+                  {{ sp_info(_(cat.help_key)) }}
                 </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
 
-                <div class="settings-admin-backup-field">
-                    <div class="settings-admin-backup-label-row">
-                        <span class="form-label mb-0">{{ _('settings.admin.backup.categories_label') }}</span>
-                        <div class="settings-admin-backup-select-btns">
-                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="import" data-backup-mode="all">{{ _('settings.admin.backup.select_all') }}</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-backup-mini" data-backup-select="import" data-backup-mode="none">{{ _('settings.admin.backup.select_none') }}</button>
-                        </div>
-                    </div>
-                    <div class="settings-admin-backup-chips" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
-                        {% for cat in cats %}
-                        {% set cid = 'import_' ~ cat.key %}
-                        <div class="settings-admin-backup-chip-wrap">
-                            <input type="checkbox" class="btn-check" name="import_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
-                            <label class="settings-admin-backup-chip" for="{{ cid }}">
-                                <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
-                                <span>{{ _(cat.label_key) }}</span>
-                            </label>
-                            <button type="button" class="settings-admin-backup-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _(cat.help_key) }}" aria-label="{{ _(cat.help_key) }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+          <p class="settings-admin-backup-warn mb-3">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            {{ _('settings.admin.backup.import_warn') }}
+          </p>
 
-                <p class="settings-admin-backup-warn">
-                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-                    {{ _('settings.admin.backup.import_warn') }}
-                </p>
-
-                <div class="settings-admin-backup-actions">
-                    <button type="submit" class="btn btn-accent settings-admin-backup-submit"
-                            data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
-                            data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
-                            data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
-                            data-pt-confirm-danger="false">
-                        <i class="bi bi-upload" aria-hidden="true"></i>
-                        {{ _('settings.admin.backup.import_submit') }}
-                    </button>
-                </div>
-            </form>
-        </section>
-    </div>
+          <div class="sp-row">
+            <div class="sp-row-control" style="justify-content:flex-start;width:100%">
+              <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit
+                      data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
+                      data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
+                      data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
+                      data-pt-confirm-danger="false">
+                <i class="bi bi-upload" aria-hidden="true"></i>
+                {{ _('settings.admin.backup.import_submit') }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
 </div>
 
 <script>

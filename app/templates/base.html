@@ -75,6 +75,9 @@
     {% if request.endpoint %}
         {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+            {% if request.endpoint in ('settings.admin_users', 'settings.admin_teams', 'settings.create_user', 'settings.admin_team_detail', 'settings.create_team', 'settings.edit_team', 'settings.admin_whitelist') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+            {% endif %}
             {% if request.endpoint.startswith('settings.booking_') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
             {% endif %}

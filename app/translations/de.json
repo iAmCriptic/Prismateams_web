@@ -905,7 +905,8 @@
     },
     "search": {
       "label": "Einstellungen durchsuchen",
-      "placeholder": "Einstellung suchen…"
+      "placeholder": "Einstellung suchen…",
+      "empty": "Keine Treffer"
     },
     "team_settings": {
       "title": "Teameinstellungen",
@@ -1443,7 +1444,8 @@
         "allow_team": "Team-Varianten",
         "allow_public": "Public-Varianten",
         "module_file_converter": "Dateikonverter",
-        "module_surveys": "Umfragen"
+        "module_surveys": "Umfragen",
+        "lead_short": "Module ein- und ausschalten."
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -1528,7 +1530,15 @@
         "flash_guest_load_error": "Gast-Account konnte nicht geladen werden.",
         "flash_guest_save_error": "Gast-Account konnte nicht gespeichert werden.",
         "search_placeholder": "Nach Name oder E-Mail suchen…",
-        "search_no_results": "Keine Benutzer gefunden."
+        "search_no_results": "Keine Benutzer gefunden.",
+        "lead_short": "Benutzer, Gäste und Codes.",
+        "view_list": "Liste",
+        "view_grid": "Kacheln",
+        "col_name": "Name",
+        "col_email": "E-Mail",
+        "col_login": "Letzter Login",
+        "col_status": "Status",
+        "queue_title": "Warteschlange"
       },
       "create_user": {
         "page_title": "Benutzer erstellen - Administration",
@@ -1665,7 +1675,8 @@
         "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG.",
         "section_security": "Sicherheit & Sitzungen",
         "inactivity_logout_hint": "Benutzer werden nach 30 Tagen ohne Portal-Aktivität automatisch abgemeldet. Angemeldete Geräte können unter Sicherheit verwaltet werden.",
-        "flash_inactivity_logout": "Sie wurden nach 30 Tagen Inaktivität abgemeldet. Bitte melden Sie sich erneut an."
+        "flash_inactivity_logout": "Sie wurden nach 30 Tagen Inaktivität abgemeldet. Bitte melden Sie sich erneut an.",
+        "lead_short": "Portalname, Logo, Zeitzone und Branding."
       },
       "legal": {
         "page_title": "Rechtliche Hinweise - Administration",
@@ -1687,7 +1698,11 @@
         "toolbar_label": "Formatierung",
         "tool_bold": "Fett",
         "tool_italic": "Kursiv",
-        "tool_list": "Liste"
+        "tool_list": "Liste",
+        "lead_short": "Texte für Login und öffentliche Seiten.",
+        "tip_body": "Änderungen werden automatisch gespeichert. Nutze die Vorschau, um das öffentliche Ergebnis zu prüfen.",
+        "markdown_hint": "**fett**, *kursiv*, [Link](url), Listen mit -.",
+        "tool_link": "Link"
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
@@ -1708,6 +1723,7 @@
         "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert.",
         "page_title": "Lagerverwaltung-Einstellungen - Administration",
         "heading": "Lagerverwaltung-Einstellungen",
+        "lead_short": "Texte für öffentliche Produktseiten.",
         "subtitle": "Texte für öffentliche Produktseiten und QR-Code-Scans.",
         "public_title": "Öffentliche Produktseiten",
         "public_lead": "Wird bei QR-Scans auf der öffentlichen Produktseite angezeigt.",
@@ -1722,6 +1738,7 @@
       "email_module": {
         "page_title": "E-Mail-Moduleinstellungen - Administration",
         "heading": "E-Mail-Moduleinstellungen",
+        "lead_short": "Test, Speicherung, Multi-Postfach und Footer.",
         "subtitle": "Verbindungen testen, Speicherung steuern und Footer festlegen.",
         "save": "Speichern",
         "test": {
@@ -1854,7 +1871,8 @@
           "assessment": "Bewertung: Listen, Kriterien, Evaluationen und zugehörige Daten.",
           "shortlinks": "Kurzlinks.",
           "excalidraw": "Zeichnungen, Szenen und Versionen."
-        }
+        },
+        "lead_short": "Portal-Backup exportieren und importieren."
       },
       "whitelist": {
         "page_title": "Whitelist - Administration",
@@ -1889,13 +1907,20 @@
         "flash_entry_toggle_error": "Fehler beim Ändern des Whitelist-Eintrags.",
         "flash_entry_not_found": "Whitelist-Eintrag nicht gefunden.",
         "flash_entry_deleted": "Whitelist-Eintrag \"{entry}\" wurde gelöscht.",
-        "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
+        "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags.",
+        "lead_short": "E-Mails und Domains für Auto-Aktivierung.",
+        "view_list": "Liste",
+        "view_grid": "Kacheln",
+        "col_entry": "Eintrag",
+        "col_status": "Status"
       },
       "booking_forms": {
         "page_title": "Buchungsformulare - Administration",
         "heading": "Buchungsformulare",
+        "lead_short": "Formulare, Felder und Zustimmungsrollen.",
         "subtitle": "Formulare erstellen, Felder und Zustimmungsrollen verwalten, PDF-Antragstext konfigurieren.",
         "list_title": "Formulare",
+        "col_requests": "Anfragen",
         "create": "Neues Formular",
         "edit": "Bearbeiten",
         "delete": "Löschen",
@@ -2151,12 +2176,14 @@
         "save_button": "Änderungen speichern",
         "back_button": "Zurück",
         "flash_updated": "Bot-Schutz-Einstellungen wurden gespeichert.",
-        "flash_keys_required": "Bitte geben Sie Site Key und Secret Key an, bevor Sie reCAPTCHA oder Turnstile aktivieren."
+        "flash_keys_required": "Bitte geben Sie Site Key und Secret Key an, bevor Sie reCAPTCHA oder Turnstile aktivieren.",
+        "lead_short": "Captcha und Honeypot für Login und Formulare."
       },
       "file_settings": {
         "page_title": "Datei-Einstellungen - Administration",
         "breadcrumb_file_settings": "Datei-Einstellungen",
         "heading": "Datei-Einstellungen",
+        "lead_short": "Briefkästen, Freigaben, Limits und Kontingente.",
         "subtitle": "Briefkästen, Freigaben, private Ordner, Dokumentformate sowie Speicherlimits und Kontingente steuern.",
         "section_title": "Datei-Funktionen",
         "dropbox_label": "Briefkästen aktivieren",
@@ -2214,6 +2241,7 @@
         "page_title": "Kalender-Einstellungen - Administration",
         "breadcrumb": "Kalender-Einstellungen",
         "heading": "Kalender-Einstellungen",
+        "lead_short": "Import und Export steuern.",
         "subtitle": "Import, Export und erweiterte Kalender-Funktionen.",
         "section_title": "Kalender-Funktionen",
         "visibility_moved": "Private und Team-Kalender steuern Sie zentral unter Module → Sichtbarkeits-Varianten.",
@@ -2286,7 +2314,14 @@
         "flash_members_added": "{count} Mitglied(er) hinzugefügt.",
         "flash_member_removed": "Mitglied entfernt.",
         "flash_cannot_remove_leader": "Die Teamleitung kann nicht entfernt werden. Weise zuerst eine andere Leitung zu.",
-        "flash_user_teams_updated": "Teams für {name} wurden aktualisiert."
+        "flash_user_teams_updated": "Teams für {name} wurden aktualisiert.",
+        "lead_short": "Teams erstellen und Mitglieder zuweisen.",
+        "view_list": "Liste",
+        "view_grid": "Kacheln",
+        "col_name": "Team",
+        "col_members": "Mitglieder",
+        "col_leader": "Leitung",
+        "preview_title": "Vorschau"
       },
       "kanban": {
         "page_title": "Kanban-Einstellungen",
@@ -2455,7 +2490,8 @@
       "google_help_oauth_step5": "Client-ID und Client-Secret hier einfügen und speichern – danach sind Google-Login, Postfach-OAuth und YouTube nutzbar.",
       "google_help_api_heading": "API-Schlüssel (für YouTube)",
       "redirect_hint_login": "Redirect-URI: {url}",
-      "short": "OAuth & APIs"
+      "short": "OAuth & APIs",
+      "lead_short": "Google, Microsoft und Spotify."
     },
     "cloud_import": {
       "page_title": "Cloud-Import",
@@ -2530,7 +2566,8 @@
       "visibility_info": "Sichtbarkeit für neue Boards",
       "tip_body": "ZIP mit mehreren JSON/CSV-Dateien erzeugt mehrere Boards auf einmal.",
       "formats_title": "Formate",
-      "formats_body": "JSON und CSV für einzelne Boards, ZIP für mehrere Dateien."
+      "formats_body": "JSON und CSV für einzelne Boards, ZIP für mehrere Dateien.",
+      "visibility_label": "Sichtbarkeit"
     },
     "hub": {
       "quick_title": "Schnellzugriff",
@@ -5406,6 +5443,7 @@
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Musikmodul-Einstellungen",
       "heading": "Musikmodul-Einstellungen",
+      "lead_short": "Provider und Anzeige.",
       "subtitle": "Provider aktivieren, Reihenfolge festlegen und Zugangsdaten verwalten.",
       "subtitle_providers_only": "Provider aktivieren, Reihenfolge festlegen und Anzeige-Optionen.",
       "integrations_moved": "Spotify-, YouTube- und Deezer-Verknüpfungen liegen unter Einstellungen → Verknüpfungen.",
@@ -6287,7 +6325,8 @@
       "error_visibility": "Diese Sichtbarkeit ist nicht erlaubt.",
       "error_failed": "Import fehlgeschlagen.",
       "error_invalid_zip": "Ungültige ZIP-Datei",
-      "error_empty_zip": "ZIP enthält keine JSON/CSV-Dateien"
+      "error_empty_zip": "ZIP enthält keine JSON/CSV-Dateien",
+      "visibility": "Sichtbarkeit"
     }
   },
   "visibility": {

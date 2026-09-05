@@ -1,52 +1,35 @@
 ﻿{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.inventory.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.sidebar.inventory') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-inventory">
-    <div class="settings-admin-inventory-header">
-        <h1 class="settings-admin-inventory-title">{{ _('settings.admin.inventory.heading') }}</h1>
-        <p class="settings-admin-inventory-subtitle">{{ _('settings.admin.inventory.subtitle') }}</p>
-    </div>
+<div class="sp-page sp-page--fluid settings-admin-inventory">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-box-seam" aria-hidden="true"></i><span>{{ _('settings.admin.inventory.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.inventory.lead_short') }}</p>
+  </header>
 
-    <form method="POST" data-sp-autosave class="settings-admin-inventory-form">
-        <section class="settings-admin-inventory-card" aria-labelledby="inventory-public-title">
-            <div class="settings-admin-inventory-card-head">
-                <h2 id="inventory-public-title" class="settings-admin-inventory-section-title mb-0">
-                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
-                    {{ _('settings.admin.inventory.public_title') }}
-                </h2>
-                <button type="button" class="settings-admin-inventory-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.inventory.ownership_help') }}" aria-label="{{ _('settings.admin.inventory.ownership_help') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
-            </div>
-            <p class="settings-admin-inventory-hint">{{ _('settings.admin.inventory.public_lead') }}</p>
-
-            <div class="settings-admin-inventory-field mb-0">
-                <label for="ownership_text" class="form-label">{{ _('settings.admin.inventory.ownership_label') }}</label>
-                <input type="text" class="form-control settings-admin-inventory-input" id="ownership_text" name="ownership_text"
-                       value="{{ ownership_text }}" placeholder="{{ _('settings.admin.inventory.ownership_placeholder') }}" autocomplete="off">
-                <div class="form-text">{{ _('settings.admin.inventory.ownership_help') }}</div>
-            </div>
-        </section>
-
-        <div class="settings-admin-inventory-actions">
-            <button type="submit" class="btn btn-accent settings-admin-inventory-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('settings.admin.inventory.save') }}
-            </button>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_inventory_settings') }}">
+    <section class="sp-group" id="inventory-public" data-settings-search-id="inventory-public" aria-labelledby="inventory-public-title">
+      <div class="sp-group-head">
+        <h2 id="inventory-public-title" class="sp-group-title"><i class="bi bi-qr-code-scan" aria-hidden="true"></i>{{ _('settings.admin.inventory.public_title') }}</h2>
+        {{ sp_info(_('settings.admin.inventory.ownership_help')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.inventory.public_lead') }}</p>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.ownership_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" id="ownership_text" name="ownership_text"
+                   value="{{ ownership_text }}" placeholder="{{ _('settings.admin.inventory.ownership_placeholder') }}" autocomplete="off">
+          </div>
         </div>
-    </form>
+      </div>
+    </section>
+  </form>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.settings-admin-inventory [data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-});
-</script>
 {% endblock %}

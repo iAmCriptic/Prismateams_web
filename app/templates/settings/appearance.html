@@ -173,83 +173,98 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  var solidSection = document.getElementById('solid-color-section');
-  var gradientSection = document.getElementById('gradient-section');
-  var accentGradient = document.getElementById('accent_gradient');
-  var form = document.querySelector('form[data-sp-autosave]');
-  var live = document.getElementById('spLivePreview');
+(function () {
+  function bootAppearance() {
+    var solidSection = document.getElementById('solid-color-section');
+    var gradientSection = document.getElementById('gradient-section');
+    var accentGradient = document.getElementById('accent_gradient');
+    var form = document.querySelector('form[data-sp-autosave]');
+    var live = document.getElementById('spLivePreview');
+    if (!form || form.dataset.spAppearanceBound === '1') return;
+    form.dataset.spAppearanceBound = '1';
 
-  function syncLivePreview() {
-    if (!live) return;
-    var solid = document.getElementById('color_solid');
-    var accent = document.getElementById('accent_color');
-    if (solid && solid.checked && accent) {
-      live.style.setProperty('--sp-preview-accent', accent.value);
-    } else {
-      var g = accentGradient && accentGradient.value;
-      live.style.setProperty('--sp-preview-accent', g || (accent && accent.value) || 'var(--accent-color)');
+    function syncLivePreview() {
+      if (!live) return;
+      var solid = document.getElementById('color_solid');
+      var accent = document.getElementById('accent_color');
+      if (solid && solid.checked && accent) {
+        live.style.setProperty('--sp-preview-accent', accent.value);
+      } else {
+        var g = accentGradient && accentGradient.value;
+        live.style.setProperty('--sp-preview-accent', g || (accent && accent.value) || 'var(--accent-color)');
+      }
     }
-  }
 
-  function showSolid() {
-    if (gradientSection) gradientSection.setAttribute('hidden', '');
-    if (solidSection) solidSection.removeAttribute('hidden');
-    if (accentGradient) accentGradient.value = '';
-    syncLivePreview();
-  }
-  function updateGradientPreview() {
-    var start = document.getElementById('gradient_start').value;
-    var end = document.getElementById('gradient_end').value;
-    var direction = document.getElementById('gradient_direction').value;
-    var gradient = 'linear-gradient(' + direction + ', ' + start + ' 0%, ' + end + ' 100%)';
-    document.getElementById('gradient-preview').style.background = gradient;
-    accentGradient.value = gradient;
-    syncLivePreview();
-  }
-  function showGradient() {
-    if (solidSection) solidSection.setAttribute('hidden', '');
-    if (gradientSection) gradientSection.removeAttribute('hidden');
-    updateGradientPreview();
-  }
-
-  document.getElementById('color_solid').addEventListener('change', function () { if (this.checked) showSolid(); });
-  document.getElementById('color_gradient').addEventListener('change', function () { if (this.checked) showGradient(); });
-  document.getElementById('accent_color').addEventListener('input', function (e) {
-    document.getElementById('color-preview').style.backgroundColor = e.target.value;
-    syncLivePreview();
-  });
-  ['gradient_start', 'gradient_end'].forEach(function (id) {
-    document.getElementById(id).addEventListener('input', updateGradientPreview);
-  });
-  document.getElementById('gradient_direction').addEventListener('change', updateGradientPreview);
-
-  document.getElementById('dark_mode').addEventListener('change', function () {
-    var oled = document.getElementById('oled_mode');
-    if (!this.checked) { oled.checked = false; oled.disabled = true; }
-    else { oled.disabled = false; }
-  });
-
-  {% if user.accent_gradient %}
-  document.getElementById('color_gradient').checked = true;
-  showGradient();
-  (function () {
-    var saved = {{ (user.accent_gradient or '')|tojson }};
-    var match = saved && saved.match(/linear-gradient\(\s*([^,]+)\s*,\s*(#[0-9a-fA-F]{3,8})\s+0%\s*,\s*(#[0-9a-fA-F]{3,8})\s+100%\s*\)/);
-    if (match) {
-      document.getElementById('gradient_direction').value = match[1].trim();
-      document.getElementById('gradient_start').value = match[2];
-      document.getElementById('gradient_end').value = match[3];
+    function showSolid() {
+      if (gradientSection) gradientSection.setAttribute('hidden', '');
+      if (solidSection) solidSection.removeAttribute('hidden');
+      if (accentGradient) accentGradient.value = '';
+      syncLivePreview();
     }
-    document.getElementById('gradient-preview').style.background = saved;
-    accentGradient.value = saved;
-    syncLivePreview();
-  })();
-  {% else %}
-  syncLivePreview();
-  {% endif %}
+    function updateGradientPreview() {
+      var startEl = document.getElementById('gradient_start');
+      var endEl = document.getElementById('gradient_end');
+      var dirEl = document.getElementById('gradient_direction');
+      var preview = document.getElementById('gradient-preview');
+      if (!startEl || !endEl || !dirEl || !preview || !accentGradient) return;
+      var gradient = 'linear-gradient(' + dirEl.value + ', ' + startEl.value + ' 0%, ' + endEl.value + ' 100%)';
+      preview.style.background = gradient;
+      accentGradient.value = gradient;
+      syncLivePreview();
+    }
+    function showGradient() {
+      if (solidSection) solidSection.setAttribute('hidden', '');
+      if (gradientSection) gradientSection.removeAttribute('hidden');
+      updateGradientPreview();
+    }
 
-  if (form) {
+    var colorSolid = document.getElementById('color_solid');
+    var colorGradient = document.getElementById('color_gradient');
+    var accentColor = document.getElementById('accent_color');
+    var darkMode = document.getElementById('dark_mode');
+    if (colorSolid) colorSolid.addEventListener('change', function () { if (this.checked) showSolid(); });
+    if (colorGradient) colorGradient.addEventListener('change', function () { if (this.checked) showGradient(); });
+    if (accentColor) accentColor.addEventListener('input', function (e) {
+      var preview = document.getElementById('color-preview');
+      if (preview) preview.style.backgroundColor = e.target.value;
+      syncLivePreview();
+    });
+    ['gradient_start', 'gradient_end'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', updateGradientPreview);
+    });
+    var gradientDirection = document.getElementById('gradient_direction');
+    if (gradientDirection) gradientDirection.addEventListener('change', updateGradientPreview);
+
+    if (darkMode) darkMode.addEventListener('change', function () {
+      var oled = document.getElementById('oled_mode');
+      if (!oled) return;
+      if (!this.checked) { oled.checked = false; oled.disabled = true; }
+      else { oled.disabled = false; }
+    });
+
+    {% if user.accent_gradient %}
+    if (colorGradient) {
+      colorGradient.checked = true;
+      showGradient();
+      (function () {
+        var saved = {{ (user.accent_gradient or '')|tojson }};
+        var match = saved && saved.match(/linear-gradient\(\s*([^,]+)\s*,\s*(#[0-9a-fA-F]{3,8})\s+0%\s*,\s*(#[0-9a-fA-F]{3,8})\s+100%\s*\)/);
+        if (match) {
+          document.getElementById('gradient_direction').value = match[1].trim();
+          document.getElementById('gradient_start').value = match[2];
+          document.getElementById('gradient_end').value = match[3];
+        }
+        var gp = document.getElementById('gradient-preview');
+        if (gp) gp.style.background = saved;
+        if (accentGradient) accentGradient.value = saved;
+        syncLivePreview();
+      })();
+    }
+    {% else %}
+    syncLivePreview();
+    {% endif %}
+
     form.addEventListener('sp:saved', function (ev) {
       if (window.SettingsUI && SettingsUI.applyLiveAppearance) {
         SettingsUI.applyLiveAppearance(ev.detail || {});
@@ -257,6 +272,13 @@ document.addEventListener('DOMContentLoaded', function () {
       syncLivePreview();
     });
   }
-});
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootAppearance);
+  } else {
+    bootAppearance();
+  }
+  window.addEventListener('sp:settings-soft-reload', bootAppearance);
+})();
 </script>
 {% endblock %}

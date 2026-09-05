@@ -83,13 +83,11 @@
 {% set integrations_active = ep == 'settings.admin_integrations' %}
 {% set backup_active = ep == 'settings.admin_backup' %}
 {% set registration_active = ep == 'settings.admin_registration' %}
-{% set push_active = ep == 'settings.admin_push_subscriptions' %}
 {% set booking_active = ep.startswith('settings.booking_') %}
 {% set music_active = ep == 'settings.admin_music' %}
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
-{% set kanban_admin_active = ep == 'settings.admin_kanban_settings' %}
 {% set cloud_import_active = ep.startswith('settings.cloud_import') %}
 {% set show_cloud_import = is_module_enabled('module_files') %}
 {% set show_kanban_import = is_module_enabled('module_kanban') and (kanban_import_targets is defined and kanban_import_targets) %}
@@ -189,9 +187,6 @@
     <a href="{{ url_for('settings.admin_registration') }}" class="nav-link mod-nav-link{% if registration_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-lock me-2"></i>{{ _('settings.admin.cards.registration_options.title') }}
     </a>
-    <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="nav-link mod-nav-link{% if push_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-phone me-2"></i>{{ _('settings.sidebar.push') }}
-    </a>
 
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
@@ -224,11 +219,6 @@
     <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-folder me-2"></i>{{ _('settings.admin.cards.file_settings.title') }}
     </a>
-    {% if is_module_enabled('module_kanban') %}
-    <a href="{{ url_for('settings.admin_kanban_settings') }}" class="nav-link mod-nav-link{% if kanban_admin_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-kanban me-2"></i>{{ _('settings.sidebar.kanban') }}
-    </a>
-    {% endif %}
     {% endif %}
 </nav>
 </div>

@@ -70,7 +70,6 @@
         {{ sp_hub_tile(url_for('settings.admin_integrations'), 'bi-link-45deg', _('settings.integrations.heading'), _('settings.integrations.short')) }}
         {{ sp_hub_tile(url_for('settings.admin_backup'), 'bi-archive', _('settings.admin.cards.backup.title'), _('settings.admin.cards.backup.short')) }}
         {{ sp_hub_tile(url_for('settings.admin_registration'), 'bi-person-lock', _('settings.admin.cards.registration_options.title'), _('settings.admin.cards.registration_options.short')) }}
-        {{ sp_hub_tile(url_for('settings.admin_push_subscriptions'), 'bi-phone', _('settings.sidebar.push'), _('settings.admin.cards.push.short')) }}
       </div>
     </section>
 
@@ -93,9 +92,6 @@
         {{ sp_hub_tile(url_for('settings.admin_calendar_settings'), 'bi-calendar-event', _('settings.admin.cards.calendar_settings.title'), _('settings.admin.cards.calendar_settings.short')) }}
         {% endif %}
         {{ sp_hub_tile(url_for('settings.admin_file_settings'), 'bi-folder', _('settings.admin.cards.file_settings.title'), _('settings.admin.cards.file_settings.short')) }}
-        {% if is_module_enabled('module_kanban') %}
-        {{ sp_hub_tile(url_for('settings.admin_kanban_settings'), 'bi-kanban', _('settings.sidebar.kanban'), _('settings.admin.kanban.short')) }}
-        {% endif %}
       </div>
     </section>
     {% endif %}

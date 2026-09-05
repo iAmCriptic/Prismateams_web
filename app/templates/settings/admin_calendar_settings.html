@@ -1,66 +1,55 @@
 ﻿{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.calendar_settings.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.calendar_settings.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-calendar">
-    <div class="settings-admin-calendar-header">
-        <h1 class="settings-admin-calendar-title">{{ _('settings.admin.calendar_settings.heading') }}</h1>
-        <p class="settings-admin-calendar-subtitle">{{ _('settings.admin.calendar_settings.subtitle') }}</p>
+<div class="sp-page sp-page--fluid settings-admin-calendar">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-calendar-event" aria-hidden="true"></i><span>{{ _('settings.admin.calendar_settings.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.calendar_settings.lead_short') }}</p>
+  </header>
+
+  <div class="sp-group settings-admin-music-notice" role="status">
+    <div class="sp-group-body">
+      <div class="settings-admin-music-notice-inner">
+        <i class="bi bi-info-circle" aria-hidden="true"></i>
+        <p class="mb-0">{{ _('settings.admin.calendar_settings.visibility_moved') }}</p>
+      </div>
     </div>
+  </div>
 
-    <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
-        <div class="portal-msg__body">
-            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
-            <div class="portal-msg__content">
-                <p class="portal-msg__text mb-0">{{ _('settings.admin.calendar_settings.visibility_moved') }}</p>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_calendar_settings') }}">
+    <section class="sp-group" id="calendar-features" data-settings-search-id="calendar-features" aria-labelledby="calendar-features-title">
+      <div class="sp-group-head">
+        <h2 id="calendar-features-title" class="sp-group-title"><i class="bi bi-sliders" aria-hidden="true"></i>{{ _('settings.admin.calendar_settings.section_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.export_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.export_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="calendar_export_enabled" name="calendar_export_enabled" {% if calendar_export_enabled %}checked{% endif %}>
             </div>
+          </div>
         </div>
-    </div>
-
-    <form method="POST" data-sp-autosave class="settings-admin-calendar-form">
-        <section class="settings-admin-calendar-card" aria-labelledby="calendar-features-title">
-            <div class="settings-admin-calendar-card-head">
-                <h2 id="calendar-features-title" class="settings-admin-calendar-section-title mb-0">
-                    <i class="bi bi-calendar-event" aria-hidden="true"></i>
-                    {{ _('settings.admin.calendar_settings.section_title') }}
-                </h2>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.import_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.import_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="calendar_import_enabled" name="calendar_import_enabled" {% if calendar_import_enabled %}checked{% endif %}>
             </div>
-
-            <div class="settings-admin-calendar-list">
-                <div class="settings-admin-calendar-row">
-                    <div class="settings-admin-calendar-row-main">
-                        <div class="form-check form-switch settings-admin-calendar-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="calendar_export_enabled" name="calendar_export_enabled" {% if calendar_export_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_export_enabled">
-                                <span class="settings-admin-calendar-name">{{ _('settings.admin.calendar_settings.export_label') }}</span>
-                            </label>
-                        </div>
-                        <p class="settings-admin-calendar-meta mb-0">{{ _('settings.admin.calendar_settings.export_help') }}</p>
-                    </div>
-                </div>
-
-                <div class="settings-admin-calendar-row">
-                    <div class="settings-admin-calendar-row-main">
-                        <div class="form-check form-switch settings-admin-calendar-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="calendar_import_enabled" name="calendar_import_enabled" {% if calendar_import_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="calendar_import_enabled">
-                                <span class="settings-admin-calendar-name">{{ _('settings.admin.calendar_settings.import_label') }}</span>
-                            </label>
-                        </div>
-                        <p class="settings-admin-calendar-meta mb-0">{{ _('settings.admin.calendar_settings.import_help') }}</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <div class="settings-admin-calendar-actions">
-            <button type="submit" class="btn btn-accent settings-admin-calendar-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('settings.admin.calendar_settings.save_button') }}
-            </button>
+          </div>
         </div>
-    </form>
+      </div>
+    </section>
+  </form>
 </div>
 {% endblock %}

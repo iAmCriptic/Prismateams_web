@@ -213,12 +213,6 @@ def build_settings_catalog(user) -> list[dict]:
         'admin',
         'registrierung bot schutz captcha recaptcha turnstile',
     ))
-    catalog.append(_entry(
-        translate('settings.sidebar.push'),
-        'settings.admin_push_subscriptions',
-        'admin',
-        'push abo subscription geräte',
-    ))
 
     if is_module_enabled('module_booking'):
         catalog.append(_entry(
@@ -261,12 +255,5 @@ def build_settings_catalog(user) -> list[dict]:
         'admin',
         'dateien speicher sharing dropbox onlyoffice format',
     ))
-    if is_module_enabled('module_kanban'):
-        catalog.append(_entry(
-            translate('settings.sidebar.kanban'),
-            'settings.admin_kanban_settings',
-            'admin',
-            'kanban board sichtbarkeit import zip',
-        ))
 
     return catalog

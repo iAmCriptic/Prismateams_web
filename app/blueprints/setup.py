@@ -35,7 +35,7 @@ MODULE_META = [
     {'key': 'module_file_converter', 'icon': 'bi-arrow-left-right', 'label': 'Dateikonverter', 'settings_endpoint': None},
     {'key': 'module_assessment', 'icon': 'bi-clipboard-check', 'label': 'Bewertungen', 'settings_endpoint': 'assessment.admin_settings.admin_settings_page'},
     {'key': 'module_shortlinks', 'icon': 'bi-link-45deg', 'label': 'Kurzlinks', 'settings_endpoint': None},
-    {'key': 'module_kanban', 'icon': 'bi-kanban', 'label': 'Kanban', 'settings_endpoint': 'settings.admin_kanban_settings'},
+    {'key': 'module_kanban', 'icon': 'bi-kanban', 'label': 'Kanban', 'settings_endpoint': 'settings.kanban_import'},
     {'key': 'module_excalidraw', 'icon': 'bi-pencil-square', 'label': 'Excalidraw', 'settings_endpoint': None},
     {'key': 'module_surveys', 'icon': 'bi-ui-checks-grid', 'label': 'Umfragen', 'settings_endpoint': None},
 ]

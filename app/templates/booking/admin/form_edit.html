@@ -1,317 +1,402 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}{% endblock %}
 {% block settings_mobile_title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-booking">
-    <a href="{{ url_for('settings.booking_forms') }}" class="settings-subpage-back">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        <span>{{ _('layout.nav.back') }}</span>
+<div class="sp-page sp-page--fluid settings-admin-booking">
+  <div class="sp-back-row">
+    <a href="{{ url_for('settings.booking_forms') }}" class="sp-back-link">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>{{ _('layout.nav.back') }}</span>
     </a>
+  </div>
 
-    <div class="settings-admin-booking-header">
-        <div class="settings-admin-booking-header-text">
-            <h1 class="settings-admin-booking-title">{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}</h1>
-            <p class="settings-admin-booking-subtitle">{{ _('settings.admin.booking_forms.edit_subtitle') }}</p>
+  <header class="sp-page-header">
+    <h1 class="sp-page-title">
+      <i class="bi bi-{% if is_new %}plus-circle{% else %}pencil-square{% endif %}" aria-hidden="true"></i>
+      <span>{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}</span>
+    </h1>
+    <p class="sp-page-lead">{{ _('settings.admin.booking_forms.edit_subtitle') }}</p>
+  </header>
+
+  <form method="POST" action="{{ url_for('settings.booking_form_edit', form_id=form.id, new=1) if is_new else url_for('settings.booking_form_edit', form_id=form.id) }}" class="settings-admin-booking-form" id="bookingMainForm" data-sp-no-autosave>
+    <section class="sp-group" id="booking-basics" aria-labelledby="booking-basics-title">
+      <div class="sp-group-head">
+        <h2 id="booking-basics-title" class="sp-group-title"><i class="bi bi-card-heading" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_basics') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.title_label') }} <span class="text-danger">*</span></span>
+          </div>
+          <div class="sp-row-control">
+            <input type="text" class="form-control" id="title" name="title" value="{{ form.title }}" required style="min-width:16rem">
+          </div>
         </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.description_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <textarea class="form-control" id="description" name="description" rows="3">{{ form.description or '' }}</textarea>
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.is_active') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if form.is_active %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="booking-pdf" aria-labelledby="booking-pdf-title">
+      <div class="sp-group-head">
+        <h2 id="booking-pdf-title" class="sp-group-title"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_pdf') }}</h2>
+        {{ sp_info(_('settings.admin.booking_forms.pdf_placeholders_hint')) }}
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.pdf_text_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.55rem">
+            <div class="sp-chip-grid settings-admin-booking-ph-chips" role="group" aria-label="{{ _('settings.admin.booking_forms.pdf_placeholders_hint') }}">
+              <button type="button" class="settings-admin-booking-ph" data-ph="{name}">{{ _('settings.admin.booking_forms.pdf_ph_name') }}</button>
+              <button type="button" class="settings-admin-booking-ph" data-ph="{email}">{{ _('settings.admin.booking_forms.pdf_ph_email') }}</button>
+              <button type="button" class="settings-admin-booking-ph" data-ph="{applicant}">{{ _('settings.admin.booking_forms.pdf_ph_applicant') }}</button>
+              <button type="button" class="settings-admin-booking-ph" data-ph="{event_name}">{{ _('settings.admin.booking_forms.pdf_ph_event') }}</button>
+              <button type="button" class="settings-admin-booking-ph" data-ph="{time_range}">{{ _('settings.admin.booking_forms.pdf_ph_time') }}</button>
+              <button type="button" class="settings-admin-booking-ph" data-ph="{status}">{{ _('settings.admin.booking_forms.pdf_ph_status') }}</button>
+              {% for role in form.roles|sort(attribute='role_order') %}
+              <button type="button" class="settings-admin-booking-ph" data-ph="{{ '{role_' ~ loop.index ~ '}' }}">{{ _('settings.admin.booking_forms.pdf_ph_role', n=loop.index) }}</button>
+              {% endfor %}
+            </div>
+            <textarea class="form-control" id="pdf_application_text" name="pdf_application_text" rows="10">{{ form.pdf_application_text or '' }}</textarea>
+          </div>
+        </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.pdf_footer_label') }}</span>
+            {{ sp_info(_('settings.admin.booking_forms.pdf_footer_help')) }}
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <textarea class="form-control" id="pdf_footer_text" name="pdf_footer_text" rows="3">{{ form.pdf_footer_text or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="booking-integration" aria-labelledby="booking-integration-title">
+      <div class="sp-group-head">
+        <h2 id="booking-integration-title" class="sp-group-title"><i class="bi bi-plug" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_integration') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.archive_days_label') }}</span>
+            {{ sp_info(_('settings.admin.booking_forms.archive_days_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <input type="number" class="form-control" id="archive_days" name="archive_days" value="{{ form.archive_days or 30 }}" min="1" style="min-width:8rem;max-width:10rem">
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.enable_mailbox') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="enable_mailbox" name="enable_mailbox" {% if form.enable_mailbox %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.enable_shared_folder') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="enable_shared_folder" name="enable_shared_folder" {% if form.enable_shared_folder %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="settings-admin-booking-actions">
+      <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>
+        <i class="bi bi-check-lg" aria-hidden="true"></i>
+        {{ _('settings.admin.booking_forms.save') }}
+      </button>
     </div>
+  </form>
 
-    <form method="POST" action="{{ url_for('settings.booking_form_edit', form_id=form.id, new=1) if is_new else url_for('settings.booking_form_edit', form_id=form.id) }}" class="settings-admin-booking-form" id="bookingMainForm">
-        <section class="settings-admin-booking-card" aria-labelledby="booking-basics">
-            <h2 id="booking-basics" class="settings-admin-booking-section-title">{{ _('settings.admin.booking_forms.section_basics') }}</h2>
-            <div class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="title" class="form-label">{{ _('settings.admin.booking_forms.title_label') }} <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="title" name="title" value="{{ form.title }}" required>
-                </div>
-                <div class="settings-admin-booking-field">
-                    <label for="description" class="form-label">{{ _('settings.admin.booking_forms.description_label') }}</label>
-                    <textarea class="form-control settings-admin-booking-input" id="description" name="description" rows="3">{{ form.description or '' }}</textarea>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if form.is_active %}checked{% endif %}>
-                    <label class="form-check-label" for="is_active">{{ _('settings.admin.booking_forms.is_active') }}</label>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-admin-booking-card" aria-labelledby="booking-pdf">
-            <h2 id="booking-pdf" class="settings-admin-booking-section-title">{{ _('settings.admin.booking_forms.section_pdf') }}</h2>
-            <div class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="pdf_application_text" class="form-label">{{ _('settings.admin.booking_forms.pdf_text_label') }}</label>
-                    <div class="settings-admin-booking-ph-chips" role="group" aria-label="{{ _('settings.admin.booking_forms.pdf_placeholders_hint') }}">
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{name}">{{ _('settings.admin.booking_forms.pdf_ph_name') }}</button>
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{email}">{{ _('settings.admin.booking_forms.pdf_ph_email') }}</button>
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{applicant}">{{ _('settings.admin.booking_forms.pdf_ph_applicant') }}</button>
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{event_name}">{{ _('settings.admin.booking_forms.pdf_ph_event') }}</button>
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{time_range}">{{ _('settings.admin.booking_forms.pdf_ph_time') }}</button>
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{status}">{{ _('settings.admin.booking_forms.pdf_ph_status') }}</button>
-                        {% for role in form.roles|sort(attribute='role_order') %}
-                        <button type="button" class="settings-admin-booking-ph" data-ph="{{ '{role_' ~ loop.index ~ '}' }}">{{ _('settings.admin.booking_forms.pdf_ph_role', n=loop.index) }}</button>
-                        {% endfor %}
-                    </div>
-                    <p class="settings-admin-booking-hint">{{ _('settings.admin.booking_forms.pdf_placeholders_hint') }}</p>
-                    <textarea class="form-control settings-admin-booking-input" id="pdf_application_text" name="pdf_application_text" rows="10">{{ form.pdf_application_text or '' }}</textarea>
-                </div>
-                <div class="settings-admin-booking-field mb-0">
-                    <label for="pdf_footer_text" class="form-label">{{ _('settings.admin.booking_forms.pdf_footer_label') }}</label>
-                    <textarea class="form-control settings-admin-booking-input" id="pdf_footer_text" name="pdf_footer_text" rows="3">{{ form.pdf_footer_text or '' }}</textarea>
-                    <p class="settings-admin-booking-hint">{{ _('settings.admin.booking_forms.pdf_footer_help') }}</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-admin-booking-card" aria-labelledby="booking-integration">
-            <h2 id="booking-integration" class="settings-admin-booking-section-title">{{ _('settings.admin.booking_forms.section_integration') }}</h2>
-            <div class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="archive_days" class="form-label">{{ _('settings.admin.booking_forms.archive_days_label') }}</label>
-                    <input type="number" class="form-control settings-admin-booking-input" id="archive_days" name="archive_days" value="{{ form.archive_days or 30 }}" min="1">
-                    <p class="settings-admin-booking-hint">{{ _('settings.admin.booking_forms.archive_days_help') }}</p>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="enable_mailbox" name="enable_mailbox" {% if form.enable_mailbox %}checked{% endif %}>
-                    <label class="form-check-label" for="enable_mailbox">{{ _('settings.admin.booking_forms.enable_mailbox') }}</label>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="enable_shared_folder" name="enable_shared_folder" {% if form.enable_shared_folder %}checked{% endif %}>
-                    <label class="form-check-label" for="enable_shared_folder">{{ _('settings.admin.booking_forms.enable_shared_folder') }}</label>
-                </div>
-            </div>
-        </section>
-
-        <div class="settings-admin-booking-actions">
-            <button type="submit" class="btn btn-accent settings-admin-booking-submit">{{ _('settings.admin.booking_forms.save') }}</button>
-        </div>
-    </form>
-
-    <section class="settings-admin-booking-card" aria-labelledby="booking-logo">
-        <h2 id="booking-logo" class="settings-admin-booking-section-title">{{ _('settings.admin.booking_forms.section_logo') }}</h2>
-        {% if form.secondary_logo_path %}
-        <div class="settings-admin-booking-logo">
-            {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
-            <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="" class="settings-admin-booking-logo-img">
-            <form method="POST" action="{{ url_for('settings.booking_secondary_logo_delete', form_id=form.id) }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-booking-btn" data-confirm-delete="{{ _('settings.admin.booking_forms.logo_delete_confirm') }}">
-                    <i class="bi bi-trash" aria-hidden="true"></i>
-                    {{ _('settings.admin.booking_forms.logo_delete') }}
-                </button>
-            </form>
-        </div>
-        {% else %}
-        <form method="POST" action="{{ url_for('settings.booking_secondary_logo_upload', form_id=form.id) }}" enctype="multipart/form-data" class="settings-admin-booking-fields">
-            <div class="settings-admin-booking-field">
-                <input type="file" class="form-control settings-admin-booking-input" id="logo" name="logo" accept="image/*" required>
-            </div>
-            <button type="submit" class="btn btn-outline-secondary settings-admin-booking-btn">
-                <i class="bi bi-upload" aria-hidden="true"></i>
-                {{ _('settings.admin.booking_forms.logo_upload') }}
-            </button>
+  <section class="sp-group" id="booking-logo" aria-labelledby="booking-logo-title">
+    <div class="sp-group-head">
+      <h2 id="booking-logo-title" class="sp-group-title"><i class="bi bi-image" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_logo') }}</h2>
+    </div>
+    <div class="sp-group-body">
+      {% if form.secondary_logo_path %}
+      <div class="settings-admin-booking-logo">
+        {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
+        <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="" class="settings-admin-booking-logo-img">
+        <form method="POST" action="{{ url_for('settings.booking_secondary_logo_delete', form_id=form.id) }}" data-sp-no-autosave>
+          <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" data-confirm-delete="{{ _('settings.admin.booking_forms.logo_delete_confirm') }}">
+            <i class="bi bi-trash" aria-hidden="true"></i>
+            {{ _('settings.admin.booking_forms.logo_delete') }}
+          </button>
         </form>
-        {% endif %}
-    </section>
-
-    <section class="settings-admin-booking-card" aria-labelledby="booking-fields">
-        <div class="settings-admin-booking-card-head">
-            <h2 id="booking-fields" class="settings-admin-booking-section-title mb-0">{{ _('settings.admin.booking_forms.section_fields') }}</h2>
-            <button type="button" class="btn btn-sm btn-accent settings-admin-booking-btn" id="toggleAddField" aria-expanded="false" aria-controls="addFieldPanel">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                {{ _('settings.admin.booking_forms.field_add') }}
+      </div>
+      {% else %}
+      <form method="POST" action="{{ url_for('settings.booking_secondary_logo_upload', form_id=form.id) }}" enctype="multipart/form-data" data-sp-no-autosave>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.65rem">
+            <input type="file" class="form-control" id="logo" name="logo" accept="image/*" required>
+            <button type="submit" class="btn btn-outline-secondary rounded-pill sp-btn-pill align-self-start" data-sp-keep-submit>
+              <i class="bi bi-upload" aria-hidden="true"></i>
+              {{ _('settings.admin.booking_forms.logo_upload') }}
             </button>
+          </div>
         </div>
+      </form>
+      {% endif %}
+    </div>
+  </section>
 
-        <div class="settings-admin-booking-panel" id="addFieldPanel" hidden>
-            <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.field_add') }}</h3>
-            <form method="POST" action="{{ url_for('settings.booking_field_add', form_id=form.id) }}" class="settings-admin-booking-fields">
-                {% include 'booking/admin/_field_form_fields.html' %}
-                <div class="settings-admin-booking-panel-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-booking-btn" data-close-panel="addFieldPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-booking-btn">{{ _('settings.admin.booking_forms.add') }}</button>
-                </div>
-            </form>
-        </div>
+  <section class="sp-group" id="booking-fields" aria-labelledby="booking-fields-title">
+    <div class="sp-group-head">
+      <h2 id="booking-fields-title" class="sp-group-title"><i class="bi bi-input-cursor-text" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_fields') }}</h2>
+      <button type="button" class="btn btn-sm btn-accent rounded-pill" id="toggleAddField" aria-expanded="false" aria-controls="addFieldPanel">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        {{ _('settings.admin.booking_forms.field_add') }}
+      </button>
+    </div>
+    <div class="sp-group-body">
+      <div class="settings-admin-booking-panel" id="addFieldPanel" hidden>
+        <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.field_add') }}</h3>
+        <form method="POST" action="{{ url_for('settings.booking_field_add', form_id=form.id) }}" data-sp-no-autosave>
+          {% include 'booking/admin/_field_form_fields.html' %}
+          <div class="settings-admin-booking-panel-actions">
+            <button type="button" class="btn btn-outline-secondary rounded-pill" data-close-panel="addFieldPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
+            <button type="submit" class="btn btn-accent rounded-pill" data-sp-keep-submit>{{ _('settings.admin.booking_forms.add') }}</button>
+          </div>
+        </form>
+      </div>
 
-        <div class="settings-admin-booking-panel" id="editFieldPanel" hidden>
-            <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.field_edit') }}</h3>
-            <form method="POST" id="editFieldForm" class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="edit_field_type" class="form-label">{{ _('settings.admin.booking_forms.field_type') }}</label>
-                    <select class="form-select settings-admin-booking-input" id="edit_field_type" name="field_type" required>
-                        <option value="text">{{ _('settings.admin.booking_forms.field_type_text') }}</option>
-                        <option value="textarea">{{ _('settings.admin.booking_forms.field_type_textarea') }}</option>
-                        <option value="date">{{ _('settings.admin.booking_forms.field_type_date') }}</option>
-                        <option value="number">{{ _('settings.admin.booking_forms.field_type_number') }}</option>
-                        <option value="select">{{ _('settings.admin.booking_forms.field_type_select') }}</option>
-                        <option value="checkbox">{{ _('settings.admin.booking_forms.field_type_checkbox') }}</option>
-                    </select>
-                </div>
-                <div class="settings-admin-booking-field">
-                    <label for="edit_field_label" class="form-label">{{ _('settings.admin.booking_forms.field_label') }}</label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="edit_field_label" name="field_label" required>
-                </div>
-                <div class="settings-admin-booking-field">
-                    <label for="edit_field_name" class="form-label">{{ _('settings.admin.booking_forms.field_name') }}</label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="edit_field_name" name="field_name">
-                </div>
-                <div class="settings-admin-booking-field">
-                    <label for="edit_placeholder" class="form-label">{{ _('settings.admin.booking_forms.field_placeholder') }}</label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="edit_placeholder" name="placeholder">
-                </div>
-                <div class="settings-admin-booking-field" id="edit_options_field" hidden>
-                    <label for="edit_field_options" class="form-label">{{ _('settings.admin.booking_forms.field_options') }}</label>
-                    <textarea class="form-control settings-admin-booking-input" id="edit_field_options" name="field_options" rows="5"></textarea>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="edit_is_required" name="is_required">
-                    <label class="form-check-label" for="edit_is_required">{{ _('settings.admin.booking_forms.field_required') }}</label>
-                </div>
-                <div class="settings-admin-booking-panel-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-booking-btn" data-close-panel="editFieldPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-booking-btn">{{ _('settings.admin.booking_forms.save') }}</button>
-                </div>
-            </form>
-        </div>
-
-        {% if fields %}
-        <div class="settings-admin-booking-list">
-            {% for field in fields %}
-            <div class="settings-admin-booking-row">
-                <div class="settings-admin-booking-row-main">
-                    <div class="settings-admin-booking-row-top">
-                        <span class="settings-admin-booking-name">{{ field.field_label }}</span>
-                        <span class="badge rounded-pill text-bg-secondary">{{ field.field_type }}</span>
-                        {% if field.is_required %}<span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.booking_forms.field_required_badge') }}</span>{% endif %}
-                    </div>
-                </div>
-                <div class="settings-admin-booking-row-actions">
-                    <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-booking-btn"
-                            data-edit-field
-                            data-id="{{ field.id }}"
-                            data-type="{{ field.field_type }}"
-                            data-label="{{ field.field_label|e }}"
-                            data-name="{{ field.field_name|e }}"
-                            data-placeholder="{{ (field.placeholder or '')|e }}"
-                            data-required="{{ '1' if field.is_required else '0' }}"
-                            data-options="{{ field.get_options()|join('\n')|e }}"
-                            title="{{ _('settings.admin.booking_forms.field_edit') }}">
-                        <i class="bi bi-pencil" aria-hidden="true"></i>
-                    </button>
-                    <form method="POST" action="{{ url_for('settings.booking_field_delete', form_id=form.id, field_id=field.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-booking-btn" data-confirm-delete="{{ _('settings.admin.booking_forms.field_delete_confirm') }}">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                </div>
+      <div class="settings-admin-booking-panel" id="editFieldPanel" hidden>
+        <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.field_edit') }}</h3>
+        <form method="POST" id="editFieldForm" data-sp-no-autosave>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_type') }}</span></div>
+            <div class="sp-row-control">
+              <select class="form-select" id="edit_field_type" name="field_type" required style="min-width:14rem">
+                <option value="text">{{ _('settings.admin.booking_forms.field_type_text') }}</option>
+                <option value="textarea">{{ _('settings.admin.booking_forms.field_type_textarea') }}</option>
+                <option value="date">{{ _('settings.admin.booking_forms.field_type_date') }}</option>
+                <option value="number">{{ _('settings.admin.booking_forms.field_type_number') }}</option>
+                <option value="select">{{ _('settings.admin.booking_forms.field_type_select') }}</option>
+                <option value="checkbox">{{ _('settings.admin.booking_forms.field_type_checkbox') }}</option>
+              </select>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="settings-admin-booking-empty">{{ _('settings.admin.booking_forms.fields_empty') }}</p>
-        {% endif %}
-    </section>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_label') }}</span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="edit_field_label" name="field_label" required style="min-width:14rem">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_name') }}</span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="edit_field_name" name="field_name" style="min-width:14rem">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_placeholder') }}</span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="edit_placeholder" name="placeholder" style="min-width:14rem">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack" id="edit_options_field" hidden>
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_options') }}</span></div>
+            <div class="sp-row-control" style="width:100%">
+              <textarea class="form-control" id="edit_field_options" name="field_options" rows="5"></textarea>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.field_required') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="edit_is_required" name="is_required">
+              </div>
+            </div>
+          </div>
+          <div class="settings-admin-booking-panel-actions">
+            <button type="button" class="btn btn-outline-secondary rounded-pill" data-close-panel="editFieldPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
+            <button type="submit" class="btn btn-accent rounded-pill" data-sp-keep-submit>{{ _('settings.admin.booking_forms.save') }}</button>
+          </div>
+        </form>
+      </div>
 
-    <section class="settings-admin-booking-card" aria-labelledby="booking-roles">
-        <div class="settings-admin-booking-card-head">
-            <h2 id="booking-roles" class="settings-admin-booking-section-title mb-0">{{ _('settings.admin.booking_forms.section_roles') }}</h2>
-            <button type="button" class="btn btn-sm btn-accent settings-admin-booking-btn" id="toggleAddRole" aria-expanded="false" aria-controls="addRolePanel">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                {{ _('settings.admin.booking_forms.role_add') }}
+      {% if fields %}
+      <div class="settings-admin-booking-list">
+        {% for field in fields %}
+        <div class="settings-admin-booking-item">
+          <div class="settings-admin-booking-item-main">
+            <span class="settings-admin-booking-item-name">{{ field.field_label }}</span>
+            <span class="badge rounded-pill text-bg-secondary">{{ field.field_type }}</span>
+            {% if field.is_required %}<span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.booking_forms.field_required_badge') }}</span>{% endif %}
+          </div>
+          <div class="settings-admin-booking-row-actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                    data-edit-field
+                    data-id="{{ field.id }}"
+                    data-type="{{ field.field_type }}"
+                    data-label="{{ field.field_label|e }}"
+                    data-name="{{ field.field_name|e }}"
+                    data-placeholder="{{ (field.placeholder or '')|e }}"
+                    data-required="{{ '1' if field.is_required else '0' }}"
+                    data-options="{{ field.get_options()|join('\n')|e }}"
+                    title="{{ _('settings.admin.booking_forms.field_edit') }}">
+              <i class="bi bi-pencil" aria-hidden="true"></i>
             </button>
-        </div>
-
-        <div class="settings-admin-booking-panel" id="addRolePanel" hidden>
-            <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_add') }}</h3>
-            <form method="POST" action="{{ url_for('settings.booking_role_create', form_id=form.id) }}" class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="role_name" class="form-label">{{ _('settings.admin.booking_forms.role_name') }} <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="role_name" name="role_name" required>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="role_is_required" name="is_required" checked>
-                    <label class="form-check-label" for="role_is_required">{{ _('settings.admin.booking_forms.role_required') }}</label>
-                </div>
-                <div class="settings-admin-booking-panel-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-booking-btn" data-close-panel="addRolePanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-booking-btn">{{ _('settings.admin.booking_forms.add') }}</button>
-                </div>
+            <form method="POST" action="{{ url_for('settings.booking_field_delete', form_id=form.id, field_id=field.id) }}" data-sp-no-autosave>
+              <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" data-confirm-delete="{{ _('settings.admin.booking_forms.field_delete_confirm') }}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
             </form>
+          </div>
         </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="sp-row-meta px-3 mb-0">{{ _('settings.admin.booking_forms.fields_empty') }}</p>
+      {% endif %}
+    </div>
+  </section>
 
-        <div class="settings-admin-booking-panel" id="editRolePanel" hidden>
-            <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_edit') }}</h3>
-            <form method="POST" id="editRoleForm" class="settings-admin-booking-fields">
-                <div class="settings-admin-booking-field">
-                    <label for="edit_role_name" class="form-label">{{ _('settings.admin.booking_forms.role_name') }} <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control settings-admin-booking-input" id="edit_role_name" name="role_name" required>
-                </div>
-                <div class="form-check form-switch settings-admin-booking-switch">
-                    <input class="form-check-input" type="checkbox" id="edit_role_is_required" name="is_required">
-                    <label class="form-check-label" for="edit_role_is_required">{{ _('settings.admin.booking_forms.role_required') }}</label>
-                </div>
-                <div class="settings-admin-booking-panel-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-booking-btn" data-close-panel="editRolePanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-booking-btn">{{ _('settings.admin.booking_forms.save') }}</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="settings-admin-booking-panel" id="manageUsersPanel" hidden>
-            <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_users') }}</h3>
-            <form method="POST" id="manageUsersForm" class="settings-admin-booking-fields">
-                <p id="roleNameDisplay" class="settings-admin-booking-hint"></p>
-                <div class="settings-admin-booking-field">
-                    <label for="user_ids" class="form-label">{{ _('settings.admin.booking_forms.role_users_select') }}</label>
-                    <select class="form-select settings-admin-booking-input" id="user_ids" name="user_ids" multiple size="10">
-                        {% for user in all_users %}
-                        <option value="{{ user.id }}">{{ user.full_name }}</option>
-                        {% endfor %}
-                    </select>
-                    <p class="settings-admin-booking-hint">{{ _('settings.admin.booking_forms.role_users_help') }}</p>
-                </div>
-                <div class="settings-admin-booking-panel-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-booking-btn" data-close-panel="manageUsersPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-booking-btn">{{ _('settings.admin.booking_forms.save') }}</button>
-                </div>
-            </form>
-        </div>
-
-        {% if form.roles %}
-        <div class="settings-admin-booking-list">
-            {% for role in form.roles|sort(attribute='role_order') %}
-            <div class="settings-admin-booking-row">
-                <div class="settings-admin-booking-row-main">
-                    <div class="settings-admin-booking-row-top">
-                        <span class="settings-admin-booking-name">{{ role.role_name }}</span>
-                        {% if role.is_required %}
-                        <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.booking_forms.role_required_badge') }}</span>
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.booking_forms.role_optional_badge') }}</span>
-                        {% endif %}
-                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.booking_forms.role_users_badge', count=role.users|length) }}</span>
-                    </div>
-                </div>
-                <div class="settings-admin-booking-row-actions">
-                    <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-booking-btn" onclick="editRole({{ role.id }}, {{ role.role_name|tojson }}, {{ 'true' if role.is_required else 'false' }})" title="{{ _('settings.admin.booking_forms.role_edit') }}">
-                        <i class="bi bi-pencil" aria-hidden="true"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-booking-btn" onclick="manageRoleUsers({{ role.id }}, {{ role.role_name|tojson }})" title="{{ _('settings.admin.booking_forms.role_users') }}">
-                        <i class="bi bi-people" aria-hidden="true"></i>
-                    </button>
-                    <form method="POST" action="{{ url_for('settings.booking_role_delete', form_id=form.id, role_id=role.id) }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-booking-btn" data-confirm-delete="{{ _('settings.admin.booking_forms.role_delete_confirm') }}">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                </div>
+  <section class="sp-group" id="booking-roles" aria-labelledby="booking-roles-title">
+    <div class="sp-group-head">
+      <h2 id="booking-roles-title" class="sp-group-title"><i class="bi bi-people" aria-hidden="true"></i>{{ _('settings.admin.booking_forms.section_roles') }}</h2>
+      <button type="button" class="btn btn-sm btn-accent rounded-pill" id="toggleAddRole" aria-expanded="false" aria-controls="addRolePanel">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        {{ _('settings.admin.booking_forms.role_add') }}
+      </button>
+    </div>
+    <div class="sp-group-body">
+      <div class="settings-admin-booking-panel" id="addRolePanel" hidden>
+        <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_add') }}</h3>
+        <form method="POST" action="{{ url_for('settings.booking_role_create', form_id=form.id) }}" data-sp-no-autosave>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.role_name') }} <span class="text-danger">*</span></span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="role_name" name="role_name" required style="min-width:14rem">
             </div>
-            {% endfor %}
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.role_required') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="role_is_required" name="is_required" checked>
+              </div>
+            </div>
+          </div>
+          <div class="settings-admin-booking-panel-actions">
+            <button type="button" class="btn btn-outline-secondary rounded-pill" data-close-panel="addRolePanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
+            <button type="submit" class="btn btn-accent rounded-pill" data-sp-keep-submit>{{ _('settings.admin.booking_forms.add') }}</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="settings-admin-booking-panel" id="editRolePanel" hidden>
+        <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_edit') }}</h3>
+        <form method="POST" id="editRoleForm" data-sp-no-autosave>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.role_name') }} <span class="text-danger">*</span></span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="edit_role_name" name="role_name" required style="min-width:14rem">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.booking_forms.role_required') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="edit_role_is_required" name="is_required">
+              </div>
+            </div>
+          </div>
+          <div class="settings-admin-booking-panel-actions">
+            <button type="button" class="btn btn-outline-secondary rounded-pill" data-close-panel="editRolePanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
+            <button type="submit" class="btn btn-accent rounded-pill" data-sp-keep-submit>{{ _('settings.admin.booking_forms.save') }}</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="settings-admin-booking-panel" id="manageUsersPanel" hidden>
+        <h3 class="settings-admin-booking-panel-title">{{ _('settings.admin.booking_forms.role_users') }}</h3>
+        <form method="POST" id="manageUsersForm" data-sp-no-autosave>
+          <p id="roleNameDisplay" class="sp-row-meta px-3"></p>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.booking_forms.role_users_select') }}</span>
+              {{ sp_info(_('settings.admin.booking_forms.role_users_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <select class="form-select" id="user_ids" name="user_ids" multiple size="10">
+                {% for user in all_users %}
+                <option value="{{ user.id }}">{{ user.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="settings-admin-booking-panel-actions">
+            <button type="button" class="btn btn-outline-secondary rounded-pill" data-close-panel="manageUsersPanel">{{ _('settings.admin.booking_forms.cancel') }}</button>
+            <button type="submit" class="btn btn-accent rounded-pill" data-sp-keep-submit>{{ _('settings.admin.booking_forms.save') }}</button>
+          </div>
+        </form>
+      </div>
+
+      {% if form.roles %}
+      <div class="settings-admin-booking-list">
+        {% for role in form.roles|sort(attribute='role_order') %}
+        <div class="settings-admin-booking-item">
+          <div class="settings-admin-booking-item-main">
+            <span class="settings-admin-booking-item-name">{{ role.role_name }}</span>
+            {% if role.is_required %}
+            <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.booking_forms.role_required_badge') }}</span>
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.booking_forms.role_optional_badge') }}</span>
+            {% endif %}
+            <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.booking_forms.role_users_badge', count=role.users|length) }}</span>
+          </div>
+          <div class="settings-admin-booking-row-actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="editRole({{ role.id }}, {{ role.role_name|tojson }}, {{ 'true' if role.is_required else 'false' }})" title="{{ _('settings.admin.booking_forms.role_edit') }}">
+              <i class="bi bi-pencil" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="manageRoleUsers({{ role.id }}, {{ role.role_name|tojson }})" title="{{ _('settings.admin.booking_forms.role_users') }}">
+              <i class="bi bi-people" aria-hidden="true"></i>
+            </button>
+            <form method="POST" action="{{ url_for('settings.booking_role_delete', form_id=form.id, role_id=role.id) }}" data-sp-no-autosave>
+              <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" data-confirm-delete="{{ _('settings.admin.booking_forms.role_delete_confirm') }}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </form>
+          </div>
         </div>
-        {% else %}
-        <p class="settings-admin-booking-empty">{{ _('settings.admin.booking_forms.roles_empty') }}</p>
-        {% endif %}
-    </section>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="sp-row-meta px-3 mb-0">{{ _('settings.admin.booking_forms.roles_empty') }}</p>
+      {% endif %}
+    </div>
+  </section>
 </div>
 
 <script>

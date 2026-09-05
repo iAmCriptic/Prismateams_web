@@ -698,7 +698,14 @@
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
         "flash_cannot_remove_leader": "The team lead cannot be removed. Assign a different lead first.",
-        "flash_user_teams_updated": "Teams for {name} were updated."
+        "flash_user_teams_updated": "Teams for {name} were updated.",
+        "lead_short": "Создавайте команды и назначайте участников.",
+        "view_list": "Список",
+        "view_grid": "Сетка",
+        "col_name": "Команда",
+        "col_members": "Участники",
+        "col_leader": "Руководитель",
+        "preview_title": "Предпросмотр"
       },
       "cards": {
         "teams": {
@@ -758,13 +765,46 @@
       },
       "admin_modules": {
         "module_file_converter": "File Converter",
-        "module_surveys": "Surveys"
+        "module_surveys": "Surveys",
+        "lead_short": "Включение и отключение модулей."
       },
       "kanban": {
         "lead_short": "Visibility and import.",
         "short": "Visibility & import",
         "module_disabled": "Kanban module is disabled",
         "import_hint": "Multiple boards via ZIP supported."
+      },
+      "users": {
+        "lead_short": "Пользователи, гости и коды.",
+        "view_list": "Список",
+        "view_grid": "Сетка",
+        "col_name": "Имя",
+        "col_email": "Эл. почта",
+        "col_login": "Последний вход",
+        "col_status": "Статус",
+        "queue_title": "Очередь"
+      },
+      "whitelist": {
+        "lead_short": "Почта и домены для автоактивации.",
+        "view_list": "Список",
+        "view_grid": "Сетка",
+        "col_entry": "Запись",
+        "col_status": "Статус"
+      },
+      "legal": {
+        "lead_short": "Тексты для входа и публичных страниц.",
+        "tip_body": "Изменения сохраняются автоматически. Используйте предпросмотр.",
+        "markdown_hint": "**жирный**, *курсив*, [ссылка](url), списки с -.",
+        "tool_link": "Ссылка"
+      },
+      "system": {
+        "lead_short": "Имя портала, логотип, часовой пояс и брендинг."
+      },
+      "backup": {
+        "lead_short": "Экспорт и импорт резервных копий портала."
+      },
+      "registration": {
+        "lead_short": "Captcha и honeypot для входа и форм."
       }
     },
     "notifications": {
@@ -946,7 +986,8 @@
       "google_help_oauth_step5": "Вставьте Client ID и Client Secret сюда и сохраните — после этого OAuth работает в мастере.",
       "google_help_api_heading": "API-ключ (для YouTube)",
       "redirect_hint_login": "Redirect URI (вход / безопасность): {url}",
-      "short": "OAuth & APIs"
+      "short": "OAuth & APIs",
+      "lead_short": "Google, Microsoft и Spotify."
     },
     "about": {
       "file_converter_label": "File converter / LibreOffice",
@@ -1066,7 +1107,8 @@
       "visibility_info": "Visibility for new boards",
       "tip_body": "ZIP с несколькими JSON/CSV создаёт несколько досок сразу.",
       "formats_title": "Форматы",
-      "formats_body": "JSON и CSV для одной доски, ZIP для нескольких файлов."
+      "formats_body": "JSON и CSV для одной доски, ZIP для нескольких файлов.",
+      "visibility_label": "Видимость"
     },
     "team_settings": {
       "teams_tile_short": "Members",
@@ -1301,7 +1343,8 @@
       "error_visibility": "Эта видимость не разрешена.",
       "error_failed": "Ошибка импорта.",
       "error_invalid_zip": "Invalid ZIP file",
-      "error_empty_zip": "ZIP has no JSON/CSV files"
+      "error_empty_zip": "ZIP has no JSON/CSV files",
+      "visibility": "Видимость"
     }
   }
 }

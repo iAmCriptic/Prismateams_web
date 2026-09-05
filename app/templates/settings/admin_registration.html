@@ -1,139 +1,156 @@
 ﻿{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.registration.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.registration_options.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-registration">
-    <div class="settings-admin-registration-header">
-        <h1 class="settings-admin-registration-title">{{ _('settings.admin.registration.heading') }}</h1>
-        <p class="settings-admin-registration-subtitle">{{ _('settings.admin.registration.subtitle') }}</p>
-    </div>
+<div class="sp-page sp-page--fluid settings-admin-registration">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>{{ _('settings.admin.registration.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.registration.lead_short') }}</p>
+  </header>
 
-    <form method="POST" data-sp-autosave id="bot-protection-form" class="settings-admin-registration-form">
-        <section class="settings-admin-registration-card" aria-labelledby="bot-provider-title">
-            <div class="settings-admin-registration-card-head">
-                <h2 id="bot-provider-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.provider_label') }}</h2>
-                <button type="button" class="settings-admin-registration-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.registration.provider_help') }}" aria-label="{{ _('settings.admin.registration.provider_help') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_registration') }}" id="bot-protection-form">
+    <section class="sp-group" id="bot-provider" data-settings-search-id="bot-provider" aria-labelledby="bot-provider-title">
+      <div class="sp-group-head">
+        <h2 id="bot-provider-title" class="sp-group-title"><i class="bi bi-robot" aria-hidden="true"></i>{{ _('settings.admin.registration.provider_label') }}</h2>
+        {{ sp_info(_('settings.admin.registration.provider_help')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.registration.recommendation_alert') }}</p>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.provider_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%;justify-content:flex-start">
+            <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.admin.registration.provider_label') }}">
+              <input type="radio" class="btn-check" name="portal_bot_protection" id="bot_prov_none" value="none" {% if config.provider == 'none' %}checked{% endif %}>
+              <label for="bot_prov_none"><i class="bi bi-slash-circle me-1" aria-hidden="true"></i>{{ _('settings.admin.registration.provider_none') }}</label>
+              <input type="radio" class="btn-check" name="portal_bot_protection" id="bot_prov_honeypot" value="honeypot" {% if config.provider == 'honeypot' %}checked{% endif %}>
+              <label for="bot_prov_honeypot"><i class="bi bi-bug me-1" aria-hidden="true"></i>{{ _('settings.admin.registration.provider_honeypot') }}</label>
+              <input type="radio" class="btn-check" name="portal_bot_protection" id="bot_prov_recaptcha" value="recaptcha" {% if config.provider == 'recaptcha' %}checked{% endif %}>
+              <label for="bot_prov_recaptcha"><i class="bi bi-google me-1" aria-hidden="true"></i>{{ _('settings.admin.registration.provider_recaptcha') }}</label>
+              <input type="radio" class="btn-check" name="portal_bot_protection" id="bot_prov_turnstile" value="turnstile" {% if config.provider == 'turnstile' %}checked{% endif %}>
+              <label for="bot_prov_turnstile"><i class="bi bi-cloud me-1" aria-hidden="true"></i>{{ _('settings.admin.registration.provider_turnstile') }}</label>
             </div>
-
-            <p class="settings-admin-registration-hint">{{ _('settings.admin.registration.recommendation_alert') }}</p>
-
-            <div class="settings-admin-registration-field">
-                <label for="portal_bot_protection" class="form-label">{{ _('settings.admin.registration.provider_label') }}</label>
-                <select class="form-select settings-admin-registration-select" id="portal_bot_protection" name="portal_bot_protection">
-                    <option value="none" {% if config.provider == 'none' %}selected{% endif %}>{{ _('settings.admin.registration.provider_none') }}</option>
-                    <option value="honeypot" {% if config.provider == 'honeypot' %}selected{% endif %}>{{ _('settings.admin.registration.provider_honeypot') }}</option>
-                    <option value="recaptcha" {% if config.provider == 'recaptcha' %}selected{% endif %}>{{ _('settings.admin.registration.provider_recaptcha') }}</option>
-                    <option value="turnstile" {% if config.provider == 'turnstile' %}selected{% endif %}>{{ _('settings.admin.registration.provider_turnstile') }}</option>
-                </select>
-            </div>
-        </section>
-
-        <section class="settings-admin-registration-card" id="scope-section" aria-labelledby="bot-scope-title">
-            <div class="settings-admin-registration-card-head">
-                <h2 id="bot-scope-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.scope_label') }}</h2>
-                <button type="button" class="settings-admin-registration-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.registration.scope_help') }}" aria-label="{{ _('settings.admin.registration.scope_help') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
-            </div>
-            <p class="settings-admin-registration-hint">{{ _('settings.admin.registration.scope_login_help') }}</p>
-
-            <div class="settings-admin-registration-chips" role="group" aria-label="{{ _('settings.admin.registration.scope_label') }}">
-                <div class="settings-admin-registration-chip-wrap">
-                    <input type="checkbox" class="btn-check" id="portal_bot_protection_register" name="portal_bot_protection_register" autocomplete="off" {% if config.register_enabled %}checked{% endif %}>
-                    <label class="settings-admin-registration-chip" for="portal_bot_protection_register">
-                        <i class="bi bi-person-plus" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.registration.scope_register') }}</span>
-                    </label>
-                </div>
-                <div class="settings-admin-registration-chip-wrap">
-                    <input type="checkbox" class="btn-check" id="portal_bot_protection_login" name="portal_bot_protection_login" autocomplete="off" {% if config.login_enabled %}checked{% endif %}>
-                    <label class="settings-admin-registration-chip" for="portal_bot_protection_login">
-                        <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.registration.scope_login') }}</span>
-                    </label>
-                </div>
-                <div class="settings-admin-registration-chip-wrap">
-                    <input type="checkbox" class="btn-check" id="portal_bot_protection_mailbox" name="portal_bot_protection_mailbox" autocomplete="off" {% if config.mailbox_enabled %}checked{% endif %}>
-                    <label class="settings-admin-registration-chip" for="portal_bot_protection_mailbox">
-                        <i class="bi bi-mailbox" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.registration.scope_mailbox') }}</span>
-                    </label>
-                </div>
-                <div class="settings-admin-registration-chip-wrap">
-                    <input type="checkbox" class="btn-check" id="portal_bot_protection_share_edit" name="portal_bot_protection_share_edit" autocomplete="off" {% if config.share_edit_enabled %}checked{% endif %}>
-                    <label class="settings-admin-registration-chip" for="portal_bot_protection_share_edit">
-                        <i class="bi bi-share" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.registration.scope_share_edit') }}</span>
-                    </label>
-                </div>
-                <div class="settings-admin-registration-chip-wrap">
-                    <input type="checkbox" class="btn-check" id="portal_bot_protection_surveys" name="portal_bot_protection_surveys" autocomplete="off" {% if config.surveys_enabled %}checked{% endif %}>
-                    <label class="settings-admin-registration-chip" for="portal_bot_protection_surveys">
-                        <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.registration.scope_surveys') }}</span>
-                    </label>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-admin-registration-card" id="recaptcha-section" aria-labelledby="bot-recaptcha-title" hidden>
-            <div class="settings-admin-registration-card-head">
-                <h2 id="bot-recaptcha-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.recaptcha_heading') }}</h2>
-            </div>
-
-            <div class="settings-admin-registration-field">
-                <label for="portal_recaptcha_version" class="form-label">{{ _('settings.admin.registration.recaptcha_version_label') }}</label>
-                <select class="form-select settings-admin-registration-select" id="portal_recaptcha_version" name="portal_recaptcha_version">
-                    <option value="v2" {% if config.recaptcha_version == 'v2' %}selected{% endif %}>{{ _('settings.admin.registration.recaptcha_v2') }}</option>
-                    <option value="v3" {% if config.recaptcha_version == 'v3' %}selected{% endif %}>{{ _('settings.admin.registration.recaptcha_v3') }}</option>
-                </select>
-            </div>
-            <div class="settings-admin-registration-field">
-                <label for="portal_recaptcha_site_key" class="form-label">{{ _('settings.admin.registration.site_key_label') }}</label>
-                <input type="text" class="form-control settings-admin-registration-input" id="portal_recaptcha_site_key" name="portal_recaptcha_site_key" value="{{ config.recaptcha_site_key }}" autocomplete="off">
-            </div>
-            <div class="settings-admin-registration-field mb-0">
-                <label for="portal_recaptcha_secret_key" class="form-label">{{ _('settings.admin.registration.secret_key_label') }}</label>
-                <input type="password" class="form-control settings-admin-registration-input" id="portal_recaptcha_secret_key" name="portal_recaptcha_secret_key" value="" placeholder="{% if config.recaptcha_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
-            </div>
-        </section>
-
-        <section class="settings-admin-registration-card" id="turnstile-section" aria-labelledby="bot-turnstile-title" hidden>
-            <div class="settings-admin-registration-card-head">
-                <h2 id="bot-turnstile-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.turnstile_heading') }}</h2>
-            </div>
-
-            <div class="settings-admin-registration-field">
-                <label for="portal_turnstile_site_key" class="form-label">{{ _('settings.admin.registration.site_key_label') }}</label>
-                <input type="text" class="form-control settings-admin-registration-input" id="portal_turnstile_site_key" name="portal_turnstile_site_key" value="{{ config.turnstile_site_key }}" autocomplete="off">
-            </div>
-            <div class="settings-admin-registration-field mb-0">
-                <label for="portal_turnstile_secret_key" class="form-label">{{ _('settings.admin.registration.secret_key_label') }}</label>
-                <input type="password" class="form-control settings-admin-registration-input" id="portal_turnstile_secret_key" name="portal_turnstile_secret_key" value="" placeholder="{% if config.turnstile_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
-            </div>
-        </section>
-
-        <section class="settings-admin-registration-card" id="honeypot-section" aria-labelledby="bot-honeypot-title" hidden>
-            <div class="settings-admin-registration-card-head">
-                <h2 id="bot-honeypot-title" class="settings-admin-registration-section-title mb-0">{{ _('settings.admin.registration.honeypot_heading') }}</h2>
-            </div>
-            <p class="settings-admin-registration-hint">{{ _('settings.admin.registration.honeypot_help') }}</p>
-            {% if config.honeypot_field %}
-            <div class="settings-admin-registration-field mb-0">
-                <label class="form-label">{{ _('settings.admin.registration.honeypot_field_label') }}</label>
-                <input type="text" class="form-control settings-admin-registration-input" value="{{ config.honeypot_field }}" readonly>
-            </div>
-            {% endif %}
-        </section>
-
-        <div class="settings-admin-registration-actions">
-            <button type="submit" class="btn btn-accent settings-admin-registration-submit">{{ _('settings.admin.registration.save_button') }}</button>
+          </div>
         </div>
-    </form>
+      </div>
+    </section>
+
+    <section class="sp-group" id="scope-section" data-settings-search-id="scope-section" aria-labelledby="bot-scope-title">
+      <div class="sp-group-head">
+        <h2 id="bot-scope-title" class="sp-group-title"><i class="bi bi-bullseye" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_label') }}</h2>
+        {{ sp_info(_('settings.admin.registration.scope_help')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.registration.scope_login_help') }}</p>
+        <div class="sp-chip-grid px-3 pb-3" role="group" aria-label="{{ _('settings.admin.registration.scope_label') }}">
+          <label class="sp-chip">
+            <input type="checkbox" id="portal_bot_protection_register" name="portal_bot_protection_register" autocomplete="off" {% if config.register_enabled %}checked{% endif %}>
+            <span><i class="bi bi-person-plus" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_register') }}</span>
+          </label>
+          <label class="sp-chip">
+            <input type="checkbox" id="portal_bot_protection_login" name="portal_bot_protection_login" autocomplete="off" {% if config.login_enabled %}checked{% endif %}>
+            <span><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_login') }}</span>
+          </label>
+          <label class="sp-chip">
+            <input type="checkbox" id="portal_bot_protection_mailbox" name="portal_bot_protection_mailbox" autocomplete="off" {% if config.mailbox_enabled %}checked{% endif %}>
+            <span><i class="bi bi-mailbox" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_mailbox') }}</span>
+          </label>
+          <label class="sp-chip">
+            <input type="checkbox" id="portal_bot_protection_share_edit" name="portal_bot_protection_share_edit" autocomplete="off" {% if config.share_edit_enabled %}checked{% endif %}>
+            <span><i class="bi bi-share" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_share_edit') }}</span>
+          </label>
+          <label class="sp-chip">
+            <input type="checkbox" id="portal_bot_protection_surveys" name="portal_bot_protection_surveys" autocomplete="off" {% if config.surveys_enabled %}checked{% endif %}>
+            <span><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>{{ _('settings.admin.registration.scope_surveys') }}</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="recaptcha-section" data-settings-search-id="recaptcha-section" aria-labelledby="bot-recaptcha-title" hidden>
+      <div class="sp-group-head">
+        <h2 id="bot-recaptcha-title" class="sp-group-title"><i class="bi bi-google" aria-hidden="true"></i>{{ _('settings.admin.registration.recaptcha_heading') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.recaptcha_version_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%;justify-content:flex-start">
+            <div class="sp-seg" role="radiogroup" aria-label="{{ _('settings.admin.registration.recaptcha_version_label') }}">
+              <input type="radio" class="btn-check" name="portal_recaptcha_version" id="bot_rc_v2" value="v2" {% if config.recaptcha_version == 'v2' %}checked{% endif %}>
+              <label for="bot_rc_v2">{{ _('settings.admin.registration.recaptcha_v2') }}</label>
+              <input type="radio" class="btn-check" name="portal_recaptcha_version" id="bot_rc_v3" value="v3" {% if config.recaptcha_version == 'v3' %}checked{% endif %}>
+              <label for="bot_rc_v3">{{ _('settings.admin.registration.recaptcha_v3') }}</label>
+            </div>
+          </div>
+        </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.site_key_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" id="portal_recaptcha_site_key" name="portal_recaptcha_site_key" value="{{ config.recaptcha_site_key }}" autocomplete="off">
+          </div>
+        </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.secret_key_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="password" class="form-control" id="portal_recaptcha_secret_key" name="portal_recaptcha_secret_key" value="" placeholder="{% if config.recaptcha_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="turnstile-section" data-settings-search-id="turnstile-section" aria-labelledby="bot-turnstile-title" hidden>
+      <div class="sp-group-head">
+        <h2 id="bot-turnstile-title" class="sp-group-title"><i class="bi bi-cloud" aria-hidden="true"></i>{{ _('settings.admin.registration.turnstile_heading') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.site_key_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" id="portal_turnstile_site_key" name="portal_turnstile_site_key" value="{{ config.turnstile_site_key }}" autocomplete="off">
+          </div>
+        </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.secret_key_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="password" class="form-control" id="portal_turnstile_secret_key" name="portal_turnstile_secret_key" value="" placeholder="{% if config.turnstile_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="honeypot-section" data-settings-search-id="honeypot-section" aria-labelledby="bot-honeypot-title" hidden>
+      <div class="sp-group-head">
+        <h2 id="bot-honeypot-title" class="sp-group-title"><i class="bi bi-bug" aria-hidden="true"></i>{{ _('settings.admin.registration.honeypot_heading') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.registration.honeypot_help') }}</p>
+        {% if config.honeypot_field %}
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.registration.honeypot_field_label') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" value="{{ config.honeypot_field }}" readonly>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </form>
 </div>
 
 <script>
@@ -141,119 +158,31 @@ document.addEventListener('DOMContentLoaded', function () {
     var root = document.querySelector('.settings-admin-registration');
     if (!root) return;
 
-    var providerSelect = document.getElementById('portal_bot_protection');
+    var form = document.getElementById('bot-protection-form');
     var recaptchaSection = document.getElementById('recaptcha-section');
     var turnstileSection = document.getElementById('turnstile-section');
     var honeypotSection = document.getElementById('honeypot-section');
     var scopeSection = document.getElementById('scope-section');
 
+    function getProvider() {
+        var el = form && form.querySelector('input[name="portal_bot_protection"]:checked');
+        return el ? el.value : 'none';
+    }
+
     function updateSections() {
-        var provider = providerSelect.value;
+        var provider = getProvider();
         recaptchaSection.hidden = provider !== 'recaptcha';
         turnstileSection.hidden = provider !== 'turnstile';
         honeypotSection.hidden = provider !== 'honeypot';
         scopeSection.hidden = provider === 'none';
     }
 
-    providerSelect.addEventListener('change', updateSections);
+    if (form) {
+        form.querySelectorAll('input[name="portal_bot_protection"]').forEach(function (radio) {
+            radio.addEventListener('change', updateSections);
+        });
+    }
     updateSections();
-
-    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-
-    function closeAll(except) {
-        root.querySelectorAll('.settings-pill-select.is-open').forEach(function (wrap) {
-            if (wrap !== except) {
-                wrap.classList.remove('is-open');
-                var t = wrap.querySelector('.settings-pill-select__trigger');
-                if (t) t.setAttribute('aria-expanded', 'false');
-            }
-        });
-    }
-
-    function syncLabel(select, valueEl) {
-        var selected = select.options[select.selectedIndex];
-        valueEl.textContent = selected ? selected.textContent.trim() : '';
-    }
-
-    function buildOptions(select, menu, valueEl) {
-        menu.innerHTML = '';
-        Array.from(select.options).forEach(function (opt) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'settings-pill-select__option' + (opt.selected ? ' is-active' : '');
-            btn.textContent = opt.textContent.trim();
-            btn.dataset.value = opt.value;
-            btn.setAttribute('role', 'option');
-            btn.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
-            btn.addEventListener('click', function () {
-                select.value = opt.value;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                syncLabel(select, valueEl);
-                menu.querySelectorAll('.settings-pill-select__option').forEach(function (el) {
-                    var active = el.dataset.value === select.value;
-                    el.classList.toggle('is-active', active);
-                    el.setAttribute('aria-selected', active ? 'true' : 'false');
-                });
-                closeAll();
-            });
-            menu.appendChild(btn);
-        });
-    }
-
-    root.querySelectorAll('select.settings-admin-registration-select').forEach(function (select) {
-        if (select.dataset.pillEnhanced === '1') return;
-        select.dataset.pillEnhanced = '1';
-
-        var wrap = document.createElement('div');
-        wrap.className = 'settings-pill-select';
-        select.parentNode.insertBefore(wrap, select);
-        wrap.appendChild(select);
-        select.classList.add('settings-pill-select__native');
-
-        var trigger = document.createElement('button');
-        trigger.type = 'button';
-        trigger.className = 'settings-pill-select__trigger';
-        trigger.setAttribute('aria-haspopup', 'listbox');
-        trigger.setAttribute('aria-expanded', 'false');
-
-        var valueEl = document.createElement('span');
-        valueEl.className = 'settings-pill-select__value';
-        var caret = document.createElement('i');
-        caret.className = 'bi bi-chevron-down settings-pill-select__caret';
-        caret.setAttribute('aria-hidden', 'true');
-        trigger.appendChild(valueEl);
-        trigger.appendChild(caret);
-
-        var menu = document.createElement('div');
-        menu.className = 'settings-pill-select__menu';
-        menu.setAttribute('role', 'listbox');
-
-        wrap.appendChild(trigger);
-        wrap.appendChild(menu);
-
-        syncLabel(select, valueEl);
-        buildOptions(select, menu, valueEl);
-
-        trigger.addEventListener('click', function () {
-            var willOpen = !wrap.classList.contains('is-open');
-            closeAll(wrap);
-            wrap.classList.toggle('is-open', willOpen);
-            trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-        });
-
-        select.addEventListener('change', function () {
-            syncLabel(select, valueEl);
-            buildOptions(select, menu, valueEl);
-        });
-    });
-
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest('.settings-admin-registration .settings-pill-select')) closeAll();
-    });
 });
 </script>
 {% endblock %}

@@ -4,59 +4,116 @@
 {% block settings_mobile_title %}{{ _('settings.admin.cards.teams.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-teams">
-    <div class="settings-admin-teams-header">
-        <div>
-            <h1 class="settings-admin-teams-title">{{ _('settings.admin.teams.heading') }}</h1>
-            <p class="settings-admin-teams-subtitle">{% if is_team_leader_view|default(false) %}{{ _('settings.admin.teams.subtitle_leader') }}{% else %}{{ _('settings.admin.teams.subtitle') }}{% endif %}</p>
+<div class="sp-page sp-page--fluid settings-admin-teams">
+    <header class="sp-page-header settings-admin-teams-header">
+        <div class="settings-admin-teams-header-text">
+            <h1 class="sp-page-title">
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                <span>{{ _('settings.admin.teams.heading') }}</span>
+            </h1>
+            <p class="sp-page-lead">{% if is_team_leader_view|default(false) %}{{ _('settings.admin.teams.subtitle_leader') }}{% else %}{{ _('settings.admin.teams.lead_short') }}{% endif %}</p>
         </div>
         <div class="settings-admin-teams-header-actions">
             {% if not is_team_leader_view|default(false) %}
-            <a href="{{ url_for('settings.create_team') }}" class="btn btn-accent settings-admin-teams-btn">
+            <a href="{{ url_for('settings.create_team') }}" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-teams-btn">
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
                 {{ _('settings.admin.teams.create') }}
             </a>
             {% endif %}
         </div>
-    </div>
+    </header>
 
     {% if teams %}
-    <div class="sau-search-wrap mb-3">
-        <div class="sau-search-inner">
-            <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
-                <input type="search" id="teamSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_placeholder') }}">
+    <div class="sp-list-toolbar settings-admin-teams-toolbar">
+        <div class="sau-search-wrap">
+            <div class="sau-search-inner">
+                <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                <input type="search" id="teamSearch" class="form-control sau-search-input" placeholder="{{ _('settings.admin.teams.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_placeholder') }}">
+            </div>
+        </div>
+        <div class="files-view-toggle" data-view="grid" role="group" aria-label="{{ _('settings.admin.teams.view_list') }} / {{ _('settings.admin.teams.view_grid') }}">
+            <span class="files-view-toggle__indicator" aria-hidden="true"></span>
+            <button type="button" class="files-view-toggle__btn" id="adminTeamsListViewBtn" title="{{ _('settings.admin.teams.view_list') }}">
+                <i class="bi bi-list-ul" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="files-view-toggle__btn active is-active" id="adminTeamsGridViewBtn" title="{{ _('settings.admin.teams.view_grid') }}">
+                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+            </button>
         </div>
     </div>
 
-    <div class="settings-admin-teams-grid" id="teamsList">
-        {% for team in teams %}
-        <a href="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="settings-admin-teams-card" data-search-name="{{ team.name|lower }}" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
-            <div class="settings-admin-teams-card-accent" aria-hidden="true"></div>
-            <div class="settings-admin-teams-card-body">
-                <div class="settings-admin-teams-avatar">
-                    {% if team.image %}
-                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
-                    {% else %}
-                    <i class="bi bi-people-fill" aria-hidden="true"></i>
-                    {% endif %}
-                </div>
-                <div class="settings-admin-teams-card-main">
-                    <div class="settings-admin-teams-card-name">{{ team.name }}</div>
-                    {% if team.description %}
-                    <div class="settings-admin-teams-card-desc">{{ team.description }}</div>
-                    {% endif %}
-                    <div class="settings-admin-teams-card-meta">
-                        <span>{{ _('settings.admin.teams.members_count', count=team.members|length) }}</span>
-                        {% if team.leader %}
-                        <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <i class="bi bi-chevron-right settings-admin-teams-card-chevron" aria-hidden="true"></i>
+    <div id="adminTeamsViewStage" class="files-view-stage" data-view="grid">
+        <div id="adminTeamsListPane" class="files-view-pane d-none" style="display:none;">
+            <div class="mod-list-table-wrap sp-list-wrap">
+                <table class="table mod-list-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ _('settings.admin.teams.col_name') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell">{{ _('settings.admin.teams.col_members') }}</th>
+                            <th scope="col" class="d-none d-lg-table-cell">{{ _('settings.admin.teams.col_leader') }}</th>
+                            <th scope="col" class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in teams %}
+                        <tr class="mod-list-row sau-searchable" data-search-name="{{ team.name|lower }}">
+                            <td>
+                                <a href="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="settings-admin-teams-list-link">
+                                    <span class="settings-admin-teams-list-accent" style="{% if team.color %}background: {{ team.color }};{% endif %}" aria-hidden="true"></span>
+                                    <span class="mod-list-name">{{ team.name }}</span>
+                                </a>
+                                {% if team.description %}
+                                <div class="settings-admin-users-meta">{{ team.description }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ _('settings.admin.teams.members_count', count=team.members|length) }}</td>
+                            <td class="d-none d-lg-table-cell">{% if team.leader %}{{ team.leader.full_name }}{% else %}—{% endif %}</td>
+                            <td class="text-end">
+                                <a href="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="btn btn-sm btn-link" aria-label="{{ team.name }}">
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </a>
-        {% endfor %}
+        </div>
+
+        <div id="adminTeamsGridPane" class="files-view-pane files-view-pane--active">
+            <div class="row g-3" id="teamsList">
+                {% for team in teams %}
+                <div class="col-12 col-sm-6 col-xl-4 sau-searchable" data-search-name="{{ team.name|lower }}">
+                    <a href="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="sp-dir-card sp-dir-card--team settings-admin-teams-card" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+                        <div class="sp-dir-card__accent" aria-hidden="true"></div>
+                        <div class="sp-dir-card__top">
+                            <div class="sp-dir-card__avatar sp-dir-card__avatar--img">
+                                {% if team.image %}
+                                <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                                {% else %}
+                                <i class="bi bi-people-fill" aria-hidden="true"></i>
+                                {% endif %}
+                            </div>
+                            <i class="bi bi-chevron-right sp-dir-card__chevron" aria-hidden="true"></i>
+                        </div>
+                        <div class="sp-dir-card__body">
+                            <div class="sp-dir-card__name">{{ team.name }}</div>
+                            {% if team.description %}
+                            <div class="sp-dir-card__desc">{{ team.description }}</div>
+                            {% endif %}
+                            <div class="sp-dir-card__meta">
+                                <span>{{ _('settings.admin.teams.members_count', count=team.members|length) }}</span>
+                                {% if team.leader %}
+                                <span aria-hidden="true">·</span>
+                                <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
     <p class="settings-admin-teams-empty" id="noTeamSearchResults" hidden>{{ _('settings.admin.teams.search_no_results') }}</p>
     {% else %}
@@ -66,23 +123,36 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script>
 (function () {
+    if (typeof window.initFilesViewToggle === 'function') {
+        window.initFilesViewToggle({
+            toggleEl: document.querySelector('.settings-admin-teams .files-view-toggle'),
+            listBtn: document.getElementById('adminTeamsListViewBtn'),
+            gridBtn: document.getElementById('adminTeamsGridViewBtn'),
+            listPane: document.getElementById('adminTeamsListPane'),
+            gridPane: document.getElementById('adminTeamsGridPane'),
+            stageEl: document.getElementById('adminTeamsViewStage'),
+            storageKey: 'adminTeamsViewMode',
+            defaultMode: 'grid'
+        });
+    }
+
     var input = document.getElementById('teamSearch');
-    var list = document.getElementById('teamsList');
     var empty = document.getElementById('noTeamSearchResults');
-    if (!input || !list) return;
+    if (!input) return;
+    var items = Array.from(document.querySelectorAll('.settings-admin-teams .sau-searchable[data-search-name]'));
     input.addEventListener('input', function () {
         var q = (input.value || '').trim().toLowerCase();
-        var cards = list.querySelectorAll('.settings-admin-teams-card');
         var visible = 0;
-        cards.forEach(function (card) {
-            var name = card.getAttribute('data-search-name') || '';
+        items.forEach(function (el) {
+            var name = el.getAttribute('data-search-name') || '';
             var show = !q || name.indexOf(q) !== -1;
-            card.hidden = !show;
-            if (show) visible += 1;
+            el.hidden = !show;
+            if (show && el.closest('#adminTeamsListPane')) visible += 1;
         });
-        if (empty) empty.hidden = visible > 0;
+        if (empty) empty.hidden = !(q && visible === 0);
     });
 })();
 </script>

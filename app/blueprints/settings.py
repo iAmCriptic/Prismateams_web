@@ -1974,10 +1974,8 @@ def admin_email_footer():
             db.session.add(new_setting)
         
         db.session.commit()
-        flash(translate('settings.admin.email_footer.flash_saved'), 'success')
-        if request.form.get('return_to') == 'module':
-            return _settings_redirect('settings.admin_email_module')
-        return _settings_redirect('settings.admin_email_footer')
+        redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_footer'
+        return _settings_save_response(True, translate('settings.admin.email_footer.flash_saved'), redirect_ep)
     
     # Get current footer template
     footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
@@ -2633,8 +2631,11 @@ def admin_file_settings():
         except Exception as sync_err:
             current_app.logger.warning('MAX_CONTENT_LENGTH sync failed: %s', sync_err)
 
-        flash(translate('settings.admin.file_settings.flash_updated'), 'success')
-        return _settings_redirect('settings.admin_file_settings')
+        return _settings_save_response(
+            True,
+            translate('settings.admin.file_settings.flash_updated'),
+            'settings.admin_file_settings',
+        )
 
     # GET
     from app.utils.document_formats import FORMAT_OFFICE, get_document_format
@@ -2790,8 +2791,11 @@ def admin_calendar_settings():
                 db.session.rollback()
                 current_app.logger.error('Fehler beim Deaktivieren Multi-Kalender: %s', exc)
 
-        flash(translate('settings.admin.calendar_settings.flash_updated'), 'success')
-        return _settings_redirect('settings.admin_calendar_settings')
+        return _settings_save_response(
+            True,
+            translate('settings.admin.calendar_settings.flash_updated'),
+            'settings.admin_calendar_settings',
+        )
 
     from app.utils.multi_calendars import (
         is_calendar_export_enabled,
@@ -3160,55 +3164,14 @@ def admin_inventory_settings():
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])
 @login_required
 def admin_kanban_settings():
-    """Kanban visibility + board import (admin)."""
+    """Legacy URL: Sichtbarkeit über Module, Import unter Board-Import."""
     if not current_user.is_admin:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-
-    from app.utils.kanban_access import (
-        SETTING_ALLOW_PRIVATE,
-        SETTING_ALLOW_PUBLIC,
-        SETTING_ALLOW_TEAM,
-        allowed_import_board_targets,
-    )
     from app.utils.common import is_module_enabled
-
-    if not is_module_enabled('module_kanban'):
-        flash(translate('settings.admin.kanban.module_disabled'), 'warning')
-        return redirect(url_for('settings.admin_modules'))
-
-    def _upsert(key, value, description):
-        row = SystemSettings.query.filter_by(key=key).first()
-        if not row:
-            row = SystemSettings(key=key, value=str(value).lower(), description=description)
-            db.session.add(row)
-        else:
-            row.value = str(value).lower()
-
-    if request.method == 'POST':
-        allow_private = 'allow_private' in request.form
-        allow_team = 'allow_team' in request.form
-        allow_public = 'allow_public' in request.form
-        _upsert(SETTING_ALLOW_PRIVATE, allow_private, 'Kanban: private boards')
-        _upsert(SETTING_ALLOW_TEAM, allow_team, 'Kanban: team boards')
-        _upsert(SETTING_ALLOW_PUBLIC, allow_public, 'Kanban: public boards')
-        db.session.commit()
-        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_kanban_settings')
-
-    def _get_bool(key, default=True):
-        row = SystemSettings.query.filter_by(key=key).first()
-        if row is None:
-            return default
-        return str(row.value).lower() in ('true', '1', 'yes', 'on')
-
-    return render_template(
-        'settings/admin_kanban_settings.html',
-        allow_private=_get_bool(SETTING_ALLOW_PRIVATE, True),
-        allow_team=_get_bool(SETTING_ALLOW_TEAM, True),
-        allow_public=_get_bool(SETTING_ALLOW_PUBLIC, True),
-        import_targets=allowed_import_board_targets(current_user),
-        kanban_import_url=url_for('kanban.api_import_board'),
-    )
+    if is_module_enabled('module_kanban'):
+        return redirect(url_for('settings.kanban_import'))
+    return redirect(url_for('settings.admin_modules'))
 
 
 @settings_bp.route('/kanban-import')
@@ -3403,10 +3366,8 @@ def admin_email_settings():
             )
         
         db.session.commit()
-        flash(translate('settings.admin.email_settings.flash_saved'), 'success')
-        if request.form.get('return_to') == 'module':
-            return _settings_redirect('settings.admin_email_module')
-        return _settings_redirect('settings.admin_email_settings')
+        redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_settings'
+        return _settings_save_response(True, translate('settings.admin.email_settings.flash_saved'), redirect_ep)
     
     # Lade aktuelle Einstellungen
     storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()

@@ -905,7 +905,8 @@
     },
     "search": {
       "label": "Search settings",
-      "placeholder": "Search settings…"
+      "placeholder": "Search settings…",
+      "empty": "No results"
     },
     "team_settings": {
       "title": "Team settings",
@@ -1443,7 +1444,8 @@
         "allow_team": "Team variants",
         "allow_public": "Public variants",
         "module_file_converter": "File Converter",
-        "module_surveys": "Surveys"
+        "module_surveys": "Surveys",
+        "lead_short": "Enable and disable modules."
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1528,7 +1530,15 @@
         "flash_guest_load_error": "Could not load guest account.",
         "flash_guest_save_error": "Could not save guest account.",
         "search_placeholder": "Search by name or email…",
-        "search_no_results": "No users found."
+        "search_no_results": "No users found.",
+        "lead_short": "Users, guests and codes.",
+        "view_list": "List",
+        "view_grid": "Grid",
+        "col_name": "Name",
+        "col_email": "Email",
+        "col_login": "Last login",
+        "col_status": "Status",
+        "queue_title": "Queue"
       },
       "create_user": {
         "page_title": "Create user - Administration",
@@ -1747,12 +1757,14 @@
         "save_button": "Save changes",
         "back_button": "Back",
         "flash_updated": "Bot protection settings have been saved.",
-        "flash_keys_required": "Please provide Site Key and Secret Key before enabling reCAPTCHA or Turnstile."
+        "flash_keys_required": "Please provide Site Key and Secret Key before enabling reCAPTCHA or Turnstile.",
+        "lead_short": "Captcha and honeypot for login and forms."
       },
       "file_settings": {
         "page_title": "File Settings - Administration",
         "breadcrumb_file_settings": "File Settings",
         "heading": "File Settings",
+        "lead_short": "Dropboxes, sharing, limits and quotas.",
         "subtitle": "Control mailboxes, shares, private folders, document formats, and storage limits for the files module.",
         "section_title": "File Functions",
         "dropbox_label": "Enable Mailboxes",
@@ -1810,6 +1822,7 @@
         "page_title": "Calendar Settings - Administration",
         "breadcrumb": "Calendar Settings",
         "heading": "Calendar Settings",
+        "lead_short": "Control import and export.",
         "subtitle": "Import, export, and advanced calendar features.",
         "section_title": "Calendar Features",
         "visibility_moved": "Private and team calendars are configured centrally under Modules → Visibility variants.",
@@ -1903,7 +1916,8 @@
         "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG.",
         "section_security": "Security & sessions",
         "inactivity_logout_hint": "Users are automatically logged out after 30 days without portal activity. Manage devices under Security.",
-        "flash_inactivity_logout": "You were logged out after 30 days of inactivity. Please sign in again."
+        "flash_inactivity_logout": "You were logged out after 30 days of inactivity. Please sign in again.",
+        "lead_short": "Portal name, logo, timezone and branding."
       },
       "legal": {
         "page_title": "Legal notice & terms - Administration",
@@ -1925,13 +1939,19 @@
         "toolbar_label": "Formatting",
         "tool_bold": "Bold",
         "tool_italic": "Italic",
-        "tool_list": "List"
+        "tool_list": "List",
+        "lead_short": "Texts for login and public pages.",
+        "tip_body": "Changes save automatically. Use preview to check the public page.",
+        "markdown_hint": "**bold**, *italic*, [link](url), lists with -.",
+        "tool_link": "Link"
       },
       "booking_forms": {
         "page_title": "Booking forms - Administration",
         "heading": "Booking forms",
+        "lead_short": "Forms, fields and approval roles.",
         "subtitle": "Create forms, manage fields and approval roles, configure PDF application text.",
         "list_title": "Forms",
+        "col_requests": "Requests",
         "create": "New form",
         "edit": "Edit",
         "delete": "Delete",
@@ -2048,6 +2068,7 @@
         "flash_saved": "Inventory management settings have been saved.",
         "page_title": "Inventory Settings - Administration",
         "heading": "Inventory Settings",
+        "lead_short": "Texts for public product pages.",
         "subtitle": "Texts for public product pages and QR code scans.",
         "public_title": "Public product pages",
         "public_lead": "Shown on the public product page when a QR code is scanned.",
@@ -2062,6 +2083,7 @@
       "email_module": {
         "page_title": "Email Module Settings - Administration",
         "heading": "Email Module Settings",
+        "lead_short": "Tests, storage, multi-mailbox and footer.",
         "subtitle": "Test connections, manage storage, and configure the footer.",
         "save": "Save",
         "test": {
@@ -2194,7 +2216,8 @@
           "assessment": "Assessment: lists, criteria, evaluations and related data.",
           "shortlinks": "Short links.",
           "excalidraw": "Drawings, scenes and versions."
-        }
+        },
+        "lead_short": "Export and import portal backups."
       },
       "whitelist": {
         "page_title": "Whitelist - Administration",
@@ -2229,7 +2252,12 @@
         "flash_entry_toggle_error": "Error updating whitelist entry.",
         "flash_entry_not_found": "Whitelist entry not found.",
         "flash_entry_deleted": "Whitelist entry \"{entry}\" has been deleted.",
-        "flash_entry_delete_error": "Error deleting whitelist entry."
+        "flash_entry_delete_error": "Error deleting whitelist entry.",
+        "lead_short": "Emails and domains for auto-activation.",
+        "view_list": "List",
+        "view_grid": "Grid",
+        "col_entry": "Entry",
+        "col_status": "Status"
       },
       "teams": {
         "page_title": "Teams - Administration",
@@ -2286,7 +2314,14 @@
         "flash_members_added": "{count} member(s) added.",
         "flash_member_removed": "Member removed.",
         "flash_cannot_remove_leader": "The team lead cannot be removed. Assign a different lead first.",
-        "flash_user_teams_updated": "Teams for {name} were updated."
+        "flash_user_teams_updated": "Teams for {name} were updated.",
+        "lead_short": "Create teams and assign members.",
+        "view_list": "List",
+        "view_grid": "Grid",
+        "col_name": "Team",
+        "col_members": "Members",
+        "col_leader": "Lead",
+        "preview_title": "Preview"
       },
       "kanban": {
         "page_title": "Kanban settings",
@@ -2455,7 +2490,8 @@
       "google_help_oauth_step5": "Paste Client ID and Secret here and save — then Google login, mailbox OAuth and YouTube work.",
       "google_help_api_heading": "API key (for YouTube)",
       "redirect_hint_login": "Redirect URI: {url}",
-      "short": "OAuth & APIs"
+      "short": "OAuth & APIs",
+      "lead_short": "Google, Microsoft, and Spotify."
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -2530,7 +2566,8 @@
       "visibility_info": "Visibility for new boards",
       "tip_body": "A ZIP with multiple JSON/CSV files creates multiple boards at once.",
       "formats_title": "Formats",
-      "formats_body": "JSON and CSV for single boards, ZIP for multiple files."
+      "formats_body": "JSON and CSV for single boards, ZIP for multiple files.",
+      "visibility_label": "Visibility"
     },
     "hub": {
       "quick_title": "Quick access",
@@ -5406,6 +5443,7 @@
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Music Module Settings",
       "heading": "Music Module Settings",
+      "lead_short": "Providers and display.",
       "subtitle": "Enable providers, set search order, and manage credentials.",
       "subtitle_providers_only": "Enable providers, set search order, and display options.",
       "integrations_moved": "Spotify, YouTube, and Deezer connections are under Settings → Integrations.",
@@ -6287,7 +6325,8 @@
       "error_visibility": "This visibility is not allowed.",
       "error_failed": "Import failed.",
       "error_invalid_zip": "Invalid ZIP file",
-      "error_empty_zip": "ZIP has no JSON/CSV files"
+      "error_empty_zip": "ZIP has no JSON/CSV files",
+      "visibility": "Visibility"
     }
   },
   "visibility": {

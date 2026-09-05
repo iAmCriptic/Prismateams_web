@@ -92,14 +92,16 @@ document.querySelectorAll('form').forEach(function (form) {
 
     function bindSidebarWheel(sidebar) {
         if (!sidebar || sidebar.dataset.settingsWheelBound === '1') return;
-        var scrollEl = sidebar.querySelector('.settings-sidebar-scroll');
+        var scrollEl = sidebar.querySelector('.settings-sidebar-scroll') || sidebar.querySelector('.mod-sidebar-nav');
         if (!scrollEl) return;
         sidebar.dataset.settingsWheelBound = '1';
         sidebar.addEventListener('wheel', function (e) {
             if (e.target.closest('.mod-sidebar-brand')) return;
-            if (scrollEl.scrollHeight <= scrollEl.clientHeight) return;
+            // Always route wheel to the scroll pane (nav can be taller than the viewport).
+            var maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+            if (maxScroll <= 0) return;
             e.preventDefault();
-            scrollEl.scrollTop += e.deltaY;
+            scrollEl.scrollTop = Math.max(0, Math.min(maxScroll, scrollEl.scrollTop + e.deltaY));
         }, { passive: false });
     }
 
@@ -115,7 +117,8 @@ window.SETTINGS_UI_I18N = {
   saving: {{ _('settings.autosave.saving')|tojson }},
   saved: {{ _('settings.autosave.saved')|tojson }},
   error: {{ _('settings.autosave.error')|tojson }},
-  close: {{ _('common.close')|tojson }}
+  close: {{ _('common.close')|tojson }},
+  searchEmpty: {{ _('settings.search.empty')|tojson }}
 };
 {% if settings_search_catalog_json is defined %}
 window.SETTINGS_SEARCH_CATALOG = {{ settings_search_catalog_json | safe }};

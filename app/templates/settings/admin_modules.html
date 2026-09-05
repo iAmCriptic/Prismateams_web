@@ -1,104 +1,102 @@
 ﻿{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.admin_modules.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.modules.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-modules">
-    <div class="settings-admin-modules-header">
-        <h1 class="settings-admin-modules-title">{{ _('settings.admin.admin_modules.heading') }}</h1>
-        <p class="settings-admin-modules-subtitle">{{ _('settings.admin.admin_modules.subtitle') }}</p>
-    </div>
+<div class="sp-page sp-page--fluid settings-admin-modules">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>{{ _('settings.admin.admin_modules.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.admin.admin_modules.lead_short') }}</p>
+  </header>
 
-    <form method="POST" data-sp-autosave class="settings-admin-modules-form">
-        <section class="settings-admin-modules-card" aria-labelledby="modules-list-heading">
-            <div class="settings-admin-modules-card-head">
-                <h2 id="modules-list-heading" class="settings-admin-modules-section-title mb-0">{{ _('settings.admin.admin_modules.section_modules') }}</h2>
-                <button type="button" class="settings-admin-modules-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.admin_modules.description') }}" aria-label="{{ _('settings.admin.admin_modules.description') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_modules') }}">
+    <section class="sp-group" id="modules-list" data-settings-search-id="modules-list" aria-labelledby="modules-list-heading">
+      <div class="sp-group-head">
+        <h2 id="modules-list-heading" class="sp-group-title"><i class="bi bi-puzzle" aria-hidden="true"></i>{{ _('settings.admin.admin_modules.section_modules') }}</h2>
+        {{ sp_info(_('settings.admin.admin_modules.description')) }}
+      </div>
+      <div class="sp-group-body">
+        <div class="settings-admin-modules-grid">
+          {% set modules = [
+            ('module_chat', 'bi-chat-dots', _('settings.admin.admin_modules.module_chat'), module_chat_enabled),
+            ('module_files', 'bi-folder', _('settings.admin.admin_modules.module_files'), module_files_enabled),
+            ('module_calendar', 'bi-calendar-event', _('settings.admin.admin_modules.module_calendar'), module_calendar_enabled),
+            ('module_events', 'bi-calendar2-week', _('settings.admin.admin_modules.module_events'), module_events_enabled),
+            ('module_email', 'bi-envelope', _('settings.admin.admin_modules.module_email'), module_email_enabled),
+            ('module_contacts', 'bi-person-lines-fill', _('settings.admin.admin_modules.module_contacts'), module_contacts_enabled),
+            ('module_credentials', 'bi-key', _('settings.admin.admin_modules.module_credentials'), module_credentials_enabled),
+            ('module_manuals', 'bi-book', _('settings.admin.admin_modules.module_manuals'), module_manuals_enabled),
+            ('module_inventory', 'bi-box-seam', _('settings.admin.admin_modules.module_inventory'), module_inventory_enabled),
+            ('module_wiki', 'bi-journal-text', _('settings.admin.admin_modules.module_wiki'), module_wiki_enabled),
+            ('module_booking', 'bi-calendar-check', _('settings.admin.admin_modules.module_booking'), module_booking_enabled),
+            ('module_music', 'bi-music-note-beamed', _('settings.admin.admin_modules.module_music'), module_music_enabled),
+            ('module_media_downloader', 'bi-download', _('settings.admin.admin_modules.module_media_downloader'), module_media_downloader_enabled),
+            ('module_file_converter', 'bi-arrow-left-right', _('settings.admin.admin_modules.module_file_converter'), module_file_converter_enabled),
+            ('module_assessment', 'bi-clipboard2-check', _('settings.admin.admin_modules.module_assessment'), module_assessment_enabled),
+            ('module_shortlinks', 'bi-link-45deg', _('settings.admin.admin_modules.module_shortlinks'), module_shortlinks_enabled),
+            ('module_kanban', 'bi-kanban', _('settings.admin.admin_modules.module_kanban'), module_kanban_enabled),
+            ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
+            ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled)
+          ] %}
+          {% for key, icon, label, enabled in modules %}
+          <div class="sp-row settings-admin-modules-switch">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text"><i class="bi {{ icon }}" aria-hidden="true"></i> {{ label }}</span>
             </div>
-
-            <div class="settings-admin-modules-grid">
-                {% set modules = [
-                    ('module_chat', 'bi-chat-dots', _('settings.admin.admin_modules.module_chat'), module_chat_enabled),
-                    ('module_files', 'bi-folder', _('settings.admin.admin_modules.module_files'), module_files_enabled),
-                    ('module_calendar', 'bi-calendar-event', _('settings.admin.admin_modules.module_calendar'), module_calendar_enabled),
-                    ('module_events', 'bi-calendar2-week', _('settings.admin.admin_modules.module_events'), module_events_enabled),
-                    ('module_email', 'bi-envelope', _('settings.admin.admin_modules.module_email'), module_email_enabled),
-                    ('module_contacts', 'bi-person-lines-fill', _('settings.admin.admin_modules.module_contacts'), module_contacts_enabled),
-                    ('module_credentials', 'bi-key', _('settings.admin.admin_modules.module_credentials'), module_credentials_enabled),
-                    ('module_manuals', 'bi-book', _('settings.admin.admin_modules.module_manuals'), module_manuals_enabled),
-                    ('module_inventory', 'bi-box-seam', _('settings.admin.admin_modules.module_inventory'), module_inventory_enabled),
-                    ('module_wiki', 'bi-journal-text', _('settings.admin.admin_modules.module_wiki'), module_wiki_enabled),
-                    ('module_booking', 'bi-calendar-check', _('settings.admin.admin_modules.module_booking'), module_booking_enabled),
-                    ('module_music', 'bi-music-note-beamed', _('settings.admin.admin_modules.module_music'), module_music_enabled),
-                    ('module_media_downloader', 'bi-download', _('settings.admin.admin_modules.module_media_downloader'), module_media_downloader_enabled),
-                    ('module_file_converter', 'bi-arrow-left-right', _('settings.admin.admin_modules.module_file_converter'), module_file_converter_enabled),
-                    ('module_assessment', 'bi-clipboard2-check', _('settings.admin.admin_modules.module_assessment'), module_assessment_enabled),
-                    ('module_shortlinks', 'bi-link-45deg', _('settings.admin.admin_modules.module_shortlinks'), module_shortlinks_enabled),
-                    ('module_kanban', 'bi-kanban', _('settings.admin.admin_modules.module_kanban'), module_kanban_enabled),
-                    ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
-                    ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled)
-                ] %}
-                {% for key, icon, label, enabled in modules %}
-                <div class="form-check form-switch settings-admin-modules-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="{{ key }}" name="{{ key }}" {% if enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="{{ key }}">
-                        <i class="bi {{ icon }}" aria-hidden="true"></i>
-                        <span>{{ label }}</span>
-                    </label>
-                </div>
-                {% endfor %}
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="{{ key }}" name="{{ key }}" {% if enabled %}checked{% endif %}>
+              </div>
             </div>
-        </section>
-
-        <section class="settings-admin-modules-card mt-3" aria-labelledby="modules-visibility-heading">
-            <div class="settings-admin-modules-card-head">
-                <h2 id="modules-visibility-heading" class="settings-admin-modules-section-title mb-0">{{ _('settings.admin.admin_modules.section_visibility') }}</h2>
-                <button type="button" class="settings-admin-modules-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.admin.admin_modules.visibility_description') }}" aria-label="{{ _('settings.admin.admin_modules.visibility_description') }}">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                </button>
-            </div>
-            <p class="settings-admin-modules-hint mb-3">{{ _('settings.admin.admin_modules.visibility_lead') }}</p>
-            <div class="settings-admin-modules-grid">
-                <div class="form-check form-switch settings-admin-modules-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_private" name="modules_allow_private" {% if modules_allow_private %}checked{% endif %}>
-                    <label class="form-check-label" for="modules_allow_private">
-                        <i class="bi bi-person-lock" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.admin_modules.allow_private') }}</span>
-                    </label>
-                </div>
-                <div class="form-check form-switch settings-admin-modules-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_team" name="modules_allow_team" {% if modules_allow_team %}checked{% endif %}>
-                    <label class="form-check-label" for="modules_allow_team">
-                        <i class="bi bi-people" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.admin_modules.allow_team') }}</span>
-                    </label>
-                </div>
-                <div class="form-check form-switch settings-admin-modules-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_public" name="modules_allow_public" {% if modules_allow_public %}checked{% endif %}>
-                    <label class="form-check-label" for="modules_allow_public">
-                        <i class="bi bi-globe" aria-hidden="true"></i>
-                        <span>{{ _('settings.admin.admin_modules.allow_public') }}</span>
-                    </label>
-                </div>
-            </div>
-        </section>
-
-        <div class="settings-admin-modules-actions">
-            <button type="submit" class="btn btn-accent settings-admin-modules-submit">{{ _('settings.admin.admin_modules.save') }}</button>
+          </div>
+          {% endfor %}
         </div>
-    </form>
-</div>
+      </div>
+    </section>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.settings-admin-modules [data-bs-toggle="tooltip"]').forEach(function (el) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-});
-</script>
+    <section class="sp-group" id="modules-visibility" data-settings-search-id="modules-visibility" aria-labelledby="modules-visibility-heading">
+      <div class="sp-group-head">
+        <h2 id="modules-visibility-heading" class="sp-group-title"><i class="bi bi-eye" aria-hidden="true"></i>{{ _('settings.admin.admin_modules.section_visibility') }}</h2>
+        {{ sp_info(_('settings.admin.admin_modules.visibility_description')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-0">{{ _('settings.admin.admin_modules.visibility_lead') }}</p>
+        <div class="settings-admin-modules-grid settings-admin-modules-grid--visibility">
+          <div class="sp-row settings-admin-modules-switch">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text"><i class="bi bi-person-lock" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_private') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_private" name="modules_allow_private" {% if modules_allow_private %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row settings-admin-modules-switch">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text"><i class="bi bi-people" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_team') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_team" name="modules_allow_team" {% if modules_allow_team %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row settings-admin-modules-switch">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text"><i class="bi bi-globe" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_public') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="modules_allow_public" name="modules_allow_public" {% if modules_allow_public %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+</div>
 {% endblock %}

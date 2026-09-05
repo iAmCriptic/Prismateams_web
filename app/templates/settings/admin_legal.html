@@ -1,110 +1,120 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.legal.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.legal.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-system settings-admin-legal">
-    <div class="settings-admin-system-header">
-        <h1 class="settings-admin-system-title">{{ _('settings.admin.legal.heading') }}</h1>
-        <p class="settings-admin-system-subtitle">{{ _('settings.admin.legal.subtitle') }}</p>
+<div class="sp-layout">
+  <div class="sp-page sp-page--fluid settings-admin-legal">
+    <header class="sp-page-header">
+      <h1 class="sp-page-title"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>{{ _('settings.admin.legal.heading') }}</span></h1>
+      <p class="sp-page-lead">{{ _('settings.admin.legal.lead_short') }}</p>
+    </header>
+
+    <div class="sp-seg sp-seg--wrap mb-3" role="tablist" aria-label="{{ _('settings.admin.legal.tabs_label') }}" id="legalTabBar">
+      <button type="button" class="active" data-legal-tab="terms" aria-selected="true">{{ _('settings.admin.legal.terms_heading') }}</button>
+      <button type="button" data-legal-tab="privacy" aria-selected="false">{{ _('settings.admin.legal.privacy_heading') }}</button>
+      <button type="button" data-legal-tab="imprint" aria-selected="false">{{ _('settings.admin.legal.imprint_heading') }}</button>
     </div>
 
-    <form method="POST" class="settings-admin-system-form" id="legalSettingsForm" data-sp-autosave>
-        <div class="settings-appearance-type-toggle mb-3" role="tablist" aria-label="{{ _('settings.admin.legal.tabs_label') }}">
-            <input type="radio" class="btn-check" name="legal_tab" id="legalTabTerms" autocomplete="off" checked>
-            <label class="settings-appearance-type-btn" for="legalTabTerms" data-legal-tab="terms">{{ _('settings.admin.legal.terms_heading') }}</label>
-            <input type="radio" class="btn-check" name="legal_tab" id="legalTabPrivacy" autocomplete="off">
-            <label class="settings-appearance-type-btn" for="legalTabPrivacy" data-legal-tab="privacy">{{ _('settings.admin.legal.privacy_heading') }}</label>
-            <input type="radio" class="btn-check" name="legal_tab" id="legalTabImprint" autocomplete="off">
-            <label class="settings-appearance-type-btn" for="legalTabImprint" data-legal-tab="imprint">{{ _('settings.admin.legal.imprint_heading') }}</label>
+    <form method="POST" id="legalSettingsForm" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_legal') }}">
+      {% set legal_pages = [
+        ('terms', _('settings.admin.legal.terms_heading'), 'auth.terms', 'terms_text', terms_text, _('settings.admin.legal.terms_help')),
+        ('privacy', _('settings.admin.legal.privacy_heading'), 'auth.privacy', 'privacy_text', privacy_text, _('settings.admin.legal.privacy_help')),
+        ('imprint', _('settings.admin.legal.imprint_heading'), 'auth.imprint', 'imprint_text', imprint_text, _('settings.admin.legal.imprint_help'))
+      ] %}
+
+      {% for page_id, heading, preview_route, field_name, field_value, help_text in legal_pages %}
+      <section class="sp-group legal-editor-panel{% if page_id != 'terms' %} d-none{% endif %}" data-legal-panel="{{ page_id }}" aria-labelledby="legal-{{ page_id }}-title">
+        <div class="sp-group-head">
+          <h2 id="legal-{{ page_id }}-title" class="sp-group-title"><i class="bi bi-markdown" aria-hidden="true"></i>{{ heading }}</h2>
+          <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary rounded-pill sp-btn-pill" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+            {{ _('settings.admin.legal.preview') }}
+          </a>
         </div>
-
-        {% set legal_pages = [
-            ('terms', _('settings.admin.legal.terms_heading'), 'auth.terms', 'terms_text', terms_text, _('settings.admin.legal.terms_help')),
-            ('privacy', _('settings.admin.legal.privacy_heading'), 'auth.privacy', 'privacy_text', privacy_text, _('settings.admin.legal.privacy_help')),
-            ('imprint', _('settings.admin.legal.imprint_heading'), 'auth.imprint', 'imprint_text', imprint_text, _('settings.admin.legal.imprint_help'))
-        ] %}
-
-        {% for page_id, heading, preview_route, field_name, field_value, help_text in legal_pages %}
-        <section class="settings-admin-system-card mb-3 legal-editor-panel{% if page_id != 'terms' %} d-none{% endif %}" data-legal-panel="{{ page_id }}" aria-labelledby="legal-{{ page_id }}-title">
-            <div class="settings-admin-system-card-head">
-                <button class="btn btn-link settings-admin-legal-collapse-toggle p-0 text-start flex-grow-1" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#legalCollapse{{ page_id|capitalize }}" aria-expanded="true"
-                        aria-controls="legalCollapse{{ page_id|capitalize }}" id="legal-{{ page_id }}-title">
-                    <h2 class="settings-admin-system-section-title mb-0">{{ heading }}</h2>
-                </button>
-                <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary rounded-pill" target="_blank" rel="noopener">
-                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-                    {{ _('settings.admin.legal.preview') }}
-                </a>
+        <div class="sp-group-body">
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ help_text }}</span>
             </div>
-
-            <div class="collapse show" id="legalCollapse{{ page_id|capitalize }}">
-                <p class="form-text mb-2">{{ help_text }}</p>
-                <div class="settings-admin-legal-toolbar btn-group btn-group-sm mb-2" role="toolbar" aria-label="{{ _('settings.admin.legal.toolbar_label') }}">
-                    <button type="button" class="btn btn-outline-secondary" data-legal-md="bold" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_bold') }}"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
-                    <button type="button" class="btn btn-outline-secondary" data-legal-md="italic" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_italic') }}"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
-                    <button type="button" class="btn btn-outline-secondary" data-legal-md="list" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_list') }}"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
-                </div>
-                <div class="settings-admin-system-field mb-0">
-                    <label for="{{ field_name }}" class="form-label visually-hidden">{{ heading }}</label>
-                    <textarea class="form-control settings-admin-system-input settings-admin-legal-textarea" id="{{ field_name }}" name="{{ field_name }}" rows="14" spellcheck="true">{{ field_value }}</textarea>
-                </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.55rem">
+              <div class="sp-seg" role="toolbar" aria-label="{{ _('settings.admin.legal.toolbar_label') }}">
+                <button type="button" data-legal-md="bold" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_bold') }}"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                <button type="button" data-legal-md="italic" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_italic') }}"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                <button type="button" data-legal-md="link" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_link') }}"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+                <button type="button" data-legal-md="list" data-target="{{ field_name }}" title="{{ _('settings.admin.legal.tool_list') }}"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+              </div>
+              <label for="{{ field_name }}" class="visually-hidden">{{ heading }}</label>
+              <textarea class="form-control settings-admin-legal-textarea" id="{{ field_name }}" name="{{ field_name }}" rows="16" spellcheck="true">{{ field_value }}</textarea>
             </div>
-        </section>
-        {% endfor %}
-
-        <div class="settings-admin-system-actions">
-            <button type="submit" class="btn btn-accent rounded-pill settings-admin-system-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('settings.admin.legal.save') }}
-            </button>
+          </div>
         </div>
+      </section>
+      {% endfor %}
     </form>
-</div>
+  </div>
 
+  <aside class="sp-sidepanel" aria-label="{{ _('settings.hub.tip_title') }}">
+    <div class="sp-sidepanel-card">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-lightbulb" aria-hidden="true"></i>{{ _('settings.hub.tip_title') }}</h2>
+      <p class="sp-sidepanel-lead mb-0">{{ _('settings.admin.legal.tip_body') }}</p>
+    </div>
+    <div class="sp-sidepanel-card sp-sidepanel-card--muted">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-markdown" aria-hidden="true"></i>Markdown</h2>
+      <p class="sp-sidepanel-lead mb-0">{{ _('settings.admin.legal.markdown_hint') }}</p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var panels = document.querySelectorAll('[data-legal-panel]');
-    var tabInputs = document.querySelectorAll('input[name="legal_tab"]');
+  var panels = document.querySelectorAll('[data-legal-panel]');
+  var tabs = document.querySelectorAll('#legalTabBar [data-legal-tab]');
 
-    function showPanel(id) {
-        panels.forEach(function (panel) {
-            panel.classList.toggle('d-none', panel.getAttribute('data-legal-panel') !== id);
-        });
-    }
-
-    tabInputs.forEach(function (input) {
-        input.addEventListener('change', function () {
-            if (!input.checked) return;
-            var label = document.querySelector('label[for="' + input.id + '"]');
-            if (label) showPanel(label.getAttribute('data-legal-tab'));
-        });
+  function showPanel(id) {
+    panels.forEach(function (panel) {
+      panel.classList.toggle('d-none', panel.getAttribute('data-legal-panel') !== id);
     });
-
-    function wrapSelection(textarea, before, after) {
-        var start = textarea.selectionStart;
-        var end = textarea.selectionEnd;
-        var val = textarea.value;
-        var selected = val.substring(start, end) || 'Text';
-        textarea.value = val.substring(0, start) + before + selected + after + val.substring(end);
-        textarea.focus();
-        textarea.selectionStart = start + before.length;
-        textarea.selectionEnd = start + before.length + selected.length;
-    }
-
-    document.querySelectorAll('[data-legal-md]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var targetId = btn.getAttribute('data-target');
-            var textarea = document.getElementById(targetId);
-            if (!textarea) return;
-            var action = btn.getAttribute('data-legal-md');
-            if (action === 'bold') wrapSelection(textarea, '**', '**');
-            else if (action === 'italic') wrapSelection(textarea, '*', '*');
-            else if (action === 'list') wrapSelection(textarea, '- ', '');
-        });
+    tabs.forEach(function (tab) {
+      var on = tab.getAttribute('data-legal-tab') === id;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      showPanel(tab.getAttribute('data-legal-tab'));
+    });
+  });
+
+  function wrapSelection(textarea, before, after) {
+    var start = textarea.selectionStart;
+    var end = textarea.selectionEnd;
+    var val = textarea.value;
+    var selected = val.substring(start, end) || 'Text';
+    textarea.value = val.substring(0, start) + before + selected + after + val.substring(end);
+    textarea.focus();
+    textarea.selectionStart = start + before.length;
+    textarea.selectionEnd = start + before.length + selected.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  document.querySelectorAll('[data-legal-md]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var textarea = document.getElementById(btn.getAttribute('data-target'));
+      if (!textarea) return;
+      var action = btn.getAttribute('data-legal-md');
+      if (action === 'bold') wrapSelection(textarea, '**', '**');
+      else if (action === 'italic') wrapSelection(textarea, '*', '*');
+      else if (action === 'link') wrapSelection(textarea, '[', '](https://)');
+      else if (action === 'list') wrapSelection(textarea, '- ', '');
+    });
+  });
 });
 </script>
 {% endblock %}

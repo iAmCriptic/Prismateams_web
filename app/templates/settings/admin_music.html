@@ -1,4 +1,5 @@
 ﻿{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('music.admin.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('booking.admin.cards.music_module.title') }}{% endblock %}
@@ -12,101 +13,92 @@
 ] %}
 {% set known_ids = ['spotify', 'youtube', 'deezer', 'musicbrainz'] %}
 
-<div class="settings-admin-music">
-    <div class="settings-admin-music-header">
-        <div class="settings-admin-music-header-text">
-            <h1 class="settings-admin-music-title">{{ _('music.admin.heading') }}</h1>
-            <p class="settings-admin-music-subtitle">{{ _('music.admin.subtitle_providers_only') }}</p>
+<div class="sp-page sp-page--fluid settings-admin-music">
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-music-note-beamed" aria-hidden="true"></i><span>{{ _('music.admin.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('music.admin.lead_short') }}</p>
+  </header>
+
+  <div class="sp-group settings-admin-music-notice" role="status">
+    <div class="sp-group-body">
+      <div class="settings-admin-music-notice-inner">
+        <i class="bi bi-info-circle" aria-hidden="true"></i>
+        <div>
+          <p class="mb-2">{{ _('music.admin.integrations_moved') }}</p>
+          <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+            <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>{{ _('settings.integrations.heading') }}
+          </a>
         </div>
+      </div>
     </div>
+  </div>
 
-    <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
-        <div class="portal-msg__body">
-            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
-            <div class="portal-msg__content">
-                <p class="portal-msg__text mb-2">{{ _('music.admin.integrations_moved') }}</p>
-                <a href="{{ url_for('settings.admin_integrations') }}" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary">
-                    <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>{{ _('settings.integrations.heading') }}
-                </a>
+  <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_music') }}" id="musicSettingsForm">
+    <section class="sp-group" id="music-providers" data-settings-search-id="music-providers" aria-labelledby="music-providers-title">
+      <div class="sp-group-head">
+        <h2 id="music-providers-title" class="sp-group-title"><i class="bi bi-list-check" aria-hidden="true"></i>{{ _('music.admin.provider_activation.title') }}</h2>
+        {{ sp_info(_('music.admin.provider_activation.description')) }}
+      </div>
+      <div class="sp-group-body">
+        <div class="settings-admin-music-list" id="providerList">
+          {% for provider in provider_order if provider in known_ids %}
+          {% set provider_info = all_providers | selectattr('id', 'equalto', provider) | first %}
+          {% if provider_info %}
+          <div class="settings-admin-music-row provider-item sp-row" data-provider="{{ provider }}">
+            <div class="sp-row-label">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox"
+                       id="provider_enabled_{{ provider }}"
+                       name="provider_enabled_{{ provider }}"
+                       {% if provider in enabled_providers %}checked{% endif %}>
+                <label class="form-check-label sp-row-label-text" for="provider_enabled_{{ provider }}">
+                  <i class="bi {{ provider_info.icon }}" aria-hidden="true"></i>
+                  <span>{{ provider_info.name }}</span>
+                </label>
+              </div>
             </div>
+            <div class="sp-row-control settings-admin-music-move">
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill move-up" title="{{ _('music.admin.provider_activation.move_up') }}">
+                <i class="bi bi-arrow-up" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill move-down" title="{{ _('music.admin.provider_activation.move_down') }}">
+                <i class="bi bi-arrow-down" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
         </div>
-    </div>
+        <input type="hidden" name="provider_order" id="provider_order" value="">
+      </div>
+    </section>
 
-    <form method="POST" data-sp-autosave id="musicSettingsForm" class="settings-admin-music-form">
-        <section class="settings-admin-music-card" aria-labelledby="music-providers-title">
-            <div class="settings-admin-music-card-head">
-                <h2 id="music-providers-title" class="settings-admin-music-section-title mb-0">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    {{ _('music.admin.provider_activation.title') }}
-                </h2>
+    <section class="sp-group" id="music-display" data-settings-search-id="music-display" aria-labelledby="music-display-title">
+      <div class="sp-group-head">
+        <h2 id="music-display-title" class="sp-group-title"><i class="bi bi-eye" aria-hidden="true"></i>{{ _('music.admin.display_settings.title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('music.admin.display_settings.show_provider_badges') }}</span>
+            {{ sp_info(_('music.admin.display_settings.show_provider_badges_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="show_provider_badges" name="show_provider_badges" {% if show_provider_badges %}checked{% endif %}>
             </div>
-            <p class="settings-admin-music-hint">{{ _('music.admin.provider_activation.description') }}</p>
-
-            <div class="settings-admin-music-list settings-admin-music-list--grid" id="providerList">
-                {% for provider in provider_order if provider in known_ids %}
-                {% set provider_info = all_providers | selectattr('id', 'equalto', provider) | first %}
-                {% if provider_info %}
-                <div class="settings-admin-music-row provider-item" data-provider="{{ provider }}">
-                    <div class="settings-admin-music-row-main">
-                        <div class="form-check form-switch settings-admin-music-switch mb-0">
-                            <input class="form-check-input" type="checkbox"
-                                   id="provider_enabled_{{ provider }}"
-                                   name="provider_enabled_{{ provider }}"
-                                   {% if provider in enabled_providers %}checked{% endif %}>
-                            <label class="form-check-label settings-admin-music-name" for="provider_enabled_{{ provider }}">
-                                <i class="bi {{ provider_info.icon }}" aria-hidden="true"></i>
-                                <span>{{ provider_info.name }}</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="settings-admin-music-row-actions">
-                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-music-btn move-up" title="{{ _('music.admin.provider_activation.move_up') }}">
-                            <i class="bi bi-arrow-up" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary settings-admin-music-btn move-down" title="{{ _('music.admin.provider_activation.move_down') }}">
-                            <i class="bi bi-arrow-down" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            <input type="hidden" name="provider_order" id="provider_order" value="">
-        </section>
-
-        <section class="settings-admin-music-card mt-3" aria-labelledby="music-display-title">
-            <div class="settings-admin-music-card-head">
-                <h2 id="music-display-title" class="settings-admin-music-section-title mb-0">
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                    {{ _('music.admin.display_settings.title') }}
-                </h2>
-            </div>
-            <div class="settings-admin-music-row">
-                <div class="settings-admin-music-row-main">
-                    <div class="form-check form-switch settings-admin-music-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="show_provider_badges" name="show_provider_badges" {% if show_provider_badges %}checked{% endif %}>
-                        <label class="form-check-label" for="show_provider_badges">
-                            <span class="settings-admin-music-name">{{ _('music.admin.display_settings.show_provider_badges') }}</span>
-                        </label>
-                    </div>
-                    <p class="settings-admin-music-meta mb-0">{{ _('music.admin.display_settings.show_provider_badges_help') }}</p>
-                </div>
-            </div>
-        </section>
-
-        <div class="settings-admin-music-actions">
-            <button type="submit" class="btn btn-accent settings-admin-music-submit">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {{ _('music.admin.save') }}
-            </button>
+          </div>
         </div>
-    </form>
+      </div>
+    </section>
+  </form>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var providerList = document.getElementById('providerList');
     var providerOrderInput = document.getElementById('provider_order');
+    var form = document.getElementById('musicSettingsForm');
     if (!providerList || !providerOrderInput) return;
 
     function updateProviderOrder() {
@@ -129,6 +121,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (next) providerList.insertBefore(next, item);
         }
         updateProviderOrder();
+        if (form && typeof form.dispatchEvent === 'function') {
+            form.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     });
 
     updateProviderOrder();

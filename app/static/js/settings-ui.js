@@ -5,7 +5,7 @@
   'use strict';
 
   var DEBOUNCE_MS = 500;
-  var TOAST_MS = 2600;
+  var TOAST_MS = 1800;
   var FLASH_CLASS = 'sp-search-flash';
   var activeFlashEl = null;
   var toastHost = null;
@@ -21,7 +21,7 @@
     return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  /* ——— Toast ——— */
+  /* ——— Save feedback (top-center check) ——— */
   function ensureToastHost() {
     if (toastHost) return toastHost;
     toastHost = document.getElementById('spToastHost');
@@ -37,39 +37,47 @@
 
   function showToast(message, state) {
     state = state || 'success';
+    // Autosave: only show confirmation check / errors — no „Speichern…“ toast
+    if (state === 'saving') return;
     var host = ensureToastHost();
     if (!toastEl) {
       toastEl = document.createElement('div');
       toastEl.className = 'sp-toast';
       toastEl.setAttribute('role', 'status');
       toastEl.innerHTML =
+        '<span class="sp-toast-check" aria-hidden="true">' +
+          '<svg class="sp-toast-check-svg" viewBox="0 0 52 52" focusable="false">' +
+            '<circle class="sp-toast-check-circle" cx="26" cy="26" r="24" fill="none"/>' +
+            '<path class="sp-toast-check-mark" fill="none" d="M14.5 27.2l7.2 7.2 15.8-15.8"/>' +
+          '</svg>' +
+        '</span>' +
         '<span class="sp-toast-icon" aria-hidden="true"><i class="bi"></i></span>' +
-        '<span class="sp-toast-msg"></span>' +
-        '<button type="button" class="sp-toast-close" aria-label="' + t('close', 'Schließen') + '"><i class="bi bi-x-lg"></i></button>';
-      toastEl.querySelector('.sp-toast-close').addEventListener('click', hideToast);
+        '<span class="sp-toast-msg"></span>';
       host.appendChild(toastEl);
     }
-    toastEl.classList.remove('sp-toast--saving', 'sp-toast--success', 'sp-toast--error', 'is-visible');
+    toastEl.classList.remove('sp-toast--saving', 'sp-toast--success', 'sp-toast--error', 'is-visible', 'is-animating');
     toastEl.classList.add('sp-toast--' + state);
-    var icon = toastEl.querySelector('.sp-toast-icon i');
-    icon.className = 'bi ' + (
-      state === 'saving' ? 'bi-arrow-repeat' :
-      state === 'error' ? 'bi-exclamation-circle' :
-      'bi-check-circle'
-    );
-    toastEl.querySelector('.sp-toast-msg').textContent = message || '';
-    // reflow for animation
+    var msg = toastEl.querySelector('.sp-toast-msg');
+    if (state === 'success') {
+      msg.textContent = '';
+      toastEl.setAttribute('aria-label', message || t('saved', 'Gespeichert'));
+    } else {
+      toastEl.querySelector('.sp-toast-icon i').className = 'bi bi-exclamation-circle';
+      msg.textContent = message || '';
+      toastEl.removeAttribute('aria-label');
+    }
     void toastEl.offsetWidth;
     toastEl.classList.add('is-visible');
-    if (toastTimer) clearTimeout(toastTimer);
-    if (state !== 'saving') {
-      toastTimer = setTimeout(hideToast, TOAST_MS);
+    if (state === 'success' && !prefersReducedMotion()) {
+      toastEl.classList.add('is-animating');
     }
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, state === 'error' ? 3200 : TOAST_MS);
   }
 
   function hideToast() {
     if (!toastEl) return;
-    toastEl.classList.remove('is-visible');
+    toastEl.classList.remove('is-visible', 'is-animating');
     if (toastTimer) {
       clearTimeout(toastTimer);
       toastTimer = null;
@@ -172,7 +180,6 @@
     opts = opts || {};
     var url = getSaveUrl(form);
     var silent = !!opts.silent;
-    if (!silent) showToast(t('saving', 'Speichern…'), 'saving');
 
     var headers = {
       'Accept': 'application/json',
@@ -219,16 +226,25 @@
         return { ok: res.ok, status: res.status, data: {} };
       });
     }).then(function (result) {
-        if (result.ok) {
-          var msg = (result.data && result.data.message) || t('saved', 'Gespeichert');
-          showToast(msg, 'success');
-          form.dispatchEvent(new CustomEvent('sp:saved', { detail: result.data }));
-          if ((result.data && result.data.reload) || form.dataset.spReloadOnSave === '1') {
-            setTimeout(function () { window.location.reload(); }, 450);
-          } else if (result.data) {
-            applyLiveAppearance(result.data);
-          }
-        } else {
+      if (result.ok) {
+        form.dispatchEvent(new CustomEvent('sp:saved', { detail: result.data }));
+        if (result.data) applyLiveAppearance(result.data);
+        var needsReload = !!(result.data && result.data.reload) || form.dataset.spReloadOnSave === '1';
+        if (needsReload) {
+          softReloadMain().then(function () {
+            if (!silent) {
+              var msg = (result.data && result.data.message) || t('saved', 'Gespeichert');
+              showToast(msg, 'success');
+            }
+          }).catch(function () {
+            if (!silent) showToast(t('saved', 'Gespeichert'), 'success');
+            setTimeout(function () { window.location.reload(); }, 350);
+          });
+        } else if (!silent) {
+          var msgOk = (result.data && result.data.message) || t('saved', 'Gespeichert');
+          showToast(msgOk, 'success');
+        }
+      } else {
         var err = (result.data && (result.data.message || result.data.error)) || t('error', 'Speichern fehlgeschlagen');
         showToast(err, 'error');
         form.dispatchEvent(new CustomEvent('sp:save-error', { detail: result.data }));
@@ -301,9 +317,43 @@
   }
 
   /* ——— Search UI ——— */
+  function normalizeSearchText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function itemMatchesQuery(item, q) {
+    var title = normalizeSearchText(item.title);
+    var keywords = normalizeSearchText(item.keywords);
+    if (!q) return false;
+    // Short queries: title only (avoids "te" → telefon/theme/dateien noise)
+    if (q.length < 3) {
+      return title.indexOf(q) !== -1;
+    }
+    if (title.indexOf(q) !== -1) return true;
+    // Keyword tokens: prefix match, or contains for longer queries
+    return keywords.split(/\s+/).some(function (tok) {
+      if (!tok) return false;
+      if (tok.indexOf(q) === 0) return true;
+      return q.length >= 4 && tok.indexOf(q) !== -1;
+    });
+  }
+
+  function scoreItem(item, q) {
+    var title = normalizeSearchText(item.title);
+    if (title.indexOf(q) === 0) return 0;
+    if (title.indexOf(q) !== -1) return 1;
+    return 2;
+  }
+
   function initSearch() {
     var catalog = window.SETTINGS_SEARCH_CATALOG || [];
+    var emptyLabel = (window.SETTINGS_UI_I18N && window.SETTINGS_UI_I18N.searchEmpty) || 'Keine Treffer';
     document.querySelectorAll('[data-settings-search-root]').forEach(function (root) {
+      if (root.dataset.spSearchBound === '1') return;
+      root.dataset.spSearchBound = '1';
       var input = root.querySelector('[data-settings-search-input]');
       var results = root.querySelector('[data-settings-search-results]');
       var clearBtn = root.querySelector('[data-settings-search-clear]');
@@ -323,7 +373,6 @@
 
       function navigate(url) {
         if (!url) return;
-        // same-page hash flash
         try {
           var u = new URL(url, window.location.origin);
           if (u.pathname === window.location.pathname && u.hash) {
@@ -338,7 +387,7 @@
       }
 
       function render(query) {
-        var q = (query || '').trim().toLowerCase();
+        var q = normalizeSearchText(query).trim();
         results.innerHTML = '';
         activeIndex = -1;
         updateClear();
@@ -346,14 +395,20 @@
           hideResults();
           return;
         }
-        var matches = catalog.filter(function (item) {
-          return (item.title || '').toLowerCase().indexOf(q) !== -1 ||
-            (item.keywords || '').indexOf(q) !== -1;
-        }).slice(0, 8);
+        var matches = catalog
+          .filter(function (item) { return itemMatchesQuery(item, q); })
+          .sort(function (a, b) { return scoreItem(a, q) - scoreItem(b, q); })
+          .slice(0, 10);
+
         if (!matches.length) {
-          hideResults();
+          var empty = document.createElement('div');
+          empty.className = 'settings-search-empty';
+          empty.textContent = emptyLabel;
+          results.appendChild(empty);
+          results.classList.remove('d-none');
           return;
         }
+
         matches.forEach(function (item) {
           var btn = document.createElement('button');
           btn.type = 'button';
@@ -393,11 +448,10 @@
             items[activeIndex].click();
             return;
           }
-          var q = (input.value || '').trim().toLowerCase();
-          var first = catalog.find(function (item) {
-            return (item.title || '').toLowerCase().indexOf(q) !== -1 ||
-              (item.keywords || '').indexOf(q) !== -1;
-          });
+          var q = normalizeSearchText(input.value).trim();
+          var first = catalog
+            .filter(function (item) { return itemMatchesQuery(item, q); })
+            .sort(function (a, b) { return scoreItem(a, q) - scoreItem(b, q); })[0];
           if (first) navigate(first.url);
         } else if (e.key === 'Escape') {
           hideResults();
@@ -409,16 +463,119 @@
     });
   }
 
+  var hashFlashBound = false;
+  var softReloadBusy = false;
+
+  function runInlineSettingsGlobals(doc) {
+    if (!doc) return;
+    doc.querySelectorAll('script').forEach(function (script) {
+      if (script.src) return;
+      var text = script.textContent || '';
+      if (text.indexOf('SETTINGS_UI_I18N') === -1 && text.indexOf('SETTINGS_SEARCH_CATALOG') === -1) return;
+      try {
+        // eslint-disable-next-line no-new-func
+        (new Function(text))();
+      } catch (e) { /* ignore */ }
+    });
+    i18n = (window.SETTINGS_UI_I18N) || {};
+  }
+
+  function swapNode(doc, selector) {
+    var next = doc.querySelector(selector);
+    var cur = document.querySelector(selector);
+    if (!next || !cur) return false;
+    cur.replaceWith(document.importNode(next, true));
+    return true;
+  }
+
+  function initSettingsChrome(root) {
+    root = root || document;
+    root.querySelectorAll('[data-settings-dismiss-offcanvas]').forEach(function (el) {
+      if (el.dataset.spDismissBound === '1') return;
+      el.dataset.spDismissBound = '1';
+      el.addEventListener('click', function () {
+        var offcanvasEl = document.getElementById('settingsMobileNav');
+        if (!offcanvasEl || !window.bootstrap || !bootstrap.Offcanvas) return;
+        var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+        if (instance) instance.hide();
+      });
+    });
+
+    function bindSidebarWheel(sidebar) {
+      if (!sidebar || sidebar.dataset.settingsWheelBound === '1') return;
+      var scrollEl = sidebar.querySelector('.settings-sidebar-scroll') || sidebar.querySelector('.mod-sidebar-nav');
+      if (!scrollEl) return;
+      sidebar.dataset.settingsWheelBound = '1';
+      sidebar.addEventListener('wheel', function (e) {
+        if (e.target.closest('.mod-sidebar-brand')) return;
+        var maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+        if (maxScroll <= 0) return;
+        e.preventDefault();
+        scrollEl.scrollTop = Math.max(0, Math.min(maxScroll, scrollEl.scrollTop + e.deltaY));
+      }, { passive: false });
+    }
+
+    bindSidebarWheel(root.querySelector('.settings-shell .mod-sidebar'));
+    var mobileNav = root.querySelector('#settingsMobileNav') || document.getElementById('settingsMobileNav');
+    if (mobileNav) bindSidebarWheel(mobileNav);
+  }
+
+  function softReloadMain() {
+    if (softReloadBusy) return Promise.resolve();
+    softReloadBusy = true;
+    var scrollY = window.scrollY;
+    var sidebar = document.querySelector('.settings-shell .settings-sidebar-scroll');
+    var sidebarTop = sidebar ? sidebar.scrollTop : 0;
+    var url = window.location.href;
+
+    return fetch(url, {
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'text/html',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    }).then(function (res) {
+      if (!res.ok) throw new Error('soft-reload-http');
+      return res.text();
+    }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var lang = doc.documentElement.getAttribute('lang');
+      if (lang) document.documentElement.setAttribute('lang', lang);
+      if (doc.title) document.title = doc.title;
+
+      runInlineSettingsGlobals(doc);
+      swapNode(doc, 'main');
+      swapNode(doc, '.top-navbar-search');
+
+      initCollapses(document);
+      initTooltips(document);
+      initAutosave(document);
+      initSearch();
+      initSettingsChrome(document);
+      window.dispatchEvent(new CustomEvent('sp:settings-soft-reload'));
+
+      window.scrollTo(0, scrollY);
+      var sidebarAfter = document.querySelector('.settings-shell .settings-sidebar-scroll');
+      if (sidebarAfter) sidebarAfter.scrollTop = sidebarTop;
+    }).finally(function () {
+      softReloadBusy = false;
+    });
+  }
+
   function init() {
     initCollapses(document);
     initTooltips(document);
     initAutosave(document);
     initSearch();
+    initSettingsChrome(document);
     runHashFlash();
-    window.addEventListener('hashchange', function () {
-      clearFlash();
-      runHashFlash();
-    });
+    if (!hashFlashBound) {
+      hashFlashBound = true;
+      window.addEventListener('hashchange', function () {
+        clearFlash();
+        runHashFlash();
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
@@ -434,6 +591,12 @@
     }
     if (data.accent_gradient) {
       document.documentElement.style.setProperty('--accent-style', data.accent_gradient);
+    } else if (Object.prototype.hasOwnProperty.call(data, 'accent_gradient')) {
+      // Solid mode (gradient cleared) — keep style in sync with highlight color
+      document.documentElement.style.setProperty(
+        '--accent-style',
+        data.accent_color || getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#0d6efd'
+      );
     } else if (data.accent_color) {
       document.documentElement.style.setProperty('--accent-style', data.accent_color);
     }
@@ -453,7 +616,9 @@
     initCollapses: initCollapses,
     initTooltips: initTooltips,
     initAutosave: initAutosave,
+    initSettingsChrome: initSettingsChrome,
     saveForm: saveForm,
+    softReloadMain: softReloadMain,
     showToast: showToast,
     applyLiveAppearance: applyLiveAppearance
   };

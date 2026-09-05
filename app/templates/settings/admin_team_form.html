@@ -1,110 +1,205 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% set is_edit = team is not none %}
 {% block title %}{% if is_edit %}{{ _('settings.admin.teams.edit_page_title') }}{% else %}{{ _('settings.admin.teams.create_page_title') }}{% endif %}{% endblock %}
 {% block settings_mobile_title %}{% if is_edit %}{{ _('settings.admin.teams.edit_heading') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-teams">
-    <a href="{% if is_edit %}{{ url_for('settings.admin_team_detail', team_id=team.id) }}{% else %}{{ url_for('settings.admin_teams') }}{% endif %}" class="settings-subpage-back">
+<div class="sp-layout">
+  <div class="sp-page sp-page--fluid settings-admin-teams">
+    <div class="sp-back-row">
+      <a href="{% if is_edit %}{{ url_for('settings.admin_team_detail', team_id=team.id) }}{% else %}{{ url_for('settings.admin_teams') }}{% endif %}" class="sp-back-link">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
-    </a>
-    <div class="settings-admin-teams-header">
-        <div>
-            <h1 class="settings-admin-teams-title">{% if is_edit %}{{ _('settings.admin.teams.edit_heading') }}{% else %}{{ _('settings.admin.teams.create_heading') }}{% endif %}</h1>
-            <p class="settings-admin-teams-subtitle">{{ _('settings.admin.teams.form_subtitle') }}</p>
-        </div>
+      </a>
     </div>
 
-    <form method="POST" enctype="multipart/form-data" class="settings-admin-teams-form">
-        <section class="settings-admin-teams-panel">
-            <div class="mb-3">
-                <label for="name" class="form-label">{{ _('settings.admin.teams.field_name') }} <span class="text-danger">*</span></label>
-                <input type="text" class="form-control settings-admin-teams-input" id="name" name="name" required maxlength="100" value="{{ team.name if is_edit else '' }}" autocomplete="off">
-            </div>
+    <header class="sp-page-header">
+      <h1 class="sp-page-title">
+        <i class="bi bi-{% if is_edit %}pencil-square{% else %}people{% endif %}" aria-hidden="true"></i>
+        <span>{% if is_edit %}{{ _('settings.admin.teams.edit_heading') }}{% else %}{{ _('settings.admin.teams.create_heading') }}{% endif %}</span>
+      </h1>
+      <p class="sp-page-lead">{{ _('settings.admin.teams.form_subtitle') }}</p>
+    </header>
 
-            <div class="mb-3">
-                <label for="description" class="form-label">{{ _('settings.admin.teams.field_description') }}</label>
-                <textarea class="form-control settings-admin-teams-textarea" id="description" name="description" rows="3" maxlength="2000">{{ team.description if is_edit and team.description else '' }}</textarea>
-            </div>
-
-            <div class="mb-3">
-                <label for="color" class="form-label">{{ _('settings.admin.teams.field_color') }}</label>
-                <div class="settings-admin-teams-color-row">
-                    <input type="color" class="form-control form-control-color settings-admin-teams-color-picker" id="color_picker" value="{{ team.color if is_edit and team.color else '#6c757d' }}" title="{{ _('settings.admin.teams.field_color') }}">
-                    <input type="text" class="form-control settings-admin-teams-input" id="color" name="color" maxlength="7" placeholder="#6c757d" value="{{ team.color if is_edit and team.color else '' }}" pattern="#?[0-9A-Fa-f]{6}" autocomplete="off">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-teams-btn" id="clearColor">{{ _('settings.admin.teams.clear_color') }}</button>
-                </div>
-                <p class="form-text mb-0">{{ _('settings.admin.teams.field_color_help') }}</p>
-            </div>
-
-            <div class="mb-3">
-                <label for="leader_id" class="form-label">{{ _('settings.admin.teams.field_leader') }}</label>
-                <select class="form-select settings-admin-teams-input" id="leader_id" name="leader_id">
-                    <option value="">{{ _('settings.admin.teams.no_leader') }}</option>
-                    {% for u in leader_choices %}
-                    <option value="{{ u.id }}" {% if is_edit and team.leader_id == u.id %}selected{% endif %}>
-                        {{ u.full_name }}{% if u.is_guest %} ({{ _('settings.admin.users.badge_guest') }}){% endif %}
-                    </option>
-                    {% endfor %}
-                </select>
-                <p class="form-text mb-0">{{ _('settings.admin.teams.field_leader_help') }}</p>
-            </div>
-
-            <div class="mb-3">
-                <label for="image" class="form-label">{{ _('settings.admin.teams.field_image') }}</label>
-                {% if is_edit and team.image %}
-                <div class="settings-admin-teams-current-image mb-2">
-                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" value="1" id="remove_image" name="remove_image">
-                        <label class="form-check-label" for="remove_image">{{ _('settings.admin.teams.remove_image') }}</label>
-                    </div>
-                </div>
-                {% endif %}
-                <input type="file" class="form-control settings-admin-teams-input" id="image" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
-                <p class="form-text mb-0">{{ _('settings.admin.teams.field_image_help') }}</p>
-            </div>
-        </section>
-
-        <div class="settings-admin-teams-form-actions">
-            <button type="submit" class="btn btn-accent settings-admin-teams-btn">
-                <i class="bi bi-save" aria-hidden="true"></i>
-                {% if is_edit %}{{ _('settings.admin.teams.save') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}
-            </button>
+    <form method="POST" enctype="multipart/form-data" class="settings-admin-teams-form" data-sp-no-autosave>
+      <section class="sp-group" id="team-basics">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-card-heading" aria-hidden="true"></i>{{ _('settings.admin.teams.field_name') }}</h2>
         </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.teams.field_name') }} <span class="text-danger">*</span></span>
+            </div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="name" name="name" required maxlength="100" value="{{ team.name if is_edit else '' }}" autocomplete="off" style="min-width:16rem">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.teams.field_description') }}</span>
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <textarea class="form-control" id="description" name="description" rows="3" maxlength="2000">{{ team.description if is_edit and team.description else '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sp-group" id="team-style">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-palette" aria-hidden="true"></i>{{ _('settings.admin.teams.field_color') }}</h2>
+          {{ sp_info(_('settings.admin.teams.field_color_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.teams.field_color') }}</span>
+            </div>
+            <div class="sp-row-control settings-admin-teams-color-row">
+              <input type="color" class="form-control form-control-color" id="color_picker" value="{{ team.color if is_edit and team.color else '#6c757d' }}" title="{{ _('settings.admin.teams.field_color') }}">
+              <input type="text" class="form-control" id="color" name="color" maxlength="7" placeholder="#6c757d" value="{{ team.color if is_edit and team.color else '' }}" pattern="#?[0-9A-Fa-f]{6}" autocomplete="off" style="min-width:7rem;max-width:9rem">
+              <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill" id="clearColor">{{ _('settings.admin.teams.clear_color') }}</button>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.teams.field_image') }}</span>
+              {{ sp_info(_('settings.admin.teams.field_image_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.65rem">
+              {% if is_edit and team.image %}
+              <div class="settings-admin-teams-current-image">
+                <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                <div class="form-check mt-2 mb-0">
+                  <input class="form-check-input" type="checkbox" value="1" id="remove_image" name="remove_image">
+                  <label class="form-check-label" for="remove_image">{{ _('settings.admin.teams.remove_image') }}</label>
+                </div>
+              </div>
+              {% endif %}
+              <input type="file" class="form-control" id="image" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sp-group" id="team-leader">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-person-badge" aria-hidden="true"></i>{{ _('settings.admin.teams.field_leader') }}</h2>
+          {{ sp_info(_('settings.admin.teams.field_leader_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.teams.field_leader') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <select class="form-select" id="leader_id" name="leader_id" style="min-width:16rem">
+                <option value="">{{ _('settings.admin.teams.no_leader') }}</option>
+                {% for u in leader_choices %}
+                <option value="{{ u.id }}" {% if is_edit and team.leader_id == u.id %}selected{% endif %}>
+                  {{ u.full_name }}{% if u.is_guest %} ({{ _('settings.admin.users.badge_guest') }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="sp-actions" style="border:0;padding:0.25rem 0 0">
+        <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>
+          <i class="bi bi-{% if is_edit %}check-lg{% else %}plus-lg{% endif %}" aria-hidden="true"></i>
+          {% if is_edit %}{{ _('settings.admin.teams.save') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}
+        </button>
+      </div>
     </form>
+  </div>
+
+  <aside class="sp-sidepanel" aria-label="{{ _('settings.hub.tip_title') }}">
+    <div class="sp-sidepanel-card">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-eye" aria-hidden="true"></i>{{ _('settings.admin.teams.preview_title') }}</h2>
+      <div class="sp-dir-card sp-dir-card--team settings-team-preview-card" id="teamPreviewCard" style="--team-accent:#6c757d;">
+        <div class="sp-dir-card__accent" aria-hidden="true"></div>
+        <div class="sp-dir-card__top">
+          <div class="sp-dir-card__avatar sp-dir-card__avatar--img" id="teamPreviewAvatar">
+            <i class="bi bi-people-fill" aria-hidden="true"></i>
+          </div>
+        </div>
+        <div class="sp-dir-card__body">
+          <div class="sp-dir-card__name" id="teamPreviewName">{{ _('settings.admin.teams.create_heading') }}</div>
+          <div class="sp-dir-card__desc" id="teamPreviewDesc">{{ _('settings.admin.teams.form_subtitle') }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="sp-sidepanel-card sp-sidepanel-card--muted">
+      <h2 class="sp-sidepanel-title"><i class="bi bi-lightbulb" aria-hidden="true"></i>{{ _('settings.hub.tip_title') }}</h2>
+      <p class="sp-sidepanel-lead mb-0">{{ _('settings.admin.teams.field_leader_help') }}</p>
+    </div>
+  </aside>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
-    var picker = document.getElementById('color_picker');
-    var text = document.getElementById('color');
-    var clearBtn = document.getElementById('clearColor');
-    if (!picker || !text) return;
+  var picker = document.getElementById('color_picker');
+  var text = document.getElementById('color');
+  var clearBtn = document.getElementById('clearColor');
+  var nameInput = document.getElementById('name');
+  var descInput = document.getElementById('description');
+  var previewCard = document.getElementById('teamPreviewCard');
+  var previewName = document.getElementById('teamPreviewName');
+  var previewDesc = document.getElementById('teamPreviewDesc');
+  var imageInput = document.getElementById('image');
+  var previewAvatar = document.getElementById('teamPreviewAvatar');
+  var defaultName = {{ _('settings.admin.teams.create_heading')|tojson }};
+  var defaultDesc = {{ _('settings.admin.teams.form_subtitle')|tojson }};
 
-    function syncFromPicker() {
-        text.value = picker.value;
+  function syncPreview() {
+    if (previewName) previewName.textContent = (nameInput && nameInput.value.trim()) || defaultName;
+    if (previewDesc) previewDesc.textContent = (descInput && descInput.value.trim()) || defaultDesc;
+    var color = (text && text.value.trim()) || (picker && picker.value) || '#6c757d';
+    if (color && color.charAt(0) !== '#') color = '#' + color;
+    if (previewCard) previewCard.style.setProperty('--team-accent', color);
+  }
+
+  function syncFromPicker() {
+    if (text && picker) text.value = picker.value;
+    syncPreview();
+  }
+  function syncFromText() {
+    var v = (text.value || '').trim();
+    if (v && v.charAt(0) !== '#') v = '#' + v;
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+      text.value = v.toLowerCase();
+      if (picker) picker.value = text.value;
     }
-    function syncFromText() {
-        var v = (text.value || '').trim();
-        if (v && v.charAt(0) !== '#') v = '#' + v;
-        if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
-            text.value = v.toLowerCase();
-            picker.value = text.value;
-        }
-    }
-    picker.addEventListener('input', syncFromPicker);
-    text.addEventListener('change', syncFromText);
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            text.value = '';
-            picker.value = '#6c757d';
-        });
-    }
+    syncPreview();
+  }
+
+  if (picker) picker.addEventListener('input', syncFromPicker);
+  if (text) text.addEventListener('input', syncFromText);
+  if (nameInput) nameInput.addEventListener('input', syncPreview);
+  if (descInput) descInput.addEventListener('input', syncPreview);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      if (text) text.value = '';
+      if (picker) picker.value = '#6c757d';
+      syncPreview();
+    });
+  }
+  if (imageInput && previewAvatar) {
+    imageInput.addEventListener('change', function () {
+      var file = imageInput.files && imageInput.files[0];
+      if (!file) return;
+      var url = URL.createObjectURL(file);
+      previewAvatar.innerHTML = '<img src="' + url + '" alt="">';
+    });
+  }
+  syncPreview();
 })();
 </script>
 {% endblock %}
