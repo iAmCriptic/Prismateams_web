@@ -222,6 +222,10 @@ sudo systemctl restart teamportal
 
 ### Nginx Caching
 
+Statische Assets werden von Flask mit `SEND_FILE_MAX_AGE_DEFAULT` (Default 1 Jahr)
+ausgeliefert. Zusätzlich sollte Nginx immutable setzen — Pflicht bei Produktion ohne
+direkten Flask-Static-Serve:
+
 ```bash
 sudo nano /etc/nginx/sites-available/teamportal
 ```

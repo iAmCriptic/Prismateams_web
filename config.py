@@ -32,13 +32,22 @@ class Config:
     }
     
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
-    SESSION_COOKIE_SECURE = False
+    # Default False für lokales HTTP; Staging/Prod überschreiben (siehe ProductionConfig).
+    # Überall per .env überschreibbar: SESSION_COOKIE_SECURE=True
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     # Remember-Me (Flask-Login) — gleiche Härtung wie Session-Cookies
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = 'Lax'
-    REMEMBER_COOKIE_SECURE = False
+    _remember_secure = os.environ.get('REMEMBER_COOKIE_SECURE')
+    if _remember_secure is None or str(_remember_secure).strip() == '':
+        REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
+    else:
+        REMEMBER_COOKIE_SECURE = str(_remember_secure).strip().lower() == 'true'
+
+    # Absichtliche /test/* Error-Seiten — nur Dev (oder explizit per Env)
+    ENABLE_ERROR_TEST_ROUTES = False
 
     # CSRF (Flask-WTF)
     WTF_CSRF_ENABLED = True
@@ -135,6 +144,13 @@ class Config:
     FILE_CONVERTER_MAX_CONCURRENT = int(os.environ.get('FILE_CONVERTER_MAX_CONCURRENT', '2'))
     LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', '')
 
+    # Static-Dateien: langes Browser-Caching (Templates hängen ?v=ABOUT_BUILD_NUMBER an).
+    # Nginx sollte zusätzlich Cache-Control: public, immutable setzen (siehe docs/WARTUNG.md).
+    SEND_FILE_MAX_AGE_DEFAULT = int(os.environ.get('SEND_FILE_MAX_AGE_DEFAULT', '31536000'))
+
+    # YouTube-Proxy: parallele Streams begrenzen + Timeouts (siehe media_downloader)
+    YOUTUBE_PROXY_MAX_CONCURRENT = int(os.environ.get('YOUTUBE_PROXY_MAX_CONCURRENT', '4'))
+
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
@@ -146,6 +162,8 @@ class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
     TESTING = False
+    # Error-Testrouten (/test/404 …) standardmäßig an; abschalten: ENABLE_ERROR_TEST_ROUTES=False
+    ENABLE_ERROR_TEST_ROUTES = os.environ.get('ENABLE_ERROR_TEST_ROUTES', 'True').lower() == 'true'
 
 
 class ProductionConfig(Config):
@@ -161,17 +179,29 @@ class ProductionConfig(Config):
         'REMEMBER_COOKIE_SECURE',
         os.environ.get('SESSION_COOKIE_SECURE', 'True'),
     ).lower() == 'true'
+    ENABLE_ERROR_TEST_ROUTES = os.environ.get('ENABLE_ERROR_TEST_ROUTES', 'False').lower() == 'true'
+
+
+class StagingConfig(ProductionConfig):
+    """
+    Staging: Production-Härte für Cookies/Secrets; kein Error-Test-Blueprint by default.
+
+    Nutzung: FLASK_ENV=staging (nicht development auf öffentlichem Staging).
+    """
+    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
+    ENABLE_ERROR_TEST_ROUTES = False
 
 
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
+    'staging': StagingConfig,
     'testing': TestingConfig,
     'default': DevelopmentConfig
 }

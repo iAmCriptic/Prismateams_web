@@ -1,0 +1,69 @@
+{# Shared workspace chrome helpers for protocol create/edit/view flow. #}
+
+{% macro protocols_index_url() -%}
+{%- if section_filter|default('') == 'team' and filter_team_id -%}
+{{ url_for('protocols.index', view='team', team_id=filter_team_id) }}
+{%- elif section_filter|default('') == 'public' -%}
+{{ url_for('protocols.index', view='public') }}
+{%- else -%}
+{{ url_for('protocols.index') }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro protocols_chrome_nav(back_url, close_url=none, back_label=none) %}
+{% set _close = close_url if close_url is not none else protocols_index_url() %}
+{% set _back_label = back_label if back_label is not none else _('layout.nav.back') %}
+<div class="protocols-chrome-nav" role="group" aria-label="{{ _('protocols.nav.title') }}">
+    <a href="{{ back_url }}" class="protocols-chrome-btn protocols-chrome-btn--back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span class="protocols-chrome-btn-label d-none d-sm-inline">{{ _back_label }}</span>
+    </a>
+    <a href="{{ _close }}"
+       class="protocols-chrome-btn protocols-chrome-btn--close"
+       title="{{ _('common.close') }}"
+       aria-label="{{ _('common.close') }}">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+    </a>
+</div>
+{% endmacro %}
+
+{% macro protocols_chrome_brand(icon, title, subtitle='') %}
+<div class="protocols-workspace-brand min-width-0">
+    <span class="protocols-workspace-brand-icon" aria-hidden="true">
+        <i class="bi {{ icon }}"></i>
+    </span>
+    <div class="min-width-0">
+        <div class="protocols-workspace-title text-truncate">{{ title }}</div>
+        {% if subtitle %}
+        <div class="protocols-workspace-subtitle text-truncate">{{ subtitle }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro protocols_steps(active, protocol_id=none) %}
+{# active: 'meta' | 'agenda' | 'content' #}
+<div class="protocols-steps protocols-steps--toolbar d-none d-md-inline-flex" role="navigation" aria-label="{{ _('protocols.nav.title') }}">
+    {% if protocol_id and active != 'meta' %}
+    <a class="protocols-step {% if active == 'meta' %}is-active{% endif %}"
+       href="{{ url_for('protocols.edit_meta', protocol_id=protocol_id) }}">1. {{ _('protocols.steps.meta') }}</a>
+    {% else %}
+    <span class="protocols-step {% if active == 'meta' %}is-active{% endif %}">1. {{ _('protocols.steps.meta') }}</span>
+    {% endif %}
+
+    {% if protocol_id and active != 'agenda' %}
+    <a class="protocols-step {% if active == 'agenda' %}is-active{% endif %}"
+       href="{{ url_for('protocols.edit_agenda', protocol_id=protocol_id) }}">2. {{ _('protocols.steps.agenda') }}</a>
+    {% else %}
+    <span class="protocols-step {% if active == 'agenda' %}is-active{% endif %}">2. {{ _('protocols.steps.agenda') }}</span>
+    {% endif %}
+
+    {% if protocol_id and active == 'content' %}
+    <span class="protocols-step is-active">3. {{ _('protocols.steps.content') }}</span>
+    {% elif protocol_id and active == 'agenda' %}
+    <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
+    {% else %}
+    <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
+    {% endif %}
+</div>
+{% endmacro %}

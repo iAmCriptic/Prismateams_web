@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models.calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
@@ -35,8 +35,6 @@ from app.utils.multi_calendars import (
     update_calendar_meta,
     user_calendar_team_ids,
 )
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from app.utils.ical import (
     generate_ical_feed,
     import_events_from_ical,
@@ -44,8 +42,35 @@ from app.utils.ical import (
     sync_calendar_source,
 )
 from sqlalchemy import or_
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+import logging
+import threading
 import secrets
 import calendar
+
+logger = logging.getLogger(__name__)
+
+
+def _enqueue_calendar_source_sync(source_id, user_id):
+    """P22: iCal-Sync im Background — Request wartet nicht auf Download/Parse."""
+    app = current_app._get_current_object()
+
+    def _run():
+        with app.app_context():
+            try:
+                source = CalendarSyncSource.query.get(source_id)
+                if not source:
+                    return
+                sync_calendar_source(source, user_id)
+            except Exception as exc:
+                logger.exception('Background iCal-Sync fehlgeschlagen (source=%s): %s', source_id, exc)
+
+    threading.Thread(
+        target=_run,
+        name=f'ical-sync-{source_id}',
+        daemon=True,
+    ).start()
 
 calendar_bp = Blueprint('calendar', __name__)
 DEFAULT_EVENT_COLOR = '#0d6efd'
@@ -1415,18 +1440,15 @@ def import_calendar():
                 ensure_imported_calendar_for_source(source)
             db.session.commit()
 
-            success, message, *_ = sync_calendar_source(source, current_user.id)
-            if success:
-                flash(translate('calendar.flash.sync_added') + ' ' + message, 'success')
-            else:
-                flash(translate('calendar.flash.sync_added_with_error') + ' ' + message, 'warning')
+            _enqueue_calendar_source_sync(source.id, current_user.id)
+            flash(translate('calendar.flash.sync_started'), 'info')
             return redirect(url_for('calendar.import_calendar'))
 
         if action == 'sync_now':
             source_id = request.form.get('source_id', type=int)
             source = CalendarSyncSource.query.get_or_404(source_id)
-            success, message, *_ = sync_calendar_source(source, current_user.id)
-            flash(message, 'success' if success else 'danger')
+            _enqueue_calendar_source_sync(source.id, current_user.id)
+            flash(translate('calendar.flash.sync_started'), 'info')
             return redirect(url_for('calendar.import_calendar'))
 
         if action == 'delete_sync':

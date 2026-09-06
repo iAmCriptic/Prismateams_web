@@ -97,6 +97,21 @@ files_bp = Blueprint('files', __name__)
 
 MAX_FILE_VERSIONS = 3
 MAX_FILE_PREVIEW_CHARS = 240
+FILES_BROWSE_PAGE_SIZE = 48
+
+
+def _paginate_browse_items(subfolders, files, offset=0, limit=FILES_BROWSE_PAGE_SIZE):
+    """Folders first, then files — slice for lazy loading."""
+    folders = list(subfolders or [])
+    file_list = list(files or [])
+    combined = [('folder', f) for f in folders] + [('file', f) for f in file_list]
+    offset = max(0, int(offset or 0))
+    limit = max(1, int(limit or FILES_BROWSE_PAGE_SIZE))
+    window = combined[offset:offset + limit]
+    out_folders = [item for kind, item in window if kind == 'folder']
+    out_files = [item for kind, item in window if kind == 'file']
+    has_more = (offset + limit) < len(combined)
+    return out_folders, out_files, has_more, len(combined)
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'}
 VIDEO_EXTS = {'.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv'}
@@ -126,6 +141,34 @@ _MEDIA_MIME_TYPES = {
     '.oga': 'audio/ogg',
     '.opus': 'audio/opus',
 }
+
+
+def _safe_referrer_or(fallback_url):
+    """
+    Redirect-Ziel nur bei internem/same-origin Referer, sonst Fallback.
+
+    Verhindert Open-Redirect über manipulierten Referer-Header.
+    """
+    from urllib.parse import urlparse
+
+    ref = (request.referrer or '').strip()
+    if not ref:
+        return fallback_url
+
+    parsed = urlparse(ref)
+    # Relative interne Pfade
+    if not parsed.scheme and not parsed.netloc:
+        if ref.startswith('/') and not ref.startswith('//'):
+            return ref
+        return fallback_url
+
+    # Absolute URL nur bei gleicher Origin
+    if parsed.scheme in {'http', 'https'} and (parsed.netloc or '').lower() == (request.host or '').lower():
+        path = parsed.path or '/'
+        query = f'?{parsed.query}' if parsed.query else ''
+        return f'{path}{query}'
+
+    return fallback_url
 
 
 def media_kind(ext):
@@ -819,8 +862,14 @@ def browse_folder(folder_id):
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_available = is_onlyoffice_enabled()
 
-    file_preview_map = {file.id: build_file_preview_text(file) for file in files}
-    file_preview_html_map = {file.id: build_markdown_preview_html(file) for file in files}
+    # Lazy loading: Text-Previews nicht mehr synchron vom Disk lesen (P17).
+    # Media/PDF laden clientseitig per IntersectionObserver.
+    browse_offset = max(0, request.args.get('offset', 0, type=int) or 0)
+    subfolders, files, files_has_more, files_total_count = _paginate_browse_items(
+        subfolders, files, offset=browse_offset, limit=FILES_BROWSE_PAGE_SIZE
+    )
+    file_preview_map = {}
+    file_preview_html_map = {}
 
     # Uploader names for list view
     # Eager-load uploaders for list view (relationship) + map fallback
@@ -860,6 +909,10 @@ def browse_folder(folder_id):
         files=files,
         file_preview_map=file_preview_map,
         file_preview_html_map=file_preview_html_map,
+        files_browse_offset=browse_offset,
+        files_browse_next_offset=browse_offset + len(subfolders) + len(files),
+        files_has_more=files_has_more,
+        files_total_count=files_total_count,
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=private_enabled,
@@ -908,7 +961,7 @@ def create_folder():
     # Gast-Accounts können keine Ordner erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Ordner erstellen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     folder_name = request.form.get('folder_name', '').strip()
     parent_id = request.form.get('parent_id')
@@ -918,7 +971,7 @@ def create_folder():
     folder_name = sanitize_files_item_name(folder_name)
     if not folder_name:
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     parent_id = int(parent_id) if parent_id else None
     private_enabled = is_private_folders_enabled()
@@ -930,11 +983,11 @@ def create_folder():
     parent_id, parent_folder = _resolve_create_parent(files_view, parent_id, team_id)
     if files_view == 'team' and team_enabled and not parent_folder:
         flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
     resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
@@ -969,14 +1022,14 @@ def rename_file(file_id):
     # Gast-Accounts können keine Dateien umbenennen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien umbenennen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     file = File.query.get_or_404(file_id)
     new_name = sanitize_files_item_name(request.form.get('new_name', ''))
     
     if not new_name:
         flash('Neuer Dateiname darf nicht leer sein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     # Prüfe ob bereits eine Datei mit diesem Namen im selben Ordner existiert
     existing_file = File.query.filter_by(
@@ -987,7 +1040,7 @@ def rename_file(file_id):
     
     if existing_file and existing_file.id != file.id:
         flash(f'Eine Datei mit dem Namen "{new_name}" existiert bereits in diesem Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     file.name = new_name
     db.session.commit()
@@ -1003,17 +1056,17 @@ def rename_folder(folder_id):
     # Gast-Accounts können keine Ordner umbenennen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Ordner umbenennen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     folder = Folder.query.get_or_404(folder_id)
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         flash('Dieser Stammordner kann nicht umbenannt werden.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     new_name = sanitize_files_item_name(request.form.get('new_name', ''))
     
     if not new_name:
         flash('Neuer Ordnername darf nicht leer sein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     folder.name = new_name
     db.session.commit()
@@ -1030,7 +1083,7 @@ def update_folder_color(folder_id):
     """Update folder color for quick visual labeling."""
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Ordnerfarben ändern.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     folder = Folder.query.get_or_404(folder_id)
     raw_color = (request.form.get('color') or '').strip().lower()
@@ -1042,11 +1095,11 @@ def update_folder_color(folder_id):
         folder.color = raw_color
     else:
         flash('Ungültige Farbe. Bitte wählen Sie eine HEX-Farbe.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     db.session.commit()
     flash('Ordnerfarbe wurde aktualisiert.', 'success')
-    return redirect(request.referrer or url_for('files.index'))
+    return redirect(_safe_referrer_or(url_for('files.index')))
 
 
 def _is_folder_descendant(candidate_folder, ancestor_folder_id):
@@ -1279,7 +1332,7 @@ def create_file():
     # Gast-Accounts können keine Dateien erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien erstellen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     filename = request.form.get('filename', '').strip()
     content = request.form.get('content', '')
@@ -1295,11 +1348,11 @@ def create_file():
     folder_id, parent_folder = _resolve_create_parent(files_view, folder_id, team_id)
     if files_view == 'team' and team_enabled and not parent_folder:
         flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     # Add file extension
     if file_type == 'md' and not filename.endswith('.md'):
@@ -1316,13 +1369,13 @@ def create_file():
 
     if existing_file:
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if not parent_folder and folder_id:
         parent_folder = Folder.query.get(folder_id)
     if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
     resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
 
@@ -1394,7 +1447,7 @@ def create_office_file():
     # Gast-Accounts können keine Office-Dateien erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien erstellen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     filename = request.form.get('filename', '').strip()
     create_types = get_create_type_map()
@@ -1411,16 +1464,16 @@ def create_office_file():
     folder_id, parent_folder = _resolve_create_parent(files_view, folder_id, team_id)
     if files_view == 'team' and team_enabled and not parent_folder:
         flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     # Validate file type against admin format setting
     if file_type not in allowed_types:
         flash('Ungültiger Dateityp.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     # Add file extension if not present
     if not filename.endswith(f'.{file_type}'):
@@ -1435,13 +1488,13 @@ def create_office_file():
     
     if existing_file:
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if not parent_folder and folder_id:
         parent_folder = Folder.query.get(folder_id)
     if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
     resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
     
@@ -1461,11 +1514,11 @@ def create_office_file():
             'Bitte installieren Sie python-docx, openpyxl und python-pptx.',
             'danger',
         )
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     except Exception as e:
         logging.error(f"Fehler beim Erstellen der Office-Datei: {e}")
         flash(f'Fehler beim Erstellen der Datei: {str(e)}', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     # Store absolute path in database
     absolute_filepath = os.path.abspath(filepath)
@@ -1547,10 +1600,10 @@ def upload_file():
                     '(nur Bearbeiten- oder Dropbox-Freigaben).',
                     'danger',
                 )
-                return _finish(request.referrer or url_for('files.index'))
+                return _finish(_safe_referrer_or(url_for('files.index')))
         else:
             flash('Gast-Accounts können nur in freigegebenen Ordnern Dateien hochladen.', 'danger')
-            return _finish(request.referrer or url_for('files.index'))
+            return _finish(_safe_referrer_or(url_for('files.index')))
     
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
@@ -1560,7 +1613,7 @@ def upload_file():
     folder_id, upload_parent = _resolve_create_parent(files_view, folder_id, team_id)
     if files_view == 'team' and is_team_folders_enabled() and not upload_parent:
         flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
-        return _finish(request.referrer or url_for('files.index'))
+        return _finish(_safe_referrer_or(url_for('files.index')))
     
     limits = resolve_limits_for_user(current_user.id)
     max_size = limits['max_file_size']
@@ -1695,12 +1748,12 @@ def upload_file():
     # Single/multi file upload
     if 'file' not in request.files:
         flash('Keine Datei ausgewählt.', 'danger')
-        return _finish(request.referrer or url_for('files.index'))
+        return _finish(_safe_referrer_or(url_for('files.index')))
 
     uploaded_files = [f for f in request.files.getlist('file') if f and f.filename]
     if not uploaded_files:
         flash('Keine Datei ausgewählt.', 'danger')
-        return _finish(request.referrer or url_for('files.index'))
+        return _finish(_safe_referrer_or(url_for('files.index')))
 
     if len(uploaded_files) > 1:
         uploaded_count = 0
@@ -1805,15 +1858,15 @@ def upload_file():
         ok, _code, err_msg = check_upload_allowed(current_user.id, file_size)
         if not ok:
             flash(err_msg or f'Datei ist zu groß (max. {format_bytes_de(max_size)}).', 'danger')
-            return _finish(request.referrer or url_for('files.index'))
+            return _finish(_safe_referrer_or(url_for('files.index')))
 
         original_name = secure_filename(file.filename)
         if not original_name:
             flash('Ungültiger Dateiname.', 'danger')
-            return _finish(request.referrer or url_for('files.index'))
+            return _finish(_safe_referrer_or(url_for('files.index')))
         if not is_allowed_upload_filename(original_name):
             flash('Dieser Dateityp ist nicht erlaubt.', 'danger')
-            return _finish(request.referrer or url_for('files.index'))
+            return _finish(_safe_referrer_or(url_for('files.index')))
 
         # Check if file with same name exists in folder
         existing_file = File.query.filter_by(
@@ -2424,7 +2477,7 @@ def delete_file(file_id):
     """Soft-delete a file (or hard-delete when already in trash / purge)."""
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien löschen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     file = File.query.get_or_404(file_id)
     folder_id = file.folder_id
@@ -2434,7 +2487,7 @@ def delete_file(file_id):
 
     if spaces_on and not can_edit_file(file, current_user) and file.uploaded_by != current_user.id:
         flash('Keine Berechtigung.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if purge or (file.deleted_at is not None) or not spaces_on:
         hard_delete_file_disk_and_db(file, os)
@@ -2480,12 +2533,12 @@ def delete_folder(folder_id):
     """Soft-delete a folder (or hard-delete from trash)."""
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Ordner löschen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     
     folder = Folder.query.get_or_404(folder_id)
     if folder.is_personal_root or getattr(folder, 'is_team_root', False):
         flash('Dieser Stammordner kann nicht gelöscht werden.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     parent_id = folder.parent_id
     files_view = normalize_view(request.form.get('view') or request.args.get('view'))
@@ -2494,7 +2547,7 @@ def delete_folder(folder_id):
 
     if spaces_on and not can_edit_folder(folder, current_user) and folder.created_by != current_user.id:
         flash('Keine Berechtigung.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     if purge or (folder.deleted_at is not None) or not spaces_on:
         hard_delete_folder_recursive(folder, os)
@@ -3063,7 +3116,7 @@ def make_dropbox(folder_id):
     """Aktiviere Briefkasten für einen Ordner (legt public_shares-Eintrag an)."""
     if not _is_dropbox_enabled():
         flash('Briefkästen sind deaktiviert.', 'warning')
-        return redirect(request.referrer or url_for('files.browse_folder', folder_id=folder_id))
+        return redirect(_safe_referrer_or(url_for('files.browse_folder', folder_id=folder_id)))
 
     folder = Folder.query.get_or_404(folder_id)
     create_share_link(
@@ -3500,7 +3553,7 @@ VALID_SHARE_MODES_CREATE = frozenset({'view', 'edit', 'dropbox'})
 def create_file_share(file_id):
     if not _is_sharing_enabled():
         flash('Freigaben sind deaktiviert.', 'warning')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     file = File.query.get_or_404(file_id)
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
     modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
@@ -3510,7 +3563,7 @@ def create_file_share(file_id):
             modes = [mode]
     if not modes:
         flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     for mode in modes:
         create_share_link(
@@ -3524,7 +3577,7 @@ def create_file_share(file_id):
         )
     db.session.commit()
     flash('Freigabe erstellt.', 'success')
-    return redirect(request.referrer or url_for('files.index'))
+    return redirect(_safe_referrer_or(url_for('files.index')))
 
 
 @files_bp.route('/folder/<int:folder_id>/share', methods=['POST'])
@@ -3533,7 +3586,7 @@ def create_file_share(file_id):
 def create_folder_share(folder_id):
     if not _is_sharing_enabled() and not _is_dropbox_enabled():
         flash('Freigaben sind deaktiviert.', 'warning')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
     folder = Folder.query.get_or_404(folder_id)
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
     single = normalize_share_mode(request.form.get('mode') or request.form.get('share_mode') or '')
@@ -3542,7 +3595,7 @@ def create_folder_share(folder_id):
     modes = list(dict.fromkeys(m for m in modes if m in VALID_SHARE_MODES_CREATE))
     if not modes:
         flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
-        return redirect(request.referrer or url_for('files.index'))
+        return redirect(_safe_referrer_or(url_for('files.index')))
 
     for mode in modes:
         if mode == 'dropbox':
@@ -3561,7 +3614,7 @@ def create_folder_share(folder_id):
         )
     db.session.commit()
     flash('Freigabe erstellt.', 'success')
-    return redirect(request.referrer or url_for('files.index'))
+    return redirect(_safe_referrer_or(url_for('files.index')))
 
 
 @files_bp.route('/file/<int:file_id>/share-settings')
@@ -3699,7 +3752,7 @@ def update_file_share(file_id):
     _handle_share_settings_update('file', file)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
-    return redirect(request.referrer or url_for('files.index'))
+    return redirect(_safe_referrer_or(url_for('files.index')))
 
 
 @files_bp.route('/folder/<int:folder_id>/share-settings', methods=['POST'])
@@ -3710,7 +3763,7 @@ def update_folder_share(folder_id):
     _handle_share_settings_update('folder', folder)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
-    return redirect(request.referrer or url_for('files.index'))
+    return redirect(_safe_referrer_or(url_for('files.index')))
 
 
 @files_bp.route('/share/<token>', methods=['GET', 'POST'])

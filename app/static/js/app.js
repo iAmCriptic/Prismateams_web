@@ -28,6 +28,60 @@ if (document.body) {
 }
 window.applyPreferredLayout = applyPreferredLayout;
 
+/**
+ * P23: Lazy I18N-Packs (PWA / Kontextmenü) nachladen und in PRISMATEAMS_I18N mergen.
+ */
+window._ptI18nPackPromise = null;
+window.ensurePrismateamsI18nPacks = function ensurePrismateamsI18nPacks(packNames) {
+    const names = Array.isArray(packNames) && packNames.length
+        ? packNames
+        : ['pwa_install', 'pwa_update', 'context_menu'];
+    const root = window.PRISMATEAMS_I18N || (window.PRISMATEAMS_I18N = {});
+    const missing = names.filter((n) => !root[n]);
+    if (!missing.length) {
+        return Promise.resolve(root);
+    }
+    if (window._ptI18nPackPromise) {
+        return window._ptI18nPackPromise.then(() => {
+            const still = names.filter((n) => !root[n]);
+            if (!still.length) return root;
+            return window.ensurePrismateamsI18nPacks(still);
+        });
+    }
+    const base = window.PRISMATEAMS_I18N_PACKS_URL || '/api/i18n/packs';
+    const url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'packs=' + encodeURIComponent(missing.join(','));
+    window._ptI18nPackPromise = fetch(url, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+    })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+            const packs = (data && data.packs) || {};
+            Object.keys(packs).forEach((key) => {
+                root[key] = packs[key];
+            });
+            return root;
+        })
+        .catch(() => root)
+        .finally(() => {
+            window._ptI18nPackPromise = null;
+        });
+    return window._ptI18nPackPromise;
+};
+
+(function prefetchI18nPacksIdle() {
+    const run = function () {
+        window.ensurePrismateamsI18nPacks(['pwa_install', 'pwa_update', 'context_menu']);
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 2500 });
+    } else {
+        window.addEventListener('DOMContentLoaded', function () {
+            setTimeout(run, 1);
+        });
+    }
+})();
+
 function ptI18nCommon(key, fallback) {
     const common = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
     return common[key] || fallback;
@@ -489,6 +543,12 @@ if ('serviceWorker' in navigator) {
         return pack[key] || fallback;
     }
 
+    function ensurePwaUpdateI18n() {
+        return window.ensurePrismateamsI18nPacks
+            ? window.ensurePrismateamsI18nPacks(['pwa_update'])
+            : Promise.resolve();
+    }
+
     function hidePwaUpdatePrompt() {
         var prompt = document.getElementById(PWA_UPDATE_PROMPT_ID);
         if (prompt) {
@@ -556,6 +616,7 @@ if ('serviceWorker' in navigator) {
         _swPendingWorker = worker;
         _swPendingRegistration = registration;
 
+        var build = function () {
         var prompt = document.createElement('div');
         prompt.id = PWA_UPDATE_PROMPT_ID;
         prompt.className = 'pwa-update-prompt';
@@ -603,6 +664,8 @@ if ('serviceWorker' in navigator) {
                 dismissPwaUpdate();
             }
         });
+        };
+        ensurePwaUpdateI18n().then(build);
     }
 
     function promptAndActivateWaitingWorker(worker, registration) {
@@ -770,6 +833,7 @@ function showInstallPrompt() {
         return;
     }
 
+    const build = function () {
     const prompt = document.createElement('div');
     prompt.id = PWA_INSTALL_PROMPT_ID;
     prompt.className = 'pwa-install-prompt';
@@ -819,6 +883,13 @@ function showInstallPrompt() {
         } catch (e) { /* ignore */ }
         hidePwaInstallPrompt();
     });
+    };
+
+    if (window.ensurePrismateamsI18nPacks) {
+        window.ensurePrismateamsI18nPacks(['pwa_install']).then(build);
+    } else {
+        build();
+    }
 }
 
 /** @deprecated Alias für ältere Aufrufe / Settings-Seite */

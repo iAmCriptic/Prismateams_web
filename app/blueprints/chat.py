@@ -490,7 +490,8 @@ def get_chat_folder_options(chat_id):
     else:
         folders = Folder.query.order_by(Folder.name.asc()).all()
 
-    unique_folders = {folder.id: folder for folder in folders}.values()
+    unique_folders = list({folder.id: folder for folder in folders}.values())
+    Folder.prefetch_paths(unique_folders)
     sorted_folders = sorted(unique_folders, key=lambda folder: (folder.path or folder.name).lower())
 
     return jsonify({

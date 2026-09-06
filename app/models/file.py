@@ -39,10 +39,87 @@ class Folder(db.Model):
     
     @property
     def path(self):
-        """Get the full path of the folder."""
-        if self.parent:
-            return f"{self.parent.path}/{self.name}"
-        return self.name
+        """Get the full path of the folder (request-local cache + iterative walk)."""
+        from flask import g, has_request_context
+
+        cache = None
+        if has_request_context():
+            cache = getattr(g, '_folder_path_cache', None)
+            if cache is None:
+                cache = {}
+                g._folder_path_cache = cache
+            if self.id in cache:
+                return cache[self.id]
+
+        parts = []
+        current = self
+        seen = set()
+        while current is not None and current.id not in seen:
+            seen.add(current.id)
+            if cache is not None and current.id in cache:
+                parts.append(cache[current.id])
+                break
+            parts.append(current.name)
+            current = current.parent
+        parts.reverse()
+        value = '/'.join(parts) if parts else self.name
+        if cache is not None and self.id is not None:
+            cache[self.id] = value
+        return value
+
+    @staticmethod
+    def prefetch_paths(folders):
+        """
+        Lädt alle Ancestors in wenigen Queries und füllt den Request-Pfad-Cache.
+        Vermeidet N+1 bei Listen (Chat-Ordnerwahl, Events, …).
+        """
+        from flask import g, has_request_context
+
+        folders = [f for f in (folders or []) if f is not None]
+        if not folders:
+            return {}
+
+        by_id = {f.id: f for f in folders if f.id is not None}
+        missing = {
+            f.parent_id for f in folders
+            if f.parent_id and f.parent_id not in by_id
+        }
+        while missing:
+            rows = Folder.query.filter(Folder.id.in_(list(missing))).all()
+            if not rows:
+                break
+            missing = set()
+            for row in rows:
+                by_id[row.id] = row
+                if row.parent_id and row.parent_id not in by_id:
+                    missing.add(row.parent_id)
+
+        cache = {}
+        if has_request_context():
+            existing = getattr(g, '_folder_path_cache', None)
+            if existing is None:
+                existing = {}
+                g._folder_path_cache = existing
+            cache = existing
+
+        def path_of(fid):
+            if fid in cache:
+                return cache[fid]
+            node = by_id.get(fid)
+            if node is None:
+                return ''
+            if not node.parent_id or node.parent_id not in by_id:
+                value = node.name
+            else:
+                parent_path = path_of(node.parent_id)
+                value = f'{parent_path}/{node.name}' if parent_path else node.name
+            cache[fid] = value
+            return value
+
+        for folder in folders:
+            if folder.id is not None:
+                path_of(folder.id)
+        return {fid: cache[fid] for fid in by_id if fid in cache}
 
     @property
     def is_deleted(self):

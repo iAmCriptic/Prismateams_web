@@ -474,6 +474,21 @@ def youtubei_vendor():
         return Response('// youtubei.js unavailable\n', status=503, mimetype='text/javascript')
 
 
+_youtube_proxy_sem = None
+_youtube_proxy_sem_lock = threading.Lock()
+
+
+def _youtube_proxy_semaphore():
+    """Begrenzt parallele YouTube-Proxy-Streams (schützt Gunicorn-Worker)."""
+    global _youtube_proxy_sem
+    if _youtube_proxy_sem is None:
+        with _youtube_proxy_sem_lock:
+            if _youtube_proxy_sem is None:
+                n = int(current_app.config.get('YOUTUBE_PROXY_MAX_CONCURRENT', 4) or 4)
+                _youtube_proxy_sem = threading.BoundedSemaphore(max(1, n))
+    return _youtube_proxy_sem
+
+
 @media_downloader_bp.route('/youtube-proxy', methods=['POST'])
 @login_required
 @check_module_access('module_media_downloader')
@@ -483,6 +498,7 @@ def youtube_proxy():
     Same-origin CORS proxy for youtubei.js and googlevideo stream fetches.
 
     Browser code cannot call YouTube APIs directly; this forwards allowed hosts only.
+    Concurrent streams are capped; read timeouts are short for API and bounded for media.
     """
     import requests
 
@@ -493,9 +509,25 @@ def youtube_proxy():
             logger.warning('YouTube proxy rejected host: %s', data.get('url'))
         return jsonify({'error': error_key}), 400
 
+    sem = _youtube_proxy_semaphore()
+    if not sem.acquire(blocking=True, timeout=5):
+        return jsonify({'error': 'proxy_busy'}), 503
+
+    released = False
+
+    def _release():
+        nonlocal released
+        if not released:
+            released = True
+            try:
+                sem.release()
+            except Exception:
+                pass
+
     try:
         upstream = requests.request(**req_kwargs)
     except requests.RequestException as exc:
+        _release()
         logger.warning('YouTube proxy request failed: %s', exc)
         return jsonify({'error': 'proxy_failed'}), 502
 
@@ -514,7 +546,7 @@ def youtube_proxy():
     }
 
     return Response(
-        stream_with_context(iter_youtube_proxy_response(upstream)),
+        stream_with_context(iter_youtube_proxy_response(upstream, on_done=_release)),
         status=upstream.status_code,
         headers=response_headers,
     )

@@ -3,27 +3,20 @@
 {% block title %}{{ _('protocols.agenda.title') }} — {{ protocol.title }}{% endblock %}
 
 {% block content %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand, protocols_steps, protocols_index_url with context %}
+{% set index_url = protocols_index_url() %}
+
 <div class="protocols-workspace">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}" class="mod-back-link">
-                <i class="bi bi-arrow-left"></i>
-                <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
-            </a>
-            <div class="protocols-workspace-brand min-width-0">
-                <i class="bi bi-list-ol" aria-hidden="true"></i>
-                <div class="min-width-0">
-                    <div class="protocols-workspace-title text-truncate">{{ _('protocols.agenda.title') }}</div>
-                    <div class="protocols-workspace-subtitle text-truncate">{{ protocol.title }}</div>
-                </div>
-            </div>
+            {{ protocols_chrome_nav(
+                back_url=url_for('protocols.edit_meta', protocol_id=protocol.id),
+                close_url=index_url
+            ) }}
+            {{ protocols_chrome_brand('bi-list-ol', _('protocols.agenda.title'), protocol.title) }}
         </div>
         <div class="protocols-workspace-toolbar-end">
-            <div class="protocols-steps protocols-steps--toolbar d-none d-md-inline-flex">
-                <span class="protocols-step"><a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}">1. {{ _('protocols.steps.meta') }}</a></span>
-                <span class="protocols-step is-active">2. {{ _('protocols.steps.agenda') }}</span>
-                <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
-            </div>
+            {{ protocols_steps('agenda', protocol.id) }}
             <button type="submit" form="protocolsAgendaForm" name="action" value="save" class="btn protocols-btn-pill">
                 <i class="bi bi-save"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.actions.save_draft') }}</span>

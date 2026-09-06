@@ -329,23 +329,17 @@
 </div>
 {% endmacro %}
 
-{% macro email_list_pagination() %}
-{% if pagination is defined and pagination and pagination.pages > 1 %}
-<nav class="email-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-top" aria-label="{{ _('email.index.pagination.aria') }}">
-    <span class="text-muted small">{{ _('email.index.pagination.info', page=pagination.page, pages=pagination.pages, total=pagination.total) }}</span>
-    <div class="btn-group">
-        {% if email_prev_url %}
-        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ email_prev_url }}">{{ _('email.index.pagination.prev') }}</a>
-        {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('email.index.pagination.prev') }}</button>
-        {% endif %}
-        {% if email_next_url %}
-        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ email_next_url }}">{{ _('email.index.pagination.next') }}</a>
-        {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('email.index.pagination.next') }}</button>
-        {% endif %}
+{% macro email_list_load_more() %}
+{% if email_has_more|default(false) %}
+<div class="email-lazy-more px-3 py-2 border-top" data-lazy-more-wrap>
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill w-100" data-lazy-more-btn>
+        {{ _('email.index.pagination.load_more') }}
+    </button>
+    <div class="text-center text-muted small mt-1" data-lazy-more-status data-error="{{ _('email.index.pagination.load_error') }}" hidden>
+        {{ _('email.index.pagination.load_more_loading') }}
     </div>
-</nav>
+    <div data-lazy-more-sentinel aria-hidden="true" style="height:1px;"></div>
+</div>
 {% endif %}
 {% endmacro %}
 
@@ -456,6 +450,12 @@
 </div>
 
 <!-- Mobile Email List -->
+<div data-lazy-more
+     data-lazy-page="{{ pagination.page if pagination is defined else 1 }}"
+     data-lazy-has-more="{{ '1' if email_has_more|default(false) else '0' }}"
+     data-lazy-param="page"
+     data-lazy-items=".email-item"
+     data-lazy-targets=".email-list-mobile,.email-list-desktop,.email-list-mid">
 <div class="d-lg-none">
     <div class="card">
         <div class="card-body p-0">
@@ -465,7 +465,6 @@
                     {{ email_list_item(email, 'mobile', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
-            {{ email_list_pagination() }}
             {% else %}
             {{ email_empty_state() }}
             {% endif %}
@@ -572,8 +571,7 @@
                         {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                     {% endfor %}
                 </div>
-                {{ email_list_pagination() }}
-                {% else %}
+                    {% else %}
                 {{ email_empty_state() }}
                 {% endif %}
             </div>
@@ -631,18 +629,18 @@
                     {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
-            {{ email_list_pagination() }}
             {% else %}
             {{ email_empty_state() }}
             {% endif %}
         </div>
     </div>
 </div>
-
+{{ email_list_load_more() }}
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script>
 const EMAIL_I18N = {{ current_translations.get('email', {}).get('index', {})|tojson }};
 const EMAIL_MESSAGES = EMAIL_I18N.messages || {};

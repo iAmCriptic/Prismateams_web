@@ -330,7 +330,7 @@
 {% macro render_contact_card(contact) %}
 {% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
 {% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
-<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
+<div class="col-12 col-md-6 col-lg-4" data-lazy-item data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
     <div class="card h-100 contacts-card"
          data-item-type="contact"
          data-item-id="{{ contact.id }}"
@@ -428,6 +428,7 @@
 {% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
 {% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
 <tr class="mod-list-row"
+    data-lazy-item
     data-context-zone
     data-context-menu="template"
     data-context-menu-id="context-menu-contact-{{ contact.id }}-list"
@@ -613,10 +614,16 @@
         </div>
     </div>
 
-    <div id="contactsViewStage" class="files-view-stage">
+    <div id="contactsViewStage" class="files-view-stage"
+         data-lazy-more
+         data-lazy-page="{{ contacts_page|default(1) }}"
+         data-lazy-has-more="{{ '1' if contacts_has_more|default(false) else '0' }}"
+         data-lazy-param="page"
+         data-lazy-items="[data-lazy-item]"
+         data-lazy-targets="#contactsGridRow,#contactsListBody">
     <div id="gridViewContainer" class="files-view-pane" style="display: none;">
         {% if contacts %}
-        <div class="row g-3">
+        <div class="row g-3" id="contactsGridRow">
             {% for contact in contacts %}
                 {{ render_contact_card(contact) }}
             {% endfor %}
@@ -644,7 +651,7 @@
                         <th scope="col" class="text-end">{{ _('contacts.index.actions.column') }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="contactsListBody">
                     {% for contact in contacts %}
                         {{ render_contact_list_row(contact) }}
                     {% endfor %}
@@ -655,6 +662,17 @@
         {{ contacts_empty_state() }}
         {% endif %}
     </div>
+    {% if contacts_has_more|default(false) %}
+    <div class="contacts-lazy-more px-1 py-3" data-lazy-more-wrap>
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill w-100" data-lazy-more-btn>
+            {{ _('contacts.index.pagination.load_more') }}
+        </button>
+        <div class="text-center text-muted small mt-1" data-lazy-more-status data-error="{{ _('contacts.index.pagination.load_error') }}" hidden>
+            {{ _('contacts.index.pagination.load_more_loading') }}
+        </div>
+        <div data-lazy-more-sentinel aria-hidden="true" style="height:1px;"></div>
+    </div>
+    {% endif %}
     </div>
 </div>
 </div>
@@ -684,6 +702,7 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script>
 window.CONTACTS_BULK_DOWNLOAD_URL = {{ url_for('contacts.api_download_vcf')|tojson }};
 window.CONTACTS_BULK_DELETE_URL = {{ url_for('contacts.api_bulk_delete')|tojson }};

@@ -2791,6 +2791,11 @@
       "page_title": "Dateien - Team Portal",
       "heading": "Dateien",
       "breadcrumb_root": "Root",
+      "pagination": {
+        "load_more": "Weitere Dateien laden",
+        "load_more_loading": "Laden…",
+        "load_error": "Weitere Dateien konnten nicht geladen werden"
+      },
       "nav": {
         "ablage": "Meine Ablage",
         "freigaben": "Freigaben",
@@ -3201,7 +3206,10 @@
         "prev": "Zurück",
         "next": "Weiter",
         "info": "Seite {page} von {pages} ({total})",
-        "aria": "E-Mail-Seiten"
+        "aria": "E-Mail-Seiten",
+        "load_more": "Weitere E-Mails laden",
+        "load_more_loading": "Laden…",
+        "load_error": "Weitere E-Mails konnten nicht geladen werden"
       }
     },
     "compose": {
@@ -3555,7 +3563,12 @@
         "copy_error": "Kopieren fehlgeschlagen."
       },
       "empty_message": "Keine Kontakte vorhanden.",
-      "empty_cta": "Neuer Kontakt"
+      "empty_cta": "Neuer Kontakt",
+      "pagination": {
+        "load_more": "Weitere Kontakte laden",
+        "load_more_loading": "Laden…",
+        "load_error": "Weitere Kontakte konnten nicht geladen werden"
+      }
     },
     "bulk": {
       "selected": "ausgewählt",
@@ -3861,7 +3874,10 @@
         "prev": "Zurück",
         "next": "Weiter",
         "info": "Seite {page} von {pages} ({total})",
-        "aria": "Wiki-Seiten"
+        "aria": "Wiki-Seiten",
+        "load_more": "Weitere Seiten laden",
+        "load_more_loading": "Laden…",
+        "load_error": "Weitere Seiten konnten nicht geladen werden"
       },
       "js": {
         "favorite_error": "Fehler beim Aktualisieren der Favoriten.",
@@ -4186,7 +4202,8 @@
       "no_manage_permission": "Keine Berechtigung, diesen Kalender zu bearbeiten.",
       "participation_status": "Teilnahme an \"{event_title}\": {status}",
       "accepted": "zugesagt",
-      "declined": "abgesagt"
+      "declined": "abgesagt",
+      "sync_started": "Synchronisation im Hintergrund gestartet. Aktualisieren Sie die Seite in wenigen Sekunden."
     },
     "notifications": {
       "invite_title": "Einladung zu Termin erhalten",
@@ -4989,7 +5006,11 @@
         "load_products_error": "Fehler beim Laden der Produkte:",
         "critical_error": "Kritischer Fehler:"
       },
-      "filters_sort_button": "Filter & Sortierung"
+      "filters_sort_button": "Filter & Sortierung",
+      "pagination": {
+        "load_more": "Weitere Produkte laden",
+        "load_more_loading": "Laden…"
+      }
     },
     "cable_form": {
       "page_title": "Mengenartikel anlegen - Team Portal",
@@ -6837,6 +6858,16 @@
       "deleted": "Protokoll gelöscht.",
       "finalized_readonly": "Abgeschlossene Protokolle können nicht mehr bearbeitet werden.",
       "pdf_only_finalized": "PDF ist erst nach Abschluss verfügbar."
+    },
+    "editor": {
+      "table": "Tabelle",
+      "color": "Schriftfarbe",
+      "highlight": "Textmarker",
+      "size": "Schriftgröße",
+      "size_small": "Klein",
+      "size_normal": "Normal",
+      "size_large": "Groß",
+      "size_huge": "Sehr groß"
     }
   }
 }

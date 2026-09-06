@@ -3,26 +3,30 @@
 {% block title %}{{ item.title }} — {{ protocol.title }}{% endblock %}
 
 {% block extra_css %}
-<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand, protocols_steps, protocols_index_url with context %}
+{% set index_url = protocols_index_url() %}
+
 <div class="protocols-workspace protocols-workspace--editor">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}" class="mod-back-link">
-                <i class="bi bi-arrow-left"></i>
-                <span class="d-none d-sm-inline">{{ _('protocols.steps.agenda') }}</span>
-            </a>
-            <div class="protocols-workspace-brand min-width-0">
-                <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                <div class="min-width-0">
-                    <div class="protocols-workspace-title text-truncate">{{ _('protocols.steps.content') }}</div>
-                    <div class="protocols-workspace-subtitle text-truncate">{{ protocol.title }} · TOP {{ item_index + 1 }}/{{ items|length }}</div>
-                </div>
-            </div>
+            {{ protocols_chrome_nav(
+                back_url=url_for('protocols.edit_agenda', protocol_id=protocol.id),
+                close_url=index_url,
+                back_label=_('protocols.steps.agenda')
+            ) }}
+            {{ protocols_chrome_brand(
+                'bi-pencil-square',
+                _('protocols.steps.content'),
+                protocol.title ~ ' · TOP ' ~ (item_index + 1) ~ '/' ~ (items|length)
+            ) }}
         </div>
         <div class="protocols-workspace-toolbar-end">
+            {{ protocols_steps('content', protocol.id) }}
             <nav class="protocols-item-nav protocols-item-nav--toolbar" aria-label="{{ _('protocols.item.nav_label') }}">
                 {% for it in items %}
                 <a class="protocols-item-nav-link {% if it.id == item.id %}is-active{% endif %}"
@@ -76,12 +80,17 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.js"></script>
 <script>
 window.PROTOCOLS_INITIAL_HTML = {{ (item.content_html or '')|tojson }};
 window.PROTOCOLS_I18N = {
     autosaved: {{ _('protocols.item.autosaved')|tojson }},
-    saving: {{ _('protocols.item.saving')|tojson }}
+    saving: {{ _('protocols.item.saving')|tojson }},
+    table: {{ _('protocols.editor.table')|tojson }},
+    color: {{ _('protocols.editor.color')|tojson }},
+    highlight: {{ _('protocols.editor.highlight')|tojson }},
+    size: {{ _('protocols.editor.size')|tojson }}
 };
 </script>
 <script src="{{ url_for('static', filename='js/protocols.js') }}"></script>

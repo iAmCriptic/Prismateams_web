@@ -138,7 +138,7 @@
 {% endmacro %}
 
 {% macro render_wiki_card(page) %}
-<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="dropdown">
+<div class="col-12 col-md-6 col-lg-4" data-lazy-item data-context-zone data-context-menu="dropdown">
     <div class="card h-100 wiki-page-card" onclick="location.href='{{ url_for('wiki.view', slug=page.slug) }}'" style="cursor: pointer;">
         <div class="card-body d-flex flex-column">
             <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
@@ -211,7 +211,7 @@
 {% endmacro %}
 
 {% macro render_wiki_list_row(page) %}
-<tr class="mod-list-row" data-context-zone data-context-menu="dropdown">
+<tr class="mod-list-row" data-lazy-item data-context-zone data-context-menu="dropdown">
     <td>
         <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('wiki.view', slug=page.slug) }}">
             <i class="bi bi-journal-text flex-shrink-0"></i>
@@ -339,7 +339,7 @@
     <div id="wikiViewStage" class="files-view-stage">
     <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
         {% if pages %}
-        <div class="row g-3">
+        <div class="row g-3" id="wikiGridRow">
             {% for page in pages %}
                 {{ render_wiki_card(page) }}
             {% endfor %}
@@ -362,7 +362,7 @@
                         <th scope="col" class="text-end">{{ _('common.actions') }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="wikiListBody">
                     {% for page in pages %}
                         {{ render_wiki_list_row(page) }}
                     {% endfor %}
@@ -375,22 +375,23 @@
     </div>
     </div>
 
-    {% if pagination is defined and pagination and pagination.pages > 1 %}
-    <nav class="wiki-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2" aria-label="{{ _('wiki.index.pagination.aria') }}">
-        <span class="text-muted small">{{ _('wiki.index.pagination.info', page=pagination.page, pages=pagination.pages, total=pagination.total) }}</span>
-        <div class="d-flex gap-2">
-            {% if wiki_prev_url %}
-            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ wiki_prev_url }}">{{ _('wiki.index.pagination.prev') }}</a>
-            {% else %}
-            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('wiki.index.pagination.prev') }}</button>
-            {% endif %}
-            {% if wiki_next_url %}
-            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ wiki_next_url }}">{{ _('wiki.index.pagination.next') }}</a>
-            {% else %}
-            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" disabled>{{ _('wiki.index.pagination.next') }}</button>
-            {% endif %}
+    {% if wiki_has_more|default(false) %}
+    <div data-lazy-more
+         data-lazy-page="{{ pagination.page if pagination is defined else 1 }}"
+         data-lazy-has-more="1"
+         data-lazy-param="page"
+         data-lazy-items="[data-lazy-item]"
+         data-lazy-targets="#wikiGridRow,#wikiListBody">
+        <div class="wiki-lazy-more mt-3" data-lazy-more-wrap>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-lazy-more-btn>
+                {{ _('wiki.index.pagination.load_more') }}
+            </button>
+            <span class="text-muted small ms-2" data-lazy-more-status data-error="{{ _('wiki.index.pagination.load_error') }}" hidden>
+                {{ _('wiki.index.pagination.load_more_loading') }}
+            </span>
+            <div data-lazy-more-sentinel aria-hidden="true" style="height:1px;"></div>
         </div>
-    </nav>
+    </div>
     {% endif %}
 </div>
 </div>
@@ -407,6 +408,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>

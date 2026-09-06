@@ -4,39 +4,25 @@
 
 {% block content %}
 {% from 'protocols/_sidebar.html' import protocols_create_url with context %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand, protocols_steps, protocols_index_url with context %}
 {% set editing = editing|default(false) %}
 {% set create_url = protocols_create_url() %}
-{% if section_filter == 'team' and filter_team_id %}
-{% set index_url = url_for('protocols.index', view='team', team_id=filter_team_id) %}
-{% elif section_filter == 'public' %}
-{% set index_url = url_for('protocols.index', view='public') %}
-{% else %}
-{% set index_url = url_for('protocols.index') %}
-{% endif %}
+{% set index_url = protocols_index_url() %}
 {% set form_action = url_for('protocols.edit_meta', protocol_id=protocol.id) if editing else create_url %}
 
 <div class="protocols-workspace">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ index_url }}" class="mod-back-link">
-                <i class="bi bi-arrow-left"></i>
-                <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
-            </a>
-            <div class="protocols-workspace-brand min-width-0">
-                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
-                <div class="min-width-0">
-                    <div class="protocols-workspace-title text-truncate">{{ _('protocols.nav.create') if not editing else _('protocols.meta.edit_title') }}</div>
-                    <div class="protocols-workspace-subtitle text-truncate">{{ _('protocols.create.subtitle') }}</div>
-                </div>
-            </div>
+            {{ protocols_chrome_nav(back_url=index_url, close_url=index_url) }}
+            {{ protocols_chrome_brand(
+                'bi-journal-richtext',
+                _('protocols.nav.create') if not editing else _('protocols.meta.edit_title'),
+                _('protocols.create.subtitle')
+            ) }}
         </div>
         <div class="protocols-workspace-toolbar-end">
             {% if editing %}
-            <div class="protocols-steps protocols-steps--toolbar">
-                <span class="protocols-step is-active">1. {{ _('protocols.steps.meta') }}</span>
-                <span class="protocols-step"><a href="{{ url_for('protocols.edit_agenda', protocol_id=protocol.id) }}">2. {{ _('protocols.steps.agenda') }}</a></span>
-                <span class="protocols-step">3. {{ _('protocols.steps.content') }}</span>
-            </div>
+            {{ protocols_steps('meta', protocol.id) }}
             {% endif %}
             <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill protocols-btn-pill">
                 <i class="bi bi-arrow-right"></i>

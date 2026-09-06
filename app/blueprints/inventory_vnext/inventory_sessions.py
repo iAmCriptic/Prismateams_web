@@ -305,6 +305,21 @@ def update_inventory_item(inventory_id, product_id):
     item.version = int(item.version) + 1
     db.session.commit()
 
+    try:
+        from app.blueprints.sse import emit_inventory_update
+        emit_inventory_update(
+            inventory_id,
+            'item_updated',
+            {
+                'product_id': item.product_id,
+                'checked': item.checked,
+                'version': item.version,
+                'actor_id': current_user.id,
+            },
+        )
+    except Exception:
+        pass
+
     return api_ok(
         {
             "item": {

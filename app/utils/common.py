@@ -228,50 +228,90 @@ def get_current_commit_hash():
     return None
 
 
+# Background-Cache für GitHub-Update-Check (nie synchron im Request-Pfad blockieren).
+_UPDATE_CHECK_CACHE = {'data': None, 'checked_at': 0.0, 'refreshing': False}
+_UPDATE_CHECK_LOCK = None
+_UPDATE_CHECK_TTL_SECONDS = 6 * 3600
+
+
+def _update_check_lock():
+    global _UPDATE_CHECK_LOCK
+    if _UPDATE_CHECK_LOCK is None:
+        import threading
+        _UPDATE_CHECK_LOCK = threading.Lock()
+    return _UPDATE_CHECK_LOCK
+
+
+def _fetch_github_update_info():
+    """Synchroner GitHub-API-Call (nur aus Background-Thread)."""
+    github_repo = "iAmCriptic/Prismateams_web"
+    github_api_url = f"https://api.github.com/repos/{github_repo}/commits/main"
+    response = requests.get(github_api_url, timeout=5)
+
+    if response.status_code != 200:
+        current_app.logger.warning(f"GitHub API Fehler: {response.status_code}")
+        return None
+
+    commit_data = response.json()
+    latest_commit_hash = commit_data.get('sha', '')[:7]
+    latest_commit_date = commit_data.get('commit', {}).get('author', {}).get('date', '')
+    current_commit = get_current_commit_hash()
+
+    if not current_commit:
+        return {
+            'update_available': False,
+            'latest_commit': latest_commit_hash,
+            'latest_commit_date': latest_commit_date,
+        }
+
+    return {
+        'update_available': current_commit[:7] != latest_commit_hash,
+        'latest_commit': latest_commit_hash,
+        'latest_commit_date': latest_commit_date,
+        'current_commit': current_commit[:7],
+    }
+
+
+def _refresh_update_cache_async(app):
+    """Aktualisiert den Update-Cache im Hintergrund."""
+    import time
+
+    try:
+        with app.app_context():
+            info = _fetch_github_update_info()
+            with _update_check_lock():
+                if info is not None:
+                    _UPDATE_CHECK_CACHE['data'] = info
+                    _UPDATE_CHECK_CACHE['checked_at'] = time.time()
+    except requests.exceptions.Timeout:
+        app.logger.warning("Timeout beim Abrufen von GitHub Updates")
+    except Exception as e:
+        app.logger.error(f"Fehler beim Prüfen auf Updates: {e}")
+    finally:
+        with _update_check_lock():
+            _UPDATE_CHECK_CACHE['refreshing'] = False
+
+
 def check_for_updates():
     """
-    Prüft ob ein Update verfügbar ist, indem der neueste Commit vom Main-Branch auf GitHub abgerufen wird.
-    
-    Returns:
-        Dict mit 'update_available' (bool), 'latest_commit' (str), 'latest_commit_date' (str) oder None bei Fehler
+    Liefert Update-Info aus Cache (TTL 6h). Refresh läuft im Background —
+    der Request-Pfad wartet nie auf GitHub.
     """
-    try:
-        github_repo = "iAmCriptic/Prismateams_web"
-        github_api_url = f"https://api.github.com/repos/{github_repo}/commits/main"
-        
-        # Timeout von 5 Sekunden, um nicht zu lange zu warten
-        response = requests.get(github_api_url, timeout=5)
-        
-        if response.status_code == 200:
-            commit_data = response.json()
-            latest_commit_hash = commit_data.get('sha', '')[:7]  # Erste 7 Zeichen
-            latest_commit_date = commit_data.get('commit', {}).get('author', {}).get('date', '')
-            
-            current_commit = get_current_commit_hash()
-            
-            # Wenn aktueller Commit nicht ermittelbar, zeige Update-Banner nicht an
-            if not current_commit:
-                return {
-                    'update_available': False,
-                    'latest_commit': latest_commit_hash,
-                    'latest_commit_date': latest_commit_date
-                }
-            
-            # Vergleiche Commits (nur erste 7 Zeichen für Vergleich)
-            update_available = current_commit[:7] != latest_commit_hash
-            
-            return {
-                'update_available': update_available,
-                'latest_commit': latest_commit_hash,
-                'latest_commit_date': latest_commit_date,
-                'current_commit': current_commit[:7] if current_commit else None
-            }
-        else:
-            current_app.logger.warning(f"GitHub API Fehler: {response.status_code}")
-            return None
-    except requests.exceptions.Timeout:
-        current_app.logger.warning("Timeout beim Abrufen von GitHub Updates")
-        return None
-    except Exception as e:
-        current_app.logger.error(f"Fehler beim Prüfen auf Updates: {e}")
-        return None
+    import time
+    import threading
+
+    now = time.time()
+    with _update_check_lock():
+        cached = _UPDATE_CHECK_CACHE['data']
+        age = now - float(_UPDATE_CHECK_CACHE['checked_at'] or 0)
+        stale = cached is None or age >= _UPDATE_CHECK_TTL_SECONDS
+        if stale and not _UPDATE_CHECK_CACHE['refreshing']:
+            _UPDATE_CHECK_CACHE['refreshing'] = True
+            app = current_app._get_current_object()
+            threading.Thread(
+                target=_refresh_update_cache_async,
+                args=(app,),
+                daemon=True,
+                name='github-update-check',
+            ).start()
+        return cached

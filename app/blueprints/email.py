@@ -3342,18 +3342,6 @@ def _emails_for_folder(
     )
 
 
-def _email_list_page_url(folder_name: str, page: int, search_query: str = '', mailbox_id=None):
-    """Build folder list URL preserving search and mailbox filters."""
-    from app.utils.multi_mailboxes import is_email_multi_enabled
-
-    kwargs = {'folder_name': folder_name, 'page': page}
-    if search_query:
-        kwargs['q'] = search_query
-    if is_email_multi_enabled():
-        kwargs['mailbox'] = mailbox_id or 'main'
-    return url_for('email.folder_view', **kwargs)
-
-
 def _restore_false_deleted_flags(emails, folder_name: str) -> None:
     restored_count = 0
     for email in emails:
@@ -3438,14 +3426,7 @@ def index():
         'email/index.html',
         emails=emails,
         pagination=pagination,
-        email_prev_url=(
-            _email_list_page_url(current_folder, pagination.prev_num, search_query, mailbox_id)
-            if pagination.has_prev else None
-        ),
-        email_next_url=(
-            _email_list_page_url(current_folder, pagination.next_num, search_query, mailbox_id)
-            if pagination.has_next else None
-        ),
+        email_has_more=pagination.has_next,
         folders=folders,
         folder_tree=folder_tree,
         folder_unread_counts=count_unread_emails_by_folder(
@@ -3525,14 +3506,7 @@ def folder_view(folder_name):
         'email/index.html',
         emails=emails,
         pagination=pagination,
-        email_prev_url=(
-            _email_list_page_url(folder_name, pagination.prev_num, search_query, mailbox_id)
-            if pagination.has_prev else None
-        ),
-        email_next_url=(
-            _email_list_page_url(folder_name, pagination.next_num, search_query, mailbox_id)
-            if pagination.has_next else None
-        ),
+        email_has_more=pagination.has_next,
         folders=folders,
         folder_tree=folder_tree,
         folder_unread_counts=count_unread_emails_by_folder(

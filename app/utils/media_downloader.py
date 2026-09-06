@@ -677,25 +677,40 @@ def build_youtube_proxy_request(data):
             else:
                 body = str(raw_body).encode('utf-8')
 
+    # API-Calls kurz; Stream-Reads begrenzt (kein 600s Worker-Block).
+    if is_googlevideo:
+        read_timeout = int(os.environ.get('YOUTUBE_PROXY_STREAM_TIMEOUT', '120'))
+        timeout = (15, max(30, read_timeout))
+    else:
+        read_timeout = int(os.environ.get('YOUTUBE_PROXY_API_TIMEOUT', '30'))
+        timeout = (10, max(5, read_timeout))
+
     return {
         'method': method,
         'url': target_url,
         'headers': headers,
         'data': body,
         'stream': True,
-        'timeout': (15, 600),
+        'timeout': timeout,
         'allow_redirects': True,
     }, None
 
 
-def iter_youtube_proxy_response(requests_response):
+def iter_youtube_proxy_response(requests_response, on_done=None):
     """Yield chunks from a requests response for Flask streaming."""
     try:
         for chunk in requests_response.iter_content(chunk_size=65536):
             if chunk:
                 yield chunk
     finally:
-        requests_response.close()
+        try:
+            requests_response.close()
+        finally:
+            if on_done:
+                try:
+                    on_done()
+                except Exception:
+                    pass
 
 
 YOUTUBE_TV_OAUTH_UA = 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version'

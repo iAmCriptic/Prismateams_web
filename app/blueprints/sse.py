@@ -227,6 +227,14 @@ def emit_kanban_update(board_id, event_type, data):
     return publish_event(channel, f'kanban:{event_type}', data)
 
 
+def emit_inventory_update(inventory_id, event_type, data=None):
+    """Sendet ein Inventur-Update an alle verbundenen Clients der Session."""
+    channel = f'inventory:{inventory_id}'
+    payload = dict(data or {})
+    payload.setdefault('inventory_id', inventory_id)
+    return publish_event(channel, f'inventory:{event_type}', payload)
+
+
 @sse_bp.route('/events/kanban/<int:board_id>')
 @login_required
 def kanban_events(board_id):
@@ -256,3 +264,34 @@ def kanban_events(board_id):
         },
     )
     return response
+
+
+@sse_bp.route('/events/inventory/<int:inventory_id>')
+@login_required
+def inventory_events(inventory_id):
+    """SSE-Endpoint für Inventur-Session-Live-Updates."""
+    from app.models.inventory import Inventory
+    from app.utils.access_control import has_module_access
+    from app.utils.common import is_module_enabled
+
+    if not is_module_enabled('module_inventory') or not has_module_access(
+        current_user, 'module_inventory'
+    ):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    Inventory.query.get_or_404(inventory_id)
+    channels = [f'inventory:{inventory_id}']
+
+    def generate():
+        yield from event_stream(channels, current_user.id)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            'Access-Control-Allow-Origin': '*',
+        },
+    )

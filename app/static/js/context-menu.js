@@ -11,6 +11,9 @@
 
     function i18n() {
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
+        if (!c.copy_info && window.ensurePrismateamsI18nPacks) {
+            window.ensurePrismateamsI18nPacks(['context_menu']);
+        }
         return {
             copy_info: c.copy_info || 'Infos kopieren',
             copied: c.copied || 'Kopiert',

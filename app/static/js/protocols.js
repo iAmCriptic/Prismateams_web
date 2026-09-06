@@ -202,16 +202,68 @@
         var hidden = document.getElementById('contentHtml');
         if (!editorEl || !form || !hidden || typeof Quill === 'undefined') return;
 
+        var hasBetterTable = typeof quillBetterTable !== 'undefined';
+        if (hasBetterTable) {
+            Quill.register({ 'modules/better-table': quillBetterTable }, true);
+        }
+
+        var toolbarOptions = [
+            [{ size: ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ align: [] }],
+            ['blockquote'],
+            ['table'],
+            ['clean'],
+        ];
+
+        var modules = {
+            toolbar: {
+                container: toolbarOptions,
+                handlers: {
+                    table: function () {
+                        if (!hasBetterTable) {
+                            insertFallbackTable(this.quill);
+                            return;
+                        }
+                        var tableModule = this.quill.getModule('better-table');
+                        if (tableModule) tableModule.insertTable(3, 3);
+                    },
+                },
+            },
+        };
+
+        if (hasBetterTable) {
+            modules.table = false;
+            modules['better-table'] = {
+                operationMenu: {
+                    items: {
+                        insertColumnRight: { text: 'Spalte rechts' },
+                        insertColumnLeft: { text: 'Spalte links' },
+                        insertRowUp: { text: 'Zeile darüber' },
+                        insertRowDown: { text: 'Zeile darunter' },
+                        mergeCells: { text: 'Zellen verbinden' },
+                        unmergeCells: { text: 'Zellen trennen' },
+                        deleteColumn: { text: 'Spalte löschen' },
+                        deleteRow: { text: 'Zeile löschen' },
+                        deleteTable: { text: 'Tabelle löschen' },
+                    },
+                },
+            };
+            modules.keyboard = {
+                bindings: quillBetterTable.keyboardBindings,
+            };
+        }
+
         var quill = new Quill('#protocolsEditor', {
             theme: 'snow',
-            modules: {
-                toolbar: [
-                    ['bold', 'italic', 'underline'],
-                    [{ list: 'ordered' }, { list: 'bullet' }],
-                ],
-            },
+            modules: modules,
             placeholder: '',
         });
+
+        styleToolbarIcons(quill);
+        polishToolbarChrome(quill);
 
         var initial = window.PROTOCOLS_INITIAL_HTML || '';
         if (initial) {
@@ -271,6 +323,40 @@
         form.addEventListener('submit', function () {
             syncHidden();
         });
+    }
+
+    function insertFallbackTable(quill) {
+        var range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        var html =
+            '<table class="protocols-ql-table"><tbody>' +
+            '<tr><td><br></td><td><br></td><td><br></td></tr>' +
+            '<tr><td><br></td><td><br></td><td><br></td></tr>' +
+            '<tr><td><br></td><td><br></td><td><br></td></tr>' +
+            '</tbody></table><p><br></p>';
+        quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+        quill.setSelection(range.index + 1, 0, 'silent');
+    }
+
+    function styleToolbarIcons(quill) {
+        var toolbar = quill.getModule('toolbar');
+        if (!toolbar || !toolbar.container) return;
+        var tableBtn = toolbar.container.querySelector('.ql-table');
+        if (tableBtn && !tableBtn.querySelector('svg, i')) {
+            tableBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.table) || 'Tabelle');
+            tableBtn.innerHTML = '<i class="bi bi-table" aria-hidden="true"></i>';
+        }
+        var colorBtn = toolbar.container.querySelector('.ql-color .ql-picker-label');
+        if (colorBtn) colorBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.color) || 'Schriftfarbe');
+        var bgBtn = toolbar.container.querySelector('.ql-background .ql-picker-label');
+        if (bgBtn) bgBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.highlight) || 'Textmarker');
+        var sizeBtn = toolbar.container.querySelector('.ql-size .ql-picker-label');
+        if (sizeBtn) sizeBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.size) || 'Größe');
+    }
+
+    function polishToolbarChrome(quill) {
+        var toolbar = quill.getModule('toolbar');
+        if (!toolbar || !toolbar.container) return;
+        toolbar.container.classList.add('protocols-ql-toolbar');
     }
 
     document.addEventListener('DOMContentLoaded', function () {

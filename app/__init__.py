@@ -158,22 +158,23 @@ def create_app(config_name='default'):
     configure_app_logging(app, config_name)
     csrf.init_app(app)
 
-    if config_name == 'production' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
+    if config_name in ('production', 'staging') and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
         raise RuntimeError(
-            "Production requires a strong SECRET_KEY via environment variable SECRET_KEY."
+            f"{config_name.capitalize()} requires a strong SECRET_KEY via environment variable SECRET_KEY."
         )
 
     if (
-        config_name == 'production'
+        config_name in ('production', 'staging')
         and app.config.get('ONLYOFFICE_ENABLED')
         and not (app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
         and not app.config.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
     ):
         import logging as _logging
         _logging.getLogger(__name__).warning(
-            "ONLYOFFICE is enabled without ONLYOFFICE_SECRET_KEY in production. "
+            "ONLYOFFICE is enabled without ONLYOFFICE_SECRET_KEY in %s. "
             "Callbacks will be rejected until the secret matches Document Server JWT_SECRET "
-            "(or set ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true for JWT_ENABLED=false)."
+            "(or set ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true for JWT_ENABLED=false).",
+            config_name,
         )
 
     # Relative UPLOAD_FOLDER must resolve to project root, not app package
@@ -194,6 +195,8 @@ def create_app(config_name='default'):
     try:
         from app.utils.system_settings_cache import register_settings_cache_invalidation
         register_settings_cache_invalidation()
+        from app.utils.file_storage_limits import register_usage_cache_invalidation
+        register_usage_cache_invalidation()
     except Exception:
         pass
     login_manager.init_app(app)
@@ -325,6 +328,13 @@ def create_app(config_name='default'):
             logger = logging.getLogger(__name__)
             logger.warning("Redis nicht aktiviert! Multi-Worker-Setups funktionieren nicht korrekt.")
             logger.warning("Setze REDIS_ENABLED=True in der .env für Production mit mehreren Workern.")
+
+    # P18: Server-seitige Sessions (Cookie = nur Session-ID)
+    try:
+        from app.utils.server_session import configure_server_sessions
+        configure_server_sessions(app)
+    except Exception as sess_exc:
+        logging.getLogger(__name__).warning('Server-Sessions Setup fehlgeschlagen: %s', sess_exc)
     
     register_i18n(app)
     
@@ -389,6 +399,18 @@ def create_app(config_name='default'):
         if path.endswith('?') and not request.query_string:
             path = path[:-1]
         return redirect(f'{scheme}://{target_host}{path}', code=302)
+
+    @app.before_request
+    def prune_session_bloat():
+        """Begrenzt große Session-Keys (Share-Passwords, Auth-Flags, Cart)."""
+        if request.path.startswith('/socket.io/'):
+            return
+        try:
+            from flask import session as flask_session
+            from app.utils.server_session import prune_bulky_session_keys
+            prune_bulky_session_keys(flask_session)
+        except Exception:
+            pass
 
     @app.before_request
     def csrf_same_origin_guard():
@@ -785,10 +807,12 @@ def create_app(config_name='default'):
             desktop_nav_favorites = get_nav_favorites(current_user)
             current_nav_module = get_current_nav_module(_req.endpoint, current_user)
             try:
-                from app.utils.file_storage_limits import usage_payload_for_user
-                payload = usage_payload_for_user(current_user.id)
-                if payload.get('quota_enabled'):
-                    nav_storage_usage = payload
+                from app.utils.file_storage_limits import is_quota_enabled, usage_payload_for_user
+                # P24: keine SUM-Queries wenn Quota aus; sonst TTL-/Request-Cache
+                if is_quota_enabled():
+                    nav_storage_usage = usage_payload_for_user(current_user.id)
+                    if not nav_storage_usage.get('quota_enabled'):
+                        nav_storage_usage = None
             except Exception:
                 nav_storage_usage = None
 
@@ -1106,8 +1130,9 @@ def create_app(config_name='default'):
     app.register_blueprint(manuals_bp, url_prefix='/manuals')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
-    if config_name != 'production':
+    if app.config.get('ENABLE_ERROR_TEST_ROUTES'):
         app.register_blueprint(errors_bp, url_prefix='/test')
+        app.logger.info('Error-Testrouten aktiv unter /test/… (ENABLE_ERROR_TEST_ROUTES)')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_compat_bp)
@@ -1126,7 +1151,10 @@ def create_app(config_name='default'):
     app.register_blueprint(surveys_bp)
     app.register_blueprint(protocols_bp)
 
-    # Server-to-server / machine callbacks: no browser CSRF token available
+    # Server-to-server callbacks ohne Browser-CSRF-Token.
+    # OnlyOffice: CSRF-Exempt ist nötig; kompensierendes Control ist JWT
+    # (verify_onlyoffice_callback_token / H3). Unsigned nur Dev/Test oder
+    # ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true.
     for endpoint in (
         'files.onlyoffice_callback',
         'files.share_onlyoffice_callback',

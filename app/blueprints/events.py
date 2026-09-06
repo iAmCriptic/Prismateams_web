@@ -217,6 +217,7 @@ def create_event():
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
     folders = Folder.query.order_by(Folder.name).all()
+    Folder.prefetch_paths(folders)
     products = Product.query.order_by(Product.name).all()
 
     if request.method == 'POST':
@@ -443,6 +444,8 @@ def _store_form_data(event_obj, req):
 def view_event(event_id):
     _refresh_archive_state()
     event_obj = Event.query.get_or_404(event_id)
+    if event_obj.folder:
+        Folder.prefetch_paths([event_obj.folder])
     conflicts = _serialize_conflicts(event_obj)
     return render_template('events/view.html', event=event_obj, conflicts=conflicts)
 
@@ -456,6 +459,7 @@ def edit_event(event_id):
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
     folders = Folder.query.order_by(Folder.name).all()
+    Folder.prefetch_paths(folders)
     products = Product.query.order_by(Product.name).all()
 
     if request.method == 'POST':

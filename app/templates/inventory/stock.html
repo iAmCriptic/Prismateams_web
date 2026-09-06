@@ -260,6 +260,16 @@
     </div>
 </div>
 
+<div id="inventoryProductsLazyMore" class="inventory-lazy-more px-1 py-3" hidden>
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill w-100" data-inv-lazy-more-btn>
+        {{ _('inventory.stock.pagination.load_more') }}
+    </button>
+    <div class="text-center text-muted small mt-1" data-inv-lazy-more-status hidden>
+        {{ _('inventory.stock.pagination.load_more_loading') }}
+    </div>
+    <div data-inv-lazy-more-sentinel aria-hidden="true" style="height:1px;"></div>
+</div>
+
 <div class="modal fade" id="productDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content" style="border-radius: 1.25rem;">

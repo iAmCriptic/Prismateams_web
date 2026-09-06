@@ -18,6 +18,44 @@ MAX_RETRIES = 2
 # Wartezeit zwischen Retries (in Sekunden)
 RETRY_DELAY = 0.5
 
+# P22: kurzes Response-Cache für Multi-Provider-Suche (Request-Schutz)
+_SEARCH_CACHE_TTL = 60
+_SEARCH_CACHE_MAX = 128
+_search_cache = {}
+_search_cache_lock = None
+
+def _get_search_cache_lock():
+    global _search_cache_lock
+    if _search_cache_lock is None:
+        import threading
+        _search_cache_lock = threading.Lock()
+    return _search_cache_lock
+
+
+def _search_cache_get(key):
+    now = time.time()
+    lock = _get_search_cache_lock()
+    with lock:
+        entry = _search_cache.get(key)
+        if not entry:
+            return None
+        ts, payload = entry
+        if now - ts > _SEARCH_CACHE_TTL:
+            _search_cache.pop(key, None)
+            return None
+        return payload
+
+
+def _search_cache_set(key, payload):
+    lock = _get_search_cache_lock()
+    with lock:
+        if len(_search_cache) >= _SEARCH_CACHE_MAX:
+            # Drop oldest ~25%
+            ordered = sorted(_search_cache.items(), key=lambda kv: kv[1][0])
+            for drop_key, _ in ordered[: max(1, _SEARCH_CACHE_MAX // 4)]:
+                _search_cache.pop(drop_key, None)
+        _search_cache[key] = (time.time(), payload)
+
 
 class SpotifyAPI:
     """Spotify API Client."""
@@ -1166,6 +1204,26 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None, in
     
     # Parse Query
     parsed_query = parse_search_query(query)
+
+    # P22: Cache-Key (ohne user-spezifische Spotify-Tokens nur bei gleichem user_id)
+    try:
+        enabled_providers = tuple(MusicSettings.get_enabled_providers() or [])
+        provider_order = tuple(MusicSettings.get_provider_order() or [])
+    except Exception:
+        enabled_providers = ()
+        provider_order = ()
+    cache_key = (
+        (query or '').strip().lower(),
+        int(limit or 10),
+        int(min_results or 5),
+        bool(include_recommendations),
+        user_id,
+        enabled_providers,
+        provider_order,
+    )
+    cached = _search_cache_get(cache_key)
+    if cached is not None:
+        return cached
     
     # Hole aktivierte Provider und Reihenfolge
     enabled_providers = MusicSettings.get_enabled_providers()
@@ -1298,11 +1356,16 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None, in
             logger.warning(f"Fehler beim Abrufen von Spotify Recommendations: {e}")
     
     # YouTube Recommendations wurden entfernt, da die API (relatedToVideoId) nicht mehr unterstützt wird
-    
-    return {
+
+    payload = {
         'results': final_results,
         'recommendations': recommendations
     }
+    try:
+        _search_cache_set(cache_key, payload)
+    except Exception:
+        pass
+    return payload
 
 
 def get_track(user_id, provider, track_id):

@@ -28,35 +28,6 @@ MAX_WIKI_VERSIONS = 3
 WIKI_LIST_PER_PAGE = 24
 
 
-def _wiki_index_page_url(
-    page,
-    *,
-    search_query='',
-    category_id=None,
-    tag_id=None,
-    sort_by='updated',
-    sort_dir='desc',
-    favorites_only=False,
-    section=None,
-    filter_team_id=None,
-):
-    """Build wiki index URL preserving filters and pagination."""
-    kwargs = {'page': page, 'sort': sort_by, 'dir': sort_dir}
-    if search_query:
-        kwargs['q'] = search_query
-    if category_id:
-        kwargs['category'] = category_id
-    if tag_id:
-        kwargs['tag'] = tag_id
-    if favorites_only:
-        kwargs['view'] = 'favorites'
-    elif section in ('private', 'team', 'public'):
-        kwargs['view'] = section
-        if section == 'team' and filter_team_id:
-            kwargs['team_id'] = filter_team_id
-    return url_for('wiki.index', **kwargs)
-
-
 def check_wiki_module():
     """Prüft ob das Wiki-Modul aktiviert ist."""
     if not is_module_enabled('module_wiki'):
@@ -200,28 +171,11 @@ def index():
     pages = pagination.items
     sidebar = _wiki_sidebar_context()
     nav = visibility_nav_context('wiki', current_user, section, filter_team_id)
-    url_kwargs = dict(
-        search_query=search_query,
-        category_id=category_id,
-        tag_id=tag_id,
-        sort_by=sort_by,
-        sort_dir=sort_dir,
-        favorites_only=favorites_only,
-        section=section,
-        filter_team_id=filter_team_id,
-    )
     
     return render_template('wiki/index.html',
                          pages=pages,
                          pagination=pagination,
-                         wiki_prev_url=(
-                             _wiki_index_page_url(pagination.prev_num, **url_kwargs)
-                             if pagination.has_prev else None
-                         ),
-                         wiki_next_url=(
-                             _wiki_index_page_url(pagination.next_num, **url_kwargs)
-                             if pagination.has_next else None
-                         ),
+                         wiki_has_more=pagination.has_next,
                          categories=sidebar['categories'],
                          tags=sidebar['tags'],
                          search_query=search_query,

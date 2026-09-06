@@ -1344,6 +1344,12 @@
         "external_barcode_help": "Введите код с этикетки или отсканируйте сюда. Для QuickScan и выдачи.",
         "external_barcode_qty_hint": "Инв. № только при количестве 1 (каждый номер уникален)."
       }
+    },
+    "stock": {
+      "pagination": {
+        "load_more": "Загрузить ещё товары",
+        "load_more_loading": "Загрузка…"
+      }
     }
   },
   "kanban": {
@@ -1493,6 +1499,30 @@
       "deleted": "Протокол удалён.",
       "finalized_readonly": "Завершённые протоколы нельзя редактировать.",
       "pdf_only_finalized": "PDF доступен только после завершения."
+    },
+    "editor": {
+      "table": "Таблица",
+      "color": "Цвет текста",
+      "highlight": "Маркер",
+      "size": "Размер шрифта",
+      "size_small": "Мелкий",
+      "size_normal": "Обычный",
+      "size_large": "Крупный",
+      "size_huge": "Очень крупный"
+    }
+  },
+  "contacts": {
+    "index": {
+      "pagination": {
+        "load_more": "Загрузить ещё контакты",
+        "load_more_loading": "Загрузка…",
+        "load_error": "Не удалось загрузить контакты"
+      }
+    }
+  },
+  "calendar": {
+    "flash": {
+      "sync_started": "Синхронизация запущена в фоне. Обновите страницу через несколько секунд."
     }
   }
 }

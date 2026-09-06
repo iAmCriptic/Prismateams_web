@@ -2514,6 +2514,20 @@ def api_inventory_item_check(inventory_id, product_id):
         item.checked_at = None
     
     db.session.commit()
+
+    try:
+        from app.blueprints.sse import emit_inventory_update
+        emit_inventory_update(
+            inventory_id,
+            'item_updated',
+            {
+                'product_id': product_id,
+                'checked': item.checked,
+                'actor_id': current_user.id,
+            },
+        )
+    except Exception:
+        pass
     
     return jsonify({
         'success': True,
@@ -2553,6 +2567,15 @@ def api_inventory_scan(inventory_id):
         item.checked_by = current_user.id
         item.checked_at = datetime.utcnow()
         db.session.commit()
+        try:
+            from app.blueprints.sse import emit_inventory_update
+            emit_inventory_update(
+                inventory_id,
+                'scan',
+                {'product_id': product.id, 'actor_id': current_user.id},
+            )
+        except Exception:
+            pass
         
         return jsonify({
             'success': True,
@@ -2593,6 +2616,19 @@ def api_inventory_scan(inventory_id):
                 'name': set_item.product.name if set_item.product else None,
             })
         db.session.commit()
+        try:
+            from app.blueprints.sse import emit_inventory_update
+            emit_inventory_update(
+                inventory_id,
+                'scan',
+                {
+                    'set_id': product_set.id,
+                    'product_ids': [c['id'] for c in checked],
+                    'actor_id': current_user.id,
+                },
+            )
+        except Exception:
+            pass
         return jsonify({
             'success': True,
             'is_set': True,
@@ -2782,13 +2818,20 @@ def print_color_codes():
 @inventory_bp.route('/api/products', methods=['GET'])
 @login_required
 def api_products():
-    """API: Liste aller Produkte mit Such- und Filteroptionen."""
+    """API: Liste aller Produkte mit Such- und Filteroptionen (lazy: offset/limit)."""
     try:
         search = request.args.get('search', '').strip()
         category = request.args.get('category', '').strip()
         status = request.args.get('status', '').strip()
         sort_by_param = request.args.get('sort_by', 'name')
         sort_dir_param = request.args.get('sort_dir', 'asc')
+        offset = max(0, request.args.get('offset', 0, type=int) or 0)
+        # Default-Limit für Lazy Loading; ?limit=0 oder sehr groß = alles (Legacy)
+        limit_raw = request.args.get('limit', default=48, type=int)
+        if limit_raw is None:
+            limit_raw = 48
+        unlimited = limit_raw <= 0
+        limit = 5000 if unlimited else min(max(1, limit_raw), 200)
         
         sort_by = (sort_by_param or 'name').strip().lower()
         sort_dir = (sort_dir_param or 'asc').strip().lower()
@@ -2834,19 +2877,43 @@ def api_products():
             else:
                 products_query = products_query.order_by(Product.name.asc())
             
-            products = products_query.all()
-            
             if sort_by == 'length':
+                products = products_query.all()
+
                 def length_sort_key(prod):
                     meters = parse_length_to_meters(getattr(prod, 'length', None))
                     if meters is None:
                         return (1, 0.0)
                     return (0, -meters if descending else meters)
-                
+
                 products.sort(key=length_sort_key)
+                if unlimited:
+                    page_products = products
+                    has_more = False
+                    next_offset = len(products)
+                else:
+                    page_products = products[offset:offset + limit]
+                    has_more = (offset + limit) < len(products)
+                    next_offset = offset + len(page_products)
+                products = page_products
+            elif unlimited:
+                products = products_query.offset(offset).all()
+                has_more = False
+                next_offset = offset + len(products)
+            else:
+                batch = products_query.offset(offset).limit(limit + 1).all()
+                has_more = len(batch) > limit
+                products = batch[:limit]
+                next_offset = offset + len(products)
         except Exception as e:
             current_app.logger.warning(f"joinedload fehlgeschlagen, verwende Standard-Query: {e}")
-            products = query.order_by(Product.name).all()
+            products = query.order_by(Product.name).offset(offset).limit(limit + (0 if unlimited else 1)).all()
+            if unlimited:
+                has_more = False
+            else:
+                has_more = len(products) > limit
+                products = products[:limit]
+            next_offset = offset + len(products)
         
         result = []
         for p in products:
@@ -2926,7 +2993,13 @@ def api_products():
                     'created_by': p.created_by
                 })
         
-        return jsonify(result)
+        return jsonify({
+            'products': result,
+            'has_more': bool(has_more),
+            'next_offset': next_offset,
+            'offset': offset,
+            'limit': None if unlimited else limit,
+        })
     except Exception as e:
         current_app.logger.error(f"Kritischer Fehler in api_products: {e}", exc_info=True)
         return jsonify({'error': f'Server-Fehler: {str(e)}'}), 500

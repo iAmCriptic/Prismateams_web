@@ -83,6 +83,10 @@ class StockManager {
         this.editingFolderId = null;
         this.retiredFolderId = Number(window.INVENTORY_RETIRED_FOLDER_ID || 0) || null;
         this.isRetiredFolderView = !!window.INVENTORY_IS_RETIRED_FOLDER_VIEW;
+        this.productsOffset = 0;
+        this.productsHasMore = false;
+        this.productsLoadingMore = false;
+        this.productsPageSize = 48;
     }
 
     getFilterEls(key) {
@@ -150,6 +154,7 @@ class StockManager {
         await this.loadCategories(); // Lade alle Kategorien
         await this.loadFilterOptions(); // Lade alle Filter-Optionen vom Server
         await this.loadProducts();
+        this.bindProductsLazyMore();
         // Initiale UI-Aktualisierung
         this.updateSelectionUI();
         this.applyViewMode(); // Wende gespeicherten View-Mode an
@@ -286,13 +291,29 @@ class StockManager {
         }
     }
     
-    async loadProducts() {
+    async loadProducts(options = {}) {
+        const append = !!options.append;
+        const offset = append ? (this.productsOffset || 0) : 0;
+        if (append) {
+            if (!this.productsHasMore || this.productsLoadingMore) return;
+            this.productsLoadingMore = true;
+        }
         try {
-            // Verwende die vollständige API, um alle Attribute zu erhalten
             const params = new URLSearchParams({
                 sort_by: this.sortField || 'name',
-                sort_dir: this.sortDirection === 'desc' ? 'desc' : 'asc'
+                sort_dir: this.sortDirection === 'desc' ? 'desc' : 'asc',
+                offset: String(offset),
+                limit: String(this.productsPageSize || 48),
             });
+            const search = (this.getFilterValue('searchInput') || '').trim();
+            const category = this.getFilterValue('categoryFilter') || '';
+            const status = this.getFilterValue('statusFilter') || '';
+            if (search) params.set('search', search);
+            if (category) params.set('category', category);
+            if (status && status !== 'overdue' && status !== 'defective_repair') {
+                params.set('status', status);
+            }
+
             const response = await fetchInventoryApi(`/products?${params.toString()}`);
             
             if (!response.ok) {
@@ -302,38 +323,49 @@ class StockManager {
                 return;
             }
             
-            // Prüfe Content-Type bevor JSON geparst wird
             const contentType = response.headers.get('content-type');
             let data;
             
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else {
-                // Wenn keine JSON-Antwort, versuche Text zu lesen
                 const text = await response.text();
                 console.error('Ungültige Antwort vom Server beim Laden der Produkte:', text);
                 this.showError('Ungültige Antwort vom Server. Bitte laden Sie die Seite neu.');
                 return;
             }
-            
-            // Unterstütze sowohl Legacy-Format (Array) als auch vNext-Format ({ products: [...] })
-            if (!Array.isArray(data) && data && Array.isArray(data.products)) {
-                data = data.products;
-            }
 
-            if (!Array.isArray(data)) {
+            let pageProducts = [];
+            let hasMore = false;
+            let nextOffset = offset;
+            if (Array.isArray(data)) {
+                pageProducts = data;
+                hasMore = false;
+                nextOffset = offset + pageProducts.length;
+            } else if (data && Array.isArray(data.products)) {
+                pageProducts = data.products;
+                hasMore = !!data.has_more;
+                nextOffset = Number.isFinite(data.next_offset) ? data.next_offset : (offset + pageProducts.length);
+            } else {
                 console.error('Ungültige API-Antwort:', data);
                 this.showError('Ungültige Daten vom Server erhalten');
                 return;
             }
+
+            if (append) {
+                const seen = new Set(this.products.map((p) => p.id));
+                pageProducts.forEach((p) => {
+                    if (!seen.has(p.id)) this.products.push(p);
+                });
+            } else {
+                this.products = pageProducts;
+            }
+            this.productsHasMore = hasMore;
+            this.productsOffset = nextOffset;
+            this.updateProductsLazyMoreUi();
             
-            this.products = data;
-            
-            // Ergänze Filter-Werte aus den geladenen Produkten (überschreibt nicht die Server-Daten)
-            // Dies muss NACH dem Laden der Produkte erfolgen
             this.extractCategories();
             
-            // Aktualisiere Filter-Dropdowns (falls neue Werte hinzugefügt wurden)
             this.updateCategories();
             this.updateConditions();
             this.updateLocations();
@@ -341,11 +373,46 @@ class StockManager {
             this.updatePurchaseYears();
             this.updateTrashFooterCount();
             
-            // Wende Filter an (nicht direkt renderProducts, damit Filterlogik angewendet wird)
             this.applyFilters();
         } catch (error) {
             console.error('Fehler beim Laden der Produkte:', error);
             this.showError(`Fehler beim Laden der Produkte: ${error.message}`);
+        } finally {
+            this.productsLoadingMore = false;
+            this.updateProductsLazyMoreUi();
+        }
+    }
+
+    updateProductsLazyMoreUi() {
+        const wrap = document.getElementById('inventoryProductsLazyMore');
+        if (!wrap) return;
+        const show = !!this.productsHasMore;
+        wrap.hidden = !show;
+        const btn = wrap.querySelector('[data-inv-lazy-more-btn]');
+        if (btn) btn.disabled = !!this.productsLoadingMore;
+        const status = wrap.querySelector('[data-inv-lazy-more-status]');
+        if (status) status.hidden = !this.productsLoadingMore;
+    }
+
+    bindProductsLazyMore() {
+        const wrap = document.getElementById('inventoryProductsLazyMore');
+        if (!wrap || wrap._invLazyBound) return;
+        wrap._invLazyBound = true;
+        const btn = wrap.querySelector('[data-inv-lazy-more-btn]');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.loadProducts({ append: true });
+            });
+        }
+        const sentinel = wrap.querySelector('[data-inv-lazy-more-sentinel]');
+        if (sentinel && 'IntersectionObserver' in window) {
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) this.loadProducts({ append: true });
+                });
+            }, { rootMargin: '240px 0px' });
+            io.observe(sentinel);
         }
     }
     
@@ -456,9 +523,11 @@ class StockManager {
                     this.getFilterEls(key).forEach((other) => {
                         if (other !== el) other.value = el.value;
                     });
-                    if (key === 'searchInput') {
+                    const serverKeys = new Set(['searchInput', 'categoryFilter', 'statusFilter']);
+                    if (serverKeys.has(key)) {
                         clearTimeout(this.searchTimeout);
-                        this.searchTimeout = setTimeout(() => this.applyFilters(), 300);
+                        const delay = key === 'searchInput' ? 300 : 0;
+                        this.searchTimeout = setTimeout(() => this.loadProducts(), delay);
                         return;
                     }
                     this.applyFilters();
@@ -512,7 +581,7 @@ class StockManager {
                 this.sortField = validFields.includes(selectedValue) ? selectedValue : 'name';
                 this.setFilterValue('sortField', this.sortField);
                 localStorage.setItem('inventorySortField', this.sortField);
-                this.applyFilters();
+                this.loadProducts();
             });
         });
 
@@ -522,7 +591,7 @@ class StockManager {
                 this.sortDirection = selectedValue;
                 this.setFilterValue('sortDirection', this.sortDirection);
                 localStorage.setItem('inventorySortDirection', this.sortDirection);
-                this.applyFilters();
+                this.loadProducts();
             });
         });
 
@@ -534,7 +603,7 @@ class StockManager {
                 localStorage.removeItem('inventorySortDirection');
                 this.setFilterValue('sortField', 'name');
                 this.setFilterValue('sortDirection', 'asc');
-                this.applyFilters();
+                this.loadProducts();
             });
         });
     }
@@ -701,7 +770,7 @@ class StockManager {
             'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
             'serialPresenceFilter', 'dguvFilter',
         ].forEach((key) => this.setFilterValue(key, ''));
-        this.applyFilters();
+        this.loadProducts();
     }
     
     isValidValue(value) {

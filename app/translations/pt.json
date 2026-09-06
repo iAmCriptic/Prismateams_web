@@ -1344,6 +1344,12 @@
         "external_barcode_help": "Digite o código da etiqueta ou leia com o scanner. Para QuickScan e empréstimos.",
         "external_barcode_qty_hint": "N.º de inventário só com quantidade 1 (cada número é único)."
       }
+    },
+    "stock": {
+      "pagination": {
+        "load_more": "Carregar mais produtos",
+        "load_more_loading": "A carregar…"
+      }
     }
   },
   "kanban": {
@@ -1493,6 +1499,30 @@
       "deleted": "Ata eliminada.",
       "finalized_readonly": "Atas concluídas não podem ser editadas.",
       "pdf_only_finalized": "O PDF só está disponível após a conclusão."
+    },
+    "editor": {
+      "table": "Tabela",
+      "color": "Cor do texto",
+      "highlight": "Marcador",
+      "size": "Tamanho da fonte",
+      "size_small": "Pequeno",
+      "size_normal": "Normal",
+      "size_large": "Grande",
+      "size_huge": "Enorme"
+    }
+  },
+  "contacts": {
+    "index": {
+      "pagination": {
+        "load_more": "Carregar mais contactos",
+        "load_more_loading": "A carregar…",
+        "load_error": "Não foi possível carregar mais contactos"
+      }
+    }
+  },
+  "calendar": {
+    "flash": {
+      "sync_started": "Sincronização iniciada em segundo plano. Atualize a página em alguns segundos."
     }
   }
 }

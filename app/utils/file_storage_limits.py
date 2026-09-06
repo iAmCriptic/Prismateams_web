@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from typing import Any, Optional
 
 from sqlalchemy import func
@@ -26,8 +28,25 @@ UNIT_FACTORS = {
     "TB": 1024 ** 4,
 }
 
+# P24: TTL-Cache fuer Usage-SUM (Context-Processor / Nav)
+_USAGE_CACHE_TTL = 45.0
+_USAGE_CACHE_MAX = 512
+_usage_cache: dict[int, tuple[float, int]] = {}
+_usage_cache_lock = threading.Lock()
+_usage_listeners_registered = False
+
 
 def _get_setting(key: str) -> Optional[str]:
+    try:
+        from app.utils.system_settings_cache import get_setting as cached_get
+
+        value = cached_get(key)
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text if text != "" else None
+    except Exception:
+        pass
     row = SystemSettings.query.filter_by(key=key).first()
     if not row or row.value is None:
         return None
@@ -80,8 +99,28 @@ def resolve_limits_for_user(user_id: int) -> dict[str, Any]:
     }
 
 
-def calculate_user_usage_bytes(user_id: int) -> int:
-    """Physischer Speicher: aktuelle Dateien (inkl. Papierkorb) + Versionen."""
+def invalidate_user_usage_cache(user_id: Optional[int] = None) -> None:
+    """Verwirft Usage-Cache (ein User oder alle)."""
+    with _usage_cache_lock:
+        if user_id is None:
+            _usage_cache.clear()
+        else:
+            _usage_cache.pop(int(user_id), None)
+    try:
+        from flask import g, has_request_context
+
+        if has_request_context():
+            cache = getattr(g, "_user_usage_bytes", None)
+            if isinstance(cache, dict):
+                if user_id is None:
+                    cache.clear()
+                else:
+                    cache.pop(int(user_id), None)
+    except Exception:
+        pass
+
+
+def _query_user_usage_bytes(user_id: int) -> int:
     files_sum = (
         db.session.query(func.coalesce(func.sum(File.file_size), 0))
         .filter(File.uploaded_by == user_id)
@@ -93,6 +132,83 @@ def calculate_user_usage_bytes(user_id: int) -> int:
         .scalar()
     )
     return int(files_sum or 0) + int(versions_sum or 0)
+
+
+def calculate_user_usage_bytes(user_id: int, *, use_cache: bool = True) -> int:
+    """Physischer Speicher: aktuelle Dateien (inkl. Papierkorb) + Versionen."""
+    uid = int(user_id)
+    if use_cache:
+        try:
+            from flask import g, has_request_context
+
+            if has_request_context():
+                req_cache = getattr(g, "_user_usage_bytes", None)
+                if req_cache is None:
+                    req_cache = {}
+                    g._user_usage_bytes = req_cache
+                if uid in req_cache:
+                    return req_cache[uid]
+        except Exception:
+            req_cache = None
+
+        now = time.time()
+        with _usage_cache_lock:
+            entry = _usage_cache.get(uid)
+            if entry and (now - entry[0]) <= _USAGE_CACHE_TTL:
+                value = entry[1]
+            else:
+                value = None
+        if value is not None:
+            try:
+                if req_cache is not None:
+                    req_cache[uid] = value
+            except Exception:
+                pass
+            return value
+
+    value = _query_user_usage_bytes(uid)
+
+    if use_cache:
+        now = time.time()
+        with _usage_cache_lock:
+            if len(_usage_cache) >= _USAGE_CACHE_MAX:
+                oldest = sorted(_usage_cache.items(), key=lambda kv: kv[1][0])[
+                    : max(1, _USAGE_CACHE_MAX // 4)
+                ]
+                for drop_id, _ in oldest:
+                    _usage_cache.pop(drop_id, None)
+            _usage_cache[uid] = (now, value)
+        try:
+            from flask import g, has_request_context
+
+            if has_request_context():
+                req_cache = getattr(g, "_user_usage_bytes", None)
+                if req_cache is None:
+                    req_cache = {}
+                    g._user_usage_bytes = req_cache
+                req_cache[uid] = value
+        except Exception:
+            pass
+    return value
+
+
+def register_usage_cache_invalidation() -> None:
+    """Invalidiert Usage-Cache bei File-/Versions-Aenderungen."""
+    global _usage_listeners_registered
+    if _usage_listeners_registered:
+        return
+    from sqlalchemy import event
+
+    def _on_change(mapper, connection, target):  # noqa: ARG001
+        uid = getattr(target, "uploaded_by", None)
+        if uid is not None:
+            invalidate_user_usage_cache(int(uid))
+
+    for model in (File, FileVersion):
+        event.listen(model, "after_insert", _on_change)
+        event.listen(model, "after_update", _on_change)
+        event.listen(model, "after_delete", _on_change)
+    _usage_listeners_registered = True
 
 
 def check_upload_allowed(
@@ -128,7 +244,8 @@ def check_upload_allowed(
         )
 
     if limits["quota_enabled"] and limits["quota_bytes"] is not None:
-        usage = calculate_user_usage_bytes(user_id) + max(0, int(pending_bytes))
+        # Upload-Check: immer frisch (kein TTL-Cache)
+        usage = calculate_user_usage_bytes(user_id, use_cache=False) + max(0, int(pending_bytes))
         quota = limits["quota_bytes"]
         if usage + new_size > quota:
             free = max(0, quota - usage)
@@ -231,12 +348,19 @@ def split_bytes_for_ui(n: int | None) -> tuple[str, str]:
     return str(int(value)), "KB"
 
 
-def usage_payload_for_user(user_id: int) -> dict[str, Any]:
-    """JSON-Payload fuer Sidebar-Widget / API."""
+def usage_payload_for_user(user_id: int, *, force_usage: bool = False) -> dict[str, Any]:
+    """JSON-Payload fuer Sidebar-Widget / API.
+
+    P24: SUM nur wenn Quota aktiv (oder force_usage fuer Files-API).
+    """
     limits = resolve_limits_for_user(user_id)
-    usage = calculate_user_usage_bytes(user_id)
     quota = limits["quota_bytes"]
     quota_enabled = bool(limits["quota_enabled"] and quota is not None)
+
+    if quota_enabled or force_usage:
+        usage = calculate_user_usage_bytes(user_id, use_cache=True)
+    else:
+        usage = 0
 
     percent = 0.0
     if quota_enabled and quota > 0:

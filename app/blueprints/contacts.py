@@ -21,6 +21,8 @@ import logging
 
 contacts_bp = Blueprint('contacts', __name__)
 
+CONTACT_LIST_PER_PAGE = 24
+
 CONTACT_SORT_FIELDS = {
     'name': Contact.name,
     'email': Contact.email,
@@ -176,7 +178,11 @@ def index():
 
     sort_column = CONTACT_SORT_FIELDS[sort_field]
     order_by_clause = asc(sort_column) if sort_dir == 'asc' else desc(sort_column)
-    contacts = contacts_query.order_by(order_by_clause, asc(Contact.name), asc(Contact.email)).all()
+    page = max(1, request.args.get('page', 1, type=int) or 1)
+    pagination = contacts_query.order_by(
+        order_by_clause, asc(Contact.name), asc(Contact.email)
+    ).paginate(page=page, per_page=CONTACT_LIST_PER_PAGE, error_out=False)
+    contacts = pagination.items
     nav = visibility_nav_context('contacts', current_user, section, filter_team_id)
 
     return render_template(
@@ -195,6 +201,8 @@ def index():
         active_favorites=active_favorites,
         favorite_ids=favorite_ids,
         show_favorites_nav=show_favorites_nav,
+        contacts_page=pagination.page,
+        contacts_has_more=pagination.has_next,
         **nav,
     )
 

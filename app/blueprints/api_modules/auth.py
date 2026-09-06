@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from flask import jsonify, request, session as flask_session, url_for
+from flask import current_app, jsonify, request, session as flask_session, url_for
 from flask_login import current_user, login_user
 
 from app import db
@@ -171,6 +171,7 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
 
             api_token.mark_as_used()
             return jsonify({"success": True, "user": _user_payload(user)}), 200
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
+        except Exception:
+            current_app.logger.exception("API verify-token failed")
+            return jsonify({"success": False, "error": "Interner Serverfehler"}), 500
 

@@ -1,4 +1,4 @@
-import random
+import secrets
 import re
 import string
 from datetime import datetime, timedelta
@@ -27,6 +27,7 @@ shortlinks_bp = Blueprint('shortlinks', __name__)
 
 SLUG_PATTERN = re.compile(r'^[A-Za-z0-9_-]{3,64}$')
 SLUG_ALPHABET = string.ascii_letters + string.digits
+DEFAULT_SLUG_LENGTH = 12
 
 SORT_FIELDS = {'created', 'clicks', 'expires', 'slug', 'last_click'}
 SORT_DIRS = {'asc', 'desc'}
@@ -46,8 +47,9 @@ def _normalize_target_url(raw_url):
     return target_url
 
 
-def _generate_random_slug(length=7):
-    return ''.join(random.choice(SLUG_ALPHABET) for _ in range(length))
+def _generate_random_slug(length=DEFAULT_SLUG_LENGTH):
+    """Kryptographisch sicheres Zufalls-Kürzel (secrets, nicht random)."""
+    return ''.join(secrets.choice(SLUG_ALPHABET) for _ in range(length))
 
 
 def _build_unique_slug(custom_slug=None):

@@ -54,6 +54,9 @@
     
     <!-- Web App Manifest -->
     <link rel="manifest" href="{{ url_for('manifest') }}">
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -426,6 +429,7 @@
             request.endpoint.startswith('auth.')
         )
     ) | tojson }};
+    {# P23: nur kritische Dialog-Keys inline; PWA/Context-Menü lazy via /api/i18n/packs #}
     window.PRISMATEAMS_I18N.common = {{ {
         'cancel': _('common.cancel'),
         'delete': _('common.delete'),
@@ -434,39 +438,12 @@
         'confirm_delete_title': _('common.confirm_delete_title'),
         'confirm_delete_default': _('common.confirm_delete_default')
     } | tojson }};
-    window.PRISMATEAMS_I18N.pwa_install = {{ {
-        'title': _('layout.pwa_install.title'),
-        'description': _('layout.pwa_install.description'),
-        'install': _('layout.pwa_install.install'),
-        'later': _('layout.pwa_install.later'),
-        'never': _('layout.pwa_install.never')
-    } | tojson }};
-    window.PRISMATEAMS_I18N.pwa_update = {{ {
-        'title': _('layout.pwa_update.title'),
-        'description': _('layout.pwa_update.description'),
-        'reload': _('layout.pwa_update.reload'),
-        'later': _('layout.pwa_update.later')
-    } | tojson }};
-    window.PRISMATEAMS_I18N.context_menu = {{ {
-        'copy_info': _('context_menu.copy_info'),
-        'copied': _('context_menu.copied'),
-        'copy_error': _('context_menu.copy_error'),
-        'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),
-        'dashboard_manage_widgets': _('context_menu.dashboard_manage_widgets'),
-        'format': {
-            'bold': _('context_menu.format.bold'),
-            'italic': _('context_menu.format.italic'),
-            'underline': _('context_menu.format.underline'),
-            'strike': _('context_menu.format.strike'),
-            'color': _('context_menu.format.color')
-        }
-    } | tojson }};
+    window.PRISMATEAMS_I18N_PACKS_URL = {{ url_for('api.i18n_packs')|tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
     {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
     <script src="{{ url_for('static', filename='js/module-launcher.js') }}"></script>
     <script src="{{ url_for('static', filename='js/account-popup.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>

@@ -3,6 +3,8 @@
 {% block title %}{{ protocol.title }}{% endblock %}
 
 {% block content %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand, protocols_index_url with context %}
+{% set index_url = protocols_index_url() %}
 {% macro people_chips(text) %}
 {% set parts = (text or '').replace(';', ',').replace('\n', ',').split(',') %}
 {% set ns = namespace(has=false) %}
@@ -21,22 +23,18 @@
 <div class="protocols-workspace protocols-workspace--view">
     <header class="protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
-            <a href="{{ url_for('protocols.index') }}" class="mod-back-link">
-                <i class="bi bi-arrow-left"></i>
-                <span class="d-none d-sm-inline">{{ _('layout.nav.back') }}</span>
-            </a>
-            <div class="protocols-workspace-brand min-width-0">
-                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
-                <div class="min-width-0">
-                    <div class="protocols-workspace-title text-truncate">{{ protocol.title }}</div>
-                    <div class="protocols-workspace-subtitle text-truncate">
-                        {% if protocol.meeting_date %}{{ protocol.meeting_date.strftime('%d.%m.%Y') }}{% endif %}
-                        {% if protocol.start_time %}
-                        · {{ protocol.start_time.strftime('%H:%M') }}{% if protocol.end_time %}–{{ protocol.end_time.strftime('%H:%M') }}{% endif %}
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+            {{ protocols_chrome_nav(back_url=index_url, close_url=index_url) }}
+            {% set ns = namespace(subtitle='') %}
+            {% if protocol.meeting_date %}
+                {% set ns.subtitle = protocol.meeting_date.strftime('%d.%m.%Y') %}
+            {% endif %}
+            {% if protocol.start_time %}
+                {% set ns.subtitle = ns.subtitle ~ (' · ' if ns.subtitle else '') ~ protocol.start_time.strftime('%H:%M') %}
+                {% if protocol.end_time %}
+                    {% set ns.subtitle = ns.subtitle ~ '–' ~ protocol.end_time.strftime('%H:%M') %}
+                {% endif %}
+            {% endif %}
+            {{ protocols_chrome_brand('bi-journal-richtext', protocol.title, ns.subtitle) }}
         </div>
         <div class="protocols-workspace-toolbar-end">
             {% if protocol.is_finalized %}

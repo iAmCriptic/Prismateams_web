@@ -2788,6 +2788,11 @@
       "page_title": "Files - Team Portal",
       "heading": "Files",
       "breadcrumb_root": "Root",
+      "pagination": {
+        "load_more": "Load more files",
+        "load_more_loading": "Loading…",
+        "load_error": "Could not load more files"
+      },
       "nav": {
         "ablage": "My Drive",
         "freigaben": "Shared",
@@ -3333,7 +3338,10 @@
         "prev": "Previous",
         "next": "Next",
         "info": "Page {page} of {pages} ({total})",
-        "aria": "Wiki pages"
+        "aria": "Wiki pages",
+        "load_more": "Load more pages",
+        "load_more_loading": "Loading…",
+        "load_error": "Could not load more pages"
       },
       "js": {
         "favorite_error": "Failed to update favorites.",
@@ -3881,7 +3889,8 @@
       "no_manage_permission": "You cannot edit this calendar.",
       "participation_status": "Participation for \"{event_title}\": {status}",
       "accepted": "accepted",
-      "declined": "declined"
+      "declined": "declined",
+      "sync_started": "Sync started in the background. Refresh the page in a few seconds."
     },
     "notifications": {
       "invite_title": "Event invitation received",
@@ -4056,7 +4065,10 @@
         "prev": "Previous",
         "next": "Next",
         "info": "Page {page} of {pages} ({total})",
-        "aria": "Email pages"
+        "aria": "Email pages",
+        "load_more": "Load more emails",
+        "load_more_loading": "Loading…",
+        "load_error": "Could not load more emails"
       }
     },
     "compose": {
@@ -4423,7 +4435,12 @@
         "copy_error": "Could not copy."
       },
       "empty_message": "No contacts available.",
-      "empty_cta": "New contact"
+      "empty_cta": "New contact",
+      "pagination": {
+        "load_more": "Load more contacts",
+        "load_more_loading": "Loading…",
+        "load_error": "Could not load more contacts"
+      }
     },
     "bulk": {
       "selected": "selected",
@@ -4855,7 +4872,11 @@
         "load_products_error": "Error loading products:",
         "critical_error": "Critical error:"
       },
-      "filters_sort_button": "Filter & Sort"
+      "filters_sort_button": "Filter & Sort",
+      "pagination": {
+        "load_more": "Load more products",
+        "load_more_loading": "Loading…"
+      }
     },
     "cable_form": {
       "page_title": "Create consumable - Team Portal",
@@ -6837,6 +6858,16 @@
       "deleted": "Protocol deleted.",
       "finalized_readonly": "Finalized protocols cannot be edited.",
       "pdf_only_finalized": "PDF is only available after finalization."
+    },
+    "editor": {
+      "table": "Table",
+      "color": "Text color",
+      "highlight": "Highlighter",
+      "size": "Font size",
+      "size_small": "Small",
+      "size_normal": "Normal",
+      "size_large": "Large",
+      "size_huge": "Huge"
     }
   }
 }

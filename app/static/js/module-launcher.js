@@ -146,12 +146,42 @@
         })));
     }
 
+    function loadSortable() {
+        return new Promise((resolve, reject) => {
+            if (window.Sortable) {
+                resolve(window.Sortable);
+                return;
+            }
+            const existing = document.querySelector('script[data-sortablejs]');
+            if (existing) {
+                if (window.Sortable) {
+                    resolve(window.Sortable);
+                    return;
+                }
+                existing.addEventListener('load', () => resolve(window.Sortable));
+                existing.addEventListener('error', () => reject(new Error('Sortable load failed')));
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';
+            script.async = true;
+            script.dataset.sortablejs = '1';
+            script.onload = () => resolve(window.Sortable);
+            script.onerror = () => reject(new Error('Sortable load failed'));
+            document.head.appendChild(script);
+        });
+    }
+
     function enterEdit() {
         fillEditFromView();
         root.classList.add('is-editing');
-        requestAnimationFrame(function () {
-            bindSortables();
-        });
+        loadSortable()
+            .then(() => {
+                requestAnimationFrame(function () {
+                    bindSortables();
+                });
+            })
+            .catch(() => { /* Drag&Drop ohne Sortable deaktiviert */ });
     }
 
     function exitEdit() {

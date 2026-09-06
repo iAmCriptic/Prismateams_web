@@ -1344,6 +1344,12 @@
         "external_barcode_help": "Escriba el código de la etiqueta o escanéelo aquí. Para QuickScan y préstamos.",
         "external_barcode_qty_hint": "N.º de inventario solo con cantidad 1 (cada número es único)."
       }
+    },
+    "stock": {
+      "pagination": {
+        "load_more": "Cargar más productos",
+        "load_more_loading": "Cargando…"
+      }
     }
   },
   "kanban": {
@@ -1493,6 +1499,30 @@
       "deleted": "Acta eliminada.",
       "finalized_readonly": "Las actas finalizadas no se pueden editar.",
       "pdf_only_finalized": "El PDF solo está disponible tras finalizar."
+    },
+    "editor": {
+      "table": "Tabla",
+      "color": "Color de texto",
+      "highlight": "Resaltador",
+      "size": "Tamaño de fuente",
+      "size_small": "Pequeño",
+      "size_normal": "Normal",
+      "size_large": "Grande",
+      "size_huge": "Muy grande"
+    }
+  },
+  "contacts": {
+    "index": {
+      "pagination": {
+        "load_more": "Cargar más contactos",
+        "load_more_loading": "Cargando…",
+        "load_error": "No se pudieron cargar más contactos"
+      }
+    }
+  },
+  "calendar": {
+    "flash": {
+      "sync_started": "Sincronización iniciada en segundo plano. Actualice la página en unos segundos."
     }
   }
 }

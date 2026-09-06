@@ -6,6 +6,11 @@ class InventoryToolManager {
         this.readOnly = !!options.readOnly;
         this.items = new Map();
         this.pollingInterval = null;
+        this.eventSource = null;
+        this._sseConnected = false;
+        this._sseFallbackTimer = null;
+        this._visibilityBound = false;
+        this._liveFallbackMs = 15000;
         this.lastUpdateTime = null;
         this.currentEditingProductId = null;
         this.lockRefreshTimer = null;
@@ -19,7 +24,7 @@ class InventoryToolManager {
         this.setupFilterChips();
         this.loadItems();
         if (!this.readOnly) {
-            this.startPolling();
+            this.startLiveUpdates();
         }
     }
 
@@ -906,8 +911,67 @@ class InventoryToolManager {
         this.updateStats();
     }
 
-    startPolling() {
-        this.pollingInterval = setInterval(() => this.loadItems(), 3000);
+    startLiveUpdates() {
+        this.stopLiveUpdates();
+        this._bindVisibilityHandler();
+        if (typeof EventSource === 'undefined') {
+            this.startPollingFallback();
+            return;
+        }
+        try {
+            const es = new EventSource(`/sse/events/inventory/${this.inventoryId}`);
+            this.eventSource = es;
+            this._sseConnected = false;
+
+            es.addEventListener('connected', () => {
+                this._sseConnected = true;
+                this.stopPolling();
+                if (this._sseFallbackTimer) {
+                    clearTimeout(this._sseFallbackTimer);
+                    this._sseFallbackTimer = null;
+                }
+            });
+
+            ['inventory:item_updated', 'inventory:scan', 'inventory:items_updated'].forEach((name) => {
+                es.addEventListener(name, () => {
+                    if (!document.hidden) this.loadItems();
+                });
+            });
+
+            es.addEventListener('error', (ev) => {
+                // Server meldet z. B. fehlendes Redis als event:error
+                try {
+                    const payload = ev && ev.data ? JSON.parse(ev.data) : null;
+                    if (payload && payload.message) {
+                        this._closeEventSource();
+                        this.startPollingFallback();
+                    }
+                } catch (_) { /* ignore */ }
+            });
+
+            es.onerror = () => {
+                if (this._sseConnected) return;
+                this._closeEventSource();
+                this.startPollingFallback();
+            };
+
+            this._sseFallbackTimer = setTimeout(() => {
+                if (!this._sseConnected) {
+                    this._closeEventSource();
+                    this.startPollingFallback();
+                }
+            }, 4000);
+        } catch (_) {
+            this.startPollingFallback();
+        }
+    }
+
+    startPollingFallback() {
+        this.stopPolling();
+        if (document.hidden) return;
+        this.pollingInterval = setInterval(() => {
+            if (!document.hidden) this.loadItems();
+        }, this._liveFallbackMs);
     }
 
     stopPolling() {
@@ -915,6 +979,39 @@ class InventoryToolManager {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
         }
+    }
+
+    _closeEventSource() {
+        if (this._sseFallbackTimer) {
+            clearTimeout(this._sseFallbackTimer);
+            this._sseFallbackTimer = null;
+        }
+        if (this.eventSource) {
+            try { this.eventSource.close(); } catch (_) { /* ignore */ }
+            this.eventSource = null;
+        }
+        this._sseConnected = false;
+    }
+
+    stopLiveUpdates() {
+        this._closeEventSource();
+        this.stopPolling();
+    }
+
+    _bindVisibilityHandler() {
+        if (this._visibilityBound) return;
+        this._visibilityBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (this.readOnly) return;
+            if (document.hidden) {
+                this.stopPolling();
+                return;
+            }
+            this.loadItems();
+            if (!this.eventSource || !this._sseConnected) {
+                this.startPollingFallback();
+            }
+        });
     }
 
     showScanSuccess() {
