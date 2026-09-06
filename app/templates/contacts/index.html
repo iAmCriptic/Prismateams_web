@@ -3,7 +3,7 @@
 {% block title %}{{ _('contacts.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" class="mod-search mod-search--icon contacts-search" role="search" id="contactsSearchForm">
+<form method="GET" class="mod-search mod-search--icon" role="search" id="contactsSearchForm">
     {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     <input type="hidden" name="sort" value="{{ current_sort }}">
@@ -115,7 +115,7 @@
 {% endmacro %}
 
 {% macro contacts_search_form(id_suffix='') %}
-<form method="GET" class="mod-search mod-search--icon contacts-search" role="search" id="contactsSearchForm{{ id_suffix }}">
+<form method="GET" class="mod-search mod-search--icon" role="search" id="contactsSearchForm{{ id_suffix }}">
     {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
     {% if view_param == 'team' and filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <input type="hidden" name="sort" value="{{ current_sort }}">

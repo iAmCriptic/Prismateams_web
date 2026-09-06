@@ -324,24 +324,50 @@
             <div class="mobile-nav-favorites" id="mobileNavFavorites">
                 {% set _current_key = current_nav_module.key if current_nav_module else '' %}
                 {% for item in (desktop_nav_favorites or [])[:5] %}
-                <a href="{{ item.url }}" class="mobile-nav-favorite-link{% if _current_key == item.key %} active{% endif %}" data-nav-id="{{ item.key }}" aria-label="{{ _(item.label_key) }}">
-                    <i class="bi {{ item.icon }}"></i>
+                <a href="{{ item.url }}"
+                   class="mobile-nav-favorite-link{% if _current_key == item.key %} active{% endif %}"
+                   data-nav-id="{{ item.key }}"
+                   data-nav-tip
+                   aria-label="{{ _(item.label_key) }}"
+                   title="{{ _(item.label_key) }}">
+                    <i class="bi {{ item.icon }}" aria-hidden="true"></i>
                 </a>
                 {% endfor %}
             </div>
             <div class="mobile-nav-actions">
-                <button type="button" class="mobile-nav-action-btn notification-bell-btn border-0 bg-transparent position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
-                    <i class="bi bi-bell"></i>
+                <button type="button"
+                        class="mobile-nav-action-btn notification-bell-btn border-0 bg-transparent position-relative"
+                        id="notificationBellBtnMobile"
+                        data-nav-tip
+                        aria-label="{{ _('layout.notification_center.open') }}"
+                        title="{{ _('layout.notification_center.open') }}">
+                    <i class="bi bi-bell" aria-hidden="true"></i>
                     <span class="badge rounded-pill bg-danger notification-badge d-none">0</span>
                 </button>
-                <button type="button" class="mobile-nav-action-btn" data-launcher-toggle aria-label="{{ _('layout.launcher.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="moduleLauncherPanel">
-                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                <button type="button"
+                        class="mobile-nav-action-btn"
+                        data-launcher-toggle
+                        data-nav-tip
+                        aria-label="{{ _('layout.launcher.open') }}"
+                        title="{{ _('layout.launcher.open') }}"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        aria-controls="moduleLauncherPanel">
+                    <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="mobile-nav-action-btn mobile-nav-avatar-btn" data-account-toggle aria-label="{{ _('layout.account.open') }}" aria-expanded="false" aria-haspopup="true" aria-controls="accountPopup">
+                <button type="button"
+                        class="mobile-nav-action-btn mobile-nav-avatar-btn"
+                        data-account-toggle
+                        data-nav-tip
+                        aria-label="{{ _('layout.account.open') }}"
+                        title="{{ _('layout.account.open') }}"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        aria-controls="accountPopup">
                     {% if current_user.profile_picture %}
                     <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="top-navbar-avatar">
                     {% else %}
-                    <i class="bi bi-person-circle top-navbar-avatar-fallback"></i>
+                    <i class="bi bi-person-circle top-navbar-avatar-fallback" aria-hidden="true"></i>
                     {% endif %}
                 </button>
             </div>

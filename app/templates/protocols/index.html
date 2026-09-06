@@ -3,7 +3,7 @@
 {% block title %}{{ _('protocols.nav.title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon protocols-search" role="search">
+<form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon" role="search">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
@@ -79,7 +79,7 @@
                 </a>
             </div>
             <div class="mt-2">
-                <form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon protocols-search" role="search">
+                <form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon" role="search">
                     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
                     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
                     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}

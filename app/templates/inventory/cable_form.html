@@ -5,8 +5,8 @@
 {% block inventory_heading %}{{ _('inventory.cable_form.heading') }}{% endblock %}
 
 {% block inventory_content %}
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -34,7 +34,7 @@
             </div>
             <div class="inventory-form-field">
                 <label for="quantity" class="form-label">{{ _('inventory.cable_form.quantity') }} <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" id="quantity" name="quantity" min="1" max="50000" required
+                <input type="number" class="form-control mod-pill-input" id="quantity" name="quantity" min="1" max="50000" required
                        value="{{ form_data.quantity if form_data and form_data.quantity else '1' }}">
             </div>
         </div>
@@ -50,13 +50,13 @@
         <div class="inventory-form-fields inventory-form-fields--3">
             <div class="inventory-form-field">
                 <label for="name" class="form-label">{{ _('inventory.product.form.name') }} <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="name" name="name" required
+                <input type="text" class="form-control mod-pill-input" id="name" name="name" required
                        value="{{ form_data.name if form_data else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="category" class="form-label">{{ _('inventory.product.form.category') }}</label>
                 <div class="inventory-form-select-row">
-                    <select class="form-select" id="category" name="category">
+                    <select class="form-select mod-pill-input" id="category" name="category">
                         <option value="">{{ _('inventory.product.form.no_category') }}</option>
                         {% for cat in categories %}
                         <option value="{{ cat }}" {% if form_data and form_data.category == cat %}selected{% endif %}>{{ cat }}</option>
@@ -71,7 +71,7 @@
                 </div>
                 <div class="inventory-inline-panel" id="categoryCreatePanel" hidden>
                     <label class="form-label" for="categoryCreateName">{{ _('inventory.product.form.category_name') }}</label>
-                    <input type="text" class="form-control" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
+                    <input type="text" class="form-control mod-pill-input" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
                     <div class="inventory-inline-actions">
                         <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_category') }}
@@ -91,7 +91,7 @@
                     <div class="inventory-inline-panel mt-2" id="categoryEditPanel" hidden>
                         <label class="form-label" for="categoryEditName">{{ _('inventory.product.form.category_name') }}</label>
                         <input type="hidden" id="categoryEditId">
-                        <input type="text" class="form-control" id="categoryEditName" maxlength="120" autocomplete="off">
+                        <input type="text" class="form-control mod-pill-input" id="categoryEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
                             <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
@@ -106,12 +106,12 @@
             </div>
             <div class="inventory-form-field">
                 <label for="length" class="form-label">{{ _('inventory.product.form.length') }} <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" id="length" name="length" step="0.01" min="0" required
+                <input type="number" class="form-control mod-pill-input" id="length" name="length" step="0.01" min="0" required
                        value="{{ form_data.length if form_data else '' }}" placeholder="z.B. 5.0">
             </div>
             <div class="inventory-form-field">
                 <label for="folder_id" class="form-label">{{ _('inventory.product.form.folder') }}</label>
-                <select class="form-select" id="folder_id" name="folder_id">
+                <select class="form-select mod-pill-input" id="folder_id" name="folder_id">
                     <option value="">{{ _('inventory.product.form.no_folder') }}</option>
                     {% for folder in folders %}
                     <option value="{{ folder.id }}" {% if form_data and form_data.folder_id == (folder.id|string) %}selected{% endif %}>{{ folder.name }}</option>
@@ -120,12 +120,12 @@
             </div>
             <div class="inventory-form-field">
                 <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
-                <input type="text" class="form-control" id="location" name="location"
+                <input type="text" class="form-control mod-pill-input" id="location" name="location"
                        value="{{ form_data.location if form_data else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="description" class="form-label">{{ _('inventory.product.form.description') }}</label>
-                <textarea class="form-control" id="description" name="description" rows="2">{{ form_data.description if form_data else '' }}</textarea>
+                <textarea class="form-control mod-pill-input" id="description" name="description" rows="2">{{ form_data.description if form_data else '' }}</textarea>
             </div>
         </div>
     </section>
@@ -144,11 +144,11 @@
         <div class="inventory-form-fields inventory-form-fields--3 d-none" id="dguvWrap">
             <div class="inventory-form-field">
                 <label for="dguv_last_check" class="form-label">{{ _('inventory.product.form.dguv_last_check') }}</label>
-                <input type="date" class="form-control" id="dguv_last_check" name="dguv_last_check">
+                <input type="date" class="form-control mod-pill-input" id="dguv_last_check" name="dguv_last_check">
             </div>
             <div class="inventory-form-field">
                 <label for="dguv_interval_months" class="form-label">{{ _('inventory.product.form.dguv_interval_months') }}</label>
-                <input type="number" min="1" class="form-control" id="dguv_interval_months" name="dguv_interval_months" value="12">
+                <input type="number" min="1" class="form-control mod-pill-input" id="dguv_interval_months" name="dguv_interval_months" value="12">
             </div>
         </div>
     </section>
@@ -163,7 +163,7 @@
         <div class="inventory-form-fields">
             <div class="inventory-form-field">
                 <label for="existing_product_id" class="form-label">{{ _('inventory.cable_form.existing_product') }}</label>
-                <select class="form-select" id="existing_product_id" name="existing_product_id">
+                <select class="form-select mod-pill-input" id="existing_product_id" name="existing_product_id">
                     <option value="">{{ _('inventory.cable_form.auto_match') }}</option>
                     {% for product in candidates %}
                     <option value="{{ product.id }}" {% if form_data and form_data.existing_product_id == (product.id|string) %}selected{% endif %}>

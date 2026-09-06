@@ -27,14 +27,14 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <label for="event_name" class="form-label">Projekt / Veranstaltung <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="event_name" name="event_name" form="checkoutForm" required
+                <input type="text" class="form-control mod-pill-input" id="event_name" name="event_name" form="checkoutForm" required
                        value="{{ preset_event_name or '' }}"
                        placeholder="z.B. Stadtfest 2026" autocomplete="off">
             </div>
             <div class="col-md-4">
                 <label for="borrower_name" class="form-label">Verantwortlicher <span class="text-danger">*</span></label>
                 <div class="position-relative">
-                    <input type="text" class="form-control" id="borrower_name" name="borrower_name" form="checkoutForm" required
+                    <input type="text" class="form-control mod-pill-input" id="borrower_name" name="borrower_name" form="checkoutForm" required
                            value="{% if preset_borrower_name %}{{ preset_borrower_name }}{% else %}{{ current_user.full_name }}{% endif %}" placeholder="Name suchen oder frei eingeben" autocomplete="off">
                     <input type="hidden" id="borrower_id" name="borrower_id" form="checkoutForm"
                            value="{% if preset_borrower_id %}{{ preset_borrower_id }}{% elif not preset_event_appointment_id %}{{ current_user.id }}{% endif %}">
@@ -44,18 +44,18 @@
             </div>
             <div class="col-md-4" id="contactEmailWrap">
                 <label for="contact_email" class="form-label">Kontakt-E-Mail <span class="text-danger" id="emailRequiredMark" style="display:none;">*</span></label>
-                <input type="email" class="form-control inventory-input-locked" id="contact_email" name="contact_email" form="checkoutForm"
+                <input type="email" class="form-control inventory-input-locked mod-pill-input" id="contact_email" name="contact_email" form="checkoutForm"
                        value="{{ preset_contact_email or current_user.email or '' }}" placeholder="name@example.com" autocomplete="off" disabled
                        title="E-Mail des Portal-Users">
                 <small class="form-text text-muted" id="contactEmailHint">E-Mail des verknüpften Portal-Users (nicht änderbar).</small>
             </div>
             <div class="col-md-3">
                 <label for="start_date" class="form-label">Von</label>
-                <input type="datetime-local" class="form-control" id="start_date" name="start_date" form="checkoutForm">
+                <input type="datetime-local" class="form-control mod-pill-input" id="start_date" name="start_date" form="checkoutForm">
             </div>
             <div class="col-md-3">
                 <label for="end_date" class="form-label">Bis <span class="text-danger">*</span></label>
-                <input type="datetime-local" class="form-control" id="end_date" name="end_date" form="checkoutForm" required>
+                <input type="datetime-local" class="form-control mod-pill-input" id="end_date" name="end_date" form="checkoutForm" required>
             </div>
         </div>
         <input type="hidden" id="event_id" name="event_id" form="checkoutForm" value="{{ preset_event_id or '' }}">
@@ -98,14 +98,14 @@
                 <div class="mb-3">
                     <label for="manualQrInput" class="form-label">ID / Inventar-Nr.</label>
                     <div class="inventory-manual-input-wrap">
-                        <input type="text" class="form-control" id="manualQrInput" autofocus
+                        <input type="text" class="form-control mod-pill-input" id="manualQrInput" autofocus
                                placeholder="PROD, SET, BORROW oder Inventar-Nr." autocomplete="off">
                     </div>
                 </div>
                 <div class="mb-3">
                     <label for="productSearchInput" class="form-label">Produkt suchen</label>
                     <div class="inventory-manual-input-wrap position-relative">
-                        <input type="text" class="form-control" id="productSearchInput"
+                        <input type="text" class="form-control mod-pill-input" id="productSearchInput"
                                placeholder="Name, Seriennummer, Kategorie…"
                                autocomplete="off">
                         <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>

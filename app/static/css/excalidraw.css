@@ -1,6 +1,6 @@
 /* Excalidraw module — landing + editor chrome */
 
-.excalidraw-search {
+.wiki-shell .mod-search--icon {
     position: relative;
     min-width: 12rem;
     max-width: 22rem;
@@ -125,7 +125,7 @@
 }
 
 .excalidraw-collab-banner.is-on {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .excalidraw-save-status {

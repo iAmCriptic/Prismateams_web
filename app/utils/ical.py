@@ -136,17 +136,49 @@ def normalize_ical_url(url: str) -> str:
 
 
 def fetch_ical_from_url(url: str) -> str:
-    """Lädt eine iCal-Datei von einer URL (mit Timeout und Größenlimit)."""
-    normalized = normalize_ical_url(url)
-    if not normalized.lower().startswith(('http://', 'https://')):
-        raise ValueError('Ungültige URL. Erlaubt sind http(s):// oder webcal://')
+    """Lädt eine iCal-Datei von einer URL (SSRF-geschützt, Timeout, Größenlimit)."""
+    from urllib.parse import urljoin, urlparse
+    from app.utils.link_preview import is_public_http_url
 
-    response = requests.get(
-        normalized,
-        timeout=FETCH_TIMEOUT_SECONDS,
-        headers={'User-Agent': 'Prismateams-Calendar-Sync/1.0'},
-        stream=True,
-    )
+    normalized = normalize_ical_url(url)
+    if not normalized.lower().startswith('https://'):
+        raise ValueError('Ungültige URL. Erlaubt sind https:// oder webcal:// (kein HTTP/Intranet).')
+
+    current = normalized
+    max_redirects = 5
+    response = None
+
+    for _ in range(max_redirects + 1):
+        if not is_public_http_url(current):
+            raise ValueError(
+                'URL nicht erlaubt: private, lokale oder reservierte Ziele sind gesperrt.'
+            )
+        # Nach Redirect erneut nur HTTPS
+        if not current.lower().startswith('https://'):
+            raise ValueError('Redirect auf Nicht-HTTPS ist nicht erlaubt.')
+
+        response = requests.get(
+            current,
+            timeout=FETCH_TIMEOUT_SECONDS,
+            headers={'User-Agent': 'Prismateams-Calendar-Sync/1.0'},
+            stream=True,
+            allow_redirects=False,
+        )
+        if response.is_redirect or response.status_code in (301, 302, 303, 307, 308):
+            location = response.headers.get('Location')
+            if not location:
+                raise ValueError('Ungültiger Redirect ohne Location-Header.')
+            next_url = urljoin(current, location)
+            # Relative Redirects absichern
+            parsed = urlparse(next_url)
+            if parsed.scheme.lower() != 'https' or not parsed.hostname:
+                raise ValueError('Redirect-Ziel ist ungültig oder nicht HTTPS.')
+            current = next_url
+            continue
+        break
+    else:
+        raise ValueError('Zu viele Redirects beim iCal-Abruf.')
+
     response.raise_for_status()
 
     chunks = []
@@ -160,7 +192,6 @@ def fetch_ical_from_url(url: str) -> str:
         chunks.append(chunk)
 
     raw = b''.join(chunks)
-    # Versuche UTF-8, Fallback latin-1
     try:
         return raw.decode('utf-8')
     except UnicodeDecodeError:

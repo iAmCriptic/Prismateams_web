@@ -335,10 +335,21 @@ def api_product_update(product_id):
         else:
             product.purchase_date = None
     if 'status' in data:
+        from app.services.inventory import LifecycleService
         status_value = (data.get('status') or '').strip()
         allowed = {'available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired'}
         if status_value in allowed:
-            product.status = status_value
+            try:
+                LifecycleService.change_status(
+                    product,
+                    status_value,
+                    current_user.id,
+                    reason='api_product_update',
+                    force=True,
+                )
+            except ValueError as exc:
+                db.session.rollback()
+                return jsonify({'error': str(exc)}), 409
             if status_value == 'retired':
                 _apply_retired_folder_assignment(product)
 
@@ -388,7 +399,14 @@ def api_product_delete(product_id):
         # Produkt aus Sets entfernen (Gerät darf trotzdem in den Papierkorb)
         ProductSetItem.query.filter_by(product_id=product_id).delete()
 
-        product.status = 'retired'
+        from app.services.inventory import LifecycleService
+        LifecycleService.change_status(
+            product,
+            'retired',
+            current_user.id,
+            reason='api_delete',
+            force=True,
+        )
         _apply_retired_folder_assignment(product)
         db.session.commit()
 
@@ -581,8 +599,16 @@ def api_products_bulk_update():
             if 'folder_id' in updates:
                 product.folder_id = updates['folder_id']
             if 'status' in updates:
-                product.status = updates['status']
-                _apply_retired_folder_assignment(product)
+                from app.services.inventory import LifecycleService
+                LifecycleService.change_status(
+                    product,
+                    updates['status'],
+                    current_user.id,
+                    reason='bulk_update',
+                    force=True,
+                )
+                if updates['status'] == 'retired':
+                    _apply_retired_folder_assignment(product)
             if updates.get('remove_image'):
                 if product.image_path:
                     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -675,7 +701,14 @@ def api_products_bulk_delete():
             # Produkt aus Sets entfernen (Gerät darf trotzdem in den Papierkorb)
             ProductSetItem.query.filter_by(product_id=product_id).delete()
 
-            product.status = 'retired'
+            from app.services.inventory import LifecycleService
+            LifecycleService.change_status(
+                product,
+                'retired',
+                current_user.id,
+                reason='bulk_delete',
+                force=True,
+            )
             _apply_retired_folder_assignment(product)
             moved_count += 1
             
@@ -1138,14 +1171,24 @@ def api_borrows_my_grouped():
 @inventory_bp.route('/api/return', methods=['POST'])
 @login_required
 def api_return():
-    """API: Rueckgabe eines oder mehrerer Checkout-Items."""
+    """API: Rueckgabe eines oder mehrerer Checkout-Items.
+
+    ID-Aliase:
+    - item_ids / return_item_ids / checkout_item_id → CheckoutItem.id
+    - checkout_id → alle aktiven Items des Checkouts
+    - transaction_id (Legacy): CheckoutItem.id, sonst Checkout.id, sonst legacy_transaction_id
+    - product_id / checkout_number / borrow_ref
+    """
     from app.services.inventory.checkout_service import (
         find_active_checkout_item_for_product,
+        resolve_return_item_ids,
         return_checkout_items,
         return_checkout_by_ref,
     )
     data = request.get_json() or {}
     item_ids = data.get('item_ids') or data.get('return_item_ids') or []
+    checkout_item_id = data.get('checkout_item_id')
+    checkout_id = data.get('checkout_id')
     transaction_id = data.get('transaction_id')
     checkout_ref = data.get('checkout_number') or data.get('borrow_ref') or data.get('transaction_number')
     product_id = data.get('product_id')
@@ -1161,9 +1204,35 @@ def api_return():
                 'returned_count': len(returned),
                 'return_email_sent': _return_email_ok(returned),
             })
-        if transaction_id:
+        if checkout_item_id is not None:
             returned = return_checkout_items(
-                [int(transaction_id)], mark_defective=mark_defective, actor=current_user
+                [int(checkout_item_id)], mark_defective=mark_defective, actor=current_user
+            )
+            return jsonify({
+                'success': True,
+                'returned_count': len(returned),
+                'return_email_sent': _return_email_ok(returned),
+            })
+        if checkout_id is not None:
+            checkout = Checkout.query.get(int(checkout_id))
+            if not checkout:
+                return jsonify({'error': translate('inventory.errors.borrow_transaction_not_found')}), 404
+            returned = return_checkout_items(
+                [i.id for i in checkout.active_items],
+                mark_defective=mark_defective,
+                actor=current_user,
+            )
+            return jsonify({
+                'success': True,
+                'returned_count': len(returned),
+                'checkout_id': checkout.id,
+                'return_email_sent': _return_email_ok(returned),
+            })
+        if transaction_id is not None:
+            # Compat: historisch Checkout-ODER-Item-ID — Auflösung wie Mobile/return-pdf
+            resolved_ids = resolve_return_item_ids(int(transaction_id))
+            returned = return_checkout_items(
+                resolved_ids, mark_defective=mark_defective, actor=current_user
             )
             return jsonify({
                 'success': True,

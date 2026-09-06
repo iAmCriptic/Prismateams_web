@@ -64,6 +64,14 @@ def register_request_hooks(app):
         ):
             return
 
+        # Native Mobile/API-Clients: Bearer-Token statt Browser-Origin/CSRF.
+        auth = request.headers.get('Authorization', '')
+        if auth.startswith('Bearer ') and (
+            endpoint.startswith('inventory.api_mobile_')
+            or endpoint.startswith('api.')
+        ):
+            return
+
         origin = request.headers.get('Origin', '')
         referer = request.headers.get('Referer', '')
         sec_fetch_site = (request.headers.get('Sec-Fetch-Site') or '').strip().lower()

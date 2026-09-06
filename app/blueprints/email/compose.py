@@ -297,8 +297,9 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
                 html_content = f'<div class="email-original-content-inner">{html_content}</div>'
             
             html_content = replace_cid_images_in_email_html(html_content, email_msg)
-            
-            original_html = html_content
+
+            from app.blueprints.email.html_render import sanitize_email_inline_html
+            original_html = sanitize_email_inline_html(html_content)
         except Exception as e:
             logging.error(f"HTML processing error for original email: {e}")
             original_html = None

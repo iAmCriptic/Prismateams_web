@@ -237,7 +237,11 @@ def api_mobile_borrow():
 @inventory_bp.route('/api/mobile/return', methods=['POST'])
 def api_mobile_return():
     """Mobile API: Rückgabe (Checkout Compat + Partial)."""
-    from app.services.inventory.checkout_service import return_checkout_items, find_active_checkout_item_for_product
+    from app.services.inventory.checkout_service import (
+        return_checkout_items,
+        find_active_checkout_item_for_product,
+        resolve_return_item_ids,
+    )
 
     user = verify_api_token()
     if not user:
@@ -245,6 +249,8 @@ def api_mobile_return():
     
     data = request.get_json() or {}
     item_ids = data.get('item_ids') or []
+    checkout_item_id = data.get('checkout_item_id')
+    checkout_id = data.get('checkout_id')
     transaction_id = data.get('transaction_id')
     product_id = data.get('product_id')
     mark_defective = bool(data.get('mark_defective'))
@@ -252,20 +258,24 @@ def api_mobile_return():
     try:
         if item_ids:
             returned = return_checkout_items(item_ids, mark_defective=mark_defective, actor=user)
-        elif transaction_id:
-            # Compat: id kann Checkout-Item oder Checkout sein
-            item = CheckoutItem.query.get(int(transaction_id))
-            if item:
-                returned = return_checkout_items([item.id], mark_defective=mark_defective, actor=user)
-            else:
-                checkout = Checkout.query.get(int(transaction_id))
-                if not checkout:
-                    return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
-                returned = return_checkout_items(
-                    [i.id for i in checkout.active_items],
-                    mark_defective=mark_defective,
-                    actor=user,
-                )
+        elif checkout_item_id is not None:
+            returned = return_checkout_items(
+                [int(checkout_item_id)], mark_defective=mark_defective, actor=user
+            )
+        elif checkout_id is not None:
+            checkout = Checkout.query.get(int(checkout_id))
+            if not checkout:
+                return jsonify({'error': translate('inventory.errors.borrow_transaction_not_found')}), 404
+            returned = return_checkout_items(
+                [i.id for i in checkout.active_items],
+                mark_defective=mark_defective,
+                actor=user,
+            )
+        elif transaction_id is not None:
+            resolved_ids = resolve_return_item_ids(int(transaction_id))
+            returned = return_checkout_items(
+                resolved_ids, mark_defective=mark_defective, actor=user
+            )
         elif product_id:
             item = find_active_checkout_item_for_product(int(product_id), actor=user)
             if not item:

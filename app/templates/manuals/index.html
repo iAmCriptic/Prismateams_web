@@ -3,7 +3,7 @@
 {% block title %}{{ _('manuals.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" class="mod-search mod-search--icon manuals-search" role="search" id="manualsSearchForm">
+<form method="GET" class="mod-search mod-search--icon" role="search" id="manualsSearchForm">
     {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     {% if request.args.get('folder_id') %}<input type="hidden" name="folder_id" value="{{ request.args.get('folder_id') }}">{% endif %}
@@ -80,7 +80,7 @@
 {% set index_team_id = active_folder.team_id if active_folder and active_folder.visibility == 'team' else (filter_team_id if view_param == 'team' else none) %}
 
 {% macro manuals_search_form(id_suffix='') %}
-<form method="GET" class="mod-search mod-search--icon manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
+<form method="GET" class="mod-search mod-search--icon" role="search" id="manualsSearchForm{{ id_suffix }}">
     {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
     {% if view_param == 'team' and index_team_id %}<input type="hidden" name="team_id" value="{{ index_team_id }}">{% endif %}
     {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}

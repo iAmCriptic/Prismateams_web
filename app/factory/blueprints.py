@@ -78,6 +78,10 @@ def register_blueprints(app):
         'files.share_onlyoffice_callback',
         'kanban.onlyoffice_callback',
         'api.api_login',  # credential login (mobile/API clients)
+        # Inventory Mobile API (Bearer): keine Browser-CSRF-Tokens
+        'inventory.api_mobile_borrow',
+        'inventory.api_mobile_return',
+        'inventory.api_mobile_scan',
     ):
         view = app.view_functions.get(endpoint)
         if view is not None:

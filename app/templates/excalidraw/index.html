@@ -3,7 +3,7 @@
 {% block title %}{{ _('excalidraw.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('excalidraw.index') }}" class="mod-search mod-search--icon excalidraw-search" role="search">
+<form method="GET" action="{{ url_for('excalidraw.index') }}" class="mod-search mod-search--icon" role="search">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>

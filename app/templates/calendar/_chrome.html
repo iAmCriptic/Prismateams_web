@@ -68,7 +68,7 @@
 {% endmacro %}
 
 {% macro calendar_search(id_suffix='') %}
-<div class="calendar-search" role="search" data-calendar-search>
+<div class="mod-search" role="search" data-calendar-search>
     <label class="mod-search-field" for="calendarSearchInput{{ id_suffix }}">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -80,7 +80,7 @@
                spellcheck="false"
                enterkeyhint="search">
     </label>
-    <button type="button" class="btn calendar-search-clear d-none" id="calendarSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}">
+    <button type="button" class="btn mod-search-clear d-none" id="calendarSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
     </button>
     <div class="calendar-search-results d-none" id="calendarSearchResults{{ id_suffix }}" role="listbox" aria-label="{{ _('calendar.index.search.results') }}"></div>

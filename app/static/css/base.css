@@ -1,8 +1,8 @@
 /* Mobile-First Design - Base Styles */
 
 :root {
-    --accent-color: #0d6efd;
-    --accent-style: #0d6efd;
+    --accent-color: var(--accent-color, var(--bs-primary));
+    --accent-style: var(--accent-color, var(--bs-primary));
     /* Angenehmes Light-Mode-Grau (nicht Schneeweiß) */
     --portal-bg: #f0f2f5;
     --top-navbar-height: 64px;
@@ -248,6 +248,40 @@ body {
     color: var(--accent-color);
 }
 
+/* Floating tip for bottom-nav icons (hover + long-press) */
+.mobile-nav-tip {
+    position: fixed;
+    z-index: 1080;
+    max-width: min(16rem, calc(100vw - 1.5rem));
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.28));
+    background: color-mix(in srgb, var(--bs-body-bg, #111) 92%, var(--bs-secondary-bg));
+    color: var(--bs-body-color, #fff);
+    box-shadow: 0 0.45rem 1.25rem rgba(0, 0, 0, 0.28);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 0.35rem));
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-nav-tip.is-visible {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+}
+
+[data-oled-mode="true"] .mobile-nav-tip {
+    background: #111;
+    border-color: #2a2a2a;
+}
+
 /* Verhindere kurzes Dunkel-Flackern in der mobilen Bottom-Navigation */
 .mobile-nav .mobile-nav-favorite-link,
 .mobile-nav .mobile-nav-favorite-link:hover,
@@ -402,7 +436,7 @@ body {
     width: 2.25rem;
     height: 2.25rem;
     padding: 0;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
 }
 
 /* User-Dropdown: volle Sidebar-Breite, öffnet über der Trennlinie */
@@ -1042,9 +1076,9 @@ body.offline-mode {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1.05rem;
 }
 
@@ -1100,7 +1134,7 @@ body.offline-mode {
 .pwa-install-prompt__btn--install,
 .pwa-update-prompt__btn--reload {
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.12);
 }
 
@@ -1117,8 +1151,8 @@ body.offline-mode {
 .push-activation-prompt__btn--later,
 .pwa-install-prompt__btn--later,
 .pwa-update-prompt__btn--later {
-    color: var(--accent-color, #0d6efd) !important;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
 }
 
 .push-activation-prompt__btn--later:hover,
@@ -1127,8 +1161,8 @@ body.offline-mode {
 .pwa-install-prompt__btn--later:focus,
 .pwa-update-prompt__btn--later:hover,
 .pwa-update-prompt__btn--later:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .push-activation-prompt__btn--never,
@@ -1222,7 +1256,7 @@ body.offline-mode {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Mobile: Verhindert unerwünschten Doppeltap-Zoom, ohne Events zu blockieren */
@@ -1248,7 +1282,7 @@ button, .btn {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Outline Primary Buttons */
@@ -1267,7 +1301,7 @@ button, .btn {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Outline Secondary Buttons - Use accent color */
@@ -1286,7 +1320,7 @@ button, .btn {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Secondary Buttons - Use accent color */
@@ -1307,7 +1341,7 @@ button, .btn {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Outline Warning Buttons - Use accent color */
@@ -1326,7 +1360,7 @@ button, .btn {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 /* Active Navigation Links */
@@ -1424,7 +1458,7 @@ button, .btn {
     height: 2.5rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent);
     color: var(--bs-body-color, #212529);
     cursor: pointer;
@@ -1440,7 +1474,7 @@ button, .btn {
 }
 
 .more-menu-close:focus-visible {
-    outline: 2px solid var(--accent-color, #0d6efd);
+    outline: 2px solid var(--accent-color, var(--bs-primary));
     outline-offset: 2px;
 }
 
@@ -1506,14 +1540,14 @@ button.more-menu-link:focus,
 .more-menu-link.active,
 a.more-menu-link.active,
 .more-menu .nav-link.more-menu-link.active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     font-weight: 600;
 }
 
 .more-menu-link.active .more-menu-icon,
 .more-menu-link.active .more-menu-icon i {
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     background: none !important;
     -webkit-text-fill-color: currentColor !important;
     -webkit-background-clip: unset !important;
@@ -1527,15 +1561,15 @@ a.more-menu-link.active,
     width: 2rem;
     height: 2rem;
     flex-shrink: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1rem;
     line-height: 1;
 }
 
 .more-menu-link.active .more-menu-icon {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .more-menu-icon i {
@@ -1620,13 +1654,13 @@ a.more-menu-link.active,
 }
 
 .offcanvas-accent:not(.more-menu) .nav-link.active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     font-weight: 600;
 }
 
 .offcanvas-accent:not(.more-menu) .nav-link.active i {
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     background: none !important;
     -webkit-text-fill-color: currentColor !important;
     -webkit-background-clip: unset !important;
@@ -1636,12 +1670,12 @@ a.more-menu-link.active,
 /* Form Controls */
 .form-control:focus {
     border-color: var(--accent-color) !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
 }
 
 .form-select:focus {
     border-color: var(--accent-color) !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
 }
 
 /* OLED Mode - Form Controls */
@@ -1774,8 +1808,8 @@ a.more-menu-link.active,
 .pt-confirm-modal .btn.btn-outline-primary,
 .pt-confirm-modal .btn.btn-outline-secondary {
     background: transparent !important;
-    color: var(--accent-color, #0d6efd) !important;
-    border-color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
 }
 .pt-confirm-modal .btn.btn-outline-primary:hover,
 .pt-confirm-modal .btn.btn-outline-primary:focus,
@@ -1783,9 +1817,9 @@ a.more-menu-link.active,
 .pt-confirm-modal .btn.btn-outline-secondary:hover,
 .pt-confirm-modal .btn.btn-outline-secondary:focus,
 .pt-confirm-modal .btn.btn-outline-secondary:active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
-    border-color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
     box-shadow: none !important;
 }
 .pt-confirm-modal .btn.btn-danger {

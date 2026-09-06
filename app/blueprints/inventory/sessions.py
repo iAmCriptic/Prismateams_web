@@ -149,12 +149,18 @@ def inventory_session(inventory_id):
         joinedload(InventoryItem.checker)
     ).all()
     open_count = sum(1 for item in inventory_items if not item.checked)
+    can_complete = bool(
+        getattr(current_user, 'is_admin', False)
+        or getattr(current_user, 'is_super_admin', False)
+        or inventory.started_by == current_user.id
+    )
     return render_template(
         'inventory/inventory_session.html',
         inventory=inventory,
         inventory_items=inventory_items,
         open_count=open_count,
         is_active=inventory.status == 'active',
+        can_complete=can_complete,
     )
 
 
@@ -168,6 +174,15 @@ def inventory_complete(inventory_id):
         flash(_('inventory.flash.inventory_completed'), 'warning')
         return redirect(url_for('inventory.inventory_tool'))
 
+    can_complete = bool(
+        getattr(current_user, 'is_admin', False)
+        or getattr(current_user, 'is_super_admin', False)
+        or inventory.started_by == current_user.id
+    )
+    if not can_complete:
+        flash(_('inventory.errors.inventory_complete_forbidden'), 'danger')
+        return redirect(url_for('inventory.inventory_session', inventory_id=inventory.id))
+
     items = InventoryItem.query.filter_by(inventory_id=inventory_id).options(
         joinedload(InventoryItem.product).selectinload(Product.lots)
     ).all()
@@ -177,7 +192,7 @@ def inventory_complete(inventory_id):
     stock_adjusted = 0
     mark_missing = request.form.get('mark_missing') in ('1', 'on', 'true', 'yes')
 
-    from app.services.inventory import StockService
+    from app.services.inventory import LifecycleService, StockService
     from app.services.inventory.checkout_service import find_active_checkout_item_for_product
 
     # Statusse, die „fehlend“ nicht überschreiben darf (Checkout / Lifecycle)
@@ -220,8 +235,17 @@ def inventory_complete(inventory_id):
             if find_active_checkout_item_for_product(product.id):
                 missing_skipped += 1
                 continue
-            product.status = 'missing'
-            missing_count += 1
+            try:
+                LifecycleService.change_status(
+                    product,
+                    'missing',
+                    current_user.id,
+                    reason=f'Inventur {inventory.name}',
+                    note='mark_missing',
+                )
+                missing_count += 1
+            except ValueError:
+                missing_skipped += 1
 
     inventory.status = 'completed'
     inventory.completed_at = datetime.utcnow()

@@ -171,7 +171,7 @@
     font-size: 1.45rem;
     opacity: 0.95;
     flex-shrink: 0;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .mod-sidebar-nav {
@@ -212,7 +212,7 @@
     font-weight: 600;
     padding: 0.7rem 1.1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
     text-decoration: none;
     display: inline-flex;
@@ -277,7 +277,7 @@
     font-weight: 600;
     font-size: 0.82rem;
     line-height: 1.2;
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     white-space: nowrap;
     box-shadow: none;
     text-decoration: none;
@@ -287,7 +287,7 @@
 .mod-sidebar-action span,
 .btn.mod-sidebar-action .bi,
 .btn.mod-sidebar-action span {
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .mod-sidebar-action:hover,
@@ -296,8 +296,8 @@
 .btn.mod-sidebar-action:hover,
 .btn.mod-sidebar-action:focus,
 .btn.mod-sidebar-action:active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
     filter: brightness(0.95);
     box-shadow: none;
 }
@@ -383,8 +383,8 @@ button.mod-nav-link:hover,
 a.mod-nav-link.active,
 button.mod-nav-link.active,
 .nav-link.mod-nav-link.active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
     font-weight: 600;
 }
 
@@ -433,7 +433,7 @@ button.mod-nav-link.active,
     font-weight: 600;
     padding: 0.4rem 1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
     display: inline-flex;
     align-items: center;
@@ -642,7 +642,7 @@ button.mod-nav-link.active,
 
 .mod-list-hover-actions .btn-link:hover,
 .mod-list-hover-actions .btn-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 /* ——— Stat cards (assessment / booking dashboards) ——— */
@@ -680,7 +680,7 @@ button.mod-nav-link.active,
 }
 
 .mod-stat--accent .mod-stat-value {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .mod-stat--warning .mod-stat-value {
@@ -742,7 +742,7 @@ button.mod-nav-link.active,
 }
 
 .mod-dash-list a:hover {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .mod-dash-meta {
@@ -843,14 +843,14 @@ button.mod-nav-link.active,
     color: var(--bs-secondary-color, #6c757d);
     text-decoration: none;
     font-weight: 500;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     padding: 0.25rem 0.15rem;
     line-height: 1.2;
 }
 
 .mod-back-link:hover,
 .mod-back-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
     text-decoration: none;
 }
 

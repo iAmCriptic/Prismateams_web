@@ -6,7 +6,7 @@
 {% set search_query = search_query|default('') %}
 <form method="GET"
       action="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-      class="mod-search mod-search--icon email-search"
+      class="mod-search mod-search--icon"
       role="search"
       id="emailSearchFormDesktop">
     <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
@@ -292,7 +292,7 @@
 {% set search_query = search_query|default('') %}
 <form method="GET"
       action="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-      class="mod-search mod-search--icon email-search"
+      class="mod-search mod-search--icon"
       role="search"
       id="emailSearchForm{{ suffix }}">
     <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>

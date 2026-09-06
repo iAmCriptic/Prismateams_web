@@ -6,8 +6,8 @@
 
 
 {% block inventory_content %}
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.sets') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.sets') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -29,12 +29,12 @@
         <div class="inventory-form-fields inventory-form-fields--basics">
             <div class="inventory-form-field">
                 <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="name" name="name"
+                <input type="text" class="form-control mod-pill-input" id="name" name="name"
                        value="{% if product_set %}{{ product_set.name }}{% endif %}" required>
             </div>
             <div class="inventory-form-field">
                 <label for="description" class="form-label">Beschreibung</label>
-                <textarea class="form-control" id="description" name="description" rows="2">{% if product_set %}{{ product_set.description or '' }}{% endif %}</textarea>
+                <textarea class="form-control mod-pill-input" id="description" name="description" rows="2">{% if product_set %}{{ product_set.description or '' }}{% endif %}</textarea>
             </div>
         </div>
     </section>
@@ -61,7 +61,7 @@
             {% if product_set and product_set.items %}
                 {% for item in product_set.items %}
                 <div class="inventory-set-product-row product-row">
-                    <select class="form-select product-select" name="product_ids" required>
+                    <select class="form-select product-select mod-pill-input" name="product_ids" required>
                         <option value="">Produkt auswählen...</option>
                         {% for product in products %}
                         <option value="{{ product.id }}" {% if product.id == item.product_id %}selected{% endif %}>
@@ -69,7 +69,7 @@
                         </option>
                         {% endfor %}
                     </select>
-                    <input type="number" class="form-control inventory-set-qty" name="quantities"
+                    <input type="number" class="form-control inventory-set-qty mod-pill-input" name="quantities"
                            value="{{ item.quantity }}" min="1" required aria-label="Menge">
                     <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
                         <i class="bi bi-trash"></i>
@@ -78,13 +78,13 @@
                 {% endfor %}
             {% else %}
                 <div class="inventory-set-product-row product-row">
-                    <select class="form-select product-select" name="product_ids" required>
+                    <select class="form-select product-select mod-pill-input" name="product_ids" required>
                         <option value="">Produkt auswählen...</option>
                         {% for product in products %}
                         <option value="{{ product.id }}">{{ product.name }}</option>
                         {% endfor %}
                     </select>
-                    <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
+                    <input type="number" class="form-control inventory-set-qty mod-pill-input" name="quantities" value="1" min="1" required aria-label="Menge">
                     <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -118,10 +118,10 @@ function addProductRow() {
     }
 
     row.innerHTML = `
-        <select class="form-select product-select" name="product_ids" required>
+        <select class="form-select product-select mod-pill-input" name="product_ids" required>
             ${optionsHtml}
         </select>
-        <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
+        <input type="number" class="form-control inventory-set-qty mod-pill-input" name="quantities" value="1" min="1" required aria-label="Menge">
         <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
             <i class="bi bi-trash"></i>
         </button>

@@ -150,7 +150,7 @@ body:has(.surveys-workspace) {
 
 .surveys-pill-dropdown .dropdown-item:hover,
 .surveys-pill-dropdown .dropdown-item:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .surveys-settings-panel .mod-pill-select {
@@ -196,7 +196,7 @@ body:has(.surveys-workspace) {
 
 /* Navbar search (like shortlinks / files) */
 
-.surveys-search {
+.surveys-shell .mod-search--icon {
     position: relative;
     max-width: 28rem;
     margin: 0 auto;
@@ -209,13 +209,13 @@ body:has(.surveys-workspace) {
     gap: 0.5rem;
 }
 
-.surveys-mobile-search .surveys-search {
+.surveys-mobile-search .mod-search--icon {
     max-width: none;
     margin: 0;
 }
 
-.surveys-mobile-search .surveys-search-input,
-.surveys-mobile-search .form-control.surveys-search-input {
+.surveys-mobile-search .mod-search-input,
+.surveys-mobile-search .form-control.mod-search-input {
     height: 2.35rem;
 }
 
@@ -338,8 +338,8 @@ body:has(.surveys-workspace) {
 
 .surveys-form .form-control:focus,
 .surveys-form .form-select:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--surveys-form-border));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--surveys-form-border));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .surveys-form-actions {
@@ -374,7 +374,7 @@ body:has(.surveys-workspace) {
 }
 
 .surveys-card:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color));
     box-shadow: 0 0.35rem 1.25rem rgba(0, 0, 0, 0.06);
 }
 
@@ -433,7 +433,7 @@ body:has(.surveys-workspace) {
 .surveys-header-image-wrap {
     position: relative;
     min-height: 140px;
-    background: linear-gradient(135deg, var(--bs-secondary-bg), color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-secondary-bg)));
+    background: linear-gradient(135deg, var(--bs-secondary-bg), color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, var(--bs-secondary-bg)));
 }
 
 .surveys-header-image,
@@ -605,7 +605,7 @@ body:has(.surveys-workspace) {
 }
 
 .surveys-question-card:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 30%, var(--bs-border-color));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 30%, var(--bs-border-color));
     box-shadow: 0 0.35rem 1.1rem rgba(0, 0, 0, 0.06);
 }
 
@@ -616,7 +616,7 @@ body:has(.surveys-workspace) {
 
 .surveys-question-card.drag-over {
     border-color: var(--accent-color, var(--bs-primary));
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .surveys-question-card-inner {
@@ -651,10 +651,10 @@ body:has(.surveys-workspace) {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     padding: 0.28rem 0.65rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, var(--bs-body-bg));
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, var(--bs-body-bg));
     color: var(--accent-color, var(--bs-primary));
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 .surveys-question-toolbar-spacer {
@@ -682,7 +682,7 @@ body:has(.surveys-workspace) {
     height: 2rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color);
     display: inline-flex;
@@ -774,7 +774,7 @@ body:has(.surveys-workspace) {
     height: 1.85rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color);
     flex-shrink: 0;
@@ -941,14 +941,14 @@ body:has(.surveys-workspace) {
 .surveys-bar-track {
     height: 10px;
     background: var(--bs-secondary-bg);
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     overflow: hidden;
 }
 
 .surveys-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-color, var(--bs-primary)), color-mix(in srgb, var(--accent-color, #0d6efd) 70%, #fff));
-    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-color, var(--bs-primary)), color-mix(in srgb, var(--accent-color, var(--bs-primary)) 70%, #fff));
+    border-radius: var(--mod-radius-pill);
     min-width: 2px;
 }
 
@@ -991,7 +991,7 @@ body:has(.surveys-workspace) {
 .surveys-pie-swatch {
     width: 0.75rem;
     height: 0.75rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     flex-shrink: 0;
 }
 

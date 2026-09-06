@@ -2173,6 +2173,162 @@ window.updateEmailNavBadge = function updateEmailNavBadge(count) {
     });
 };
 
+/**
+ * Bottom-Nav: Hover- und Long-Press-Infos zu den Icon-Buttons.
+ */
+(function initMobileNavTips() {
+    const LONG_PRESS_MS = 420;
+    const HIDE_DELAY_MS = 120;
+    let tipEl = null;
+    let hideTimer = null;
+    let pressTimer = null;
+    let activeTarget = null;
+    let suppressClickUntil = 0;
 
+    function ensureTip() {
+        if (tipEl) return tipEl;
+        tipEl = document.createElement('div');
+        tipEl.className = 'mobile-nav-tip';
+        tipEl.setAttribute('role', 'tooltip');
+        tipEl.hidden = true;
+        document.body.appendChild(tipEl);
+        return tipEl;
+    }
+
+    function tipText(el) {
+        return (
+            (el.getAttribute('aria-label') || '').trim() ||
+            (el.getAttribute('title') || '').trim() ||
+            ''
+        );
+    }
+
+    function placeTip(el) {
+        const tip = ensureTip();
+        const text = tipText(el);
+        if (!text) return;
+        tip.textContent = text;
+        tip.hidden = false;
+        const rect = el.getBoundingClientRect();
+        const tipWidth = tip.offsetWidth || 120;
+        const half = tipWidth / 2;
+        const centerX = rect.left + rect.width / 2;
+        const left = Math.min(
+            Math.max(centerX, half + 8),
+            window.innerWidth - half - 8
+        );
+        tip.style.left = left + 'px';
+        tip.style.top = Math.max(12, rect.top - 8) + 'px';
+        tip.style.removeProperty('transform');
+        requestAnimationFrame(function () {
+            tip.classList.add('is-visible');
+        });
+        activeTarget = el;
+    }
+
+    function hideTip(immediate) {
+        clearTimeout(hideTimer);
+        const run = function () {
+            if (!tipEl) return;
+            tipEl.classList.remove('is-visible');
+            tipEl.hidden = true;
+            activeTarget = null;
+        };
+        if (immediate) {
+            run();
+            return;
+        }
+        hideTimer = setTimeout(run, HIDE_DELAY_MS);
+    }
+
+    function clearPress() {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    }
+
+    function onReady() {
+        const nav = document.getElementById('mobileNav');
+        if (!nav) return;
+        const targets = nav.querySelectorAll('[data-nav-tip]');
+        targets.forEach(function (el) {
+            // Native title for coarse hover fallback; custom tip is the primary UX.
+            if (!el.getAttribute('title') && tipText(el)) {
+                el.setAttribute('title', tipText(el));
+            }
+
+            el.addEventListener('mouseenter', function () {
+                if (window.matchMedia('(hover: hover)').matches) {
+                    clearTimeout(hideTimer);
+                    placeTip(el);
+                }
+            });
+            el.addEventListener('mouseleave', function () {
+                hideTip(false);
+            });
+            el.addEventListener('focus', function () {
+                placeTip(el);
+            });
+            el.addEventListener('blur', function () {
+                hideTip(false);
+            });
+
+            el.addEventListener('touchstart', function (e) {
+                if (!e.touches || e.touches.length !== 1) return;
+                clearPress();
+                pressTimer = setTimeout(function () {
+                    pressTimer = null;
+                    suppressClickUntil = Date.now() + 650;
+                    placeTip(el);
+                    if (navigator.vibrate) {
+                        try { navigator.vibrate(12); } catch (_) { /* noop */ }
+                    }
+                }, LONG_PRESS_MS);
+            }, { passive: true });
+
+            el.addEventListener('touchend', function () {
+                clearPress();
+                if (activeTarget === el) {
+                    hideTip(false);
+                }
+            }, { passive: true });
+
+            el.addEventListener('touchcancel', function () {
+                clearPress();
+                hideTip(true);
+            }, { passive: true });
+
+            el.addEventListener('touchmove', function () {
+                clearPress();
+            }, { passive: true });
+
+            el.addEventListener('click', function (e) {
+                if (Date.now() < suppressClickUntil) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, true);
+
+            el.addEventListener('contextmenu', function (e) {
+                // Avoid native callout when long-press tip is shown
+                if (activeTarget === el || Date.now() < suppressClickUntil) {
+                    e.preventDefault();
+                }
+            });
+        });
+
+        window.addEventListener('scroll', function () {
+            if (activeTarget) hideTip(true);
+        }, { passive: true });
+        window.addEventListener('resize', function () {
+            if (activeTarget) hideTip(true);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onReady);
+    } else {
+        onReady();
+    }
+})();
 
 

@@ -23,7 +23,7 @@
     align-items: center;
     gap: 0.3rem;
     padding: 0.28rem 0.7rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     font-size: 0.78rem;
     font-weight: 650;
     line-height: 1.2;
@@ -66,8 +66,8 @@
 
 .protocols-shell .mod-list-hover-actions .btn:hover {
     color: var(--accent-color, var(--bs-primary));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
 }
 
 .protocols-shell .mod-list-actions .dropdown > .btn {
@@ -86,8 +86,8 @@
 .protocols-shell .mod-list-actions .dropdown > .btn:hover,
 .protocols-shell .mod-list-actions .dropdown.show > .btn {
     color: var(--accent-color, var(--bs-primary));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
 }
 
 .protocols-empty.mod-empty-state {
@@ -211,9 +211,9 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-chrome-btn:hover,
 .protocols-chrome-btn:focus {
     color: var(--accent-color, var(--bs-primary));
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg));
-    box-shadow: 0 0.25rem 0.65rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, var(--bs-body-bg));
+    box-shadow: 0 0.25rem 0.65rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
     transform: translateY(-1px);
     outline: none;
 }
@@ -268,11 +268,11 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     width: 2.35rem;
     height: 2.35rem;
     flex-shrink: 0;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     font-size: 1.05rem;
     color: #fff;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    box-shadow: 0 0.2rem 0.55rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    box-shadow: 0 0.2rem 0.55rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
 }
 
 .protocols-workspace-brand > i {
@@ -370,7 +370,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-form-card {
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     padding: 1.5rem 1.65rem;
     margin-bottom: 1rem;
     width: 100%;
@@ -442,8 +442,8 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-step.is-active {
     color: #fff;
     font-weight: 650;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
     transform: scale(1.02);
 }
 
@@ -469,8 +469,8 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 }
 
 .protocols-chip-field:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, var(--bs-border-color));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .protocols-chip-list {
@@ -483,13 +483,13 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     gap: 0.3rem;
     max-width: 100%;
     padding: 0.25rem 0.35rem 0.25rem 0.7rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, var(--bs-body-bg));
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, var(--bs-body-bg));
     color: var(--bs-body-color);
     font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.2;
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
 }
 
 .protocols-chip.is-entering {
@@ -511,7 +511,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     height: 1.35rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color);
     line-height: 1;
@@ -587,7 +587,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     width: 2rem;
     height: 2rem;
     padding: 0;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     border: 1px solid transparent;
     display: inline-flex;
     align-items: center;
@@ -607,7 +607,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-agenda-item.is-dragging {
     opacity: 0.55;
     box-shadow: 0 0.45rem 1.1rem color-mix(in srgb, #000 12%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, var(--bs-border-color));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, var(--bs-border-color));
     transform: scale(1.01);
 }
 
@@ -645,14 +645,14 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 }
 
 .protocols-editor-title:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, transparent) !important;
     background: var(--bs-body-bg) !important;
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent) !important;
 }
 
 .protocols-autosave-status {
     padding: 0.35rem 0.75rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: color-mix(in srgb, var(--bs-secondary-bg) 40%, transparent);
     font-size: 0.78rem;
     font-weight: 550;
@@ -673,12 +673,12 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
     background:
         linear-gradient(
             180deg,
-            color-mix(in srgb, var(--accent-color, #0d6efd) 5%, var(--bs-body-bg)) 0%,
+            color-mix(in srgb, var(--accent-color, var(--bs-primary)) 5%, var(--bs-body-bg)) 0%,
             var(--bs-body-bg) 7.5rem
         );
     box-shadow:
@@ -761,7 +761,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    border-radius: 999px !important;
+    border-radius: var(--mod-radius-pill) !important;
     border: 1px solid transparent !important;
     float: none !important;
     padding: 0 !important;
@@ -780,11 +780,11 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-editor-surface .ql-toolbar .ql-picker-label:hover,
 #protocolsEditorToolbar button:hover,
 #protocolsEditorToolbar .ql-picker-label:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent) !important;
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 32%, transparent) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 32%, transparent) !important;
     color: var(--accent-color, var(--bs-primary)) !important;
     transform: translateY(-1px);
-    box-shadow: 0 0.18rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    box-shadow: 0 0.18rem 0.45rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .protocols-editor-surface .ql-toolbar button:active,
@@ -796,10 +796,10 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-editor-surface .ql-toolbar .ql-picker.ql-expanded .ql-picker-label,
 #protocolsEditorToolbar button.ql-active,
 #protocolsEditorToolbar .ql-picker.ql-expanded .ql-picker-label {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     border-color: transparent !important;
     color: #fff !important;
-    box-shadow: 0 0.18rem 0.5rem color-mix(in srgb, var(--accent-color, #0d6efd) 38%, transparent);
+    box-shadow: 0 0.18rem 0.5rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 38%, transparent);
 }
 
 .protocols-editor-surface .ql-toolbar button.ql-active .ql-stroke,
@@ -851,7 +851,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 
 .protocols-editor-surface .ql-toolbar .ql-picker-item:hover,
 #protocolsEditorToolbar .ql-picker-item:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent) !important;
     color: var(--accent-color, var(--bs-primary)) !important;
 }
 
@@ -867,7 +867,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-editor-surface .ql-toolbar .ql-background .ql-picker-item,
 #protocolsEditorToolbar .ql-color-picker .ql-picker-item,
 #protocolsEditorToolbar .ql-background .ql-picker-item {
-    border-radius: 999px !important;
+    border-radius: var(--mod-radius-pill) !important;
     width: 1.4rem !important;
     height: 1.4rem !important;
     margin: 0.18rem !important;
@@ -984,7 +984,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 
 .protocols-quill .ql-editor th,
 .protocols-view-html th {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, var(--bs-body-bg));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-body-bg));
     font-weight: 650;
 }
 
@@ -1043,16 +1043,16 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 
 .protocols-item-nav-link:hover {
     color: var(--accent-color, var(--bs-primary));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
     transform: translateY(-1px);
 }
 
 .protocols-item-nav-link.is-active {
     color: #fff;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
     border-color: transparent;
-    box-shadow: 0 0.15rem 0.4rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    box-shadow: 0 0.15rem 0.4rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
     transform: scale(1.05);
 }
 
@@ -1069,7 +1069,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 
 .protocols-workspace--view {
     background:
-        radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent), transparent 60%),
+        radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent), transparent 60%),
         color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
 }
 
@@ -1082,7 +1082,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     font-weight: 600;
     font-size: 0.78rem;
     letter-spacing: 0.01em;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     padding: 0.4rem 0.75rem;
     border: 1px solid transparent;
 }
@@ -1125,7 +1125,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     background:
         linear-gradient(
             180deg,
-            color-mix(in srgb, var(--accent-color, #0d6efd) 7%, var(--bs-body-bg)) 0%,
+            color-mix(in srgb, var(--accent-color, var(--bs-primary)) 7%, var(--bs-body-bg)) 0%,
             var(--bs-body-bg) 100%
         );
 }
@@ -1251,8 +1251,8 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 }
 
 .protocols-doc-toc-link:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color));
-    box-shadow: 0 0.25rem 0.75rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+    box-shadow: 0 0.25rem 0.75rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
     color: var(--bs-body-color);
     transform: translateY(-1px);
 }
@@ -1261,13 +1261,13 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     flex-shrink: 0;
     width: 1.7rem;
     height: 1.7rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 0.78rem;
     font-weight: 700;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent);
     color: var(--accent-color, var(--bs-primary));
 }
 
@@ -1305,7 +1305,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     display: inline-flex;
     align-items: center;
     padding: 0.28rem 0.65rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     font-size: 0.72rem;
     font-weight: 750;
     letter-spacing: 0.04em;

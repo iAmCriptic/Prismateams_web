@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon wiki-search" role="search" id="wikiSearchForm">
+<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon" role="search" id="wikiSearchForm">
     {% if active_favorites|default(false) %}<input type="hidden" name="view" value="favorites">{% elif request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     <input type="hidden" name="sort" value="{{ sort_by }}">
@@ -76,7 +76,7 @@
 {% endmacro %}
 
 {% macro wiki_search_form(id_suffix='') %}
-<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon wiki-search" role="search" id="wikiSearchForm{{ id_suffix }}">
+<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon" role="search" id="wikiSearchForm{{ id_suffix }}">
     {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% elif active_nav in ['private', 'public', 'team'] or (active_nav and active_nav.startswith('team-')) %}
     <input type="hidden" name="view" value="{{ 'team' if active_nav.startswith('team-') else active_nav }}">
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}

@@ -1,13 +1,7 @@
-/* Shared module search — .mod-search (flex field) + .mod-search--icon (absolute icon)
- * Wrapper aliases kept where templates still use them alongside .mod-search.
- */
+/* Shared module search — .mod-search (flex field) + .mod-search--icon (absolute icon) */
 
 /* ——— Flex field variant ——— */
-.mod-search,
-.files-search,
-.inventory-search,
-.settings-search,
-.calendar-search {
+.mod-search {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
@@ -17,11 +11,7 @@
 }
 
 @media (min-width: 992px) {
-    .mod-search,
-    .files-search,
-    .inventory-search,
-    .settings-search,
-    .calendar-search {
+    .mod-search {
         max-width: 28rem;
         margin: 0 auto;
     }
@@ -35,7 +25,7 @@
     margin: 0;
     padding: 0.4rem 2.5rem 0.4rem 0.95rem;
     border: 1px solid var(--bs-border-color, #ced4da);
-    border-radius: var(--mod-radius-pill, 1.5rem);
+    border-radius: var(--mod-radius-pill);
     background: var(--bs-body-bg, #fff);
     cursor: text;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -88,7 +78,7 @@
     height: 1.85rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color, #6c757d);
     display: inline-flex;
@@ -109,16 +99,7 @@
 }
 
 /* ——— Absolute icon variant ——— */
-.mod-search--icon,
-.contacts-search,
-.wiki-search,
-.credentials-search,
-.manuals-search,
-.surveys-search,
-.shortlinks-search,
-.email-search,
-.protocols-search,
-.excalidraw-search {
+.mod-search--icon {
     position: relative;
     max-width: 28rem;
     margin: 0 auto;
@@ -126,16 +107,7 @@
 }
 
 .mod-search--icon .mod-search-icon,
-.mod-search-icon,
-.contacts-search-icon,
-.wiki-search-icon,
-.credentials-search-icon,
-.manuals-search-icon,
-.surveys-search-icon,
-.shortlinks-search-icon,
-.email-search-icon,
-.protocols-search-icon,
-.excalidraw-search-icon {
+.mod-search-icon {
     position: absolute;
     left: 0.95rem;
     top: 50%;
@@ -146,27 +118,9 @@
 }
 
 .mod-search--icon .mod-search-input,
-.mod-search--icon .form-control.mod-search-input,
-.contacts-search-input,
-.form-control.contacts-search-input,
-.wiki-search-input,
-.form-control.wiki-search-input,
-.credentials-search-input,
-.form-control.credentials-search-input,
-.manuals-search-input,
-.form-control.manuals-search-input,
-.surveys-search-input,
-.form-control.surveys-search-input,
-.shortlinks-search-input,
-.form-control.shortlinks-search-input,
-.email-search-input,
-.form-control.email-search-input,
-.protocols-search-input,
-.form-control.protocols-search-input,
-.excalidraw-search-input,
-.form-control.excalidraw-search-input {
+.mod-search--icon .form-control.mod-search-input {
     flex: initial;
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border-radius: var(--mod-radius-pill) !important;
     padding-left: 2.35rem !important;
     padding-right: 2.35rem !important;
     height: 2.55rem;
@@ -179,35 +133,12 @@
     line-height: 1.4;
 }
 
-.email-search-input,
-.form-control.email-search-input {
-    height: 2.4rem;
-}
-
-.mod-search--icon .mod-search-input:focus,
-.contacts-search-input:focus,
-.wiki-search-input:focus,
-.credentials-search-input:focus,
-.manuals-search-input:focus,
-.surveys-search-input:focus,
-.shortlinks-search-input:focus,
-.email-search-input:focus,
-.protocols-search-input:focus,
-.excalidraw-search-input:focus {
+.mod-search--icon .mod-search-input:focus {
     border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, var(--bs-border-color)) !important;
     box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent) !important;
 }
 
-.mod-search--icon .mod-search-clear,
-.contacts-search-clear,
-.wiki-search-clear,
-.credentials-search-clear,
-.manuals-search-clear,
-.surveys-search-clear,
-.shortlinks-search-clear,
-.email-search-clear,
-.protocols-search-clear,
-.excalidraw-search-clear {
+.mod-search--icon .mod-search-clear {
     position: absolute;
     right: 0.35rem;
     top: 50%;
@@ -218,7 +149,7 @@
     height: 1.85rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color, #6c757d);
     display: inline-flex;
@@ -228,16 +159,7 @@
     z-index: 2;
 }
 
-.mod-search--icon .mod-search-clear:hover,
-.contacts-search-clear:hover,
-.wiki-search-clear:hover,
-.credentials-search-clear:hover,
-.manuals-search-clear:hover,
-.surveys-search-clear:hover,
-.shortlinks-search-clear:hover,
-.email-search-clear:hover,
-.protocols-search-clear:hover,
-.excalidraw-search-clear:hover {
+.mod-search--icon .mod-search-clear:hover {
     background: rgba(127, 127, 127, 0.12);
     color: var(--bs-body-color);
 }

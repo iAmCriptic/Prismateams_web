@@ -14,25 +14,25 @@
         <div class="inventory-filter-grid">
             <div>
                 <label for="filterBorrower{{ id_suffix }}" class="form-label mb-1">Verantwortlicher</label>
-                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                <input type="text" class="form-control form-control-sm inventory-filter-control mod-pill-input"
                        id="filterBorrower{{ id_suffix }}" data-inv-filter="filterBorrower"
                        placeholder="Name suchen...">
             </div>
             <div>
                 <label for="filterEvent{{ id_suffix }}" class="form-label mb-1">Projekt / Event</label>
-                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                <input type="text" class="form-control form-control-sm inventory-filter-control mod-pill-input"
                        id="filterEvent{{ id_suffix }}" data-inv-filter="filterEvent"
                        placeholder="Projekt suchen...">
             </div>
             <div>
                 <label for="filterProduct{{ id_suffix }}" class="form-label mb-1">Produkt</label>
-                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                <input type="text" class="form-control form-control-sm inventory-filter-control mod-pill-input"
                        id="filterProduct{{ id_suffix }}" data-inv-filter="filterProduct"
                        placeholder="Produktname suchen...">
             </div>
             <div>
                 <label for="filterStatus{{ id_suffix }}" class="form-label mb-1">Status</label>
-                <select class="form-select form-select-sm inventory-filter-control"
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input"
                         id="filterStatus{{ id_suffix }}" data-inv-filter="filterStatus">
                     <option value="all">Alle</option>
                     <option value="active">Aktiv</option>
@@ -42,12 +42,12 @@
             </div>
             <div>
                 <label for="filterDateFrom{{ id_suffix }}" class="form-label mb-1">Von</label>
-                <input type="date" class="form-control form-control-sm inventory-filter-control"
+                <input type="date" class="form-control form-control-sm inventory-filter-control mod-pill-input"
                        id="filterDateFrom{{ id_suffix }}" data-inv-filter="filterDateFrom">
             </div>
             <div>
                 <label for="filterDateTo{{ id_suffix }}" class="form-label mb-1">Bis</label>
-                <input type="date" class="form-control form-control-sm inventory-filter-control"
+                <input type="date" class="form-control form-control-sm inventory-filter-control mod-pill-input"
                        id="filterDateTo{{ id_suffix }}" data-inv-filter="filterDateTo">
             </div>
             <div class="form-check mt-1"{% if not current_user.is_admin and not current_user.is_super_admin %} hidden{% endif %}>

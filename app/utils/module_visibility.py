@@ -326,7 +326,7 @@ def visibility_form_context(module: str, user, item=None, preselect_section=None
             selected = f'team:{teams[0].id}'
         else:
             selected = allowed[0] if allowed else VISIBILITY_PRIVATE
-        if module == 'shortlinks' and VISIBILITY_PRIVATE in allowed:
+        if module in ('shortlinks', 'credentials') and VISIBILITY_PRIVATE in allowed:
             selected = VISIBILITY_PRIVATE
     return {
         'allowed_visibilities': allowed,

@@ -76,9 +76,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1.05rem;
 }
 
@@ -121,7 +121,7 @@
 
 .cookie-consent-btn--primary {
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.12);
 }
 
@@ -132,14 +132,14 @@
 }
 
 .cookie-consent-btn--secondary {
-    color: var(--accent-color, #0d6efd) !important;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
 }
 
 .cookie-consent-btn--secondary:hover,
 .cookie-consent-btn--secondary:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .cookie-consent-btn--ghost {
@@ -211,7 +211,7 @@
     z-index: 1040;
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     border: 1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 85%, transparent);
     background: color-mix(in srgb, var(--bs-body-bg, #fff) 94%, var(--portal-bg, #f0f2f5));
     color: var(--bs-body-color);
@@ -230,11 +230,11 @@
 .cookie-consent-fab:hover {
     box-shadow: 0 0.45rem 1.25rem rgba(0, 0, 0, 0.16);
     transform: scale(1.05);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg, #fff));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, var(--bs-body-bg, #fff));
 }
 
 .cookie-consent-fab i {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1.1rem;
 }
 

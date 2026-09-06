@@ -3,7 +3,7 @@
 {% block title %}{{ _('surveys.nav.title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon surveys-search" role="search" id="surveysSearchForm">
+<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon" role="search" id="surveysSearchForm">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
@@ -46,7 +46,7 @@
 {% endif %}
 
 {% macro surveys_search_form(id_suffix='') %}
-<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon surveys-search" role="search" id="surveysSearchForm{{ id_suffix }}">
+<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon" role="search" id="surveysSearchForm{{ id_suffix }}">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>

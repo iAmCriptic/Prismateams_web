@@ -177,7 +177,7 @@
             {% endif %}
         </div>
 
-        <div class="page-toolbar-row d-none d-lg-flex align-items-center justify-content-between gap-2 mb-3">
+        <div class="mod-toolbar d-none d-lg-flex mb-3">
             <div class="min-width-0 flex-shrink-1">
                 <h1 class="mb-0 text-break mod-view-heading">
                     <i class="bi {{ self.inventory_heading_icon() }}" aria-hidden="true"></i>
@@ -190,7 +190,7 @@
                 {% block inventory_toolbar_center %}{% endblock %}
             </div>
             {% endif %}
-            <div class="flex-shrink-0">
+            <div class="mod-toolbar-actions flex-shrink-0">
                 {% if show_view_toggle %}
                 {{ inventory_view_toggle('') }}
                 {% endif %}

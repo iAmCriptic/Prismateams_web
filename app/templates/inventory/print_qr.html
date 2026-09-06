@@ -7,7 +7,7 @@
 {% block inventory_heading %}{{ _('inventory.print_qr.heading') }}{% endblock %}
 
 {% block navbar_search %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="qrSearchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -24,7 +24,7 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="qrSearchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -39,8 +39,8 @@
 {% endblock %}
 
 {% block inventory_content %}
-<div id="qrBackRow" class="inventory-back-row mb-3" hidden>
-    <button type="button" class="inventory-back-link" id="qrBackBtn" aria-label="{{ _('layout.nav.back') }}">
+<div id="qrBackRow" class="mod-back-row mb-3" hidden>
+    <button type="button" class="mod-back-link" id="qrBackBtn" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </button>

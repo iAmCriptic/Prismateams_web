@@ -323,7 +323,7 @@
     width: 2.5rem;
     height: 0.28rem;
     margin: 0.25rem auto 0.65rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: var(--bs-border-color, #ced4da);
 }
 
@@ -453,7 +453,7 @@ body.markdown-tools-sheet-open {
 }
 
 .md-table-widget.is-active .md-table-grid {
-    outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, transparent);
 }
 
 .md-table-chrome {
@@ -545,7 +545,7 @@ body.markdown-tools-sheet-open {
 }
 
 .md-table-grid th {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, var(--bs-secondary-bg));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-secondary-bg));
     font-weight: 600;
 }
 
@@ -560,7 +560,7 @@ body.markdown-tools-sheet-open {
 }
 
 .md-table-grid .is-col-hi {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent);
 }
 
 .md-table-resize {
@@ -596,9 +596,9 @@ body.markdown-tools-sheet-open {
 
 .md-table-add:hover,
 .md-table-kebab:hover {
-    background: var(--accent-color, #0d6efd);
+    background: var(--accent-color, var(--bs-primary));
     color: #fff;
-    border-color: var(--accent-color, #0d6efd);
+    border-color: var(--accent-color, var(--bs-primary));
 }
 
 .md-table-kebab,
@@ -645,7 +645,7 @@ body.markdown-tools-sheet-open {
 }
 
 .md-table-menu-item:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .md-table-menu-item.is-danger {
@@ -753,8 +753,8 @@ body.md-table-resizing {
 
 .md-link-caret-btn:hover,
 .md-link-hover-btn:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .md-link-hover {
@@ -873,21 +873,21 @@ body.md-table-resizing {
 .markdown-editor-brand-logo {
     width: 1.85rem;
     height: 1.85rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     object-fit: cover;
     flex-shrink: 0;
-    box-shadow: 0 0.12rem 0.4rem rgba(13, 110, 253, 0.18);
+    box-shadow: 0 0.12rem 0.4rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .markdown-editor-brand-mark {
     width: 1.85rem;
     height: 1.85rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
     color: #fff;
     font-weight: 700;
     font-size: 0.85rem;
@@ -960,8 +960,8 @@ body.md-table-resizing {
 
 .markdown-editor-toolgroup > .btn:hover,
 .markdown-editor-toolgroup > .btn:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .markdown-editor-toolbar-end {
@@ -989,9 +989,9 @@ body.md-table-resizing {
 }
 
 .markdown-editor-lock-badge--mine {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .markdown-editor-lock-banner {

@@ -3236,6 +3236,7 @@
         "bcc": "BCC (optional)",
         "bcc_placeholder": "bcc@example.com",
         "bcc_help": "Blindkopie: Adressen hier sind für andere Empfänger unsichtbar.",
+        "cc_bcc_toggle": "Cc / Bcc hinzufügen",
         "subject": "Betreff"
       },
       "editor": {
@@ -4755,6 +4756,9 @@
       "insufficient_stock": "Nicht genügend Bestand verfügbar.",
       "lot_not_found": "Bestandslos nicht gefunden.",
       "lock_conflict": "Dieses Produkt wird gerade von einem anderen Nutzer bearbeitet.",
+      "inventory_complete_forbidden": "Nur der Starter der Inventur oder ein Admin darf sie abschließen.",
+      "invalid_status": "Ungültiger Status.",
+      "no_items": "Keine Rückgabe-Positionen gefunden.",
       "product_not_favorite": "Produkt ist kein Favorit.",
       "invalid_or_expired_token": "Ungültiger oder abgelaufener Token.",
       "transaction_id_required": "Transaktions-ID erforderlich.",

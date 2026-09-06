@@ -2,9 +2,31 @@ import qrcode
 from io import BytesIO
 from flask import current_app, url_for
 from PIL import Image, ImageDraw
+import hashlib
+import hmac
 import os
 import re
 from urllib.parse import unquote
+
+
+def public_product_signature(product_id: int) -> str:
+    """Kurze HMAC-Signatur gegen Enumeration öffentlicher Produkt-URLs."""
+    secret = current_app.secret_key
+    if isinstance(secret, str):
+        secret = secret.encode("utf-8")
+    digest = hmac.new(
+        secret,
+        f"inventory.public.product:{int(product_id)}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return digest[:20]
+
+
+def verify_public_product_signature(product_id: int, signature: str | None) -> bool:
+    if not signature:
+        return False
+    expected = public_product_signature(product_id)
+    return hmac.compare_digest(str(signature).strip().lower(), expected.lower())
 
 
 def generate_qr_code(data, box_size=10, border=4):
@@ -172,7 +194,7 @@ def generate_qr_code_inverted_bytes(data, box_size=10, border=4, format='PNG'):
 def generate_product_qr_code(product_id):
     """
     Generiert einen QR-Code für ein Produkt.
-    Format: Vollständige URL zu /inventory/public/product/{product_id}
+    Format: Vollständige URL zu /inventory/public/product/{product_id}?s=<sig>
     
     Args:
         product_id: Die Produkt-ID
@@ -184,9 +206,19 @@ def generate_product_qr_code(product_id):
         from flask import url_for
         if product_id is None:
             raise ValueError("product_id required")
-        qr_data = url_for('inventory.public_product', product_id=product_id, _external=True)
+        sig = public_product_signature(product_id)
+        qr_data = url_for(
+            'inventory.public_product',
+            product_id=product_id,
+            s=sig,
+            _external=True,
+        )
     except Exception:
-        qr_data = f"/inventory/public/product/{product_id}"
+        try:
+            sig = public_product_signature(product_id)
+            qr_data = f"/inventory/public/product/{product_id}?s={sig}"
+        except Exception:
+            qr_data = f"/inventory/public/product/{product_id}"
 
     return qr_data
 

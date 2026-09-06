@@ -41,12 +41,12 @@
 }
 
 .shortlinks-sidebar-new {
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     border: none;
     font-weight: 600;
     padding: 0.7rem 1.1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
 }
 
@@ -57,12 +57,12 @@
 }
 
 .shortlinks-new-btn {
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     border: none;
     font-weight: 600;
     padding: 0.55rem 1.1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
 }
 
@@ -116,12 +116,12 @@
     gap: 0.35rem;
     border: none;
     background: transparent;
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     padding: 0.45rem 0.55rem;
     font-weight: 600;
     font-size: 0.82rem;
     line-height: 1.2;
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     white-space: nowrap;
     box-shadow: none;
 }
@@ -130,7 +130,7 @@
 .shortlinks-sidebar-action span,
 .btn.shortlinks-sidebar-action .bi,
 .btn.shortlinks-sidebar-action span {
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .shortlinks-sidebar-action:hover,
@@ -139,8 +139,8 @@
 .btn.shortlinks-sidebar-action:hover,
 .btn.shortlinks-sidebar-action:focus,
 .btn.shortlinks-sidebar-action:active {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
     filter: brightness(0.95);
     box-shadow: none;
 }
@@ -174,7 +174,7 @@
 
 /* ——— Suche oben mittig (wie Kontakte / Zugangsdaten) ——— */
 
-.shortlinks-search {
+.shortlinks-shell .mod-search--icon {
     position: relative;
     max-width: 28rem;
     margin: 0 auto;
@@ -197,13 +197,13 @@
     height: 2.1rem;
 }
 
-.shortlinks-mobile-search .shortlinks-search {
+.shortlinks-mobile-search .mod-search--icon {
     max-width: none;
     margin: 0;
 }
 
-.shortlinks-mobile-search .shortlinks-search-input,
-.shortlinks-mobile-search .form-control.shortlinks-search-input {
+.shortlinks-mobile-search .mod-search-input,
+.shortlinks-mobile-search .form-control.mod-search-input {
     height: 2.35rem;
 }
 
@@ -308,7 +308,7 @@
 }
 
 .shortlinks-list-actions .btn-link:hover {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .shortlinks-copy-ok {
@@ -326,8 +326,8 @@
 }
 
 .shortlinks-card:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .shortlinks-card .card-body {
@@ -341,8 +341,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     flex-shrink: 0;
     font-size: 1.15rem;
 }
@@ -359,7 +359,7 @@
 }
 
 .shortlinks-card-title a:hover {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .shortlinks-card-dest {
@@ -390,7 +390,7 @@
 
 .shortlinks-card-menu .btn-link:hover,
 .shortlinks-card-menu .btn-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .shortlinks-grid-hover-actions {
@@ -416,7 +416,7 @@
 
 .shortlinks-grid-hover-actions .btn-link:hover,
 .shortlinks-grid-hover-actions .btn-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 /* ——— 3-Punkte-Menü (Pillen, wie Zugangsdaten) ——— */
@@ -444,7 +444,7 @@
 
 .shortlinks-actions-menu .dropdown-item:hover,
 .shortlinks-actions-menu .dropdown-item:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
     color: var(--bs-body-color, #212529);
 }
 
@@ -513,13 +513,13 @@
     font-size: 0.95rem;
     margin-bottom: 0.65rem;
     padding: 0.25rem 0.15rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     width: fit-content;
 }
 
 .shortlinks-form-back:hover,
 .shortlinks-form-back:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .shortlinks-form-back i {
@@ -607,8 +607,8 @@
 
 .shortlinks-form .form-control:focus,
 .shortlinks-form .form-select:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--shortlinks-form-border));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--shortlinks-form-border));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .shortlinks-form-check {

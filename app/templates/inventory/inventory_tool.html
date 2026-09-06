@@ -24,13 +24,13 @@
             <div class="row g-3 align-items-end">
                 <div class="col-md-5">
                     <label for="inventoryName" class="form-label">Name</label>
-                    <input type="text" class="form-control" id="inventoryName" name="name"
+                    <input type="text" class="form-control mod-pill-input" id="inventoryName" name="name"
                            placeholder="z.B. Jahresinventur 2026"
                            {% if active_inventory %}disabled{% else %}required{% endif %}>
                 </div>
                 <div class="col-md-7">
                     <label for="inventoryDescription" class="form-label">Beschreibung</label>
-                    <input type="text" class="form-control" id="inventoryDescription" name="description"
+                    <input type="text" class="form-control mod-pill-input" id="inventoryDescription" name="description"
                            placeholder="optional"
                            {% if active_inventory %}disabled{% endif %}>
                 </div>

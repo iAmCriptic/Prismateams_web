@@ -8,7 +8,7 @@
 {% block inventory_heading %}{{ _('inventory.sets.heading') }}{% endblock %}
 
 {% block navbar_search %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="searchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -34,7 +34,7 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="searchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -58,7 +58,7 @@
         <div class="inventory-filter-grid">
             <div>
                 <label for="availabilityFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.sets.filters.availability') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="availabilityFilter{{ id_suffix }}" data-inv-filter="availabilityFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="availabilityFilter{{ id_suffix }}" data-inv-filter="availabilityFilter">
                     <option value="">{{ _('inventory.sets.filters.availability_any') }}</option>
                     <option value="full">{{ _('inventory.sets.filters.availability_full') }}</option>
                     <option value="partial">{{ _('inventory.sets.filters.availability_partial') }}</option>
@@ -68,7 +68,7 @@
             </div>
             <div>
                 <label for="ownershipFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.sets.filters.ownership') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="ownershipFilter{{ id_suffix }}" data-inv-filter="ownershipFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="ownershipFilter{{ id_suffix }}" data-inv-filter="ownershipFilter">
                     <option value="">{{ _('inventory.sets.filters.ownership_any') }}</option>
                     <option value="mine">{{ _('inventory.sets.filters.ownership_mine') }}</option>
                     <option value="editable">{{ _('inventory.sets.filters.ownership_editable') }}</option>
@@ -76,7 +76,7 @@
             </div>
             <div>
                 <label for="descriptionFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.sets.filters.description') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="descriptionFilter{{ id_suffix }}" data-inv-filter="descriptionFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="descriptionFilter{{ id_suffix }}" data-inv-filter="descriptionFilter">
                     <option value="">{{ _('inventory.sets.filters.description_any') }}</option>
                     <option value="with">{{ _('inventory.sets.filters.description_with') }}</option>
                     <option value="without">{{ _('inventory.sets.filters.description_without') }}</option>
@@ -96,7 +96,7 @@
         <div class="inventory-filter-grid inventory-filter-grid--sort">
             <div>
                 <label for="sortField{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.sets.sort.field') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="sortField{{ id_suffix }}" data-inv-filter="sortField">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="sortField{{ id_suffix }}" data-inv-filter="sortField">
                     <option value="name">{{ _('inventory.sets.sort.name') }}</option>
                     <option value="product_count">{{ _('inventory.sets.sort.product_count') }}</option>
                     <option value="available_count">{{ _('inventory.sets.sort.available_count') }}</option>
@@ -106,7 +106,7 @@
             </div>
             <div>
                 <label for="sortDirection{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.sets.sort.direction') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="sortDirection{{ id_suffix }}" data-inv-filter="sortDirection">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="sortDirection{{ id_suffix }}" data-inv-filter="sortDirection">
                     <option value="asc">{{ _('inventory.sets.sort.asc') }}</option>
                     <option value="desc">{{ _('inventory.sets.sort.desc') }}</option>
                 </select>

@@ -446,6 +446,13 @@ def edit(credential_id):
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
+    logger.info(
+        'credential_password_reveal user_id=%s credential_id=%s owner_id=%s via=edit ip=%s',
+        getattr(current_user, 'id', None),
+        credential.id,
+        getattr(credential, 'created_by', None),
+        request.headers.get('X-Forwarded-For', request.remote_addr),
+    )
     is_favorite = CredentialFavorite.query.filter_by(
         user_id=current_user.id,
         credential_id=credential.id

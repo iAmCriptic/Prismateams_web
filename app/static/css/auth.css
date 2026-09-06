@@ -10,7 +10,7 @@
     --auth-panel-bg: #ffffff;
     --auth-glass-bg: rgba(255, 255, 255, 0.82);
     --auth-glass-border: rgba(255, 255, 255, 0.45);
-    --auth-form-surface: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, #ffffff 84%);
+    --auth-form-surface: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, #ffffff 84%);
     --auth-form-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --auth-brand-text: #ffffff;
     --auth-brand-muted: rgba(255, 255, 255, 0.82);
@@ -815,8 +815,8 @@ body:has(.auth-container) .pwa-install-prompt {
     gap: 0.65rem;
     padding: 0.85rem 1.1rem;
     border-radius: var(--auth-radius-pill);
-    border: 1px solid color-mix(in srgb, var(--auth-hint-accent, #0d6efd) 22%, transparent);
-    background: color-mix(in srgb, var(--auth-hint-accent, #0d6efd) 8%, var(--auth-field-bg));
+    border: 1px solid color-mix(in srgb, var(--auth-hint-accent, var(--accent-color, var(--bs-primary))) 22%, transparent);
+    background: color-mix(in srgb, var(--auth-hint-accent, var(--accent-color, var(--bs-primary))) 8%, var(--auth-field-bg));
     color: var(--auth-text);
 }
 
@@ -824,7 +824,7 @@ body:has(.auth-container) .pwa-install-prompt {
     flex-shrink: 0;
     margin-top: 0.1rem;
     font-size: 1.05rem;
-    color: var(--auth-hint-accent, #0d6efd);
+    color: var(--auth-hint-accent, var(--accent-color, var(--bs-primary)));
 }
 
 .auth-card .auth-hint__text {
@@ -835,7 +835,7 @@ body:has(.auth-container) .pwa-install-prompt {
 }
 
 .auth-card .auth-hint--info {
-    --auth-hint-accent: #0d6efd;
+    --auth-hint-accent: var(--accent-color, var(--bs-primary));
 }
 
 .auth-card .auth-hint--warning {
@@ -861,7 +861,7 @@ body:has(.auth-container) .pwa-install-prompt {
     font-size: 2rem;
     display: block;
     margin-bottom: 0.35rem;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .auth-card h5 {
@@ -913,8 +913,8 @@ body:has(.auth-container) .pwa-install-prompt {
 
 .auth-card .form-control:focus,
 .auth-card .form-select:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, white) !important;
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, white) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
     background: var(--auth-field-bg) !important;
 }
 
@@ -936,8 +936,8 @@ body:has(.auth-container) .pwa-install-prompt {
 }
 
 .auth-card .input-group:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, white);
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, white);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
     background: var(--auth-field-bg);
 }
 
@@ -972,7 +972,7 @@ body:has(.auth-container) .pwa-install-prompt {
 
 .auth-card .input-group .password-toggle:hover,
 .auth-card .input-group .password-toggle:focus {
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     background: transparent !important;
     opacity: 1;
 }
@@ -1030,8 +1030,8 @@ body:has(.auth-container) .pwa-install-prompt {
 }
 
 .auth-card .form-check-input:checked {
-    background-color: var(--accent-color, #0d6efd);
-    border-color: var(--accent-color, #0d6efd);
+    background-color: var(--accent-color, var(--bs-primary));
+    border-color: var(--accent-color, var(--bs-primary));
 }
 
 /* Pill primary button */
@@ -1159,8 +1159,8 @@ body:has(.auth-container) .pwa-install-prompt {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--auth-link, #0d6efd) 12%, var(--auth-field-bg, #fff));
-    color: var(--auth-link, #0d6efd);
+    background: color-mix(in srgb, var(--auth-link, var(--accent-color, var(--bs-primary))) 12%, var(--auth-field-bg, #fff));
+    color: var(--auth-link, var(--accent-color, var(--bs-primary)));
     border: 1px solid var(--auth-field-border);
     font-size: 1.85rem;
 }
@@ -1457,7 +1457,7 @@ body:has(.auth-container) .pwa-install-prompt {
 
     .auth-container:not(.auth-split-container) .auth-card .auth-panel,
     .auth-container:not(.auth-split-container) .auth-card .card {
-        border-radius: 1.5rem !important;
+        border-radius: var(--mod-radius-pill) !important;
         box-shadow: 0 8px 32px rgba(15, 23, 42, 0.14) !important;
         background: var(--auth-glass-bg) !important;
         -webkit-backdrop-filter: blur(18px);

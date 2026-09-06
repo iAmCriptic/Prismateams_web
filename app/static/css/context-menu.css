@@ -34,7 +34,7 @@
 
 .pt-context-menu .dropdown-item:hover,
 .pt-context-menu .dropdown-item:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg, #fff));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, var(--bs-body-bg, #fff));
 }
 
 .pt-context-menu .dropdown-divider {

@@ -1,5 +1,5 @@
 {% macro settings_search(id_suffix='') %}
-<div class="mod-search settings-search" role="search" data-settings-search-root>
+<div class="mod-search" role="search" data-settings-search-root>
     <label class="mod-search-field" for="settingsSearchInput{{ id_suffix }}">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -12,7 +12,7 @@
                enterkeyhint="search"
                data-mod-search-input>
     </label>
-    <button type="button" class="btn settings-search-clear d-none" id="settingsSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}" data-settings-search-clear>
+    <button type="button" class="btn mod-search-clear d-none" id="settingsSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}" data-settings-search-clear>
         <i class="bi bi-x-lg"></i>
     </button>
     <div class="settings-search-results d-none" id="settingsSearchResults{{ id_suffix }}" role="listbox" aria-label="{{ _('settings.search.label') }}" data-settings-search-results></div>

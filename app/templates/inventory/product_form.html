@@ -5,8 +5,8 @@
 {% block inventory_heading %}{% if product %}{{ _('inventory.product.form.heading_edit') }}{% else %}{{ _('inventory.product.form.heading_new') }}{% endif %}{% endblock %}
 
 {% block inventory_content %}
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -24,12 +24,12 @@
         <div class="inventory-form-fields inventory-form-fields--basics">
             <div class="inventory-form-field">
                 <label for="name" class="form-label">{{ _('inventory.product.form.name') }} <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="name" name="name"
+                <input type="text" class="form-control mod-pill-input" id="name" name="name"
                        value="{{ product.name if product else '' }}" required>
             </div>
             <div class="inventory-form-field">
                 <label for="description" class="form-label">{{ _('inventory.product.form.description') }}</label>
-                <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
+                <textarea class="form-control mod-pill-input" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
             </div>
         </div>
     </section>
@@ -46,7 +46,7 @@
             <div class="inventory-form-field">
                 <label for="folder_id" class="form-label">{{ _('inventory.product.form.folder') }}</label>
                 <div class="inventory-form-select-row">
-                    <select class="form-select" id="folder_id" name="folder_id">
+                    <select class="form-select mod-pill-input" id="folder_id" name="folder_id">
                         <option value="">{{ _('inventory.product.form.no_folder') }}</option>
                         {% for folder in folders %}
                         <option value="{{ folder.id }}" {% if product and product.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
@@ -61,7 +61,7 @@
                 </div>
                 <div class="inventory-inline-panel" id="folderCreatePanel" hidden>
                     <label class="form-label" for="folderCreateName">{{ _('inventory.product.form.folder_name') }}</label>
-                    <input type="text" class="form-control" id="folderCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.folder_name') }}">
+                    <input type="text" class="form-control mod-pill-input" id="folderCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.folder_name') }}">
                     <div class="inventory-inline-actions">
                         <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="folderCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_folder') }}
@@ -81,7 +81,7 @@
                     <div class="inventory-inline-panel mt-2" id="folderEditPanel" hidden>
                         <label class="form-label" for="folderEditName">{{ _('inventory.product.form.folder_name') }}</label>
                         <input type="hidden" id="folderEditId">
-                        <input type="text" class="form-control" id="folderEditName" maxlength="120" autocomplete="off">
+                        <input type="text" class="form-control mod-pill-input" id="folderEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
                             <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="folderEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
@@ -98,7 +98,7 @@
             <div class="inventory-form-field">
                 <label for="category" class="form-label">{{ _('inventory.product.form.category') }}</label>
                 <div class="inventory-form-select-row">
-                    <select class="form-select" id="category" name="category">
+                    <select class="form-select mod-pill-input" id="category" name="category">
                         <option value="">{{ _('inventory.product.form.no_category') }}</option>
                         {% for cat in categories %}
                         <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
@@ -113,7 +113,7 @@
                 </div>
                 <div class="inventory-inline-panel" id="categoryCreatePanel" hidden>
                     <label class="form-label" for="categoryCreateName">{{ _('inventory.product.form.category_name') }}</label>
-                    <input type="text" class="form-control" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
+                    <input type="text" class="form-control mod-pill-input" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
                     <div class="inventory-inline-actions">
                         <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_category') }}
@@ -133,7 +133,7 @@
                     <div class="inventory-inline-panel mt-2" id="categoryEditPanel" hidden>
                         <label class="form-label" for="categoryEditName">{{ _('inventory.product.form.category_name') }}</label>
                         <input type="hidden" id="categoryEditId">
-                        <input type="text" class="form-control" id="categoryEditName" maxlength="120" autocomplete="off">
+                        <input type="text" class="form-control mod-pill-input" id="categoryEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
                             <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
@@ -149,7 +149,7 @@
 
             <div class="inventory-form-field">
                 <label for="condition" class="form-label">{{ _('inventory.product.form.condition') }}</label>
-                <select class="form-select" id="condition" name="condition">
+                <select class="form-select mod-pill-input" id="condition" name="condition">
                     <option value="">{{ _('inventory.product.form.select_condition') }}</option>
                     <option value="Neu" {% if product and product.condition == 'Neu' %}selected{% endif %}>{{ _('inventory.product.form.condition_new') }}</option>
                     <option value="Gut" {% if product and product.condition == 'Gut' %}selected{% endif %}>{{ _('inventory.product.form.condition_good') }}</option>
@@ -180,7 +180,7 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="number" class="form-control" id="quantity" name="quantity"
+                <input type="number" class="form-control mod-pill-input" id="quantity" name="quantity"
                        value="1" min="1" max="100" required>
             </div>
             {% endif %}
@@ -194,7 +194,7 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="text" class="form-control" id="external_barcode" name="external_barcode"
+                <input type="text" class="form-control mod-pill-input" id="external_barcode" name="external_barcode"
                        value="{{ product.external_barcode if product and product.external_barcode else '' }}"
                        placeholder="{{ _('inventory.product.form.external_barcode_placeholder') }}"
                        autocomplete="off"
@@ -203,13 +203,13 @@
             </div>
             <div class="inventory-form-field">
                 <label for="serial_number" class="form-label">{{ _('inventory.product.form.serial_number') }}</label>
-                <input type="text" class="form-control" id="serial_number" name="serial_number"
+                <input type="text" class="form-control mod-pill-input" id="serial_number" name="serial_number"
                        value="{{ product.serial_number if product else '' }}">
             </div>
             {% if product %}
             <div class="inventory-form-field">
                 <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
-                <input type="text" class="form-control" id="location" name="location"
+                <input type="text" class="form-control mod-pill-input" id="location" name="location"
                        value="{{ product.location if product else '' }}">
             </div>
             {% endif %}
@@ -218,7 +218,7 @@
             {% if not product %}
             <div class="inventory-form-field">
                 <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
-                <input type="text" class="form-control" id="location" name="location" value="">
+                <input type="text" class="form-control mod-pill-input" id="location" name="location" value="">
             </div>
             {% endif %}
             <div class="inventory-form-field{% if product %} inventory-form-field--span-2{% endif %}">
@@ -239,7 +239,7 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="number" class="form-control" id="length" name="length"
+                <input type="number" class="form-control mod-pill-input" id="length" name="length"
                        value="{{ length_value }}" step="0.01" min="0"
                        placeholder="{{ _('inventory.product.form.length_placeholder') }}">
             </div>
@@ -257,39 +257,39 @@
         <div class="inventory-form-fields inventory-form-fields--3">
             <div class="inventory-form-field">
                 <label for="purchase_date" class="form-label">{{ _('inventory.product.form.purchase_date') }}</label>
-                <input type="date" class="form-control" id="purchase_date" name="purchase_date"
+                <input type="date" class="form-control mod-pill-input" id="purchase_date" name="purchase_date"
                        value="{{ purchase_date_formatted if purchase_date_formatted else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="purchase_price" class="form-label">{{ _('inventory.product.form.purchase_price') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="purchase_price" name="purchase_price"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="purchase_price" name="purchase_price"
                        value="{{ product.purchase_price if product and product.purchase_price is not none else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="replacement_value" class="form-label">{{ _('inventory.product.form.replacement_value') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="replacement_value" name="replacement_value"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="replacement_value" name="replacement_value"
                        value="{{ product.replacement_value if product and product.replacement_value is not none else '' }}">
             </div>
         </div>
         <div class="inventory-form-fields inventory-form-fields--4">
             <div class="inventory-form-field">
                 <label for="weight_kg" class="form-label">{{ _('inventory.product.form.weight_kg') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="weight_kg" name="weight_kg"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="weight_kg" name="weight_kg"
                        value="{{ product.weight_kg if product and product.weight_kg is not none else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="width_cm" class="form-label">{{ _('inventory.product.form.width_cm') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="width_cm" name="width_cm"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="width_cm" name="width_cm"
                        value="{{ product.width_cm if product and product.width_cm is not none else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="height_cm" class="form-label">{{ _('inventory.product.form.height_cm') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="height_cm" name="height_cm"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="height_cm" name="height_cm"
                        value="{{ product.height_cm if product and product.height_cm is not none else '' }}">
             </div>
             <div class="inventory-form-field">
                 <label for="depth_cm" class="form-label">{{ _('inventory.product.form.depth_cm') }}</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="depth_cm" name="depth_cm"
+                <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="depth_cm" name="depth_cm"
                        value="{{ product.depth_cm if product and product.depth_cm is not none else '' }}">
             </div>
         </div>
@@ -322,7 +322,7 @@
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                         </button>
                     </label>
-                    <input type="date" class="form-control" id="dguv_last_check" name="dguv_last_check"
+                    <input type="date" class="form-control mod-pill-input" id="dguv_last_check" name="dguv_last_check"
                            value="{{ product.dguv_last_check.strftime('%Y-%m-%d') if product and product.dguv_last_check else '' }}">
                 </div>
                 <div class="inventory-form-field">
@@ -335,7 +335,7 @@
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                         </button>
                     </label>
-                    <input type="number" min="1" class="form-control" id="dguv_interval_months" name="dguv_interval_months"
+                    <input type="number" min="1" class="form-control mod-pill-input" id="dguv_interval_months" name="dguv_interval_months"
                            value="{{ product.dguv_interval_months if product and product.dguv_interval_months is not none else 12 }}">
                 </div>
                 <div class="inventory-form-field">
@@ -348,7 +348,7 @@
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                         </button>
                     </label>
-                    <input type="text" class="form-control" id="dguv_next_check_display" readonly
+                    <input type="text" class="form-control mod-pill-input" id="dguv_next_check_display" readonly
                            value="{{ product.dguv_next_check.strftime('%d.%m.%Y') if product and product.dguv_next_check else '' }}"
                            placeholder="—">
                     <input type="hidden" id="dguv_next_check" name="dguv_next_check"
@@ -370,7 +370,7 @@
             {% if product %}
             <div class="inventory-form-field">
                 <label for="status" class="form-label">{{ _('common.status') }}</label>
-                <select class="form-select" id="status" name="status">
+                <select class="form-select mod-pill-input" id="status" name="status">
                     <option value="available" {% if product.status == 'available' %}selected{% endif %}>{{ _('inventory.stock.filters.available') }}</option>
                     <option value="borrowed" {% if product.status == 'borrowed' %}selected{% endif %}>{{ _('inventory.stock.filters.borrowed') }}</option>
                     <option value="missing" {% if product.status == 'missing' %}selected{% endif %}>{{ _('inventory.stock.filters.missing') }}</option>
@@ -413,7 +413,7 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                <input type="file" class="form-control mod-pill-input" id="image" name="image" accept="image/*">
                 {% if product and product.image_path %}
                 <div class="mt-2" id="currentImageWrap">
                     <small class="text-muted">{{ _('inventory.product.form.current_image') }}</small><br>
@@ -439,12 +439,12 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <input type="file" class="form-control" id="documents" name="documents" multiple
+                <input type="file" class="form-control mod-pill-input" id="documents" name="documents" multiple
                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,application/pdf,image/png,image/jpeg">
             </div>
             <div class="inventory-form-field">
                 <label for="document_file_type" class="form-label">{{ _('inventory.product.form.document_type') }}</label>
-                <select class="form-select" id="document_file_type" name="document_file_type">
+                <select class="form-select mod-pill-input" id="document_file_type" name="document_file_type">
                     <option value="handbook">{{ _('inventory.documents.types.handbook') }}</option>
                     <option value="datasheet">{{ _('inventory.documents.types.datasheet') }}</option>
                     <option value="invoice">{{ _('inventory.documents.types.invoice') }}</option>
@@ -464,7 +464,7 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </label>
-                <select class="form-select" id="link_manual_ids" name="link_manual_ids" multiple size="{% if manuals|length < 6 %}{{ manuals|length }}{% else %}6{% endif %}">
+                <select class="form-select mod-pill-input" id="link_manual_ids" name="link_manual_ids" multiple size="{% if manuals|length < 6 %}{{ manuals|length }}{% else %}6{% endif %}">
                     {% for manual in manuals %}
                     <option value="{{ manual.id }}">{{ manual.title }}</option>
                     {% endfor %}

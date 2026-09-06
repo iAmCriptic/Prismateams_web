@@ -157,49 +157,95 @@ def can_manage_team(user, team_id: int) -> bool:
     return bool(team and team.leader_id == user.id)
 
 
-def _encryption_key() -> bytes:
-    """
-    Fernet key from SystemSettings or derived from SECRET_KEY.
+def _valid_fernet_key(raw) -> Optional[bytes]:
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        key = raw.strip().encode('utf-8')
+    elif isinstance(raw, bytes):
+        key = raw.strip()
+    else:
+        return None
+    if not key:
+        return None
+    try:
+        Fernet(key)
+        return key
+    except Exception:
+        return None
 
-    Fail-closed: kein fester Fallback-Seed. In Tests darf ein Test-Seed greifen.
-    """
+
+def _legacy_db_mailbox_key() -> Optional[bytes]:
     setting = SystemSettings.query.filter_by(key=ENC_KEY_SETTING).first()
-    if setting and setting.value:
-        try:
-            key = setting.value.strip().encode()
-            Fernet(key)
-            return key
-        except Exception:
-            pass
+    if not setting or not setting.value:
+        return None
+    return _valid_fernet_key(setting.value)
 
+
+def _derived_mailbox_key() -> Optional[bytes]:
     secret_seed = (
         (current_app.config.get('SECRET_KEY') or '')
         or (os.environ.get('SECRET_KEY') or '')
     ).strip()
-
     if not secret_seed:
         if current_app.testing:
             secret_seed = 'prismateams-test-mailbox-key'
         else:
-            raise RuntimeError(
-                'SECRET_KEY erforderlich für Postfach-Verschlüsselung '
-                '(kein Fallback-Seed).'
-            )
-
+            return None
     digest = hashlib.sha256(f'email-mailbox:{secret_seed}'.encode('utf-8')).digest()
-    key = base64.urlsafe_b64encode(digest)
+    return base64.urlsafe_b64encode(digest)
 
-    if not setting:
-        db.session.add(SystemSettings(
-            key=ENC_KEY_SETTING,
-            value=key.decode(),
-            description='Fernet-Schlüssel für Multi-Postfach-Passwörter',
-        ))
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-    return key
+
+def _encryption_key_candidates() -> list:
+    """
+    Fernet-Keys für Postfach-Passwörter.
+
+    Primär: MAILBOX_ENCRYPTION_KEY (Env/Config), analog Credentials.
+    Legacy: SystemSettings email_enc_key, dann Ableitung aus SECRET_KEY.
+    Kein Schreiben neuer Keys in die DB.
+    """
+    from app.utils.encryption import read_encryption_key
+
+    keys: list = []
+    seen = set()
+
+    def _add(key: Optional[bytes]):
+        if not key or key in seen:
+            return
+        seen.add(key)
+        keys.append(key)
+
+    _add(_valid_fernet_key(read_encryption_key('MAILBOX_ENCRYPTION_KEY')))
+
+    legacy = _legacy_db_mailbox_key()
+    if legacy:
+        if not keys:
+            current_app.logger.warning(
+                'Mailbox-Verschlüsselung nutzt noch SystemSettings.%s — '
+                'bitte MAILBOX_ENCRYPTION_KEY in der .env setzen und DB-Key entfernen.',
+                ENC_KEY_SETTING,
+            )
+        _add(legacy)
+
+    derived = _derived_mailbox_key()
+    if derived:
+        if not keys:
+            current_app.logger.warning(
+                'Mailbox-Verschlüsselung leitet den Key aus SECRET_KEY ab — '
+                'setzen Sie MAILBOX_ENCRYPTION_KEY (python scripts/generate_encryption_keys.py).'
+            )
+        _add(derived)
+
+    if not keys:
+        raise RuntimeError(
+            'MAILBOX_ENCRYPTION_KEY (oder SECRET_KEY) erforderlich für Postfach-Verschlüsselung.'
+        )
+    return keys
+
+
+def _encryption_key() -> bytes:
+    """Primärer Key zum Verschlüsseln neuer Passwörter."""
+    return _encryption_key_candidates()[0]
 
 
 def encrypt_password(plain: str) -> Optional[str]:
@@ -216,11 +262,13 @@ def encrypt_password(plain: str) -> Optional[str]:
 def decrypt_password(enc: Optional[str]) -> Optional[str]:
     if not enc:
         return None
-    try:
-        f = Fernet(_encryption_key())
-        return f.decrypt(enc.encode('utf-8')).decode('utf-8')
-    except Exception:
-        return None
+    raw = enc.encode('utf-8')
+    for key in _encryption_key_candidates():
+        try:
+            return Fernet(key).decrypt(raw).decode('utf-8')
+        except Exception:
+            continue
+    return None
 
 
 def count_private_mailboxes(user_id: int) -> int:

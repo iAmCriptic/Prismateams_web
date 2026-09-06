@@ -18,7 +18,7 @@
     font-weight: 600;
     padding: 0.65rem 1.1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
     text-decoration: none;
 }
@@ -75,8 +75,8 @@
     gap: 0.5rem 0.75rem;
     padding: 0.75rem 1rem;
     border-radius: var(--mod-radius-card, 0.75rem);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .music-clear-btn,
@@ -84,8 +84,8 @@
     border-radius: var(--mod-radius-pill, 1.5rem);
     font-weight: 600;
     padding: 0.4rem 0.95rem;
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     background: transparent;
 }
 
@@ -93,9 +93,9 @@
 .music-clear-btn:focus,
 .btn.music-clear-btn:hover,
 .btn.music-clear-btn:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    border-color: var(--accent-color, #0d6efd);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    border-color: var(--accent-color, var(--bs-primary));
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .music-track-list {
@@ -118,8 +118,8 @@
 
 .music-track-item:hover,
 .music-track-item:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, transparent);
 }
 
 .music-track-row {
@@ -185,7 +185,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     border: none;
     box-shadow: none;
     line-height: 1;
@@ -203,14 +203,14 @@
 }
 
 .music-track-actions .btn-primary {
-    color: var(--accent-color, #0d6efd);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
 }
 
 .music-track-actions .btn-primary:hover,
 .music-track-actions .btn-primary:focus {
     color: #fff;
-    background: var(--accent-color, #0d6efd);
+    background: var(--accent-color, var(--bs-primary));
 }
 
 .music-track-actions .btn-danger,
@@ -323,8 +323,8 @@
     justify-content: center;
     padding: 1rem;
     border-radius: 1.35rem;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, #fff);
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, #fff);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
     margin-bottom: 1.25rem;
 }
 
@@ -366,8 +366,8 @@
 }
 
 .music-public-url-input:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
-    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, transparent);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .music-public-pill {
@@ -385,7 +385,7 @@
 }
 
 .music-public-pill--primary {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     color: #fff !important;
     box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.16);
 }
@@ -398,14 +398,14 @@
 
 .music-public-pill--ghost {
     background: transparent !important;
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 40%, rgba(0, 0, 0, 0.12)) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, rgba(0, 0, 0, 0.12)) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .music-public-pill--ghost:hover,
 .music-public-pill--ghost:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .music-public-pill--ghost.is-copied {
@@ -415,15 +415,15 @@
 }
 
 .music-public-pill--add {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     flex-shrink: 0;
     padding: 0.45rem 0.9rem !important;
 }
 
 .music-public-pill--add:hover,
 .music-public-pill--add:focus {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     color: #fff !important;
 }
 
@@ -476,8 +476,8 @@
 }
 
 .music-public-search-field:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
-    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, transparent);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
     background: #fff;
 }
 
@@ -535,8 +535,8 @@
 }
 
 .music-public-track:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .music-public-track-cover {
@@ -590,9 +590,9 @@
     font-size: 0.68rem;
     font-weight: 600;
     padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-radius: var(--mod-radius-pill);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .music-public-badge--rec {

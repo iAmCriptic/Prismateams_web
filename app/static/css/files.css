@@ -33,17 +33,17 @@
 }
 
 .files-breadcrumb-dropzone .files-breadcrumb-drop-target.files-drop-active {
-    background-color: rgba(13, 110, 253, 0.12);
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
     box-shadow: 0 0 0 2px var(--accent-color, var(--bs-primary));
 }
 
 .files-drop-active {
     box-shadow: 0 0 0 2px var(--accent-color, var(--bs-primary));
-    background-color: rgba(13, 110, 253, 0.08) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent) !important;
 }
 
 [data-bs-theme="dark"] .files-drop-active {
-    background-color: rgba(13, 110, 253, 0.16) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, transparent) !important;
 }
 
 body.files-dnd-dragging .file-item,
@@ -57,7 +57,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 .files-space-drop.files-drop-active {
-    background-color: rgba(13, 110, 253, 0.12) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent) !important;
     box-shadow: inset 0 0 0 2px var(--accent-color, var(--bs-primary));
 }
 
@@ -108,12 +108,12 @@ body.files-dnd-dragging .files-space-drop {
 
 .files-move-node:hover,
 .files-move-node:focus-visible {
-    background: rgba(13, 110, 253, 0.08);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
     outline: none;
 }
 
 .files-move-node.is-selected {
-    background: rgba(13, 110, 253, 0.14);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
     box-shadow: inset 0 0 0 1px var(--accent-color, var(--bs-primary));
 }
 
@@ -346,7 +346,7 @@ body.files-dnd-dragging .files-space-drop {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
 }
 
 .side-menu .btn-outline-secondary {
@@ -365,7 +365,7 @@ body.files-dnd-dragging .files-space-drop {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
 }
 
 /* Versionen-Liste Buttons */
@@ -386,7 +386,7 @@ body.files-dnd-dragging .files-space-drop {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
 }
 
 /* Dark Mode Support für Side Menu Buttons */
@@ -453,7 +453,7 @@ body.files-dnd-dragging .files-space-drop {
 
 .files-upload-toast {
     pointer-events: auto;
-    --files-toast-accent: var(--accent-color, #0d6efd);
+    --files-toast-accent: var(--accent-color, var(--bs-primary));
     background: #fff;
     color: var(--bs-body-color, #212529);
     border: 1px solid color-mix(in srgb, var(--files-toast-accent) 22%, transparent);
@@ -483,7 +483,7 @@ body.files-dnd-dragging .files-space-drop {
     height: 1.75rem;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color, #6c757d);
     cursor: pointer;
@@ -604,7 +604,7 @@ body.files-dnd-dragging .files-space-drop {
     flex: 1 1 auto;
     min-width: 0;
     height: 0.35rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     overflow: hidden;
     background: color-mix(in srgb, #e6a800 14%, transparent);
 }
@@ -612,7 +612,7 @@ body.files-dnd-dragging .files-space-drop {
 .files-upload-panel-item-bar {
     height: 100%;
     width: 0%;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: #e6a800;
     transition: width 0.12s linear;
 }
@@ -636,7 +636,7 @@ body.files-dnd-dragging .files-space-drop {
     margin-top: 0.05rem;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: transparent;
     color: var(--bs-secondary-color, #6c757d);
     cursor: pointer;
@@ -675,12 +675,12 @@ body.files-dnd-dragging .files-space-drop {
 .files-upload-toast .progress {
     height: 0.55rem;
     background: color-mix(in srgb, var(--files-toast-accent) 12%, transparent);
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     overflow: hidden;
 }
 
 .files-upload-toast .progress-bar {
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: var(--files-toast-accent) !important;
 }
 
@@ -741,7 +741,7 @@ body.files-dnd-dragging .files-space-drop {
     box-sizing: border-box;
     flex-shrink: 0;
     overflow: hidden;
-    background: var(--bs-primary, #0d6efd);
+    background: var(--bs-primary, var(--accent-color, var(--bs-primary)));
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -1082,7 +1082,7 @@ body:has(.files-shell) {
     font-weight: 600;
     padding: 0.4rem 1rem;
     color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
 }
 
@@ -1229,9 +1229,9 @@ body:has(.files-shell) {
 }
 
 .files-item-chip--share {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg));
-    color: var(--accent-color, #0d6efd);
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, var(--bs-body-bg));
+    color: var(--accent-color, var(--bs-primary));
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 .files-list-chips {
@@ -1285,7 +1285,7 @@ body:has(.files-shell) {
 .folder-item .dropdown-menu .dropdown-item:hover,
 .file-item .dropdown-menu .dropdown-item:hover,
 .mod-list-actions .dropdown-menu .dropdown-item:hover {
-    background: rgba(13, 110, 253, 0.1);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
 .files-dropdown-menu .dropdown-divider,
@@ -1367,7 +1367,7 @@ body:has(.files-shell) {
 .card.folder-item:hover,
 .card.file-item:hover {
     box-shadow: 0 0.45rem 1.1rem rgba(0, 0, 0, 0.08);
-    border-color: rgba(13, 110, 253, 0.28);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
 }
 
 .files-inline-create-card {
@@ -1478,9 +1478,9 @@ body:has(.files-shell) {
 }
 
 .files-share-chip--view {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg));
-    color: var(--accent-color, #0d6efd);
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, var(--bs-body-bg));
+    color: var(--accent-color, var(--bs-primary));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
 }
 
 .files-share-chip--edit {
@@ -1581,7 +1581,7 @@ body:has(.files-shell) {
 .files-share-icon-btn:hover {
     border-color: var(--accent-color, var(--bs-primary));
     color: var(--accent-color, var(--bs-primary));
-    background: rgba(13, 110, 253, 0.08);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
 }
 
 .files-share-icon-btn.btn-outline-danger,
@@ -1633,7 +1633,7 @@ body:has(.files-shell) {
 .files-share-mode-btn:focus,
 .files-share-mode-btn.show {
     border-color: var(--accent-color, var(--bs-primary));
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 15%, transparent);
 }
 
 /* Static display inside modal — no Popper full-width bug */
@@ -1656,7 +1656,7 @@ body:has(.files-shell) {
 
 .files-share-mode-menu .dropdown-item.active,
 .files-share-mode-menu .dropdown-item:active {
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
     color: #fff;
 }
 
@@ -1821,25 +1821,25 @@ body:has(.dropbox-shell) .container-fluid {
 .files-ext-brand-logo {
     width: 2.65rem;
     height: 2.65rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     object-fit: cover;
     flex-shrink: 0;
-    box-shadow: 0 0.2rem 0.65rem rgba(13, 110, 253, 0.22);
+    box-shadow: 0 0.2rem 0.65rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .files-ext-brand-mark {
     width: 2.65rem;
     height: 2.65rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
     color: #fff;
     font-weight: 700;
     font-size: 1.05rem;
-    box-shadow: 0 0.2rem 0.65rem rgba(13, 110, 253, 0.22);
+    box-shadow: 0 0.2rem 0.65rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
 }
 
 .files-ext-brand-text {
@@ -1946,7 +1946,7 @@ body:has(.dropbox-shell) .container-fluid {
 
 .share-browser-card .file-item:hover,
 .share-browser-card .folder-item:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color));
     box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
 }
 
@@ -1961,8 +1961,8 @@ body:has(.dropbox-shell) .container-fluid {
 
 .share-browser-card .list-group-item:hover,
 .share-browser-card .list-group-item:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 30%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 5%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 30%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 5%, var(--bs-body-bg));
     box-shadow: 0 0.2rem 0.65rem rgba(0, 0, 0, 0.06);
 }
 
@@ -2021,14 +2021,14 @@ body:has(.dropbox-shell) .container-fluid {
     color: var(--bs-secondary-color, #6c757d);
     text-decoration: none;
     font-weight: 500;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     padding: 0.25rem 0.15rem;
     line-height: 1.2;
 }
 
 .files-back-link:hover,
 .files-back-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
     text-decoration: none;
 }
 
@@ -2040,7 +2040,7 @@ body:has(.dropbox-shell) .container-fluid {
 /* Hinweise — gleiche Sprache wie Portal-Flash (.portal-msg) */
 
 .files-hint {
-    --files-hint-accent: var(--accent-color, #0d6efd);
+    --files-hint-accent: var(--accent-color, var(--bs-primary));
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
@@ -2055,7 +2055,7 @@ body:has(.dropbox-shell) .container-fluid {
         0 0.1rem 0.35rem rgba(0, 0, 0, 0.06);
 }
 
-.files-hint--info { --files-hint-accent: #0d6efd; }
+.files-hint--info { --files-hint-accent: var(--accent-color, var(--bs-primary)); }
 
 .files-hint--success { --files-hint-accent: #198754; }
 
@@ -2070,7 +2070,7 @@ body:has(.dropbox-shell) .container-fluid {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: color-mix(in srgb, var(--files-hint-accent) 14%, transparent);
     color: var(--files-hint-accent);
     font-size: 1.05rem;
@@ -2095,7 +2095,7 @@ body:has(.dropbox-shell) .container-fluid {
 .side-menu .alert,
 #simpleModal .alert,
 #dropboxSettingsModal .alert {
-    --files-hint-accent: var(--accent-color, #0d6efd);
+    --files-hint-accent: var(--accent-color, var(--bs-primary));
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
@@ -2111,7 +2111,7 @@ body:has(.dropbox-shell) .container-fluid {
 
 .side-menu .alert-info,
 #simpleModal .alert-info,
-#dropboxSettingsModal .alert-info { --files-hint-accent: #0d6efd; }
+#dropboxSettingsModal .alert-info { --files-hint-accent: var(--accent-color, var(--bs-primary)); }
 
 .side-menu .alert-success,
 #simpleModal .alert-success,
@@ -2134,7 +2134,7 @@ body:has(.dropbox-shell) .container-fluid {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     background: color-mix(in srgb, var(--files-hint-accent) 14%, transparent);
     color: var(--files-hint-accent);
     font-size: 1.05rem;
@@ -2196,7 +2196,7 @@ body:has(.dropbox-shell) .container-fluid {
 
 .file-viewer-audio-icon {
     font-size: 2.5rem;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
     margin-bottom: 0.75rem;
 }
 
@@ -2470,7 +2470,7 @@ body:has(.dropbox-shell) .container-fluid {
 .files-storage-widget__bar-fill {
     height: 100%;
     border-radius: inherit;
-    background: var(--accent-color, #0d6efd);
+    background: var(--accent-color, var(--bs-primary));
     transition: width 0.25s ease, background 0.2s ease;
 }
 

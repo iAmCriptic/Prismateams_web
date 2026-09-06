@@ -52,7 +52,7 @@
                                 </div>
                                 {% endif %}
                                 <div class="email-compose-design-card{% if not email_multi_enabled|default(false) %} email-compose-design-card--solo{% endif %}">
-                                    <label class="email-compose-design-toggle" for="use_html_design">
+                                    <label class="email-compose-design-toggle" for="use_html_design" title="{{ _('email.multi.html_design_help') }}">
                                         <input class="email-compose-design-toggle__input" type="checkbox" id="use_html_design" name="use_html_design" {% if use_html_design|default(true) %}checked{% endif %}>
                                         <span class="email-compose-design-toggle__switch" aria-hidden="true"></span>
                                         <span class="email-compose-design-toggle__copy">
@@ -61,7 +61,7 @@
                                         </span>
                                     </label>
                                     {% if team_logo_available|default(false) %}
-                                    <label class="email-compose-design-toggle email-compose-design-toggle--secondary" for="use_mailbox_logo">
+                                    <label class="email-compose-design-toggle email-compose-design-toggle--secondary" for="use_mailbox_logo" title="{{ _('email.multi.use_team_logo_help') }}">
                                         <input class="email-compose-design-toggle__input" type="checkbox" id="use_mailbox_logo" name="use_mailbox_logo" {% if use_mailbox_logo|default(true) %}checked{% endif %}>
                                         <span class="email-compose-design-toggle__switch" aria-hidden="true"></span>
                                         <span class="email-compose-design-toggle__copy">
@@ -78,20 +78,34 @@
                                 <label for="toChipContainer" class="form-label">{{ _('email.compose.form.to') }}</label>
                                 <div id="toChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.to_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
                                 <input type="hidden" id="toHidden" name="to" value="{{ to|default('') }}" required>
-                                <div class="form-text">{{ _('email.compose.form.to_help') }}</div>
+                                <div class="form-text email-compose-help">{{ _('email.compose.form.to_help') }}</div>
                             </div>
 
-                            <div class="email-composer-field">
-                                <label for="ccChipContainer" class="form-label">{{ _('email.compose.form.cc') }}</label>
-                                <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
-                                <input type="hidden" id="ccHidden" name="cc" value="{{ cc|default('') }}">
+                            {% set _cc_val = cc|default('') %}
+                            {% set _bcc_val = bcc|default('') %}
+                            <div class="email-compose-cc-bcc-toggle-wrap d-md-none">
+                                <button type="button"
+                                        class="email-compose-cc-bcc-toggle"
+                                        id="composeCcBccToggle"
+                                        aria-expanded="{{ 'true' if (_cc_val or _bcc_val) else 'false' }}"
+                                        aria-controls="composeCcBccFields">
+                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                    <span>{{ _('email.compose.form.cc_bcc_toggle') }}</span>
+                                </button>
                             </div>
+                            <div class="email-compose-cc-bcc{% if not (_cc_val or _bcc_val) %} is-collapsed-mobile{% endif %}" id="composeCcBccFields">
+                                <div class="email-composer-field">
+                                    <label for="ccChipContainer" class="form-label">{{ _('email.compose.form.cc') }}</label>
+                                    <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                                    <input type="hidden" id="ccHidden" name="cc" value="{{ _cc_val }}">
+                                </div>
 
-                            <div class="email-composer-field">
-                                <label for="bccChipContainer" class="form-label">{{ _('email.compose.form.bcc') }}</label>
-                                <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
-                                <input type="hidden" id="bccHidden" name="bcc" value="{{ bcc|default('') }}">
-                                <div class="form-text">{{ _('email.compose.form.bcc_help') }}</div>
+                                <div class="email-composer-field">
+                                    <label for="bccChipContainer" class="form-label">{{ _('email.compose.form.bcc') }}</label>
+                                    <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                                    <input type="hidden" id="bccHidden" name="bcc" value="{{ _bcc_val }}">
+                                    <div class="form-text email-compose-help">{{ _('email.compose.form.bcc_help') }}</div>
+                                </div>
                             </div>
 
                             <div class="email-composer-field email-composer-field--subject">
@@ -218,6 +232,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.InventoryPillSelect) {
         window.InventoryPillSelect.enhanceAll(document.getElementById('emailComposeForm') || document);
     }
+
+    var ccBccFields = document.getElementById('composeCcBccFields');
+    var ccBccToggle = document.getElementById('composeCcBccToggle');
+    if (ccBccFields && ccBccToggle) {
+        ccBccToggle.addEventListener('click', function() {
+            var collapsed = ccBccFields.classList.toggle('is-collapsed-mobile');
+            ccBccToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            ccBccToggle.classList.toggle('is-open', !collapsed);
+        });
+        if (!ccBccFields.classList.contains('is-collapsed-mobile')) {
+            ccBccToggle.classList.add('is-open');
+        }
+    }
+
     // Check if mobile
     var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
     var previewUrl = "{{ url_for('email.preview_custom_email') }}";

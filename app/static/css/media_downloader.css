@@ -16,7 +16,7 @@
     gap: 0.35rem;
     border: none;
     background: transparent;
-    border-radius: 1.5rem;
+    border-radius: var(--mod-radius-pill);
     padding: 0.45rem 0.55rem;
     font-size: 0.9rem;
     font-weight: 500;
@@ -61,13 +61,13 @@
 .media-youtube-auth-bar--highlight {
     animation: media-youtube-auth-pulse 0.85s ease-in-out 3;
     border-radius: 1rem;
-    outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, transparent);
     outline-offset: 4px;
 }
 
 @keyframes media-youtube-auth-pulse {
-    0%, 100% { outline-color: color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent); }
-    50% { outline-color: color-mix(in srgb, var(--accent-color, #0d6efd) 70%, transparent); }
+    0%, 100% { outline-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent); }
+    50% { outline-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 70%, transparent); }
 }
 
 .media-download-header {
@@ -196,7 +196,7 @@
 
 .media-search-result:hover,
 .media-search-result:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
 .media-search-thumb {
@@ -270,8 +270,8 @@
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 0.65rem;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1.05rem;
 }
 
@@ -288,7 +288,7 @@
 }
 
 .media-job-card:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color));
     box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
 }
 
@@ -299,8 +299,8 @@
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-size: 1.25rem;
 }
 
@@ -332,7 +332,7 @@
 
 .media-job-card-menu .btn-link:hover,
 .media-job-card-menu .btn-link:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .media-grid-hover-actions {
@@ -358,8 +358,8 @@
 
 .media-grid-hover-actions .btn-link:hover,
 .media-grid-hover-actions .btn-link:focus {
-    color: var(--accent-color, #0d6efd);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
 .media-job-progress {
@@ -403,7 +403,7 @@
 .mod-list-actions .dropdown-menu .dropdown-item:focus,
 .media-job-card-menu .dropdown-menu .dropdown-item:hover,
 .media-job-card-menu .dropdown-menu .dropdown-item:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
     color: var(--bs-body-color, #212529);
 }
 

@@ -17,20 +17,20 @@
     font-weight: 600;
     font-size: 0.82rem;
     line-height: 1.2;
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     text-decoration: none;
     box-shadow: none;
 }
 
 .assessment-sidebar-print:hover,
 .assessment-sidebar-print:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
     filter: brightness(0.95);
 }
 
 .assessment-sidebar-print i {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     background-clip: text !important;
@@ -78,7 +78,7 @@
     flex-shrink: 0;
     width: 1.5rem;
     font-weight: 650;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .assessment-dash-name {
@@ -96,7 +96,7 @@
     gap: 0.35rem;
     margin-top: 0.75rem;
     font-weight: 500;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
     text-decoration: none;
 }
 
@@ -149,9 +149,9 @@ body.assessment-scope-solo .mod-sidebar {
     align-items: center;
     gap: 0.4rem;
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
     font-weight: 600;
     padding: 0.55rem 1rem;
     text-decoration: none;
@@ -159,9 +159,9 @@ body.assessment-scope-solo .mod-sidebar {
 
 .assessment-quick-pill:hover,
 .assessment-quick-pill:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
-    border-color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
+    border-color: var(--accent-color, var(--bs-primary));
 }
 
 .assessment-page .btn,
@@ -188,8 +188,8 @@ body.assessment-scope-solo .mod-sidebar {
 
 .assessment-page .sort-btn.active,
 .assessment-page .btn-group > .btn.active {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-    border-color: var(--accent-color, #0d6efd) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
     color: #fff !important;
 }
 
@@ -203,18 +203,18 @@ body.assessment-scope-solo .mod-sidebar {
     padding: 0.45rem 0.7rem;
     font-weight: 600;
     font-size: 0.9rem;
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     text-decoration: none;
 }
 
 .assessment-print-link:hover,
 .assessment-print-link:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .assessment-print-link i {
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     background-clip: text !important;
@@ -256,9 +256,9 @@ body.assessment-scope-solo .mod-sidebar {
 }
 
 .assessment-chip:has(input:checked) {
-    border-color: var(--accent-color, #0d6efd);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
-    color: var(--accent-color, #0d6efd);
+    border-color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
     font-weight: 600;
 }
 
@@ -274,7 +274,7 @@ body.assessment-scope-solo .mod-sidebar {
     margin-bottom: 0.85rem;
     padding: 0.55rem 0.85rem;
     border-radius: var(--mod-radius-pill, 1.5rem);
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
 .assessment-grid {
@@ -302,8 +302,8 @@ body.assessment-scope-solo .mod-sidebar {
 .assessment-grid-card:hover,
 .assessment-grid-card.is-selected,
 .assessment-page .mod-list-row.is-selected {
-    border-color: var(--accent-color, #0d6efd);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    border-color: var(--accent-color, var(--bs-primary));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
 }
 
 .assessment-grid-card:active {
@@ -360,7 +360,7 @@ body.assessment-scope-solo .mod-sidebar {
 
 .assessment-dropdown-menu .dropdown-item:hover,
 .assessment-dropdown-menu .dropdown-item:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .assessment-page .mod-list-actions .btn-link {
@@ -411,7 +411,7 @@ body.assessment-scope-solo .mod-sidebar {
 
 .assessment-target-info:hover,
 .assessment-target-info:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .assessment-target-info[hidden] {
@@ -454,8 +454,8 @@ body.assessment-scope-solo .mod-sidebar {
     line-height: 1.4;
     color: var(--bs-body-color);
     border-radius: var(--mod-radius-panel, 0.85rem);
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 22%, var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
 }
 
 .assessment-eval-hint[hidden] {
@@ -465,7 +465,7 @@ body.assessment-scope-solo .mod-sidebar {
 .assessment-eval-hint > .bi {
     flex-shrink: 0;
     margin-top: 0.12rem;
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .assessment-reset-note {

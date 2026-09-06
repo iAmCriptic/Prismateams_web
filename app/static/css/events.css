@@ -3,15 +3,15 @@
 .events-mobile-pdf-btn {
     border: none !important;
     box-shadow: none !important;
-    color: var(--accent-color, #0d6efd) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     padding: 0.35rem 0.45rem;
     line-height: 1;
 }
 
 .events-mobile-pdf-btn:hover,
 .events-mobile-pdf-btn:focus {
-    color: var(--accent-color, #0d6efd) !important;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary)) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 .events-list-table {
@@ -83,13 +83,13 @@
     font-size: 0.95rem;
     margin-bottom: 0.65rem;
     padding: 0.25rem 0.15rem;
-    border-radius: 999px;
+    border-radius: var(--mod-radius-pill);
     width: fit-content;
 }
 
 .events-form-back:hover,
 .events-form-back:focus {
-    color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, var(--bs-primary));
 }
 
 .events-form-back i {
@@ -236,8 +236,8 @@
 
 .events-form .form-control:focus,
 .events-form .form-select:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--events-form-border));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--events-form-border));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
 .events-form-checklist {
@@ -490,8 +490,8 @@
 
 .event-appointment-card:hover,
 #gridViewContainer .card:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
 }
 
 [data-bs-theme="dark"] .events-form {

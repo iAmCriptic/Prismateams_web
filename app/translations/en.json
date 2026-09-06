@@ -4139,6 +4139,7 @@
         "bcc": "BCC (optional)",
         "bcc_placeholder": "bcc@example.com",
         "bcc_help": "Blind carbon copy: these addresses stay hidden from other recipients.",
+        "cc_bcc_toggle": "Add Cc / Bcc",
         "subject": "Subject"
       },
       "editor": {
@@ -5505,6 +5506,9 @@
       "insufficient_stock": "Insufficient stock available.",
       "lot_not_found": "Stock lot not found.",
       "lock_conflict": "This product is currently being edited by another user.",
+      "inventory_complete_forbidden": "Only the inventory starter or an admin may complete it.",
+      "invalid_status": "Invalid status.",
+      "no_items": "No return items found.",
       "product_not_favorite": "Product is not a favorite.",
       "invalid_or_expired_token": "Invalid or expired token.",
       "transaction_id_required": "Transaction ID required.",

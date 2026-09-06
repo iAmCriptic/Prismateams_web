@@ -280,14 +280,86 @@ def replace_cid_images_in_email_html(html: str, email_msg) -> str:
 
 
 def sanitize_email_iframe_html(html: str) -> str:
-    """Strip scripts and inline JS handlers before rendering in iframe (XSS mitigation)."""
+    """Strip scripts, handlers and risky embeds before iframe srcdoc (XSS mitigation)."""
     if not html:
         return html
     html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.IGNORECASE | re.DOTALL)
     html = re.sub(r'<script\b[^>]*/>', '', html, flags=re.IGNORECASE)
+    html = re.sub(
+        r'<(iframe|object|embed|applet|form)\b[^>]*>.*?</\1>',
+        '',
+        html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    html = re.sub(
+        r'<(iframe|object|embed|applet|form)\b[^>]*/?>',
+        '',
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r'<meta\b[^>]*http-equiv\s*=\s*["\']?refresh[^>]*>',
+        '',
+        html,
+        flags=re.IGNORECASE,
+    )
     html = re.sub(r'\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+href\s*=\s*["\']?\s*javascript:[^"\'>\s]+["\']?', ' href="#"', html, flags=re.IGNORECASE)
+    html = re.sub(
+        r'\s+(href|src|xlink:href|action)\s*=\s*["\']?\s*javascript:[^"\'>\s]*["\']?',
+        ' href="#"',
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r'\s+srcdoc\s*=\s*("[^"]*"|\'[^\']*\')',
+        '',
+        html,
+        flags=re.IGNORECASE,
+    )
     return html
+
+
+def sanitize_email_inline_html(html: str) -> str:
+    """Bleach-Sanitize für Inline-|safe-Darstellung im Portal-DOM."""
+    if not html:
+        return html
+    try:
+        import bleach
+
+        # Kein CSSSanitizer/tinycss2 nötig: Style-Attribute und <style> entfernen.
+        html = re.sub(r'<style\b[^>]*>.*?</style>', '', html, flags=re.IGNORECASE | re.DOTALL)
+        html = re.sub(r'\s+style\s*=\s*("[^"]*"|\'[^\']*\')', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', html, flags=re.IGNORECASE)
+
+        allowed_tags = {
+            'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'code', 'col', 'colgroup',
+            'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li',
+            'ol', 'p', 'pre', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td',
+            'tfoot', 'th', 'thead', 'tr', 'u', 'ul', 'font', 'center',
+        }
+        allowed_attributes = {
+            '*': ['class', 'id', 'align', 'dir', 'lang'],
+            'a': ['href', 'title', 'target', 'rel'],
+            'img': ['src', 'alt', 'title', 'width', 'height'],
+            'table': ['width', 'border', 'cellpadding', 'cellspacing', 'bgcolor'],
+            'td': ['colspan', 'rowspan', 'width', 'height', 'bgcolor', 'valign'],
+            'th': ['colspan', 'rowspan', 'width', 'height', 'bgcolor', 'valign'],
+            'col': ['width', 'span'],
+            'colgroup': ['span'],
+            'font': ['color', 'face', 'size'],
+        }
+        return bleach.clean(
+            html,
+            tags=allowed_tags,
+            attributes=allowed_attributes,
+            protocols=['http', 'https', 'mailto', 'cid', 'data'],
+            strip=True,
+            strip_comments=True,
+        )
+    except Exception as exc:
+        logging.error('sanitize_email_inline_html failed: %s', exc)
+        from markupsafe import escape
+        return f'<div class="email-content-isolated-inner">{escape(html)}</div>'
 
 
 def inject_iframe_head_meta_and_base(html: str) -> str:
@@ -515,7 +587,7 @@ def process_email_body_html_for_inline_view(html_content: str, email_msg) -> str
 
     html_content = replace_cid_images_in_email_html(html_content, email_msg)
 
-    return html_content
+    return sanitize_email_inline_html(html_content)
 
 
 def is_simple_html_email(html_content: str) -> bool:

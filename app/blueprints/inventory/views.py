@@ -41,8 +41,20 @@ from app.blueprints.inventory.helpers import *  # noqa: F401,F403
 
 @inventory_bp.route('/public/product/<int:product_id>')
 def public_product(product_id):
-    """Öffentliche Produktseite ohne Anmeldung."""
+    """Öffentliche Produktseite (signierte URL, kein Login)."""
+    from flask import abort
+    from app.utils.access_control import has_module_access
+    from app.utils.qr_code import verify_public_product_signature
     from app.utils.system_settings_cache import get_setting
+
+    sig = request.args.get('s') or request.args.get('sig') or ''
+    signed_ok = verify_public_product_signature(product_id, sig)
+    staff_preview = bool(
+        current_user.is_authenticated
+        and has_module_access(current_user, 'module_inventory')
+    )
+    if not signed_ok and not staff_preview:
+        abort(404)
 
     product = Product.query.get_or_404(product_id)
     ownership_text = (
@@ -577,8 +589,18 @@ def product_edit(product_id):
         product.folder_id = folder_id_int
         
         if 'status' in request.form:
-            product.status = request.form.get('status', 'available')
-            _apply_retired_folder_assignment(product)
+            from app.services.inventory import LifecycleService
+            new_status = (request.form.get('status') or 'available').strip()
+            if new_status in ('available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired'):
+                LifecycleService.change_status(
+                    product,
+                    new_status,
+                    current_user.id,
+                    reason='product_edit',
+                    force=True,
+                )
+                if new_status == 'retired':
+                    _apply_retired_folder_assignment(product)
         
         purchase_date_str = request.form.get('purchase_date', '').strip()
         if purchase_date_str:
@@ -779,20 +801,36 @@ def serve_product_image(filename):
 @inventory_bp.route('/products/<int:product_id>/status', methods=['POST'])
 @login_required
 def product_update_status(product_id):
-    """API-Endpoint zum Aktualisieren des Produkt-Status."""
+    """API-Endpoint zum Aktualisieren des Produkt-Status (via LifecycleService)."""
+    from app.services.inventory import LifecycleService
+
     product = Product.query.get_or_404(product_id)
     
-    data = request.get_json()
-    new_status = data.get('status', '').strip()
+    data = request.get_json() or {}
+    new_status = (data.get('status') or '').strip()
+    reason = (data.get('reason') or '').strip() or 'legacy_status_endpoint'
+    note = (data.get('note') or '').strip() or None
     
     if new_status not in ['available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired']:
-        return jsonify({'success': False, 'error': 'Ungültiger Status.'}), 400
-    
-    product.status = new_status
-    _apply_retired_folder_assignment(product)
+        return jsonify({'success': False, 'error': translate('inventory.errors.invalid_status')}), 400
+
+    try:
+        LifecycleService.change_status(
+            product,
+            new_status,
+            current_user.id,
+            reason=reason,
+            note=note,
+        )
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc), 'code': 'invalid_transition'}), 409
+
+    if new_status == 'retired':
+        _apply_retired_folder_assignment(product)
     db.session.commit()
     
-    return jsonify({'success': True, 'status': new_status})
+    return jsonify({'success': True, 'status': product.status})
 
 
 @inventory_bp.route('/products/<int:product_id>/delete', methods=['POST'])

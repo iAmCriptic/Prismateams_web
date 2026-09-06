@@ -130,6 +130,7 @@ class Config:
         )
 
     CREDENTIAL_ENCRYPTION_KEY = (os.environ.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
+    MAILBOX_ENCRYPTION_KEY = (os.environ.get('MAILBOX_ENCRYPTION_KEY') or '').strip()
     
     EXCALIDRAW_ENABLED = os.environ.get('EXCALIDRAW_ENABLED', 'False').lower() == 'true'
     EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')

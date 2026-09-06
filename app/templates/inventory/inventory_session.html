@@ -9,8 +9,8 @@
 {% set checked_count = inventory.checked_count %}
 {% set total_count = inventory.total_count %}
 
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.inventory_tool') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.inventory_tool') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>Zur Übersicht</span>
     </a>
@@ -38,7 +38,7 @@
             <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) }}" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted">
                 <i class="bi bi-file-pdf"></i> PDF
             </a>
-            {% if is_active %}
+            {% if is_active and can_complete %}
             <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" id="openCompleteModalBtn">
                 <i class="bi bi-check-circle"></i> Abschließen
             </button>
@@ -120,7 +120,7 @@
             <div class="inventory-panel-body">
                 <label for="manualProductInput" class="form-label">Produkt-ID oder QR-Code</label>
                 <div class="inventory-manual-row">
-                    <input type="text" class="form-control" id="manualProductInput"
+                    <input type="text" class="form-control mod-pill-input" id="manualProductInput"
                            placeholder="z.B. 123 oder PROD-123" autocomplete="off">
                     <button class="btn btn-accent mod-pill-btn" id="manualSearchBtn" type="button">
                         <i class="bi bi-search"></i> Suchen
@@ -158,7 +158,7 @@
             <button type="button" class="inventory-filter-chip" data-filter="changed">Geändert</button>
         </div>
         <div class="mb-3">
-            <input type="search" class="form-control" id="searchInput" placeholder="Produkte suchen..."
+            <input type="search" class="form-control mod-pill-input" id="searchInput" placeholder="Produkte suchen..."
                    style="border-radius: var(--mod-radius-pill, 1.5rem);">
         </div>
 
@@ -211,7 +211,9 @@
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if is_active and can_complete %}
 <div class="modal fade" id="completeInventoryModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius: 1.25rem;">

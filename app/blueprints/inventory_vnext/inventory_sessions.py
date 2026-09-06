@@ -302,9 +302,20 @@ def update_inventory_item(inventory_id, product_id):
     product = item.product
     if product:
         if "product_status" in data:
+            from app.services.inventory import LifecycleService
             status = (data.get("product_status") or "").strip()
             if status in _PRODUCT_STATUSES:
-                product.status = status
+                try:
+                    LifecycleService.change_status(
+                        product,
+                        status,
+                        current_user.id,
+                        reason="inventory_session",
+                        force=True,
+                    )
+                except ValueError as exc:
+                    db.session.rollback()
+                    return api_error("invalid_transition", str(exc), 409)
         if "dguv_last_check" in data:
             last = _parse_optional_date(data.get("dguv_last_check"))
             interval = product.dguv_interval_months or _DEFAULT_DGUV_INTERVAL_MONTHS

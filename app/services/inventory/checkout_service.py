@@ -236,7 +236,14 @@ def create_checkout(
                 returned_at=None,
             )
         )
-        product.status = "borrowed"
+        from app.services.inventory import LifecycleService
+        LifecycleService.change_status(
+            product,
+            "borrowed",
+            created_by_id,
+            reason="checkout",
+            note=checkout_number,
+        )
 
     if available_consumables:
         from app.services.inventory.stock_service import StockService
@@ -351,12 +358,30 @@ def return_checkout_items(
                         context_id=item.checkout.checkout_number,
                     )
             else:
+                from app.services.inventory import LifecycleService
+                actor_id = (
+                    getattr(actor, "id", None)
+                    or (item.checkout.created_by if item.checkout else None)
+                )
                 if mark_defective:
-                    item.product.status = "defective"
                     if damage_image_path:
                         item.product.damage_image_path = damage_image_path
-                else:
-                    item.product.status = "available"
+                    if actor_id:
+                        LifecycleService.change_status(
+                            item.product,
+                            "defective",
+                            actor_id,
+                            reason="return_defective",
+                            note=item.checkout.checkout_number if item.checkout else None,
+                        )
+                elif actor_id:
+                    LifecycleService.change_status(
+                        item.product,
+                        "available",
+                        actor_id,
+                        reason="return",
+                        note=item.checkout.checkout_number if item.checkout else None,
+                    )
         checkouts[item.checkout_id] = item.checkout
         returned.append(item)
 
@@ -429,6 +454,32 @@ def return_checkout_by_ref(
     except Exception:
         db.session.rollback()
     return checkout
+
+
+def resolve_return_item_ids(raw_id: int) -> list[int]:
+    """Ambige transaction_id auf CheckoutItem-IDs auflösen.
+
+    Reihenfolge (wie return-pdf / Mobile):
+    1. CheckoutItem.id (Historie-UI)
+    2. Checkout.id → aktive Items, sonst alle Items
+    3. legacy_transaction_id
+    """
+    item = CheckoutItem.query.get(int(raw_id))
+    if item:
+        return [item.id]
+
+    checkout = Checkout.query.get(int(raw_id))
+    if checkout:
+        active = [i.id for i in checkout.active_items]
+        if active:
+            return active
+        return [i.id for i in checkout.items]
+
+    legacy_items = CheckoutItem.query.filter_by(legacy_transaction_id=int(raw_id)).all()
+    if legacy_items:
+        return [i.id for i in legacy_items]
+
+    raise ValueError("no_items")
 
 
 def find_checkout(ref: str) -> Optional[Checkout]:

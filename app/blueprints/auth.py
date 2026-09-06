@@ -1210,6 +1210,8 @@ def change_password():
         # Passwort ändern
         current_user.set_password(new_password)
         current_user.must_change_password = False
+        from app.utils.session_manager import revoke_all_sessions
+        revoke_all_sessions(current_user.id, exclude_current=True)
         db.session.commit()
         
         flash(translate('auth.flash.password_changed_success'), 'success')

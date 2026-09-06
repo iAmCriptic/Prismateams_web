@@ -7,7 +7,7 @@
 {% block inventory_heading %}{% if is_retired_folder_view %}Papierkorb{% else %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endif %}{% endblock %}
 
 {% block navbar_search %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="searchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -41,7 +41,7 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="mod-search inventory-search" role="search">
+<div class="mod-search" role="search">
     <label class="mod-search-field" for="searchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
@@ -65,13 +65,13 @@
         <div class="inventory-filter-grid">
             <div>
                 <label for="categoryFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.category') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="categoryFilter{{ id_suffix }}" data-inv-filter="categoryFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="categoryFilter{{ id_suffix }}" data-inv-filter="categoryFilter">
                     <option value="">{{ _('inventory.stock.filters.all_categories') }}</option>
                 </select>
             </div>
             <div>
                 <label for="statusFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.status') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="statusFilter{{ id_suffix }}" data-inv-filter="statusFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="statusFilter{{ id_suffix }}" data-inv-filter="statusFilter">
                     <option value="">{{ _('inventory.stock.filters.all_status') }}</option>
                     <option value="available">{{ _('inventory.stock.filters.available') }}</option>
                     <option value="borrowed">{{ _('inventory.stock.filters.borrowed') }}</option>
@@ -84,38 +84,38 @@
             </div>
             <div>
                 <label for="favoritesFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.favorites') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="favoritesFilter{{ id_suffix }}" data-inv-filter="favoritesFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="favoritesFilter{{ id_suffix }}" data-inv-filter="favoritesFilter">
                     <option value="">{{ _('inventory.stock.filters.favorites_any') }}</option>
                     <option value="favorites">{{ _('inventory.stock.filters.favorites_only') }}</option>
                 </select>
             </div>
             <div>
                 <label for="conditionFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.condition') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="conditionFilter{{ id_suffix }}" data-inv-filter="conditionFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="conditionFilter{{ id_suffix }}" data-inv-filter="conditionFilter">
                     <option value="">{{ _('inventory.stock.filters.all_conditions') }}</option>
                 </select>
             </div>
             <div>
                 <label for="locationFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.location') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="locationFilter{{ id_suffix }}" data-inv-filter="locationFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="locationFilter{{ id_suffix }}" data-inv-filter="locationFilter">
                     <option value="">{{ _('inventory.stock.filters.all_locations') }}</option>
                 </select>
             </div>
             <div>
                 <label for="lengthFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.length') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="lengthFilter{{ id_suffix }}" data-inv-filter="lengthFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="lengthFilter{{ id_suffix }}" data-inv-filter="lengthFilter">
                     <option value="">{{ _('inventory.stock.filters.all_lengths') }}</option>
                 </select>
             </div>
             <div>
                 <label for="purchaseYearFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.purchase_year') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="purchaseYearFilter{{ id_suffix }}" data-inv-filter="purchaseYearFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="purchaseYearFilter{{ id_suffix }}" data-inv-filter="purchaseYearFilter">
                     <option value="">{{ _('inventory.stock.filters.all_years') }}</option>
                 </select>
             </div>
             <div>
                 <label for="serialPresenceFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.serial_presence') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="serialPresenceFilter{{ id_suffix }}" data-inv-filter="serialPresenceFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="serialPresenceFilter{{ id_suffix }}" data-inv-filter="serialPresenceFilter">
                     <option value="">{{ _('inventory.stock.filters.serial_any') }}</option>
                     <option value="with">{{ _('inventory.stock.filters.serial_with') }}</option>
                     <option value="without">{{ _('inventory.stock.filters.serial_without') }}</option>
@@ -123,7 +123,7 @@
             </div>
             <div>
                 <label for="dguvFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.dguv') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="dguvFilter{{ id_suffix }}" data-inv-filter="dguvFilter">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="dguvFilter{{ id_suffix }}" data-inv-filter="dguvFilter">
                     <option value="">{{ _('inventory.stock.filters.dguv_any') }}</option>
                     <option value="due">{{ _('inventory.stock.filters.dguv_due') }}</option>
                     <option value="ok">{{ _('inventory.stock.filters.dguv_ok') }}</option>
@@ -144,7 +144,7 @@
         <div class="inventory-filter-grid inventory-filter-grid--sort">
             <div>
                 <label for="sortField{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.sort.field') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="sortField{{ id_suffix }}" data-inv-filter="sortField">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="sortField{{ id_suffix }}" data-inv-filter="sortField">
                     <option value="name">{{ _('inventory.stock.sort.name') }}</option>
                     <option value="category">{{ _('inventory.stock.sort.category') }}</option>
                     <option value="condition">{{ _('inventory.stock.sort.condition') }}</option>
@@ -157,7 +157,7 @@
             </div>
             <div>
                 <label for="sortDirection{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.sort.direction') }}</label>
-                <select class="form-select form-select-sm inventory-filter-control" id="sortDirection{{ id_suffix }}" data-inv-filter="sortDirection">
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="sortDirection{{ id_suffix }}" data-inv-filter="sortDirection">
                     <option value="asc">{{ _('inventory.stock.sort.asc') }}</option>
                     <option value="desc">{{ _('inventory.stock.sort.desc') }}</option>
                 </select>
@@ -181,8 +181,8 @@
 
 {% block inventory_content %}
 {% if current_folder %}
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -341,15 +341,15 @@
                         <div class="inventory-form-fields inventory-form-fields--2">
                             <div class="inventory-form-field">
                                 <label for="bulkEditLocation" class="form-label">{{ _('inventory.stock.modals.bulk_edit.location') }}</label>
-                                <input type="text" class="form-control" id="bulkEditLocation" placeholder="z.B. Regal A">
+                                <input type="text" class="form-control mod-pill-input" id="bulkEditLocation" placeholder="z.B. Regal A">
                             </div>
                             <div class="inventory-form-field">
                                 <label for="bulkEditLength" class="form-label">{{ _('inventory.stock.modals.bulk_edit.length') }}</label>
-                                <input type="number" class="form-control" id="bulkEditLength" step="0.01" min="0" placeholder="z.B. 5.5">
+                                <input type="number" class="form-control mod-pill-input" id="bulkEditLength" step="0.01" min="0" placeholder="z.B. 5.5">
                             </div>
                             <div class="inventory-form-field">
                                 <label for="bulkEditCondition" class="form-label">{{ _('inventory.stock.modals.bulk_edit.condition') }}</label>
-                                <select class="form-select" id="bulkEditCondition">
+                                <select class="form-select mod-pill-input" id="bulkEditCondition">
                                     <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
                                     <option value="Neu">Neu</option>
                                     <option value="Gut">Gut</option>
@@ -359,7 +359,7 @@
                             </div>
                             <div class="inventory-form-field">
                                 <label for="bulkEditStatus" class="form-label">Status</label>
-                                <select class="form-select" id="bulkEditStatus">
+                                <select class="form-select mod-pill-input" id="bulkEditStatus">
                                     <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
                                     <option value="available">Verfügbar</option>
                                     <option value="missing">Fehlend</option>
@@ -378,13 +378,13 @@
                         <div class="inventory-form-fields inventory-form-fields--2">
                             <div class="inventory-form-field">
                                 <label for="bulkEditCategory" class="form-label">{{ _('inventory.stock.modals.bulk_edit.category') }}</label>
-                                <select class="form-select" id="bulkEditCategory">
+                                <select class="form-select mod-pill-input" id="bulkEditCategory">
                                     <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
                                 </select>
                             </div>
                             <div class="inventory-form-field">
                                 <label for="bulkEditFolder" class="form-label">{{ _('inventory.stock.modals.bulk_edit.folder') }}</label>
-                                <select class="form-select" id="bulkEditFolder">
+                                <select class="form-select mod-pill-input" id="bulkEditFolder">
                                     <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
                                 </select>
                             </div>
@@ -398,15 +398,15 @@
                         <div class="inventory-form-fields inventory-form-fields--3">
                             <div class="inventory-form-field">
                                 <label for="bulkEditDguvLast" class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_last') }}</label>
-                                <input type="date" class="form-control" id="bulkEditDguvLast">
+                                <input type="date" class="form-control mod-pill-input" id="bulkEditDguvLast">
                             </div>
                             <div class="inventory-form-field">
                                 <label for="bulkEditDguvInterval" class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_interval') }}</label>
-                                <input type="number" min="1" class="form-control" id="bulkEditDguvInterval" placeholder="z.B. 12">
+                                <input type="number" min="1" class="form-control mod-pill-input" id="bulkEditDguvInterval" placeholder="z.B. 12">
                             </div>
                             <div class="inventory-form-field">
                                 <label class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_next') }}</label>
-                                <input type="text" class="form-control" id="bulkEditDguvNextDisplay" readonly placeholder="—">
+                                <input type="text" class="form-control mod-pill-input" id="bulkEditDguvNextDisplay" readonly placeholder="—">
                                 <small class="text-muted">{{ _('inventory.product.form.dguv_next_auto_help') }}</small>
                             </div>
                         </div>

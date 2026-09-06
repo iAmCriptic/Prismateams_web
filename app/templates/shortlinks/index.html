@@ -3,7 +3,7 @@
 {% block title %}URL-Shortener{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-search mod-search--icon shortlinks-search" role="search" id="shortlinksSearchForm">
+<form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-search mod-search--icon" role="search" id="shortlinksSearchForm">
     <input type="hidden" name="sort" value="{{ sort_by|default('created') }}">
     <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
@@ -44,7 +44,7 @@
 {% set clicks_filter = clicks_filter|default('') %}
 
 {% macro shortlinks_search_form(id_suffix='') %}
-<form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-search mod-search--icon shortlinks-search" role="search" id="shortlinksSearchForm{{ id_suffix }}">
+<form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-search mod-search--icon" role="search" id="shortlinksSearchForm{{ id_suffix }}">
     <input type="hidden" name="sort" value="{{ sort_by }}">
     <input type="hidden" name="dir" value="{{ sort_dir }}">
     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
