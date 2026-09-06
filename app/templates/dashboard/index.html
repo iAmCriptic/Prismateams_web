@@ -40,7 +40,7 @@
 {% include 'dashboard/_onboarding_overlay.html' %}
 {% endif %}
 
-<div class="dashboard-shell dashboard-page dashboard-page--live"
+<div class="dashboard-shell mod-shell--nav dashboard-page dashboard-page--live"
      data-dashboard-config-url="{{ url_for('dashboard.api_config') }}"
      data-dashboard-options-url="{{ url_for('dashboard.api_options') }}"
      data-contacts-search-url="{{ url_for('contacts.search') if has_module_access(current_user, 'module_contacts') else '' }}">

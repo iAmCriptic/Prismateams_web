@@ -173,10 +173,15 @@ def inventory_complete(inventory_id):
     ).all()
     updated_count = 0
     missing_count = 0
+    missing_skipped = 0
     stock_adjusted = 0
     mark_missing = request.form.get('mark_missing') in ('1', 'on', 'true', 'yes')
 
     from app.services.inventory import StockService
+    from app.services.inventory.checkout_service import find_active_checkout_item_for_product
+
+    # Statusse, die „fehlend“ nicht überschreiben darf (Checkout / Lifecycle)
+    protected_from_missing = frozenset({'borrowed', 'in_repair', 'defective', 'retired'})
 
     for item in items:
         if item.location_changed and item.new_location:
@@ -208,7 +213,14 @@ def inventory_complete(inventory_id):
                 pass
 
         if mark_missing and not item.checked and item.product:
-            item.product.status = 'missing'
+            product = item.product
+            if product.status in protected_from_missing:
+                missing_skipped += 1
+                continue
+            if find_active_checkout_item_for_product(product.id):
+                missing_skipped += 1
+                continue
+            product.status = 'missing'
             missing_count += 1
 
     inventory.status = 'completed'
@@ -222,6 +234,13 @@ def inventory_complete(inventory_id):
         extras.append(f'{stock_adjusted} Bestände angepasst')
     if missing_count:
         extras.append(f'{missing_count} als fehlend markiert')
+    if missing_skipped:
+        extras.append(
+            translate(
+                'inventory.flash.inventory_missing_skipped',
+                count=missing_skipped,
+            )
+        )
     if extras:
         flash(f"{msg} ({', '.join(extras)})", 'success')
     else:
@@ -276,6 +295,19 @@ def api_inventory_scan(inventory_id):
     # Inventar-Nr. → PROD/SET → numerische ID (ohne führende Nullen)
     product, product_set = _lookup_product_or_set_by_scan(qr_data)
     if product:
+        from app.services.inventory import InventoryLockService
+
+        foreign = InventoryLockService.foreign_lock(inventory_id, product.id, current_user.id)
+        if foreign:
+            return jsonify({
+                'error': translate('inventory.errors.lock_conflict'),
+                'code': 'lock_conflict',
+                'details': {
+                    'locked_by': foreign.locked_by,
+                    'expires_at': foreign.expires_at.isoformat() if foreign.expires_at else None,
+                },
+            }), 409
+
         item = InventoryItem.query.filter_by(
             inventory_id=inventory_id,
             product_id=product.id
@@ -287,6 +319,7 @@ def api_inventory_scan(inventory_id):
         item.checked = True
         item.checked_by = current_user.id
         item.checked_at = datetime.utcnow()
+        item.version = int(item.version or 1) + 1
         db.session.commit()
         try:
             from app.blueprints.sse import emit_inventory_update
@@ -319,9 +352,18 @@ def api_inventory_scan(inventory_id):
             }
         })
     if product_set:
+        from app.services.inventory import InventoryLockService
+
         checked = []
         missing = []
+        locked = []
         for set_item in product_set.items:
+            foreign = InventoryLockService.foreign_lock(
+                inventory_id, set_item.product_id, current_user.id
+            )
+            if foreign:
+                locked.append(set_item.product.name if set_item.product else str(set_item.product_id))
+                continue
             inv_item = InventoryItem.query.filter_by(
                 inventory_id=inventory_id,
                 product_id=set_item.product_id,
@@ -332,10 +374,17 @@ def api_inventory_scan(inventory_id):
             inv_item.checked = True
             inv_item.checked_by = current_user.id
             inv_item.checked_at = datetime.utcnow()
+            inv_item.version = int(inv_item.version or 1) + 1
             checked.append({
                 'id': set_item.product_id,
                 'name': set_item.product.name if set_item.product else None,
             })
+        if not checked and locked:
+            return jsonify({
+                'error': translate('inventory.errors.lock_conflict'),
+                'code': 'lock_conflict',
+                'details': {'locked_products': locked},
+            }), 409
         db.session.commit()
         try:
             from app.blueprints.sse import emit_inventory_update

@@ -79,7 +79,8 @@ def format_device_label(user_agent):
 
 def rotate_session_on_login(preserve_keys=None):
     """
-    Leert die Flask-Session vor dem Setzen von Auth-Keys (Session-Fixation-Schutz).
+    Rotiert die Cookie-Session-ID und leert Auth-fremde Session-Daten
+    (Session-Fixation-Schutz).
 
     Erhält ausgewählte Keys (Sprache, Cookie-Consent, OAuth-Zwischenstände).
     """
@@ -95,6 +96,14 @@ def rotate_session_on_login(preserve_keys=None):
     preserved = {key: session[key] for key in preserve_keys if key in session}
     session.clear()
     session.update(preserved)
+    try:
+        from app.utils.server_session import regenerate_server_session_id
+        regenerate_server_session_id(session)
+    except Exception:
+        # Nicht-Server-Session-Backends: Daten-Clear reicht als Fallback
+        session.modified = True
+    else:
+        session.modified = True
 
 
 def _parse_session_iso(value):

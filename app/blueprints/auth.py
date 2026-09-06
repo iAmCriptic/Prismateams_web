@@ -1219,6 +1219,7 @@ def change_password():
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes")
 def forgot_password():
     """Passwort vergessen - E-Mail eingeben."""
     # Prüfe ob Setup nötig ist
@@ -1236,36 +1237,12 @@ def forgot_password():
             flash(translate('auth.flash.enter_email'), 'danger')
             return render_template('auth/forgot_password.html', **_auth_template_kwargs())
         
-        # Rate Limiting: Prüfe ob zu viele Anfragen in der letzten Stunde
-        # Suche nach User mit dieser E-Mail
         user = User.query.filter_by(email=email).first()
-        
         if user and not user.is_guest:
-            # Prüfe Rate Limiting: Maximal 3 Reset-Anfragen pro Stunde
-            recent_resets = 0
-            if user.password_reset_code_expires:
-                # Wenn ein Code existiert und noch nicht abgelaufen ist, zähle als eine Anfrage
-                if datetime.utcnow() < user.password_reset_code_expires:
-                    # Prüfe ob Code in der letzten Stunde erstellt wurde
-                    if user.password_reset_code_expires > datetime.utcnow() - timedelta(hours=1):
-                        recent_resets = 1
-            
-            # Zähle weitere Reset-Codes in der letzten Stunde (vereinfachte Prüfung)
-            # In einer produktiven Umgebung könnte man hier eine separate Tabelle für Rate-Limiting verwenden
-            if recent_resets >= 3:
-                # Zeige trotzdem Erfolgsmeldung (Sicherheit)
-                flash(translate('auth.flash.password_reset_email_sent'), 'success')
-                return render_template('auth/forgot_password.html', **_auth_template_kwargs())
-            
-            # Sende Passwort-Reset-E-Mail
             from app.utils.email_sender import send_password_reset_email
             send_password_reset_email(user)
-            
-            # Weiterleitung zur Reset-Password-Seite mit E-Mail-Adresse
-            flash(translate('auth.flash.password_reset_email_sent'), 'success')
-            return redirect(url_for('auth.reset_password', email=email))
-        
-        # Zeige immer Erfolgsmeldung (auch wenn E-Mail nicht existiert - Sicherheit)
+
+        # Immer gleiche Antwort (keine User-Enumeration)
         flash(translate('auth.flash.password_reset_email_sent'), 'success')
         return render_template('auth/forgot_password.html', **_auth_template_kwargs())
     
@@ -1273,8 +1250,9 @@ def forgot_password():
 
 
 @auth_bp.route('/reset-password', methods=['GET', 'POST'])
+@limiter.limit("10 per 15 minutes")
 def reset_password():
-    """Passwort zurücksetzen mit Code."""
+    """Passwort zurücksetzen mit Token."""
     # Prüfe ob Setup nötig ist
     from app.blueprints.setup import is_setup_needed
     if is_setup_needed():
@@ -1292,7 +1270,7 @@ def reset_password():
         # Validierung
         if not all([email, reset_code, new_password, confirm_password]):
             flash(translate('auth.flash.fill_all_fields'), 'danger')
-            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
+            return render_template('auth/reset_password.html', email=email, reset_code=reset_code, **_auth_template_kwargs())
         
         # Finde User
         user = User.query.filter_by(email=email).first()
@@ -1300,36 +1278,62 @@ def reset_password():
             flash(translate('auth.flash.invalid_reset_code'), 'danger')
             return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
-        # Prüfe Reset-Code
-        from app.utils.email_sender import verify_password_reset_code
+        from app.utils.email_sender import (
+            clear_password_reset_failure_counter,
+            register_password_reset_failure,
+            verify_password_reset_code,
+        )
         if not verify_password_reset_code(user, reset_code):
-            flash(translate('auth.flash.invalid_reset_code'), 'danger')
+            burned = register_password_reset_failure(user)
+            if burned:
+                flash(translate('auth.flash.invalid_reset_code'), 'danger')
+            else:
+                flash(translate('auth.flash.invalid_reset_code'), 'danger')
             return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
         
         # Prüfe Passwort-Bestätigung
         if new_password != confirm_password:
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
-            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
+            return render_template(
+                'auth/reset_password.html',
+                email=email,
+                reset_code=reset_code,
+                **_auth_template_kwargs(),
+            )
         
         # Prüfe Passwort-Policy (einheitlich mit Register)
         is_valid, error_msg = validate_password(new_password)
         if not is_valid:
             flash(error_msg or translate('auth.flash.password_too_short'), 'danger')
-            return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
+            return render_template(
+                'auth/reset_password.html',
+                email=email,
+                reset_code=reset_code,
+                **_auth_template_kwargs(),
+            )
         
         # Setze neues Passwort
         user.set_password(new_password)
-        # Lösche Reset-Code
+        # Lösche Reset-Token
         user.password_reset_code = None
         user.password_reset_code_expires = None
+        clear_password_reset_failure_counter(user)
+        from app.utils.session_manager import revoke_all_sessions
+        revoke_all_sessions(user.id, exclude_current=False)
         db.session.commit()
         
         flash(translate('auth.flash.password_reset_success'), 'success')
         return redirect(url_for('auth.login'))
     
-    # GET: Zeige Formular
+    # GET: Zeige Formular (Token aus E-Mail-Link vorbefüllen)
     email = request.args.get('email', '')
-    return render_template('auth/reset_password.html', email=email, **_auth_template_kwargs())
+    reset_code = request.args.get('token', '') or request.args.get('reset_code', '')
+    return render_template(
+        'auth/reset_password.html',
+        email=email,
+        reset_code=reset_code,
+        **_auth_template_kwargs(),
+    )
 
 
 @auth_bp.route('/logout', methods=['POST'])

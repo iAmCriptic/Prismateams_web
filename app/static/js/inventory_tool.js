@@ -1044,6 +1044,11 @@ class InventoryToolManager {
     }
 
     showConflictMessage(conflictPayload) {
+        if (conflictPayload?.code === 'lock_conflict') {
+            const lockUser = conflictPayload?.details?.locked_by || 'einem anderen Nutzer';
+            this.showError(`Dieses Produkt wird gerade von ${lockUser} bearbeitet.`);
+            return;
+        }
         const currentVersion = conflictPayload?.details?.current_version;
         this.showError(`Konflikt erkannt: Datensatz wurde inzwischen geändert (Version ${currentVersion || 'neu'}). Bitte erneut pruefen.`);
     }
@@ -1062,12 +1067,14 @@ class InventoryToolManager {
                     this.showError(`Dieses Produkt wird gerade von ${lockUser} bearbeitet.`);
                     return null;
                 }
+                this.showError('Produkt-Sperre konnte nicht erworben werden. Bitte erneut versuchen.');
                 return null;
             }
             return await response.json();
         } catch (error) {
-            console.warn('Locking nicht verfügbar, fahre ohne Lock fort', error);
-            return { ok: true };
+            console.warn('Locking nicht verfügbar', error);
+            this.showError('Produkt-Sperre konnte nicht erworben werden. Bitte erneut versuchen.');
+            return null;
         }
     }
 

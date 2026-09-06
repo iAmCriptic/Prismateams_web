@@ -298,8 +298,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 .protocols-workspace input[type="date"],
 .protocols-workspace input[type="time"],
 .protocols-workspace input[type="text"]:not(.protocols-editor-title):not(.protocols-chip-input),
-.protocols-workspace .mod-pill-input,
-.protocols-workspace .protocols-pill-input {
+.protocols-workspace .mod-pill-input {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     min-height: 2.85rem;
     padding-left: 1.1rem;
@@ -314,14 +313,14 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     padding-right: 1.2rem;
 }
 
-.protocols-workspace .inv-pill-select__trigger {
+.protocols-workspace .mod-pill-select__trigger {
     min-height: 2.85rem;
     padding: 0.55rem 1.1rem;
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.protocols-workspace .inv-pill-select__menu {
+.protocols-workspace .mod-pill-select__menu {
     animation: protocolsCardIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -572,8 +571,7 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
 }
 
 .protocols-agenda-item .form-control,
-.protocols-agenda-item .mod-pill-input,
-.protocols-agenda-item .protocols-pill-input {
+.protocols-agenda-item .mod-pill-input {
     flex: 1;
     min-width: 0;
     min-height: 2.35rem !important;
@@ -1486,13 +1484,10 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     .protocols-chip.is-entering,
     .protocols-agenda-item.is-entering,
     .protocols-shell .mod-list-row,
-    .protocols-workspace .mod-pill-select__menu,
-    .protocols-workspace .inv-pill-select__menu {
+    .protocols-workspace .mod-pill-select__menu {
         animation: none !important;
     }
 
-    .mod-pill-btn,
-    .btn.mod-pill-btn,
     .mod-pill-btn,
     .btn.mod-pill-btn,
     .protocols-chrome-btn,

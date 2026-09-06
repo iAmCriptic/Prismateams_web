@@ -1896,7 +1896,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 .files-ext-toolbar .mod-view-toggle,
-.files-ext-toolbar .files-view-toggle {
+.files-ext-toolbar .mod-view-toggle {
     order: 1;
 }
 
@@ -2375,8 +2375,7 @@ body:has(.dropbox-shell) .container-fluid {
     gap: 0.5rem;
 }
 
-.files-webdav-url-row .mod-pill-input,
-.files-webdav-url-row .files-pill-input {
+.files-webdav-url-row .mod-pill-input {
     flex: 1 1 auto;
     min-width: 0;
 }

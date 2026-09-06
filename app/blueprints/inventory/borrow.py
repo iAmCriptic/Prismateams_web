@@ -193,9 +193,11 @@ def return_complete_borrow():
     try:
         checkout = return_checkout_by_ref(borrow_ref, actor=current_user)
     except PermissionError:
+        db.session.rollback()
         flash(_('inventory.errors.no_return_permission'), 'danger')
         return redirect(url_for('inventory.dashboard'))
     except ValueError:
+        db.session.rollback()
         flash(_('inventory.flash.no_active_borrow'), 'danger')
         return redirect(url_for('inventory.dashboard'))
 
@@ -523,12 +525,20 @@ def borrow_scanner():
             try:
                 checkout = return_checkout_by_ref(borrow_ref, actor=current_user)
             except PermissionError:
+                db.session.rollback()
                 return jsonify({
                     'error': translate('inventory.errors.no_return_permission'),
                     'is_return': True,
                 }), 403
             except ValueError as exc:
-                return jsonify({'error': str(exc), 'is_return': True}), 400
+                db.session.rollback()
+                code = str(exc)
+                key = f'inventory.errors.{code}'
+                msg = translate(key)
+                return jsonify({
+                    'error': msg if msg != key else code,
+                    'is_return': True,
+                }), 400
             return jsonify({
                 'success': True,
                 'is_return': True,
@@ -603,8 +613,8 @@ def borrow_scanner_checkout():
             consumable_quantities=consumable_quantities,
         )
     except ValueError as exc:
-        code = str(exc)
-        flash(_(f'inventory.flash.{code}') if code else _('inventory.flash.borrow_failed'), 'danger')
+        from app.services.inventory.checkout_service import checkout_error_message
+        flash(checkout_error_message(exc), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
 
     session.pop('borrow_cart', None)
@@ -752,8 +762,8 @@ def inventory_checkout_confirm():
             consumable_quantities=consumable_quantities,
         )
     except ValueError as exc:
-        code = str(exc)
-        flash(_(f'inventory.flash.{code}') if code else _('inventory.flash.borrow_failed'), 'danger')
+        from app.services.inventory.checkout_service import checkout_error_message
+        flash(checkout_error_message(exc), 'danger')
         return redirect(url_for('inventory.inventory_checkout'))
 
     session.pop('borrow_cart', None)

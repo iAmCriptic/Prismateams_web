@@ -38,29 +38,41 @@
                     <input type="hidden" name="body" id="bodyHtml" value="">
 
                     <div class="email-composer-scroll">
-                        {% if email_multi_enabled and accessible_mailboxes is defined %}
-                        <div class="email-composer-field mb-2">
-                            <label class="form-label" for="composeMailboxSelect">{{ _('email.multi.mailbox_label') }}</label>
-                            <select class="form-select email-compose-input" id="composeMailboxSelect" name="mailbox_id">
-                                <option value="" {% if not active_mailbox_id %}selected{% endif %}>{{ _('email.multi.main_mailbox') }}</option>
-                                {% for mb in accessible_mailboxes %}
-                                <option value="{{ mb.id }}" {% if active_mailbox_id == mb.id %}selected{% endif %}>{{ mb.display_name }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="email-compose-meta">
+                            <div class="email-compose-meta-row">
+                                {% if email_multi_enabled|default(false) %}
+                                <div class="email-composer-field email-compose-send-as">
+                                    <label class="form-label" for="composeMailboxSelect">{{ _('email.multi.mailbox_label') }}</label>
+                                    <select class="form-select email-compose-input" id="composeMailboxSelect" name="mailbox_id" data-mod-pill-select>
+                                        <option value="" {% if not active_mailbox_id %}selected{% endif %}>{{ main_send_as_label|default(_('email.multi.main_mailbox')) }}</option>
+                                        {% for opt in send_as_options|default([]) %}
+                                        <option value="{{ opt.id }}" {% if active_mailbox_id == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+                                <div class="email-compose-design-card{% if not email_multi_enabled|default(false) %} email-compose-design-card--solo{% endif %}">
+                                    <label class="email-compose-design-toggle" for="use_html_design">
+                                        <input class="email-compose-design-toggle__input" type="checkbox" id="use_html_design" name="use_html_design" {% if use_html_design|default(true) %}checked{% endif %}>
+                                        <span class="email-compose-design-toggle__switch" aria-hidden="true"></span>
+                                        <span class="email-compose-design-toggle__copy">
+                                            <span class="email-compose-design-toggle__title">{{ _('email.multi.html_design') }}</span>
+                                            <span class="email-compose-design-toggle__hint">{{ _('email.multi.html_design_help') }}</span>
+                                        </span>
+                                    </label>
+                                    {% if team_logo_available|default(false) %}
+                                    <label class="email-compose-design-toggle email-compose-design-toggle--secondary" for="use_mailbox_logo">
+                                        <input class="email-compose-design-toggle__input" type="checkbox" id="use_mailbox_logo" name="use_mailbox_logo" {% if use_mailbox_logo|default(true) %}checked{% endif %}>
+                                        <span class="email-compose-design-toggle__switch" aria-hidden="true"></span>
+                                        <span class="email-compose-design-toggle__copy">
+                                            <span class="email-compose-design-toggle__title">{{ _('email.multi.use_team_logo') }}</span>
+                                            <span class="email-compose-design-toggle__hint">{{ _('email.multi.use_team_logo_help') }}</span>
+                                        </span>
+                                    </label>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                        {% endif %}
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="use_html_design" name="use_html_design" {% if use_html_design|default(true) %}checked{% endif %}>
-                            <label class="form-check-label" for="use_html_design">{{ _('email.multi.html_design') }}</label>
-                            <div class="form-text">{{ _('email.multi.html_design_help') }}</div>
-                        </div>
-                        {% if team_logo_available|default(false) %}
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="use_mailbox_logo" name="use_mailbox_logo" {% if use_mailbox_logo|default(true) %}checked{% endif %}>
-                            <label class="form-check-label" for="use_mailbox_logo">{{ _('email.multi.use_team_logo') }}</label>
-                            <div class="form-text">{{ _('email.multi.use_team_logo_help') }}</div>
-                        </div>
-                        {% endif %}
                         <div class="email-composer-fields">
                             <div class="email-composer-field">
                                 <label for="toChipContainer" class="form-label">{{ _('email.compose.form.to') }}</label>
@@ -132,12 +144,9 @@
                         </div>
                         {% endif %}
 
-                        <div class="email-composer-toolbar">
-                            <div id="toolbar-container"></div>
-                        </div>
-                        <div class="email-composer-body">
-                            <div class="quill-editor-container" data-context-zone data-context-menu="quill">
-                                <div id="editor"></div>
+                        <div class="email-composer-editor-wrap">
+                            <div class="email-composer-editor-surface" data-context-zone data-context-menu="quill">
+                                <div id="editor" class="email-composer-quill"></div>
                             </div>
                         </div>
 
@@ -196,6 +205,7 @@
 {% block extra_js %}
 <!-- Contacts JS -->
 <script src="{{ url_for('static', filename='js/contacts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <!-- Quill Editor JS -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
@@ -205,6 +215,9 @@ const PREVIEW_I18N = EMAIL_COMPOSE.preview || {};
 const COMPOSE_MESSAGES = EMAIL_COMPOSE.messages || {};
 
 document.addEventListener('DOMContentLoaded', function() {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document.getElementById('emailComposeForm') || document);
+    }
     // Check if mobile
     var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
     var previewUrl = "{{ url_for('email.preview_custom_email') }}";
@@ -227,11 +240,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ['clean']
     ];
     
-    // Desktop full toolbar
+    // Desktop: Size + Font (kein Header — vermeidet doppeltes „Normal“)
     var desktopToolbarOptions = [
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        [{ 'font': [] }],
         [{ 'size': ['small', false, 'large', 'huge'] }],
+        [{ 'font': [] }],
         ['bold', 'italic', 'underline', 'strike'],
         [{ 'color': [] }, { 'background': [] }],
         [{ 'script': 'sub'}, { 'script': 'super' }],

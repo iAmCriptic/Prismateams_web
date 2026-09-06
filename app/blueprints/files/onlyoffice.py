@@ -653,17 +653,27 @@ def share_edit_onlyoffice(token):
     file_path = resolve_storage_path(file.file_path)
     document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
-    # Build document URL with token and file_id (guest_name ist in Session)
-    # Share endpoints don't need additional token as they use share_token
+    # After share password/guest gate: mint short-lived access token for Document Server
+    # (DS fetches without browser session cookies).
+    from app.utils.onlyoffice import generate_onlyoffice_access_token
+    from urllib.parse import quote
+    access_token = generate_onlyoffice_access_token(file.id, share_token=token)
+    if not access_token:
+        flash('Dokumentzugriff konnte nicht autorisiert werden.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+    encoded_token = quote(access_token, safe='')
+
     public_url = current_app.config.get('ONLYOFFICE_PUBLIC_URL', '').strip()
     if public_url:
         # Use configured public URL (required when OnlyOffice runs on different server)
         public_url = public_url.rstrip('/')
-        document_url = f"{public_url}{url_for('files.share_onlyoffice_document', token=token, file_id=file.id)}"
+        base_doc = f"{public_url}{url_for('files.share_onlyoffice_document', token=token, file_id=file.id)}"
+        document_url = f"{base_doc}?token={encoded_token}"
         callback_url = f"{public_url}{url_for('files.share_onlyoffice_callback', token=token, file_id=file.id)}"
     else:
         # Use _external=True (works if OnlyOffice is on same server or accessible via same domain)
-        document_url = url_for('files.share_onlyoffice_document', token=token, file_id=file.id, _external=True)
+        base_doc = url_for('files.share_onlyoffice_document', token=token, file_id=file.id, _external=True)
+        document_url = f"{base_doc}?token={encoded_token}"
         callback_url = url_for('files.share_onlyoffice_callback', token=token, file_id=file.id, _external=True)
     
     onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')

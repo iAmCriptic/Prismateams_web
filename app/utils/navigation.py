@@ -4,6 +4,7 @@ from flask import url_for
 
 from app.utils.access_control import has_module_access
 from app.utils.common import is_module_enabled
+from app.utils.i18n import translate
 
 MOBILE_NAV_SLOT_KEYS = (
     'chat',
@@ -352,13 +353,26 @@ def _endpoint_matches(endpoint, entry):
     return False
 
 
+def _nav_label_sort_key(key):
+    """Case-insensitive sort key from the translated module label."""
+    entry = NAV_LINK_REGISTRY.get(key) or {}
+    label_key = entry.get('label_key') or key
+    return (translate(label_key).casefold(), key)
+
+
+def iter_launcher_keys_alphabetical():
+    """Launcher registry keys in alphabetical display order (by locale label)."""
+    keys = [
+        key for key in DESKTOP_NAV_ORDER
+        if (NAV_LINK_REGISTRY.get(key) or {}).get('in_launcher', True)
+    ]
+    return sorted(keys, key=_nav_label_sort_key)
+
+
 def get_desktop_nav_modules(user):
-    """Launcher modules the user may open, in display order."""
+    """Launcher modules the user may open, alphabetically by label."""
     modules = []
-    for key in DESKTOP_NAV_ORDER:
-        entry = NAV_LINK_REGISTRY.get(key)
-        if not entry or not entry.get('in_launcher', True):
-            continue
+    for key in iter_launcher_keys_alphabetical():
         resolved = resolve_nav_link(key, user)
         if resolved:
             modules.append(resolved)
@@ -465,8 +479,8 @@ def normalize_dashboard_module_order(keys, user=None):
         seen.add(key)
         ordered.append(key)
 
-    # Append any remaining available modules in DESKTOP_NAV_ORDER
-    for key in DESKTOP_NAV_ORDER:
+    # Append any remaining available modules alphabetically by label
+    for key in iter_launcher_keys_alphabetical():
         if key == 'dashboard' or key in seen:
             continue
         entry = NAV_LINK_REGISTRY.get(key)

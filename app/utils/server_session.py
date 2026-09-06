@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 import time
-import uuid
 from typing import Any, Optional
 
 from flask.sessions import SessionInterface, SessionMixin
@@ -33,6 +33,37 @@ class ServerSession(CallbackDict, SessionMixin):
         self.new = new
         self.modified = False
         self.accessed = False
+        self._sid_to_delete = None
+
+
+def _new_session_sid() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def regenerate_server_session_id(sess=None) -> bool:
+    """
+    Rotate the cookie session id (session-fixation protection).
+
+    Deletes the previous server-side store on the next save_session.
+    No-op for non-ServerSession backends (e.g. tests with signed cookies).
+    """
+    from flask import session as flask_session
+
+    target = sess if sess is not None else flask_session
+    if not isinstance(target, ServerSession):
+        return False
+
+    old_sid = getattr(target, 'sid', None)
+    new_sid = _new_session_sid()
+    while new_sid == old_sid:
+        new_sid = _new_session_sid()
+
+    target.sid = new_sid
+    if old_sid:
+        target._sid_to_delete = old_sid
+    target.new = True
+    target.modified = True
+    return True
 
 
 class RedisSessionInterface(SessionInterface):
@@ -47,7 +78,7 @@ class RedisSessionInterface(SessionInterface):
     def open_session(self, app, request):
         sid = request.cookies.get(self.get_cookie_name(app))
         if not sid:
-            return ServerSession(sid=str(uuid.uuid4()), new=True)
+            return ServerSession(sid=_new_session_sid(), new=True)
         try:
             raw = self.redis.get(self._key(sid))
             if raw:
@@ -55,11 +86,23 @@ class RedisSessionInterface(SessionInterface):
                 return ServerSession(initial=data, sid=sid, new=False)
         except Exception as exc:
             logger.warning('Redis session read failed: %s', exc)
-        return ServerSession(sid=str(uuid.uuid4()), new=True)
+        return ServerSession(sid=_new_session_sid(), new=True)
 
     def save_session(self, app, session, response):
         domain = self.get_cookie_domain(app)
         path = self.get_cookie_path(app)
+
+        old_sid = getattr(session, '_sid_to_delete', None)
+        if old_sid:
+            try:
+                self.redis.delete(self._key(old_sid))
+            except Exception:
+                pass
+            try:
+                session._sid_to_delete = None
+            except Exception:
+                pass
+
         if not session:
             if session.modified:
                 try:
@@ -121,7 +164,7 @@ class FilesystemSessionInterface(SessionInterface):
     def open_session(self, app, request):
         sid = request.cookies.get(self.get_cookie_name(app))
         if not sid:
-            return ServerSession(sid=str(uuid.uuid4()), new=True)
+            return ServerSession(sid=_new_session_sid(), new=True)
         path = self._path(sid)
         try:
             if os.path.isfile(path):
@@ -136,11 +179,23 @@ class FilesystemSessionInterface(SessionInterface):
                     pass
         except Exception as exc:
             logger.warning('Filesystem session read failed: %s', exc)
-        return ServerSession(sid=str(uuid.uuid4()), new=True)
+        return ServerSession(sid=_new_session_sid(), new=True)
 
     def save_session(self, app, session, response):
         domain = self.get_cookie_domain(app)
         path = self.get_cookie_path(app)
+
+        old_sid = getattr(session, '_sid_to_delete', None)
+        if old_sid:
+            try:
+                os.remove(self._path(old_sid))
+            except OSError:
+                pass
+            try:
+                session._sid_to_delete = None
+            except Exception:
+                pass
+
         if not session:
             if session.modified:
                 try:

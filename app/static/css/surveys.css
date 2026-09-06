@@ -153,16 +153,16 @@ body:has(.surveys-workspace) {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
 }
 
-.surveys-settings-panel .inv-pill-select {
+.surveys-settings-panel .mod-pill-select {
     width: 100%;
 }
 
-.surveys-settings-panel .inv-pill-select__trigger {
+.surveys-settings-panel .mod-pill-select__trigger {
     width: 100%;
     min-height: 2.35rem;
 }
 
-.surveys-logic-rule .inv-pill-select {
+.surveys-logic-rule .mod-pill-select {
     width: 100%;
     margin-bottom: 0.35rem;
 }
@@ -219,7 +219,7 @@ body:has(.surveys-workspace) {
     height: 2.35rem;
 }
 
-.surveys-mobile-view-toggle .files-view-toggle__btn {
+.surveys-mobile-view-toggle .mod-view-toggle__btn {
     width: 2.1rem;
     height: 2.1rem;
 }

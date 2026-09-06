@@ -987,7 +987,14 @@ def api_borrow():
             borrower_id=borrower.id,
         )
     except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
+        from app.services.inventory.checkout_service import (
+            CheckoutUnavailableError,
+            checkout_error_message,
+        )
+        payload = {'error': checkout_error_message(exc)}
+        if isinstance(exc, CheckoutUnavailableError):
+            payload['unavailable'] = list(exc.product_labels)
+        return jsonify(payload), 400
     
     return jsonify({
         'transaction_id': checkout.id,
@@ -1002,9 +1009,17 @@ def api_borrow():
 
 @login_required
 def api_borrows():
-    """API: Checkout-Items für Historie-UI (inkl. zurückgegebene)."""
+    """API: Checkout-Items für Historie-UI (inkl. zurückgegebene).
+
+    Non-Admins sehen nur eigene Vorgänge (borrower oder Ersteller).
+    Admins sehen alle; optional mine=1 zum Filtern.
+    """
     status = request.args.get('status', 'all')
     mine = request.args.get('mine', '').lower() in ('1', 'true', 'yes')
+    can_list_all = bool(
+        getattr(current_user, 'is_admin', False)
+        or getattr(current_user, 'is_super_admin', False)
+    )
     q = Checkout.query.options(
         selectinload(Checkout.items).joinedload(CheckoutItem.product),
         selectinload(Checkout.items).joinedload(CheckoutItem.source_set).selectinload(ProductSet.items).joinedload(ProductSetItem.product),
@@ -1015,7 +1030,8 @@ def api_borrows():
         q = q.filter_by(status='completed')
     elif status not in ('all', 'returned', 'overdue'):
         q = q.filter_by(status=status)
-    if mine:
+    # Serverseitig erzwingen — mine-Flag allein reicht nicht (F05)
+    if mine or not can_list_all:
         q = q.filter(or_(Checkout.borrower_id == current_user.id, Checkout.created_by == current_user.id))
     checkouts = q.order_by(Checkout.start_date.desc()).all()
     payload = []
@@ -1175,9 +1191,14 @@ def api_return():
                 'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
             })
     except PermissionError:
+        db.session.rollback()
         return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
     except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
+        db.session.rollback()
+        code = str(exc)
+        key = f'inventory.errors.{code}'
+        msg = translate(key)
+        return jsonify({'error': msg if msg != key else code}), 400
 
     return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
 

@@ -2669,11 +2669,135 @@ div.avatar-circle-mobile,
 }
 
 .email-composer-fields {
-    padding: 1.1rem 1.15rem 0.35rem;
+    padding: 0.35rem 1.15rem 0.85rem;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
     border-bottom: 1px solid var(--email-compose-border);
+}
+
+.email-compose-meta {
+    padding: 1.05rem 1.15rem 0.55rem;
+}
+
+.email-compose-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.85rem;
+}
+
+.email-compose-send-as {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.email-compose-design-card {
+    flex: 1 1 18rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 18%, var(--email-compose-border));
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) 0%,
+            color-mix(in srgb, var(--email-compose-surface) 70%, transparent) 55%,
+            var(--email-compose-surface) 100%
+        );
+    box-shadow:
+        0 0.35rem 1rem color-mix(in srgb, #000 8%, transparent),
+        inset 0 0.05rem 0 color-mix(in srgb, #fff 6%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.email-compose-design-card--solo {
+    flex: 1 1 100%;
+}
+
+.email-compose-design-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.email-compose-design-toggle--secondary {
+    padding-top: 0.55rem;
+    border-top: 1px solid color-mix(in srgb, var(--email-compose-border) 80%, transparent);
+}
+
+.email-compose-design-toggle__input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+.email-compose-design-toggle__switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 2.55rem;
+    height: 1.4rem;
+    margin-top: 0.15rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-secondary-color) 28%, var(--email-compose-surface));
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.email-compose-design-toggle__switch::after {
+    content: '';
+    position: absolute;
+    top: 0.12rem;
+    left: 0.12rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0.1rem 0.35rem rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.email-compose-design-toggle__input:checked + .email-compose-design-toggle__switch {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    border-color: transparent;
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+}
+
+.email-compose-design-toggle__input:checked + .email-compose-design-toggle__switch::after {
+    transform: translateX(1.1rem);
+}
+
+.email-compose-design-toggle__input:focus-visible + .email-compose-design-toggle__switch {
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+}
+
+.email-compose-design-toggle__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.email-compose-design-toggle__title {
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--email-compose-text);
+    line-height: 1.25;
+}
+
+.email-compose-design-toggle__hint {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--email-compose-muted);
 }
 
 .email-composer-field .form-label {
@@ -2684,11 +2808,19 @@ div.avatar-circle-mobile,
 }
 
 .email-compose-input,
-.email-composer .form-control.email-compose-input {
+.email-composer .form-control.email-compose-input,
+.email-composer .form-select.email-compose-input {
     border-radius: var(--mod-radius-pill, 1.5rem);
     padding: 0.7rem 1.05rem;
     border-color: var(--email-compose-border);
     background: var(--email-compose-surface);
+}
+
+.email-compose-send-as .mod-pill-select__trigger {
+    background: var(--email-compose-surface);
+    border-color: var(--email-compose-border);
+    min-height: 3rem;
+    padding: 0.65rem 1.05rem;
 }
 
 .email-compose-input--file {
@@ -2732,32 +2864,325 @@ div.avatar-circle-mobile,
     color: var(--accent-color, var(--bs-primary)) !important;
 }
 
-.email-composer-toolbar {
-    background: var(--email-compose-surface);
-    border-bottom: 1px solid var(--email-compose-border);
-    padding: 0.45rem 0.55rem;
+/* ---- Quill editor (Protokoll-Pill-Style) ---- */
+
+.email-composer-editor-wrap {
+    padding: 0.85rem 1.05rem 0.35rem;
 }
 
-.email-composer-toolbar .ql-toolbar.ql-snow,
-.email-composer-toolbar .ql-snow {
+.email-composer-editor-surface {
+    display: flex;
+    flex-direction: column;
+    min-height: 22rem;
+    border-radius: 1.5rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-color, #0d6efd) 5%, var(--bs-body-bg)) 0%,
+            var(--bs-body-bg) 7.5rem
+        );
+    box-shadow:
+        0 0.45rem 1.4rem color-mix(in srgb, #000 10%, transparent),
+        0 0.05rem 0.2rem color-mix(in srgb, #000 5%, transparent);
+    /* visible: Quill-Dropdowns dürfen aus der Toolbar rausragen */
+    overflow: visible;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.85rem 0.95rem 0.55rem !important;
+    padding: 0.45rem 0.55rem !important;
+    border: 1px solid var(--bs-border-color) !important;
+    border-radius: var(--mod-radius-pill, 999px) !important;
+    background: color-mix(in srgb, var(--bs-body-bg) 78%, var(--bs-secondary-bg)) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 0.2rem 0.65rem color-mix(in srgb, #000 10%, transparent),
+        inset 0 0.05rem 0 color-mix(in srgb, #fff 6%, transparent);
+    flex-shrink: 0;
+    width: auto !important;
+    max-width: calc(100% - 1.9rem);
+    box-sizing: border-box;
+    overflow: visible !important;
+    position: relative;
+    z-index: 5;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-formats {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.2rem;
+    margin: 0 !important;
+    margin-right: 0.15rem !important;
+    padding: 0.15rem;
+    border-radius: var(--mod-radius-pill, 999px);
+    background: color-mix(in srgb, var(--bs-secondary-bg) 45%, transparent);
+    border-right: none !important;
+    float: none !important;
+    overflow: visible;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-formats:last-child {
+    margin-right: 0 !important;
+}
+
+/* Icon-Buttons: feste runde Trefferfläche */
+.email-composer-editor-surface > .ql-toolbar.ql-snow button {
+    width: 2.15rem !important;
+    height: 2.15rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px !important;
+    border: 1px solid transparent !important;
+    float: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: var(--bs-body-color) !important;
+    background: transparent !important;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1),
+        box-shadow 0.18s ease;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow button:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 32%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 0.18rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow button:active {
+    transform: scale(0.95);
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow button.ql-active {
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    box-shadow: 0 0.18rem 0.5rem color-mix(in srgb, var(--accent-color, #0d6efd) 38%, transparent);
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow button.ql-active .ql-stroke {
+    stroke: #fff !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow button.ql-active .ql-fill {
+    fill: #fff !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-stroke {
+    stroke: currentColor;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-fill {
+    fill: currentColor;
+}
+
+/* Text-Picker (Header/Font/Size): auto-Breite — kein 1.85rem-Zwang */
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker {
+    float: none !important;
+    height: 2.15rem;
+    font-size: 0.85rem;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    width: auto !important;
+    min-width: 5.5rem;
+    max-width: 9.5rem;
+    height: 2.15rem !important;
+    padding: 0 0.55rem 0 0.75rem !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    border: 1px solid transparent !important;
+    float: none !important;
+    color: var(--bs-body-color) !important;
+    background: transparent !important;
+    line-height: 1.2 !important;
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label::before {
+    line-height: 1.2 !important;
+    position: static !important;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label svg {
+    flex-shrink: 0;
+    width: 0.85rem !important;
+    margin: 0 !important;
+    float: none !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label:hover,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 32%, transparent) !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label .ql-stroke {
+    stroke: #fff !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-header .ql-picker-label,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label {
+    min-width: 5.75rem;
+    font-weight: 600;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-font .ql-picker-label {
+    min-width: 6.75rem;
+    font-weight: 600;
+}
+
+/* Icon-Picker (Farbe, Align): wieder quadratisch */
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-color-picker .ql-picker-label,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-icon-picker .ql-picker-label,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-align .ql-picker-label {
+    width: 2.15rem !important;
+    min-width: 2.15rem !important;
+    max-width: 2.15rem !important;
+    padding: 0 !important;
+    justify-content: center;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-options {
+    top: 100% !important;
+    left: 0 !important;
+    margin-top: 0.4rem !important;
+    padding: 0.5rem !important;
+    border-radius: 1.15rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+    background: var(--bs-dropdown-bg, var(--bs-body-bg)) !important;
+    box-shadow: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.28) !important;
+    z-index: 40 !important;
+    overflow: hidden;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item {
+    display: block !important;
+    width: 100%;
+    border-radius: var(--mod-radius-pill, 999px) !important;
+    padding: 0.45rem 0.85rem !important;
+    line-height: 1.35 !important;
+    color: var(--bs-body-color) !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item::before {
+    line-height: 1.35 !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item.ql-selected {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-color-picker .ql-picker-options,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-background .ql-picker-options {
+    width: 12rem;
+    padding: 0.6rem !important;
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-color-picker .ql-picker-item,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-background .ql-picker-item {
+    display: inline-block !important;
+    width: 1.4rem !important;
+    height: 1.4rem !important;
+    margin: 0.18rem !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    border: 1px solid color-mix(in srgb, #fff 14%, transparent);
+}
+
+/* Deutsche Size-Labels (wie Protokoll) */
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item::before {
+    content: 'Normal';
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='small']::before {
+    content: 'Klein';
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='large']::before {
+    content: 'Groß';
+}
+
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
+.email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='huge']::before {
+    content: 'Sehr groß';
+}
+
+.email-composer-quill,
+#editor.email-composer-quill {
+    flex: 1;
+    min-height: 16rem;
     border: none !important;
     background: transparent;
-}
-
-.email-composer-body {
-    background: var(--bs-body-bg);
-    min-height: 320px;
-}
-
-.quill-editor-container {
-    position: relative;
-}
-
-#editor {
-    min-height: 320px;
     font-family: var(--bs-body-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
     font-size: 0.95rem;
     color: var(--email-compose-text);
+    border-radius: 0 0 1.45rem 1.45rem;
+    overflow: hidden;
+}
+
+.email-composer-editor-surface .ql-container.ql-snow {
+    border: none !important;
+    font-family: inherit;
+    font-size: inherit;
+    background: transparent;
+    flex: 1;
+    border-radius: 0 0 1.45rem 1.45rem;
+    overflow: hidden;
+}
+
+.email-composer-editor-surface .ql-editor {
+    min-height: 16rem;
+    padding: 0.55rem 1.25rem 1.75rem;
+    line-height: 1.55;
+}
+
+.email-composer-editor-surface .ql-editor.ql-blank::before {
+    left: 1.25rem;
+    right: 1.25rem;
+    font-style: normal;
+    color: var(--bs-secondary-color);
+    opacity: 0.75;
 }
 
 .ql-container {
@@ -2770,21 +3195,14 @@ div.avatar-circle-mobile,
     border: none !important;
 }
 
-[data-bs-theme="dark"] .email-composer-body,
-[data-bs-theme="dark"] #editor,
-[data-bs-theme="dark"] .ql-editor,
-[data-oled-mode="true"] .email-composer-body,
-[data-oled-mode="true"] #editor,
-[data-oled-mode="true"] .ql-editor {
+[data-bs-theme="dark"] .email-composer-editor-surface .ql-editor,
+[data-oled-mode="true"] .email-composer-editor-surface .ql-editor {
     color: #e2e8f0;
 }
 
-[data-bs-theme="dark"] .ql-snow,
-[data-bs-theme="dark"] .ql-toolbar,
-[data-oled-mode="true"] .ql-snow,
-[data-oled-mode="true"] .ql-toolbar {
-    border-color: #4a5568;
-    background: transparent;
+[data-bs-theme="dark"] .email-composer-editor-surface > .ql-toolbar.ql-snow,
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow {
+    border-color: #4a5568 !important;
 }
 
 [data-bs-theme="dark"] .ql-snow .ql-stroke,
@@ -2817,20 +3235,27 @@ div.avatar-circle-mobile,
     color: #e2e8f0;
 }
 
-[data-bs-theme="dark"] .ql-snow .ql-picker-options,
-[data-oled-mode="true"] .ql-snow .ql-picker-options {
-    background: #1a1a1a;
-    border-color: #4a5568;
+[data-bs-theme="dark"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-options,
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-options {
+    background: #1a1a1a !important;
+    border-color: #4a5568 !important;
     color: #e2e8f0;
 }
 
-[data-oled-mode="true"] .ql-snow .ql-picker-options {
-    background: #000;
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-options {
+    background: #000 !important;
 }
 
-[data-bs-theme="dark"] .ql-snow .ql-picker-item,
-[data-oled-mode="true"] .ql-snow .ql-picker-item {
-    color: #e2e8f0;
+[data-bs-theme="dark"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item,
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item {
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label::before,
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-label::before,
+[data-bs-theme="dark"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item::before,
+[data-oled-mode="true"] .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item::before {
+    color: inherit;
 }
 
 [data-bs-theme="dark"] .ql-editor.ql-blank::before,
@@ -2839,23 +3264,23 @@ div.avatar-circle-mobile,
     font-style: normal;
 }
 
-[data-bs-theme="dark"] .email-composer-toolbar,
-[data-oled-mode="true"] .email-composer-toolbar {
-    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 6%);
-    border-bottom-color: rgba(255, 255, 255, 0.12);
+[data-bs-theme="dark"] .email-composer-editor-surface,
+[data-oled-mode="true"] .email-composer-editor-surface {
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg, #1a1a1a)) 0%,
+            var(--bs-body-bg, #1a1a1a) 7.5rem
+        );
 }
 
-[data-oled-mode="true"] .email-composer-toolbar {
-    background: #0a0a0a;
-}
-
-[data-bs-theme="dark"] .email-composer-body,
-[data-oled-mode="true"] .email-composer-body {
-    background: var(--bs-body-bg, #1a1a1a);
-}
-
-[data-oled-mode="true"] .email-composer-body {
-    background: #000;
+[data-oled-mode="true"] .email-composer-editor-surface {
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-color, #0d6efd) 10%, #000) 0%,
+            #000 7.5rem
+        );
 }
 
 .email-preview-wrapper {
@@ -3017,12 +3442,14 @@ div.avatar-circle-mobile,
         padding: 0.15rem 0.25rem 1rem;
     }
 
-    .email-composer-body {
-        min-height: 380px;
+    .email-composer-editor-surface {
+        min-height: 26rem;
     }
 
-    #editor {
-        min-height: 360px;
+    .email-composer-quill,
+    #editor.email-composer-quill,
+    .email-composer-editor-surface .ql-editor {
+        min-height: 20rem;
     }
 }
 
@@ -3082,44 +3509,41 @@ div.avatar-circle-mobile,
         min-height: 0;
     }
 
+    .email-compose-meta {
+        padding: 0.9rem 0.9rem 0.35rem;
+    }
+
+    .email-compose-meta-row {
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
     .email-composer-fields {
-        padding: 0.9rem 0.9rem 0.25rem;
+        padding: 0.35rem 0.9rem 0.75rem;
         gap: 0.75rem;
     }
 
-    .email-composer-toolbar {
-        flex-shrink: 0;
+    .email-composer-editor-wrap {
+        padding: 0.55rem 0.75rem 0.25rem;
+    }
+
+    .email-composer-editor-surface {
+        min-height: 16rem;
+        border-radius: 1.25rem;
+    }
+
+    .email-composer-editor-surface > .ql-toolbar.ql-snow {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        position: relative;
-        z-index: 1;
+        flex-wrap: nowrap;
+        max-width: calc(100% - 1.4rem);
+        margin: 0.7rem 0.7rem 0.45rem !important;
     }
 
-    .email-composer-toolbar .ql-toolbar {
-        min-width: max-content;
-        white-space: nowrap;
-    }
-
-    .email-composer-body {
-        display: flex;
-        min-height: 0;
-        overflow: visible;
-    }
-
-    .quill-editor-container {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        width: 100%;
-    }
-
-    #editor {
-        min-height: 220px;
-        overflow: visible;
-    }
-
-    #editor .ql-editor {
-        min-height: 220px;
+    .email-composer-quill,
+    #editor.email-composer-quill,
+    .email-composer-editor-surface .ql-editor {
+        min-height: 12rem;
     }
 
     .email-composer-footer {
@@ -3171,7 +3595,7 @@ div.avatar-circle-mobile,
 
 [data-oled-mode="true"] .email-compose-input,
 [data-oled-mode="true"] .email-composer .contact-chip-wrapper,
-[data-oled-mode="true"] .email-composer-toolbar,
+[data-oled-mode="true"] .email-compose-design-card,
 [data-oled-mode="true"] .email-composer-footer,
 [data-oled-mode="true"] .email-preview-header,
 [data-oled-mode="true"] .reply-context-banner {

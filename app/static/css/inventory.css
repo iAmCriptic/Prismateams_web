@@ -597,13 +597,6 @@ to {
     border-radius: 8px;
 }
 
-.mod-sidebar-brand .bi {
-    font-size: 1.35rem;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-    opacity: 0.95;
-}
-
 .inventory-sidebar-new-menu,
 .inventory-new-menu {
     position: absolute !important;
@@ -2229,8 +2222,8 @@ body.inventory-has-selection .inventory-product-preview-check {
 
 .inventory-shell .inventory-filter-tools .mod-pill-select__trigger,
 #inventoryStockFiltersNav .mod-pill-select__trigger,
-.inventory-shell .inventory-filter-tools .inv-pill-select__trigger,
-#inventoryStockFiltersNav .inv-pill-select__trigger {
+.inventory-shell .inventory-filter-tools .mod-pill-select__trigger,
+#inventoryStockFiltersNav .mod-pill-select__trigger {
     min-height: calc(1.5em + 0.75rem + 2px);
     padding: 0.35rem 0.75rem;
     font-size: 0.875rem;
@@ -2252,7 +2245,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 
 .inventory-form-select-row .form-select,
 .inventory-form-select-row .mod-pill-select,
-.inventory-form-select-row .inv-pill-select {
+.inventory-form-select-row .mod-pill-select {
     flex: 1 1 auto;
     min-width: 0;
 }
@@ -2365,7 +2358,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 /* Dokumente/Anleitung sitzen unten — Menü nach oben öffnen */
 
 .inventory-product-scan-panel .inventory-form-card:last-child .mod-pill-select__menu,
-.inventory-product-scan-panel .inventory-form-card:last-child .inv-pill-select__menu {
+.inventory-product-scan-panel .inventory-form-card:last-child .mod-pill-select__menu {
     top: auto;
     bottom: calc(100% + 0.35rem);
 }
@@ -2740,5 +2733,177 @@ body.inventory-has-selection .inventory-product-preview-check {
     .inventory-shell .mod-main > .inventory-stock-trash-footer {
         margin-top: auto;
         padding-bottom: 0.75rem;
+    }
+}
+
+/* Ordner-Verwaltung: Farb-Swatch in Liste */
+.inventory-folder-color-swatch {
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    vertical-align: middle;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* Öffentliche Produktseite (QR) — an Booking/Music-Public angelehnt */
+.inventory-public-body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--inventory-public-bg, var(--auth-page-bg, #f0f2f5));
+    color: #212529;
+}
+
+.inventory-public-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem 1rem 2rem;
+}
+
+.inventory-public-panel {
+    width: 100%;
+    max-width: 36rem;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1.25rem;
+    padding: 1.75rem 1.5rem 2rem;
+}
+
+@media (min-width: 576px) {
+    .inventory-public-panel {
+        padding: 2.25rem 2rem 2.5rem;
+    }
+}
+
+.inventory-public-brand {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.inventory-public-logo {
+    display: block;
+    max-height: 52px;
+    max-width: 200px;
+    width: auto;
+    height: auto;
+    margin: 0 auto 0.65rem;
+}
+
+.inventory-public-brand-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: var(--inventory-public-accent, #0d6efd);
+}
+
+.inventory-public-title {
+    margin: 0 0 0.35rem;
+    text-align: center;
+    font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.inventory-public-subtitle {
+    margin: 0 0 1.25rem;
+    text-align: center;
+    font-size: 0.92rem;
+    color: #6c757d;
+}
+
+.inventory-public-media {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.inventory-public-image {
+    width: 100%;
+    max-width: 22rem;
+    max-height: 16rem;
+    object-fit: cover;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.inventory-public-meta {
+    margin: 0;
+}
+
+.inventory-public-meta-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 0.5rem 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.inventory-public-meta-row:last-child {
+    border-bottom: none;
+}
+
+.inventory-public-meta-row--block {
+    grid-template-columns: 1fr;
+}
+
+.inventory-public-meta-row dt {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.inventory-public-meta-row dt .bi {
+    margin-right: 0.35rem;
+    color: var(--inventory-public-accent, #0d6efd);
+}
+
+.inventory-public-meta-row dd {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #212529;
+    word-break: break-word;
+}
+
+.inventory-public-ownership {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin-top: 1.35rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--inventory-public-accent, #0d6efd) 12%, #fff);
+    border: 1px solid color-mix(in srgb, var(--inventory-public-accent, #0d6efd) 28%, transparent);
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #212529;
+}
+
+.inventory-public-ownership .bi {
+    color: var(--inventory-public-accent, #0d6efd);
+    margin-top: 0.1rem;
+}
+
+.inventory-public-footer {
+    margin: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 768px) {
+    .inventory-public-footer {
+        color: #6c757d;
+        text-shadow: none;
+    }
+
+    .inventory-public-meta-row {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
     }
 }

@@ -492,9 +492,16 @@ def view_password(credential_id):
         key = get_encryption_key()
     except CredentialEncryptionError:
         return _credentials_key_missing_response(as_json=True)
-    
+
     try:
         password = credential.get_password(key)
+        logger.info(
+            'credential_password_reveal user_id=%s credential_id=%s owner_id=%s ip=%s',
+            getattr(current_user, 'id', None),
+            credential.id,
+            getattr(credential, 'created_by', None),
+            request.headers.get('X-Forwarded-For', request.remote_addr),
+        )
         return jsonify({'password': password})
     except Exception as e:
         return jsonify({'error': translate('credentials.errors.decrypt_error')}), 500

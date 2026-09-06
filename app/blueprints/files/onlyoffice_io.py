@@ -271,17 +271,34 @@ def share_onlyoffice_document(token, file_id):
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
     
-    # Log ALL requests to this endpoint
-    logging.info(f"ONLYOFFICE share document endpoint called - method: {request.method}, token: {token[:8]}..., file_id: {file_id}, remote_addr: {request.remote_addr}")
+    logging.info(
+        'ONLYOFFICE share document - method=%s share=%s… file_id=%s remote=%s',
+        request.method,
+        token[:8] if token else '',
+        file_id,
+        request.remote_addr,
+    )
     
     # Check if ONLYOFFICE is enabled
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
-        logging.warning(f"ONLYOFFICE share document request rejected - OnlyOffice not enabled")
+        logging.warning('ONLYOFFICE share document request rejected - OnlyOffice not enabled')
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
+
+    # Short-lived JWT minted only after share password/guest gate (DS has no session cookies)
+    from app.utils.onlyoffice import validate_onlyoffice_access_token
+    access_token = request.args.get('token')
+    if not access_token or not validate_onlyoffice_access_token(
+        access_token, file_id, share_token=token
+    ):
+        logging.warning(
+            'ONLYOFFICE share document denied - missing/invalid access token file_id=%s',
+            file_id,
+        )
+        return jsonify({'error': 'Access token required'}), 403
     
     share, item = _get_public_share_context(token)
     if not share or not item:
-        logging.warning(f"ONLYOFFICE share document access denied - Invalid share token: {token[:8]}...")
+        logging.warning('ONLYOFFICE share document access denied - Invalid share token')
         return jsonify({'error': 'Invalid share token'}), 403
 
     if share.resource_type == 'folder':
@@ -291,11 +308,19 @@ def share_onlyoffice_document(token, file_id):
     else:
         # Direkt freigegebene Datei
         if item.id != file_id:
-            logging.warning(f"ONLYOFFICE share document access denied - File ID mismatch: expected {item.id}, got {file_id}")
+            logging.warning(
+                'ONLYOFFICE share document access denied - File ID mismatch: expected %s, got %s',
+                item.id,
+                file_id,
+            )
             return jsonify({'error': 'File ID mismatch'}), 403
         file = item
     
-    logging.info(f"ONLYOFFICE share document access granted - file_id: {file_id}, file: {file.original_name}")
+    logging.info(
+        'ONLYOFFICE share document access granted - file_id=%s name=%s',
+        file_id,
+        file.original_name,
+    )
     
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
@@ -388,6 +413,8 @@ def onlyoffice_forcesave(file_id):
         from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
         if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
 
     payload = request.get_json(silent=True) or {}
     return _onlyoffice_forcesave_response(payload.get('key'))
@@ -396,8 +423,10 @@ def onlyoffice_forcesave(file_id):
 @files_bp.route('/share/<token>/api/onlyoffice-forcesave/<int:file_id>', methods=['POST'])
 def share_onlyoffice_forcesave(token, file_id):
     """Force-save an open OnlyOffice document for a share guest."""
-    item, guest_name, _share = _check_share_access(token)
-    if not item or not guest_name:
+    item, guest_name, share = _check_share_access(token)
+    if not item or not guest_name or not share:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    if normalize_share_mode(share.mode) != 'edit':
         return jsonify({'success': False, 'error': 'Access denied'}), 403
 
     if isinstance(item, Folder):
@@ -414,6 +443,7 @@ def share_onlyoffice_forcesave(token, file_id):
 
 @files_bp.route('/api/onlyoffice-save/<int:file_id>', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def onlyoffice_save(file_id):
     """Save document from ONLYOFFICE."""
     # Check if ONLYOFFICE is enabled
@@ -421,6 +451,13 @@ def onlyoffice_save(file_id):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
     file = File.query.get_or_404(file_id)
+
+    if _is_guest_user():
+        from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
+        if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
+            return jsonify({'error': 'Access denied'}), 403
+    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
     
     # Get file content from request
     if 'file' not in request.files:
@@ -486,8 +523,10 @@ def share_onlyoffice_save(token, file_id):
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
-    item, guest_name, _share = _check_share_access(token)
-    if not item or not guest_name:
+    item, guest_name, share = _check_share_access(token)
+    if not item or not guest_name or not share:
+        return jsonify({'error': 'Access denied'}), 403
+    if normalize_share_mode(share.mode) != 'edit':
         return jsonify({'error': 'Access denied'}), 403
     
     # Prüfe ob es eine Datei aus einem Ordner ist oder direkt freigegebene Datei
@@ -728,26 +767,43 @@ def onlyoffice_callback():
 
         status = data.get('status')
         key = data.get('key')
-        logging.info(f"ONLYOFFICE callback received - status: {status}, key: {key}")
+        logging.info('ONLYOFFICE callback received - status: %s, key: %s', status, key)
 
         if status in (2, 6):
-            file_id = request.args.get('file_id')
-            if file_id:
-                try:
-                    file_id = int(file_id)
-                    file = File.query.get(file_id)
-                    if file:
-                        _onlyoffice_handle_save_callback(file, data)
-                except (ValueError, TypeError) as e:
-                    logging.error(f"ONLYOFFICE callback: Invalid file_id: {e}")
-                except Exception as e:
-                    logging.error(f"ONLYOFFICE callback: Error saving file: {e}")
-            else:
-                logging.warning("ONLYOFFICE callback: No file_id provided in callback URL")
+            from app.utils.onlyoffice import onlyoffice_document_key_matches_resource
+
+            file_id_raw = request.args.get('file_id')
+            if not file_id_raw:
+                logging.warning('ONLYOFFICE callback: No file_id provided in callback URL')
+                return _onlyoffice_cors_response({'error': 'file_id required'}, 400)
+
+            try:
+                file_id = int(file_id_raw)
+            except (ValueError, TypeError) as e:
+                logging.error('ONLYOFFICE callback: Invalid file_id: %s', e)
+                return _onlyoffice_cors_response({'error': 'invalid file_id'}, 400)
+
+            if not onlyoffice_document_key_matches_resource(key, 'file', file_id):
+                logging.warning(
+                    'ONLYOFFICE callback: key/file_id mismatch key=%s file_id=%s',
+                    key,
+                    file_id,
+                )
+                return _onlyoffice_cors_response({'error': 'key mismatch'}, 403)
+
+            file = File.query.get(file_id)
+            if not file:
+                logging.warning('ONLYOFFICE callback: file %s not found', file_id)
+                return _onlyoffice_cors_response({'error': 'file not found'}, 404)
+
+            try:
+                _onlyoffice_handle_save_callback(file, data)
+            except Exception as e:
+                logging.error('ONLYOFFICE callback: Error saving file: %s', e)
 
         return _onlyoffice_cors_response({'error': 0})[0]
     except Exception as e:
-        logging.error(f"ONLYOFFICE callback error: {e}")
+        logging.error('ONLYOFFICE callback error: %s', e)
         return _onlyoffice_cors_response({'error': 'callback_error'}, 500)
 
 
@@ -763,8 +819,11 @@ def share_onlyoffice_callback(token):
     
     share, item = _get_public_share_context(token)
     if not share or not item:
-        logging.warning(f"ONLYOFFICE share callback: Invalid share token: {token}")
+        logging.warning('ONLYOFFICE share callback: Invalid share token')
         return jsonify({'error': 'Invalid share token'}), 403
+    if normalize_share_mode(share.mode) != 'edit':
+        logging.warning('ONLYOFFICE share callback: share is not edit mode')
+        return jsonify({'error': 'Access denied'}), 403
 
     guest_name = session.get(f'share_guest_name_{token}') or 'Gast'
     
@@ -794,9 +853,19 @@ def share_onlyoffice_callback(token):
         if error_response:
             return error_response
 
+        from app.utils.onlyoffice import onlyoffice_document_key_matches_resource
+        key = data.get('key')
+        if not onlyoffice_document_key_matches_resource(key, 'file', file_id):
+            logging.warning(
+                'ONLYOFFICE share callback: key/file_id mismatch key=%s file_id=%s',
+                key,
+                file_id,
+            )
+            return _onlyoffice_cors_response({'error': 'key mismatch'}, 403)
+
         status = data.get('status')
         
-        logging.info(f"ONLYOFFICE share callback received - status: {status}")
+        logging.info('ONLYOFFICE share callback received - status: %s', status)
 
         if status in (2, 6):
             saved_file_url = data.get('url')

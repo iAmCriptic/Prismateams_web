@@ -42,21 +42,27 @@ from app.blueprints.inventory.helpers import *  # noqa: F401,F403
 
 def verify_api_token():
     """Hilfsfunktion zur Token-Validierung für Mobile API."""
+    from app.utils.access_control import has_module_access
+
     auth_header = request.headers.get('Authorization', '')
     
     if not auth_header.startswith('Bearer '):
         return None
     
     token = auth_header.replace('Bearer ', '').strip()
-    api_token = ApiToken.query.filter_by(token=token).first()
-    
+    api_token = ApiToken.find_by_raw_token(token)
+
     if not api_token or api_token.is_expired():
         return None
     
+    user = api_token.user
+    if not user or not has_module_access(user, 'module_inventory'):
+        return None
+
     # Token als verwendet markieren
     api_token.mark_as_used()
     
-    return api_token.user
+    return user
 
 
 @inventory_bp.route('/api/mobile/token', methods=['POST'])
@@ -67,14 +73,15 @@ def api_mobile_create_token():
     name = data.get('name', 'Mobile App').strip()
     expires_in_days = data.get('expires_in_days', type=int) or None
     
-    token = ApiToken.create_token(
+    token, raw_token = ApiToken.create_token(
         user_id=current_user.id,
         name=name,
         expires_in_days=expires_in_days
     )
-    
+
     return jsonify({
-        'token': token.token,
+        'token': raw_token,
+        'token_prefix': token.token_prefix,
         'name': token.name,
         'expires_at': token.expires_at.isoformat() if token.expires_at else None,
         'created_at': token.created_at.isoformat()
@@ -92,6 +99,7 @@ def api_mobile_list_tokens():
         result.append({
             'id': token.id,
             'name': token.name,
+            'token_prefix': token.token_prefix,
             'expires_at': token.expires_at.isoformat() if token.expires_at else None,
             'created_at': token.created_at.isoformat(),
             'last_used_at': token.last_used_at.isoformat() if token.last_used_at else None,
@@ -208,7 +216,14 @@ def api_mobile_borrow():
             borrower_id=borrower.id,
         )
     except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
+        from app.services.inventory.checkout_service import (
+            CheckoutUnavailableError,
+            checkout_error_message,
+        )
+        payload = {'error': checkout_error_message(exc)}
+        if isinstance(exc, CheckoutUnavailableError):
+            payload['unavailable'] = list(exc.product_labels)
+        return jsonify(payload), 400
     
     return jsonify({
         'message': 'Ausleihe erfolgreich erstellt.',
@@ -259,9 +274,14 @@ def api_mobile_return():
         else:
             return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
     except PermissionError:
+        db.session.rollback()
         return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
     except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
+        db.session.rollback()
+        code = str(exc)
+        key = f'inventory.errors.{code}'
+        msg = translate(key)
+        return jsonify({'error': msg if msg != key else code}), 400
     
     return jsonify({
         'message': 'Rückgabe erfolgreich registriert.',

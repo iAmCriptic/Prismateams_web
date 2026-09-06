@@ -257,6 +257,18 @@ def update_inventory_item(inventory_id, product_id):
             },
         )
 
+    foreign = InventoryLockService.foreign_lock(inventory_id, product_id, current_user.id)
+    if foreign:
+        return api_error(
+            "lock_conflict",
+            "Produkt wird aktuell von einem anderen Nutzer bearbeitet.",
+            409,
+            details={
+                "locked_by": foreign.locked_by,
+                "expires_at": foreign.expires_at.isoformat() if foreign.expires_at else None,
+            },
+        )
+
     if "checked" in data:
         item.checked = bool(data["checked"])
         if item.checked:

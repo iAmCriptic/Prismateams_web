@@ -199,29 +199,29 @@
     {% set ns.has_others = sc.others and sc.others|length > 0 %}
 {% endif %}
 {% if minimal %}
-<aside class="calendar-sidebar calendar-sidebar--minimal d-none d-lg-flex flex-column">
-    <div class="calendar-sidebar-brand">
+<aside class="mod-sidebar calendar-sidebar calendar-sidebar--minimal d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-calendar-event" aria-hidden="true"></i>
         <span>{{ _('calendar.sidebar.brand') }}</span>
     </div>
     {% if calendar_multi_enabled and sc and ns.new_cal_id %}
-    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=ns.new_cal_id) }}">
+    <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=ns.new_cal_id) }}">
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% elif can_create_focus|default(true) %}
-    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event') }}">
+    <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event') }}">
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% endif %}
     {{ calendar_more_options(show_new_calendar=false) }}
 </aside>
 {% elif calendar_multi_enabled and sc %}
-<aside class="calendar-sidebar d-none d-lg-flex flex-column">
-    <div class="calendar-sidebar-brand">
+<aside class="mod-sidebar calendar-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-calendar-event" aria-hidden="true"></i>
         <span>{{ _('calendar.sidebar.brand') }}</span>
     </div>
-    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=ns.new_cal_id) if ns.new_cal_id else url_for('calendar.create_event') }}">
+    <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=ns.new_cal_id) if ns.new_cal_id else url_for('calendar.create_event') }}">
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% if interactive %}
@@ -243,7 +243,7 @@
         <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
     </button>
     {% endif %}
-    <nav class="calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
+    <nav class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
         {% macro cal_nav_item(cal, label=none) %}
         <div class="calendar-nav-item d-flex align-items-center gap-2"
              data-calendar-id="{{ cal.id }}"
@@ -356,20 +356,20 @@
         <button type="button" class="btn calendar-sidebar-reset w-100 text-start mb-2 flex-shrink-0" id="calendarResetBtnMobile">
             <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
         </button>
-        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
+        <div id="calendarMobileNavBody" class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
     </div>
 </div>
 
 {{ calendar_modals() }}
 {% endif %}
 {% else %}
-<aside class="calendar-sidebar calendar-sidebar--simple d-none d-lg-flex flex-column">
-    <div class="calendar-sidebar-brand">
+<aside class="mod-sidebar calendar-sidebar calendar-sidebar--simple d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-calendar-event" aria-hidden="true"></i>
         <span>{{ _('calendar.sidebar.brand') }}</span>
     </div>
     {% if can_create_focus|default(true) %}
-    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event') }}">
+    <a class="btn mod-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event') }}">
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
     {% endif %}

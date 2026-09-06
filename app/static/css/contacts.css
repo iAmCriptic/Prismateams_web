@@ -229,39 +229,6 @@
     }
 }
 
-.mod-sidebar-brand .bi {
-    font-size: 1.45rem;
-    opacity: 0.95;
-}
-
-.mod-sidebar-form .form-label {
-    font-size: 0.8rem;
-    margin-bottom: 0.25rem;
-}
-
-.mod-sidebar-form .form-control,
-.mod-sidebar-form .form-select {
-    font-size: 0.85rem;
-}
-
-.mod-sidebar-action .bi,
-.mod-sidebar-action span,
-.btn.mod-sidebar-action .bi,
-.btn.mod-sidebar-action span {
-    color: var(--accent-color, #0d6efd) !important;
-}
-
-.mod-sidebar-action--muted .bi,
-.mod-sidebar-action--muted span,
-.btn.mod-sidebar-action--muted .bi,
-.btn.mod-sidebar-action--muted span {
-    color: var(--bs-secondary-color, #6c757d) !important;
-}
-
-/* ——— Suche oben mittig (wie Dateien) ——— */
-
-/* ——— List / Grid pill toggle (uses files-view-toggle classes) ——— */
-
 /* Mobile Neu — Akzent-Pill */
 
 .contacts-shell .mod-new-btn,
@@ -484,7 +451,6 @@
 }
 
 .contacts-card:has(.dropdown.show),
-.mod-list-row:has(.dropdown.show),
 #gridViewContainer > .row > [class*="col-"]:has(.dropdown.show) {
     position: relative;
     z-index: 1100;
@@ -747,6 +713,6 @@ body.files-has-selection .files-list-name-cell > .d-flex {
     margin-bottom: 0.35rem;
 }
 
-.contacts-form .inv-pill-select {
+.contacts-form .mod-pill-select {
     width: 100%;
 }

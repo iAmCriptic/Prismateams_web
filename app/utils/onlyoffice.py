@@ -72,10 +72,28 @@ def build_onlyoffice_document_key(prefix, resource_id, version_token, file_path)
 
     The key stays the same while co-editing one revision (same version_token + mtime)
     and changes after a successful save updates the file on disk.
+
+    Format embeds ``{prefix}{resource_id}-`` so callbacks can bind payload.key to
+    the URL resource id and reject cross-file replay.
     """
     mtime = get_file_mtime(file_path)
-    raw = f"{prefix}_{resource_id}_{version_token}_{mtime}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    rid = int(resource_id)
+    raw = f"{prefix}_{rid}_{version_token}_{mtime}"
+    digest = hashlib.md5(raw.encode()).hexdigest()
+    # OnlyOffice allows [0-9a-zA-Z._=] and '-' ; max length 128
+    key = f"{prefix}{rid}-{digest}"
+    return key[:128]
+
+
+def onlyoffice_document_key_matches_resource(key, prefix, resource_id):
+    """True if document key was minted for prefix+resource_id."""
+    if not key or not prefix:
+        return False
+    try:
+        rid = int(resource_id)
+    except (TypeError, ValueError):
+        return False
+    return str(key).startswith(f"{prefix}{rid}-")
 
 
 def resolve_storage_path(file_path):
@@ -362,12 +380,13 @@ def _onlyoffice_access_token_secret():
     return secret or None
 
 
-def generate_onlyoffice_access_token(file_id, user_id=None, ttl_seconds=None):
+def generate_onlyoffice_access_token(file_id, user_id=None, ttl_seconds=None, share_token=None):
     """
     Generate a signed, time-limited access token for OnlyOffice document download.
 
     Claims bind the token to a specific resource id (file or attachment) so it
-    cannot be reused for another document.
+    cannot be reused for another document. Optional share_token binds the token
+    to a public share (issued only after share password/guest gate).
     """
     if not JWT_AVAILABLE:
         current_app.logger.error('ONLYOFFICE access token: PyJWT not available')
@@ -398,6 +417,8 @@ def generate_onlyoffice_access_token(file_id, user_id=None, ttl_seconds=None):
         'iat': now,
         'exp': now + timedelta(seconds=ttl_seconds),
     }
+    if share_token:
+        payload['share'] = str(share_token)
     try:
         token = jwt.encode(payload, secret_key, algorithm='HS256')
         if isinstance(token, bytes):
@@ -408,11 +429,13 @@ def generate_onlyoffice_access_token(file_id, user_id=None, ttl_seconds=None):
         return None
 
 
-def validate_onlyoffice_access_token(token, file_id):
+def validate_onlyoffice_access_token(token, file_id, share_token=None):
     """
     Validate a signed OnlyOffice document access token for the given resource id.
 
     Requires matching purpose claim, matching fid, and a non-expired signature.
+    When share_token is provided, the JWT must carry the same share claim
+    (tokens minted for authenticated portal use have no share claim).
     """
     if not token:
         current_app.logger.debug('ONLYOFFICE access token validation failed: token is empty')
@@ -461,6 +484,19 @@ def validate_onlyoffice_access_token(token, file_id):
             'ONLYOFFICE access token validation failed: fid mismatch (%s != %s)',
             token_fid,
             expected_fid,
+        )
+        return False
+
+    token_share = payload.get('share')
+    if share_token is not None:
+        if not token_share or str(token_share) != str(share_token):
+            current_app.logger.debug(
+                'ONLYOFFICE access token validation failed: share claim mismatch'
+            )
+            return False
+    elif token_share:
+        current_app.logger.debug(
+            'ONLYOFFICE access token validation failed: share token used on non-share endpoint'
         )
         return False
 

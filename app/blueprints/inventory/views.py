@@ -5,7 +5,6 @@ from app.utils.i18n import _, translate
 from app.models.inventory import Product, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 from app.models.api_token import ApiToken
 from app.models.user import User
-from app.models.settings import SystemSettings
 from app.utils.access_control import check_module_access
 import json
 from urllib.parse import unquote
@@ -43,23 +42,19 @@ from app.blueprints.inventory.helpers import *  # noqa: F401,F403
 @inventory_bp.route('/public/product/<int:product_id>')
 def public_product(product_id):
     """Öffentliche Produktseite ohne Anmeldung."""
+    from app.utils.system_settings_cache import get_setting
+
     product = Product.query.get_or_404(product_id)
-    
-    portal_logo_filename = None
-    ownership_text = "Eigentum der Technik"  # Standardwert
-    
-    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    if portal_logo_setting and portal_logo_setting.value:
-        portal_logo_filename = portal_logo_setting.value
-    
-    ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
-    if ownership_setting and ownership_setting.value:
-        ownership_text = ownership_setting.value
-    
-    return render_template('inventory/public_product.html',
-                         product=product,
-                         portal_logo_filename=portal_logo_filename,
-                         ownership_text=ownership_text)
+    ownership_text = (
+        (get_setting('inventory_ownership_text') or '').strip()
+        or translate('inventory.public.ownership_default')
+    )
+
+    return render_template(
+        'inventory/public_product.html',
+        product=product,
+        ownership_text=ownership_text,
+    )
 
 
 @inventory_bp.route('/')

@@ -27,8 +27,8 @@ class User(UserMixin, db.Model):
     confirmation_code_expires = db.Column(db.DateTime, nullable=True)
     is_email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
     
-    # Password reset
-    password_reset_code = db.Column(db.String(6), nullable=True)
+    # Password reset (stores SHA-256 hex of token_urlsafe secret)
+    password_reset_code = db.Column(db.String(128), nullable=True)
     password_reset_code_expires = db.Column(db.DateTime, nullable=True)
     
     # Profile settings

@@ -368,6 +368,7 @@ def reply(email_id: int):
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply')
     ctx['is_reply'] = True
+    ctx.update(_compose_multi_context())
     return render_template('email/compose.html', **ctx)
 
 
@@ -381,6 +382,7 @@ def reply_all(email_id: int):
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply_all')
     ctx['is_reply'] = True
+    ctx.update(_compose_multi_context())
     return render_template('email/compose.html', **ctx)
 
 
@@ -393,13 +395,18 @@ def forward(email_id: int):
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_forward_context(email_msg, include_attachments=True)
+    ctx.update(_compose_multi_context())
     return render_template('email/compose.html', **ctx)
+
+
 def _compose_multi_context():
     from app.utils.multi_mailboxes import (
         is_email_multi_enabled,
         get_accessible_mailboxes,
         is_email_html_design_default,
         get_mailbox_use_logo,
+        format_send_as_label,
+        get_mailbox_from_address,
     )
     active_mailbox, mailbox_id = _resolve_request_mailbox('send')
     use_mailbox_logo = True
@@ -407,9 +414,21 @@ def _compose_multi_context():
     if active_mailbox and active_mailbox.mailbox_type == 'team' and active_mailbox.logo_filename:
         team_logo_available = True
         use_mailbox_logo = get_mailbox_use_logo(current_user, active_mailbox)
+    accessible = get_accessible_mailboxes(current_user, 'send') if is_email_multi_enabled() else []
+    send_as_options = [
+        {
+            'id': mb.id,
+            'label': format_send_as_label(mb, fallback=mb.display_name),
+            'address': get_mailbox_from_address(mb),
+            'display_name': mb.display_name,
+        }
+        for mb in accessible
+    ]
     return {
         'email_multi_enabled': is_email_multi_enabled(),
-        'accessible_mailboxes': get_accessible_mailboxes(current_user, 'send') if is_email_multi_enabled() else [],
+        'accessible_mailboxes': accessible,
+        'send_as_options': send_as_options,
+        'main_send_as_label': format_send_as_label(None, fallback=translate('email.multi.main_mailbox')),
         'active_mailbox': active_mailbox,
         'active_mailbox_id': mailbox_id,
         'use_html_design': is_email_html_design_default(),
@@ -792,7 +811,8 @@ def compose():
                         subject=draft_email.subject or '',
                         body=draft_email.body_html or '',
                         draft_id=draft_id,
-                        original_attachment_ids=','.join(attachment_ids) if attachment_ids else ''
+                        original_attachment_ids=','.join(attachment_ids) if attachment_ids else '',
+                        **_compose_multi_context(),
                     )
                 else:
                     flash('Sie haben keinen Zugriff auf diesen Entwurf.', 'danger')

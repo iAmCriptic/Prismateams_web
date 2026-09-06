@@ -38,7 +38,7 @@ OWNER_ATTRS = {
 }
 
 DEFAULT_VISIBILITY = {
-    'credentials': VISIBILITY_PUBLIC,
+    'credentials': VISIBILITY_PRIVATE,
     'manuals': VISIBILITY_PUBLIC,
     'contacts': VISIBILITY_PUBLIC,
     'wiki': VISIBILITY_PUBLIC,
@@ -170,6 +170,9 @@ def can_edit_item(user, item, module: str) -> bool:
         return True
     if owner_id(item, module) == getattr(user, 'id', None):
         return True
+    # Credentials: nur Owner/Admin dürfen ändern (kein Public-/Team-Edit)
+    if module == 'credentials':
+        return False
     vis = _item_visibility(item)
     if vis == VISIBILITY_TEAM and getattr(item, 'team_id', None) and item.team_id in user_team_ids(user):
         return VISIBILITY_TEAM in set(get_allowed_visibilities(module))

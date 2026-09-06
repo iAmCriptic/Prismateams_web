@@ -116,8 +116,11 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
 
             response_data = {"success": True, "user": _user_payload(user)}
             if return_token:
-                token = ApiToken.create_token(user_id=user.id, name="API Login", expires_in_days=30)
-                response_data["token"] = token.token
+                token, raw_token = ApiToken.create_token(
+                    user_id=user.id, name="API Login", expires_in_days=30
+                )
+                response_data["token"] = raw_token
+                response_data["token_prefix"] = token.token_prefix
                 response_data["token_expires_at"] = token.expires_at.isoformat() if token.expires_at else None
 
             return jsonify(response_data), 200
@@ -138,7 +141,7 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header.replace("Bearer ", "").strip()
-            api_token = ApiToken.query.filter_by(token=token).first()
+            api_token = ApiToken.find_by_raw_token(token)
             if api_token:
                 db.session.delete(api_token)
                 db.session.commit()
@@ -159,11 +162,9 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
             if not token:
                 return jsonify({"success": False, "error": "Token erforderlich"}), 400
 
-            api_token = ApiToken.query.filter_by(token=token, expires_at=None).first()
-            if not api_token:
-                api_token = ApiToken.query.filter_by(token=token).first()
-                if not api_token or api_token.is_expired():
-                    return jsonify({"success": False, "error": "Ungültiger oder abgelaufener Token"}), 401
+            api_token = ApiToken.find_by_raw_token(token)
+            if not api_token or api_token.is_expired():
+                return jsonify({"success": False, "error": "Ungültiger oder abgelaufener Token"}), 401
 
             user = api_token.user
             if not user or not user.is_active:

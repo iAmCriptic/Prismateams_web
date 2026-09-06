@@ -18,10 +18,10 @@
 {% set can_create_focus = can_create_focus|default(true) %}
 {% set sc = sidebar_calendars|default(none) %}
 
-<div class="calendar-shell calendar-shell--fill {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
+<div class="calendar-shell mod-shell--nav {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
 {{ calendar_sidebar(show_view_pills=true, interactive=true) }}
 
-<div class="calendar-main flex-grow-1 min-width-0">
+<div class="mod-main calendar-main flex-grow-1 min-width-0">
 {% if calendar_multi_enabled and sc %}
 <div class="mod-mobile-topbar calendar-mobile-topbar d-lg-none mb-2">
     <div class="d-flex justify-content-between align-items-center gap-2">

@@ -1,122 +1,17 @@
-/* Dashboard shell + modern widgets */
+/* Dashboard shell — viewport lock via module-ui (.mod-shell--nav). Domain chrome below. */
 
 .dashboard-shell {
-    display: flex;
-    align-items: stretch;
-    gap: 1.25rem;
-    position: relative;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-}
-
-/* Modul-Sidebar: auf Mobile aus, Desktop wie Kalender */
-
-.dashboard-shell > .mod-sidebar {
-    width: 240px;
-    flex-shrink: 0;
-    /* visible: Neuigkeiten-Badge (!) darf über den Rand */
-    overflow: visible;
-    padding: 0 0.35rem 0.5rem;
-    z-index: 40;
-    display: none;
-    flex-direction: column;
-    min-height: 0;
-    position: sticky;
-    top: 1rem;
-}
-
-@media (min-width: 992px) {
-    .dashboard-shell > .mod-sidebar {
-        top: calc(var(--top-navbar-height, 64px) + 0.75rem);
-    }
-}
-
-@media (min-width: 992px) {
-    /* Kein Seiten-Scroll: Viewport füllen, nur rechter Bereich scrollt bei Bedarf */
-    body:has(.dashboard-shell) {
-        overflow: hidden;
-        height: 100vh;
-        height: 100dvh;
-    }
-
-    .main-content:has(.dashboard-shell) {
-        overflow: hidden !important;
-        height: 100vh;
-        height: 100dvh;
-        max-height: 100vh;
-        max-height: 100dvh;
-        min-height: 0 !important;
-        padding-bottom: 0.75rem !important;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-    }
-
-    .main-content:has(.dashboard-shell) > .container-fluid {
-        flex: 1 1 auto;
-        height: 100%;
-        max-height: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-    }
-
-    .dashboard-shell {
-        flex: 1 1 auto;
-        min-height: 0;
-        height: 100%;
-        max-height: 100%;
-        overflow: hidden;
-        align-items: stretch;
-    }
-
-    .dashboard-shell > .mod-sidebar {
-        display: flex;
-        height: 100%;
-        max-height: 100%;
-        position: relative;
-        top: auto;
-        align-self: stretch;
-    }
-
-    .dashboard-shell > .mod-main {
-        flex: 1 1 auto;
-        min-width: 0;
-        min-height: 0;
-        height: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        -webkit-overflow-scrolling: touch;
-        padding-right: 0.15rem;
-        padding-bottom: 0.5rem;
-    }
 }
 
 .dashboard-shell > .mod-main {
     position: relative;
     z-index: 1;
     min-width: 0;
-    flex: 1;
-}
-
-.dashboard-shell .mod-sidebar-brand .bi {
-    color: var(--accent-color, #0d6efd);
-}
-
-.dashboard-shell .mod-sidebar-nav {
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
-/* Dezent, aber sichtbar — keine Accent-Pille */
-
-.dashboard-shell .mod-sidebar-footer {
-    overflow: visible;
-    padding-inline-end: 0.35rem;
+    padding-right: 0.15rem;
+    padding-bottom: 0.5rem;
 }
 
 .dashboard-sidebar-whats-new {

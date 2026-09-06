@@ -1036,74 +1036,28 @@
     color: #ffffff;
 }
 
-/* Full-height shell (simple + multi) / sidebar — Viewport sperren wie Dateien */
+/* Full-height calendar shell — viewport lock via module-ui (.mod-shell--nav).
+ * Domain: main pane does not page-scroll (grid fills); sidebar keeps calendar chrome. */
 
-body:has(.calendar-shell--fill) {
-    overflow: hidden;
-    height: 100vh;
-    height: 100dvh;
-}
-
-.main-content:has(.calendar-shell--fill) {
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100vh;
-    max-height: 100dvh;
-    min-height: 0 !important;
-    overflow: hidden !important;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-}
-
-.main-content:has(.calendar-shell--fill) > .container-fluid {
-    flex: 1 1 auto;
-    height: 100%;
-    max-height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.calendar-shell--fill {
-    display: flex;
-    align-items: stretch;
-    gap: 1.25rem;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-    max-height: 100%;
-    overflow: hidden;
-}
-
-.calendar-shell--fill > .calendar-main {
+.calendar-shell.mod-shell--nav > .mod-main.calendar-main,
+body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--nav > .mod-main.calendar-main {
     overflow: hidden;
     max-height: 100%;
 }
 
 @media (min-width: 992px) {
-    .main-content:has(.calendar-shell--fill) {
-        padding-bottom: 0.75rem !important;
+    /* Calendar sidebar: clip internal scroll, Popper menus stay fixed */
+    .calendar-shell.mod-shell--nav > .mod-sidebar.calendar-sidebar {
+        overflow: hidden;
     }
 }
 
 .calendar-sidebar {
-    width: 240px;
-    flex-shrink: 0;
-    position: relative;
-    top: auto;
-    align-self: stretch;
-    height: 100%;
-    max-height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    padding: 0 0.35rem 0.75rem;
+    /* Domain hooks (filter, reset, multi-cal list) — layout from .mod-sidebar */
+    z-index: 5;
 }
 
 .calendar-sidebar-nav {
-    flex: 1 1 auto;
-    min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
 }
@@ -1158,44 +1112,6 @@ body:has(.calendar-shell--fill) {
 
 .calendar-more-dropdown .dropdown-divider {
     margin: 0.35rem 0.4rem;
-}
-
-/* Prevent clipping of sidebar dropdowns by neighboring main pane */
-
-.calendar-sidebar {
-    z-index: 5;
-}
-
-.calendar-shell--fill > .calendar-sidebar {
-    /* Dropdowns nutzen Popper fixed — Shell bleibt clipped, Menüs nicht */
-    overflow: hidden;
-}
-
-.calendar-sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.15rem 0.35rem 1rem;
-    font-size: 1.35rem;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-}
-
-.calendar-sidebar-new {
-    border-radius: 1.5rem;
-    border: none;
-    font-weight: 600;
-    padding: 0.7rem 1.1rem;
-    color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
-    text-decoration: none;
-}
-
-.calendar-sidebar-new:hover {
-    filter: brightness(1.08);
-    color: #fff !important;
 }
 
 .calendar-sidebar-reset {
@@ -1468,7 +1384,7 @@ body:has(.calendar-shell--fill) {
     padding: 0.55rem 0.35rem 0.1rem;
 }
 
-.calendar-main {
+.mod-main.calendar-main {
     min-width: 0;
     flex: 1 1 auto;
     display: flex;
@@ -1478,7 +1394,7 @@ body:has(.calendar-shell--fill) {
     overflow: hidden;
 }
 
-.calendar-shell--fill .page-toolbar-row {
+.calendar-shell.mod-shell--nav .page-toolbar-row {
     flex-shrink: 0;
     margin-bottom: 0.5rem !important;
 }
@@ -1492,7 +1408,7 @@ body:has(.calendar-shell--fill) {
     position: relative;
 }
 
-.calendar-shell--fill .calendar-view-stage > .calendar-view {
+.calendar-shell.mod-shell--nav .calendar-view-stage > .calendar-view {
     flex: 1 1 auto;
     min-height: 0;
     display: none;
@@ -1500,11 +1416,11 @@ body:has(.calendar-shell--fill) {
     overflow: hidden;
 }
 
-.calendar-shell--fill .calendar-view-stage > .calendar-view.calendar-view--active {
+.calendar-shell.mod-shell--nav .calendar-view-stage > .calendar-view.calendar-view--active {
     display: flex;
 }
 
-.calendar-shell--fill .calendar-view-stage > #listView.calendar-view.calendar-view--active {
+.calendar-shell.mod-shell--nav .calendar-view-stage > #listView.calendar-view.calendar-view--active {
     overflow-y: auto;
 }
 
@@ -1766,34 +1682,70 @@ body:has(.calendar-shell--fill) {
 }
 
 @media (max-width: 991.98px) {
-    .main-content:has(.calendar-shell--fill) {
+    /* Mobile: calendar still fills viewport (module-ui lock is desktop-only) */
+    body:has(.calendar-shell.mod-shell--nav) {
+        overflow: hidden;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .main-content:has(.calendar-shell.mod-shell--nav) {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
         /* Platz für untere Mobile-Nav */
         padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
-    .main-content:has(.calendar-shell--fill) > .container-fluid {
+
+    .main-content:has(.calendar-shell.mod-shell--nav) > .container-fluid {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
         padding-top: 0.5rem;
         padding-bottom: 0;
     }
-    .calendar-shell--fill {
+
+    .calendar-shell.mod-shell--nav {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
         flex-direction: column;
         gap: 0;
+        align-items: stretch;
     }
-    .calendar-shell--fill .calendar-main {
+
+    .calendar-shell.mod-shell--nav .mod-main.calendar-main {
         flex: 1 1 auto;
         min-height: 0;
         height: auto;
         overflow: hidden;
     }
-    .calendar-shell--fill .page-toolbar-row {
+
+    .calendar-shell.mod-shell--nav .page-toolbar-row {
         margin-bottom: 0.35rem !important;
     }
-    .calendar-shell--fill .calendar-view-nav {
+
+    .calendar-shell.mod-shell--nav .calendar-view-nav {
         margin-bottom: 0.35rem !important;
     }
-    .calendar-shell--fill .calendar-view-nav h3,
-    .calendar-shell--fill .calendar-view-nav h4 {
+
+    .calendar-shell.mod-shell--nav .calendar-view-nav h3,
+    .calendar-shell.mod-shell--nav .calendar-view-nav h4 {
         font-size: 1rem;
     }
+
     .calendar-view-pills--toolbar {
         width: 100%;
         max-width: 100%;
@@ -2048,7 +2000,7 @@ body:has(.calendar-shell--fill) {
 
 /* Page shell (create / edit / view): full width, body locked, main scrolls */
 
-.calendar-shell--page .calendar-main {
+.calendar-shell--page .mod-main.calendar-main {
     overflow: hidden;
 }
 
@@ -2140,7 +2092,7 @@ body:has(.calendar-shell--fill) {
 }
 
 @media (min-width: 992px) {
-    .main-content:has(.calendar-shell--fill) > .container-fluid {
+    .main-content:has(.calendar-shell.mod-shell--nav) > .container-fluid {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
         max-width: none;

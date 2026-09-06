@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app import db
-from app.models.inventory import ProductLot, StockMovement
+from app.models.inventory import Product, ProductLot, StockMovement
 
 
 class StockService:
@@ -26,15 +26,67 @@ class StockService:
         return lot
 
     @staticmethod
+    def _lock_product(product):
+        locked = (
+            Product.query.filter_by(id=product.id)
+            .with_for_update()
+            .first()
+        )
+        if not locked:
+            raise ValueError("product_not_found")
+        return locked
+
+    @staticmethod
+    def _get_lot_for_update(product, user_id, lot_id=None):
+        """Produkt + Lot mit FOR UPDATE sperren (Serialisierung paralleler Moves)."""
+        StockService._lock_product(product)
+        if lot_id:
+            lot = (
+                ProductLot.query.filter_by(id=lot_id, product_id=product.id)
+                .with_for_update()
+                .first()
+            )
+            if not lot:
+                raise ValueError("lot_not_found")
+            return lot
+
+        lot = (
+            ProductLot.query.filter_by(
+                product_id=product.id,
+                lot_code=StockService.DEFAULT_LOT_CODE,
+            )
+            .with_for_update()
+            .first()
+        )
+        if lot:
+            return lot
+
+        # Unter Produkt-Lock anlegen, dann erneut sperren
+        lot = StockService.ensure_default_lot(product, user_id)
+        return (
+            ProductLot.query.filter_by(id=lot.id)
+            .with_for_update()
+            .first()
+        )
+
+    @staticmethod
+    def _lock_all_lots(product):
+        StockService._lock_product(product)
+        return (
+            ProductLot.query.filter_by(product_id=product.id)
+            .order_by(ProductLot.id.asc())
+            .with_for_update()
+            .all()
+        )
+
+    @staticmethod
     def add_stock(product, quantity, user_id, reason=None, lot_id=None, context_type="manual", context_id=None):
         if quantity <= 0:
             raise ValueError("quantity must be positive")
         if product.item_type != "consumable":
             raise ValueError("add_stock only valid for consumables")
 
-        lot = ProductLot.query.filter_by(id=lot_id, product_id=product.id).first() if lot_id else None
-        if not lot:
-            lot = StockService.ensure_default_lot(product, user_id)
+        lot = StockService._get_lot_for_update(product, user_id, lot_id=lot_id)
 
         lot.quantity_on_hand = int(lot.quantity_on_hand or 0) + int(quantity)
         movement = StockMovement(
@@ -60,9 +112,7 @@ class StockService:
         if product.item_type != "consumable":
             raise ValueError("consume_stock only valid for consumables")
 
-        lot = ProductLot.query.filter_by(id=lot_id, product_id=product.id).first() if lot_id else None
-        if not lot:
-            lot = StockService.ensure_default_lot(product, user_id)
+        lot = StockService._get_lot_for_update(product, user_id, lot_id=lot_id)
 
         available = int(lot.quantity_on_hand or 0) - int(lot.quantity_reserved or 0)
         if available < quantity:
@@ -92,9 +142,7 @@ class StockService:
         if product.item_type != "consumable":
             raise ValueError("reserve_stock only valid for consumables")
 
-        lot = ProductLot.query.filter_by(id=lot_id, product_id=product.id).first() if lot_id else None
-        if not lot:
-            lot = StockService.ensure_default_lot(product, user_id)
+        lot = StockService._get_lot_for_update(product, user_id, lot_id=lot_id)
 
         available = int(lot.quantity_on_hand or 0) - int(lot.quantity_reserved or 0)
         if available < quantity:
@@ -124,9 +172,7 @@ class StockService:
         if product.item_type != "consumable":
             raise ValueError("release_reserved_stock only valid for consumables")
 
-        lot = ProductLot.query.filter_by(id=lot_id, product_id=product.id).first() if lot_id else None
-        if not lot:
-            lot = StockService.ensure_default_lot(product, user_id)
+        lot = StockService._get_lot_for_update(product, user_id, lot_id=lot_id)
 
         if int(lot.quantity_reserved or 0) < quantity:
             raise ValueError("insufficient_reserved_stock")
@@ -155,19 +201,28 @@ class StockService:
             raise ValueError("set_stock_count only valid for consumables")
 
         target = max(0, int(target_quantity))
-        lots = list(product.lots or [])
+        lots = list(StockService._lock_all_lots(product))
         current = int(sum((lot.quantity_on_hand or 0) for lot in lots))
         delta = target - current
         if delta == 0:
             return None
 
         default_lot = StockService.ensure_default_lot(product, user_id)
+        # ensure_default_lot kann neu anlegen — unter Produkt-Lock erneut sperren
+        if default_lot.id not in {lot.id for lot in lots}:
+            default_lot = (
+                ProductLot.query.filter_by(id=default_lot.id)
+                .with_for_update()
+                .first()
+            )
+            lots.append(default_lot)
+
         if delta > 0:
             default_lot.quantity_on_hand = int(default_lot.quantity_on_hand or 0) + delta
         else:
             remaining = -delta
             ordered = sorted(
-                lots if lots else [default_lot],
+                lots,
                 key=lambda lot: 0 if lot.id == default_lot.id else 1,
             )
             for lot in ordered:

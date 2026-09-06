@@ -22,8 +22,8 @@ def require_api_auth(f):
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             token = auth_header.replace('Bearer ', '').strip()
-            api_token = ApiToken.query.filter_by(token=token).first()
-            
+            api_token = ApiToken.find_by_raw_token(token)
+
             if api_token and not api_token.is_expired():
                 user = api_token.user
                 if user and user.is_active:

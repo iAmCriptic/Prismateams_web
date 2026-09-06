@@ -7,7 +7,12 @@ from werkzeug.utils import secure_filename
 from app.models.file import File, Folder
 from app.utils.access_control import check_module_access
 from app.utils.file_storage_limits import resolve_limits_for_user
-from app.utils.private_files import is_team_folders_enabled, normalize_view
+from app.utils.private_files import (
+    can_edit_folder,
+    is_private_folders_enabled,
+    is_team_folders_enabled,
+    normalize_view,
+)
 
 from app.blueprints.files._bp import files_bp
 from app.blueprints.files.helpers import (  # noqa: F401
@@ -63,6 +68,17 @@ def upload_file():
         flash("Keine Berechtigung für diese Team-Ablage.", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
 
+    private_enabled = is_private_folders_enabled()
+    team_enabled = is_team_folders_enabled()
+    if (
+        (private_enabled or team_enabled)
+        and upload_parent
+        and not current_user.is_admin
+        and not can_edit_folder(upload_parent, current_user)
+    ):
+        flash("Keine Berechtigung für diesen Ordner.", "danger")
+        return finish_upload(_safe_referrer_or(url_for("files.index")))
+
     limits = resolve_limits_for_user(current_user.id)
     max_size = limits["max_file_size"]
 
@@ -105,6 +121,17 @@ def upload_conflicts():
         folder_id = int(raw_folder_id) if raw_folder_id not in (None, "", "null") else None
     except (TypeError, ValueError):
         return jsonify({"success": False, "error": "Ungültiger Ordner."}), 400
+
+    if folder_id is not None:
+        target = Folder.query.get(folder_id)
+        if not target:
+            return jsonify({"success": False, "error": "Ordner nicht gefunden."}), 404
+        if (
+            (is_private_folders_enabled() or is_team_folders_enabled())
+            and not current_user.is_admin
+            and not can_edit_folder(target, current_user)
+        ):
+            return jsonify({"success": False, "error": "Keine Berechtigung."}), 403
 
     candidate_names = []
     for raw_name in raw_names:

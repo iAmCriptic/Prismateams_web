@@ -1,118 +1,142 @@
 {% extends "inventory/layout.html" %}
 
-{% block title %}Produktordner - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block title %}{{ _('inventory.folders.page_title') }}{% endblock %}
 {% block inventory_heading_icon %}bi-folder{% endblock %}
-{% block inventory_heading %}Produktordner{% endblock %}
-
+{% block inventory_heading %}{{ _('inventory.folders.heading') }}{% endblock %}
 
 {% block inventory_content %}
-<div class="inventory-back-row mb-3">
-    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+<div class="mod-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="mod-back-link" aria-label="{{ _('layout.nav.back') }}">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
 </div>
-<div class="row">
-    <div class="col-12 col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Neuen Ordner erstellen</h5>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-4">
+        <section class="inventory-form-card" aria-labelledby="folder-create-title">
+            <div class="inventory-form-card-head">
+                <h2 id="folder-create-title" class="inventory-form-section-title">
+                    <i class="bi bi-folder-plus" aria-hidden="true"></i>
+                    {{ _('inventory.folders.create_title') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Ordnername <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung</label>
-                        <textarea class="form-control" id="description" name="description" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="color" class="form-label">Farbe (optional)</label>
-                        <input type="color" class="form-control form-control-color" id="color" name="color" 
-                               value="#0d6efd" title="Ordnerfarbe">
-                        <small class="form-text text-muted">Wählen Sie eine Farbe zur visuellen Unterscheidung</small>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-accent">
-                        <i class="bi bi-plus-circle"></i> Ordner erstellen
+            <form method="POST" class="inventory-form-fields">
+                <div class="inventory-form-field">
+                    <label for="name" class="form-label">
+                        {{ _('inventory.folders.fields.name') }}
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           class="form-control mod-pill-input"
+                           id="name"
+                           name="name"
+                           required
+                           autocomplete="off"
+                           placeholder="{{ _('inventory.folders.fields.name_placeholder') }}">
+                </div>
+
+                <div class="inventory-form-field">
+                    <label for="description" class="form-label">{{ _('inventory.folders.fields.description') }}</label>
+                    <textarea class="form-control mod-pill-input"
+                              id="description"
+                              name="description"
+                              rows="2"
+                              placeholder="{{ _('inventory.folders.fields.description_placeholder') }}"></textarea>
+                </div>
+
+                <div class="inventory-form-field">
+                    <label for="color" class="form-label">{{ _('inventory.folders.fields.color') }}</label>
+                    <input type="color"
+                           class="form-control form-control-color"
+                           id="color"
+                           name="color"
+                           value="#0d6efd"
+                           title="{{ _('inventory.folders.fields.color') }}">
+                    <small class="form-text text-muted">{{ _('inventory.folders.fields.color_help') }}</small>
+                </div>
+
+                <div class="inventory-form-actions mt-2">
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        {{ _('inventory.folders.create_btn') }}
                     </button>
-                </form>
-            </div>
-        </div>
+                </div>
+            </form>
+        </section>
     </div>
-    
+
     <div class="col-12 col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Vorhandene Ordner</h5>
+        <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="folder-list-title">
+            <div class="inventory-form-card-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h2 id="folder-list-title" class="inventory-form-section-title mb-0">
+                    <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                    {{ _('inventory.folders.list_title') }}
+                </h2>
+                <span class="inventory-count-accent">{{ folders|length }}</span>
             </div>
-            <div class="card-body">
-                {% if folders %}
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Beschreibung</th>
-                                <th>Produkte</th>
-                                <th>Farbe</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for folder in folders %}
-                            <tr>
-                                <td>
-                                    <strong>{{ folder.name }}</strong>
-                                </td>
-                                <td>
-                                    {{ folder.description or '-' }}
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ folder.product_count }}</span>
-                                </td>
-                                <td>
-                                    {% if folder.color %}
-                                    <span class="badge" style="background-color: {{ folder.color }};">
-                                        &nbsp;&nbsp;&nbsp;
-                                    </span>
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('inventory.folder_delete', folder_id=folder.id) }}" 
-                                          style="display: inline;">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                data-confirm-delete="Möchten Sie den Ordner &quot;{{ folder.name }}&quot; wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.">
-                                            <i class="bi bi-trash"></i> Löschen
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="bi bi-folder-x fs-1 text-muted mb-3"></i>
-                    <p class="text-muted">Noch keine Ordner vorhanden.</p>
-                    <p class="text-muted">Erstellen Sie einen Ordner, um Produkte besser zu organisieren.</p>
-                </div>
-                {% endif %}
+
+            {% if folders %}
+            <div class="mod-list-table-wrap">
+                <table class="table mod-list-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>{{ _('inventory.folders.cols.name') }}</th>
+                            <th>{{ _('inventory.folders.cols.description') }}</th>
+                            <th>{{ _('inventory.folders.cols.products') }}</th>
+                            <th>{{ _('inventory.folders.cols.color') }}</th>
+                            <th class="text-end">{{ _('inventory.folders.cols.actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for folder in folders %}
+                        <tr class="mod-list-row">
+                            <td>
+                                <a href="{{ url_for('inventory.stock', folder_id=folder.id) }}"
+                                   class="mod-list-item-name text-decoration-none">
+                                    <i class="bi bi-folder me-1" aria-hidden="true"{% if folder.color %} style="color: {{ folder.color }};"{% endif %}></i>
+                                    {{ folder.name }}
+                                </a>
+                            </td>
+                            <td class="text-muted">{{ folder.description or '—' }}</td>
+                            <td>
+                                <span class="badge rounded-pill text-bg-secondary">{{ folder.product_count }}</span>
+                            </td>
+                            <td>
+                                {% if folder.color %}
+                                <span class="inventory-folder-color-swatch"
+                                      style="background-color: {{ folder.color }};"
+                                      title="{{ folder.color }}"
+                                      aria-label="{{ folder.color }}"></span>
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td class="text-end mod-list-actions">
+                                <form method="POST"
+                                      action="{{ url_for('inventory.folder_delete', folder_id=folder.id) }}"
+                                      class="d-inline">
+                                    <button type="submit"
+                                            class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger"
+                                            data-confirm-delete="{{ _('inventory.product.form.folder_delete_confirm', name=folder.name) }} {{ _('inventory.folders.delete_keep_products') }}">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <span class="d-none d-md-inline">{{ _('common.delete') }}</span>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </div>
+            {% else %}
+            <div class="text-center py-5 px-3">
+                <i class="bi bi-folder-x fs-1 text-muted mb-3 d-block" aria-hidden="true"></i>
+                <p class="text-muted mb-1">{{ _('inventory.folders.empty') }}</p>
+                <p class="text-muted small mb-0">{{ _('inventory.folders.empty_hint') }}</p>
+            </div>
+            {% endif %}
+        </section>
     </div>
 </div>
 {% endblock %}
-
-
-
-
-
-

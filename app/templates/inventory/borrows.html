@@ -50,7 +50,7 @@
                 <input type="date" class="form-control form-control-sm inventory-filter-control"
                        id="filterDateTo{{ id_suffix }}" data-inv-filter="filterDateTo">
             </div>
-            <div class="form-check mt-1">
+            <div class="form-check mt-1"{% if not current_user.is_admin and not current_user.is_super_admin %} hidden{% endif %}>
                 <input class="form-check-input" type="checkbox" id="filterMine{{ id_suffix }}"
                        data-inv-filter="filterMine">
                 <label class="form-check-label" for="filterMine{{ id_suffix }}">Nur meine Ausleihen</label>

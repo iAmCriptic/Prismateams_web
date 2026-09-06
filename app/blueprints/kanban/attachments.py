@@ -373,6 +373,7 @@ def onlyoffice_callback(attachment_id):
 
     from app.utils.onlyoffice import (
         is_onlyoffice_callback_download_url_allowed,
+        onlyoffice_document_key_matches_resource,
         verify_onlyoffice_callback_token,
     )
 
@@ -394,6 +395,15 @@ def onlyoffice_callback(attachment_id):
         return _kanban_oo_cors({'error': 'Unauthorized callback'}, 403)[0]
 
     payload = signed_payload if isinstance(signed_payload, dict) else data
+    key = payload.get('key')
+    if not onlyoffice_document_key_matches_resource(key, 'kanban_att', attachment_id):
+        logging.warning(
+            'Kanban OnlyOffice callback: key/attachment mismatch key=%s attachment_id=%s',
+            key,
+            attachment_id,
+        )
+        return _kanban_oo_cors({'error': 'key mismatch'}, 403)[0]
+
     status = payload.get('status')
     # 2 = ready for saving (close), 6 = force save while editing
     if status in (2, 6):

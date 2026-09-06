@@ -139,11 +139,14 @@ def create_checkout(
     )
     by_id = {p.id: p for p in products}
     available = []
+    unavailable_labels: list[str] = []
     for pid in unique_ids:
         product = by_id.get(pid)
         if not product:
+            unavailable_labels.append(f"#{pid}")
             continue
         if product.status != "available":
+            unavailable_labels.append(product.name or f"#{pid}")
             continue
         available.append(product)
 
@@ -151,6 +154,7 @@ def create_checkout(
     available_consumables = {}
     if consumable_quantities:
         consumable_ids = []
+        requested_by_id: dict[int, int] = {}
         for raw_pid, raw_qty in consumable_quantities.items():
             try:
                 pid = int(raw_pid)
@@ -160,7 +164,7 @@ def create_checkout(
             if qty <= 0:
                 continue
             consumable_ids.append(pid)
-            available_consumables[pid] = qty
+            requested_by_id[pid] = qty
         if consumable_ids:
             consumables = (
                 Product.query.filter(Product.id.in_(consumable_ids))
@@ -168,19 +172,30 @@ def create_checkout(
                 .with_for_update()
                 .all()
             )
+            found_ids = {p.id for p in consumables}
+            for pid in consumable_ids:
+                if pid not in found_ids:
+                    unavailable_labels.append(f"#{pid}")
             valid = {}
             for product in consumables:
-                requested_qty = available_consumables.get(product.id, 0)
+                requested_qty = requested_by_id.get(product.id, 0)
+                label = product.name or f"#{product.id}"
                 if product.item_type != "consumable":
+                    unavailable_labels.append(label)
                     continue
                 if product.status != "available":
+                    unavailable_labels.append(label)
                     continue
                 if requested_qty > int(product.total_available or 0):
-                    raise ValueError("insufficient_stock")
+                    unavailable_labels.append(label)
+                    continue
                 valid[product.id] = (product, requested_qty)
             available_consumables = valid
         else:
             available_consumables = {}
+
+    if unavailable_labels:
+        raise CheckoutUnavailableError(unavailable_labels)
 
     if not available_assets and not available_consumables:
         raise ValueError("no_available_products")
@@ -292,7 +307,13 @@ def return_checkout_items(
 ) -> list[CheckoutItem]:
     from app.services.inventory.stock_service import StockService
 
-    items = CheckoutItem.query.filter(CheckoutItem.id.in_(list(item_ids))).all()
+    id_list = sorted({int(i) for i in item_ids})
+    items = (
+        CheckoutItem.query.filter(CheckoutItem.id.in_(id_list))
+        .order_by(CheckoutItem.id.asc())
+        .with_for_update()
+        .all()
+    )
     if not items:
         raise ValueError("no_items")
 
@@ -319,17 +340,16 @@ def return_checkout_items(
                 qty = int(item.legacy_transaction_id or 1)
                 qty = max(1, qty)
                 if item.checkout and item.checkout.created_by:
-                    try:
-                        StockService.release_reserved_stock(
-                            item.product,
-                            qty,
-                            user_id=item.checkout.created_by,
-                            reason=f"Return {item.checkout.checkout_number}",
-                            context_type="borrow",
-                            context_id=item.checkout.checkout_number,
-                        )
-                    except ValueError:
-                        pass
+                    # ValueError (z. B. insufficient_reserved_stock) bewusst durchreichen —
+                    # sonst bleibt quantity_reserved inkonsistent bei „erfolgreicher“ Rückgabe.
+                    StockService.release_reserved_stock(
+                        item.product,
+                        qty,
+                        user_id=item.checkout.created_by,
+                        reason=f"Return {item.checkout.checkout_number}",
+                        context_type="borrow",
+                        context_id=item.checkout.checkout_number,
+                    )
             else:
                 if mark_defective:
                     item.product.status = "defective"

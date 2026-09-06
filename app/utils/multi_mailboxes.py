@@ -328,6 +328,34 @@ def get_main_smtp_config() -> dict:
     }
 
 
+def get_mailbox_from_address(mailbox: Optional[Mailbox] = None) -> str:
+    """Absender-Adresse für „Senden als“ (Hauptpostfach oder Multi-Mailbox)."""
+    if mailbox is None:
+        return (
+            current_app.config.get('MAIL_DEFAULT_SENDER')
+            or current_app.config.get('MAIL_USERNAME')
+            or ''
+        ).strip()
+    return (
+        (getattr(mailbox, 'oauth_email', None) or '')
+        or (mailbox.smtp_username or '')
+        or (mailbox.imap_username or '')
+        or ''
+    ).strip()
+
+
+def format_send_as_label(mailbox: Optional[Mailbox] = None, fallback: str = '') -> str:
+    """Anzeige-Label für die Absender-Auswahl — bevorzugt die E-Mail-Adresse."""
+    addr = get_mailbox_from_address(mailbox)
+    if addr:
+        return addr
+    if mailbox is not None:
+        name = (mailbox.display_name or mailbox.name or '').strip()
+        if name:
+            return name
+    return (fallback or '').strip()
+
+
 def get_main_imap_config() -> dict:
     return {
         'server': current_app.config.get('IMAP_SERVER'),

@@ -682,7 +682,7 @@
       "main_mailbox": "Main mailbox",
       "html_design": "HTML design",
       "html_design_help": "On: portal layout with logo. Off: formatted text without layout frame.",
-      "mailbox_label": "Mailbox",
+      "mailbox_label": "Send as",
       "use_team_logo": "Use team logo",
       "use_team_logo_help": "If off: portal logo instead of team logo in HTML design."
     },

@@ -1,4 +1,6 @@
 import os
+import hmac
+import hashlib
 import secrets
 import string
 import logging
@@ -278,6 +280,143 @@ def send_email_with_lock(msg, timeout=60):
 def generate_confirmation_code():
     """Generiert einen 6-stelligen Bestätigungscode."""
     return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+
+PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
+PASSWORD_RESET_RESEND_COOLDOWN = timedelta(minutes=2)
+
+
+def generate_password_reset_token():
+    """Kryptographisch starker Reset-Token (URL-safe)."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_password_reset_token(token: str) -> str:
+    """Einweg-Hash für die DB-Speicherung (kein Klartext-Token in der DB)."""
+    return hashlib.sha256((token or '').encode('utf-8')).hexdigest()
+
+
+def password_reset_resend_allowed(user) -> bool:
+    """True, wenn kein aktiver Code existiert oder die Cooldown-Zeit abgelaufen ist."""
+    if not user.password_reset_code or not user.password_reset_code_expires:
+        return True
+    now = portal_now_naive()
+    if now >= user.password_reset_code_expires:
+        return True
+    issued_at = user.password_reset_code_expires - PASSWORD_RESET_TOKEN_TTL
+    return now >= issued_at + PASSWORD_RESET_RESEND_COOLDOWN
+
+
+def send_password_reset_email(user):
+    """Sendet eine Passwort-Reset-E-Mail an den Benutzer."""
+    try:
+        if not password_reset_resend_allowed(user):
+            logging.info(
+                'Password reset email skipped (cooldown) for user_id=%s',
+                getattr(user, 'id', None),
+            )
+            return True
+
+        raw_token = generate_password_reset_token()
+        expires_at = portal_now_naive() + PASSWORD_RESET_TOKEN_TTL
+        user.password_reset_code = hash_password_reset_token(raw_token)
+        user.password_reset_code_expires = expires_at
+        clear_password_reset_failure_counter(user)
+        from app import db
+        db.session.commit()
+
+        if not _mail_configured():
+            logging.warning(
+                'E-Mail-Konfiguration unvollständig. Passwort-Reset-E-Mail an %s nicht gesendet '
+                '(Token-Hash nur in der Datenbank gespeichert).',
+                user.email,
+            )
+            return False
+
+        portal_name = _portal_name()
+        try:
+            reset_url = url_for(
+                'auth.reset_password',
+                email=user.email,
+                token=raw_token,
+                _external=True,
+            )
+        except Exception:
+            reset_url = None
+
+        plain_text = (
+            f'Passwort-Reset-Token: {raw_token}\n\n'
+            + (f'Reset-Link: {reset_url}\n\n' if reset_url else '')
+            + 'Bitte geben Sie diesen Token ein, um Ihr Passwort zurückzusetzen. '
+            'Er ist 1 Stunde gültig.'
+        )
+        try:
+            ok = render_and_send_portal_email(
+                subject=f'Passwort zurücksetzen - {portal_name}',
+                recipients=[user.email],
+                template_name='emails/password_reset.html',
+                body_text=plain_text,
+                user=user,
+                reset_code=raw_token,
+                reset_url=reset_url,
+            )
+            if not ok:
+                logging.error(f'Password reset email send returned False for {user.email}')
+                return False
+            logging.info('Password reset email sent to %s', user.email)
+            return True
+        except Exception as send_error:
+            logging.error(f'Failed to send password reset email to {user.email}: {str(send_error)}')
+            return False
+    except Exception as e:
+        logging.error(f'Failed to send password reset email to {user.email}: {str(e)}')
+        return False
+
+
+def verify_password_reset_code(user, code):
+    """Überprüft den Passwort-Reset-Token (constant-time)."""
+    if not user or not user.password_reset_code or not user.password_reset_code_expires:
+        return False
+    if portal_now_naive() > user.password_reset_code_expires:
+        return False
+    provided = (code or '').strip()
+    if not provided:
+        return False
+    expected = user.password_reset_code
+    # Legacy: alter 6-stelliger Klartext-Code noch akzeptieren bis Ablauf
+    if len(expected) == 6 and expected.isdigit():
+        return hmac.compare_digest(expected, provided)
+    return hmac.compare_digest(expected, hash_password_reset_token(provided))
+
+
+def register_password_reset_failure(user) -> bool:
+    """
+    Zählt Fehlversuche in der Flask-Session.
+    Nach 5 Fehlversuchen wird der Reset-Token invalidiert.
+    Returns True wenn der Token verbrannt wurde.
+    """
+    from flask import session
+
+    if not user or not getattr(user, 'id', None):
+        return False
+    key = f'_pwd_reset_fails_{int(user.id)}'
+    fails = int(session.get(key) or 0) + 1
+    session[key] = fails
+    if fails < 5:
+        return False
+    user.password_reset_code = None
+    user.password_reset_code_expires = None
+    from app import db
+    db.session.commit()
+    session.pop(key, None)
+    return True
+
+
+def clear_password_reset_failure_counter(user):
+    from flask import session
+    if user and getattr(user, 'id', None):
+        session.pop(f'_pwd_reset_fails_{int(user.id)}', None)
+
 
 def get_logo_data():
     """Holt das Portal-Logo aus SystemSettings oder Konfiguration und gibt Logo-Daten, MIME-Type und Dateiname zurück."""
@@ -683,60 +822,6 @@ def verify_confirmation_code(user, code):
 def resend_confirmation_email(user):
     """Sendet eine neue Bestätigungs-E-Mail."""
     return send_confirmation_email(user)
-
-def send_password_reset_email(user):
-    """Sendet eine Passwort-Reset-E-Mail an den Benutzer."""
-    try:
-        reset_code = generate_confirmation_code()
-        expires_at = portal_now_naive() + timedelta(hours=1)
-        user.password_reset_code = reset_code
-        user.password_reset_code_expires = expires_at
-        from app import db
-        db.session.commit()
-
-        if not _mail_configured():
-            logging.warning(
-                'E-Mail-Konfiguration unvollständig. Passwort-Reset-E-Mail an %s nicht gesendet '
-                '(Code nur in der Datenbank gespeichert).',
-                user.email,
-            )
-            return False
-
-        portal_name = _portal_name()
-        plain_text = (
-            f'Passwort-Reset-Code: {reset_code}\n\n'
-            'Bitte geben Sie diesen Code ein, um Ihr Passwort zurückzusetzen. Der Code ist 1 Stunde gültig.'
-        )
-        try:
-            ok = render_and_send_portal_email(
-                subject=f'Passwort zurücksetzen - {portal_name}',
-                recipients=[user.email],
-                template_name='emails/password_reset.html',
-                body_text=plain_text,
-                user=user,
-                reset_code=reset_code,
-            )
-            if not ok:
-                logging.error(f'Password reset email send returned False for {user.email}')
-                return False
-            logging.info('Password reset email sent to %s', user.email)
-            return True
-        except Exception as send_error:
-            logging.error(f'Failed to send password reset email to {user.email}: {str(send_error)}')
-            return False
-    except Exception as e:
-        logging.error(f'Failed to send password reset email to {user.email}: {str(e)}')
-        return False
-
-def verify_password_reset_code(user, code):
-    """Überprüft den Passwort-Reset-Code."""
-    if not user.password_reset_code or not user.password_reset_code_expires:
-        return False
-    if portal_now_naive() > user.password_reset_code_expires:
-        return False
-    if user.password_reset_code != code:
-        return False
-    return True
 
 
 def send_2fa_recovery_email(user):

@@ -2459,7 +2459,7 @@ a.sp-dir-card:hover {
   background: var(--accent-color, #0d6efd);
 }
 
-.sp-group-head .files-view-toggle {
+.sp-group-head .mod-view-toggle {
   margin-left: auto;
 }
 

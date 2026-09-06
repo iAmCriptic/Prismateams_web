@@ -266,8 +266,8 @@
       "picture_invalid_type": "Invalid file type. Only PNG, JPG, JPEG and GIF files are allowed.",
       "picture_too_large": "The profile picture is too large. Maximum size: 5 MB.",
       "enter_email": "Please enter your email address.",
-      "password_reset_email_sent": "If an account with this email address exists, a reset code has been sent.",
-      "invalid_reset_code": "Invalid or expired reset code.",
+      "password_reset_email_sent": "If an account with this email address exists, a reset token has been sent.",
+      "invalid_reset_code": "Invalid or expired reset token.",
       "password_reset_success": "Password was reset successfully. You can now log in.",
       "enter_2fa_code": "Please enter your 2FA code.",
       "invalid_2fa_code": "Invalid 2FA code. Please try again.",
@@ -282,23 +282,23 @@
     },
     "forgot_password": {
       "title": "Forgot password",
-      "subtitle": "Enter your email address to receive a reset code.",
+      "subtitle": "Enter your email address to receive a reset token.",
       "email": "Email address",
-      "email_help": "We will send you a code to reset your password.",
-      "info_message": "We will send you a 6-digit code by email that you can use to reset your password.",
-      "submit": "Request code",
+      "email_help": "We will send you a link and token to reset your password.",
+      "info_message": "We will email you a secure reset token and a direct link.",
+      "submit": "Request reset",
       "back_to_login": "Back to login"
     },
     "reset_password": {
       "title": "Reset password",
-      "subtitle": "Enter the code and your new password.",
+      "subtitle": "Enter the token and your new password.",
       "email": "Email address",
-      "reset_code": "Reset code",
-      "code_help": "You can find the code in the email with the subject \"Reset password\".",
+      "reset_code": "Reset token",
+      "code_help": "You can find the token in the email with the subject \"Reset password\".",
       "new_password": "New password",
       "confirm_password": "Confirm new password",
       "password_help": "At least 8 characters",
-      "info_message": "The code is valid for 1 hour. Please also check your spam folder.",
+      "info_message": "The token is valid for 1 hour. Please also check your spam folder.",
       "submit": "Reset password",
       "back_to_login": "Back to login"
     },
@@ -4263,7 +4263,7 @@
       "html_design_help": "On: portal layout with logo. Off: formatted text without layout frame.",
       "use_team_logo": "Use team logo",
       "use_team_logo_help": "If off: portal logo instead of team logo in HTML design.",
-      "mailbox_label": "Mailbox"
+      "mailbox_label": "Send as"
     }
   },
   "credentials": {
@@ -5258,9 +5258,43 @@
       }
     },
     "folders": {
-      "page_title": "Folders - Team Portal",
-      "heading": "Folders",
-      "new_folder": "New folder"
+      "page_title": "Product folders - Team Portal",
+      "heading": "Product folders",
+      "new_folder": "New folder",
+      "create_title": "Create new folder",
+      "create_btn": "Create folder",
+      "list_title": "Existing folders",
+      "empty": "No folders yet.",
+      "empty_hint": "Create a folder to organize products.",
+      "delete_keep_products": "Products in this folder will not be deleted; only the folder assignment is removed.",
+      "fields": {
+        "name": "Folder name",
+        "name_placeholder": "e.g. Cameras",
+        "description": "Description",
+        "description_placeholder": "Optional",
+        "color": "Color (optional)",
+        "color_help": "Color for visual distinction"
+      },
+      "cols": {
+        "name": "Name",
+        "description": "Description",
+        "products": "Products",
+        "color": "Color",
+        "actions": "Actions"
+      }
+    },
+    "public": {
+      "subtitle": "Product information from inventory",
+      "footer": "Public product view · no login required",
+      "ownership_default": "Property of the technical department",
+      "fields": {
+        "serial": "Serial number",
+        "length": "Length",
+        "category": "Category",
+        "condition": "Condition",
+        "location": "Location",
+        "description": "Description"
+      }
     },
     "tool": {
       "page_title": "Inventory tool - Team Portal",
@@ -5376,6 +5410,7 @@
       "inventory_started": "Inventory \"{name}\" has been started.",
       "inventory_completed": "This inventory is already completed.",
       "inventory_finished": "Inventory has been completed. {count} product(s) have been updated.",
+      "inventory_missing_skipped": "{count} skipped (borrowed/locked)",
       "folder_name_required": "The folder name is required.",
       "folder_exists": "A folder with this name already exists.",
       "folder_created": "Folder \"{name}\" has been created successfully.",
@@ -5466,6 +5501,10 @@
       "filter_name_exists": "A filter with this name already exists.",
       "no_permission": "No permission.",
       "no_return_permission": "You do not have permission to return this checkout.",
+      "insufficient_reserved_stock": "Reserved stock is insufficient for this return (already released?).",
+      "insufficient_stock": "Insufficient stock available.",
+      "lot_not_found": "Stock lot not found.",
+      "lock_conflict": "This product is currently being edited by another user.",
       "product_not_favorite": "Product is not a favorite.",
       "invalid_or_expired_token": "Invalid or expired token.",
       "transaction_id_required": "Transaction ID required.",
