@@ -128,7 +128,7 @@
             <i class="bi bi-clock-history" aria-hidden="true"></i>
             {{ _('inventory.dashboard.my_borrows.title') }}
         </h2>
-        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">
+        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm mod-pill-btn mod-pill-btn--outline">
             {{ _('inventory.dashboard.my_borrows.show_all') }}
         </a>
     </div>
@@ -171,14 +171,14 @@
                                       class="d-inline">
                                     <input type="hidden" name="borrow_ref" value="{{ borrow.return_number }}">
                                     <button type="submit"
-                                            class="btn btn-sm inventory-pill-btn inventory-pill-btn--success"
+                                            class="btn btn-sm mod-pill-btn mod-pill-btn--success"
                                             title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
                                         <i class="bi bi-arrow-return-left"></i>
                                         <span>{{ _('inventory.dashboard.my_borrows.table.return_button') }}</span>
                                     </button>
                                 </form>
                                 <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.ref_id) }}"
-                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted"
+                                   class="btn btn-sm mod-pill-btn mod-pill-btn--muted"
                                    title="{{ _('inventory.dashboard.my_borrows.table.download_receipt') }}">
                                     <i class="bi bi-file-pdf"></i>
                                 </a>

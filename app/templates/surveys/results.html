@@ -22,7 +22,7 @@
 
         <div class="surveys-workspace-toolbar-start">
 
-            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary surveys-btn-pill">
+            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary mod-pill-btn">
 
                 <i class="bi bi-arrow-left"></i> {{ _('surveys.builder.back') }}
 
@@ -40,19 +40,19 @@
 
         <div class="surveys-workspace-toolbar-end">
 
-            <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+            <a href="{{ preview_url }}" class="btn btn-outline-secondary mod-pill-btn" target="_blank" rel="noopener">
 
                 <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
 
             </a>
 
-            <a href="{{ url_for('surveys.export_csv', survey_id=survey.id) }}" class="btn btn-outline-secondary surveys-btn-pill">
+            <a href="{{ url_for('surveys.export_csv', survey_id=survey.id) }}" class="btn btn-outline-secondary mod-pill-btn">
 
                 <i class="bi bi-download"></i> {{ _('surveys.results.export_csv') }}
 
             </a>
 
-            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn surveys-btn-pill surveys-btn-accent">
+            <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}" class="btn mod-pill-btn mod-pill-btn--accent">
 
                 <i class="bi bi-pencil"></i> {{ _('surveys.index.edit') }}
 
@@ -168,7 +168,7 @@
 
                         <td>
 
-                            <a href="{{ url_for('surveys.result_detail', survey_id=survey.id, response_id=resp.id) }}" class="btn btn-sm btn-outline-primary surveys-btn-pill">{{ _('surveys.results.view') }}</a>
+                            <a href="{{ url_for('surveys.result_detail', survey_id=survey.id, response_id=resp.id) }}" class="btn btn-sm btn-outline-primary mod-pill-btn">{{ _('surveys.results.view') }}</a>
 
                         </td>
 

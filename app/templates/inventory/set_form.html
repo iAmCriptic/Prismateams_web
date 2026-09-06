@@ -53,7 +53,7 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i>
                 </button>
             </div>
-            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" onclick="addProductRow()">
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" onclick="addProductRow()">
                 <i class="bi bi-plus"></i> Produkt hinzufügen
             </button>
         </div>
@@ -71,7 +71,7 @@
                     </select>
                     <input type="number" class="form-control inventory-set-qty" name="quantities"
                            value="{{ item.quantity }}" min="1" required aria-label="Menge">
-                    <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -85,7 +85,7 @@
                         {% endfor %}
                     </select>
                     <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
-                    <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -94,10 +94,10 @@
     </section>
 
     <div class="inventory-form-actions inventory-form-card--wide">
-        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
             <i class="bi bi-check-circle"></i> {% if product_set %}Aktualisieren{% else %}Erstellen{% endif %}
         </button>
-        <a href="{{ url_for('inventory.sets') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">Abbrechen</a>
+        <a href="{{ url_for('inventory.sets') }}" class="btn mod-pill-btn mod-pill-btn--muted">Abbrechen</a>
     </div>
 </form>
 {% endblock %}
@@ -122,7 +122,7 @@ function addProductRow() {
             ${optionsHtml}
         </select>
         <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
-        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
             <i class="bi bi-trash"></i>
         </button>
     `;

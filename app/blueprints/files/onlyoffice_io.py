@@ -137,49 +137,52 @@ def onlyoffice_document(file_id):
         logging.warning(f"ONLYOFFICE document request rejected - OnlyOffice not enabled")
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
-    # Check for access token (REQUIRED for OnlyOffice access)
+    # Access token is REQUIRED — OnlyOffice Document Server cannot use session cookies
     access_token = request.args.get('token')
-    # Log full token info to verify it's complete
     if access_token:
-        token_length = len(access_token)
-        token_preview = access_token[:8] + '...' + access_token[-4:] if token_length > 12 else access_token
-        logging.info(f"ONLYOFFICE document request - file_id: {file_id}, token_length: {token_length}, token_preview: {token_preview}, full_token: {access_token}")
+        token_preview = (
+            f'{access_token[:8]}…{access_token[-4:]}'
+            if len(access_token) > 12
+            else '(short)'
+        )
+        logging.info(
+            'ONLYOFFICE document request - file_id=%s token_len=%s preview=%s remote=%s',
+            file_id,
+            len(access_token),
+            token_preview,
+            request.remote_addr,
+        )
     else:
-        logging.warning(f"ONLYOFFICE document request - file_id: {file_id}, NO TOKEN in request!")
-    logging.info(f"ONLYOFFICE request details - method: {request.method}, remote_addr: {request.remote_addr}, referer: {request.headers.get('Referer', 'None')}, user_agent: {request.headers.get('User-Agent', 'Unknown')}")
-    
-    # Token is REQUIRED - OnlyOffice cannot use session cookies
+        logging.warning(
+            'ONLYOFFICE document request - file_id=%s NO TOKEN remote=%s',
+            file_id,
+            request.remote_addr,
+        )
+
     if not access_token:
-        logging.error(f"ONLYOFFICE document access denied - NO TOKEN provided for file {file_id}. OnlyOffice Document Server cannot use session cookies!")
-        # Return JSON error, NOT HTML redirect
+        logging.error(
+            'ONLYOFFICE document access denied - NO TOKEN for file %s',
+            file_id,
+        )
         return jsonify({'error': 'Access token required'}), 403
-    
-    # Validate token
+
     from app.utils.onlyoffice import validate_onlyoffice_access_token
     if not validate_onlyoffice_access_token(access_token, file_id):
-        logging.error(f"ONLYOFFICE document access denied - INVALID TOKEN for file {file_id}")
+        logging.error(
+            'ONLYOFFICE document access denied - INVALID TOKEN for file %s',
+            file_id,
+        )
         return jsonify({'error': 'Invalid access token'}), 403
-    
-    logging.info(f"ONLYOFFICE document access granted via token for file {file_id}")
-    
+
+    logging.info('ONLYOFFICE document access granted via token for file %s', file_id)
+
     file = File.query.get_or_404(file_id)
-    logging.info(f"ONLYOFFICE document request - file_id: {file_id}, file: {file.original_name}, token_present: {bool(access_token)}")
-    
-    # Additional security: if no token, verify user has access to file
-    if not access_token and current_user.is_authenticated:
-        # Check if user has access to this file
-        # (User must own the file or have access through folder permissions)
-        if file.uploaded_by != current_user.id:
-            # Check folder access if file is in a folder
-            if file.folder_id:
-                folder = Folder.query.get(file.folder_id)
-                if not folder or folder.created_by != current_user.id:
-                    logging.warning(f"ONLYOFFICE access denied - user {current_user.id} has no access to file {file_id}")
-                    return jsonify({'error': 'Access denied'}), 403
-            else:
-                logging.warning(f"ONLYOFFICE access denied - user {current_user.id} has no access to file {file_id}")
-                return jsonify({'error': 'Access denied'}), 403
-    
+    logging.info(
+        'ONLYOFFICE document request - file_id=%s name=%s',
+        file_id,
+        file.original_name,
+    )
+
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
         file_path = os.path.join(os.getcwd(), file.file_path)

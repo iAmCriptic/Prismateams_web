@@ -1,24 +1,7 @@
 /* Surveys module */
-.surveys-btn-pill {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-}
-
-.surveys-btn-accent {
-    background: var(--accent-color, var(--bs-primary)) !important;
-    border-color: var(--accent-color, var(--bs-primary)) !important;
-    color: #fff !important;
-    font-weight: 600;
-    box-shadow: 0 0.2rem 0.65rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-}
-
-.surveys-btn-accent:hover,
-.surveys-btn-accent:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 88%, #000) !important;
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 88%, #000) !important;
-    color: #fff !important;
-}
 
 /* Modals above fullscreen workspace */
+
 body:has(.surveys-workspace) .modal-backdrop {
     z-index: 1070 !important;
 }
@@ -28,6 +11,7 @@ body:has(.surveys-workspace) .modal {
 }
 
 /* Fullscreen workspace (edit / results) — hides app chrome */
+
 body:has(.surveys-workspace) #desktopTopNav,
 body:has(.surveys-workspace) #desktopSidebar,
 body:has(.surveys-workspace) #desktopFavoritesRail,
@@ -211,60 +195,12 @@ body:has(.surveys-workspace) {
 }
 
 /* Navbar search (like shortlinks / files) */
+
 .surveys-search {
     position: relative;
     max-width: 28rem;
     margin: 0 auto;
     width: 100%;
-}
-
-.surveys-search-icon {
-    position: absolute;
-    left: 0.95rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-color, #0d6efd);
-    pointer-events: none;
-    font-size: 0.95rem;
-}
-
-.surveys-search-input,
-.form-control.surveys-search-input {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding-left: 2.35rem;
-    padding-right: 2.35rem;
-    height: 2.55rem;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    box-shadow: none;
-}
-
-.surveys-search-input:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.surveys-search-clear {
-    position: absolute;
-    right: 0.35rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-}
-
-.surveys-search-clear:hover {
-    background: rgba(127, 127, 127, 0.12);
-    color: var(--bs-body-color);
 }
 
 .surveys-mobile-toolbar {
@@ -288,10 +224,6 @@ body:has(.surveys-workspace) {
     height: 2.1rem;
 }
 
-.page-toolbar-row .files-view-toggle {
-    flex-shrink: 0;
-}
-
 .surveys-actions-menu {
     border-radius: 1rem !important;
     padding: 0.5rem !important;
@@ -309,6 +241,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Create form shell (aligned with shortlinks / credentials) */
+
 .surveys-form {
     --surveys-form-surface: var(--bs-tertiary-bg, #f8f9fa);
     --surveys-form-elevated: var(--bs-body-bg, #fff);
@@ -468,6 +401,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Builder */
+
 .surveys-builder-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -657,6 +591,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Question editor cards */
+
 .surveys-question-card {
     position: relative;
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
@@ -958,6 +893,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Results */
+
 .surveys-stat-card {
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color-translucent);
@@ -1017,6 +953,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Result charts */
+
 .surveys-chart--pie {
     display: flex;
     flex-wrap: wrap;
@@ -1100,6 +1037,7 @@ body:has(.surveys-workspace) {
 }
 
 /* Public fill */
+
 .survey-public-body {
     min-height: 100vh;
     background: var(--auth-page-bg, #f5f5f5);

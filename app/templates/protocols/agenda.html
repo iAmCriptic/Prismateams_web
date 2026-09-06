@@ -17,11 +17,11 @@
         </div>
         <div class="protocols-workspace-toolbar-end">
             {{ protocols_steps('agenda', protocol.id) }}
-            <button type="submit" form="protocolsAgendaForm" name="action" value="save" class="btn protocols-btn-pill">
+            <button type="submit" form="protocolsAgendaForm" name="action" value="save" class="btn mod-pill-btn">
                 <i class="bi bi-save"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.actions.save_draft') }}</span>
             </button>
-            <button type="submit" form="protocolsAgendaForm" name="action" value="continue" class="btn btn-accent rounded-pill protocols-btn-pill">
+            <button type="submit" form="protocolsAgendaForm" name="action" value="continue" class="btn btn-accent rounded-pill mod-pill-btn">
                 <i class="bi bi-arrow-right"></i>
                 {{ _('protocols.agenda.continue') }}
             </button>
@@ -37,19 +37,19 @@
                     <li class="protocols-agenda-item" data-agenda-item>
                         <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
                         <input type="hidden" name="item_ids" value="{{ item.id }}">
-                        <input type="text" class="form-control protocols-pill-input" name="titles" value="{{ item.title }}" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
+                        <input type="text" class="form-control mod-pill-input" name="titles" value="{{ item.title }}" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
                         <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
                     </li>
                     {% else %}
                     <li class="protocols-agenda-item" data-agenda-item>
                         <span class="protocols-agenda-handle" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
                         <input type="hidden" name="item_ids" value="">
-                        <input type="text" class="form-control protocols-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
+                        <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
                         <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
                     </li>
                     {% endfor %}
                 </ul>
-                <button type="button" class="btn protocols-btn-pill" id="protocolsAddAgenda">
+                <button type="button" class="btn mod-pill-btn" id="protocolsAddAgenda">
                     <i class="bi bi-plus-lg"></i> {{ _('protocols.agenda.add') }}
                 </button>
             </section>
@@ -61,7 +61,7 @@
     <li class="protocols-agenda-item" data-agenda-item>
         <span class="protocols-agenda-handle" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
         <input type="hidden" name="item_ids" value="">
-        <input type="text" class="form-control protocols-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
+        <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}" required>
         <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
     </li>
 </template>

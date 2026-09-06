@@ -138,14 +138,14 @@ const InventoryFormManager = (() => {
 
             const editBtn = document.createElement('button');
             editBtn.type = 'button';
-            editBtn.className = 'btn btn-sm inventory-pill-btn inventory-pill-btn--muted';
+            editBtn.className = 'btn btn-sm mod-pill-btn mod-pill-btn--muted';
             editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
             editBtn.title = labels.edit;
             editBtn.addEventListener('click', () => openEditPanel(type, id, name));
 
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
-            deleteBtn.className = 'btn btn-sm inventory-pill-btn inventory-pill-btn--danger';
+            deleteBtn.className = 'btn btn-sm mod-pill-btn mod-pill-btn--danger';
             deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
             deleteBtn.title = labels.delete;
             deleteBtn.addEventListener('click', () => {

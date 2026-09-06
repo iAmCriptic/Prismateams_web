@@ -11,7 +11,7 @@
     <div class="row g-3 align-items-end">
         <div class="col-md-6" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
             <label class="form-label small text-muted" for="listSelect">{{ _('assessment.common.list_label') }}</label>
-            <select class="form-select" id="listSelect" data-inv-pill-select>
+            <select class="form-select" id="listSelect" data-mod-pill-select>
                 {% for lst in evaluation_lists %}
                 <option value="{{ lst.id }}">{{ lst.name }}</option>
                 {% endfor %}

@@ -1,6 +1,7 @@
 /* File Browser Styles */
 
 /* File Browser */
+
 .file-item, .folder-item {
     padding: 0.75rem;
     border-radius: 0.375rem;
@@ -8,171 +9,7 @@
     cursor: pointer;
 }
 
-/* Multi-select / bulk bar */
-.files-bulk-bar {
-    border: 1px solid var(--bs-border-color, #e9ecef);
-    border-left: 4px solid var(--accent-color, #0d6efd);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    animation: filesBulkSlideDown 0.25s ease-out;
-}
-
-@keyframes filesBulkSlideDown {
-    from { opacity: 0; transform: translateY(-0.35rem); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.files-bulk-inner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    padding: 0.75rem 1rem;
-}
-
-.files-bulk-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    align-items: center;
-}
-
-.files-bulk-btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    font-weight: 600;
-    font-size: 0.8rem;
-    background-color: var(--bs-body-bg, #fff);
-}
-
-.files-bulk-btn--outline {
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color, #dee2e6));
-    color: var(--bs-body-color, #212529);
-}
-
-.files-bulk-btn--outline:hover {
-    border-color: var(--accent-color, #0d6efd);
-    color: var(--accent-color, #0d6efd);
-}
-
-.files-bulk-btn--muted {
-    border: 1px solid var(--bs-border-color, #dee2e6);
-    color: var(--bs-secondary-color, #6c757d);
-    background: transparent;
-}
-
-.files-bulk-btn--danger {
-    border: 1px solid color-mix(in srgb, #dc3545 40%, var(--bs-border-color, #dee2e6));
-    color: #dc3545;
-}
-
-.files-bulk-btn--danger:hover {
-    background: color-mix(in srgb, #dc3545 10%, transparent);
-}
-
-.files-bulk-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.files-select-check {
-    position: absolute;
-    top: 0.55rem;
-    left: 0.55rem;
-    z-index: 3;
-    margin: 0;
-    padding: 0.2rem;
-    border-radius: 0.4rem;
-    background: color-mix(in srgb, var(--bs-body-bg, #fff) 88%, transparent);
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    cursor: pointer;
-}
-
-.card.file-item:hover .files-select-check,
-.card.folder-item:hover .files-select-check,
-.card.file-item.is-selected .files-select-check,
-.card.folder-item.is-selected .files-select-check,
-body.files-has-selection .files-select-check {
-    opacity: 1;
-}
-
-.files-select-col {
-    width: 2.25rem !important;
-    min-width: 2.25rem !important;
-    max-width: 2.25rem !important;
-    vertical-align: middle;
-    overflow: visible !important;
-    padding-left: 0.35rem !important;
-    padding-right: 0.15rem !important;
-}
-
-/* table-cell behalten — display:flex auf <td> zerstört Zeilenhöhe/Namen (wie Assessment-Fix) */
-.files-list-name-cell {
-    position: relative;
-    max-width: 0;
-    overflow: hidden;
-    display: table-cell;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-/* Platz für Checkbox beim Hover/Auswahl — Icon und Name bleiben eng beieinander */
-.files-list-name-cell .mod-list-name.files-item-name {
-    display: inline-flex;
-    align-items: center;
-    min-width: 0;
-    max-width: calc(100% - 2rem);
-    vertical-align: middle;
-    color: var(--bs-body-color, #212529);
-    padding-left: 0;
-    transition: padding-left 0.12s ease;
-}
-
-.files-list-name-cell .files-presence-anchor {
-    display: inline-flex;
-    vertical-align: middle;
-    margin-left: 0.35rem;
-}
-
-.files-select-check--list {
-    position: absolute;
-    left: 0.15rem;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
-    opacity: 0;
-    margin: 0;
-    padding: 0.15rem;
-    background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, transparent);
-}
-
-.mod-list-row:hover .files-select-check--list,
-.mod-list-row.is-selected .files-select-check--list,
-body.files-has-selection .files-select-check--list {
-    opacity: 1;
-}
-
-.mod-list-row:hover .files-list-name-cell .mod-list-name.files-item-name,
-.mod-list-row.is-selected .files-list-name-cell .mod-list-name.files-item-name,
-body.files-has-selection .files-list-name-cell .mod-list-name.files-item-name {
-    padding-left: 1.55rem;
-}
-
-.files-list-select-all-wrap {
-    display: inline-flex;
-    align-items: center;
-    margin-right: 0.4rem;
-    vertical-align: middle;
-}
-
-.card.file-item.is-selected,
-.card.folder-item.is-selected,
-tr.mod-list-row.is-selected {
-    outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
-    outline-offset: 1px;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
-}
+/* Multi-select / bulk / select-check / list-name: see mod-list-chrome.css */
 
 .files-dnd-handle {
     color: var(--bs-secondary-color);
@@ -321,6 +158,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Mobile: Cards flach halten — außer wenn ⋮ offen (sonst deckt nächste Grid-Zelle das Menü) */
+
 @media (max-width: 991.98px) {
     .card.file-item,
     .card.folder-item {
@@ -345,6 +183,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Grid View für Dateien - IMMER sichtbar, außer wenn d-none Klasse vorhanden */
+
 #gridView.row {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -353,12 +192,14 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Grid View verstecken NUR wenn d-none Klasse vorhanden */
+
 #gridView.row.d-none {
     display: none !important;
 }
 
 /* List View für Dateien - Standard: versteckt (legacy list-group; jetzt Container).
    Sichtbarkeit steuern über .d-none / JS — nicht permanent display:none am ID. */
+
 #listViewContainer.d-none {
     display: none !important;
 }
@@ -437,6 +278,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* OLED Mode - File Items mit Rahmen statt grauem Hintergrund */
+
 [data-oled-mode="true"] .file-item,
 [data-oled-mode="true"] .folder-item {
     background-color: #000000 !important;
@@ -452,6 +294,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* OLED Mode - Dropdown Menu (Neu-Menü) in Files */
+
 [data-oled-mode="true"] .dropdown-menu {
     background-color: #000000 !important;
     border: 1px solid #1a1a1a !important;
@@ -470,6 +313,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Mobile ⋮-Menüs: globales Action Sheet in context-menu.css / context-menu.js */
+
 @media (max-width: 767.98px) {
     .files-share-mode-picker .files-share-mode-btn {
         width: 100% !important;
@@ -479,370 +323,13 @@ body.files-dnd-dragging .files-space-drop {
     }
 }
 
-/* Side Menu für Versionen und Details */
-.side-menu {
-    position: fixed;
-    top: 0;
-    right: -400px;
-    width: 400px;
-    height: 100vh;
-    background: var(--bs-body-bg);
-    border-left: 1px solid var(--bs-border-color);
-    z-index: 1055;
-    transition: right 0.3s ease;
-    overflow-y: auto;
-}
+/* Side menu base panel: see mod-list-chrome.css */
 
-.side-menu.show {
-    right: 0;
-}
+/* Markdown editor fullscreen chrome: see files-markdown.css */
 
-.side-menu-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.side-menu-content {
-    padding: 1rem;
-}
-
-.side-menu-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1054;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.side-menu-backdrop.show {
-    opacity: 1;
-    visibility: visible;
-}
-
-@media (max-width: 767.98px) {
-    .side-menu {
-        width: 100%;
-        max-width: 100%;
-        right: -100%;
-    }
-    
-    .side-menu.show {
-        right: 0;
-    }
-}
-
-/* Markdown Editor Fullscreen */
-.markdown-editor-fullscreen {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 100% !important;
-    max-height: 100dvh !important;
-    background: var(--bs-body-bg);
-    z-index: 1060;
-    display: flex !important;
-    flex-direction: column !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-}
-
-.markdown-editor-toolbar {
-    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
-    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
-    padding: 0.65rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-wrap: wrap;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    flex-shrink: 0;
-    min-height: 60px;
-}
-
-.markdown-editor-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    min-width: 0;
-    max-width: min(18rem, 42vw);
-    margin-right: 0.15rem;
-}
-
-.markdown-editor-brand-logo {
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 999px;
-    object-fit: cover;
-    flex-shrink: 0;
-    box-shadow: 0 0.12rem 0.4rem rgba(13, 110, 253, 0.18);
-}
-
-.markdown-editor-brand-mark {
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 999px;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.85rem;
-}
-
-.markdown-editor-brand-text {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.05rem;
-}
-
-.markdown-editor-filename {
-    font-size: 0.92rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--bs-body-color);
-}
-
-.markdown-editor-brand-kind {
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: var(--bs-secondary-color, #6c757d);
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.markdown-editor-toolbar-divider {
-    width: 1px;
-    height: 1.45rem;
-    background: var(--bs-border-color);
-    flex-shrink: 0;
-    margin: 0 0.15rem;
-}
-
-.markdown-editor-toolbar .files-pill-btn,
-.markdown-editor-toolbar .btn.files-pill-btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding: 0.35rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.markdown-editor-toolgroup {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    padding: 0.15rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg);
-}
-
-.markdown-editor-toolgroup > .btn {
-    border: none !important;
-    box-shadow: none !important;
-    width: 2.1rem;
-    height: 2.1rem;
-    padding: 0 !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.markdown-editor-toolgroup > .btn:hover,
-.markdown-editor-toolgroup > .btn:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
-    color: var(--accent-color, #0d6efd);
-}
-
-.markdown-editor-toolbar-end {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-}
-
-.markdown-editor-lock-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.75rem;
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    border: 1px solid color-mix(in srgb, #dc3545 35%, var(--bs-border-color));
-    background: color-mix(in srgb, #dc3545 10%, transparent);
-    color: #b02a37;
-    font-size: 0.78rem;
-    font-weight: 600;
-    white-space: nowrap;
-    max-width: 12rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.markdown-editor-lock-badge--mine {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    color: var(--accent-color, #0d6efd);
-}
-
-.markdown-editor-lock-banner {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    padding: 0.65rem 1rem;
-    background: color-mix(in srgb, #ffc107 16%, var(--bs-body-bg));
-    border-bottom: 1px solid color-mix(in srgb, #ffc107 40%, var(--bs-border-color));
-    font-size: 0.9rem;
-    flex-shrink: 0;
-}
-
-.markdown-editor-lock-banner .bi {
-    color: #997404;
-}
-
-.markdown-editor-fullscreen.is-locked .markdown-editor-textarea,
-.markdown-editor-fullscreen.is-locked .md-segment-textarea,
-.markdown-editor-fullscreen.is-locked .md-table-grid [contenteditable] {
-    opacity: 0.72;
-    cursor: not-allowed;
-}
-
-.markdown-editor-content {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    height: calc(100vh - 60px) !important;
-    width: 100% !important;
-}
-
-.markdown-editor-textarea {
-    flex: 1 !important;
-    border: none !important;
-    outline: none !important;
-    padding: 1rem !important;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-    font-size: 14px !important;
-    line-height: 1.5 !important;
-    resize: none !important;
-    background: transparent !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: calc(100vh - 120px) !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-}
-
-.markdown-editor-preview {
-    flex: 1 !important;
-    padding: 1rem !important;
-    overflow-y: auto !important;
-    border-left: 1px solid var(--bs-border-color) !important;
-    height: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-/* Editor Container Anpassungen */
-.markdown-editor-content .row {
-    height: 100% !important;
-    margin: 0 !important;
-}
-
-.markdown-editor-content .col-12 {
-    height: 100% !important;
-    padding: 0 !important;
-}
-
-/* Form Anpassungen */
-#editForm {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-#editForm .md-editor-wrap {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-}
-
-@media (max-width: 767.98px) {
-    .markdown-editor-fullscreen {
-        width: 100% !important;
-        max-width: 100% !important;
-        height: 100% !important;
-        max-height: 100dvh !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        box-sizing: border-box !important;
-    }
-
-    .markdown-editor-toolbar {
-        padding: 0.5rem 0.65rem;
-        gap: 0.3rem;
-        min-height: 50px;
-    }
-
-    .markdown-editor-brand {
-        max-width: min(12rem, 48vw);
-    }
-
-    .markdown-editor-toolbar .btn {
-        padding: 0.3rem 0.55rem;
-        font-size: 0.82rem;
-    }
-
-    .markdown-editor-lock-badge {
-        display: none;
-    }
-
-    .markdown-editor-content {
-        height: calc(100vh - 50px) !important;
-    }
-
-    .markdown-editor-textarea {
-        font-size: 16px !important; /* Verhindert Zoom auf iOS */
-        min-height: calc(100vh - 100px) !important;
-        padding: 0.75rem !important;
-    }
-
-    .markdown-editor-preview {
-        padding: 0.75rem !important;
-    }
-}
 
 /* Side Menu Button Styles mit benutzerdefinierten Akzentfarben */
+
 .side-menu .btn-outline-primary {
     border-color: var(--accent-color) !important;
     color: var(--accent-color) !important;
@@ -882,6 +369,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Versionen-Liste Buttons */
+
 .side-menu .list-group-item .btn-outline-primary {
     border-color: var(--accent-color) !important;
     color: var(--accent-color) !important;
@@ -902,6 +390,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Dark Mode Support für Side Menu Buttons */
+
 [data-bs-theme="dark"] .side-menu .btn-outline-primary {
     border-color: var(--accent-color) !important;
     color: var(--accent-color) !important;
@@ -936,7 +425,10 @@ body.files-dnd-dragging .files-space-drop {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-}/* Upload status toast stack / persistentes Panel */
+}
+
+/* Upload status toast stack / persistentes Panel */
+
 .files-upload-toast-stack {
     position: fixed;
     z-index: 12050;
@@ -1059,7 +551,9 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 .files-upload-panel-item.is-success .bi { color: #198754; }
+
 .files-upload-panel-item.is-error .bi { color: #dc3545; }
+
 .files-upload-panel-item.is-uploading .bi { color: #e6a800; }
 
 .files-upload-panel-item-main {
@@ -1219,6 +713,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Presence avatars on file rows / cards */
+
 .files-presence-anchor {
     display: inline-flex;
     align-items: center;
@@ -1281,6 +776,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Unified share management */
+
 .files-share-mgmt .table td,
 .files-share-mgmt .table th {
     vertical-align: middle;
@@ -1329,6 +825,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Files shell — layout + domain overrides (shared chrome in module-ui.css) */
+
 .files-shell {
     display: flex;
     align-items: stretch;
@@ -1347,6 +844,7 @@ body.files-dnd-dragging .files-space-drop {
 }
 
 /* Viewport sperren: nur Dateiliste scrollt, nicht die ganze Seite (Navbar bleibt fix) */
+
 body:has(.files-shell) {
     overflow: hidden;
     height: 100vh;
@@ -1400,6 +898,7 @@ body:has(.files-shell) {
 }
 
 /* Mobile/Tablet: Platz für Bottom-Navbar einrechnen */
+
 @media (max-width: 991.98px) {
     .main-content:has(.files-shell) {
         padding-bottom: var(--portal-mobile-nav-clearance) !important;
@@ -1407,6 +906,7 @@ body:has(.files-shell) {
 }
 
 /* Desktop: Modul-Sidebar mitziehen, Bottom-Nav-Padding weg */
+
 @media (min-width: 992px) {
     .main-content:has(.files-shell) {
         padding-bottom: 0.75rem !important;
@@ -1434,6 +934,7 @@ body:has(.files-shell) {
 
 /* Favoriten direkt unter Public/Papierkorb — nicht ans untere Ende;
    niedriger z-index, damit NEU-Menü darüber liegt */
+
 .files-shell--private .mod-sidebar-nav {
     flex: 0 0 auto;
     position: relative;
@@ -1482,6 +983,7 @@ body:has(.files-shell) {
 }
 
 /* File cards: preview area should match folder preview height */
+
 .file-item .files-grid-preview,
 .card.file-item .text-center.mb-3:has(.file-preview),
 .card.file-item .text-center.mb-3:has(.media-mini-preview),
@@ -1503,29 +1005,7 @@ body:has(.files-shell) {
     height: 100%;
 }
 
-.files-grid-preview {
-    min-height: 7.5rem;
-    height: 7.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.files-grid-preview .bi {
-    font-size: 3.4rem;
-    line-height: 1;
-}
-
-.files-grid-preview .image-mini-preview,
-.files-grid-preview > img {
-    max-height: 100%;
-    max-width: 100%;
-    width: auto;
-    height: auto;
-    object-fit: cover;
-}
+/* .files-grid-preview base + hover + item-name: see mod-list-chrome.css */
 
 .files-grid-preview .pdf-mini-preview,
 .files-grid-preview .file-text-preview,
@@ -1543,129 +1023,6 @@ body:has(.files-shell) {
 .card.folder-item .card-body,
 .card.file-item .card-body {
     height: 100%;
-}
-
-.files-toolbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    min-width: 0;
-}
-
-.files-search {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: none;
-    margin: 0;
-    width: auto;
-}
-
-.files-toolbar-actions .files-view-toggle {
-    flex: 0 0 auto;
-    margin-left: auto;
-}
-
-.files-toolbar-actions .files-toolbar-new {
-    flex: 0 0 auto;
-    margin-left: auto;
-}
-
-@media (min-width: 992px) {
-    .files-toolbar-actions {
-        gap: 0.65rem;
-    }
-
-    .files-search {
-        max-width: 28rem;
-        margin: 0 auto;
-    }
-
-    .files-toolbar-actions .files-toolbar-new {
-        margin-left: 0;
-    }
-}
-
-.files-search-field {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    width: 100%;
-    margin: 0;
-    padding: 0.4rem 2.5rem 0.4rem 0.95rem;
-    border: 1px solid var(--bs-border-color, #ced4da);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg, #fff);
-    cursor: text;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.files-search-field:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color, #ced4da));
-}
-
-.files-search-field:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 65%, var(--bs-border-color, #ced4da));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.files-search-field > .bi-search {
-    flex-shrink: 0;
-    font-size: 0.95rem;
-    line-height: 1;
-    color: var(--accent-color, #0d6efd);
-    opacity: 1;
-    /* Kein transform — vermeidet Subpixel-/Ghosting-Artefakte bei Icon-Fonts */
-    transform: none;
-}
-
-.files-search-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    padding: 0.2rem 0 !important;
-    height: auto !important;
-    line-height: 1.4;
-    color: var(--bs-body-color);
-    font-size: 0.95rem;
-}
-
-.files-search-input::placeholder {
-    color: var(--bs-secondary-color, #6c757d);
-    opacity: 0.9;
-}
-
-.files-search-clear {
-    position: absolute;
-    right: 0.35rem;
-    top: 0;
-    bottom: 0;
-    margin: auto 0;
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    transform: none;
-}
-
-.files-search-clear:hover {
-    background: rgba(127, 127, 127, 0.12);
-    color: var(--bs-body-color);
-}
-
-.files-search-empty {
-    min-height: 1.1rem;
 }
 
 .files-path-icon {
@@ -1763,6 +1120,7 @@ body:has(.files-shell) {
 }
 
 /* Detailed list view — column layout overrides */
+
 .files-shell--private .mod-list-table-wrap {
     border: none;
     border-radius: 0;
@@ -1794,20 +1152,26 @@ body:has(.files-shell) {
 }
 
 /* Col 1 = Name (Checkbox als Overlay), dann Owner/Version/… */
+
 .files-shell--private .mod-list-table th:nth-child(1),
 .files-shell--private .mod-list-table td:nth-child(1) {
     width: 36%;
     max-width: 0;
     overflow: hidden;
 }
+
 .files-shell--private .mod-list-table th:nth-child(2),
 .files-shell--private .mod-list-table td:nth-child(2) { width: 14%; }
+
 .files-shell--private .mod-list-table th:nth-child(3),
 .files-shell--private .mod-list-table td:nth-child(3) { width: 10%; }
+
 .files-shell--private .mod-list-table th:nth-child(4),
 .files-shell--private .mod-list-table td:nth-child(4) { width: 16%; }
+
 .files-shell--private .mod-list-table th:nth-child(5),
 .files-shell--private .mod-list-table td:nth-child(5) { width: 10%; }
+
 .files-shell--private .mod-list-table th:nth-child(6),
 .files-shell--private .mod-list-table td:nth-child(6) {
     width: 3.75rem;
@@ -1826,124 +1190,8 @@ body:has(.files-shell) {
     }
 }
 
-/* ===== Files Pill Design Language ===== */
-.files-pill,
-.files-pill-btn,
-.btn.files-pill-btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-}
-
-.files-pill-input,
-.form-control.files-pill-input,
-.form-select.files-pill-input {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-
-.files-view-toggle {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15rem;
-    padding: 0.2rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg);
-}
-
-.files-view-toggle__indicator {
-    position: absolute;
-    top: 0.2rem;
-    left: 0.2rem;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
-    transition: transform 0.28s cubic-bezier(0.34, 1.15, 0.64, 1);
-    pointer-events: none;
-    z-index: 0;
-}
-
-.files-view-toggle[data-view="grid"] .files-view-toggle__indicator {
-    transform: translateX(calc(2.25rem + 0.15rem));
-}
-
-.files-view-toggle__btn {
-    position: relative;
-    z-index: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    padding: 0;
-    border: none;
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: transparent;
-    color: var(--bs-secondary-color);
-    transition: color 0.2s ease;
-}
-
-.files-view-toggle__btn:hover {
-    color: var(--accent-color, var(--bs-primary));
-}
-
-.files-view-toggle__btn.active,
-.files-view-toggle__btn.is-active {
-    background: transparent;
-    color: #fff;
-}
-
-.files-view-toggle__btn.active:hover,
-.files-view-toggle__btn.is-active:hover {
-    color: #fff;
-}
-
-/* View pane crossfade */
-.files-view-stage {
-    position: relative;
-}
-
-.files-view-pane {
-    opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.28s ease, transform 0.28s ease;
-}
-
-.files-view-pane.files-view-pane--active {
-    opacity: 1;
-    transform: none;
-}
-
-.files-view-pane.files-view-pane--leave {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1;
-    opacity: 0;
-    transform: translateY(-4px);
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .files-view-toggle__indicator {
-        transition-duration: 0.01ms;
-    }
-
-    .files-view-pane {
-        transition-duration: 0.01ms;
-        transform: none;
-    }
-
-    .files-view-pane.files-view-pane--leave {
-        transform: none;
-    }
-}
-
 /* Share / dropbox status chips on file cards */
+
 .files-item-chips {
     position: absolute;
     top: 0.45rem;
@@ -1996,15 +1244,6 @@ body:has(.files-shell) {
 .files-list-chips .files-item-chip {
     font-size: 0.65rem;
     padding: 0.1rem 0.4rem;
-}
-
-#newButton.files-pill-new,
-.btn.files-pill-new {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    border: none;
-    font-weight: 600;
-    padding: 0.45rem 1.15rem;
-    box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
 }
 
 .files-dropdown-menu,
@@ -2083,6 +1322,7 @@ body:has(.files-shell) {
 }
 
 /* Grid-Spalten dürfen Dropdowns nicht clippen */
+
 #gridViewContainer,
 #foldersGridView,
 #gridView,
@@ -2099,6 +1339,7 @@ body:has(.files-shell) {
 }
 
 /* Offenes Menü über Nachbar-Karten/Zeilen (Grid-Spalte + Card anheben) */
+
 #gridView > [data-item-wrapper]:has(.dropdown.show),
 #foldersGridView > [data-item-wrapper]:has(.dropdown.show),
 #gridView > [class*="col-"]:has(.dropdown.show),
@@ -2145,99 +1386,7 @@ body:has(.files-shell) {
     border-radius: var(--mod-radius-pill, 1.5rem);
 }
 
-/* Grid-Hover-Shortcuts: nur große Screens (lg+) */
-.files-grid-hover-actions {
-    display: none !important;
-    align-items: center;
-    gap: 0.1rem;
-}
-
-@media (min-width: 992px) {
-    .card.folder-item:hover .files-grid-hover-actions,
-    .card.file-item:hover .files-grid-hover-actions,
-    .card.folder-item:focus-within .files-grid-hover-actions,
-    .card.file-item:focus-within .files-grid-hover-actions {
-        display: inline-flex !important;
-    }
-}
-
-.files-grid-hover-actions .btn-link {
-    color: var(--bs-secondary-color);
-    text-decoration: none;
-    padding: 0.2rem 0.35rem;
-    border-radius: var(--mod-radius-pill, 1.5rem);
-}
-
-.files-grid-hover-actions .btn-link:hover {
-    color: var(--accent-color, var(--bs-primary));
-    background: rgba(13, 110, 253, 0.1);
-}
-
-/* Lange Namen: max. 2 Zeilen, dann abschneiden */
-.card.folder-item .files-item-name,
-.card.file-item .files-item-name {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    max-width: 100%;
-    white-space: normal;
-}
-
-.mod-list-name.files-item-name {
-    display: inline-flex;
-    align-items: center;
-    column-gap: 0.15rem;
-    row-gap: 0;
-    gap: 0.15rem;
-    min-width: 0;
-    max-width: 100%;
-}
-
-.mod-list-name.files-item-name > *,
-.mod-list-name.files-item-name .file-type-icon-wrap,
-.mod-list-name.files-item-name .file-type-bi,
-.mod-list-name.files-item-name .bi {
-    flex-shrink: 0;
-    margin: 0 !important;
-    padding-right: 0 !important;
-}
-
-.mod-list-name.files-item-name .files-item-name-text {
-    margin: 0 !important;
-    padding-left: 0 !important;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/* Grid: max. 2 Zeilen. Liste: einzeilig (siehe .mod-list-name .files-item-name-text unten) */
-.card.folder-item .files-item-name-text,
-.card.file-item .files-item-name-text {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    min-width: 0;
-}
-
-.mod-list-name .files-item-name-text {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    word-break: normal;
-    overflow-wrap: normal;
-}
+/* Grid hover + item-name truncation: see mod-list-chrome.css */
 
 .files-inline-rename {
     display: flex;
@@ -2258,36 +1407,10 @@ body:has(.files-shell) {
     flex-shrink: 0;
 }
 
-.side-menu {
-    border-radius: 1.25rem 0 0 1.25rem;
-    box-shadow: -0.35rem 0 1.5rem rgba(0, 0, 0, 0.12);
-}
-
-.side-menu-backdrop {
-    background: rgba(0, 0, 0, 0.28);
-}
-
-.side-menu .files-details-card {
-    border-radius: 1rem;
-    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
-    background: var(--bs-tertiary-bg);
-    padding: 1rem;
-}
-
-.side-menu .files-details-card p {
-    margin-bottom: 0.45rem;
-}
-
-.side-menu .files-details-card p:last-child {
-    margin-bottom: 0;
-}
+/* side-menu chrome + files-details-card: see mod-list-chrome.css */
 
 .side-menu .alert {
     border-radius: 1rem;
-}
-
-.side-menu .btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
 }
 
 .side-menu .list-group-item {
@@ -2514,6 +1637,7 @@ body:has(.files-shell) {
 }
 
 /* Static display inside modal — no Popper full-width bug */
+
 .files-share-mode-menu,
 #simpleModal .files-share-mode-menu,
 .modal .files-share-mode-menu {
@@ -2590,7 +1714,6 @@ body:has(.files-shell) {
     .files-share-cards { display: none; }
 }
 
-
 .file-viewer-actions {
     display: flex;
     align-items: center;
@@ -2651,6 +1774,7 @@ body:has(.files-shell) {
 }
 
 /* ===== Externe Freigabe / Briefkasten ===== */
+
 body:has(.share-shell) #desktopTopNav,
 body:has(.share-shell) #desktopSidebar,
 body:has(.share-shell) #desktopFavoritesRail,
@@ -2741,6 +1865,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Kein weißer Karten-Rahmen — Inhalt fließt auf Portal-Hintergrund */
+
 .files-ext-panel,
 .share-browser-card,
 .dropbox-upload-card {
@@ -2765,10 +1890,12 @@ body:has(.dropbox-shell) .container-fluid {
     margin-bottom: 1rem;
 }
 
-.files-ext-toolbar .files-pill-new {
+.files-ext-toolbar .mod-pill-btn--new,
+.files-ext-toolbar .mod-pill-btn--new {
     order: 0;
 }
 
+.files-ext-toolbar .mod-view-toggle,
 .files-ext-toolbar .files-view-toggle {
     order: 1;
 }
@@ -2787,6 +1914,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Gate-Overlay: vollflächig, kein Rahmen um die Seite */
+
 .share-gate-overlay,
 .dropbox-gate-overlay {
     position: fixed !important;
@@ -2844,6 +1972,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* PDF-Vorschau in Grid: Scrollbar abschneiden */
+
 .share-browser-card .pdf-mini-preview,
 .files-ext-shell .pdf-mini-preview {
     height: 150px;
@@ -2880,6 +2009,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Zurück — wie Chat create (grauer Text-Link, kein Pill-Button) */
+
 .files-back-row {
     margin-top: 0.15rem;
 }
@@ -2908,6 +2038,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Hinweise — gleiche Sprache wie Portal-Flash (.portal-msg) */
+
 .files-hint {
     --files-hint-accent: var(--accent-color, #0d6efd);
     display: flex;
@@ -2925,8 +2056,11 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 .files-hint--info { --files-hint-accent: #0d6efd; }
+
 .files-hint--success { --files-hint-accent: #198754; }
+
 .files-hint--warning { --files-hint-accent: #e6a800; }
+
 .files-hint--danger { --files-hint-accent: #dc3545; }
 
 .files-hint__icon {
@@ -2957,6 +2091,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Side-Menu: Bootstrap-Alerts auch auf Hint-Look ziehen */
+
 .side-menu .alert,
 #simpleModal .alert,
 #dropboxSettingsModal .alert {
@@ -3007,6 +2142,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* ===== Media viewer (image / video / audio) ===== */
+
 .file-viewer--media .file-viewer-content--media {
     flex: 1 1 auto;
     min-height: 0;
@@ -3141,6 +2277,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* In Listenzeile: Abstand nur über Flex-Gap */
+
 .mod-list-name .file-type-icon-wrap--sm,
 .mod-list-name .file-type-bi {
     margin-right: 0 !important;
@@ -3173,6 +2310,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Speicherplatz-Widget (Sidebar Footer) */
+
 .files-sidebar-bottom {
     margin-top: auto;
     gap: 0.45rem;
@@ -3237,6 +2375,7 @@ body:has(.dropbox-shell) .container-fluid {
     gap: 0.5rem;
 }
 
+.files-webdav-url-row .mod-pill-input,
 .files-webdav-url-row .files-pill-input {
     flex: 1 1 auto;
     min-width: 0;
@@ -3352,6 +2491,7 @@ body:has(.dropbox-shell) .container-fluid {
 }
 
 /* Mobile: Offcanvas endet über der Bottom-Nav (z-index 1046 > Offcanvas 1045) */
+
 @media (max-width: 991.98px) {
     #filesMobileNav.mod-offcanvas.offcanvas {
         bottom: var(--portal-mobile-nav-height);
@@ -3373,4 +2513,3 @@ body:has(.dropbox-shell) .container-fluid {
     padding-bottom: 0;
     border-top: none;
 }
-

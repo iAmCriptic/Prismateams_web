@@ -570,57 +570,19 @@ def compose():
             if bcc:
                 msg.bcc = [a.strip() for a in bcc.split(',') if a.strip()]
             
-            # Füge Logo als ANHANG hinzu (wie andere Anhänge) - WICHTIG: Vor anderen Anhängen
+            # Logo als inline CID-Anhang (Flask-Mail 0.10: Content-ID in Attachment-Headers)
             if logo_data and logo_mime_type and logo_cid:
-                image_type = logo_mime_type.split('/')[1] if '/' in logo_mime_type else 'png'
-                if image_type == 'jpeg' or image_type == 'jpg':
-                    attachment_filename = 'logo.jpg'
-                elif image_type == 'png':
-                    attachment_filename = 'logo.png'
-                elif image_type == 'gif':
-                    attachment_filename = 'logo.gif'
-                else:
-                    attachment_filename = 'logo.png'
-                
-                # KRITISCH: Verwende msg.attach() - dies stellt sicher, dass das Logo in der Struktur bleibt
-                # Die Manipulation mit CID und inline erfolgt später in send_email_with_lock()
-                msg.attach(attachment_filename, logo_mime_type, logo_data)
-                
-                
-                # KRITISCH: Manipuliere die Message-Struktur direkt, um CID und inline zu setzen
-                # Flask-Mail erstellt die Struktur beim ersten Zugriff auf msg.msg
-                # Wir müssen nach msg.attach() die Struktur manipulieren
-                if hasattr(msg, 'msg') and msg.msg:
-                    # Flask-Mail erstellt möglicherweise msg.msg erst beim ersten Zugriff
-                    # Wir müssen es jetzt erzeugen, damit wir es manipulieren können
-                    try:
-                        _ = msg.msg.get_content_type()
-                    except:
-                        pass
-                
-                # Setze CID und inline disposition auf dem Logo-Attachment
-                if hasattr(msg, 'msg') and hasattr(msg.msg, 'get_payload'):
-                    parts = msg.msg.get_payload()
-                    if isinstance(parts, list):
-                        logo_found = False
-                        for part in parts:
-                            if (hasattr(part, 'get_content_type') and 
-                                part.get_content_type() == logo_mime_type and
-                                hasattr(part, 'get') and 
-                                part.get('Content-Disposition', '').find(attachment_filename) != -1):
-                                logo_found = True
-                                # Setze Content-ID und inline disposition
-                                part.add_header('Content-ID', f'<{logo_cid}>')
-                                # Entferne alte Content-Disposition und setze neue
-                                old_disp = part.get('Content-Disposition', '')
-                                if old_disp:
-                                    part.replace_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
-                                else:
-                                    part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
-                                
-                                logging.info(f"Logo als inline attachment mit CID markiert: {attachment_filename}")
-                                break
-            
+                from app.utils.email_sender import _logo_attachment_filename
+                attachment_filename = _logo_attachment_filename(logo_mime_type)
+                msg.attach(
+                    attachment_filename,
+                    logo_mime_type,
+                    logo_data,
+                    disposition='inline',
+                    headers={'Content-ID': f'<{logo_cid}>'},
+                )
+                logging.info(f"Logo als inline attachment mit CID: {attachment_filename}")
+
             if 'attachments' in request.files:
                 attachments = request.files.getlist('attachments')
                 for attachment in attachments:
@@ -669,53 +631,11 @@ def compose():
                                 msg.attach(att.filename, att.content_type or 'application/octet-stream', data)
                     except Exception as _:
                         continue
-            
-            # Stelle sicher, dass Logo-Attachment nach allen anderen Anhängen mit CID markiert ist
-            # (wird auch in send_email_with_lock() nochmal geprüft, aber hier sicherstellen)
-            if logo_data and logo_mime_type and logo_cid:
-                # Warte, bis msg.msg erstellt wurde (nach allen anderen attach()-Aufrufen)
-                if hasattr(msg, 'msg') and msg.msg:
-                    try:
-                        _ = msg.msg.get_content_type()
-                    except:
-                        pass
-                    
-                    # Setze CID und inline disposition auf dem Logo-Attachment
-                    if hasattr(msg.msg, 'get_payload'):
-                        parts = msg.msg.get_payload()
-                        if isinstance(parts, list):
-                            image_type = logo_mime_type.split('/')[1] if '/' in logo_mime_type else 'png'
-                            if image_type == 'jpeg' or image_type == 'jpg':
-                                attachment_filename = 'logo.jpg'
-                            elif image_type == 'png':
-                                attachment_filename = 'logo.png'
-                            elif image_type == 'gif':
-                                attachment_filename = 'logo.gif'
-                            else:
-                                attachment_filename = 'logo.png'
-                            
-                            for part in parts:
-                                if (hasattr(part, 'get_content_type') and 
-                                    part.get_content_type() == logo_mime_type and
-                                    hasattr(part, 'get') and 
-                                    part.get('Content-Disposition', '').find(attachment_filename) != -1):
-                                    # Setze Content-ID, falls noch nicht gesetzt
-                                    if not part.get('Content-ID'):
-                                        part.add_header('Content-ID', f'<{logo_cid}>')
-                                    # Stelle sicher, dass es inline ist
-                                    disp = part.get('Content-Disposition', '')
-                                    if 'attachment' in disp and 'inline' not in disp:
-                                        try:
-                                            part.replace_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
-                                        except:
-                                            part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
-                                    elif not disp:
-                                        part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
-                                    
-                                    logging.info(f"Logo-Attachment nach allen Anhängen mit CID markiert: {attachment_filename}")
-                                    break
-            
-            
+
+            if logo_cid:
+                from app.utils.email_sender import _mark_logo_inline
+                _mark_logo_inline(msg, logo_cid=logo_cid)
+
             if active_mailbox is not None:
                 _send_flask_message_via_smtp(msg, get_mailbox_smtp_config(active_mailbox))
             else:
@@ -1123,9 +1043,20 @@ def preview_custom_email():
                 pass
 
         # In der Vorschau Base64 verwenden, damit das Logo im Browser angezeigt wird
+        active_mailbox, _ = _resolve_request_mailbox('send')
+        use_mailbox_logo = True
+        if active_mailbox and active_mailbox.mailbox_type == 'team' and active_mailbox.logo_filename:
+            from app.utils.multi_mailboxes import get_mailbox_use_logo
+            use_mailbox_logo = get_mailbox_use_logo(current_user, active_mailbox)
+            if 'use_mailbox_logo' in data:
+                use_mailbox_logo = str(data.get('use_mailbox_logo')).lower() in ('1', 'true', 'on', 'yes')
+
         rendered_html, _ = render_custom_email(
             subject, body_html, logo_cid=None, is_preview=True,
-            quoted_reply_html=quoted_reply_html
+            quoted_reply_html=quoted_reply_html,
+            mailbox=active_mailbox,
+            use_mailbox_logo=use_mailbox_logo,
+            logo_user=current_user,
         )
         return jsonify({'html': rendered_html})
     except Exception as exc:

@@ -210,8 +210,9 @@ class SetsManager {
         ].filter(Boolean);
         const gridViewContainer = document.getElementById('gridViewContainer');
         const listViewContainer = document.getElementById('listViewContainer');
+        const mode = this.viewMode === 'list' ? 'list' : 'grid';
 
-        if (this.viewMode === 'list') {
+        if (mode === 'list') {
             if (listViewContainer) listViewContainer.style.display = 'block';
             if (gridViewContainer) gridViewContainer.style.display = 'none';
             listBtns.forEach((btn) => btn.classList.add('active', 'is-active'));
@@ -222,6 +223,10 @@ class SetsManager {
             gridBtns.forEach((btn) => btn.classList.add('active', 'is-active'));
             listBtns.forEach((btn) => btn.classList.remove('active', 'is-active'));
         }
+
+        document.querySelectorAll('.inventory-shell .mod-view-toggle').forEach((el) => {
+            el.dataset.view = mode;
+        });
 
         this.renderSets();
     }

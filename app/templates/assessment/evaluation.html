@@ -8,7 +8,7 @@
     <div class="assessment-panel">
             <div class="mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
                 <label class="form-label" for="listSelect">{{ _('assessment.common.list_label') }}</label>
-                <select class="form-select" id="listSelect" data-inv-pill-select>
+                <select class="form-select" id="listSelect" data-mod-pill-select>
                     {% for lst in evaluation_lists %}
                     <option value="{{ lst.id }}">{{ lst.name }}{% if lst.welcome_label %} – {{ lst.welcome_label }}{% endif %}</option>
                     {% endfor %}
@@ -17,7 +17,7 @@
             <div class="mb-3">
                 <label class="form-label" id="targetLabel" for="target">{{ _('assessment.evaluate.target') }}</label>
                 <div class="assessment-target-row">
-                    <select class="form-select" id="target" data-inv-pill-select></select>
+                    <select class="form-select" id="target" data-mod-pill-select></select>
                     <button type="button" class="btn btn-link assessment-target-info" id="targetInfoBtn" hidden
                             aria-label="{{ _('assessment.evaluate.stand_description') }}"
                             title="{{ _('assessment.evaluate.stand_description') }}">

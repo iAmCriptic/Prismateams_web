@@ -168,7 +168,7 @@
 
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn btn-sm btn-primary surveys-btn-pill dropdown-toggle';
+        btn.className = 'btn btn-sm btn-primary mod-pill-btn dropdown-toggle';
         btn.setAttribute('data-bs-toggle', 'dropdown');
         btn.setAttribute('aria-expanded', 'false');
         btn.innerHTML = '<i class="bi bi-plus-lg"></i> Frage hinzufügen';
@@ -674,8 +674,8 @@
             const pageOpts = (structure.pages || []).map((p) => `<option value="${p.id}" ${p.id === rule.target_page_id ? 'selected' : ''}>${p.title || 'Seite'}</option>`).join('');
             row.innerHTML = `
                 <div class="mb-1 fw-semibold">Regel ${idx + 1}</div>
-                <select class="form-select form-select-sm mb-1 logic-src" data-inv-pill-select>${qOpts}</select>
-                <select class="form-select form-select-sm mb-1 logic-op" data-inv-pill-select>
+                <select class="form-select form-select-sm mb-1 logic-src" data-mod-pill-select>${qOpts}</select>
+                <select class="form-select form-select-sm mb-1 logic-op" data-mod-pill-select>
                     <option value="equals" ${rule.operator === 'equals' ? 'selected' : ''}>=</option>
                     <option value="not_equals" ${rule.operator === 'not_equals' ? 'selected' : ''}>≠</option>
                     <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>enthält</option>
@@ -683,13 +683,13 @@
                     <option value="is_not_empty" ${rule.operator === 'is_not_empty' ? 'selected' : ''}>nicht leer</option>
                 </select>
                 <input type="text" class="form-control form-control-sm mb-1 logic-val" value="${rule.value || ''}" placeholder="Wert">
-                <select class="form-select form-select-sm mb-1 logic-action" data-inv-pill-select>
+                <select class="form-select form-select-sm mb-1 logic-action" data-mod-pill-select>
                     <option value="goto_page" ${rule.action === 'goto_page' ? 'selected' : ''}>Gehe zu Seite</option>
                     <option value="skip_page" ${rule.action === 'skip_page' ? 'selected' : ''}>Seite überspringen</option>
                     <option value="hide_question" ${rule.action === 'hide_question' ? 'selected' : ''}>Frage ausblenden</option>
                     <option value="show_question" ${rule.action === 'show_question' ? 'selected' : ''}>Frage anzeigen</option>
                 </select>
-                <select class="form-select form-select-sm mb-1 logic-page" data-inv-pill-select>${pageOpts}</select>
+                <select class="form-select form-select-sm mb-1 logic-page" data-mod-pill-select>${pageOpts}</select>
                 <button type="button" class="btn btn-sm btn-link text-danger p-0 logic-del">Entfernen</button>
             `;
             row.querySelector('.logic-src').addEventListener('change', (e) => { rule.source_question_id = Number(e.target.value); scheduleSave(); });

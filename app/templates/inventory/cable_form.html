@@ -73,16 +73,16 @@
                     <label class="form-label" for="categoryCreateName">{{ _('inventory.product.form.category_name') }}</label>
                     <input type="text" class="form-control" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
                     <div class="inventory-inline-actions">
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="categoryCreateSubmit">
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_category') }}
                         </button>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryCreateCancel">{{ _('common.cancel') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryCreateCancel">{{ _('common.cancel') }}</button>
                     </div>
                 </div>
                 <div class="inventory-inline-panel" id="categoryManagePanel" hidden>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong class="small">{{ _('inventory.product.form.manage_categories') }}</strong>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryManageClose">{{ _('common.close') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryManageClose">{{ _('common.close') }}</button>
                     </div>
                     <ul class="inventory-manage-list" id="categoryList"></ul>
                     <div class="alert alert-info mt-2 mb-0 py-2 small" id="categoriesEmptyHint" style="display: none;">
@@ -93,13 +93,13 @@
                         <input type="hidden" id="categoryEditId">
                         <input type="text" class="form-control" id="categoryEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="categoryEditSubmit">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--danger" id="categoryEditDelete">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--danger" id="categoryEditDelete">
                                 <i class="bi bi-trash"></i> {{ _('common.delete') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryEditCancel">{{ _('common.cancel') }}</button>
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryEditCancel">{{ _('common.cancel') }}</button>
                         </div>
                     </div>
                 </div>
@@ -177,10 +177,10 @@
     </section>
 
     <div class="inventory-form-actions inventory-form-card--wide">
-        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
             <i class="bi bi-check-circle"></i> {{ _('inventory.cable_form.submit') }}
         </button>
-        <a href="{{ url_for('inventory.stock') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">{{ _('common.cancel') }}</a>
+        <a href="{{ url_for('inventory.stock') }}" class="btn mod-pill-btn mod-pill-btn--muted">{{ _('common.cancel') }}</a>
     </div>
 </form>
 {% endblock %}

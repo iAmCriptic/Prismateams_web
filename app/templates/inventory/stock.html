@@ -7,13 +7,13 @@
 {% block inventory_heading %}{% if is_retired_folder_view %}Papierkorb{% else %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endif %}{% endblock %}
 
 {% block navbar_search %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="searchInput">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="searchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="searchInput"
                data-inv-filter="searchInput"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.stock.search.placeholder') }}"
                aria-label="{{ _('inventory.stock.search.label') }}"
                autocomplete="off"
@@ -41,13 +41,13 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="searchInputMobile">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="searchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="searchInputMobile"
                data-inv-filter="searchInput"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.stock.search.placeholder') }}"
                aria-label="{{ _('inventory.stock.search.label') }}"
                autocomplete="off"
@@ -197,33 +197,33 @@
             </span>
         </div>
         <div class="inventory-bulk-actions">
-            <button id="bulkSelectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.select_all') }}">
+            <button id="bulkSelectAllBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.select_all') }}">
                 <i class="bi bi-check-square"></i> {{ _('inventory.stock.bulk_selection.select_all') }}
             </button>
-            <button id="bulkDeselectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
+            <button id="bulkDeselectAllBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
                 <i class="bi bi-square"></i> {{ _('inventory.stock.bulk_selection.deselect_all') }}
             </button>
             {% if is_retired_folder_view %}
-            <button id="bulkRestoreBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="Wieder in Betrieb nehmen">
+            <button id="bulkRestoreBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" title="Wieder in Betrieb nehmen">
                 <i class="bi bi-arrow-counterclockwise"></i> Wieder in Betrieb nehmen
             </button>
             {% else %}
-            <button id="bulkQrBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.print_qr') }}">
+            <button id="bulkQrBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.print_qr') }}">
                 <i class="bi bi-qr-code"></i> {{ _('inventory.stock.bulk_selection.print_qr') }}
             </button>
-            <button id="bulkEditBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.edit') }}">
+            <button id="bulkEditBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.edit') }}">
                 <i class="bi bi-pencil"></i> {{ _('inventory.stock.bulk_selection.edit') }}
             </button>
-            <button id="bulkBorrowBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
+            <button id="bulkBorrowBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
                 <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
             </button>
-            <button id="bulkRepairBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-warning" title="{{ _('inventory.stock.bulk_selection.repair') }}">
+            <button id="bulkRepairBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-warning" title="{{ _('inventory.stock.bulk_selection.repair') }}">
                 <i class="bi bi-tools"></i> {{ _('inventory.stock.bulk_selection.repair') }}
             </button>
-            <button id="bulkAvailableBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.available') }}">
+            <button id="bulkAvailableBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.available') }}">
                 <i class="bi bi-check2-circle"></i> {{ _('inventory.stock.bulk_selection.available') }}
             </button>
-            <button id="bulkDeleteBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
+            <button id="bulkDeleteBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
                 <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
             </button>
             {% endif %}
@@ -279,7 +279,7 @@
             </div>
             <div class="modal-body" id="productDetailContent"></div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
             </div>
         </div>
     </div>
@@ -303,8 +303,8 @@
                 <p class="text-muted small mb-0">{{ _('inventory.stock.modals.bulk_delete.note') }}</p>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_delete.cancel') }}</button>
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--danger" id="bulkDeleteConfirmBtn">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_delete.cancel') }}</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--danger" id="bulkDeleteConfirmBtn">
                     <i class="bi bi-trash"></i> {{ _('inventory.stock.modals.bulk_delete.confirm') }}
                 </button>
             </div>
@@ -440,8 +440,8 @@
                 </form>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_edit.cancel') }}</button>
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" id="bulkEditSubmitBtn">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_edit.cancel') }}</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--primary" id="bulkEditSubmitBtn">
                     <i class="bi bi-check-circle"></i> {{ _('inventory.stock.modals.bulk_edit.update') }}
                 </button>
             </div>
@@ -464,6 +464,10 @@
 {% block inventory_extra_js %}
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_stock.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_stock_render.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_stock_bulk.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_stock_folders.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     window.INVENTORY_RETIRED_FOLDER_ID = {{ retired_folder_id|tojson }};

@@ -8,13 +8,13 @@
 {% block inventory_heading %}{{ _('inventory.sets.heading') }}{% endblock %}
 
 {% block navbar_search %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="searchInput">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="searchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="searchInput"
                data-inv-filter="searchInput"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.sets.search.placeholder') }}"
                aria-label="{{ _('inventory.sets.search.label') }}"
                autocomplete="off"
@@ -34,13 +34,13 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="searchInputMobile">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="searchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="searchInputMobile"
                data-inv-filter="searchInput"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.sets.search.placeholder') }}"
                aria-label="{{ _('inventory.sets.search.label') }}"
                autocomplete="off"
@@ -137,19 +137,19 @@
             </span>
         </div>
         <div class="inventory-bulk-actions">
-            <button type="button" id="bulkSelectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.sets.bulk_selection.select_all') }}">
+            <button type="button" id="bulkSelectAllBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.sets.bulk_selection.select_all') }}">
                 <i class="bi bi-check-square"></i> {{ _('inventory.sets.bulk_selection.select_all') }}
             </button>
-            <button type="button" id="bulkDeselectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted" title="{{ _('inventory.sets.bulk_selection.deselect_all') }}">
+            <button type="button" id="bulkDeselectAllBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" title="{{ _('inventory.sets.bulk_selection.deselect_all') }}">
                 <i class="bi bi-square"></i> {{ _('inventory.sets.bulk_selection.deselect_all') }}
             </button>
-            <button type="button" id="bulkBorrowBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="{{ _('inventory.sets.bulk_selection.borrow') }}">
+            <button type="button" id="bulkBorrowBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" title="{{ _('inventory.sets.bulk_selection.borrow') }}">
                 <i class="bi bi-cart-check"></i> {{ _('inventory.sets.bulk_selection.borrow') }}
             </button>
-            <button type="button" id="bulkEditBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.sets.bulk_selection.edit') }}">
+            <button type="button" id="bulkEditBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.sets.bulk_selection.edit') }}">
                 <i class="bi bi-pencil"></i> {{ _('inventory.sets.bulk_selection.edit') }}
             </button>
-            <button type="button" id="bulkDeleteBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" title="{{ _('inventory.sets.bulk_selection.delete') }}">
+            <button type="button" id="bulkDeleteBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" title="{{ _('inventory.sets.bulk_selection.delete') }}">
                 <i class="bi bi-trash"></i> {{ _('inventory.sets.bulk_selection.delete') }}
             </button>
         </div>
@@ -202,8 +202,8 @@
                 <p class="text-muted small mb-0">{{ _('inventory.sets.modals.bulk_delete.note') }}</p>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.sets.modals.bulk_delete.cancel') }}</button>
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--danger" id="bulkDeleteConfirmBtn">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.sets.modals.bulk_delete.cancel') }}</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--danger" id="bulkDeleteConfirmBtn">
                     <i class="bi bi-trash"></i> {{ _('inventory.sets.modals.bulk_delete.confirm') }}
                 </button>
             </div>

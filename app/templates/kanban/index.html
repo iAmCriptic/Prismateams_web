@@ -150,25 +150,25 @@
 {% endif %}
 {% endmacro %}
 
-<div class="kanban-shell files-shell">
+<div class="kanban-shell files-shell mod-shell--nav">
   {% include 'kanban/_sidebar.html' %}
 
   <div class="mod-main kanban-main">
     <div class="mod-mobile-topbar d-lg-none">
       <button type="button" class="btn mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#kanbanMobileNav"><i class="bi bi-list"></i></button>
       <span class="mod-mobile-title">{{ _('kanban.index.title') }}</span>
-      <button type="button" class="btn files-pill-new btn-accent" data-bs-toggle="modal" data-bs-target="#createBoardModal"><i class="bi bi-plus-lg"></i></button>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--new mod-pill-btn--accent btn-accent" data-bs-toggle="modal" data-bs-target="#createBoardModal"><i class="bi bi-plus-lg"></i></button>
     </div>
 
     <div class="page-toolbar-row kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
       <h1 class="h4 mb-0 d-none d-lg-block">{{ _('kanban.index.title') }}</h1>
       <div class="kanban-toolbar-actions ms-auto">
-        <div class="files-view-toggle" data-view="grid" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
-          <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-          <button type="button" class="files-view-toggle__btn" id="kanbanListViewBtn" title="{{ _('kanban.index.list_view') }}">
+        <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
+          <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+          <button type="button" class="mod-view-toggle__btn" id="kanbanListViewBtn" title="{{ _('kanban.index.list_view') }}">
             <i class="bi bi-list"></i>
           </button>
-          <button type="button" class="files-view-toggle__btn active is-active" id="kanbanGridViewBtn" title="{{ _('kanban.index.grid_view') }}">
+          <button type="button" class="mod-view-toggle__btn active is-active" id="kanbanGridViewBtn" title="{{ _('kanban.index.grid_view') }}">
             <i class="bi bi-grid-3x3-gap"></i>
           </button>
         </div>
@@ -228,11 +228,11 @@
         <div class="modal-body d-grid gap-3">
           <div>
             <label class="form-label" for="boardTitle">{{ _('kanban.index.board_title') }}</label>
-            <input class="form-control files-pill-input" id="boardTitle" name="title" required maxlength="200">
+            <input class="form-control mod-pill-input" id="boardTitle" name="title" required maxlength="200">
           </div>
           <div>
             <label class="form-label" for="boardVisibility">{{ _('kanban.index.visibility') }}</label>
-            <select class="form-select" id="boardVisibility" name="visibility" data-inv-pill-select>
+            <select class="form-select" id="boardVisibility" name="visibility" data-mod-pill-select>
               {% if 'private' in allowed_visibilities %}
               <option value="private">{{ _('kanban.index.vis_private') }}</option>
               {% endif %}
@@ -261,7 +261,7 @@
           </div>
           <div id="boardTemplateWrap" style="display:none;">
             <label class="form-label" for="boardTemplate">{{ _('kanban.index.template') }}</label>
-            <select class="form-select" id="boardTemplate" name="template_id" data-inv-pill-select>
+            <select class="form-select" id="boardTemplate" name="template_id" data-mod-pill-select>
               <option value="">{{ _('kanban.index.choose_template') }}</option>
               {% for tmpl in templates %}
               <option value="{{ tmpl.id }}">{{ tmpl.name }}</option>
@@ -278,13 +278,13 @@
             <input type="hidden" name="background" id="boardBackground" value="{{ backgrounds[0].key }}">
             <div class="mt-3">
               <label class="form-label" for="boardBackgroundImage">{{ _('kanban.board.background_image') }}</label>
-              <input type="file" class="form-control files-pill-input" id="boardBackgroundImage" name="background_image" accept="image/*">
+              <input type="file" class="form-control mod-pill-input" id="boardBackgroundImage" name="background_image" accept="image/*">
               <p class="small text-muted mb-0 mt-1">{{ _('kanban.board.background_image_optional') }}</p>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-accent files-pill-new">{{ _('kanban.index.create') }}</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent">{{ _('kanban.index.create') }}</button>
         </div>
       </form>
     </div>
@@ -311,10 +311,10 @@
         </div>
         <div>
           <label class="form-label" for="kanbanColorImageInput">{{ _('kanban.board.background_image') }}</label>
-          <input type="file" class="form-control files-pill-input" id="kanbanColorImageInput" accept="image/*">
+          <input type="file" class="form-control mod-pill-input" id="kanbanColorImageInput" accept="image/*">
           <div class="d-flex flex-wrap gap-2 mt-2">
-            <button type="button" class="btn btn-sm kanban-pill-btn" id="kanbanColorImageUpload">{{ _('kanban.board.background_upload') }}</button>
-            <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="kanbanColorImageClear">{{ _('kanban.board.background_clear') }}</button>
+            <button type="button" class="btn btn-sm mod-pill-btn" id="kanbanColorImageUpload">{{ _('kanban.board.background_upload') }}</button>
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="kanbanColorImageClear">{{ _('kanban.board.background_clear') }}</button>
           </div>
           <p class="small text-muted mb-0 mt-1" id="kanbanColorImageHint" hidden>{{ _('kanban.board.background_image_set') }}</p>
         </div>
@@ -322,7 +322,7 @@
         <input type="hidden" id="kanbanColorSelected" value="">
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-accent files-pill-new" id="kanbanColorSave">{{ _('common.save') }}</button>
+        <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" id="kanbanColorSave">{{ _('common.save') }}</button>
       </div>
     </div>
   </div>

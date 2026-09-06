@@ -38,7 +38,7 @@
 
         <div class="surveys-workspace-toolbar-start">
 
-            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary surveys-btn-pill">
+            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary mod-pill-btn">
 
                 <i class="bi bi-arrow-left"></i> {{ _('surveys.builder.back') }}
 
@@ -58,19 +58,19 @@
 
         <div class="surveys-workspace-toolbar-end">
 
-            <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+            <a href="{{ preview_url }}" class="btn btn-outline-secondary mod-pill-btn" target="_blank" rel="noopener">
 
                 <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
 
             </a>
 
-            <button type="button" class="btn btn-outline-secondary surveys-btn-pill" id="surveyShareBtn" data-bs-toggle="modal" data-bs-target="#surveyShareModal">
+            <button type="button" class="btn btn-outline-secondary mod-pill-btn" id="surveyShareBtn" data-bs-toggle="modal" data-bs-target="#surveyShareModal">
 
                 <i class="bi bi-share"></i> {{ _('surveys.builder.share') }}
 
             </button>
 
-            <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn surveys-btn-pill surveys-btn-accent">
+            <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn mod-pill-btn mod-pill-btn--accent">
 
                 <i class="bi bi-bar-chart"></i> {{ _('surveys.index.results') }}
 
@@ -132,7 +132,7 @@
 
                 <div class="surveys-builder-actions d-flex flex-wrap gap-2 mt-2 mb-2">
 
-                    <button type="button" class="btn btn-outline-secondary surveys-btn-pill" id="surveyAddPageBtn">
+                    <button type="button" class="btn btn-outline-secondary mod-pill-btn" id="surveyAddPageBtn">
 
                         <i class="bi bi-file-earmark-plus"></i> {{ _('surveys.builder.add_page') }}
 
@@ -194,7 +194,7 @@
 
                         <label class="form-label small">{{ _('surveys.settings.layout_mode') }}</label>
 
-                        <select class="form-select form-select-sm mb-2" id="settingLayoutMode" data-inv-pill-select>
+                        <select class="form-select form-select-sm mb-2" id="settingLayoutMode" data-mod-pill-select>
 
                             <option value="scroll">{{ _('surveys.settings.layout_scroll') }}</option>
 
@@ -266,7 +266,7 @@
 
                         <div id="surveyLogicRules"></div>
 
-                        <button type="button" class="btn btn-sm btn-outline-primary surveys-btn-pill mt-2" id="surveyAddLogicBtn">
+                        <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn mt-2" id="surveyAddLogicBtn">
 
                             <i class="bi bi-diagram-3"></i> {{ _('surveys.logic.add_rule') }}
 
@@ -310,7 +310,7 @@
 
                     <form method="POST" action="{{ url_for('surveys.delete', survey_id=survey.id) }}">
 
-                        <button type="submit" class="btn btn-sm btn-outline-danger surveys-btn-pill w-100" data-confirm-delete="{{ _('surveys.builder.delete_confirm') }}">{{ _('surveys.builder.delete') }}</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger mod-pill-btn w-100" data-confirm-delete="{{ _('surveys.builder.delete_confirm') }}">{{ _('surveys.builder.delete') }}</button>
 
                     </form>
 
@@ -368,7 +368,7 @@
 
                 <div class="mt-3">
 
-                    <a href="{{ preview_url }}" class="btn btn-outline-secondary surveys-btn-pill" target="_blank" rel="noopener">
+                    <a href="{{ preview_url }}" class="btn btn-outline-secondary mod-pill-btn" target="_blank" rel="noopener">
 
                         <i class="bi bi-eye"></i> {{ _('surveys.builder.preview') }}
 

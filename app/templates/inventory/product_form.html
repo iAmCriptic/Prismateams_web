@@ -63,16 +63,16 @@
                     <label class="form-label" for="folderCreateName">{{ _('inventory.product.form.folder_name') }}</label>
                     <input type="text" class="form-control" id="folderCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.folder_name') }}">
                     <div class="inventory-inline-actions">
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="folderCreateSubmit">
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="folderCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_folder') }}
                         </button>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="folderCreateCancel">{{ _('common.cancel') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="folderCreateCancel">{{ _('common.cancel') }}</button>
                     </div>
                 </div>
                 <div class="inventory-inline-panel" id="folderManagePanel" hidden>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong class="small">{{ _('inventory.product.form.manage_folders') }}</strong>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="folderManageClose">{{ _('common.close') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="folderManageClose">{{ _('common.close') }}</button>
                     </div>
                     <ul class="inventory-manage-list" id="folderList"></ul>
                     <div class="alert alert-info mt-2 mb-0 py-2 small" id="foldersEmptyHint" style="display: none;">
@@ -83,13 +83,13 @@
                         <input type="hidden" id="folderEditId">
                         <input type="text" class="form-control" id="folderEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="folderEditSubmit">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="folderEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--danger" id="folderEditDelete">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--danger" id="folderEditDelete">
                                 <i class="bi bi-trash"></i> {{ _('common.delete') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="folderEditCancel">{{ _('common.cancel') }}</button>
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="folderEditCancel">{{ _('common.cancel') }}</button>
                         </div>
                     </div>
                 </div>
@@ -115,16 +115,16 @@
                     <label class="form-label" for="categoryCreateName">{{ _('inventory.product.form.category_name') }}</label>
                     <input type="text" class="form-control" id="categoryCreateName" maxlength="120" autocomplete="off" placeholder="{{ _('inventory.product.form.category_name') }}">
                     <div class="inventory-inline-actions">
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="categoryCreateSubmit">
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryCreateSubmit">
                             <i class="bi bi-check2"></i> {{ _('inventory.product.form.create_category') }}
                         </button>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryCreateCancel">{{ _('common.cancel') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryCreateCancel">{{ _('common.cancel') }}</button>
                     </div>
                 </div>
                 <div class="inventory-inline-panel" id="categoryManagePanel" hidden>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong class="small">{{ _('inventory.product.form.manage_categories') }}</strong>
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryManageClose">{{ _('common.close') }}</button>
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryManageClose">{{ _('common.close') }}</button>
                     </div>
                     <ul class="inventory-manage-list" id="categoryList"></ul>
                     <div class="alert alert-info mt-2 mb-0 py-2 small" id="categoriesEmptyHint" style="display: none;">
@@ -135,13 +135,13 @@
                         <input type="hidden" id="categoryEditId">
                         <input type="text" class="form-control" id="categoryEditName" maxlength="120" autocomplete="off">
                         <div class="inventory-inline-actions">
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary" id="categoryEditSubmit">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--primary" id="categoryEditSubmit">
                                 <i class="bi bi-check2"></i> {{ _('common.save') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--danger" id="categoryEditDelete">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--danger" id="categoryEditDelete">
                                 <i class="bi bi-trash"></i> {{ _('common.delete') }}
                             </button>
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted" id="categoryEditCancel">{{ _('common.cancel') }}</button>
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--muted" id="categoryEditCancel">{{ _('common.cancel') }}</button>
                         </div>
                     </div>
                 </div>
@@ -421,7 +421,7 @@
                     {% set image_filename = image_filename.split('\\')[-1] if '\\' in image_filename else image_filename %}
                     <img src="{{ url_for('inventory.serve_product_image', filename=image_filename) }}" alt="" class="img-thumbnail mt-2" style="max-width: 200px; border-radius: 1rem;">
                     <div class="mt-2">
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--danger" onclick="removeProductImage({{ product.id }})">
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--danger" onclick="removeProductImage({{ product.id }})">
                             <i class="bi bi-trash"></i> {{ _('inventory.product.form.remove_image') }}
                         </button>
                     </div>
@@ -473,7 +473,7 @@
             {% endif %}
             {% if product %}
             <div class="inventory-form-field inventory-form-field--span-2">
-                <a href="{{ url_for('inventory.product_documents', product_id=product.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+                <a href="{{ url_for('inventory.product_documents', product_id=product.id) }}" class="btn mod-pill-btn mod-pill-btn--outline">
                     <i class="bi bi-files"></i> {{ _('inventory.product.form.manage_documents') }}
                 </a>
             </div>
@@ -482,10 +482,10 @@
     </section>
 
     <div class="inventory-form-actions">
-        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
             <i class="bi bi-check-circle"></i> {{ _('inventory.product.form.save') }}
         </button>
-        <a href="{{ url_for('inventory.stock') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">{{ _('inventory.product.form.cancel') }}</a>
+        <a href="{{ url_for('inventory.stock') }}" class="btn mod-pill-btn mod-pill-btn--muted">{{ _('inventory.product.form.cancel') }}</a>
     </div>
 </form>
 {% endblock %}

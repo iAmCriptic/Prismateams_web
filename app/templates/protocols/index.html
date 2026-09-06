@@ -3,17 +3,17 @@
 {% block title %}{{ _('protocols.nav.title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
+<form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon protocols-search" role="search">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
     <input type="hidden" name="sort" value="{{ sort_by|default('date') }}">
     <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
-    <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            value="{{ search_query|default('') }}"
-           class="form-control protocols-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('protocols.index.search_placeholder') }}"
            aria-label="{{ _('protocols.index.search_placeholder') }}"
            autocomplete="off"
@@ -21,7 +21,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('protocols.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none, status=status_filter or none, sort=sort_by|default('date'), dir=sort_dir|default('desc')) }}"
-       class="btn protocols-search-clear"
+       class="btn mod-search-clear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
     </a>
@@ -79,14 +79,14 @@
                 </a>
             </div>
             <div class="mt-2">
-                <form method="GET" action="{{ url_for('protocols.index') }}" class="protocols-search" role="search">
+                <form method="GET" action="{{ url_for('protocols.index') }}" class="mod-search mod-search--icon protocols-search" role="search">
                     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
                     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
                     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
                     <input type="hidden" name="sort" value="{{ sort_by|default('date') }}">
                     <input type="hidden" name="dir" value="{{ sort_dir|default('desc') }}">
-                    <i class="bi bi-search protocols-search-icon" aria-hidden="true"></i>
-                    <input type="search" name="q" value="{{ search_query|default('') }}" class="form-control protocols-search-input" placeholder="{{ _('protocols.index.search_placeholder') }}" autocomplete="off">
+                    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
+                    <input type="search" name="q" value="{{ search_query|default('') }}" class="form-control mod-search-input" placeholder="{{ _('protocols.index.search_placeholder') }}" autocomplete="off">
                 </form>
             </div>
         </div>
@@ -193,7 +193,7 @@
         <div class="protocols-empty mod-empty-state">
             <i class="bi bi-journal-richtext protocols-empty-icon" aria-hidden="true"></i>
             <p>{{ _('protocols.index.empty') }}</p>
-            <a href="{{ create_url }}" class="btn btn-accent rounded-pill protocols-btn-pill">{{ _('protocols.nav.new') }}</a>
+            <a href="{{ create_url }}" class="btn btn-accent rounded-pill mod-pill-btn">{{ _('protocols.nav.new') }}</a>
         </div>
         {% endif %}
     </div>

@@ -204,8 +204,8 @@ class ProductScanManager extends BorrowScannerManager {
                         </div>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a href="/inventory/products/${product.id}/edit" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">${this.t('full_edit')}</a>
-                        <a href="/inventory/products/${product.id}/documents" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">${this.t('all_docs')}</a>
+                        <a href="/inventory/products/${product.id}/edit" class="btn btn-sm mod-pill-btn mod-pill-btn--outline">${this.t('full_edit')}</a>
+                        <a href="/inventory/products/${product.id}/documents" class="btn btn-sm mod-pill-btn mod-pill-btn--outline">${this.t('all_docs')}</a>
                     </div>
                 </div>
 
@@ -263,7 +263,7 @@ class ProductScanManager extends BorrowScannerManager {
                     </div>
 
                     <div class="inventory-form-actions mt-3">
-                        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
                             <i class="bi bi-check-circle"></i> ${this.t('save')}
                         </button>
                     </div>
@@ -293,7 +293,7 @@ class ProductScanManager extends BorrowScannerManager {
                         </div>
                     </div>
                     <div class="mt-2">
-                        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="psDocUploadBtn">
+                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" id="psDocUploadBtn">
                             <i class="bi bi-upload"></i> ${this.t('docs_upload')}
                         </button>
                     </div>
@@ -307,7 +307,7 @@ class ProductScanManager extends BorrowScannerManager {
                             </select>
                         </div>
                         <div class="inventory-form-field">
-                            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="psManualLinkBtn">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" id="psManualLinkBtn">
                                 <i class="bi bi-link-45deg"></i> ${this.t('link')}
                             </button>
                         </div>

@@ -352,71 +352,118 @@ def generate_onlyoffice_token(payload):
         return None
 
 
-def generate_onlyoffice_access_token(file_id, user_id=None):
+_ACCESS_TOKEN_PURPOSE = 'onlyoffice_document'
+_ACCESS_TOKEN_DEFAULT_TTL_SECONDS = 3600
+
+
+def _onlyoffice_access_token_secret():
+    """Signing secret for document access tokens (never a hardcoded default)."""
+    secret = get_onlyoffice_secret_key() or (current_app.config.get('SECRET_KEY') or '').strip()
+    return secret or None
+
+
+def generate_onlyoffice_access_token(file_id, user_id=None, ttl_seconds=None):
     """
-    Generate a temporary access token for OnlyOffice to access documents.
-    This token allows OnlyOffice to download files without session cookies.
-    
-    Args:
-        file_id: ID of the file to access
-        user_id: ID of the user requesting access (optional)
-        
-    Returns:
-        str: Access token string
+    Generate a signed, time-limited access token for OnlyOffice document download.
+
+    Claims bind the token to a specific resource id (file or attachment) so it
+    cannot be reused for another document.
     """
-    # Create a token that includes file_id, user_id, and timestamp
-    timestamp = datetime.utcnow().isoformat()
-    token_data = f"{file_id}_{user_id or 'anonymous'}_{timestamp}"
-    
-    # Use secret key for signing
-    secret_key = current_app.config.get('ONLYOFFICE_SECRET_KEY', current_app.config.get('SECRET_KEY', 'default-secret'))
-    
-    # Create hash-based token
-    token_string = f"{token_data}_{secret_key}"
-    token = hashlib.sha256(token_string.encode()).hexdigest()[:32]
-    
-    # Store token in a way that can be validated (using session or cache)
-    # For now, we'll use a simple approach: token is valid for 1 hour
-    # In production, you might want to use Redis or similar
-    return token
+    if not JWT_AVAILABLE:
+        current_app.logger.error('ONLYOFFICE access token: PyJWT not available')
+        return None
+
+    secret_key = _onlyoffice_access_token_secret()
+    if not secret_key:
+        current_app.logger.error('ONLYOFFICE access token: no signing secret configured')
+        return None
+
+    try:
+        resource_id = int(file_id)
+    except (TypeError, ValueError):
+        current_app.logger.error('ONLYOFFICE access token: invalid file_id %r', file_id)
+        return None
+
+    if ttl_seconds is None:
+        ttl_seconds = int(
+            current_app.config.get('ONLYOFFICE_ACCESS_TOKEN_TTL', _ACCESS_TOKEN_DEFAULT_TTL_SECONDS)
+        )
+    ttl_seconds = max(60, min(int(ttl_seconds), 24 * 3600))
+
+    now = datetime.utcnow()
+    payload = {
+        'purpose': _ACCESS_TOKEN_PURPOSE,
+        'fid': resource_id,
+        'uid': int(user_id) if user_id is not None else None,
+        'iat': now,
+        'exp': now + timedelta(seconds=ttl_seconds),
+    }
+    try:
+        token = jwt.encode(payload, secret_key, algorithm='HS256')
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+        return token
+    except Exception as e:
+        current_app.logger.error('Error generating ONLYOFFICE access token: %s', e)
+        return None
 
 
 def validate_onlyoffice_access_token(token, file_id):
     """
-    Validate an OnlyOffice access token.
-    
-    Since tokens are generated deterministically, we can validate by checking format
-    and ensuring the token structure is correct. For now, we accept any valid format
-    token for the given file_id, as the token includes file_id in its generation.
-    
-    Args:
-        token: The access token to validate
-        file_id: The file ID the token should grant access to
-        
-    Returns:
-        bool: True if token format is valid, False otherwise
+    Validate a signed OnlyOffice document access token for the given resource id.
+
+    Requires matching purpose claim, matching fid, and a non-expired signature.
     """
     if not token:
-        current_app.logger.debug("ONLYOFFICE access token validation failed: token is empty")
+        current_app.logger.debug('ONLYOFFICE access token validation failed: token is empty')
         return False
-    
-    # Token should be 32 characters hex string
-    if len(token) != 32:
-        current_app.logger.debug(f"ONLYOFFICE access token validation failed: invalid length ({len(token)})")
+
+    if not JWT_AVAILABLE:
+        current_app.logger.error('ONLYOFFICE access token validation failed: PyJWT not available')
         return False
-    
-    # Basic format validation - token should be hexadecimal
+
+    secret_key = _onlyoffice_access_token_secret()
+    if not secret_key:
+        current_app.logger.error('ONLYOFFICE access token validation failed: no signing secret')
+        return False
+
     try:
-        int(token, 16)
-    except ValueError:
-        current_app.logger.debug("ONLYOFFICE access token validation failed: not hexadecimal")
+        expected_fid = int(file_id)
+    except (TypeError, ValueError):
+        current_app.logger.debug('ONLYOFFICE access token validation failed: invalid file_id')
         return False
-    
-    # Token format is valid - accept it
-    # Note: In production, you might want to store tokens in Redis with expiration
-    # and validate against stored tokens. For now, format validation is sufficient
-    # since tokens are generated with file_id and secret key.
-    current_app.logger.debug(f"ONLYOFFICE access token validated successfully for file {file_id}")
+
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        current_app.logger.debug(
+            'ONLYOFFICE access token validation failed: expired (file_id=%s)', expected_fid
+        )
+        return False
+    except jwt.InvalidTokenError as e:
+        current_app.logger.debug(
+            'ONLYOFFICE access token validation failed: %s (file_id=%s)', e, expected_fid
+        )
+        return False
+
+    if payload.get('purpose') != _ACCESS_TOKEN_PURPOSE:
+        current_app.logger.debug('ONLYOFFICE access token validation failed: wrong purpose')
+        return False
+
+    try:
+        token_fid = int(payload.get('fid'))
+    except (TypeError, ValueError):
+        current_app.logger.debug('ONLYOFFICE access token validation failed: missing fid claim')
+        return False
+
+    if token_fid != expected_fid:
+        current_app.logger.debug(
+            'ONLYOFFICE access token validation failed: fid mismatch (%s != %s)',
+            token_fid,
+            expected_fid,
+        )
+        return False
+
     return True
 
 

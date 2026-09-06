@@ -29,12 +29,12 @@
                 </div>
                 <div class="settings-profile-avatar-fields">
                     <div class="settings-profile-avatar-actions">
-                        <label for="profile_picture" class="btn btn-outline-secondary settings-profile-btn-pill">
+                        <label for="profile_picture" class="btn btn-outline-secondary mod-pill-btn">
                             <i class="bi bi-upload" aria-hidden="true"></i>
                             {{ _('settings.profile.picture.change_button') }}
                         </label>
                         <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="previewProfilePicture(this)">
-                        <button type="button" class="btn btn-outline-danger settings-profile-btn-pill" onclick="removeProfilePicture()" id="remove-pic-btn" {% if not user.profile_picture %}hidden{% endif %}>
+                        <button type="button" class="btn btn-outline-danger mod-pill-btn" onclick="removeProfilePicture()" id="remove-pic-btn" {% if not user.profile_picture %}hidden{% endif %}>
                             <i class="bi bi-trash" aria-hidden="true"></i>
                             {{ _('settings.profile.picture.remove_button') }}
                         </button>

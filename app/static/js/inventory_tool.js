@@ -100,8 +100,17 @@ class InventoryToolManager {
         const isGrid = this.viewMode === 'grid';
         if (listView) listView.style.display = isGrid ? 'none' : '';
         if (gridView) gridView.style.display = isGrid ? '' : 'none';
-        if (listBtn) listBtn.classList.toggle('active', !isGrid);
-        if (gridBtn) gridBtn.classList.toggle('active', isGrid);
+        if (listBtn) {
+            listBtn.classList.toggle('active', !isGrid);
+            listBtn.classList.toggle('is-active', !isGrid);
+        }
+        if (gridBtn) {
+            gridBtn.classList.toggle('active', isGrid);
+            gridBtn.classList.toggle('is-active', isGrid);
+        }
+        document.querySelectorAll('.inventory-shell .mod-view-toggle').forEach((el) => {
+            el.dataset.view = isGrid ? 'grid' : 'list';
+        });
         try { localStorage.setItem('inventurSessionViewMode', this.viewMode); } catch (e) {}
         this.renderItems();
     }

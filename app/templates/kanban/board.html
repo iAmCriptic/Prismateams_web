@@ -19,7 +19,7 @@
   <header class="kanban-board-topbar">
     <div class="kanban-board-topbar__left">
       {% if not is_share %}
-      <a href="{{ url_for('kanban.index') }}" class="btn kanban-pill-btn kanban-pill-btn--ghost" title="Zurück"><i class="bi bi-arrow-left"></i></a>
+      <a href="{{ url_for('kanban.index') }}" class="btn mod-pill-btn mod-pill-btn--ghost" title="Zurück"><i class="bi bi-arrow-left"></i></a>
       {% endif %}
       <h1 class="kanban-board-title">{{ board.title }}</h1>
       {% if is_share %}
@@ -30,13 +30,13 @@
     </div>
     <div class="kanban-board-topbar__right">
       <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
-      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanFilterBtn"
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanFilterBtn"
               title="{{ _('kanban.board.filter') }}">
         <i class="bi bi-funnel" aria-hidden="true"></i>
         <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
       </button>
       <div class="dropdown">
-        <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanExportBtn"
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanExportBtn"
                 data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('kanban.export.title') }}">
           <i class="bi bi-download" aria-hidden="true"></i>
         </button>
@@ -54,16 +54,16 @@
         </ul>
       </div>
       {% if can_manage %}
-      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanBgBtn" title="{{ _('kanban.board.background') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanBgBtn" title="{{ _('kanban.board.background') }}">
         <i class="bi bi-palette" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
         <i class="bi bi-person-plus" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn kanban-pill-btn kanban-pill-btn--icon kanban-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">
         <i class="bi bi-bookmark" aria-hidden="true"></i>
       </button>
       {% endif %}
@@ -103,7 +103,7 @@
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
           {% if can_edit %}
           <div class="dropdown">
-            <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="cardMoreMenuBtn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+            <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="cardMoreMenuBtn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
               <i class="bi bi-three-dots"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -133,15 +133,15 @@
       <div class="modal-body kanban-card-modal__body">
         <div class="kanban-card-modal__main">
           <div class="kanban-action-row">
-            <button type="button" class="btn kanban-pill-btn" id="cardVoteBtn">
+            <button type="button" class="btn mod-pill-btn" id="cardVoteBtn">
               <i class="bi bi-hand-thumbs-up me-1"></i>{{ _('kanban.card.vote') }}
               <span id="cardVoteCount" class="ms-1">0</span>
             </button>
             {% if can_edit %}
-            <button type="button" class="btn kanban-pill-btn" id="cardAddMembers"><i class="bi bi-people me-1"></i>{{ _('kanban.card.members') }}</button>
-            <button type="button" class="btn kanban-pill-btn" id="cardAddLabel"><i class="bi bi-tag me-1"></i>{{ _('kanban.card.labels') }}</button>
-            <button type="button" class="btn kanban-pill-btn" id="cardAddDue"><i class="bi bi-calendar me-1"></i>{{ _('kanban.card.due') }}</button>
-            <button type="button" class="btn kanban-pill-btn" id="cardAddChecklist"><i class="bi bi-check2-square me-1"></i>{{ _('kanban.card.checklist') }}</button>
+            <button type="button" class="btn mod-pill-btn" id="cardAddMembers"><i class="bi bi-people me-1"></i>{{ _('kanban.card.members') }}</button>
+            <button type="button" class="btn mod-pill-btn" id="cardAddLabel"><i class="bi bi-tag me-1"></i>{{ _('kanban.card.labels') }}</button>
+            <button type="button" class="btn mod-pill-btn" id="cardAddDue"><i class="bi bi-calendar me-1"></i>{{ _('kanban.card.due') }}</button>
+            <button type="button" class="btn mod-pill-btn" id="cardAddChecklist"><i class="bi bi-check2-square me-1"></i>{{ _('kanban.card.checklist') }}</button>
             {% endif %}
           </div>
           <div class="kanban-meta-row" id="cardMetaRow"></div>
@@ -158,12 +158,12 @@
               <div class="kanban-poll-block__head">
                 <strong><i class="bi bi-hand-thumbs-up me-1"></i>{{ _('kanban.card.vote') }}</strong>
                 {% if can_edit %}
-                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardPollEditBtn" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
-                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardPollClearBtn" title="Entfernen"><i class="bi bi-x-lg"></i></button>
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardPollEditBtn" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardPollClearBtn" title="Entfernen"><i class="bi bi-x-lg"></i></button>
                 {% endif %}
               </div>
               <p class="kanban-poll-block__text mb-2" id="cardPollText"></p>
-              <button type="button" class="btn kanban-pill-btn" id="cardPollVoteBtn">
+              <button type="button" class="btn mod-pill-btn" id="cardPollVoteBtn">
                 <i class="bi bi-hand-thumbs-up me-1"></i>
                 <span id="cardPollVoteLabel">Zustimmen</span>
                 <span class="ms-1" id="cardPollVoteCount">0</span>
@@ -176,11 +176,11 @@
               <h6 class="mb-0"><i class="bi bi-paperclip me-1"></i>{{ _('kanban.card.attachments') }}</h6>
               {% if can_edit %}
               <div class="d-flex gap-1 flex-wrap">
-                <label class="btn btn-sm kanban-pill-btn mb-0">
+                <label class="btn btn-sm mod-pill-btn mb-0">
                   <i class="bi bi-upload me-1"></i>{{ _('kanban.card.attach_file') }}
                   <input type="file" id="cardAttachFile" hidden>
                 </label>
-                <button type="button" class="btn btn-sm kanban-pill-btn" id="cardAttachLinkBtn">
+                <button type="button" class="btn btn-sm mod-pill-btn" id="cardAttachLinkBtn">
                   <i class="bi bi-link-45deg me-1"></i>{{ _('kanban.card.attach_link') }}
                 </button>
               </div>
@@ -190,8 +190,8 @@
               <div class="d-flex flex-wrap gap-2">
                 <input type="url" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="cardAttachLinkUrl" placeholder="https://…" required>
                 <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="{{ _('kanban.card.link_title') }}" style="max-width:10rem;">
-                <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">{{ _('kanban.card.add') }}</button>
-                <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardAttachLinkCancel"><i class="bi bi-x-lg"></i></button>
+                <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">{{ _('kanban.card.add') }}</button>
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardAttachLinkCancel"><i class="bi bi-x-lg"></i></button>
               </div>
             </form>
             <div id="cardAttachments"></div>
@@ -239,7 +239,7 @@
         <textarea class="form-control kanban-pill-input" id="kanbanPollInput" rows="3" placeholder="Worum soll abgestimmt werden?"></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-accent kanban-pill-btn" id="kanbanPollSave">Speichern</button>
+        <button type="button" class="btn btn-accent mod-pill-btn" id="kanbanPollSave">Speichern</button>
       </div>
     </div>
   </div>
@@ -258,7 +258,7 @@
           <h6 class="mb-2">{{ _('kanban.custom_fields.categories') }}</h6>
           <form id="kanbanCfCategoryForm" class="d-flex flex-wrap gap-2 mb-2">
             <input type="text" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="kanbanCfCategoryName" maxlength="200" placeholder="{{ _('kanban.custom_fields.category_ph') }}" required autocomplete="off">
-            <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">{{ _('kanban.custom_fields.add_category') }}</button>
+            <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">{{ _('kanban.custom_fields.add_category') }}</button>
           </form>
           <div id="kanbanCfCategoriesList" class="kanban-cf-cat-list"></div>
         </section>
@@ -286,8 +286,8 @@
               </select>
             </div>
             <div class="col-md-3">
-              <button type="submit" class="btn btn-accent kanban-pill-btn" id="kanbanCfSubmit">{{ _('kanban.custom_fields.add') }}</button>
-              <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanCfCancelEdit" hidden>{{ _('common.cancel') }}</button>
+              <button type="submit" class="btn btn-accent mod-pill-btn" id="kanbanCfSubmit">{{ _('kanban.custom_fields.add') }}</button>
+              <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanCfCancelEdit" hidden>{{ _('common.cancel') }}</button>
             </div>
           </div>
           <div class="mt-2" id="kanbanCfOptionsWrap" hidden>
@@ -338,7 +338,7 @@
             <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn btn-accent kanban-pill-btn w-100">{{ _('kanban.share.create') }}</button>
+            <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('kanban.share.create') }}</button>
           </div>
         </form>
         <div class="table-responsive kanban-share-table-wrap">
@@ -390,8 +390,8 @@
           </div>
         </div>
         <div class="modal-footer border-0">
-          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.close') }}</button>
-          <button type="submit" class="btn btn-accent kanban-pill-btn">{{ _('common.save') }}</button>
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('common.save') }}</button>
         </div>
       </form>
     </div>
@@ -453,8 +453,8 @@
         </section>
       </div>
       <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanFilterReset">{{ _('kanban.filter.reset') }}</button>
-        <button type="button" class="btn btn-accent kanban-pill-btn" data-bs-dismiss="modal" id="kanbanFilterApply">{{ _('kanban.filter.apply') }}</button>
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanFilterReset">{{ _('kanban.filter.reset') }}</button>
+        <button type="button" class="btn btn-accent mod-pill-btn" data-bs-dismiss="modal" id="kanbanFilterApply">{{ _('kanban.filter.apply') }}</button>
       </div>
     </div>
   </div>
@@ -473,7 +473,7 @@
           <input type="text" class="form-control form-control-sm kanban-pill-input" name="name" maxlength="80" placeholder="{{ _('kanban.card.label_name') }}" required>
           <div class="d-flex align-items-center gap-2">
             <input type="color" class="form-control form-control-color" name="color" value="#ef4444" title="{{ _('kanban.card.label_color') }}" style="width:2.5rem;height:2.25rem;padding:0.15rem;">
-            <button type="submit" class="btn kanban-pill-btn btn-sm flex-grow-1">{{ _('kanban.card.add') }}</button>
+            <button type="submit" class="btn mod-pill-btn btn-sm flex-grow-1">{{ _('kanban.card.add') }}</button>
           </div>
         </form>
         {% endif %}
@@ -503,8 +503,8 @@
           <input type="datetime-local" class="form-control kanban-pill-input" id="kanbanDueInput" required>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanDueClear">{{ _('kanban.card.clear_due') }}</button>
-          <button type="submit" class="btn kanban-pill-btn">{{ _('common.save') }}</button>
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanDueClear">{{ _('kanban.card.clear_due') }}</button>
+          <button type="submit" class="btn mod-pill-btn">{{ _('common.save') }}</button>
         </div>
       </form>
     </div>
@@ -533,10 +533,10 @@
         </div>
         <div>
           <label class="form-label" for="kanbanBoardBgImageInput">{{ _('kanban.board.background_image') }}</label>
-          <input type="file" class="form-control files-pill-input" id="kanbanBoardBgImageInput" accept="image/*">
+          <input type="file" class="form-control mod-pill-input" id="kanbanBoardBgImageInput" accept="image/*">
           <div class="d-flex flex-wrap gap-2 mt-2">
-            <button type="button" class="btn btn-sm kanban-pill-btn" id="kanbanBoardBgImageUpload">{{ _('kanban.board.background_upload') }}</button>
-            <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="kanbanBoardBgImageClear">{{ _('kanban.board.background_clear') }}</button>
+            <button type="button" class="btn btn-sm mod-pill-btn" id="kanbanBoardBgImageUpload">{{ _('kanban.board.background_upload') }}</button>
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="kanbanBoardBgImageClear">{{ _('kanban.board.background_clear') }}</button>
           </div>
         </div>
       </div>

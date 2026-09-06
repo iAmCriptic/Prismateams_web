@@ -3,18 +3,18 @@
 {% block title %}{{ _('files.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<div class="files-search" role="search">
-    <label class="files-search-field" for="filesSearchInput">
+<div class="mod-search files-search" role="search">
+    <label class="mod-search-field" for="filesSearchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="text"
                id="filesSearchInput"
-               class="files-search-input"
+               class="mod-search-input"
                placeholder="{{ _('files.index.search_placeholder') }}"
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search">
     </label>
-    <button type="button" class="btn files-search-clear d-none" id="filesSearchClear" aria-label="{{ _('common.cancel') }}">
+    <button type="button" class="btn mod-search-clear d-none" id="filesSearchClear" aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
     </button>
 </div>
@@ -143,7 +143,7 @@
 {% endif %}
 {% endmacro %}
 
-<div class="files-shell {% if files_view %}files-shell--private{% endif %}">
+<div class="files-shell mod-shell--nav {% if files_view %}files-shell--private{% endif %}">
 {% if files_view %}
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -306,34 +306,34 @@
         {% endif %}
     </div>
     <div class="col-12 col-lg-9">
-        <div class="files-toolbar-actions">
-            <div class="files-search d-lg-none" role="search">
-                <label class="files-search-field" for="filesSearchInputMobile">
+        <div class="mod-toolbar">
+            <div class="mod-search files-search d-lg-none" role="search">
+                <label class="mod-search-field" for="filesSearchInputMobile">
                     <i class="bi bi-search" aria-hidden="true"></i>
                     <input type="text"
                            id="filesSearchInputMobile"
-                           class="files-search-input"
+                           class="mod-search-input"
                            placeholder="{{ _('files.index.search_placeholder') }}"
                            autocomplete="off"
                            spellcheck="false"
                            enterkeyhint="search">
                 </label>
-                <button type="button" class="btn files-search-clear d-none" id="filesSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+                <button type="button" class="btn mod-search-clear d-none" id="filesSearchClearMobile" aria-label="{{ _('common.cancel') }}">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <div class="files-view-toggle" data-view="grid" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
-                <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-                <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
+            <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
+                <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+                <button type="button" class="mod-view-toggle__btn" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
                     <i class="bi bi-list"></i>
                 </button>
-                <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('files.index.view_toggle.grid') }}">
+                <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('files.index.view_toggle.grid') }}">
                     <i class="bi bi-grid-3x3-gap"></i>
                 </button>
             </div>
-            <div class="btn-group files-toolbar-new {% if files_view %}d-none{% else %}{% endif %}" role="group">
+            <div class="btn-group mod-toolbar-new {% if files_view %}d-none{% else %}{% endif %}" role="group">
                 <div class="dropdown" id="newButtonDropdown">
-                    <button class="btn btn-accent files-pill-new" type="button" id="newButton">
+                    <button class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" type="button" id="newButton">
                         <i class="bi bi-plus-lg me-1"></i> {{ _('files.index.new_button') }}
                     </button>
                     <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu" style="display: none;">
@@ -382,7 +382,7 @@
                 <input type="file" id="directFolderUpload" name="folder_upload" style="display: none;" webkitdirectory directory multiple>
             </div>
         </div>
-        <div class="files-search-empty text-muted small text-center mt-2 d-none" id="filesSearchEmpty">
+        <div class="mod-search-empty text-muted small text-center mt-2 d-none" id="filesSearchEmpty">
             {{ _('files.index.search_empty') }}
         </div>
     </div>
@@ -450,7 +450,7 @@
 <div id="filesContentMeta" hidden
      data-has-folders="{{ '1' if subfolders else '0' }}"
      data-has-files="{{ '1' if files else '0' }}"></div>
-<div id="filesViewStage" class="files-view-stage" data-view="grid"
+<div id="filesViewStage" class="mod-view-stage" data-view="grid"
      data-lazy-more
      data-lazy-mode="next-value"
      data-lazy-page="{{ files_browse_next_offset|default(0) }}"
@@ -458,7 +458,7 @@
      data-lazy-param="offset"
      data-lazy-items="[data-lazy-item]"
      data-lazy-targets="#gridView,#filesListTableBody">
-<div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+<div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
     {% if not subfolders and not files %}
     <div class="mod-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
     {% endif %}
@@ -474,12 +474,12 @@
                     <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form">
                         <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
                         {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
-                        <input type="text" class="form-control form-control-sm files-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
+                        <input type="text" class="form-control form-control-sm mod-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
-                            <button type="submit" class="btn btn-sm btn-accent flex-fill files-pill-btn">
+                            <button type="submit" class="btn btn-sm btn-accent flex-fill mod-pill-btn">
                                 <i class="bi bi-check"></i> {{ _('common.create') }}
                             </button>
-                            <button type="button" class="btn btn-sm btn-secondary cancel-inline-create files-pill-btn">
+                            <button type="button" class="btn btn-sm btn-secondary cancel-inline-create mod-pill-btn">
                                 <i class="bi bi-x"></i>
                             </button>
                         </div>
@@ -614,12 +614,12 @@
                     <form method="POST" class="inline-create-form" id="inlineFileForm">
                         <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
                         {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
-                        <input type="text" class="form-control form-control-sm files-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
+                        <input type="text" class="form-control form-control-sm mod-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
-                            <button type="submit" class="btn btn-sm btn-accent flex-fill files-pill-btn">
+                            <button type="submit" class="btn btn-sm btn-accent flex-fill mod-pill-btn">
                                 <i class="bi bi-check"></i> {{ _('common.create') }}
                             </button>
-                            <button type="button" class="btn btn-sm btn-secondary cancel-inline-create files-pill-btn">
+                            <button type="button" class="btn btn-sm btn-secondary cancel-inline-create mod-pill-btn">
                                 <i class="bi bi-x"></i>
                             </button>
                         </div>
@@ -821,7 +821,7 @@
     </div>
 </div>
 
-<div id="listViewWrapper" class="files-view-pane" style="display: none;">
+<div id="listViewWrapper" class="mod-view-pane" style="display: none;">
 <!-- Inline Folder Creation (List View) -->
 <div id="inlineFolderCreateList" class="list-group mb-4" style="display: none;">
     <div class="list-group-item">
@@ -830,11 +830,11 @@
             <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2">
                 <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
                 {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
-                <input type="text" class="form-control form-control-sm files-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
-                <button type="submit" class="btn btn-sm btn-accent files-pill-btn">
+                <input type="text" class="form-control form-control-sm mod-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
+                <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
                 </button>
-                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create files-pill-btn">
+                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create mod-pill-btn">
                     <i class="bi bi-x"></i> {{ _('common.cancel') }}
                 </button>
             </form>
@@ -850,11 +850,11 @@
             <form method="POST" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2" id="inlineFileFormList">
                 <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
                 {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
-                <input type="text" class="form-control form-control-sm files-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
-                <button type="submit" class="btn btn-sm btn-accent files-pill-btn">
+                <input type="text" class="form-control form-control-sm mod-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
+                <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
                 </button>
-                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create files-pill-btn">
+                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create mod-pill-btn">
                     <i class="bi bi-x"></i> {{ _('common.cancel') }}
                 </button>
             </form>
@@ -1261,7 +1261,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold" for="webdavConnectUrl">{{ _('files.index.webdav_modal.url_label') }}</label>
                     <div class="files-webdav-url-row">
-                        <input type="text" class="form-control files-pill-input user-select-all" id="webdavConnectUrl" value="{{ webdav_url }}" readonly>
+                        <input type="text" class="form-control mod-pill-input user-select-all" id="webdavConnectUrl" value="{{ webdav_url }}" readonly>
                         <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavCopyUrlBtn" title="{{ _('files.index.webdav_modal.copy') }}">
                             <i class="bi bi-clipboard" aria-hidden="true"></i>
                             <span class="visually-hidden">{{ _('files.index.webdav_modal.copy') }}</span>
@@ -1365,7 +1365,7 @@
 </style>
 
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 const FILES_I18N = {{ current_translations.get('files', {}).get('index', {})|tojson }};
 const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
@@ -2369,7 +2369,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof window.initFilesViewToggle === 'function') {
         window.initFilesViewToggle({
-            toggleEl: document.querySelector('.files-toolbar-actions .files-view-toggle'),
+            toggleEl: document.querySelector('.mod-toolbar .mod-view-toggle'),
             listBtn: document.getElementById('listViewBtn'),
             gridBtn: document.getElementById('gridViewBtn'),
             listPane: document.getElementById('listViewWrapper'),
@@ -2594,7 +2594,7 @@ function openFileDetails(fileId) {
                                                 <i class="bi bi-clock-history me-2"></i>
                                                 ${sideMenuLabels.version_label.replace('{number}', version.version_number)}${version.is_current ? sideMenuLabels.current_suffix : ''}
                                             </div>
-                                            <a href="${version.download_url}" class="btn btn-sm btn-outline-primary files-pill-btn">
+                                            <a href="${version.download_url}" class="btn btn-sm btn-outline-primary mod-pill-btn">
                                                 <i class="bi bi-download"></i> ${sideMenuLabels.download_button}
                                             </a>
                                         </div>
@@ -2612,16 +2612,16 @@ function openFileDetails(fileId) {
                     <div class="mb-4">
                         <h6>${sideMenuLabels.actions_title}</h6>
                         <div class="d-grid gap-2">
-                            <a href="${actions.download_url}" class="btn btn-outline-primary files-pill-btn">
+                            <a href="${actions.download_url}" class="btn btn-outline-primary mod-pill-btn">
                                 <i class="bi bi-download"></i> ${sideMenuLabels.download}
                             </a>
                             ${actions.view_url ? `
-                                <a href="${actions.view_url}" class="btn btn-outline-secondary files-pill-btn">
+                                <a href="${actions.view_url}" class="btn btn-outline-secondary mod-pill-btn">
                                     <i class="bi bi-eye"></i> ${sideMenuLabels.view}
                                 </a>
                             ` : ''}
                             ${actions.edit_url ? `
-                                <a href="${actions.edit_url}" class="btn btn-outline-secondary files-pill-btn">
+                                <a href="${actions.edit_url}" class="btn btn-outline-secondary mod-pill-btn">
                                     <i class="bi bi-pencil"></i> ${sideMenuLabels.edit}
                                 </a>
                             ` : ''}
@@ -2702,7 +2702,7 @@ function openDropboxSettings(folderId) {
                             </div>
                             <form method="POST" action="/files/folder/${folderId}/dropbox-settings" class="mb-2">
                                 <input type="hidden" name="action" value="remove_password">
-                                <button type="submit" class="btn btn-outline-danger files-pill-btn">
+                                <button type="submit" class="btn btn-outline-danger mod-pill-btn">
                                     <i class="bi bi-x-circle"></i> ${dropboxLabels.password_remove}
                                 </button>
                             </form>
@@ -2827,19 +2827,19 @@ function startInlineRename(type, id, currentName) {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'form-control form-control-sm files-pill-input';
+    input.className = 'form-control form-control-sm mod-pill-input';
     input.value = baseName;
     input.setAttribute('aria-label', 'Umbenennen');
 
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
-    saveBtn.className = 'btn btn-sm btn-accent files-pill-btn';
+    saveBtn.className = 'btn btn-sm btn-accent mod-pill-btn';
     saveBtn.innerHTML = '<i class="bi bi-check"></i>';
     saveBtn.title = 'Speichern';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
-    cancelBtn.className = 'btn btn-sm btn-secondary files-pill-btn';
+    cancelBtn.className = 'btn btn-sm btn-secondary mod-pill-btn';
     cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
     cancelBtn.title = 'Abbrechen';
 

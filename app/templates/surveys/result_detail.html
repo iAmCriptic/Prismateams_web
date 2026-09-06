@@ -8,7 +8,7 @@
 
 {% block content %}
 <div class="container py-4" style="max-width: 720px;">
-    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm btn-outline-secondary surveys-btn-pill mb-3">
+    <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm btn-outline-secondary mod-pill-btn mb-3">
         <i class="bi bi-arrow-left"></i> {{ _('surveys.results.title') }}
     </a>
     <h1 class="h5">{{ survey.title }}</h1>

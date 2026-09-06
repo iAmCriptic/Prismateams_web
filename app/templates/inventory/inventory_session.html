@@ -32,14 +32,14 @@
             {% endif %}
         </h2>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">
+            <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-sm mod-pill-btn mod-pill-btn--outline">
                 <i class="bi bi-printer"></i> Drucken
             </a>
-            <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) }}" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted">
+            <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) }}" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted">
                 <i class="bi bi-file-pdf"></i> PDF
             </a>
             {% if is_active %}
-            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" id="openCompleteModalBtn">
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" id="openCompleteModalBtn">
                 <i class="bi bi-check-circle"></i> Abschließen
             </button>
             {% endif %}
@@ -98,10 +98,10 @@
                     </div>
                 </div>
                 <div class="inventory-scan-controls">
-                    <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                    <button class="btn mod-pill-btn mod-pill-btn--outline" id="startScannerBtn" type="button">
                         <i class="bi bi-camera"></i> Kamera starten
                     </button>
-                    <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                    <button class="btn mod-pill-btn mod-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
                         <i class="bi bi-stop-circle"></i> Kamera stoppen
                     </button>
                 </div>
@@ -122,7 +122,7 @@
                 <div class="inventory-manual-row">
                     <input type="text" class="form-control" id="manualProductInput"
                            placeholder="z.B. 123 oder PROD-123" autocomplete="off">
-                    <button class="btn btn-accent inventory-pill-btn" id="manualSearchBtn" type="button">
+                    <button class="btn btn-accent mod-pill-btn" id="manualSearchBtn" type="button">
                         <i class="bi bi-search"></i> Suchen
                     </button>
                 </div>
@@ -140,11 +140,12 @@
             <i class="bi bi-list-check" aria-hidden="true"></i>
             Produkte
         </h2>
-        <div class="inventory-view-toggle" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
-            <button type="button" class="inventory-view-toggle__btn active" id="sessionListViewBtn" title="{{ _('inventory.shell.view_toggle.list') }}">
+        <div class="mod-view-toggle" data-view="list" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+            <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+            <button type="button" class="mod-view-toggle__btn active is-active" id="sessionListViewBtn" title="{{ _('inventory.shell.view_toggle.list') }}">
                 <i class="bi bi-list"></i>
             </button>
-            <button type="button" class="inventory-view-toggle__btn" id="sessionGridViewBtn" title="{{ _('inventory.shell.view_toggle.grid') }}">
+            <button type="button" class="mod-view-toggle__btn" id="sessionGridViewBtn" title="{{ _('inventory.shell.view_toggle.grid') }}">
                 <i class="bi bi-grid-3x3-gap"></i>
             </button>
         </div>
@@ -204,8 +205,8 @@
             </div>
             <div class="modal-body" id="productEditModalBody"></div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal" id="closeProductModalBtn">Schließen</button>
-                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" id="saveProductBtn">Speichern</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal" id="closeProductModalBtn">Schließen</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--primary" id="saveProductBtn">Speichern</button>
             </div>
         </div>
     </div>
@@ -232,8 +233,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--outline-success">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline-success">
                         <i class="bi bi-check-circle"></i> Abschließen
                     </button>
                 </div>
@@ -247,7 +248,6 @@
 {% block inventory_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_tool.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -3,7 +3,7 @@
 {% block title %}{{ _('contacts.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" class="contacts-search" role="search" id="contactsSearchForm">
+<form method="GET" class="mod-search mod-search--icon contacts-search" role="search" id="contactsSearchForm">
     {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     <input type="hidden" name="sort" value="{{ current_sort }}">
@@ -13,12 +13,12 @@
     <input type="hidden" name="email" value="{{ current_filters.email }}">
     <input type="hidden" name="phone" value="{{ current_filters.phone }}">
     <input type="hidden" name="notes" value="{{ current_filters.notes }}">
-    <i class="bi bi-search contacts-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="contactsSearchInput"
            value="{{ search_query }}"
-           class="form-control contacts-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('contacts.index.search.placeholder') }}"
            aria-label="{{ _('contacts.index.search.button') }}"
            autocomplete="off"
@@ -26,7 +26,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('contacts.index', sort=current_sort, dir=current_dir, salutation=current_filters.salutation or None, name=current_filters.name or None, email=current_filters.email or None, phone=current_filters.phone or None, notes=current_filters.notes or None, view=('favorites' if active_favorites|default(false) else None)) }}"
-       class="btn contacts-search-clear"
+       class="btn mod-search-clear"
        id="contactsSearchClear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -103,19 +103,19 @@
 {% endmacro %}
 
 {% macro contacts_view_toggle(suffix='', extra_class='') %}
-<div class="files-view-toggle {{ extra_class }}" data-view="list" role="group" aria-label="{{ _('contacts.index.views.label') }}">
-    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-    <button type="button" class="files-view-toggle__btn active is-active" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
+<div class="mod-view-toggle {{ extra_class }}" data-view="list" role="group" aria-label="{{ _('contacts.index.views.label') }}">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn active is-active" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="files-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
+    <button type="button" class="mod-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
 {% endmacro %}
 
 {% macro contacts_search_form(id_suffix='') %}
-<form method="GET" class="contacts-search" role="search" id="contactsSearchForm{{ id_suffix }}">
+<form method="GET" class="mod-search mod-search--icon contacts-search" role="search" id="contactsSearchForm{{ id_suffix }}">
     {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
     {% if view_param == 'team' and filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
     <input type="hidden" name="sort" value="{{ current_sort }}">
@@ -125,12 +125,12 @@
     <input type="hidden" name="email" value="{{ current_filters.email }}">
     <input type="hidden" name="phone" value="{{ current_filters.phone }}">
     <input type="hidden" name="notes" value="{{ current_filters.notes }}">
-    <i class="bi bi-search contacts-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="contactsSearchInput{{ id_suffix }}"
            value="{{ search_query }}"
-           class="form-control contacts-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('contacts.index.search.placeholder') }}"
            aria-label="{{ _('contacts.index.search.button') }}"
            autocomplete="off"
@@ -138,7 +138,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('contacts.index', sort=current_sort, dir=current_dir, salutation=current_filters.salutation or None, name=current_filters.name or None, email=current_filters.email or None, phone=current_filters.phone or None, notes=current_filters.notes or None, view=view_param or None) }}"
-       class="btn contacts-search-clear"
+       class="btn mod-search-clear"
        id="contactsSearchClear{{ id_suffix }}"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -565,7 +565,7 @@
             <div class="contacts-mobile-search min-width-0 flex-grow-1">
                 {{ contacts_search_form('Mobile') }}
             </div>
-            <div class="contacts-mobile-view-toggle flex-shrink-0">
+            <div class="mod-mobile-view-toggle flex-shrink-0">
                 {{ contacts_view_toggle('Mobile') }}
             </div>
         </div>
@@ -614,14 +614,14 @@
         </div>
     </div>
 
-    <div id="contactsViewStage" class="files-view-stage"
+    <div id="contactsViewStage" class="mod-view-stage"
          data-lazy-more
          data-lazy-page="{{ contacts_page|default(1) }}"
          data-lazy-has-more="{{ '1' if contacts_has_more|default(false) else '0' }}"
          data-lazy-param="page"
          data-lazy-items="[data-lazy-item]"
          data-lazy-targets="#contactsGridRow,#contactsListBody">
-    <div id="gridViewContainer" class="files-view-pane" style="display: none;">
+    <div id="gridViewContainer" class="mod-view-pane" style="display: none;">
         {% if contacts %}
         <div class="row g-3" id="contactsGridRow">
             {% for contact in contacts %}
@@ -633,7 +633,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" class="files-view-pane files-view-pane--active">
+    <div id="listViewContainer" class="mod-view-pane mod-view-pane--active">
         {% if contacts %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -700,7 +700,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script>
@@ -774,7 +774,7 @@ function toggleContactFavorite(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
     function syncAllToggleUi(mode) {
-        document.querySelectorAll('.contacts-shell .files-view-toggle').forEach((el) => {
+        document.querySelectorAll('.contacts-shell .mod-view-toggle').forEach((el) => {
             el.dataset.view = mode;
         });
         ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof window.initFilesViewToggle === 'function') {
         const viewToggleApi = window.initFilesViewToggle({
-            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            toggleEl: document.querySelector('.page-toolbar-row .mod-view-toggle'),
             listBtn: document.getElementById('listViewBtn'),
             gridBtn: document.getElementById('gridViewBtn'),
             listPane: document.getElementById('listViewContainer'),

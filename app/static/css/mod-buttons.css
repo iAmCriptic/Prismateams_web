@@ -1,0 +1,180 @@
+/* Shared module pill buttons — canonical .mod-pill-btn* only */
+
+.mod-pill-btn,
+.btn.mod-pill-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.18s ease,
+        filter 0.15s ease;
+}
+
+.mod-pill-btn:hover,
+.btn.mod-pill-btn:hover {
+    color: var(--accent-color, var(--bs-primary));
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, var(--bs-body-bg));
+}
+
+.mod-pill-btn:active,
+.btn.mod-pill-btn:active {
+    transform: none;
+}
+
+/* Accent / primary fill */
+.mod-pill-btn--accent,
+.btn.mod-pill-btn--accent,
+.mod-pill-btn--primary,
+.btn.mod-pill-btn--primary,
+.btn-accent.mod-pill-btn,
+.btn.btn-accent.mod-pill-btn {
+    border-color: transparent !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
+    color: #fff !important;
+    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
+}
+
+.mod-pill-btn--accent:hover,
+.btn.mod-pill-btn--accent:hover,
+.mod-pill-btn--primary:hover,
+.btn.mod-pill-btn--primary:hover,
+.btn-accent.mod-pill-btn:hover,
+.btn.btn-accent.mod-pill-btn:hover {
+    color: #fff !important;
+    border-color: transparent !important;
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
+    filter: brightness(1.05);
+}
+
+/* Outline variants */
+.mod-pill-btn--outline {
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+    color: var(--accent-color, var(--bs-primary));
+    background: transparent;
+}
+
+.mod-pill-btn--outline:hover {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.mod-pill-btn--outline-muted {
+    border: 1px solid var(--bs-border-color);
+    color: var(--bs-secondary-color, #6c757d);
+    background: transparent;
+}
+
+.mod-pill-btn--outline-muted:hover {
+    border-color: color-mix(in srgb, var(--bs-body-color) 25%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+    color: var(--bs-body-color);
+}
+
+.mod-pill-btn--outline-success {
+    border: 1px solid color-mix(in srgb, var(--bs-success) 55%, var(--bs-border-color));
+    color: var(--bs-success);
+    background: transparent;
+}
+
+.mod-pill-btn--outline-success:hover {
+    background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+    color: var(--bs-success);
+}
+
+.mod-pill-btn--outline-warning {
+    border: 1px solid color-mix(in srgb, var(--bs-warning) 65%, var(--bs-border-color));
+    color: color-mix(in srgb, var(--bs-warning) 35%, #8a6d00);
+    background: transparent;
+}
+
+.mod-pill-btn--outline-warning:hover {
+    background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
+    color: color-mix(in srgb, var(--bs-warning) 20%, #6b5500);
+}
+
+.mod-pill-btn--outline-danger {
+    border: 1px solid color-mix(in srgb, var(--bs-danger) 55%, var(--bs-border-color));
+    color: var(--bs-danger);
+    background: transparent;
+}
+
+.mod-pill-btn--outline-danger:hover {
+    background: color-mix(in srgb, var(--bs-danger) 12%, transparent);
+    color: var(--bs-danger);
+}
+
+/* Solid status fills */
+.mod-pill-btn--success {
+    background: var(--bs-success);
+    border-color: var(--bs-success);
+    color: #fff;
+}
+
+.mod-pill-btn--muted {
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-body-color);
+}
+
+.mod-pill-btn--warning {
+    background: var(--bs-warning);
+    border-color: var(--bs-warning);
+    color: #212529;
+}
+
+.mod-pill-btn--danger {
+    background: var(--bs-danger);
+    border-color: var(--bs-danger);
+    color: #fff;
+}
+
+/* Ghost */
+.mod-pill-btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--bs-secondary-color, #6c757d);
+    box-shadow: none;
+}
+
+.mod-pill-btn--ghost:hover {
+    background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+    color: var(--bs-body-color);
+}
+
+/* Icon-only */
+.mod-pill-btn--icon,
+.btn.mod-pill-btn--icon {
+    width: 2.15rem;
+    height: 2.15rem;
+    min-width: 2.15rem;
+    padding: 0;
+}
+
+.mod-pill-btn--icon.is-active {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+}
+
+/* Size modifiers */
+.mod-pill-btn--sm {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.mod-pill-btn--new {
+    border: none;
+    padding: 0.45rem 1.15rem;
+    box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
+}

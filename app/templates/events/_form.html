@@ -73,7 +73,7 @@
         <div class="events-form-fields events-form-fields--2">
             <div class="events-form-field">
                 <label class="form-label">Portal-Personen</label>
-                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="openParticipantsModalBtn">
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="openParticipantsModalBtn">
                     <i class="bi bi-search" aria-hidden="true"></i> Person suchen
                 </button>
                 <div class="events-form-pill-list mt-2" id="selectedParticipantsPills"></div>
@@ -88,7 +88,7 @@
             </div>
             <div class="events-form-field">
                 <label class="form-label">Freie Namen</label>
-                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="addGuestNameBtn">
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="addGuestNameBtn">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i> Freien Namen hinzufügen
                 </button>
                 <div class="events-form-pill-list mt-2" id="guestNamesPills"></div>
@@ -107,7 +107,7 @@
         <div class="events-form-fields events-form-fields--2">
             <div class="events-form-field">
                 <label class="form-label">Aus Kontakten</label>
-                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="openContactsModalBtn">
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="openContactsModalBtn">
                     <i class="bi bi-search" aria-hidden="true"></i> Kontakt suchen
                 </button>
                 <div class="events-form-pill-list mt-2" id="selectedContactsPills"></div>
@@ -121,7 +121,7 @@
             </div>
             <div class="events-form-field">
                 <label class="form-label">Zusätzliche Ansprechpartner</label>
-                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="addExternalContactBtn">
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="addExternalContactBtn">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i> Ansprechpartner hinzufügen
                 </button>
                 <div class="events-form-pill-list mt-2" id="externalContactsPills"></div>
@@ -137,7 +137,7 @@
             <i class="bi bi-calendar-event" aria-hidden="true"></i>
             Termine
         </h2>
-        <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill" id="addAppointmentBtn">
+        <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="addAppointmentBtn">
             <i class="bi bi-plus-lg" aria-hidden="true"></i> Termin hinzufügen
         </button>
     </div>
@@ -172,7 +172,7 @@
                     </div>
                     <div class="events-form-field events-form-field--span-2">
                         <label class="form-label">Zeitplan für diesen Termin</label>
-                        <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+                        <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn edit-timeline-btn">
                             <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
                         </button>
                         <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value='[{% for timeline_title in appt_timeline_items %}{"time":"","what":{{ timeline_title|tojson }},"person":""}{% if not loop.last %},{% endif %}{% endfor %}]'>
@@ -206,7 +206,7 @@
                 </div>
                 <div class="events-form-field events-form-field--span-2">
                     <label class="form-label">Zeitplan für diesen Termin</label>
-                    <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+                    <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn edit-timeline-btn">
                         <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
                     </button>
                     <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value="[]">
@@ -225,10 +225,10 @@
             Materialbedarf
         </h2>
         <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary events-form-btn-pill" id="startEventScannerBtn" type="button">
+            <button class="btn btn-sm btn-primary mod-pill-btn" id="startEventScannerBtn" type="button">
                 <i class="bi bi-camera"></i> Kamera
             </button>
-            <button class="btn btn-sm btn-danger events-form-btn-pill" id="stopEventScannerBtn" type="button" style="display:none;">
+            <button class="btn btn-sm btn-danger mod-pill-btn" id="stopEventScannerBtn" type="button" style="display:none;">
                 <i class="bi bi-stop-circle"></i> Stoppen
             </button>
         </div>
@@ -256,7 +256,7 @@
             <label class="form-label" for="needLookupQty">Menge</label>
             <div class="input-group events-form-input-group">
                 <input class="form-control" id="needLookupQty" type="number" min="1" value="1">
-                <button class="btn btn-outline-primary events-form-btn-pill" id="addNeedBtn" type="button">Hinzufügen</button>
+                <button class="btn btn-outline-primary mod-pill-btn" id="addNeedBtn" type="button">Hinzufügen</button>
             </div>
         </div>
     </div>
@@ -273,7 +273,7 @@
                     <div class="events-form-need-qty">
                         <input class="form-control" type="number" min="1" name="needs_quantity[]" value="{{ need.quantity }}">
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger events-form-btn-pill remove-need-btn" title="Entfernen">
+                    <button type="button" class="btn btn-sm btn-outline-danger mod-pill-btn remove-need-btn" title="Entfernen">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -305,8 +305,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveParticipantsBtn">Übernehmen</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary mod-pill-btn" id="saveParticipantsBtn">Übernehmen</button>
             </div>
         </div>
     </div>
@@ -335,8 +335,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveContactsBtn">Übernehmen</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary mod-pill-btn" id="saveContactsBtn">Übernehmen</button>
             </div>
         </div>
     </div>
@@ -355,8 +355,8 @@
                 <input class="form-control" id="guestNameInput" type="text" placeholder="Name">
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveGuestNameBtn">Speichern</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary mod-pill-btn" id="saveGuestNameBtn">Speichern</button>
             </div>
         </div>
     </div>
@@ -389,8 +389,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveExternalContactBtn">Speichern</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary mod-pill-btn" id="saveExternalContactBtn">Speichern</button>
             </div>
         </div>
     </div>
@@ -405,13 +405,13 @@
             </div>
             <div class="modal-body">
                 <div id="timelineRows"></div>
-                <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill mt-2" id="addTimelineRowBtn">
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn mt-2" id="addTimelineRowBtn">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i> Zeile hinzufügen
                 </button>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary events-form-btn-pill" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary events-form-btn-pill" id="saveTimelineBtn">Speichern</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary mod-pill-btn" id="saveTimelineBtn">Speichern</button>
             </div>
         </div>
     </div>
@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function createPillButton(iconClass, title, buttonClass) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `btn btn-sm ${buttonClass} events-form-btn-pill`;
+    button.className = `btn btn-sm ${buttonClass} mod-pill-btn`;
     button.title = title;
     button.innerHTML = `<i class="bi ${iconClass}" aria-hidden="true"></i>`;
     return button;
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <label class="form-label">Person(en) optional</label>
         <div class="input-group events-form-input-group">
           <input type="text" class="form-control timeline-person-input" placeholder="optional" value="${personValue || ''}">
-          <button type="button" class="btn btn-outline-danger events-form-btn-pill remove-timeline-row-btn">
+          <button type="button" class="btn btn-outline-danger mod-pill-btn remove-timeline-row-btn">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
           </button>
         </div>
@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <div class="events-form-field events-form-field--span-2">
             <label class="form-label">Zeitplan für diesen Termin</label>
-            <button type="button" class="btn btn-sm btn-outline-primary events-form-btn-pill edit-timeline-btn">
+            <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn edit-timeline-btn">
               <i class="bi bi-clock-history" aria-hidden="true"></i> Zeitplan bearbeiten
             </button>
             <input type="hidden" name="appointment_timeline_json[]" class="appointment-timeline-json-input" value="[]">
@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function () {
       <div class="events-form-need-qty">
         <input class="form-control" type="number" min="1" name="needs_quantity[]" value="${quantity}">
       </div>
-      <button type="button" class="btn btn-sm btn-outline-danger events-form-btn-pill remove-need-btn" title="Entfernen">
+      <button type="button" class="btn btn-sm btn-outline-danger mod-pill-btn remove-need-btn" title="Entfernen">
         <i class="bi bi-trash"></i>
       </button>
     `;

@@ -6,15 +6,15 @@
 {% set search_query = search_query|default('') %}
 <form method="GET"
       action="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-      class="email-search"
+      class="mod-search mod-search--icon email-search"
       role="search"
       id="emailSearchFormDesktop">
-    <i class="bi bi-search email-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="emailSearchInputDesktop"
            value="{{ search_query }}"
-           class="form-control email-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('email.index.search.placeholder') }}"
            aria-label="{{ _('email.index.search.aria') }}"
            autocomplete="off"
@@ -22,7 +22,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-       class="btn email-search-clear"
+       class="btn mod-search-clear"
        id="emailSearchClearDesktop"
        aria-label="{{ _('email.index.search.clear') }}">
         <i class="bi bi-x-lg"></i>
@@ -292,15 +292,15 @@
 {% set search_query = search_query|default('') %}
 <form method="GET"
       action="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-      class="email-search"
+      class="mod-search mod-search--icon email-search"
       role="search"
       id="emailSearchForm{{ suffix }}">
-    <i class="bi bi-search email-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="emailSearchInput{{ suffix }}"
            value="{{ search_query }}"
-           class="form-control email-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('email.index.search.placeholder') }}"
            aria-label="{{ _('email.index.search.aria') }}"
            autocomplete="off"
@@ -308,7 +308,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('email.folder_view', folder_name=current_folder) }}"
-       class="btn email-search-clear"
+       class="btn mod-search-clear"
        id="emailSearchClear{{ suffix }}"
        aria-label="{{ _('email.index.search.clear') }}">
         <i class="bi bi-x-lg"></i>

@@ -115,6 +115,9 @@ def make_dropbox(folder_id):
         return redirect(_safe_referrer_or(url_for('files.browse_folder', folder_id=folder_id)))
 
     folder = Folder.query.get_or_404(folder_id)
+    if not current_user.is_admin and not can_edit_folder(folder, current_user):
+        flash('Sie haben keine Berechtigung, einen Briefkasten für diesen Ordner zu aktivieren.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.browse_folder', folder_id=folder_id)))
     create_share_link(
         'folder',
         folder,
@@ -136,7 +139,13 @@ def make_dropbox(folder_id):
 def dropbox_settings(folder_id):
     """Briefkasten-Einstellungen anzeigen und bearbeiten."""
     folder = Folder.query.get_or_404(folder_id)
-    
+
+    if not current_user.is_admin and not can_edit_folder(folder, current_user):
+        if request.method == 'GET':
+            return jsonify({'success': False, 'error': 'Keine Berechtigung'}), 403
+        flash('Sie haben keine Berechtigung für diese Briefkasten-Einstellungen.', 'danger')
+        return redirect(url_for('files.browse_folder', folder_id=folder_id))
+
     if not folder.is_dropbox:
         flash('Dieser Ordner ist kein Briefkasten.', 'danger')
         return redirect(url_for('files.browse_folder', folder_id=folder_id))
@@ -189,6 +198,9 @@ def dropbox_settings(folder_id):
 def disable_dropbox(folder_id):
     """Deaktiviere alle Briefkästen für einen Ordner."""
     folder = Folder.query.get_or_404(folder_id)
+    if not current_user.is_admin and not can_edit_folder(folder, current_user):
+        flash('Sie haben keine Berechtigung, diesen Briefkasten zu deaktivieren.', 'danger')
+        return redirect(url_for('files.browse_folder', folder_id=folder_id))
 
     for share in get_shares_for_resource('folder', folder.id):
         if share.mode == 'dropbox':

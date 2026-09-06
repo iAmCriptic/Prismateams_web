@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof window.initFilesViewToggle === 'function') {
         window.initFilesViewToggle({
-            toggleEl: document.querySelector('.files-ext-toolbar .files-view-toggle'),
+            toggleEl: document.querySelector('.files-ext-toolbar .mod-view-toggle'),
             listBtn: document.getElementById('dropboxListViewBtn'),
             gridBtn: document.getElementById('dropboxGridViewBtn'),
             listPane: document.getElementById('dropboxListViewContainer'),

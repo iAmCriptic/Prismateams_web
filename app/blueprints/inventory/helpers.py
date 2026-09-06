@@ -571,6 +571,40 @@ def _product_extra_fields(p):
     }
 
 
+def _serialize_product_api(product):
+    """Einheitliche Produkt-JSON-Antwort für GET/Scan-Lookup."""
+    image_path_value = None
+    if product.image_path:
+        if os.path.isabs(product.image_path):
+            image_path_value = os.path.basename(product.image_path)
+        else:
+            image_path_value = product.image_path
+    folder = getattr(product, 'folder', None)
+    return {
+        'id': product.id,
+        'name': product.name,
+        'description': product.description,
+        'category': product.category,
+        'serial_number': product.serial_number,
+        'condition': product.condition,
+        'location': product.location,
+        'length': product.length,
+        'length_meters': parse_length_to_meters(product.length),
+        'folder_id': product.folder_id,
+        'folder_name': folder.name if folder else None,
+        'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
+        'status': product.status,
+        'item_type': product.item_type,
+        'on_hand': product.total_on_hand,
+        'available': product.total_available,
+        'image_path': image_path_value,
+        'qr_code_data': product.qr_code_data,
+        'created_at': product.created_at.isoformat() if product.created_at else None,
+        'created_by': product.created_by,
+        **_product_extra_fields(product),
+    }
+
+
 def get_inventory_categories():
     """Holt die verfügbaren Kategorien aus SystemSettings."""
     categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
@@ -735,6 +769,7 @@ __all__ = [
     "_product_set_query",
     "_return_email_ok",
     "_save_document_upload",
+    "_serialize_product_api",
     "_serialize_set_members",
     "_set_cart_qty_for_product",
     "_source_set_api_payload",

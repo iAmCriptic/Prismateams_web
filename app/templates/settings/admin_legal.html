@@ -29,7 +29,7 @@
       <section class="sp-group legal-editor-panel{% if page_id != 'terms' %} d-none{% endif %}" data-legal-panel="{{ page_id }}" aria-labelledby="legal-{{ page_id }}-title">
         <div class="sp-group-head">
           <h2 id="legal-{{ page_id }}-title" class="sp-group-title"><i class="bi bi-markdown" aria-hidden="true"></i>{{ heading }}</h2>
-          <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary rounded-pill sp-btn-pill" target="_blank" rel="noopener">
+          <a href="{{ url_for(preview_route) }}" class="btn btn-sm btn-outline-secondary rounded-pill mod-pill-btn" target="_blank" rel="noopener">
             <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
             {{ _('settings.admin.legal.preview') }}
           </a>

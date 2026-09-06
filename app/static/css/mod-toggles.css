@@ -1,0 +1,123 @@
+/* Shared list/grid view toggle — canonical .mod-view-toggle* only */
+
+.mod-view-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+}
+
+.mod-view-toggle__indicator {
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+    transition: transform 0.28s cubic-bezier(0.34, 1.15, 0.64, 1);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.mod-view-toggle[data-view="grid"] .mod-view-toggle__indicator {
+    transform: translateX(calc(2.25rem + 0.15rem));
+}
+
+.mod-view-toggle__btn {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    transition: color 0.2s ease, background-color 0.15s ease;
+}
+
+.mod-view-toggle__btn:hover {
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.mod-view-toggle__btn.active,
+.mod-view-toggle__btn.is-active {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    color: #fff;
+}
+
+/* Mit Sliding-Indicator: aktiver Button transparent (Farbe kommt vom Indicator) */
+.mod-view-toggle:has(.mod-view-toggle__indicator) .mod-view-toggle__btn.active,
+.mod-view-toggle:has(.mod-view-toggle__indicator) .mod-view-toggle__btn.is-active,
+.mod-view-toggle:has(.mod-view-toggle__indicator) .mod-view-toggle__btn.active:hover,
+.mod-view-toggle:has(.mod-view-toggle__indicator) .mod-view-toggle__btn.is-active:hover {
+    background: transparent;
+    color: #fff;
+}
+
+.mod-view-toggle__btn.active:hover,
+.mod-view-toggle__btn.is-active:hover {
+    color: #fff;
+}
+
+/* View pane crossfade */
+.mod-view-stage {
+    position: relative;
+}
+
+.mod-view-pane {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.mod-view-pane.mod-view-pane--active {
+    opacity: 1;
+    transform: none;
+}
+
+.mod-view-pane.mod-view-pane--leave {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+}
+
+.mod-mobile-view-toggle {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.page-toolbar-row .mod-view-toggle {
+    flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mod-view-toggle__indicator {
+        transition-duration: 0.01ms;
+    }
+
+    .mod-view-pane {
+        transition-duration: 0.01ms;
+        transform: none;
+    }
+
+    .mod-view-pane.mod-view-pane--leave {
+        transform: none;
+    }
+}

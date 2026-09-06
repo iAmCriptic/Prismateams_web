@@ -1,11 +1,8 @@
 /* File Converter — module-specific styles (shell via module-ui.css) */
 
 /* ——— Pill buttons (module-wide) ——— */
-.fc-shell .btn:not(.btn-close) {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-}
 
-.fc-btn-pill {
+.fc-shell .btn:not(.btn-close) {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
 }
 
@@ -172,6 +169,7 @@
 }
 
 /* Pill dropdown menus */
+
 .fc-pill-dropdown.dropdown-menu,
 .fc-shell .mod-list-actions .dropdown-menu {
     border-radius: 1.1rem !important;

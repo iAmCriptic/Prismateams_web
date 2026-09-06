@@ -218,10 +218,10 @@ data-col-span="{{ col_span }}"
             </div>
             <p class="dash-widget-row-sub">{{ email.sender|decode_email_header }}</p>
             <div class="dash-email-actions">
-                <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline dashboard-edit-pill-btn--sm" data-stop-nav>
+                <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm" data-stop-nav>
                     <i class="bi bi-envelope-open"></i> {{ _('dashboard.widgets.email.open') }}
                 </a>
-                <a href="{{ url_for('email.reply', email_id=email.id) }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dashboard-edit-pill-btn--sm" data-stop-nav>
+                <a href="{{ url_for('email.reply', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm" data-stop-nav>
                     <i class="bi bi-reply"></i> {{ _('dashboard.widgets.email.reply') }}
                 </a>
             </div>
@@ -311,7 +311,7 @@ data-col-span="{{ col_span }}"
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ credential.website_name }}</p>
                 {{ vis_badge(credential.visibility) }}
-                <button type="button" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--outline dashboard-edit-pill-btn--icon" onclick="revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})" title="{{ _('dashboard.widgets.passwords.reveal') }}">
+                <button type="button" class="mod-pill-btn mod-pill-btn--outline mod-pill-btn--icon" onclick="revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})" title="{{ _('dashboard.widgets.passwords.reveal') }}">
                     <i class="bi bi-eye"></i>
                 </button>
             </div>
@@ -429,7 +429,7 @@ data-col-span="{{ col_span }}"
                 {% if group.is_overdue %}<span class="badge bg-danger">{{ _('dashboard.widgets.borrows.overdue') }}</span>{% endif %}
             </div>
             <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date|localdatetime('%d.%m.%Y')) }}</p>
-            <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dashboard-edit-pill-btn--sm mt-1" data-stop-nav>
+            <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm mt-1" data-stop-nav>
                 <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
             </a>
         </div>

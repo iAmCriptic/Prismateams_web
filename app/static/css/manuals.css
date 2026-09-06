@@ -17,6 +17,7 @@
 }
 
 /* ——— Neu-Dropdown (Pillen, wie Zugangsdaten) ——— */
+
 .manuals-sidebar-new-menu,
 .manuals-mobile-new-menu,
 .manuals-actions-menu,
@@ -91,60 +92,12 @@
 }
 
 /* ——— List / Grid pill toggle ——— */
+
 .manuals-search {
     position: relative;
     max-width: 28rem;
     margin: 0 auto;
     width: 100%;
-}
-
-.manuals-search-icon {
-    position: absolute;
-    left: 0.95rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-color, #0d6efd);
-    pointer-events: none;
-    font-size: 0.95rem;
-}
-
-.manuals-search-input,
-.form-control.manuals-search-input {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding-left: 2.35rem;
-    padding-right: 2.35rem;
-    height: 2.55rem;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    box-shadow: none;
-}
-
-.manuals-search-input:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.manuals-search-clear {
-    position: absolute;
-    right: 0.35rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-}
-
-.manuals-search-clear:hover {
-    background: rgba(127, 127, 127, 0.12);
-    color: var(--bs-body-color);
 }
 
 .manuals-mobile-toolbar {
@@ -164,16 +117,14 @@
 }
 
 /* ——— List / Grid pill toggle (uses files-view-toggle classes) ——— */
+
 .manuals-mobile-view-toggle .files-view-toggle__btn {
     width: 2.1rem;
     height: 2.1rem;
 }
 
-.page-toolbar-row .files-view-toggle {
-    flex-shrink: 0;
-}
-
 /* ——— Nested folder navigation ——— */
+
 .manuals-folder-nav-item--nested {
     margin-left: 0.35rem;
     padding-left: 0.85rem;
@@ -198,6 +149,7 @@
 }
 
 /* ——— Inline Ordner erstellen ——— */
+
 .manuals-folder-inline {
     margin: 0.35rem 0 0.75rem;
     padding: 0.85rem 0.9rem;
@@ -299,6 +251,7 @@
 }
 
 /* ——— Ordner-Nav: Stift / 3-Punkte + Inline-Edit ——— */
+
 .manuals-folder-nav-item {
     width: 100%;
     min-width: 0;
@@ -506,6 +459,7 @@
 }
 
 /* ——— Grid-Karten ——— */
+
 .manuals-card {
     border-radius: var(--mod-radius-card, 0.9rem);
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
@@ -618,6 +572,7 @@
 }
 
 /* ——— Upload-Formular ——— */
+
 .manuals-form {
     --manuals-form-surface: var(--bs-tertiary-bg, #f8f9fa);
     --manuals-form-elevated: var(--bs-body-bg, #fff);

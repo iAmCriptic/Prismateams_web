@@ -89,7 +89,7 @@
     }
 
     function initViewToggle(storageKey, root) {
-        const wrap = qs('[data-assessment-view-toggle]', root);
+        const wrap = qs('[data-mod-view-toggle]', root);
         if (!wrap) return 'list';
         const key = storageKey || 'assessmentViewMode';
         let mode = localStorage.getItem(key) || 'list';

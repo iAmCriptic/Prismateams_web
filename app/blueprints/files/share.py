@@ -106,6 +106,22 @@ from app.blueprints.files.helpers import *  # noqa: F401,F403
 VALID_SHARE_MODES_CREATE = frozenset({'view', 'edit', 'dropbox'})
 
 
+def _can_manage_file_share(file_obj):
+    return bool(current_user.is_admin or can_edit_file(file_obj, current_user))
+
+
+def _can_manage_folder_share(folder):
+    return bool(current_user.is_admin or can_edit_folder(folder, current_user))
+
+
+def _can_read_file_share_settings(file_obj):
+    return bool(current_user.is_admin or can_view_file(file_obj, current_user))
+
+
+def _can_read_folder_share_settings(folder):
+    return bool(current_user.is_admin or can_view_folder(folder, current_user))
+
+
 @files_bp.route('/file/<int:file_id>/share', methods=['POST'])
 @login_required
 @check_module_access('module_files')
@@ -114,6 +130,9 @@ def create_file_share(file_id):
         flash('Freigaben sind deaktiviert.', 'warning')
         return redirect(_safe_referrer_or(url_for('files.index')))
     file = File.query.get_or_404(file_id)
+    if not _can_manage_file_share(file):
+        flash('Sie haben keine Berechtigung, diese Datei freizugeben.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
     modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
     if not modes:
@@ -147,6 +166,9 @@ def create_folder_share(folder_id):
         flash('Freigaben sind deaktiviert.', 'warning')
         return redirect(_safe_referrer_or(url_for('files.index')))
     folder = Folder.query.get_or_404(folder_id)
+    if not _can_manage_folder_share(folder):
+        flash('Sie haben keine Berechtigung, diesen Ordner freizugeben.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
     single = normalize_share_mode(request.form.get('mode') or request.form.get('share_mode') or '')
     if single in VALID_SHARE_MODES_CREATE:
@@ -181,6 +203,8 @@ def create_folder_share(folder_id):
 @check_module_access('module_files')
 def file_share_settings(file_id):
     file = File.query.get_or_404(file_id)
+    if not _can_read_file_share_settings(file):
+        return jsonify({'success': False, 'error': 'Keine Berechtigung'}), 403
     return jsonify({
         'success': True,
         'item': serialize_share_settings(
@@ -194,6 +218,8 @@ def file_share_settings(file_id):
 @check_module_access('module_files')
 def folder_share_settings(folder_id):
     folder = Folder.query.get_or_404(folder_id)
+    if not _can_read_folder_share_settings(folder):
+        return jsonify({'success': False, 'error': 'Keine Berechtigung'}), 403
     return jsonify({
         'success': True,
         'item': serialize_share_settings(
@@ -308,6 +334,9 @@ def _handle_share_settings_update(resource_type, resource):
 @check_module_access('module_files')
 def update_file_share(file_id):
     file = File.query.get_or_404(file_id)
+    if not _can_manage_file_share(file):
+        flash('Sie haben keine Berechtigung, diese Freigabe zu ändern.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     _handle_share_settings_update('file', file)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
@@ -319,6 +348,9 @@ def update_file_share(file_id):
 @check_module_access('module_files')
 def update_folder_share(folder_id):
     folder = Folder.query.get_or_404(folder_id)
+    if not _can_manage_folder_share(folder):
+        flash('Sie haben keine Berechtigung, diese Freigabe zu ändern.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     _handle_share_settings_update('folder', folder)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')

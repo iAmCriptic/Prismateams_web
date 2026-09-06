@@ -19,15 +19,15 @@
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline-success">
+    <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn mod-pill-btn mod-pill-btn--outline-success">
         <i class="bi bi-cart-check"></i> {{ _('inventory.sets.detail.borrow') }}
     </a>
     {% if current_user.is_admin or product_set.created_by == current_user.id %}
-    <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+    <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn mod-pill-btn mod-pill-btn--outline">
         <i class="bi bi-pencil"></i> {{ _('inventory.sets.actions.edit') }}
     </a>
     <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}" class="d-inline">
-        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--outline-danger"
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline-danger"
                 data-confirm-delete="{{ _('inventory.sets.detail.delete_confirm') }}">
             <i class="bi bi-trash"></i> {{ _('inventory.sets.actions.delete') }}
         </button>

@@ -38,16 +38,16 @@
                         {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                         {% set browser_view_exts = ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus'] %}
                         {% if file_ext.lower() in browser_view_exts %}
-                        <a href="{{ url_for('files.public_share_view', token=token) }}" class="btn btn-outline-secondary files-pill-btn">
+                        <a href="{{ url_for('files.public_share_view', token=token) }}" class="btn btn-outline-secondary mod-pill-btn">
                             <i class="bi bi-eye"></i> Im Browser öffnen
                         </a>
                         {% endif %}
-                        <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-accent files-pill-btn">
+                        <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-accent mod-pill-btn">
                             <i class="bi bi-download"></i> Herunterladen
                         </a>
                         {% if share_mode == 'edit' and onlyoffice_available %}
                             {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                        <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success files-pill-btn">
+                        <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success mod-pill-btn">
                             <i class="bi bi-file-earmark-text"></i> Mit ONLYOFFICE bearbeiten
                         </a>
                             {% endif %}
@@ -67,7 +67,7 @@
                     <div class="files-ext-toolbar">
                         {% if can_edit %}
                         <div class="dropdown" id="newButtonDropdown">
-                            <button class="btn btn-accent files-pill-new" type="button" id="newButton">
+                            <button class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" type="button" id="newButton">
                                 <i class="bi bi-plus-lg me-1"></i> Neu
                             </button>
                             <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu">
@@ -80,12 +80,12 @@
                         <input type="file" id="directFileUpload" name="file" form="shareUploadForm" style="display:none;" multiple>
                         <input type="file" id="directFolderUpload" name="file" form="shareUploadForm" style="display:none;" webkitdirectory directory multiple>
                         {% endif %}
-                        <div class="files-view-toggle" data-view="grid" role="group">
-                            <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-                            <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="Listenansicht">
+                        <div class="mod-view-toggle" data-view="grid" role="group">
+                            <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+                            <button type="button" class="mod-view-toggle__btn" id="listViewBtn" title="Listenansicht">
                                 <i class="bi bi-list"></i>
                             </button>
-                            <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn" title="Rasteransicht">
+                            <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn" title="Rasteransicht">
                                 <i class="bi bi-grid-3x3-gap"></i>
                             </button>
                         </div>
@@ -105,8 +105,8 @@
                     </nav>
                     {% endif %}
 
-                    <div id="shareViewStage" class="files-view-stage" data-view="grid">
-                    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+                    <div id="shareViewStage" class="mod-view-stage" data-view="grid">
+                    <div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
                         {% if subfolders %}
                         <h6 class="mb-3">Ordner</h6>
                         <div class="row g-3 mb-4">
@@ -197,7 +197,7 @@
                         {% endif %}
                     </div>
 
-                    <div id="listViewContainer" class="files-view-pane" style="display: none;">
+                    <div id="listViewContainer" class="mod-view-pane" style="display: none;">
                         {% if subfolders %}
                         <h6 class="mb-3">Ordner</h6>
                         <div class="list-group mb-4">
@@ -274,7 +274,7 @@
 
 {% block extra_js %}
 {% if item_type == 'folder' %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/share-browser.js') }}"></script>
 {% endif %}
 {% endblock %}

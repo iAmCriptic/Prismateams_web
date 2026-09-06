@@ -34,6 +34,7 @@
 
 /* Plain-only / Text tab: .email-content-isolated forces white bg with !important — override for theme.
    .email-content-wrapper uses all:initial which resets font to serif — force portal stack here. */
+
 .email-content-wrapper .email-text-content.email-content-isolated,
 .card-body > .email-text-content.email-content-isolated {
     background: var(--bs-body-bg) !important;
@@ -61,6 +62,7 @@
    high-specificity to win over the generic .email-html-content rules
    defined further down in this file (which force a white background for
    richly styled newsletter HTML). */
+
 .email-content-wrapper .email-html-content.email-html-content--simple {
     background: var(--bs-body-bg) !important;
     color: var(--bs-body-color) !important;
@@ -79,6 +81,7 @@
 }
 
 /* Unstyled reply lines often use <div>/<span> without font — inherit portal sans-serif */
+
 .email-content-wrapper .email-html-content.email-html-content--simple p,
 .email-content-wrapper .email-html-content.email-html-content--simple div,
 .email-content-wrapper .email-html-content.email-html-content--simple span,
@@ -101,12 +104,14 @@
 }
 
 /* Links inside simple html emails should match the accent/primary color */
+
 .email-content-wrapper .email-html-content.email-html-content--simple a {
     color: var(--accent-color, var(--bs-primary)) !important;
     text-decoration: underline;
 }
 
 /* Blockquotes inside simple html emails (quoted replies from other clients) */
+
 .email-content-wrapper .email-html-content.email-html-content--simple blockquote {
     border-left: 3px solid var(--bs-border-color) !important;
     padding: 0.25rem 0 0.25rem 1rem !important;
@@ -117,6 +122,7 @@
 }
 
 /* Rich HTML mails: isolated iframe keeps sender layout/CSS (light canvas like Infomaniak). */
+
 .email-html-frame-wrapper {
     background: #f1f5f9;
     border-radius: 0.75rem;
@@ -169,6 +175,7 @@
 }
 
 /* OLED Mode Email Text Content */
+
 [data-oled-mode="true"] .email-text-content {
     background: #000000 !important;
     border-color: #1a1a1a !important;
@@ -184,6 +191,7 @@
 }
 
 /* Ensure buttons have proper font */
+
 .email-content-header .btn,
 .email-view-toggle {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
@@ -194,6 +202,7 @@
 }
 
 /* Ensure toggle buttons work correctly */
+
 .email-view-toggle {
     user-select: none;
     -webkit-user-select: none;
@@ -206,12 +215,14 @@
 }
 
 /* Ensure content visibility can be toggled */
+
 .email-html-content,
 .email-text-content {
     transition: display 0.2s ease;
 }
 
 /* Override any inline styles that might prevent toggling */
+
 .email-content-wrapper .email-html-content[style*="display: none"],
 .email-content-wrapper .email-text-content[style*="display: none"] {
     display: none !important;
@@ -223,6 +234,7 @@
 }
 
 /* Attachment Styles */
+
 .attachments-section .list-group-item {
     border-left: none;
     border-right: none;
@@ -240,7 +252,9 @@
 }
 
 /* Dark mode email styles */
+
 /* Dark mode email content - ONLY in email content box */
+
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content,
 [data-bs-theme="dark"] .email-content-wrapper .email-text-content {
     background: var(--bs-dark);
@@ -253,6 +267,7 @@
 }
 
 /* Email Mobile Styles */
+
 .email-item {
     padding: 0.75rem;
 }
@@ -262,6 +277,7 @@
 }
 
 /* Text overflow fixes - AGGRESSIVE */
+
 .email-sender {
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -291,6 +307,7 @@
 }
 
 /* Mobile specific text handling - FORCE NO SCROLLING */
+
 @media (max-width: 767.98px) {
     .email-sender {
         max-width: 60% !important;
@@ -320,6 +337,7 @@
 /* Email Content Styling - Formatierungs-Isolation */
 
 /* Formatierungs-Isolation: HTML-Inhalte dürfen nicht außerhalb des E-Mail-Viewers wirken */
+
 .email-content-isolated {
     isolation: isolate;
     contain: layout style paint;
@@ -339,12 +357,14 @@
 }
 
 /* Dark Mode Formatierungs-Isolation */
+
 [data-bs-theme="dark"] .email-content-isolated {
     background: #1a202c !important;
     border-color: #4a5568 !important;
 }
 
 /* OLED Mode Email Content Isolated */
+
 [data-oled-mode="true"] .email-content-isolated {
     background: #000000 !important;
     border-color: #1a1a1a !important;
@@ -352,6 +372,7 @@
 }
 
 /* Verhindere, dass HTML-Formatierung außerhalb des Containers wirkt */
+
 .email-content-wrapper {
     position: relative;
     isolation: isolate;
@@ -372,6 +393,7 @@
 }
 
 /* Verhindere, dass E-Mail-Styles auf den Container wirken */
+
 .email-content-wrapper::before,
 .email-content-wrapper::after {
     content: '';
@@ -387,12 +409,14 @@
 /* Minimal table styling - preserve original email formatting */
 
 /* Dark mode email content - ONLY in email content box */
+
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content,
 [data-bs-theme="dark"] .email-content-wrapper .email-text-content {
     background-color: #1a202c !important;
 }
 
 /* OLED Mode Email Content Wrapper */
+
 [data-oled-mode="true"] .email-content-wrapper .email-html-content,
 [data-oled-mode="true"] .email-content-wrapper .email-text-content {
     background-color: #000000 !important;
@@ -401,6 +425,7 @@
 }
 
 /* Dark mode HTML email styling - ONLY in email content box */
+
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content {
     background: #1a202c !important;
     color: #e2e8f0 !important;
@@ -408,12 +433,14 @@
 }
 
 /* Zusätzliche Isolation: Verhindere, dass E-Mail-Styles den Body beeinflussen */
+
 body {
     background: var(--bs-body-bg) !important;
     color: var(--bs-body-color) !important;
 }
 
 /* Verhindere, dass E-Mail-Inhalte den Hintergrund ändern */
+
 .email-content-wrapper {
     background: var(--bs-body-bg) !important;
     /* Verhindere, dass E-Mail-Styles den Container beeinflussen */
@@ -428,6 +455,7 @@ body {
 }
 
 /* Zusätzliche Sicherheit: Überschreibe alle Hintergrund-Styles */
+
 .card .email-content-wrapper,
 .card-body .email-content-wrapper {
     background: var(--bs-body-bg) !important;
@@ -435,6 +463,7 @@ body {
 }
 
 /* Verhindere, dass inline styles aus E-Mails den Hintergrund beeinflussen */
+
 .email-content-wrapper .email-html-content[style*="background"],
 .email-content-wrapper .email-html-content[style*="background-color"] {
     /* Überschreibe inline styles für Hintergrund */
@@ -447,12 +476,14 @@ body {
 }
 
 /* OLED Mode Email HTML Content Background Override */
+
 [data-oled-mode="true"] .email-content-wrapper .email-html-content[style*="background"],
 [data-oled-mode="true"] .email-content-wrapper .email-html-content[style*="background-color"] {
     background: #000000 !important;
 }
 
 /* Dark mode email list styling */
+
 [data-bs-theme="dark"] .email-sender,
 [data-bs-theme="dark"] .email-subject,
 [data-bs-theme="dark"] .email-preview {
@@ -472,6 +503,7 @@ body {
 }
 
 /* Dark mode email content styling - ONLY in email content box */
+
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content a {
     color: #60a5fa !important;
 }
@@ -496,6 +528,7 @@ body {
 /* Preserve original email formatting - minimal interference */
 
 /* Ensure proper email HTML rendering - ONLY for the email content box */
+
 .email-content-wrapper .email-html-content {
     display: block;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -533,6 +566,7 @@ body {
 }
 
 /* Dark Mode HTML Content */
+
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content {
     background: #1a202c !important;
     color: #e2e8f0 !important;
@@ -540,6 +574,7 @@ body {
 }
 
 /* Verhindere, dass E-Mail-Inhalte den Hintergrund beeinflussen */
+
 .email-content-wrapper .email-html-content * {
     /* Isoliere alle Kindelemente */
     max-width: 100% !important;
@@ -547,6 +582,7 @@ body {
 }
 
 /* Verhindere, dass body/html-Tags aus E-Mails den Hintergrund beeinflussen */
+
 .email-content-wrapper .email-html-content body,
 .email-content-wrapper .email-html-content html {
     background: transparent !important;
@@ -555,11 +591,13 @@ body {
 }
 
 /* Verhindere, dass Hintergrundfarben aus E-Mails nach außen wirken */
+
 .email-content-wrapper .email-html-content > * {
     background-clip: padding-box !important;
 }
 
 /* Isoliere E-Mail-Body-Wrapper */
+
 .email-content-isolated-inner,
 .email-body-wrapper {
     background: transparent !important;
@@ -570,6 +608,7 @@ body {
 }
 
 /* Überschreibe alle möglichen Hintergrund-Styles aus E-Mails */
+
 .email-content-wrapper .email-html-content,
 .email-content-wrapper .email-html-content *,
 .email-content-wrapper .email-html-content .email-body-wrapper,
@@ -580,12 +619,14 @@ body {
 }
 
 /* Isoliere E-Mail-Inhalte komplett */
+
 .email-content-wrapper {
     /* Erstelle einen neuen Stacking Context - nur auf Desktop */
     isolation: isolate;
 }
 
 /* Desktop: Zusätzliche Isolation */
+
 @media (min-width: 768px) {
     .email-content-wrapper {
         transform: translateZ(0);
@@ -594,6 +635,7 @@ body {
 }
 
 /* Mobile: Keine transform, da es zu Skalierungsproblemen führen kann */
+
 @media (max-width: 767.98px) {
     .email-content-wrapper {
         transform: none;
@@ -602,12 +644,14 @@ body {
 }
 
 /* Verhindere, dass E-Mail-Inhalte über den Container hinauswirken */
+
 .email-content-wrapper .email-html-content {
     /* Erzwinge Isolation - aber nicht auf mobil */
     isolation: isolate;
 }
 
 /* Desktop: Strikte Isolation */
+
 @media (min-width: 768px) {
     .email-content-wrapper .email-html-content {
         transform: translateZ(0);
@@ -616,6 +660,7 @@ body {
 }
 
 /* Mobile: Keine contain: strict, da es zu Problemen führt */
+
 @media (max-width: 767.98px) {
     .email-content-wrapper .email-html-content {
         contain: none;
@@ -624,6 +669,7 @@ body {
 }
 
 /* Preserve email table formatting - ONLY in email content box */
+
 .email-content-wrapper .email-html-content table {
     border-collapse: collapse;
     width: 100%;
@@ -638,6 +684,7 @@ body {
 }
 
 /* Preserve email image formatting - ONLY in email content box */
+
 .email-content-wrapper .email-html-content img {
     max-width: 100% !important;
     height: auto !important;
@@ -646,6 +693,7 @@ body {
 }
 
 /* Preserve email link formatting - ONLY in email content box */
+
 .email-content-wrapper .email-html-content a {
     color: inherit;
     text-decoration: inherit;
@@ -653,6 +701,7 @@ body {
 }
 
 /* Preserve email text formatting - ONLY in email content box */
+
 .email-content-wrapper .email-html-content p {
     margin: 0 0 1em 0;
     line-height: inherit;
@@ -670,6 +719,7 @@ body {
 }
 
 /* Preserve email list formatting - ONLY in email content box */
+
 .email-content-wrapper .email-html-content ul,
 .email-content-wrapper .email-html-content ol {
     margin: 0 0 1em 0;
@@ -682,6 +732,7 @@ body {
 }
 
 /* Ensure email content doesn't break layout - ONLY in email content box */
+
 .email-content-wrapper .email-html-content * {
     max-width: 100% !important;
     box-sizing: border-box;
@@ -689,6 +740,7 @@ body {
 }
 
 /* Email Attachments Styling */
+
 .attachments-section {
     border: 1px solid #dee2e6;
     border-radius: 0.375rem;
@@ -702,12 +754,14 @@ body {
 }
 
 /* OLED Mode Attachments Section */
+
 [data-oled-mode="true"] .attachments-section {
     background-color: #000000 !important;
     border-color: #1a1a1a !important;
 }
 
 /* OLED Mode - Email Items mit Rahmen statt grauem Hintergrund */
+
 [data-oled-mode="true"] .email-item {
     background-color: #000000 !important;
     border: 1px solid #1a1a1a !important;
@@ -721,17 +775,20 @@ body {
 }
 
 /* OLED Mode - Email Sidebar */
+
 [data-oled-mode="true"] .email-sidebar {
     background-color: #000000 !important;
     border-right: 1px solid #1a1a1a !important;
 }
 
 /* OLED Mode - Email Folder Links — chrome via .mod-nav-link */
+
 [data-oled-mode="true"] .email-list {
     background-color: #000000 !important;
 }
 
 /* OLED Mode - Email Main Content */
+
 [data-oled-mode="true"] .email-main-content {
     background-color: #000000 !important;
 }
@@ -752,6 +809,7 @@ body {
 }
 
 /* OLED Mode - Attachments List Group Items */
+
 [data-oled-mode="true"] .attachments-section .list-group-item {
     background-color: #000000 !important;
     border: 1px solid #1a1a1a !important;
@@ -766,7 +824,9 @@ body {
 }
 
 /* Email Layout with Sidebar (Desktop ab 1024px) */
+
 /* Wichtig: min-width/max-width verhindert, dass die Mail-Liste in die Ordnerleiste überlappt */
+
 .email-content[data-module="email"] {
     min-width: 0;
     max-width: 100%;
@@ -791,6 +851,7 @@ body {
 }
 
 /* Viewport sperren: nur Listen/Bereiche scrollen — keine Seiten-Scrollbar über Favorites-Rail */
+
 body:has(.email-content[data-module="email"]) {
     overflow: hidden;
     height: 100vh;
@@ -877,6 +938,7 @@ body:has(.email-content[data-module="email"]) {
 }
 
 /* Mail-Liste ohne weiße Card-Fläche — wie Dateien-Liste auf Body-Grau */
+
 .email-content[data-module="email"] .email-main-content > .card,
 .email-content[data-module="email"] .email-list-mid,
 .email-content[data-module="email"] .d-md-none > .card,
@@ -941,12 +1003,14 @@ body:has(.email-content[data-module="email"]) {
 }
 
 /* Folder links use .mod-nav-link; keep sync icon color on actions */
+
 .email-folder-sidebar .mod-sidebar-action .sync-icon,
 .email-mobile-offcanvas .mod-sidebar-action .sync-icon {
     color: var(--accent-color, #0d6efd) !important;
 }
 
 /* Mobile Topbar + Offcanvas extras */
+
 .email-list-toolbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(12rem, 28rem) minmax(0, 1fr);
@@ -987,55 +1051,6 @@ body:has(.email-content[data-module="email"]) {
         max-width: 28rem;
         margin: 0 auto;
     }
-}
-
-.email-search-icon {
-    position: absolute;
-    left: 0.95rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-color, #0d6efd);
-    pointer-events: none;
-    font-size: 0.95rem;
-}
-
-.email-search-input,
-.form-control.email-search-input {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding-left: 2.35rem;
-    padding-right: 2.35rem;
-    height: 2.4rem;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    box-shadow: none;
-}
-
-.email-search-input:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.email-search-clear {
-    position: absolute;
-    right: 0.35rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-}
-
-.email-search-clear:hover {
-    background: rgba(127, 127, 127, 0.12);
-    color: var(--bs-body-color);
 }
 
 .email-mobile-path {
@@ -1118,11 +1133,13 @@ body:has(.email-content[data-module="email"]) {
 }
 
 /* Avatar Circles for Email Senders - ERZWINGE RUNDE FORM */
+
 .email-avatar {
     flex-shrink: 0;
 }
 
 /* ERZWINGE RUNDE FORM - Sehr hohe Spezifität */
+
 .email-avatar .avatar-circle,
 .email-item .avatar-circle,
 .list-group-item .avatar-circle,
@@ -1164,12 +1181,14 @@ div.avatar-circle {
 }
 
 /* ZUSÄTZLICHE ERZWUNGENE RUNDE FORM - Höchste Priorität */
+
 .email-avatar .avatar-circle,
 .email-avatar .avatar-circle-mobile {
     position: relative !important;
 }
 
 /* Stelle sicher, dass ALLE Avatare in E-Mails rund sind */
+
 .email-list .email-item .email-avatar .avatar-circle,
 .email-list .email-item .email-avatar .avatar-circle-mobile,
 .list-group .list-group-item .email-avatar .avatar-circle,
@@ -1186,6 +1205,7 @@ div.avatar-circle {
 }
 
 /* Fallback für nicht authentifizierte Benutzer */
+
 :not([data-bs-theme]) .avatar-circle {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
@@ -1197,6 +1217,7 @@ div.avatar-circle {
 }
 
 /* Nested submenu: desktop hover flyout; touch/coarse = inline expand via .show */
+
 .dropdown-submenu {
     position: relative;
 }
@@ -1229,6 +1250,7 @@ div.avatar-circle {
 }
 
 /* Touch / no-hover: keep submenu inside the ⋮ menu (no left:100% flyout) */
+
 @media (hover: none), (pointer: coarse) {
     .dropdown-submenu > .dropdown-menu {
         position: static !important;
@@ -1261,12 +1283,14 @@ div.avatar-circle {
 }
 
 /* Dark Mode Context Menu */
+
 [data-bs-theme="dark"] .dropdown-menu {
     background-color: #2d3748;
     border-color: #4a5568;
 }
 
 /* OLED Mode - Dropdown Menu (Neu-Menü) */
+
 [data-oled-mode="true"] .dropdown-menu {
     background-color: #000000 !important;
     border: 1px solid #1a1a1a !important;
@@ -1307,6 +1331,7 @@ div.avatar-circle {
 /* Mobile Specific Styles */
 
 /* Mobile Avatar Circles - ERZWINGE RUNDE FORM */
+
 .email-avatar .avatar-circle-mobile,
 .email-item .avatar-circle-mobile,
 .list-group-item .avatar-circle-mobile,
@@ -1349,6 +1374,7 @@ div.avatar-circle-mobile,
 }
 
 /* Mobile Touch Targets - Minimum 44x44px */
+
 @media (max-width: 767.98px) {
     .email-content {
         width: 100%;
@@ -1693,6 +1719,7 @@ div.avatar-circle-mobile,
    KRITISCHE REGEL: ERZWINGE RUNDE AVATARE IN E-MAILS
    Diese Regel muss am Ende stehen für höchste Priorität
    ============================================ */
+
 div.avatar-circle,
 div.avatar-circle-mobile,
 .email-avatar div.avatar-circle,
@@ -1738,6 +1765,7 @@ div.avatar-circle-mobile,
 }
 
 /* Farbpunkt-Indikator in der Mailliste */
+
 .email-item .email-item-color-dot {
     width: 10px;
     height: 10px;
@@ -1754,6 +1782,7 @@ div.avatar-circle-mobile,
 }
 
 /* Drag & Drop States */
+
 .email-draggable {
     cursor: grab;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
@@ -1789,6 +1818,7 @@ div.avatar-circle-mobile,
 }
 
 /* Folder tree structure in the sidebar */
+
 .email-folder-node .email-folder-link {
     display: flex;
     align-items: center;
@@ -1815,6 +1845,7 @@ div.avatar-circle-mobile,
 }
 
 /* Dezente Unread-Zahl neben Ordnernamen (nur Zahl, kein Badge-Kreis) */
+
 .email-folder-unread {
     flex: 0 0 auto;
     margin-left: 0.35rem;
@@ -1866,6 +1897,7 @@ div.avatar-circle-mobile,
 }
 
 /* Color picker in action menu */
+
 .email-action-colors {
     padding: 0.45rem 0.75rem 0.35rem;
 }
@@ -1921,6 +1953,7 @@ div.avatar-circle-mobile,
 }
 
 /* Email 3-dot menu — pill design (wie Dateien); Mobile = Action Sheet */
+
 .email-actions-menu,
 .email-move-menu {
     border-radius: 1.1rem !important;
@@ -1998,11 +2031,13 @@ div.avatar-circle-mobile,
 }
 
 /* Hide empty-state helper */
+
 .email-empty-placeholder {
     padding: 2.5rem 1rem;
 }
 
 /* Mobile refinement */
+
 @media (max-width: 767.98px) {
     .email-draggable {
         cursor: default;
@@ -2015,7 +2050,9 @@ div.avatar-circle-mobile,
         height: 28px;
     }
 }
+
 /* Avoid layout squeeze on small width when dots/badges wrap */
+
 .email-item-meta {
     display: flex;
     flex-direction: column;
@@ -2040,6 +2077,7 @@ div.avatar-circle-mobile,
 }
 
 /* „Neu“-Badge im Pill-Style */
+
 .email-unread-badge {
     display: inline-flex;
     align-items: center;
@@ -2154,6 +2192,7 @@ div.avatar-circle-mobile,
 }
 
 /* Inline folder create */
+
 .email-folder-inline {
     margin: 0.35rem 0 0.75rem;
     padding: 0.85rem 0.9rem;
@@ -2298,6 +2337,7 @@ div.avatar-circle-mobile,
 }
 
 /* ===== Email View (pill design) ===== */
+
 .email-view-page {
     width: 100%;
     max-width: none;
@@ -2497,11 +2537,13 @@ div.avatar-circle-mobile,
 }
 
 /* Folder tree in the modal dropdown */
+
 .email-folder-form .form-select {
     font-family: var(--bs-body-font-family, sans-serif);
 }
 
 /* ===== Email Compose (pill design language) ===== */
+
 .email-compose-page {
     --email-compose-surface: var(--bs-tertiary-bg, #f8f9fa);
     --email-compose-border: var(--bs-border-color, #e9ecef);
@@ -3137,16 +3179,17 @@ div.avatar-circle-mobile,
     border-color: #1a1a1a;
 }
 
-
-
 /* Multi-mailbox Outlook-style groups */
+
 .email-mailbox-group > .email-mailbox-toggle {
   font-weight: 600;
 }
+
 .email-mailbox-group .email-mailbox-chevron {
   transition: transform 0.15s ease;
   font-size: 0.75rem;
 }
+
 .email-mailbox-group .email-mailbox-toggle.collapsed .email-mailbox-chevron,
 .email-mailbox-group .email-mailbox-toggle[aria-expanded="false"] .email-mailbox-chevron {
   transform: rotate(-90deg);

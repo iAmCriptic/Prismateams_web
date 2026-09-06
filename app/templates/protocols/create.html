@@ -24,7 +24,7 @@
             {% if editing %}
             {{ protocols_steps('meta', protocol.id) }}
             {% endif %}
-            <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill protocols-btn-pill">
+            <button type="submit" form="protocolsMetaForm" class="btn btn-accent rounded-pill mod-pill-btn">
                 <i class="bi bi-arrow-right"></i>
                 {{ _('protocols.create.submit') if not editing else _('protocols.create.continue') }}
             </button>
@@ -37,16 +37,16 @@
                 <div class="protocols-form-fields">
                     <div class="protocols-form-field">
                         <label for="protocolTitle" class="form-label">{{ _('protocols.create.title_label') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-lg protocols-pill-input" id="protocolTitle" name="title" value="{{ form.title|default('') }}" placeholder="{{ _('protocols.create.title_placeholder') }}" required autofocus>
+                        <input type="text" class="form-control form-control-lg mod-pill-input" id="protocolTitle" name="title" value="{{ form.title|default('') }}" placeholder="{{ _('protocols.create.title_placeholder') }}" required autofocus>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="meetingDate" class="form-label">{{ _('protocols.create.date_label') }}</label>
-                            <input type="date" class="form-control protocols-pill-input" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
+                            <input type="date" class="form-control mod-pill-input" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
                         </div>
                         <div class="col-md-6">
                             <label for="startTime" class="form-label">{{ _('protocols.create.start_time_label') }}</label>
-                            <input type="time" class="form-control protocols-pill-input" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
+                            <input type="time" class="form-control mod-pill-input" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
                         </div>
                     </div>
 
@@ -81,7 +81,7 @@
 
                     <div class="protocols-form-field">
                         {% from 'partials/visibility_select.html' import visibility_select with context %}
-                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility, select_class='form-select protocols-pill-input', attrs='data-inv-pill-select') }}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility, select_class='form-select mod-pill-input', attrs='data-mod-pill-select') }}
                     </div>
                 </div>
             </section>

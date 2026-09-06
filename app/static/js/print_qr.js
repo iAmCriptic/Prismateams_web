@@ -202,11 +202,22 @@
             [
                 document.getElementById('listViewBtn'),
                 document.getElementById('listViewBtnMobile'),
-            ].forEach((btn) => btn?.classList.toggle('active', isList));
+            ].forEach((btn) => {
+                if (!btn) return;
+                btn.classList.toggle('active', isList);
+                btn.classList.toggle('is-active', isList);
+            });
             [
                 document.getElementById('gridViewBtn'),
                 document.getElementById('gridViewBtnMobile'),
-            ].forEach((btn) => btn?.classList.toggle('active', !isList));
+            ].forEach((btn) => {
+                if (!btn) return;
+                btn.classList.toggle('active', !isList);
+                btn.classList.toggle('is-active', !isList);
+            });
+            document.querySelectorAll('.inventory-shell .mod-view-toggle, .mod-view-toggle').forEach((el) => {
+                el.dataset.view = isList ? 'list' : 'grid';
+            });
         }
 
         escapeHtml(value) {
@@ -462,8 +473,8 @@
                 const icon = allOn ? 'bi-x-square' : 'bi-check2-all';
                 allBtn.dataset.mode = allOn ? 'deselect' : 'select';
                 allBtn.title = label;
-                allBtn.classList.toggle('inventory-pill-btn--outline-muted', allOn);
-                allBtn.classList.toggle('inventory-pill-btn--outline', !allOn);
+                allBtn.classList.toggle('mod-pill-btn--outline-muted', allOn);
+                allBtn.classList.toggle('mod-pill-btn--outline', !allOn);
                 const iconEl = allBtn.querySelector('i');
                 const labelEl = allBtn.querySelector('.qr-select-all-label');
                 if (iconEl) iconEl.className = `bi ${icon}`;
@@ -478,8 +489,8 @@
                 const icon = visibleOn ? 'bi-square' : 'bi-check-square';
                 visibleBtn.dataset.mode = visibleOn ? 'deselect' : 'select';
                 visibleBtn.title = label;
-                visibleBtn.classList.toggle('inventory-pill-btn--outline-muted', visibleOn);
-                visibleBtn.classList.toggle('inventory-pill-btn--outline', !visibleOn);
+                visibleBtn.classList.toggle('mod-pill-btn--outline-muted', visibleOn);
+                visibleBtn.classList.toggle('mod-pill-btn--outline', !visibleOn);
                 const iconEl = visibleBtn.querySelector('i');
                 const labelEl = visibleBtn.querySelector('.qr-select-visible-label');
                 if (iconEl) iconEl.className = `bi ${icon}`;
@@ -543,6 +554,9 @@
                 this.els.form.appendChild(input);
             });
             this.els.labelType.value = labelType;
+            if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.ensureFormToken === 'function') {
+                window.PrismateamsCsrf.ensureFormToken(this.els.form);
+            }
             this.els.form.submit();
         }
 

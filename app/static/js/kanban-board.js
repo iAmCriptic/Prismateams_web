@@ -207,15 +207,15 @@
             </label>
             <div class="kanban-custom-field__row">
               ${customFieldInputHtml(f, v, !canEdit)}
-              ${canEdit ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-remove-cf="${f.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-x-lg"></i></button>` : ''}
+              ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-remove-cf="${f.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-x-lg"></i></button>` : ''}
             </div>
           </div>`;
         }).join('')
       : `<p class="text-muted small mb-2">${esc(i18n.customFieldCardEmpty || 'Noch keine Felder auf dieser Karte.')}</p>`;
     const actions = canEdit
       ? `<div class="d-flex flex-wrap gap-2 mb-2">
-          <button type="button" class="btn btn-sm kanban-pill-btn" id="cardInsertFieldsBtn"><i class="bi bi-plus-lg me-1"></i>${esc(i18n.customFieldInsert || 'Felder einfügen')}</button>
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" id="cardLocalFieldBtn"><i class="bi bi-input-cursor-text me-1"></i>${esc(i18n.customFieldCreateLocal || 'Feld für diese Karte')}</button>
+          <button type="button" class="btn btn-sm mod-pill-btn" id="cardInsertFieldsBtn"><i class="bi bi-plus-lg me-1"></i>${esc(i18n.customFieldInsert || 'Felder einfügen')}</button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardLocalFieldBtn"><i class="bi bi-input-cursor-text me-1"></i>${esc(i18n.customFieldCreateLocal || 'Feld für diese Karte')}</button>
         </div>`
       : '';
     grid.innerHTML = actions + fieldsHtml;
@@ -303,7 +303,7 @@
       <span>${esc(f.label)}</span>
       ${already
         ? `<span class="small text-muted">${esc(i18n.customFieldAlready || 'Bereits eingefügt')}</span>`
-        : `<button type="button" class="btn btn-sm kanban-pill-btn" data-enable-cf="${f.id}">${esc(i18n.customFieldInsert || 'Einfügen')}</button>`}
+        : `<button type="button" class="btn btn-sm mod-pill-btn" data-enable-cf="${f.id}">${esc(i18n.customFieldInsert || 'Einfügen')}</button>`}
     </div>`;
   }
 
@@ -353,8 +353,8 @@
         <input class="form-control form-control-sm kanban-pill-input" name="title" maxlength="200"
                placeholder="${esc(i18n.checklistName || 'Checklistenname')}" autocomplete="off" required>
         <div class="d-flex gap-2 mt-2">
-          <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">${esc(i18n.add || 'Hinzufügen')}</button>
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-cancel-new-cl>${esc(i18n.cancel || 'Abbrechen')}</button>
+          <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">${esc(i18n.add || 'Hinzufügen')}</button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-cancel-new-cl>${esc(i18n.cancel || 'Abbrechen')}</button>
         </div>`;
       clRoot.prepend(form);
       form.addEventListener('submit', async (ev) => {
@@ -395,7 +395,7 @@
       catRoot.innerHTML = cats.map((c) => `
         <div class="kanban-cf-cat-row" data-cat-id="${c.id}">
           <span class="fw-semibold">${esc(c.name)}</span>
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-cat="${c.id}"><i class="bi bi-trash"></i></button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-del-cat="${c.id}"><i class="bi bi-trash"></i></button>
         </div>`).join('') || `<p class="text-muted small mb-0">${esc(i18n.customFieldNoCategories || 'Noch keine Kategorien.')}</p>`;
       catRoot.querySelectorAll('[data-del-cat]').forEach((btn) => {
         btn.addEventListener('click', async () => {
@@ -431,8 +431,8 @@
           <div class="kanban-cf-manage-row__type">${esc(fieldTypeLabel(f.field_type))} · ${esc(catName(f.category_id))}</div>
         </div>
         <div class="kanban-cf-manage-row__actions">
-          <button type="button" class="btn btn-sm kanban-pill-btn" data-edit-cf="${f.id}">${esc(i18n.rename || 'Bearbeiten')}</button>
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-cf="${f.id}">${esc(i18n.delete || 'Löschen')}</button>
+          <button type="button" class="btn btn-sm mod-pill-btn" data-edit-cf="${f.id}">${esc(i18n.rename || 'Bearbeiten')}</button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-del-cf="${f.id}">${esc(i18n.delete || 'Löschen')}</button>
         </div>
       </div>`).join('');
     root.querySelectorAll('[data-edit-cf]').forEach((btn) => {
@@ -539,7 +539,7 @@
     const cards = (list.cards || []).map(cardHtml).join('');
     const menu = canEdit
       ? `<div class="dropdown kanban-list-menu">
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Listenaktionen">
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Listenaktionen">
             <i class="bi bi-three-dots"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
@@ -550,14 +550,14 @@
       : '';
     const footer = canEdit
       ? `<div class="kanban-list-col__footer">
-          <button type="button" class="btn kanban-pill-btn w-100 text-start kanban-add-card-btn" data-list-id="${list.id}">
+          <button type="button" class="btn mod-pill-btn w-100 text-start kanban-add-card-btn" data-list-id="${list.id}">
             <i class="bi bi-plus-lg me-1"></i>${esc(i18n.addCard || 'Karte hinzufügen')}
           </button>
           <form class="kanban-add-card-form mt-2" data-list-id="${list.id}" hidden>
             <input class="form-control form-control-sm kanban-pill-input mb-2" name="title" placeholder="${esc(i18n.cardTitle || 'Kartentitel')}" autocomplete="off">
             <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-sm btn-accent kanban-pill-btn">${esc(i18n.addCard || 'Hinzufügen')}</button>
-              <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost kanban-cancel-add-card"><i class="bi bi-x-lg"></i></button>
+              <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">${esc(i18n.addCard || 'Hinzufügen')}</button>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-cancel-add-card"><i class="bi bi-x-lg"></i></button>
             </div>
           </form>
         </div>`
@@ -582,8 +582,8 @@
       <form class="kanban-add-list-form" id="kanbanAddListForm" hidden>
         <input class="form-control kanban-pill-input" id="kanbanListName" name="title" placeholder="${esc(i18n.listName || 'Listenname')}" autocomplete="off">
         <div class="d-flex gap-2 mt-2">
-          <button type="submit" class="btn btn-accent kanban-pill-btn">${esc(i18n.addList || 'Liste hinzufügen')}</button>
-          <button type="button" class="btn kanban-pill-btn kanban-pill-btn--ghost" id="kanbanCancelAddList"><i class="bi bi-x-lg"></i></button>
+          <button type="submit" class="btn btn-accent mod-pill-btn">${esc(i18n.addList || 'Liste hinzufügen')}</button>
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanCancelAddList"><i class="bi bi-x-lg"></i></button>
         </div>
       </form>
     </div>`;
@@ -921,7 +921,7 @@
       <div class="kanban-checklist" data-checklist-id="${cl.id}">
         <div class="kanban-checklist-head">
           <input class="form-control form-control-sm kanban-pill-input kanban-checklist-title" data-checklist-id="${cl.id}" value="${esc(cl.title)}" maxlength="200" ${canEdit ? '' : 'readonly'}>
-          ${canEdit ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-del-checklist="${cl.id}">${esc(i18n.delete || 'Löschen')}</button>` : ''}
+          ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-del-checklist="${cl.id}">${esc(i18n.delete || 'Löschen')}</button>` : ''}
         </div>
         <div class="kanban-checklist-progress">
           <span>${pct}%</span>
@@ -941,9 +941,9 @@
             </div>
             ${canEdit ? `
             <div class="kanban-checklist-item__actions">
-              <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon" data-item-due="${it.id}" title="${esc(i18n.due || 'Zeit')}"><i class="bi bi-clock"></i></button>
-              <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon" data-item-assignee="${it.id}" title="${esc(i18n.members || 'Person')}"><i class="bi bi-person-plus"></i></button>
-              <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon kanban-pill-btn--ghost" data-item-del="${it.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-due="${it.id}" title="${esc(i18n.due || 'Zeit')}"><i class="bi bi-clock"></i></button>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-assignee="${it.id}" title="${esc(i18n.members || 'Person')}"><i class="bi bi-person-plus"></i></button>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-item-del="${it.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>
             </div>` : ''}
           </div>`;
         }).join('')}
@@ -1069,10 +1069,10 @@
           </div>
         </div>
         <div class="kanban-attach-row__actions">
-          <a class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon" href="${esc(viewUrl)}" target="_blank" rel="noopener" title="${esc(i18n.view || 'Ansehen')}"><i class="bi bi-box-arrow-up-right"></i></a>
-          ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
-          ${canEdit && isCover ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
-          ${canEdit ? `<button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--icon kanban-pill-btn--ghost" data-del-att="${a.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>` : ''}
+          <a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="_blank" rel="noopener" title="${esc(i18n.view || 'Ansehen')}"><i class="bi bi-box-arrow-up-right"></i></a>
+          ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
+          ${canEdit && isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
+          ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-del-att="${a.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>` : ''}
         </div>
       </div>`;
     }
@@ -1665,7 +1665,7 @@
       const pwDisplay = s.has_password
         ? `<div class="input-group input-group-sm kanban-share-pw-group">
              <input type="text" class="form-control form-control-sm kanban-pill-input" readonly value="${esc(pw || '••••••••')}" data-share-pw="${s.id}">
-             ${pw ? `<button type="button" class="btn kanban-pill-btn btn-sm" data-copy-pw="${esc(pw)}" title="Passwort kopieren"><i class="bi bi-clipboard"></i></button>` : ''}
+             ${pw ? `<button type="button" class="btn mod-pill-btn btn-sm" data-copy-pw="${esc(pw)}" title="Passwort kopieren"><i class="bi bi-clipboard"></i></button>` : ''}
            </div>`
         : '<span class="text-muted">—</span>';
       return `<tr data-share-id="${s.id}">
@@ -1680,7 +1680,7 @@
         </td>
         <td>
           <div class="d-flex align-items-center gap-1 flex-wrap">
-            <button type="button" class="btn btn-sm kanban-pill-btn" data-copy-share="${esc(s.share_url)}">
+            <button type="button" class="btn btn-sm mod-pill-btn" data-copy-share="${esc(s.share_url)}">
               <i class="bi bi-clipboard me-1"></i>Kopieren
             </button>
             <code class="kanban-share-url-mini" title="${esc(s.share_url)}">${esc((s.share_url || '').replace(/^https?:\/\//, '').slice(0, 28))}…</code>
@@ -1689,8 +1689,8 @@
         <td>${pwDisplay}</td>
         <td><span class="badge rounded-pill text-bg-secondary">${esc(s.mode_label || s.mode)}</span></td>
         <td class="text-end text-nowrap">
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost" data-edit-share="${s.id}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
-          <button type="button" class="btn btn-sm kanban-pill-btn kanban-pill-btn--ghost text-danger" data-del-share="${s.id}" title="Löschen"><i class="bi bi-trash"></i></button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-edit-share="${s.id}" title="Bearbeiten"><i class="bi bi-pencil"></i></button>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost text-danger" data-del-share="${s.id}" title="Löschen"><i class="bi bi-trash"></i></button>
         </td>
       </tr>`;
     }).join('');

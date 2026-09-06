@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 {% endblock %}
@@ -43,21 +42,21 @@
 
             <div class="file-viewer-actions">
                 {% if is_historical %}
-                <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary files-pill-btn" title="{{ _('wiki.history.buttons.view_current') }}">
+                <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary mod-pill-btn" title="{{ _('wiki.history.buttons.view_current') }}">
                     <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('wiki.history.buttons.view_current') }}</span>
                 </a>
                 {% else %}
-                <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary files-pill-btn" title="{{ _('wiki.view.buttons.close') }}">
+                <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary mod-pill-btn" title="{{ _('wiki.view.buttons.close') }}">
                     <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('wiki.view.buttons.close') }}</span>
                 </a>
-                <a href="{{ url_for('wiki.edit', slug=page.slug) }}" class="btn btn-accent files-pill-btn">
+                <a href="{{ url_for('wiki.edit', slug=page.slug) }}" class="btn btn-accent mod-pill-btn">
                     <i class="bi bi-pencil"></i><span class="btn-label ms-1">{{ _('wiki.view.buttons.edit') }}</span>
                 </a>
-                <button type="button" class="btn btn-outline-primary files-pill-btn" id="wikiHistoryBtn" onclick="openWikiHistory(); return false;">
+                <button type="button" class="btn btn-outline-primary mod-pill-btn" id="wikiHistoryBtn" onclick="openWikiHistory(); return false;">
                     <i class="bi bi-clock-history"></i><span class="btn-label ms-1 d-none d-md-inline">{{ _('wiki.view.buttons.history') }}</span>
                 </button>
                 <div class="dropdown" data-context-zone data-context-menu="dropdown">
-                    <button class="btn btn-outline-secondary files-pill-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mehr">
+                    <button class="btn btn-outline-secondary mod-pill-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mehr">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
@@ -161,7 +160,7 @@
                             </small>
                         </div>
                         <a href="{{ url_for('wiki.view_version', slug=page.slug, version_number=version.version_number) }}"
-                           class="btn btn-sm btn-outline-primary files-pill-btn flex-shrink-0">
+                           class="btn btn-sm btn-outline-primary mod-pill-btn flex-shrink-0">
                             <i class="bi bi-eye"></i>
                             <span class="ms-1 d-none d-sm-inline">{{ _('wiki.history.buttons.view') }}</span>
                         </a>

@@ -85,10 +85,10 @@
                         </div>
                     </div>
                     <div class="inventory-scan-controls">
-                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                        <button class="btn mod-pill-btn mod-pill-btn--outline" id="startScannerBtn" type="button">
                             <i class="bi bi-camera"></i> Kamera starten
                         </button>
-                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                        <button class="btn mod-pill-btn mod-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
                             <i class="bi bi-stop-circle"></i> Kamera stoppen
                         </button>
                     </div>
@@ -112,7 +112,7 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
+                    <button class="btn btn-accent mod-pill-btn" id="addToCartBtn" type="button">
                         <i class="bi bi-plus-circle"></i> Hinzufügen
                     </button>
                 </div>
@@ -142,7 +142,7 @@
                 </div>
                 <hr>
                 <form method="POST" action="{{ url_for('inventory.inventory_checkout_confirm') }}" id="checkoutForm">
-                    <button type="submit" class="btn btn-accent inventory-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
+                    <button type="submit" class="btn btn-accent mod-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
                         <i class="bi bi-check-circle"></i> Ausleihe bestätigen
                     </button>
                 </form>
@@ -157,6 +157,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_scan_lookup.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory-borrow-scanner.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -318,10 +318,9 @@ def _send_flask_message_via_smtp(msg, smtp_cfg: dict):
     if auth_type != 'oauth' and not password:
         raise RuntimeError('SMTP-Konfiguration des Postfachs unvollständig')
 
-    # Flask-Mail baut die MIME-Message lazy über .message
-    mime = getattr(msg, 'message', None)
-    if mime is None:
-        raise RuntimeError('E-Mail-Nachricht konnte nicht aufgebaut werden')
+    # Flask-Mail 0.10: MIME aus Attachments bauen; CID+Dateien korrekt nesten
+    from app.utils.email_sender import _build_outbound_mime
+    mime = _build_outbound_mime(msg)
 
     recipients = list(msg.recipients or [])
     if msg.cc:

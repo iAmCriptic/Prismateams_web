@@ -8,7 +8,7 @@
 {% block inventory_content %}
 <div class="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
     <span class="inventory-count-accent">{{ products|length }}</span>
-    <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+    <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn mod-pill-btn mod-pill-btn--outline">
         <i class="bi bi-file-pdf"></i> PDF
     </a>
 </div>
@@ -59,7 +59,7 @@
 
 <style media="print">
     @media print {
-        .btn, nav, .sidebar, .mobile-nav, .mod-sidebar, .inventory-view-toggle, .mod-mobile-topbar {
+        .btn, nav, .sidebar, .mobile-nav, .mod-sidebar, .mod-view-toggle, .mod-mobile-topbar {
             display: none !important;
         }
         .mod-list-table-wrap {

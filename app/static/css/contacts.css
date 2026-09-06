@@ -100,6 +100,7 @@
 }
 
 /* Autocomplete Dropdown */
+
 .contact-autocomplete-dropdown {
     position: absolute;
     top: 100%;
@@ -172,6 +173,7 @@
 }
 
 /* Dark Mode Anpassungen */
+
 [data-bs-theme="dark"] .contact-chip-wrapper {
     background: var(--bs-secondary-bg);
     border-color: var(--bs-border-color);
@@ -188,6 +190,7 @@
 }
 
 /* Mobile Optimierungen */
+
 @media (max-width: 767.98px) {
     .contact-chip-wrapper {
         min-height: 44px;
@@ -256,78 +259,11 @@
 }
 
 /* ——— Suche oben mittig (wie Dateien) ——— */
-.contacts-search {
-    position: relative;
-    max-width: 28rem;
-    margin: 0 auto;
-    width: 100%;
-}
-
-.contacts-search-icon {
-    position: absolute;
-    left: 0.95rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-color, #0d6efd);
-    pointer-events: none;
-    font-size: 0.95rem;
-}
-
-.contacts-search-input,
-.form-control.contacts-search-input {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding-left: 2.35rem;
-    padding-right: 2.35rem;
-    height: 2.55rem;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    box-shadow: none;
-}
-
-.contacts-search-input:focus {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.contacts-search-clear {
-    position: absolute;
-    right: 0.35rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-}
-
-.contacts-search-clear:hover {
-    background: rgba(127, 127, 127, 0.12);
-    color: var(--bs-body-color);
-}
 
 /* ——— List / Grid pill toggle (uses files-view-toggle classes) ——— */
-.contacts-mobile-view-toggle .files-view-toggle__btn {
-    width: 2.1rem;
-    height: 2.1rem;
-}
-
-.page-toolbar-row .files-view-toggle {
-    flex-shrink: 0;
-}
-
-.contacts-mobile-view-toggle {
-    display: flex;
-    justify-content: flex-start;
-}
 
 /* Mobile Neu — Akzent-Pill */
+
 .contacts-shell .mod-new-btn,
 .btn.mod-new-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
@@ -356,11 +292,14 @@
     gap: 0.5rem;
 }
 
+.contacts-mobile-search .mod-search,
 .contacts-mobile-search .contacts-search {
     max-width: none;
     margin: 0;
 }
 
+.contacts-mobile-search .mod-search-input,
+.contacts-mobile-search .form-control.mod-search-input,
 .contacts-mobile-search .contacts-search-input,
 .contacts-mobile-search .form-control.contacts-search-input {
     height: 2.35rem;
@@ -404,6 +343,7 @@
 }
 
 /* ——— 3-Punkte-Menü (Pillen, wie Dateien/E-Mail) ——— */
+
 .contacts-actions-menu,
 .mod-list-actions .contacts-actions-menu,
 .contacts-card-menu .contacts-actions-menu,
@@ -456,6 +396,7 @@
 }
 
 /* Grid-Hover-Shortcuts: nur große Screens (lg+), wie Dateien */
+
 .contacts-grid-hover-actions {
     display: none !important;
     align-items: center;
@@ -488,6 +429,7 @@
 }
 
 /* ——— Grid-Karten ——— */
+
 .contacts-card {
     position: relative;
     border-radius: var(--mod-radius-card, 0.9rem);
@@ -569,12 +511,14 @@
 }
 
 /* Sidebar-Filter: Pill-Inputs */
+
 .contacts-shell .mod-sidebar-form .form-control,
 .contacts-shell .mod-sidebar-form .form-select {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
 }
 
 /* ——— Create / Edit Formulare (wie Veranstaltungen) ——— */
+
 .contacts-form {
     --contacts-form-surface: var(--bs-tertiary-bg, #f8f9fa);
     --contacts-form-elevated: var(--bs-body-bg, #fff);
@@ -726,6 +670,7 @@
 }
 
 /* ——— Multi-select / Premium list polish ——— */
+
 .contacts-card:hover .files-select-check,
 .contacts-card.is-selected .files-select-check,
 body.files-has-selection .contacts-card .files-select-check {

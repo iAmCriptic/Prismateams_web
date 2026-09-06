@@ -29,6 +29,7 @@
 }
 
 /* ââ Shell / Sidebar (aligned with other mod-shell--nav modules) ââ */
+
 .settings-shell.mod-shell--nav {
   min-height: 0;
 }
@@ -39,6 +40,7 @@
 }
 
 /* ââ Accent emphasis (solid + gradient via --accent-style) ââ */
+
 .settings-shell,
 .settings-embed-shell {
   --sp-accent-fill: var(--accent-style, var(--accent-color, #0d6efd));
@@ -210,6 +212,7 @@
 }
 
 /* Dedicated scroll pane so a long admin nav never gets clipped. */
+
 @media (min-width: 992px) {
   body:not(.embed-scope):not(.assessment-scope-solo) .settings-shell.mod-shell--nav > .mod-sidebar {
     overflow: hidden;
@@ -287,59 +290,10 @@
 }
 
 /* ââ Search (top navbar, same language as files-search) ââ */
+
 .settings-search {
   position: relative;
   min-width: min(18rem, 42vw);
-}
-
-.settings-search-field {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  width: 100%;
-  margin: 0;
-  padding: 0.4rem 2.5rem 0.4rem 0.95rem;
-  border-radius: var(--mod-radius-pill, 1.5rem);
-  border: 1px solid var(--bs-border-color, #ced4da);
-  background: var(--bs-body-bg, #fff);
-  cursor: text;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.settings-search-field:hover {
-  border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color, #ced4da));
-}
-
-.settings-search-field:focus-within {
-  border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 65%, var(--bs-border-color, #ced4da));
-  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.settings-search-field > .bi-search {
-  flex-shrink: 0;
-  font-size: 0.95rem;
-  line-height: 1;
-  color: var(--accent-color, #0d6efd);
-  opacity: 1;
-}
-
-.settings-search-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0 !important;
-  outline: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 0.2rem 0 !important;
-  height: auto !important;
-  color: inherit;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.settings-search-input::placeholder {
-  color: var(--bs-secondary-color, #6c757d);
-  opacity: 0.85;
 }
 
 .settings-search-clear {
@@ -412,6 +366,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Page / Groups / Rows Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-page {
   max-width: 56rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
@@ -462,8 +417,11 @@
 }
 
 .sp-group:nth-child(2) { animation-delay: 0.04s; }
+
 .sp-group:nth-child(3) { animation-delay: 0.08s; }
+
 .sp-group:nth-child(4) { animation-delay: 0.12s; }
+
 .sp-group:nth-child(5) { animation-delay: 0.16s; }
 
 .sp-group-head {
@@ -584,6 +542,7 @@
 }
 
 /* Avoid 0-width selects in grid `auto` columns (width:100% circular sizing). */
+
 .sp-row:not(.sp-row--stack) .sp-row-control .form-select {
   width: auto;
   min-width: 12rem;
@@ -611,6 +570,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Collapse Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-collapse-toggle {
   width: 100%;
   display: flex;
@@ -660,6 +620,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Hub tiles Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-hub {
   max-width: 72rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
@@ -701,13 +662,21 @@
 }
 
 .sp-hub-tile:nth-child(1) { animation-delay: 0.02s; }
+
 .sp-hub-tile:nth-child(2) { animation-delay: 0.05s; }
+
 .sp-hub-tile:nth-child(3) { animation-delay: 0.08s; }
+
 .sp-hub-tile:nth-child(4) { animation-delay: 0.11s; }
+
 .sp-hub-tile:nth-child(5) { animation-delay: 0.14s; }
+
 .sp-hub-tile:nth-child(6) { animation-delay: 0.17s; }
+
 .sp-hub-tile:nth-child(7) { animation-delay: 0.2s; }
+
 .sp-hub-tile:nth-child(8) { animation-delay: 0.23s; }
+
 .sp-hub-tile:nth-child(9) { animation-delay: 0.26s; }
 
 .sp-hub-tile:hover {
@@ -767,6 +736,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Lists (admin) Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-list-wrap {
   background: var(--sp-surface-elevated);
   border: 1px solid var(--sp-border);
@@ -792,10 +762,6 @@
   margin-bottom: 1rem;
 }
 
-.sp-btn-pill {
-  border-radius: var(--mod-radius-pill, 1.5rem) !important;
-}
-
 .sp-back-row {
   margin-bottom: 1rem;
 }
@@ -818,6 +784,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Color / type toggles Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-seg {
   display: inline-flex;
   padding: 0.2rem;
@@ -878,6 +845,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Search flash (2 pulses) Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-search-flash {
   animation: sp-accent-pulse 0.7s ease-in-out 2;
   border-radius: var(--sp-radius-sm);
@@ -898,6 +866,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Toast (GitHub-style) Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-toast-host {
   position: fixed;
   z-index: 1090;
@@ -1085,6 +1054,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Dropzone / import Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-dropzone {
   border: 1.5px dashed color-mix(in srgb, var(--accent-color, #0d6efd) 40%, var(--sp-border));
   border-radius: var(--sp-radius);
@@ -1138,6 +1108,7 @@
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ Actions (exceptions only) Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1147,12 +1118,14 @@
 }
 
 /* Legacy flash hide preference inside settings when using toast Ã¢ÂÂ keep visible for errors from redirects */
+
 .settings-shell .alert {
   border-radius: var(--sp-radius);
   animation: sp-fade-up 0.25s var(--sp-ease);
 }
 
 /* Profile avatar etc. */
+
 .sp-avatar {
   width: 5.5rem;
   height: 5.5rem;
@@ -1168,6 +1141,7 @@
 }
 
 /* Ã¯Â¿Â½Ã¯Â¿Â½ Legacy bridge (until all templates use sp-*) Ã¯Â¿Â½Ã¯Â¿Â½ */
+
 .settings-appearance-actions,
 .settings-notifications-actions,
 .settings-profile-actions,
@@ -1183,17 +1157,20 @@
   max-width: 56rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
 }
+
 .settings-appearance-title,
 .settings-notifications-title,
 .settings-profile-title,
 .settings-admin-users-title,
 .settings-admin-inventory-title,
 .settings-security-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.35rem; }
+
 .settings-appearance-subtitle,
 .settings-notifications-subtitle,
 .settings-profile-subtitle,
 .settings-admin-users-subtitle,
 .settings-admin-inventory-subtitle { color: var(--sp-muted); font-size: 0.92rem; margin: 0 0 1.25rem; }
+
 .settings-appearance-card,
 .settings-notifications-card,
 .settings-profile-card,
@@ -1207,6 +1184,7 @@
   padding: 1rem 1.15rem;
   margin-bottom: 1rem;
 }
+
 .settings-appearance-card-head,
 .settings-notifications-card-head,
 .settings-profile-card-head,
@@ -1214,27 +1192,37 @@
 .settings-admin-inventory-card-head {
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem;
 }
+
 .settings-appearance-section-title,
 .settings-notifications-section-title,
 .settings-profile-section-title,
 .settings-admin-users-section-title,
 .settings-admin-inventory-section-title { font-size: 0.95rem; font-weight: 650; margin: 0; }
+
 .settings-appearance-info,
 .settings-notifications-info { border: 0; background: transparent; color: var(--sp-muted); }
+
 .settings-appearance-grid,
 .settings-notifications-grid { display: grid; gap: 1rem; }
+
 .settings-appearance-input,
 .settings-profile-input { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
+
 .settings-appearance-preview,
 .settings-appearance-type-btn { border-radius: var(--mod-radius-pill, 1.5rem); }
+
 .settings-appearance-type-toggle { display: inline-flex; gap: 0.35rem; margin-bottom: 0.75rem; }
+
 .settings-appearance-type-btn { padding: 0.4rem 0.85rem; border: 1px solid var(--sp-border); cursor: pointer; font-size: 0.82rem; }
-  .btn-check:checked + .settings-appearance-type-btn { background: var(--accent-style, var(--accent-color)); color: #fff; border-color: transparent; }
+
+.btn-check:checked + .settings-appearance-type-btn { background: var(--accent-style, var(--accent-color)); color: #fff; border-color: transparent; }
+
 .settings-admin-users-btn,
-.settings-profile-btn-pill,
+.mod-pill-btn,
 .settings-admin-inventory-submit { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
 
 /* Admin user modals (Rollen / Gast / Teams) — pill style */
+
 .settings-admin-roles-modal .modal-content {
   border-radius: 1.25rem;
   border: 1px solid var(--sp-border, var(--bs-border-color));
@@ -1326,61 +1314,91 @@
   border-radius: 50%;
   vertical-align: middle;
 }
+
 .settings-admin-users-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+
 .settings-admin-users-row,
 .sau-row {
   display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--sp-border);
   transition: background 0.18s ease;
 }
+
 .settings-admin-users-row:hover { background: color-mix(in srgb, var(--accent-color) 5%, transparent); }
+
 .settings-admin-users-list { border: 1px solid var(--sp-border); border-radius: var(--sp-radius); overflow: hidden; background: var(--sp-surface-elevated); }
+
 .settings-subpage-back a { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--sp-muted); text-decoration: none; margin-bottom: 1rem; }
 
 .settings-notifications-nested { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.28s var(--sp-ease), opacity 0.22s ease; }
+
 .settings-notifications-nested.is-expanded { max-height: 40rem; opacity: 1; margin-top: 0.65rem; }
+
 .settings-notifications-nested-inline { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.28s var(--sp-ease), opacity 0.22s ease; }
+
 .settings-notifications-nested-inline.is-expanded { max-height: 12rem; opacity: 1; }
+
 .settings-notifications-chat-list { display: grid; gap: 0.35rem; }
+
 .settings-notifications-chat-row { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.55rem; border-radius: var(--sp-radius-sm); border: 1px solid var(--sp-border); }
+
 .settings-notifications-reminder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.35rem; }
+
 .settings-admin-users.sp-page--fluid,
 .settings-admin-teams.sp-page--fluid {
   max-width: none;
   width: 100%;
 }
+
 .settings-admin-users-header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
 .sau-hover-actions { display: flex; gap: 0.15rem; opacity: 0; transition: opacity 0.15s ease; }
+
 .settings-admin-users-row:hover .sau-hover-actions { opacity: 1; }
+
 .sau-actions { display: flex; align-items: center; gap: 0.25rem; }
 
 .settings-about { animation: sp-fade-up var(--sp-dur) var(--sp-ease); }
+
 .settings-about-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.35rem; }
+
 .settings-about-subtitle { color: var(--sp-muted); margin: 0 0 1.25rem; }
+
 .settings-about-brand, .settings-about-card {
   background: var(--sp-surface-elevated); border: 1px solid var(--sp-border); border-radius: var(--sp-radius);
   box-shadow: var(--sp-shadow); padding: 1.15rem; margin-bottom: 1rem;
 }
+
 .settings-about-brand { display: flex; gap: 1rem; align-items: center; }
+
 .settings-about-logo { border-radius: 1rem; }
+
 .settings-about-meta-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid var(--sp-border); }
+
 .settings-about-meta-row:last-child { border-bottom: 0; }
+
 .settings-about-meta-label { color: var(--sp-muted); font-size: 0.86rem; }
+
 .settings-admin-email-card, .settings-admin-system-card {
   background: var(--sp-surface-elevated); border: 1px solid var(--sp-border); border-radius: var(--sp-radius);
   box-shadow: var(--sp-shadow); padding: 1.1rem; margin-bottom: 1rem;
 }
+
 .settings-security.sp-page--fluid { max-width: none; width: 100%; }
+
 /* Legacy class kept on markup; chrome comes from .sp-group */
+
 .settings-security-card.sp-group {
   padding: 0;
   margin-bottom: 0;
 }
+
 .settings-security .sp-group-body {
   padding: 1rem 1.25rem;
 }
 
 /* Hide classic save footers when autosave is active */
+
 form[data-sp-autosave] .settings-admin-system-actions,
 form[data-sp-autosave] .settings-admin-email-actions,
 form[data-sp-autosave] .settings-admin-inventory-actions,
@@ -1388,9 +1406,11 @@ form[data-sp-autosave] button[type='submit'].btn-accent:not([data-sp-keep-submit
 form[data-sp-autosave] .btn[type='submit'].settings-admin-inventory-submit {
   display: none !important;
 }
+
 form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) { display: inline-flex; }
 
 /* Ã¯Â¿Â½Ã¯Â¿Â½ Full-width layout with side panel Ã¯Â¿Â½Ã¯Â¿Â½ */
+
 .sp-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(15.5rem, 20rem);
@@ -1399,17 +1419,21 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   width: 100%;
   max-width: none;
 }
+
 .sp-layout--hub {
   grid-template-columns: minmax(0, 1fr) minmax(15rem, 18.5rem);
 }
+
 .sp-page--fluid,
 .sp-hub--fluid {
   max-width: none;
   width: 100%;
 }
+
 .sp-hub-grid {
   grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
 }
+
 .sp-sidepanel {
   display: flex;
   flex-direction: column;
@@ -1418,6 +1442,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   top: 1rem;
   animation: sp-fade-up var(--sp-dur) var(--sp-ease);
 }
+
 .sp-sidepanel-card {
   background: var(--sp-surface-elevated);
   border: 1px solid var(--sp-border);
@@ -1425,9 +1450,11 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   box-shadow: var(--sp-shadow);
   padding: 1rem 1.1rem;
 }
+
 .sp-sidepanel-card--muted {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, var(--sp-surface-elevated));
 }
+
 .sp-sidepanel-title {
   margin: 0 0 0.35rem;
   font-size: 0.92rem;
@@ -1436,6 +1463,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   align-items: center;
   gap: 0.4rem;
 }
+
 .sp-sidepanel-title i {
   background: var(--accent-style, var(--accent-color, #0d6efd));
   -webkit-background-clip: text;
@@ -1443,16 +1471,19 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   background-clip: text;
   color: transparent;
 }
+
 .sp-sidepanel-lead {
   margin: 0 0 0.85rem;
   color: var(--sp-muted);
   font-size: 0.8rem;
   line-height: 1.35;
 }
+
 .sp-sidepanel-links {
   display: grid;
   gap: 0.35rem;
 }
+
 .sp-sidepanel-link {
   display: flex;
   align-items: center;
@@ -1466,13 +1497,16 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   border: 1px solid transparent;
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
+
 .sp-sidepanel-link i { color: var(--accent-color, #0d6efd); }
+
 .sp-sidepanel-link:hover {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
   color: inherit;
   transform: translateX(2px);
 }
+
 .sp-live-preview {
   --sp-preview-accent: var(--accent-style, var(--accent-color, #0d6efd));
   border-radius: var(--sp-radius-sm);
@@ -1480,6 +1514,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   overflow: hidden;
   background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, var(--accent-color, #0d6efd) 4%);
 }
+
 .sp-live-preview-nav {
   display: flex;
   align-items: center;
@@ -1490,6 +1525,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   border-bottom: 1px solid var(--sp-border);
   background: color-mix(in srgb, var(--sp-preview-accent) 12%, transparent);
 }
+
 .sp-live-preview-dot {
   width: 0.55rem;
   height: 0.55rem;
@@ -1497,11 +1533,13 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   background: var(--sp-preview-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-preview-accent) 25%, transparent);
 }
+
 .sp-live-preview-body {
   padding: 0.85rem;
   display: grid;
   gap: 0.65rem;
 }
+
 .sp-live-preview-card {
   padding: 0.75rem;
   border-radius: 0.65rem;
@@ -1509,11 +1547,13 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   font-size: 0.8rem;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sp-preview-accent) 12%, transparent);
 }
+
 .sp-live-preview-btn {
   justify-self: start;
   background: var(--sp-preview-accent) !important;
   border: 0 !important;
 }
+
 @media (max-width: 1099.98px) {
   .sp-layout,
   .sp-layout--hub {
@@ -1527,6 +1567,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
 }
 
 /* Ã¢ÂÂÃ¢ÂÂ 2-column card grid (notifications + security) Ã¢ÂÂÃ¢ÂÂ */
+
 .sp-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1534,38 +1575,46 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   width: 100%;
   align-items: start;
 }
+
 .sp-card-grid > .sp-group {
   margin-bottom: 0;
   height: 100%;
 }
+
 .sp-group--span2,
 .settings-security-devices {
   grid-column: 1 / -1;
 }
+
 .sp-nested {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 0.28s var(--sp-ease);
 }
+
 .sp-nested.is-open {
   grid-template-rows: 1fr;
 }
+
 .sp-nested-inner {
   overflow: hidden;
   min-height: 0;
   opacity: 0;
   transition: opacity 0.22s ease;
 }
+
 .sp-nested.is-open > .sp-nested-inner {
   opacity: 1;
   overflow: visible;
 }
+
 .sp-chip-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   width: 100%;
 }
+
 .sp-chip {
   position: relative;
   display: inline-flex;
@@ -1573,6 +1622,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   cursor: pointer;
   margin: 0;
 }
+
 .sp-chip input {
   position: absolute;
   opacity: 0;
@@ -1580,6 +1630,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   height: 1px;
   pointer-events: none;
 }
+
 .sp-chip span {
   display: inline-flex;
   align-items: center;
@@ -1592,35 +1643,42 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   user-select: none;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
 }
+
 .sp-chip span .bi {
   margin: 0;
   line-height: 1;
   font-size: 0.95em;
 }
+
 .sp-chip:hover span {
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, var(--sp-border));
 }
+
 .sp-chip input:checked + span {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 50%, transparent);
   color: var(--accent-color, #0d6efd);
   font-weight: 600;
 }
+
 .sp-chip input:focus-visible + span {
   outline: 2px solid color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
   outline-offset: 2px;
 }
+
 .sp-check-list,
 .sp-radio-stack {
   display: grid;
   gap: 0.35rem;
   width: 100%;
 }
+
 .sp-chat-list {
   display: grid;
   gap: 0.35rem;
   width: 100%;
 }
+
 .sp-chat-row {
   display: flex;
   align-items: center;
@@ -1633,14 +1691,18 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   cursor: pointer;
   transition: background 0.15s ease;
 }
+
 .sp-chat-row:hover {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
 }
+
 .sp-chat-row i { margin-right: 0.35rem; color: var(--accent-color, #0d6efd); }
+
 .sp-notif-push-actions {
   flex-wrap: wrap;
   justify-content: flex-start !important;
 }
+
 .sp-notif-warn {
   margin: 0 1.25rem 1rem;
   padding: 0.65rem 0.85rem;
@@ -1648,29 +1710,44 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   background: color-mix(in srgb, #ffc107 14%, transparent);
   font-size: 0.85rem;
 }
+
 .settings-security-form--hidden { display: none !important; }
+
 .settings-security-input {
   border-radius: var(--mod-radius-pill, 1.5rem) !important;
   max-width: 100%;
 }
+
 .settings-security-field { margin-bottom: 0.75rem; }
+
 .settings-security-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+
 .settings-security-hint { color: var(--sp-muted); font-size: 0.86rem; margin-bottom: 0.75rem; }
+
 .settings-security-device-list { display: grid; gap: 0.45rem; }
+
 .settings-security-device-row {
   display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.7rem 0.85rem; border: 1px solid var(--sp-border); border-radius: var(--sp-radius-sm);
 }
+
 .settings-security-device-row.is-current {
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, transparent);
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
 }
+
 .settings-security-device-name { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+
 .settings-security-device-meta { color: var(--sp-muted); font-size: 0.78rem; display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
+
 .settings-security-btn { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
+
 .settings-security-2fa-setup { display: grid; gap: 1rem; }
+
 .settings-security-setup-title { font-size: 0.9rem; font-weight: 650; margin: 0 0 0.35rem; }
+
 .settings-security-qr { display: flex; justify-content: center; padding: 0.5rem 0; }
+
 .settings-security-secret-code {
   display: block;
   word-break: break-all;
@@ -1680,54 +1757,70 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
   border: 1px solid var(--sp-border);
 }
+
 .settings-security-hint--warn { color: #e6a817; }
+
 .settings-security-2fa-brand {
   display: flex; align-items: center; gap: 0.75rem; margin: 0.75rem 0;
 }
+
 .settings-security-2fa-brand-logo { width: 2.5rem; height: 2.5rem; border-radius: 0.65rem; object-fit: cover; }
+
 .settings-security-2fa-brand-text { display: grid; gap: 0.15rem; }
+
 .settings-security-2fa-brand-name { font-weight: 650; }
+
 .settings-security-totp { letter-spacing: 0.2em; text-align: center; max-width: 10rem; }
+
 .settings-security-revoke-all { margin-top: 0.85rem; }
+
 .settings-about.sp-page--fluid { max-width: none; width: 100%; }
+
 .settings-about-hero .settings-about-hero-body {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1.1rem 1.25rem;
 }
+
 .settings-about-logo {
   border-radius: 1rem;
   flex-shrink: 0;
 }
+
 .settings-about-product-name {
   margin: 0 0 0.25rem;
   font-size: 1.15rem;
   font-weight: 700;
 }
+
 .settings-about-product-desc {
   margin: 0;
   color: var(--sp-muted);
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
 .settings-about-meta-value {
   font-size: 0.9rem;
   font-weight: 550;
   text-align: right;
 }
+
 .settings-about-meta-value--mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8rem;
   color: var(--sp-muted);
   word-break: break-all;
 }
+
 .settings-about-repo-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   width: 100%;
 }
+
 .settings-about-footer {
   margin-top: 1.5rem;
   padding-top: 1rem;
@@ -1735,6 +1828,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   color: var(--sp-muted);
   font-size: 0.82rem;
 }
+
 .settings-about-footer-author,
 .settings-about-footer-copy { margin: 0 0 0.25rem; }
 
@@ -1745,6 +1839,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   display: grid;
   gap: 0.4rem;
 }
+
 .sp-conn-row,
 .sp-job-row {
   display: flex;
@@ -1756,13 +1851,16 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   border-radius: var(--sp-radius-sm);
   background: color-mix(in srgb, var(--sp-surface-elevated) 80%, transparent);
 }
+
 .sp-job-row {
   display: block;
 }
+
 .sp-conn-row.active {
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent);
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
 }
+
 .sp-conn-select {
   border: 0;
   background: transparent;
@@ -1775,16 +1873,20 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   flex: 1;
   min-width: 0;
 }
+
 .sp-conn-select i { color: var(--accent-color, #0d6efd); }
+
 .sp-conn-empty {
   color: var(--sp-muted);
   font-size: 0.86rem;
   padding: 0.55rem 0.25rem;
 }
+
 .sp-dropzone i {
   font-size: 1.75rem;
   color: var(--accent-color, #0d6efd);
 }
+
 .cloud-import-nextcloud-form:not(.d-none) {
   border-top: 1px solid var(--sp-border);
   margin-top: 0.25rem;
@@ -1796,6 +1898,7 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
 }
 
 /* ââ Admin users / teams directory ââ */
+
 .settings-admin-users.sp-page--fluid,
 .settings-admin-teams.sp-page--fluid {
   max-width: none;
@@ -2138,21 +2241,25 @@ a.sp-dir-card:hover {
 }
 
 /* Team form / whitelist / legal / system polish */
+
 .settings-admin-teams-color-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
+
 .settings-admin-teams-current-image img {
   width: 4.5rem;
   height: 4.5rem;
   border-radius: 1rem;
   object-fit: cover;
 }
+
 .settings-team-preview-card {
   pointer-events: none;
 }
+
 .settings-admin-whitelist.sp-page--fluid,
 .settings-admin-system.sp-page--fluid,
 .settings-admin-legal,
@@ -2165,55 +2272,66 @@ a.sp-dir-card:hover {
 }
 
 /* Modules â responsive switch grid */
+
 .settings-admin-modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
   gap: 0.15rem 0.75rem;
   width: 100%;
 }
+
 .settings-admin-modules-grid--visibility {
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
 }
+
 .settings-admin-modules-switch {
   margin: 0;
   padding: 0.45rem 0.35rem;
   border-radius: var(--sp-radius-sm);
 }
+
 .settings-admin-modules-switch .sp-row-label-text {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
+
 .settings-admin-modules-switch .sp-row-label-text .bi {
   opacity: 0.75;
   font-size: 1rem;
 }
 
 /* Backup category chips */
+
 .settings-admin-backup-select-btns {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-left: auto;
 }
+
 .settings-admin-backup .sp-row-label {
   width: 100%;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
 .settings-admin-backup-chips {
   width: 100%;
 }
+
 .settings-admin-backup-chip-wrap {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
 }
+
 .settings-admin-backup-chip span {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
+
 .settings-admin-backup-warn {
   display: flex;
   align-items: flex-start;
@@ -2227,11 +2345,13 @@ a.sp-dir-card:hover {
   font-size: 0.82rem;
   line-height: 1.35;
 }
+
 .settings-admin-backup-warn .bi {
   flex-shrink: 0;
   margin-top: 0.1rem;
   color: #d97706;
 }
+
 .settings-admin-legal-textarea {
   min-height: 22rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -2239,38 +2359,45 @@ a.sp-dir-card:hover {
   line-height: 1.45;
   border-radius: var(--sp-radius-sm) !important;
 }
+
 .settings-admin-system-logo {
   display: flex;
   align-items: center;
   gap: 0.85rem;
   flex-wrap: wrap;
 }
+
 .settings-admin-system-logo-img {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 0.85rem;
   object-fit: cover;
 }
+
 .settings-admin-system-brand-preview {
   width: 7rem;
   height: 4rem;
   object-fit: cover;
 }
+
 .settings-admin-system-logo-meta {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
+
 .settings-admin-system-logo-caption {
   color: var(--sp-muted);
   font-size: 0.8rem;
 }
+
 .settings-admin-system-preset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
   gap: 0.5rem;
   width: 100%;
 }
+
 .settings-admin-system-preset-btn {
   display: grid;
   gap: 0.35rem;
@@ -2280,25 +2407,30 @@ a.sp-dir-card:hover {
   cursor: pointer;
   margin: 0;
 }
+
 .settings-admin-system-preset .btn-check:checked + .settings-admin-system-preset-btn {
   border-color: var(--accent-color, #0d6efd);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color, #0d6efd) 25%, transparent);
 }
+
 .settings-admin-system-preset-swatch {
   display: block;
   height: 1.75rem;
   border-radius: 0.45rem;
 }
+
 .settings-admin-system-preset-label {
   font-size: 0.72rem;
   color: var(--sp-muted);
   line-height: 1.2;
 }
+
 .settings-admin-system-position-grid {
   display: grid;
   grid-template-columns: repeat(3, 2.5rem);
   gap: 0.35rem;
 }
+
 .settings-admin-system-position-btn {
   display: flex;
   align-items: center;
@@ -2310,28 +2442,34 @@ a.sp-dir-card:hover {
   margin: 0;
   cursor: pointer;
 }
+
 .settings-admin-system-position-dot {
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 50%;
   background: var(--sp-muted);
 }
+
 .settings-admin-system-position-cell .btn-check:checked + .settings-admin-system-position-btn {
   border-color: var(--accent-color, #0d6efd);
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
 }
+
 .settings-admin-system-position-cell .btn-check:checked + .settings-admin-system-position-btn .settings-admin-system-position-dot {
   background: var(--accent-color, #0d6efd);
 }
+
 .sp-group-head .files-view-toggle {
   margin-left: auto;
 }
+
 .settings-admin-whitelist-empty {
   color: var(--sp-muted);
   font-size: 0.9rem;
 }
 
 /* ââ Booking forms ââ */
+
 .settings-admin-booking-header {
   display: flex;
   align-items: flex-start;
@@ -2339,28 +2477,34 @@ a.sp-dir-card:hover {
   gap: 1rem;
   flex-wrap: wrap;
 }
+
 .settings-admin-booking-header-actions {
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
 }
+
 .settings-admin-booking-list-link {
   color: inherit;
   text-decoration: none;
 }
+
 .settings-admin-booking-list-link:hover .mod-list-name {
   color: var(--accent-color, #0d6efd);
 }
+
 .settings-admin-booking-row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
 }
+
 .settings-admin-booking-row-actions form {
   display: inline;
   margin: 0;
 }
+
 .settings-admin-booking-empty {
   display: flex;
   flex-direction: column;
@@ -2370,15 +2514,18 @@ a.sp-dir-card:hover {
   text-align: center;
   color: var(--sp-muted);
 }
+
 .settings-admin-booking-empty .bi {
   font-size: 1.75rem;
   opacity: 0.7;
 }
+
 .settings-admin-booking-actions {
   display: flex;
   justify-content: flex-end;
   margin: 0.25rem 0 1.25rem;
 }
+
 .settings-admin-booking-panel {
   margin: 0.5rem 0.75rem 1rem;
   padding: 0.75rem 0;
@@ -2386,21 +2533,25 @@ a.sp-dir-card:hover {
   border-radius: var(--sp-radius, 1rem);
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 4%, transparent);
 }
+
 .settings-admin-booking-panel-title {
   margin: 0 1.25rem 0.5rem;
   font-size: 0.92rem;
   font-weight: 600;
 }
+
 .settings-admin-booking-panel-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem 0.25rem;
 }
+
 .settings-admin-booking-list {
   display: flex;
   flex-direction: column;
 }
+
 .settings-admin-booking-item {
   display: flex;
   align-items: center;
@@ -2409,9 +2560,11 @@ a.sp-dir-card:hover {
   padding: 0.85rem 1.25rem;
   border-bottom: 1px solid color-mix(in srgb, var(--sp-border) 70%, transparent);
 }
+
 .settings-admin-booking-item:last-child {
   border-bottom: 0;
 }
+
 .settings-admin-booking-item-main {
   display: flex;
   flex-wrap: wrap;
@@ -2419,10 +2572,12 @@ a.sp-dir-card:hover {
   gap: 0.4rem;
   min-width: 0;
 }
+
 .settings-admin-booking-item-name {
   font-weight: 550;
   font-size: 0.92rem;
 }
+
 .settings-admin-booking-logo {
   display: flex;
   align-items: center;
@@ -2430,6 +2585,7 @@ a.sp-dir-card:hover {
   padding: 0.85rem 1.25rem;
   flex-wrap: wrap;
 }
+
 .settings-admin-booking-logo-img {
   max-height: 4rem;
   max-width: 10rem;
@@ -2439,6 +2595,7 @@ a.sp-dir-card:hover {
   background: color-mix(in srgb, var(--sp-border) 30%, transparent);
   padding: 0.35rem;
 }
+
 .settings-admin-booking-ph {
   border: 1px solid var(--sp-border);
   background: transparent;
@@ -2449,6 +2606,7 @@ a.sp-dir-card:hover {
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
+
 .settings-admin-booking-ph:hover {
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--sp-border));
   color: var(--accent-color, #0d6efd);
@@ -2456,6 +2614,7 @@ a.sp-dir-card:hover {
 }
 
 /* ââ Music module ââ */
+
 .settings-admin-music-notice-inner {
   display: flex;
   align-items: flex-start;
@@ -2463,33 +2622,40 @@ a.sp-dir-card:hover {
   padding: 0.85rem 1.25rem;
   font-size: 0.9rem;
 }
+
 .settings-admin-music-notice-inner > .bi {
   flex-shrink: 0;
   margin-top: 0.15rem;
   color: var(--accent-color, #0d6efd);
   font-size: 1.1rem;
 }
+
 .settings-admin-music-list {
   display: flex;
   flex-direction: column;
 }
+
 .settings-admin-music-row.sp-row {
   margin: 0;
 }
+
 .settings-admin-music-row .form-check-label {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
+
 .settings-admin-music-move {
   gap: 0.35rem;
 }
 
 /* ââ E-Mail module ââ */
+
 .settings-admin-email-test-list {
   display: flex;
   flex-direction: column;
 }
+
 .settings-admin-email-test-row {
   display: flex;
   align-items: center;
@@ -2498,12 +2664,14 @@ a.sp-dir-card:hover {
   padding: 0.85rem 1.25rem;
   border-bottom: 1px solid color-mix(in srgb, var(--sp-border) 70%, transparent);
 }
+
 .settings-admin-email-test-main {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
   min-width: 0;
 }
+
 .settings-admin-email-test-status {
   width: 1.5rem;
   height: 1.5rem;
@@ -2516,22 +2684,27 @@ a.sp-dir-card:hover {
   border: 1px solid var(--sp-border);
   color: var(--sp-muted);
 }
+
 .settings-admin-email-test-status.is-running {
   color: var(--accent-color, #0d6efd);
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, transparent);
   animation: sp-spin 0.9s linear infinite;
 }
+
 .settings-admin-email-test-status.is-ok {
   color: #198754;
   border-color: color-mix(in srgb, #198754 40%, transparent);
 }
+
 .settings-admin-email-test-status.is-fail {
   color: #dc3545;
   border-color: color-mix(in srgb, #dc3545 40%, transparent);
 }
+
 @keyframes sp-spin {
   to { transform: rotate(360deg); }
 }
+
 .settings-admin-email-chip {
   border: 1px solid var(--sp-border);
   background: transparent;
@@ -2541,10 +2714,12 @@ a.sp-dir-card:hover {
   font-size: 0.78rem;
   cursor: pointer;
 }
+
 .settings-admin-email-chip:hover {
   border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--sp-border));
   color: var(--accent-color, #0d6efd);
 }
+
 .settings-admin-email-preview {
   min-height: 5rem;
   padding: 0.85rem 1rem;
@@ -2557,21 +2732,25 @@ a.sp-dir-card:hover {
 }
 
 /* ââ File settings ââ */
+
 .settings-admin-files-size-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   max-width: 18rem;
 }
+
 .settings-admin-files-size-row .form-control {
   flex: 1 1 auto;
   min-width: 0;
 }
+
 .settings-admin-files-size-row .form-select {
   width: auto;
   min-width: 5rem;
   flex: 0 0 auto;
 }
+
 .settings-admin-files-webdav-note {
   margin: 0 1.25rem 0.85rem;
   padding: 0.65rem 0.8rem;
@@ -2581,12 +2760,14 @@ a.sp-dir-card:hover {
   font-size: 0.82rem;
   line-height: 1.4;
 }
+
 .settings-admin-files-exceptions-list {
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid color-mix(in srgb, var(--sp-border) 70%, transparent);
   margin-bottom: 0.5rem;
 }
+
 .settings-admin-files-exception-row {
   display: flex;
   align-items: flex-start;
@@ -2595,19 +2776,24 @@ a.sp-dir-card:hover {
   padding: 0.75rem 1.1rem;
   border-bottom: 1px solid color-mix(in srgb, var(--sp-border) 60%, transparent);
 }
+
 .settings-admin-files-exception-row:last-child { border-bottom: 0; }
+
 .settings-admin-files-exception-main { min-width: 0; }
+
 .settings-admin-files-subsection-title {
   margin: 0.5rem 1.1rem 0.35rem;
   font-size: 0.86rem;
   font-weight: 650;
 }
+
 .settings-admin-files-user-picker {
   width: 100%;
   border: 1px solid var(--sp-border);
   border-radius: var(--sp-radius-sm);
   overflow: hidden;
 }
+
 .settings-admin-files-user-search {
   display: flex;
   align-items: center;
@@ -2615,13 +2801,16 @@ a.sp-dir-card:hover {
   padding: 0.45rem 0.65rem;
   border-bottom: 1px solid var(--sp-border);
 }
+
 .settings-admin-files-user-search .bi { color: var(--sp-muted); }
+
 .settings-admin-files-user-search .form-control {
   border: 0;
   box-shadow: none;
   background: transparent;
   padding: 0.2rem 0;
 }
+
 .settings-admin-files-user-selected {
   display: flex;
   align-items: center;
@@ -2632,10 +2821,12 @@ a.sp-dir-card:hover {
   font-size: 0.84rem;
   font-weight: 550;
 }
+
 .settings-admin-files-user-list {
   max-height: 12rem;
   overflow: auto;
 }
+
 .settings-admin-files-user-option {
   display: flex;
   flex-direction: column;
@@ -2648,11 +2839,14 @@ a.sp-dir-card:hover {
   padding: 0.5rem 0.7rem;
   cursor: pointer;
 }
+
 .settings-admin-files-user-option:hover,
 .settings-admin-files-user-option.is-selected {
   background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
 }
+
 .settings-admin-files-user-option-name { font-size: 0.86rem; font-weight: 550; }
+
 .settings-admin-files-user-option-email { font-size: 0.75rem; color: var(--sp-muted); }
 
 @media (max-width: 991.98px) {
@@ -2663,6 +2857,3 @@ a.sp-dir-card:hover {
     position: static;
   }
 }
-
-
-

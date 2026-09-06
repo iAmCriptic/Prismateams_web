@@ -3,7 +3,6 @@
 {% block title %}{{ _('wiki.edit.page_title', title=page.title) }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 {% endblock %}
@@ -27,10 +26,10 @@
 
         <div class="markdown-editor-toolbar-divider" aria-hidden="true"></div>
 
-        <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()">
+        <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="goBack()">
             <i class="bi bi-arrow-left"></i> {{ _('wiki.edit.toolbar.back') }}
         </button>
-        <button type="button" class="btn btn-accent files-pill-btn" id="saveBtn" onclick="savePage()">
+        <button type="button" class="btn btn-accent mod-pill-btn" id="saveBtn" onclick="savePage()">
             <i class="bi bi-check-lg"></i> {{ _('wiki.edit.toolbar.submit') }}
         </button>
 
@@ -39,7 +38,7 @@
         {% endwith %}
 
         <div class="markdown-editor-toolbar-end">
-            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="openPreview()">
+            <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="openPreview()">
                 <i class="bi bi-eye"></i> {{ _('wiki.create.toolbar.preview') }}
             </button>
         </div>

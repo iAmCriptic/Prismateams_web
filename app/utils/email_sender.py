@@ -70,6 +70,74 @@ def _smtp_close(smtp):
             pass
 
 
+def _build_outbound_mime(msg):
+    """
+    Baut die ausgehende MIME-Message aus einer Flask-Mail Message.
+
+    Flask-Mail 0.10 baut MIME ausschließlich aus html/body/attachments (kein msg.msg).
+    Bei CID-Inline-Bildern + Dateianhängen nesten wir:
+      multipart/mixed
+        multipart/related  (alternative + inline CIDs)
+        Dateianhänge
+    damit Clients PDFs als echte Anhänge zeigen (nicht als „related“ verstecken).
+    """
+    from email.mime.multipart import MIMEMultipart
+
+    if hasattr(msg, '_message'):
+        mime = msg._message()
+    elif hasattr(msg, 'as_bytes'):
+        from email import message_from_bytes
+        mime = message_from_bytes(msg.as_bytes())
+    else:
+        raise RuntimeError('E-Mail-Nachricht konnte nicht aufgebaut werden')
+
+    if mime.get_content_type() != 'multipart/mixed':
+        return mime
+
+    parts = mime.get_payload()
+    if not isinstance(parts, list) or len(parts) < 2:
+        return mime
+
+    body_part = None
+    inline_parts = []
+    file_parts = []
+    for part in parts:
+        ctype = part.get_content_type() if hasattr(part, 'get_content_type') else ''
+        disp = (part.get_content_disposition() or '').lower() if hasattr(part, 'get_content_disposition') else ''
+        cid = part.get('Content-ID') if hasattr(part, 'get') else None
+        if ctype.startswith('multipart/'):
+            body_part = part
+        elif disp == 'inline' or cid:
+            inline_parts.append(part)
+        else:
+            file_parts.append(part)
+
+    # Nur umbauen wenn Logo/CID und echte Dateianhänge zusammen vorkommen
+    if body_part is None or not inline_parts or not file_parts:
+        return mime
+
+    related = MIMEMultipart('related')
+    related.attach(body_part)
+    for part in inline_parts:
+        related.attach(part)
+
+    outer = MIMEMultipart('mixed')
+    for key, value in mime.items():
+        if key.lower() not in ('content-type', 'mime-version'):
+            outer[key] = value
+    outer.attach(related)
+    for part in file_parts:
+        outer.attach(part)
+
+    return outer
+
+
+def _message_as_bytes(msg):
+    """Serialisiert eine Flask-Mail Message für SMTP (inkl. CID+Anhang-Nesting)."""
+    from email.policy import SMTP as SMTP_POLICY
+    return _build_outbound_mime(msg).as_bytes(policy=SMTP_POLICY)
+
+
 def send_message_via_smtplib(msg, timeout=20):
     """
     Sendet eine Flask-Mail Message direkt per smtplib.
@@ -87,12 +155,20 @@ def send_message_via_smtplib(msg, timeout=20):
     if not recipients:
         raise RuntimeError('E-Mail hat keine Empfänger')
 
-    payload = msg.as_bytes() if hasattr(msg, 'as_bytes') else bytes(msg)
+    payload = _message_as_bytes(msg)
     from_addr = _envelope_addr(msg.sender)
     to_addrs = [_envelope_addr(r) for r in recipients]
     to_addrs = [a for a in to_addrs if a]
     if not from_addr or not to_addrs:
         raise RuntimeError('Ungültige Absender-/Empfänger-Adresse')
+
+    att_info = [
+        f"{getattr(a, 'filename', '?')} ({len(getattr(a, 'data', b'') or b'')}b)"
+        for a in (getattr(msg, 'attachments', None) or [])
+        if (getattr(a, 'disposition', None) or 'attachment') != 'inline'
+    ]
+    if att_info:
+        logging.info("SMTP-Versand mit Dateianhängen: %s", ", ".join(att_info))
 
     smtp = None
     try:
@@ -120,38 +196,37 @@ def _msg_has_nested_related(msg):
         return False
 
 
-def _mark_logo_inline(msg):
-    """Markiert vorhandene Logo-Bildteile als inline mit stabiler CID."""
+def _logo_attachment_filename(mime_type: str) -> str:
+    """Stabiler Dateiname für Logo-Anhänge anhand MIME-Type."""
+    subtype = (mime_type or '').split('/')[-1].lower() if mime_type else 'png'
+    if subtype in ('jpeg', 'jpg'):
+        return 'logo.jpg'
+    if subtype == 'gif':
+        return 'logo.gif'
+    if subtype in ('svg', 'svg+xml'):
+        return 'logo.svg'
+    if subtype == 'webp':
+        return 'logo.webp'
+    return 'logo.png'
+
+
+def _mark_logo_inline(msg, logo_cid: str = 'portal_logo'):
+    """Markiert Logo-Anhänge als inline mit stabiler CID (Flask-Mail 0.10 Attachments)."""
     try:
-        if not getattr(msg, 'msg', None):
-            return
-        if not hasattr(msg.msg, 'get_payload'):
-            return
-        parts = msg.msg.get_payload()
-        if not isinstance(parts, list):
-            return
-
-        logo_filenames = ('logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif')
-        for part in parts:
-            if not (hasattr(part, 'get_content_type') and part.get_content_type().startswith('image/')):
-                continue
-            disp = part.get('Content-Disposition', '') or ''
-            if not any(name in disp.lower() for name in logo_filenames):
+        attachments = getattr(msg, 'attachments', None) or []
+        logo_filenames = ('logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif', 'logo.svg', 'logo.webp')
+        for att in attachments:
+            filename = (getattr(att, 'filename', None) or '').lower()
+            if not any(name in filename for name in logo_filenames):
                 continue
 
-            if not part.get('Content-ID'):
-                part.add_header('Content-ID', '<portal_logo>')
-            if 'attachment' in disp and 'inline' not in disp:
-                import re
-                filename_match = re.search(r'filename="?([^"]+)"?', disp)
-                filename = filename_match.group(1) if filename_match else 'logo.png'
-                try:
-                    part.replace_header('Content-Disposition', f'inline; filename="{filename}"')
-                except Exception:
-                    del part['Content-Disposition']
-                    part.add_header('Content-Disposition', f'inline; filename="{filename}"')
-            elif not disp:
-                part.add_header('Content-Disposition', 'inline; filename="logo.png"')
+            att.disposition = 'inline'
+            headers = getattr(att, 'headers', None)
+            if headers is None:
+                att.headers = {}
+                headers = att.headers
+            if not any(k.lower() == 'content-id' for k in headers):
+                headers['Content-ID'] = f'<{logo_cid}>'
             break
     except Exception as e:
         logging.warning("Logo-CID-Markierung fehlgeschlagen: %s", e)
@@ -280,130 +355,56 @@ def get_logo_base64():
 def create_message_with_logo(subject, recipients, html_content, body_text=None, sender=None, cc=None, logo_cid='portal_logo'):
     """
     Erstellt eine Flask-Mail Message mit Logo als CID-Anhang.
-    
-    Args:
-        subject: E-Mail-Betreff
-        recipients: Liste von Empfängern oder String mit kommagetrennten Adressen
-        html_content: HTML-Inhalt der E-Mail
-        body_text: Plain-Text-Version (optional)
-        sender: Absender (optional, wird aus Config geholt wenn None)
-        cc: CC-Empfänger (optional)
-        logo_cid: Content-ID für das Logo (Standard: 'portal_logo')
-    
-    Returns:
-        Flask-Mail Message-Objekt mit Logo als CID-Anhang
+
+    Flask-Mail 0.10 baut MIME bei jedem Versand neu aus html/body/attachments —
+    daher Content-ID und disposition='inline' am Attachment setzen (nicht msg.msg).
     """
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-    from email.mime.image import MIMEImage
-    from email.header import Header
     from config import get_formatted_sender
-    
-    # Hole Absender
+
     if not sender:
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        sender = get_formatted_sender() or mail_username
-    
-    # Normalisiere Empfänger
+        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
+
     if isinstance(recipients, str):
-        recipients_list = [r.strip() for r in recipients.split(',')]
+        recipients_list = [r.strip() for r in recipients.split(',') if r.strip()]
     else:
-        recipients_list = recipients
-    
-    # Erstelle multipart/related Message für HTML mit inline images
-    msg_multipart = MIMEMultipart('related')
-    
-    # Setze Header
-    msg_multipart['Subject'] = Header(subject, 'utf-8')
-    msg_multipart['From'] = sender
-    msg_multipart['To'] = ', '.join(recipients_list)
-    if cc:
-        if isinstance(cc, str):
-            cc_list = [c.strip() for c in cc.split(',')]
-        else:
-            cc_list = cc
-        msg_multipart['Cc'] = ', '.join(cc_list)
-    
-    # Erstelle multipart/alternative für plain text und HTML
-    msg_alternative = MIMEMultipart('alternative')
-    msg_multipart.attach(msg_alternative)
-    
-    # Füge plain text hinzu (falls vorhanden)
-    if body_text:
-        msg_alternative.attach(MIMEText(body_text, 'plain', 'utf-8'))
-    else:
-        # Fallback: HTML zu Text konvertieren (einfach)
+        recipients_list = list(recipients or [])
+
+    if not body_text:
         import re
         from html import unescape
-        text_content = re.sub(r'<[^>]+>', '', html_content)
-        text_content = unescape(text_content).strip()
-        msg_alternative.attach(MIMEText(text_content, 'plain', 'utf-8'))
-    
-    # Füge HTML hinzu
-    msg_alternative.attach(MIMEText(html_content, 'html', 'utf-8'))
-    
-    # Füge Logo als inline attachment mit CID hinzu
-    logo_data, logo_mime_type, logo_filename = get_logo_data()
-    if logo_data and logo_mime_type:
-        image_type = logo_mime_type.split('/')[1] if '/' in logo_mime_type else 'png'
-        
-        # Standardisiere Dateiname basierend auf MIME-Type
-        if image_type == 'jpeg' or image_type == 'jpg':
-            attachment_filename = 'logo.jpg'
-        elif image_type == 'png':
-            attachment_filename = 'logo.png'
-        elif image_type == 'gif':
-            attachment_filename = 'logo.gif'
-        else:
-            attachment_filename = 'logo.png'  # Default
-        
-        img_attachment = MIMEImage(logo_data, image_type)
-        img_attachment.add_header('Content-ID', f'<{logo_cid}>')
-        img_attachment.add_header('Content-Disposition', 'inline', filename=attachment_filename)
-        # Stelle sicher, dass Content-Type korrekt gesetzt ist
-        img_attachment.add_header('Content-Type', logo_mime_type)
-        msg_multipart.attach(img_attachment)
-        logging.info(f"Logo als Anhang hinzugefügt: {attachment_filename} ({logo_mime_type}), CID: {logo_cid}, Größe: {len(logo_data)} bytes")
-    else:
-        logging.warning("Logo konnte nicht geladen werden - kein Logo als Anhang hinzugefügt")
-    
-    # Erstelle Flask-Mail Message Objekt und kopiere die konstruierte Message
+        text_content = re.sub(r'<[^>]+>', '', html_content or '')
+        body_text = unescape(text_content).strip()
+
     msg = Message(
         subject=subject,
         recipients=recipients_list,
         body=body_text or '',
         html=html_content,
-        sender=sender
+        sender=sender,
     )
     if cc:
         if isinstance(cc, str):
-            msg.cc = cc.split(',')
+            msg.cc = [c.strip() for c in cc.split(',') if c.strip()]
         else:
-            msg.cc = cc
-    
-    # Ersetze die interne Message-Struktur mit unserer multipart/related Version
-    # WICHTIG: Flask-Mail verwendet msg.msg beim Senden, also müssen wir die komplette
-    # multipart-Struktur hier setzen
-    msg.msg = msg_multipart
-    
-    # Debug: Überprüfe, dass Logo-Anhang vorhanden ist
-    if hasattr(msg.msg, 'get_payload'):
-        parts = msg.msg.get_payload()
-        if isinstance(parts, list):
-            attachment_count = sum(1 for p in parts if hasattr(p, 'get_content_type') and p.get_content_type().startswith('image/'))
-            logging.info(f"Message-Struktur nach msg.msg Setzen: {len(parts)} Teile, davon {attachment_count} Bild-Anhänge")
-            logo_found = False
-            for i, part in enumerate(parts):
-                if hasattr(part, 'get_content_type') and part.get_content_type().startswith('image/'):
-                    cid = part.get('Content-ID', 'N/A')
-                    filename = part.get('Content-Disposition', 'N/A')
-                    logging.info(f"  Logo-Anhang {i}: Content-ID={cid}, Disposition={filename}")
-                    if cid != 'N/A' and logo_cid in cid:
-                        logo_found = True
-            
-            if not logo_found and logo_data and logo_mime_type:
-                logging.warning("Logo wurde nicht in Message-Struktur gefunden, obwohl es hinzugefügt wurde!")
-    
+            msg.cc = list(cc)
+
+    logo_data, logo_mime_type, _logo_filename = get_logo_data()
+    if logo_data and logo_mime_type:
+        attachment_filename = _logo_attachment_filename(logo_mime_type)
+        msg.attach(
+            attachment_filename,
+            logo_mime_type,
+            logo_data,
+            disposition='inline',
+            headers={'Content-ID': f'<{logo_cid}>'},
+        )
+        logging.info(
+            "Logo als CID-Anhang: %s (%s), CID: %s, Größe: %s bytes",
+            attachment_filename, logo_mime_type, logo_cid, len(logo_data),
+        )
+    else:
+        logging.warning("Logo konnte nicht geladen werden - kein Logo als Anhang hinzugefügt")
+
     return msg
 
 def _portal_name():
@@ -427,26 +428,29 @@ def _mail_configured():
     ])
 
 def _attach_files_to_message(msg, attachments):
-    """Hängt Dateien an (multipart/mixed um related mit CID-Logo)."""
+    """Hängt Dateianhänge an die Flask-Mail Attachment-Liste (Flask-Mail 0.10).
+
+    Wichtig: Nicht mehr über msg.msg basteln — as_bytes()/_message() ignoriert msg.msg
+    und würde PDFs sonst still verwerfen.
+    """
     if not attachments:
         return
-    from email.mime.application import MIMEApplication
-    from email.mime.multipart import MIMEMultipart
-
-    if getattr(msg, 'msg', None) is not None:
-        outer = MIMEMultipart('mixed')
-        for key, value in msg.msg.items():
-            if key.lower() not in ('content-type', 'mime-version'):
-                outer[key] = value
-        outer.attach(msg.msg)
-        for filename, mimetype, data in attachments:
-            part = MIMEApplication(data, Name=filename)
-            part.add_header('Content-Disposition', 'attachment', filename=filename)
-            outer.attach(part)
-        msg.msg = outer
-    else:
-        for filename, mimetype, data in attachments:
-            msg.attach(filename, mimetype, data)
+    for filename, mimetype, data in attachments:
+        if hasattr(data, 'read'):
+            data = data.read()
+        if not data:
+            logging.warning("Leerer Anhang übersprungen: %s", filename)
+            continue
+        msg.attach(
+            filename,
+            mimetype or 'application/octet-stream',
+            data,
+            disposition='attachment',
+        )
+        logging.info(
+            "Datei angehängt: %s (%s, %s bytes)",
+            filename, mimetype or 'application/octet-stream', len(data),
+        )
 
 def _footer_placeholder_values(user=None, app_name=None, **ctx):
     """Werte für <user>/<email>/<app_name>/<date>/<time> im Footer-Template."""
@@ -842,7 +846,14 @@ def send_borrow_receipt_email(checkout):
         pdf_buffer = BytesIO()
         generate_borrow_receipt_pdf(checkout, pdf_buffer)
         pdf_buffer.seek(0)
+        pdf_bytes = pdf_buffer.read()
         filename = f'Ausleihschein_{checkout.checkout_number}.pdf'
+        if not pdf_bytes:
+            logging.error(
+                'Ausleihschein-PDF leer für %s — E-Mail nicht gesendet.',
+                checkout.checkout_number,
+            )
+            return False
 
         plain_text = (
             f'Ausleihschein {checkout.checkout_number}\n'
@@ -856,7 +867,7 @@ def send_borrow_receipt_email(checkout):
             recipients=[recipient],
             template_name='emails/borrow_receipt.html',
             body_text=plain_text,
-            attachments=[(filename, 'application/pdf', pdf_buffer.read())],
+            attachments=[(filename, 'application/pdf', pdf_bytes)],
             borrower_name=checkout.borrower_name,
             checkout_number=checkout.checkout_number,
             event_name=checkout.event_name,
@@ -909,7 +920,14 @@ def send_return_confirmation_email(checkout, returned_items=None):
         pdf_buffer = BytesIO()
         generate_return_confirmation_pdf(checkout, pdf_buffer, returned_items=items_source)
         pdf_buffer.seek(0)
+        pdf_bytes = pdf_buffer.read()
         filename = f'Rueckgabe_{checkout.checkout_number}.pdf'
+        if not pdf_bytes:
+            logging.error(
+                'Rückgabe-PDF leer für %s — E-Mail nicht gesendet.',
+                checkout.checkout_number,
+            )
+            return False
 
         plain_text = (
             f'Rückgabe-Bestätigung {checkout.checkout_number}\n'
@@ -921,7 +939,7 @@ def send_return_confirmation_email(checkout, returned_items=None):
             recipients=[recipient],
             template_name='emails/return_confirmation.html',
             body_text=plain_text,
-            attachments=[(filename, 'application/pdf', pdf_buffer.read())],
+            attachments=[(filename, 'application/pdf', pdf_bytes)],
             borrower_name=checkout.borrower_name,
             checkout_number=checkout.checkout_number,
             event_name=checkout.event_name,

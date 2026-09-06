@@ -1,16 +1,16 @@
 {% macro settings_search(id_suffix='') %}
-<div class="settings-search" role="search" data-settings-search-root>
-    <label class="settings-search-field" for="settingsSearchInput{{ id_suffix }}">
+<div class="mod-search settings-search" role="search" data-settings-search-root>
+    <label class="mod-search-field" for="settingsSearchInput{{ id_suffix }}">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="settingsSearchInput{{ id_suffix }}"
-               class="settings-search-input"
+               class="mod-search-input"
                placeholder="{{ _('settings.search.placeholder') }}"
                aria-label="{{ _('settings.search.label') }}"
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search"
-               data-settings-search-input>
+               data-mod-search-input>
     </label>
     <button type="button" class="btn settings-search-clear d-none" id="settingsSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}" data-settings-search-clear>
         <i class="bi bi-x-lg"></i>

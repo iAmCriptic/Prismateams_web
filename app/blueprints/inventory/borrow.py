@@ -39,6 +39,52 @@ from app.blueprints.inventory._bp import (
 )
 
 from app.blueprints.inventory.helpers import *  # noqa: F401,F403
+from app.blueprints.inventory.helpers import _serialize_product_api  # noqa: F401
+
+
+def _borrow_return_preview_response(ref: str):
+    """Borrow-/Checkout-QR erkennen ohne zu buchen — Client bestätigt separat."""
+    from app.services.inventory.checkout_service import find_checkout, user_can_return_checkout
+
+    checkout = find_checkout(ref)
+    if not checkout:
+        return jsonify({
+            'error': translate('inventory.errors.borrow_transaction_not_found'),
+            'is_return': True,
+        }), 404
+    if not user_can_return_checkout(current_user, checkout):
+        return jsonify({
+            'error': translate('inventory.errors.no_return_permission'),
+            'is_return': True,
+        }), 403
+    active_count = len(checkout.active_items)
+    if active_count <= 0:
+        return jsonify({
+            'error': translate('inventory.errors.already_returned'),
+            'is_return': True,
+            'checkout_number': checkout.checkout_number,
+        }), 400
+    confirm_message = translate(
+        'inventory.scanner.confirm_return',
+        checkout_number=checkout.checkout_number,
+        count=active_count,
+        borrower=checkout.borrower_name or '',
+        event=checkout.event_name or '',
+    )
+    return jsonify({
+        'success': True,
+        'is_return': True,
+        'needs_confirm': True,
+        'checkout_id': checkout.id,
+        'checkout_number': checkout.checkout_number,
+        'active_count': active_count,
+        'borrower_name': checkout.borrower_name,
+        'event_name': checkout.event_name,
+        'status': checkout.status,
+        'qr_ref': ref,
+        'confirm_message': confirm_message,
+    })
+
 
 @inventory_bp.route('/borrow-multiple', methods=['GET', 'POST'])
 @login_required
@@ -145,7 +191,10 @@ def return_complete_borrow():
         return redirect(url_for('inventory.dashboard'))
 
     try:
-        checkout = return_checkout_by_ref(borrow_ref)
+        checkout = return_checkout_by_ref(borrow_ref, actor=current_user)
+    except PermissionError:
+        flash(_('inventory.errors.no_return_permission'), 'danger')
+        return redirect(url_for('inventory.dashboard'))
     except ValueError:
         flash(_('inventory.flash.no_active_borrow'), 'danger')
         return redirect(url_for('inventory.dashboard'))
@@ -222,11 +271,7 @@ def borrow_scanner():
             return jsonify({'error': translate('inventory.errors.no_action_specified')}), 400
         
         if action == 'add_to_cart':
-            from app.services.inventory.checkout_service import (
-                looks_like_return_qr,
-                return_checkout_by_ref,
-                find_checkout,
-            )
+            from app.services.inventory.checkout_service import looks_like_return_qr
             qr_code = _normalize_scanner_code(request.form.get('qr_code', ''))
             product_id = request.form.get('product_id')
             quantity_raw = request.form.get('quantity', '1')
@@ -249,19 +294,10 @@ def borrow_scanner():
                 if not product and parsed:
                     qr_type, qr_id = parsed
                     if qr_type == 'borrow':
-                        try:
-                            checkout = return_checkout_by_ref(str(qr_id) if qr_id else qr_code)
-                            return jsonify({
-                                'success': True,
-                                'is_return': True,
-                                'checkout_id': checkout.id,
-                                'checkout_number': checkout.checkout_number,
-                                'returned_count': len(checkout.returned_items),
-                                'status': checkout.status,
-                                'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
-                            })
-                        except ValueError as exc:
-                            return jsonify({'error': str(exc), 'is_return': True}), 400
+                        # Keine Sofort-Rückgabe — Client muss bestätigen (F02)
+                        return _borrow_return_preview_response(
+                            str(qr_id) if qr_id else qr_code
+                        )
                     if qr_type == 'product':
                         product = Product.query.get(qr_id)
                         current_app.logger.debug(f'Produkt gefunden: {product.id if product else None}')
@@ -269,19 +305,7 @@ def borrow_scanner():
                         product_set = _product_set_query().get(qr_id)
                         current_app.logger.debug(f'Set gefunden: {product_set.id if product_set else None}')
                 elif not product and looks_like_return_qr(qr_code):
-                    try:
-                        checkout = return_checkout_by_ref(qr_code)
-                        return jsonify({
-                            'success': True,
-                            'is_return': True,
-                            'checkout_id': checkout.id,
-                            'checkout_number': checkout.checkout_number,
-                            'returned_count': len([i for i in checkout.items if i.returned_at]),
-                            'status': checkout.status,
-                            'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
-                        })
-                    except ValueError as exc:
-                        return jsonify({'error': str(exc), 'is_return': True}), 400
+                    return _borrow_return_preview_response(qr_code)
                 elif not product and not product_set and _can_use_as_numeric_product_id(qr_code):
                     try:
                         product = Product.query.get(int(qr_code))
@@ -481,6 +505,41 @@ def borrow_scanner():
             _clear_all_cart_set_meta()
             session.modified = True
             return jsonify({'success': True})
+
+        elif action == 'confirm_return':
+            from app.services.inventory.checkout_service import return_checkout_by_ref
+
+            borrow_ref = _normalize_scanner_code(
+                request.form.get('qr_code')
+                or request.form.get('checkout_number')
+                or request.form.get('borrow_ref')
+                or ''
+            )
+            if not borrow_ref:
+                return jsonify({
+                    'error': translate('inventory.errors.transaction_id_required'),
+                    'is_return': True,
+                }), 400
+            try:
+                checkout = return_checkout_by_ref(borrow_ref, actor=current_user)
+            except PermissionError:
+                return jsonify({
+                    'error': translate('inventory.errors.no_return_permission'),
+                    'is_return': True,
+                }), 403
+            except ValueError as exc:
+                return jsonify({'error': str(exc), 'is_return': True}), 400
+            return jsonify({
+                'success': True,
+                'is_return': True,
+                'needs_confirm': False,
+                'checkout_id': checkout.id,
+                'checkout_number': checkout.checkout_number,
+                'returned_count': len(checkout.returned_items),
+                'status': checkout.status,
+                'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
+            })
+
         else:
             current_app.logger.warning(f'Unbekannte Aktion in borrow_scanner: {action}')
             return jsonify({'error': f'Unbekannte Aktion: {action}'}), 400

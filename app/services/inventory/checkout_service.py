@@ -10,12 +10,44 @@ from app import db
 from app.models.inventory import Checkout, CheckoutItem, Product
 from app.utils.qr_code import generate_borrow_qr_code
 from app.utils.common import portal_now_naive
+from sqlalchemy import or_
 import secrets
 import string
 
 
 BLOCKED_STATUSES = frozenset({"borrowed", "in_repair", "defective", "missing", "retired"})
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class CheckoutUnavailableError(ValueError):
+    """Mindestens ein angefragtes Produkt ist nicht ausleihbar — Checkout wird nicht angelegt."""
+
+    def __init__(self, product_labels: Sequence[str]):
+        labels = [str(label).strip() for label in product_labels if str(label).strip()]
+        self.product_labels = labels
+        super().__init__("products_unavailable")
+
+    @property
+    def products_display(self) -> str:
+        return ", ".join(self.product_labels)
+
+
+def checkout_error_message(exc: BaseException) -> str:
+    """User-facing Meldung für create_checkout-Fehler (i18n)."""
+    from app.utils.i18n import translate
+
+    if isinstance(exc, CheckoutUnavailableError):
+        return translate(
+            "inventory.flash.products_unavailable",
+            products=exc.products_display or "—",
+        )
+    code = str(exc)
+    if code:
+        key = f"inventory.flash.{code}"
+        msg = translate(key)
+        if msg != key:
+            return msg
+    return translate("inventory.flash.borrow_failed")
 
 
 def generate_checkout_number() -> str:
@@ -234,17 +266,46 @@ def create_checkout(
     return checkout
 
 
+def user_can_return_checkout(user, checkout: Checkout) -> bool:
+    """Admin, Ausleiher oder Ersteller dürfen zurückgeben (wie PDF-Endpoints)."""
+    if not user or not checkout:
+        return False
+    if getattr(user, "is_admin", False):
+        return True
+    uid = getattr(user, "id", None)
+    if uid is None:
+        return False
+    return checkout.borrower_id == uid or checkout.created_by == uid
+
+
+def ensure_user_can_return_checkout(user, checkout: Checkout) -> None:
+    if not user_can_return_checkout(user, checkout):
+        raise PermissionError("return_forbidden")
+
+
 def return_checkout_items(
     item_ids: Iterable[int],
     *,
     mark_defective: bool = False,
     damage_image_path: Optional[str] = None,
+    actor=None,
 ) -> list[CheckoutItem]:
     from app.services.inventory.stock_service import StockService
 
     items = CheckoutItem.query.filter(CheckoutItem.id.in_(list(item_ids))).all()
     if not items:
         raise ValueError("no_items")
+
+    if actor is not None:
+        seen_checkout_ids: set[int] = set()
+        for item in items:
+            checkout = item.checkout
+            if not checkout:
+                raise PermissionError("return_forbidden")
+            if checkout.id in seen_checkout_ids:
+                continue
+            seen_checkout_ids.add(checkout.id)
+            ensure_user_can_return_checkout(actor, checkout)
 
     now = portal_now_naive()
     checkouts = {}
@@ -317,11 +378,19 @@ def return_checkout_items(
     return returned
 
 
-def return_checkout_by_ref(ref: str, item_ids: Optional[Sequence[int]] = None) -> Checkout:
+def return_checkout_by_ref(
+    ref: str,
+    item_ids: Optional[Sequence[int]] = None,
+    *,
+    actor=None,
+) -> Checkout:
     """Return items by checkout_number, qr payload, or numeric id."""
     checkout = find_checkout(ref)
     if not checkout:
         raise ValueError("checkout_not_found")
+
+    if actor is not None:
+        ensure_user_can_return_checkout(actor, checkout)
 
     targets = checkout.active_items
     if item_ids:
@@ -330,7 +399,7 @@ def return_checkout_by_ref(ref: str, item_ids: Optional[Sequence[int]] = None) -
     if not targets:
         raise ValueError("no_active_items")
 
-    returned = return_checkout_items([i.id for i in targets])
+    returned = return_checkout_items([i.id for i in targets], actor=actor)
     db.session.refresh(checkout)
     checkout.return_email_sent = (
         getattr(returned[0], "return_email_sent", True) if returned else True
@@ -368,17 +437,24 @@ def find_checkout(ref: str) -> Optional[Checkout]:
     return None
 
 
-def find_active_checkout_item_for_product(product_id: int) -> Optional[CheckoutItem]:
-    return (
+def find_active_checkout_item_for_product(
+    product_id: int,
+    *,
+    actor=None,
+) -> Optional[CheckoutItem]:
+    q = (
         CheckoutItem.query.join(Checkout)
         .filter(
             CheckoutItem.product_id == product_id,
             CheckoutItem.returned_at.is_(None),
             Checkout.status.in_(("active", "partially_returned")),
         )
-        .order_by(CheckoutItem.id.desc())
-        .first()
     )
+    if actor is not None and not getattr(actor, "is_admin", False):
+        uid = getattr(actor, "id", None)
+        if uid is not None:
+            q = q.filter(or_(Checkout.borrower_id == uid, Checkout.created_by == uid))
+    return q.order_by(CheckoutItem.id.desc()).first()
 
 
 def looks_like_return_qr(ref: str) -> bool:

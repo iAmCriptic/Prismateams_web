@@ -944,19 +944,19 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Label</label>
-                    <input type="text" name="label" class="form-control files-pill-input" placeholder="optional">
+                    <input type="text" name="label" class="form-control mod-pill-input" placeholder="optional">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Passwort</label>
-                    <input type="password" name="password" class="form-control files-pill-input" autocomplete="new-password">
+                    <input type="password" name="password" class="form-control mod-pill-input" autocomplete="new-password">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Ablauf</label>
-                    <input type="datetime-local" name="expires_at" class="form-control files-pill-input">
+                    <input type="datetime-local" name="expires_at" class="form-control mod-pill-input">
                 </div>
                 <div class="col-12 d-flex flex-wrap gap-2">
-                    <button type="submit" name="action" value="add_link" class="btn btn-accent files-pill-btn"><i class="bi bi-plus-lg"></i> Link erstellen</button>
-                    <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger files-pill-btn" formnovalidate>Alle deaktivieren</button>
+                    <button type="submit" name="action" value="add_link" class="btn btn-accent mod-pill-btn"><i class="bi bi-plus-lg"></i> Link erstellen</button>
+                    <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger mod-pill-btn" formnovalidate>Alle deaktivieren</button>
                 </div>
             </form>
             </div>` : `<p class="text-muted">Keine Link-Typen aktiviert.</p>`;
@@ -1027,11 +1027,11 @@
                             <input type="hidden" name="share_id" value="${link.id}">
                             <div class="mb-2">
                                 <label class="form-label">Label</label>
-                                <input type="text" class="form-control files-pill-input" name="label" value="${escapeHtml(link.label || '')}">
+                                <input type="text" class="form-control mod-pill-input" name="label" value="${escapeHtml(link.label || '')}">
                             </div>
                             <div class="mb-2">
                                 <label class="form-label">Neues Passwort (leer = behalten)</label>
-                                <input type="password" class="form-control files-pill-input" name="password" autocomplete="new-password">
+                                <input type="password" class="form-control mod-pill-input" name="password" autocomplete="new-password">
                             </div>
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" name="clear_password" value="1" id="clearPw${link.id}">
@@ -1039,13 +1039,13 @@
                             </div>
                             <div class="mb-2">
                                 <label class="form-label">Ablauf</label>
-                                <input type="datetime-local" class="form-control files-pill-input" name="expires_at" value="${escapeHtml(exp)}">
+                                <input type="datetime-local" class="form-control mod-pill-input" name="expires_at" value="${escapeHtml(exp)}">
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="enabled" value="1" id="en${link.id}" ${link.enabled ? 'checked' : ''}>
                                 <label class="form-check-label" for="en${link.id}">Aktiv</label>
                             </div>
-                            <button type="submit" class="btn btn-accent files-pill-btn">Speichern</button>
+                            <button type="submit" class="btn btn-accent mod-pill-btn">Speichern</button>
                         </form>
                     </div>`;
             });

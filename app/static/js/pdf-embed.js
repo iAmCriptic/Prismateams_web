@@ -543,7 +543,7 @@
                 setStatus(
                     root,
                     '<p class="mb-3">' + escapeHtml(errorText) + '</p>' +
-                    '<a class="btn btn-outline-primary files-pill-btn" href="' + escapeHtml(downloadUrl) + '">' +
+                    '<a class="btn btn-outline-primary mod-pill-btn" href="' + escapeHtml(downloadUrl) + '">' +
                     '<i class="bi bi-download"></i> ' + escapeHtml(downloadLabel) +
                     '</a>',
                     true

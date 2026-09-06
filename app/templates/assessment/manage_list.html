@@ -9,7 +9,7 @@
             <h2 class="assessment-panel-title mb-3">{{ _('assessment.reset.results_heading') }}</h2>
             <div class="mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
                 <label class="form-label" for="listSelect">{{ _('assessment.common.list_label') }}</label>
-                <select class="form-select" id="listSelect" data-inv-pill-select>
+                <select class="form-select" id="listSelect" data-mod-pill-select>
                     {% if evaluation_lists|length != 1 %}
                     <option value="">{{ _('assessment.reset.global') }}</option>
                     {% endif %}

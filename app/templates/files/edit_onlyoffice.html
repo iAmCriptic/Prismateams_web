@@ -163,8 +163,8 @@
             flex-shrink: 0;
         }
 
-        .onlyoffice-viewer-actions .files-pill-btn,
-        .onlyoffice-viewer-actions .btn.files-pill-btn {
+        .onlyoffice-viewer-actions .mod-pill-btn,
+        .onlyoffice-viewer-actions .btn.mod-pill-btn {
             border-radius: var(--mod-radius-pill, 1.5rem) !important;
         }
 
@@ -248,10 +248,10 @@
                 </div>
             </div>
             <div class="onlyoffice-viewer-actions">
-                <a href="{{ oo_download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                <a href="{{ oo_download_url }}" class="btn btn-outline-primary mod-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
-                <button type="button" id="onlyofficeCloseBtn" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" title="{{ _('files.view.close') }}">
+                <button type="button" id="onlyofficeCloseBtn" class="btn btn-outline-secondary mod-pill-btn" onclick="goBack()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
             </div>

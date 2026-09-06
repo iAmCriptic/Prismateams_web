@@ -3,16 +3,16 @@
 {% block title %}{{ _('manuals.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" class="manuals-search" role="search" id="manualsSearchForm">
+<form method="GET" class="mod-search mod-search--icon manuals-search" role="search" id="manualsSearchForm">
     {% if request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     {% if request.args.get('folder_id') %}<input type="hidden" name="folder_id" value="{{ request.args.get('folder_id') }}">{% endif %}
-    <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="manualsSearchInput"
            value="{{ search_query|default('') }}"
-           class="form-control manuals-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('manuals.index.search.placeholder') }}"
            aria-label="{{ _('manuals.index.search.button') }}"
            autocomplete="off"
@@ -20,7 +20,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('manuals.index', folder_id=request.args.get('folder_id'), view=request.args.get('view'), team_id=request.args.get('team_id')) }}"
-       class="btn manuals-search-clear"
+       class="btn mod-search-clear"
        id="manualsSearchClear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -80,16 +80,16 @@
 {% set index_team_id = active_folder.team_id if active_folder and active_folder.visibility == 'team' else (filter_team_id if view_param == 'team' else none) %}
 
 {% macro manuals_search_form(id_suffix='') %}
-<form method="GET" class="manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
+<form method="GET" class="mod-search mod-search--icon manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
     {% if view_param %}<input type="hidden" name="view" value="{{ view_param }}">{% endif %}
     {% if view_param == 'team' and index_team_id %}<input type="hidden" name="team_id" value="{{ index_team_id }}">{% endif %}
     {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}
-    <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="manualsSearchInput{{ id_suffix }}"
            value="{{ search_query }}"
-           class="form-control manuals-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('manuals.index.search.placeholder') }}"
            aria-label="{{ _('manuals.index.search.button') }}"
            autocomplete="off"
@@ -97,7 +97,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('manuals.index', folder_id=active_folder_id, view=view_param or none, team_id=index_team_id if view_param == 'team' else none) }}"
-       class="btn manuals-search-clear"
+       class="btn mod-search-clear"
        id="manualsSearchClear{{ id_suffix }}"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -279,12 +279,12 @@
 {% endmacro %}
 
 {% macro manuals_view_toggle(suffix='', extra_class='') %}
-<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('manuals.index.view_toggle.label') }}">
-    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.list') }}">
+<div class="mod-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('manuals.index.view_toggle.label') }}">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.grid') }}">
+    <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -489,8 +489,8 @@
         </div>
     </div>
 
-    <div id="manualsViewStage" class="files-view-stage">
-    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+    <div id="manualsViewStage" class="mod-view-stage">
+    <div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
         {% if manuals %}
         <div class="row g-3">
             {% for manual in manuals %}
@@ -516,7 +516,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" class="files-view-pane" style="display:none">
+    <div id="listViewContainer" class="mod-view-pane" style="display:none">
         {% if manuals %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -559,7 +559,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 const MANUALS_I18N = {{ current_translations.get('manuals', {}).get('index', {})|tojson }};
 let draggedManualId = null;
@@ -738,7 +738,7 @@ document.querySelectorAll('#manualsMobileNav a[data-manuals-dismiss-offcanvas]')
 
 document.addEventListener('DOMContentLoaded', () => {
     function syncAllToggleUi(mode) {
-        document.querySelectorAll('.manuals-shell .files-view-toggle').forEach((el) => {
+        document.querySelectorAll('.manuals-shell .mod-view-toggle').forEach((el) => {
             el.dataset.view = mode;
         });
         ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
@@ -757,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof window.initFilesViewToggle === 'function') {
         const viewToggleApi = window.initFilesViewToggle({
-            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            toggleEl: document.querySelector('.page-toolbar-row .mod-view-toggle'),
             listBtn: document.getElementById('listViewBtn'),
             gridBtn: document.getElementById('gridViewBtn'),
             listPane: document.getElementById('listViewContainer'),

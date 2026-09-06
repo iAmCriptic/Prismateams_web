@@ -97,7 +97,7 @@
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">
               <div class="settings-admin-files-size-row">
                 <input type="number" class="form-control" id="files_max_file_value" name="files_max_file_value" min="0.001" step="any" value="{{ max_file_value }}" required>
-                <select class="form-select" name="files_max_file_unit" id="files_max_file_unit" data-inv-pill-select>
+                <select class="form-select" name="files_max_file_unit" id="files_max_file_unit" data-mod-pill-select>
                   {% for unit in size_units %}
                   <option value="{{ unit }}" {% if max_file_unit == unit %}selected{% endif %}>{{ unit }}</option>
                   {% endfor %}
@@ -123,7 +123,7 @@
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">
               <div class="settings-admin-files-size-row">
                 <input type="number" class="form-control" id="files_quota_value" name="files_quota_value" min="0" step="any" value="{{ quota_value }}">
-                <select class="form-select" name="files_quota_unit" id="files_quota_unit" data-inv-pill-select>
+                <select class="form-select" name="files_quota_unit" id="files_quota_unit" data-mod-pill-select>
                   {% for unit in size_units %}
                   <option value="{{ unit }}" {% if quota_unit == unit %}selected{% endif %}>{{ unit }}</option>
                   {% endfor %}
@@ -220,7 +220,7 @@
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">
               <div class="settings-admin-files-size-row">
                 <input type="number" class="form-control" name="exception_max_file_value" min="0.001" step="any" value="100">
-                <select class="form-select" name="exception_max_file_unit" data-inv-pill-select>
+                <select class="form-select" name="exception_max_file_unit" data-mod-pill-select>
                   {% for unit in size_units %}
                   <option value="{{ unit }}" {% if unit == 'MB' %}selected{% endif %}>{{ unit }}</option>
                   {% endfor %}
@@ -241,7 +241,7 @@
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">
               <div class="settings-admin-files-size-row">
                 <input type="number" class="form-control" name="exception_quota_value" min="0" step="any" value="15">
-                <select class="form-select" name="exception_quota_unit" data-inv-pill-select>
+                <select class="form-select" name="exception_quota_unit" data-mod-pill-select>
                   {% for unit in size_units %}
                   <option value="{{ unit }}" {% if unit == 'GB' %}selected{% endif %}>{{ unit }}</option>
                   {% endfor %}
@@ -252,7 +252,7 @@
 
           <div class="sp-row">
             <div class="sp-row-control" style="justify-content:flex-start;width:100%">
-              <button type="submit" class="btn btn-outline-secondary rounded-pill sp-btn-pill" data-sp-keep-submit>
+              <button type="submit" class="btn btn-outline-secondary rounded-pill mod-pill-btn" data-sp-keep-submit>
                 <i class="bi bi-plus-lg" aria-hidden="true"></i>
                 {{ _('settings.admin.file_settings.exception_add_button') }}
               </button>

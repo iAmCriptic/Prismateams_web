@@ -3,7 +3,6 @@
 {% block title %}{{ _('wiki.history.page_title', title=page.title) }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 {% endblock %}
 
@@ -25,7 +24,7 @@
                 </small>
             </div>
         </div>
-        <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary files-pill-btn">
+        <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary mod-pill-btn">
             <i class="bi bi-arrow-left"></i> {{ _('wiki.history.buttons.back') }}
         </a>
     </div>
@@ -46,7 +45,7 @@
             <p class="mb-2">
                 <i class="bi bi-person"></i> {{ version.creator.full_name }}
             </p>
-            <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-sm btn-outline-primary files-pill-btn">
+            <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-sm btn-outline-primary mod-pill-btn">
                 <i class="bi bi-eye"></i> {{ _('wiki.history.buttons.view_current') }}
             </a>
         </div>

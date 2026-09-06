@@ -199,11 +199,11 @@
             <p class="sp-page-lead">{{ _('settings.admin.users.lead_short') }}</p>
         </div>
         <div class="settings-admin-users-header-actions">
-            <a href="{{ url_for('settings.create_user') }}" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-users-btn">
+            <a href="{{ url_for('settings.create_user') }}" class="btn btn-accent rounded-pill mod-pill-btn settings-admin-users-btn">
                 <i class="bi bi-person-plus" aria-hidden="true"></i>
                 {{ _('settings.admin.users.create_user') }}
             </a>
-            <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary rounded-pill sp-btn-pill settings-admin-users-btn">
+            <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn settings-admin-users-btn">
                 <i class="bi bi-gear" aria-hidden="true"></i>
                 {{ _('settings.admin.users.configure_default_roles') }}
             </a>
@@ -217,12 +217,12 @@
                 <input type="search" id="userSearch" class="form-control sau-search-input" placeholder="{{ _('settings.admin.users.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.users.search_placeholder') }}">
             </div>
         </div>
-        <div class="files-view-toggle" data-view="list" role="group" aria-label="{{ _('settings.admin.users.view_list') }} / {{ _('settings.admin.users.view_grid') }}">
-            <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-            <button type="button" class="files-view-toggle__btn active is-active" id="adminUsersListViewBtn" title="{{ _('settings.admin.users.view_list') }}">
+        <div class="mod-view-toggle" data-view="list" role="group" aria-label="{{ _('settings.admin.users.view_list') }} / {{ _('settings.admin.users.view_grid') }}">
+            <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+            <button type="button" class="mod-view-toggle__btn active is-active" id="adminUsersListViewBtn" title="{{ _('settings.admin.users.view_list') }}">
                 <i class="bi bi-list-ul" aria-hidden="true"></i>
             </button>
-            <button type="button" class="files-view-toggle__btn" id="adminUsersGridViewBtn" title="{{ _('settings.admin.users.view_grid') }}">
+            <button type="button" class="mod-view-toggle__btn" id="adminUsersGridViewBtn" title="{{ _('settings.admin.users.view_grid') }}">
                 <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
             </button>
         </div>
@@ -360,8 +360,8 @@
     </section>
     {% endif %}
 
-    <div id="adminUsersViewStage" class="files-view-stage" data-view="list">
-        <div id="adminUsersListPane" class="files-view-pane files-view-pane--active">
+    <div id="adminUsersViewStage" class="mod-view-stage" data-view="list">
+        <div id="adminUsersListPane" class="mod-view-pane mod-view-pane--active">
             <section class="sp-group settings-admin-users-section" aria-labelledby="admin-users-active">
                 <div class="sp-group-head">
                     <h2 id="admin-users-active" class="sp-group-title">
@@ -489,7 +489,7 @@
             </section>
         </div>
 
-        <div id="adminUsersGridPane" class="files-view-pane d-none" style="display:none;">
+        <div id="adminUsersGridPane" class="mod-view-pane d-none" style="display:none;">
             <section class="settings-admin-users-section mb-4" aria-labelledby="admin-users-active-grid">
                 <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
                     <h2 id="admin-users-active-grid" class="sp-group-title mb-0">
@@ -668,8 +668,8 @@
                 </form>
             </div>
             <div class="modal-footer settings-admin-roles-modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="button" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-roles-btn" id="guestEditSaveBtn">
+                <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent rounded-pill mod-pill-btn settings-admin-roles-btn" id="guestEditSaveBtn">
                     <i class="bi bi-check-lg" aria-hidden="true"></i>
                     {{ _('common.save') }}
                 </button>
@@ -754,8 +754,8 @@
                 </form>
             </div>
             <div class="modal-footer settings-admin-roles-modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="button" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-roles-btn" id="rolesSaveBtn">
+                <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent rounded-pill mod-pill-btn settings-admin-roles-btn" id="rolesSaveBtn">
                     <i class="bi bi-check-lg" aria-hidden="true"></i>
                     {{ _('common.save') }}
                 </button>
@@ -797,8 +797,8 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer settings-admin-roles-modal-footer">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-roles-btn" {% if all_teams is not defined or not all_teams %}disabled{% endif %}>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn settings-admin-roles-btn" {% if all_teams is not defined or not all_teams %}disabled{% endif %}>
                         <i class="bi bi-check-lg" aria-hidden="true"></i>
                         {{ _('common.save') }}
                     </button>
@@ -1216,12 +1216,12 @@ function saveRoles() {
 }
 </script>
 
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 (function () {
     if (typeof window.initFilesViewToggle !== 'function') return;
     window.initFilesViewToggle({
-        toggleEl: document.querySelector('.settings-admin-users .files-view-toggle'),
+        toggleEl: document.querySelector('.settings-admin-users .mod-view-toggle'),
         listBtn: document.getElementById('adminUsersListViewBtn'),
         gridBtn: document.getElementById('adminUsersGridViewBtn'),
         listPane: document.getElementById('adminUsersListPane'),

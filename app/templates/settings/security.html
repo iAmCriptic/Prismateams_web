@@ -22,7 +22,7 @@
             <div class="sp-group-body">
             <div id="password-change-collapsed">
                 <p class="settings-security-hint mb-0">{{ _('settings.security.password.help') }}</p>
-                <button type="button" class="btn btn-accent rounded-pill sp-btn-pill mt-2" id="password-change-start">
+                <button type="button" class="btn btn-accent rounded-pill mod-pill-btn mt-2" id="password-change-start">
                     <i class="bi bi-key" aria-hidden="true"></i>
                     {{ _('settings.security.password.change_button') }}
                 </button>
@@ -47,8 +47,8 @@
                 </div>
 
                 <div class="settings-security-actions">
-                    <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>{{ _('settings.security.password.change_button') }}</button>
-                    <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill" id="password-change-cancel">{{ _('settings.security.2fa.cancel_button') }}</button>
+                    <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-sp-keep-submit>{{ _('settings.security.password.change_button') }}</button>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" id="password-change-cancel">{{ _('settings.security.2fa.cancel_button') }}</button>
                 </div>
             </form>
             </div>
@@ -86,7 +86,7 @@
                 {% if google_email %}<span class="text-muted small ms-2">{{ google_email }}</span>{% endif %}
             </div>
             <form method="POST" action="{{ url_for('settings.security_google_unlink') }}" data-sp-no-autosave>
-                <button type="submit" class="btn btn-outline-danger rounded-pill sp-btn-pill"
+                <button type="submit" class="btn btn-outline-danger rounded-pill mod-pill-btn"
                         data-pt-confirm="{{ _('settings.security.google.unlink_confirm') }}"
                         data-pt-confirm-danger="true"
                         data-pt-confirm-ok="{{ _('settings.security.google.unlink') }}">{{ _('settings.security.google.unlink') }}</button>
@@ -95,7 +95,7 @@
             <div class="settings-security-status-row mb-2">
                 <span class="badge rounded-pill text-bg-secondary">{{ _('settings.security.google.status_unlinked') }}</span>
             </div>
-            <a href="{{ url_for('settings.security_google_link') }}" class="btn btn-accent rounded-pill sp-btn-pill">
+            <a href="{{ url_for('settings.security_google_link') }}" class="btn btn-accent rounded-pill mod-pill-btn">
                 <i class="bi bi-google me-1" aria-hidden="true"></i>
                 {{ _('settings.security.google.link') }}
             </a>
@@ -297,7 +297,7 @@
         {% endif %}
 
         <button type="button"
-                class="btn btn-accent rounded-pill sp-btn-pill"
+                class="btn btn-accent rounded-pill mod-pill-btn"
                 id="passkey-register-btn"
                 data-options-url="{{ url_for('settings.passkey_register_options') }}"
                 data-verify-url="{{ url_for('settings.passkey_register_verify') }}"

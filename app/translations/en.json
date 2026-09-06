@@ -4707,6 +4707,9 @@
         "grid": "Grid view"
       }
     },
+    "scanner": {
+      "confirm_return": "Confirm return of {checkout_number}? ({count} items, {borrower} — {event})"
+    },
     "dashboard": {
       "page_title": "Inventory - Team Portal",
       "heading": "Overview",
@@ -5462,6 +5465,7 @@
       "filter_name_required": "Filter name required.",
       "filter_name_exists": "A filter with this name already exists.",
       "no_permission": "No permission.",
+      "no_return_permission": "You do not have permission to return this checkout.",
       "product_not_favorite": "Product is not a favorite.",
       "invalid_or_expired_token": "Invalid or expired token.",
       "transaction_id_required": "Transaction ID required.",

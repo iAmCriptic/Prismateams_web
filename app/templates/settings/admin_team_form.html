@@ -61,7 +61,7 @@
             <div class="sp-row-control settings-admin-teams-color-row">
               <input type="color" class="form-control form-control-color" id="color_picker" value="{{ team.color if is_edit and team.color else '#6c757d' }}" title="{{ _('settings.admin.teams.field_color') }}">
               <input type="text" class="form-control" id="color" name="color" maxlength="7" placeholder="#6c757d" value="{{ team.color if is_edit and team.color else '' }}" pattern="#?[0-9A-Fa-f]{6}" autocomplete="off" style="min-width:7rem;max-width:9rem">
-              <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill" id="clearColor">{{ _('settings.admin.teams.clear_color') }}</button>
+              <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" id="clearColor">{{ _('settings.admin.teams.clear_color') }}</button>
             </div>
           </div>
           <div class="sp-row sp-row--stack">
@@ -110,7 +110,7 @@
       </section>
 
       <div class="sp-actions" style="border:0;padding:0.25rem 0 0">
-        <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>
+        <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-sp-keep-submit>
           <i class="bi bi-{% if is_edit %}check-lg{% else %}plus-lg{% endif %}" aria-hidden="true"></i>
           {% if is_edit %}{{ _('settings.admin.teams.save') }}{% else %}{{ _('settings.admin.teams.create') }}{% endif %}
         </button>

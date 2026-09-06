@@ -729,13 +729,14 @@ def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_p
 
     app_name = get_portal_display_name()
     from app.utils.multi_mailboxes import get_mailbox_logo_data
-    logo_bytes, _, _ = get_mailbox_logo_data(
+    logo_bytes, logo_mime, _ = get_mailbox_logo_data(
         mailbox, user=logo_user, use_logo=use_mailbox_logo
     )
     logo_base64 = None
     if logo_bytes:
         import base64 as _b64
-        logo_base64 = _b64.b64encode(logo_bytes).decode('ascii')
+        mime = logo_mime or 'image/png'
+        logo_base64 = f"data:{mime};base64,{_b64.b64encode(logo_bytes).decode('ascii')}"
     else:
         logo_base64 = get_logo_base64()
     current_year = datetime.utcnow().year

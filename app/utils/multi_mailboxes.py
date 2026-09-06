@@ -427,6 +427,7 @@ def get_mailbox_logo_data(mailbox: Optional[Mailbox] = None, user=None, use_logo
                 '.jpeg': 'image/jpeg',
                 '.gif': 'image/gif',
                 '.webp': 'image/webp',
+                '.svg': 'image/svg+xml',
             }.get(ext, 'image/png')
             return data, mime, mailbox.logo_filename
     try:

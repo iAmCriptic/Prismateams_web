@@ -53,7 +53,7 @@
           </div>
           <div class="sp-row">
             <div class="sp-row-control" style="justify-content:flex-start;width:100%">
-              <button type="submit" class="btn btn-accent rounded-pill sp-btn-pill" data-sp-keep-submit>
+              <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-sp-keep-submit>
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
                 {{ _('settings.admin.whitelist.add_submit') }}
               </button>
@@ -73,12 +73,12 @@
           {% endif %}
         </h2>
         {% if whitelist_entries %}
-        <div class="files-view-toggle" data-view="list" role="group" aria-label="{{ _('settings.admin.whitelist.view_list') }} / {{ _('settings.admin.whitelist.view_grid') }}">
-          <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-          <button type="button" class="files-view-toggle__btn active is-active" id="whitelistListViewBtn" title="{{ _('settings.admin.whitelist.view_list') }}">
+        <div class="mod-view-toggle" data-view="list" role="group" aria-label="{{ _('settings.admin.whitelist.view_list') }} / {{ _('settings.admin.whitelist.view_grid') }}">
+          <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+          <button type="button" class="mod-view-toggle__btn active is-active" id="whitelistListViewBtn" title="{{ _('settings.admin.whitelist.view_list') }}">
             <i class="bi bi-list-ul" aria-hidden="true"></i>
           </button>
-          <button type="button" class="files-view-toggle__btn" id="whitelistGridViewBtn" title="{{ _('settings.admin.whitelist.view_grid') }}">
+          <button type="button" class="mod-view-toggle__btn" id="whitelistGridViewBtn" title="{{ _('settings.admin.whitelist.view_grid') }}">
             <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
           </button>
         </div>
@@ -86,8 +86,8 @@
       </div>
       <div class="sp-group-body p-0">
         {% if whitelist_entries %}
-        <div id="whitelistViewStage" class="files-view-stage" data-view="list">
-          <div id="whitelistListPane" class="files-view-pane files-view-pane--active">
+        <div id="whitelistViewStage" class="mod-view-stage" data-view="list">
+          <div id="whitelistListPane" class="mod-view-pane mod-view-pane--active">
             <div class="mod-list-table-wrap">
               <table class="table mod-list-table align-middle mb-0">
                 <thead>
@@ -168,7 +168,7 @@
             </div>
           </div>
 
-          <div id="whitelistGridPane" class="files-view-pane d-none" style="display:none;">
+          <div id="whitelistGridPane" class="mod-view-pane d-none" style="display:none;">
             <div class="row g-3 p-3">
               {% for entry in whitelist_entries %}
               <div class="col-12 col-sm-6">
@@ -237,7 +237,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 (function () {
   document.querySelectorAll('.settings-admin-whitelist [data-bs-toggle="tooltip"]').forEach(function (el) {
@@ -247,7 +247,7 @@
   });
   if (typeof window.initFilesViewToggle === 'function' && document.getElementById('whitelistListPane')) {
     window.initFilesViewToggle({
-      toggleEl: document.querySelector('.settings-admin-whitelist .files-view-toggle'),
+      toggleEl: document.querySelector('.settings-admin-whitelist .mod-view-toggle'),
       listBtn: document.getElementById('whitelistListViewBtn'),
       gridBtn: document.getElementById('whitelistGridViewBtn'),
       listPane: document.getElementById('whitelistListPane'),

@@ -76,7 +76,7 @@
         if (target.matches('.dashboard-module-chip')) {
             return { padding: 8, radius: '1rem', compact: true };
         }
-        if (target.matches('.dashboard-edit-pill-btn')) {
+        if (target.matches('.mod-pill-btn')) {
             return { padding: 10, radius: '999px', compact: false };
         }
         if (target.matches('#dashboardModuleBar, .dashboard-module-bar')) {

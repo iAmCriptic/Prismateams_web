@@ -421,10 +421,10 @@
                 </div>
             </div>
             <div class="file-viewer-actions">
-                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn mod-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                <a href="{{ download_url }}" class="btn btn-outline-primary mod-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
             </div>
@@ -443,10 +443,10 @@
                 </small>
             </div>
             <div class="file-viewer-actions">
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                <a href="{{ download_url }}" class="btn btn-outline-primary mod-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
-                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn mod-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
             </div>
@@ -471,20 +471,20 @@
                 </div>
             </div>
             <div class="file-viewer-actions">
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
                 {% if not is_public_share and current_user.is_authenticated and (is_markdown|default(False) or file.name.endswith(('.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'))) %}
-                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-accent files-pill-btn">
+                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-accent mod-pill-btn">
                     <i class="bi bi-pencil"></i><span class="btn-label ms-1">{{ _('files.view.edit') }}</span>
                 </a>
                 {% endif %}
                 {% if not is_public_share and current_user.is_authenticated %}
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="fileViewerHistoryBtn" data-file-id="{{ file.id }}" title="{{ _('files.view.history') }}">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" id="fileViewerHistoryBtn" data-file-id="{{ file.id }}" title="{{ _('files.view.history') }}">
                     <i class="bi bi-clock-history"></i><span class="btn-label ms-1">{{ _('files.view.history') }}</span>
                 </button>
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary files-pill-btn dropdown-toggle file-viewer-more-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('files.view.more') }}">
+                    <button class="btn btn-outline-secondary mod-pill-btn dropdown-toggle file-viewer-more-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('files.view.more') }}">
                         <i class="bi bi-exclamation-circle"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
@@ -508,7 +508,7 @@
                     </ul>
                 </div>
                 {% else %}
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
+                <a href="{{ download_url }}" class="btn btn-outline-primary mod-pill-btn">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
                 {% endif %}
@@ -583,7 +583,7 @@
             <div class="file-viewer-media-fallback d-none" id="fileViewerMediaFallback">
                 <i class="bi bi-exclamation-triangle mb-2 d-block" aria-hidden="true"></i>
                 <p class="mb-3">{{ _('files.view.media_unsupported') }}</p>
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
+                <a href="{{ download_url }}" class="btn btn-outline-primary mod-pill-btn">
                     <i class="bi bi-download"></i> {{ _('files.view.download') }}
                 </a>
             </div>
@@ -656,7 +656,7 @@ document.addEventListener('keydown', function(e) {
                         + (v.is_current ? ' (' + labels.current + ')' : '');
                     return '<div class="list-group-item d-flex justify-content-between align-items-center gap-2">'
                         + '<span><i class="bi bi-clock-history me-2"></i>' + title + '</span>'
-                        + '<a class="btn btn-sm btn-outline-primary files-pill-btn" href="' + v.download_url + '">'
+                        + '<a class="btn btn-sm btn-outline-primary mod-pill-btn" href="' + v.download_url + '">'
                         + '<i class="bi bi-download"></i><span class="ms-1">' + labels.download + '</span></a>'
                         + '</div>';
                 }).join('') + '</div>';

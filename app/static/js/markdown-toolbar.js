@@ -134,8 +134,8 @@
                 '<input type="url" class="form-control" id="markdownLinkUrl" inputmode="url" autocomplete="off">' +
             '</label>' +
             '<div class="md-link-popover-actions">' +
-                '<button type="button" class="btn btn-outline-secondary files-pill-btn" data-md-link-cancel></button>' +
-                '<button type="button" class="btn btn-accent files-pill-btn" data-md-link-apply></button>' +
+                '<button type="button" class="btn btn-outline-secondary mod-pill-btn" data-md-link-cancel></button>' +
+                '<button type="button" class="btn btn-accent mod-pill-btn" data-md-link-apply></button>' +
             '</div>';
         document.body.appendChild(pop);
         pop.addEventListener('keydown', function (e) {

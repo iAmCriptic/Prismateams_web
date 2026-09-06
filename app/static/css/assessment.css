@@ -266,10 +266,6 @@ body.assessment-scope-solo .mod-sidebar {
     margin: 0;
 }
 
-.assessment-view-toggle {
-    display: inline-flex;
-}
-
 .assessment-bulk-bar {
     display: flex;
     flex-wrap: wrap;
@@ -337,6 +333,7 @@ body.assessment-scope-solo .mod-sidebar {
 }
 
 /* Listen wie Dateien: Pill-Dropdowns an Zeilenaktionen */
+
 .assessment-page .mod-list-table-wrap {
     overflow: visible;
 }
@@ -372,6 +369,7 @@ body.assessment-scope-solo .mod-sidebar {
 }
 
 /* Kein Dateien-Flex-Collapse: Namen + 3-Punkte sichtbar */
+
 .assessment-page .mod-list-table td.files-list-name-cell,
 .assessment-page .mod-list-table td:first-child {
     display: table-cell !important;

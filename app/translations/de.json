@@ -4707,6 +4707,9 @@
         "grid": "Kachelansicht"
       }
     },
+    "scanner": {
+      "confirm_return": "Rückgabe von {checkout_number} bestätigen? ({count} Artikel, {borrower} — {event})"
+    },
     "errors": {
       "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_action_specified": "Keine Aktion angegeben.",
@@ -4747,6 +4750,7 @@
       "filter_name_required": "Filtername erforderlich.",
       "filter_name_exists": "Ein Filter mit diesem Namen existiert bereits.",
       "no_permission": "Keine Berechtigung.",
+      "no_return_permission": "Keine Berechtigung für diese Rückgabe.",
       "product_not_favorite": "Produkt ist kein Favorit.",
       "invalid_or_expired_token": "Ungültiger oder abgelaufener Token.",
       "transaction_id_required": "Transaktions-ID erforderlich.",

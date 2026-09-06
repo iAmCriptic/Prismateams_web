@@ -39,6 +39,10 @@ from app.blueprints.inventory._bp import (
 )
 
 from app.blueprints.inventory.helpers import *  # noqa: F401,F403
+from app.blueprints.inventory.helpers import (  # noqa: F401
+    _product_extra_fields,
+    _serialize_product_api,
+)
 
 @login_required
 def api_products():
@@ -236,40 +240,6 @@ def api_product_get(product_id):
     return jsonify(_serialize_product_api(product))
 
 
-def _serialize_product_api(product):
-    """Einheitliche Produkt-JSON-Antwort für GET/Scan-Lookup."""
-    image_path_value = None
-    if product.image_path:
-        if os.path.isabs(product.image_path):
-            image_path_value = os.path.basename(product.image_path)
-        else:
-            image_path_value = product.image_path
-    folder = getattr(product, 'folder', None)
-    return {
-        'id': product.id,
-        'name': product.name,
-        'description': product.description,
-        'category': product.category,
-        'serial_number': product.serial_number,
-        'condition': product.condition,
-        'location': product.location,
-        'length': product.length,
-        'length_meters': parse_length_to_meters(product.length),
-        'folder_id': product.folder_id,
-        'folder_name': folder.name if folder else None,
-        'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
-        'status': product.status,
-        'item_type': product.item_type,
-        'on_hand': product.total_on_hand,
-        'available': product.total_available,
-        'image_path': image_path_value,
-        'qr_code_data': product.qr_code_data,
-        'created_at': product.created_at.isoformat() if product.created_at else None,
-        'created_by': product.created_by,
-        **_product_extra_fields(product),
-    }
-
-
 @login_required
 def api_product_create():
     """API: Neues Produkt erstellen."""
@@ -306,15 +276,11 @@ def api_product_create():
         external_barcode=external_barcode,
         created_by=current_user.id
     )
-    
-    qr_data = generate_product_qr_code(product.id)
-    product.qr_code_data = qr_data
-    
+
     db.session.add(product)
-    db.session.flush()
-    
-    qr_data = generate_product_qr_code(product.id)
-    product.qr_code_data = qr_data
+    db.session.flush()  # ID nötig für QR-URL
+
+    product.qr_code_data = generate_product_qr_code(product.id)
     db.session.commit()
     
     return jsonify({
@@ -1171,43 +1137,52 @@ def api_return():
 
     try:
         if item_ids:
-            returned = return_checkout_items(item_ids, mark_defective=mark_defective)
+            returned = return_checkout_items(
+                item_ids, mark_defective=mark_defective, actor=current_user
+            )
             return jsonify({
                 'success': True,
                 'returned_count': len(returned),
                 'return_email_sent': _return_email_ok(returned),
             })
         if transaction_id:
-            returned = return_checkout_items([int(transaction_id)], mark_defective=mark_defective)
+            returned = return_checkout_items(
+                [int(transaction_id)], mark_defective=mark_defective, actor=current_user
+            )
             return jsonify({
                 'success': True,
                 'returned_count': len(returned),
                 'return_email_sent': _return_email_ok(returned),
             })
         if product_id:
-            item = find_active_checkout_item_for_product(int(product_id))
+            item = find_active_checkout_item_for_product(int(product_id), actor=current_user)
             if not item:
                 return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
-            returned = return_checkout_items([item.id], mark_defective=mark_defective)
+            returned = return_checkout_items(
+                [item.id], mark_defective=mark_defective, actor=current_user
+            )
             return jsonify({
                 'success': True,
                 'returned_count': len(returned),
                 'return_email_sent': _return_email_ok(returned),
             })
         if checkout_ref:
-            checkout = return_checkout_by_ref(str(checkout_ref))
+            checkout = return_checkout_by_ref(str(checkout_ref), actor=current_user)
             return jsonify({
                 'success': True,
                 'checkout_id': checkout.id,
                 'status': checkout.status,
                 'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
             })
+    except PermissionError:
+        return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
 
     return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
 
 
+@inventory_bp.route('/api/borrow/<int:transaction_id>/pdf', methods=['GET'])
 @login_required
 @check_module_access('module_inventory')
 def api_borrow_pdf(transaction_id):
@@ -1220,8 +1195,9 @@ def api_borrow_pdf(transaction_id):
     if not checkout:
         return jsonify({'error': 'Checkout nicht gefunden.'}), 404
 
-    if not current_user.is_admin and checkout.borrower_id != current_user.id and checkout.created_by != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung für diesen Ausleihschein.'}), 403
+    from app.services.inventory.checkout_service import user_can_return_checkout
+    if not user_can_return_checkout(current_user, checkout):
+        return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
 
     pdf_buffer = BytesIO()
     generate_borrow_receipt_pdf(checkout, pdf_buffer)
@@ -1255,8 +1231,9 @@ def api_return_pdf(transaction_id):
     if not checkout:
         return jsonify({'error': 'Checkout nicht gefunden.'}), 404
 
-    if not current_user.is_admin and checkout.borrower_id != current_user.id and checkout.created_by != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung für diesen Rückgabeschein.'}), 403
+    from app.services.inventory.checkout_service import user_can_return_checkout
+    if not user_can_return_checkout(current_user, checkout):
+        return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
 
     source = item if item else checkout
     pdf_buffer = BytesIO()

@@ -7,12 +7,12 @@
 {% block inventory_heading %}{{ _('inventory.print_qr.heading') }}{% endblock %}
 
 {% block navbar_search %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="qrSearchInput">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="qrSearchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="qrSearchInput"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.print_qr.search.placeholder') }}"
                aria-label="{{ _('inventory.print_qr.search.label') }}"
                autocomplete="off"
@@ -24,12 +24,12 @@
 {% block inventory_toolbar_center %}{% endblock %}
 
 {% block inventory_mobile_toolbar_center %}
-<div class="inventory-search" role="search">
-    <label class="inventory-search-field" for="qrSearchInputMobile">
+<div class="mod-search inventory-search" role="search">
+    <label class="mod-search-field" for="qrSearchInputMobile">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="qrSearchInputMobile"
-               class="inventory-search-input"
+               class="mod-search-input"
                placeholder="{{ _('inventory.print_qr.search.placeholder') }}"
                aria-label="{{ _('inventory.print_qr.search.label') }}"
                autocomplete="off"
@@ -55,23 +55,23 @@
             </span>
         </div>
         <div class="inventory-bulk-actions">
-            <button type="button" id="qrSelectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline"
+            <button type="button" id="qrSelectAllBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline"
                     data-mode="select"
                     title="{{ _('inventory.print_qr.selection.select_all') }}">
                 <i class="bi bi-check2-all" aria-hidden="true"></i>
                 <span class="qr-select-all-label">{{ _('inventory.print_qr.selection.select_all') }}</span>
             </button>
-            <button type="button" id="qrSelectVisibleBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline"
+            <button type="button" id="qrSelectVisibleBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline"
                     data-mode="select"
                     title="{{ _('inventory.print_qr.selection.select_visible') }}">
                 <i class="bi bi-check-square" aria-hidden="true"></i>
                 <span class="qr-select-visible-label">{{ _('inventory.print_qr.selection.select_visible') }}</span>
             </button>
-            <a href="{{ url_for('inventory.print_color_codes') }}" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" target="_blank" rel="noopener">
+            <a href="{{ url_for('inventory.print_color_codes') }}" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" target="_blank" rel="noopener">
                 <i class="bi bi-palette"></i> {{ _('inventory.print_qr.actions.color_codes') }}
             </a>
             <div class="dropdown d-inline-block">
-                <button type="button" id="qrGeneratePdfBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--primary dropdown-toggle"
+                <button type="button" id="qrGeneratePdfBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--primary dropdown-toggle"
                         data-bs-toggle="dropdown" aria-expanded="false" disabled>
                     <i class="bi bi-file-pdf"></i> {{ _('inventory.print_qr.actions.generate_pdf') }}
                 </button>
@@ -93,6 +93,7 @@
 </div>
 
 <form method="POST" id="qrPrintForm" class="d-none" aria-hidden="true">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="label_type" id="qrLabelTypeInput" value="">
 </form>
 
@@ -122,7 +123,7 @@
     <div>
         <i class="bi bi-qr-code display-6 d-block mb-2 opacity-50"></i>
         <p class="mb-2" id="qrEmptyText">{{ _('inventory.print_qr.empty') }}</p>
-        <a href="{{ url_for('inventory.product_new') }}" class="btn inventory-pill-btn inventory-pill-btn--primary">
+        <a href="{{ url_for('inventory.product_new') }}" class="btn mod-pill-btn mod-pill-btn--primary">
             <i class="bi bi-plus-circle"></i> {{ _('inventory.print_qr.add_product') }}
         </a>
     </div>

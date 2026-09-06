@@ -69,11 +69,11 @@
 
 {% macro calendar_search(id_suffix='') %}
 <div class="calendar-search" role="search" data-calendar-search>
-    <label class="calendar-search-field" for="calendarSearchInput{{ id_suffix }}">
+    <label class="mod-search-field" for="calendarSearchInput{{ id_suffix }}">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search"
                id="calendarSearchInput{{ id_suffix }}"
-               class="calendar-search-input"
+               class="mod-search-input"
                placeholder="{{ _('calendar.index.search.placeholder') }}"
                aria-label="{{ _('calendar.index.search.aria') }}"
                autocomplete="off"

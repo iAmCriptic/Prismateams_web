@@ -32,10 +32,10 @@
 
         <div class="markdown-editor-toolbar-divider" aria-hidden="true"></div>
 
-        <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" id="backBtn">
+        <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="goBack()" id="backBtn">
             <i class="bi bi-arrow-left"></i> Zurück
         </button>
-        <button type="button" class="btn btn-accent files-pill-btn" onclick="saveFile()" id="saveBtn"{% if edit_locked %} disabled{% endif %}>
+        <button type="button" class="btn btn-accent mod-pill-btn" onclick="saveFile()" id="saveBtn"{% if edit_locked %} disabled{% endif %}>
             <i class="bi bi-check-lg"></i> Speichern
         </button>
 
@@ -57,7 +57,7 @@
             </span>
             {% endif %}
             {% endif %}
-            <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="openViewer()" id="previewBtn">
+            <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="openViewer()" id="previewBtn">
                 <i class="bi bi-eye"></i> Vorschau
             </button>
         </div>
@@ -70,7 +70,7 @@
             Diese Datei wird gerade von <strong>{{ locker_name or 'einem anderen Nutzer' }}</strong> bearbeitet.
             Speichern ist gesperrt, bis der Lock freigegeben wird.
         </span>
-        <button type="button" class="btn btn-sm btn-outline-secondary files-pill-btn" id="retryLockBtn">
+        <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" id="retryLockBtn">
             Erneut prüfen
         </button>
     </div>

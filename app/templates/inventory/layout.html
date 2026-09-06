@@ -103,12 +103,13 @@
 </nav>
 {% endmacro %}
 
-{% macro inventory_view_toggle(suffix='', extra_class='') %}
-<div class="inventory-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
-    <button type="button" class="inventory-view-toggle__btn active" id="listViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.list') }}">
+{% macro inventory_view_toggle(suffix='', extra_class='', default_view='list') %}
+<div class="mod-view-toggle {{ extra_class }}" data-view="{{ default_view }}" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn{% if default_view == 'list' %} active is-active{% endif %}" id="listViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="inventory-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.grid') }}">
+    <button type="button" class="mod-view-toggle__btn{% if default_view == 'grid' %} active is-active{% endif %}" id="gridViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -170,7 +171,7 @@
                 </div>
             </div>
             {% if show_view_toggle %}
-            <div class="inventory-mobile-view-toggle mt-2">
+            <div class="mod-mobile-view-toggle mt-2">
                 {{ inventory_view_toggle('Mobile') }}
             </div>
             {% endif %}

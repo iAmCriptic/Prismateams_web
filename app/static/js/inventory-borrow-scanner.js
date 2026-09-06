@@ -205,7 +205,7 @@ class BorrowScannerManager {
                 ${qtyControls}
                 ${setDropdown}
             </div>
-            <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
+            <button class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
                 <i class="bi bi-trash"></i>
             </button>
         `;
@@ -674,6 +674,37 @@ class BorrowScannerManager {
             if (result.success) {
 
                 if (result.is_return) {
+                    if (result.needs_confirm) {
+                        const msg = result.confirm_message
+                            || `Rückgabe von ${result.checkout_number || 'Checkout'} bestätigen?`;
+                        const ok = typeof inventoryConfirm === 'function'
+                            ? await inventoryConfirm(msg, { danger: true })
+                            : window.confirm(msg);
+                        if (!ok) {
+                            this.setReturnScanResult('Rückgabe abgebrochen.', 'warning');
+                            return Promise.resolve({ ...result, cancelled: true });
+                        }
+                        const confirmData = new FormData();
+                        confirmData.append('action', 'confirm_return');
+                        confirmData.append('qr_code', result.qr_ref || qrCode);
+                        if (result.checkout_number) {
+                            confirmData.append('checkout_number', result.checkout_number);
+                        }
+                        const confirmResp = await fetch('/inventory/borrow-scanner', {
+                            method: 'POST',
+                            body: confirmData,
+                        });
+                        let confirmed;
+                        try {
+                            confirmed = await confirmResp.json();
+                        } catch (_err) {
+                            throw new Error(`Server-Antwort konnte nicht geparst werden. Status: ${confirmResp.status}`);
+                        }
+                        if (!confirmResp.ok || confirmed.error) {
+                            throw new Error(confirmed.error || `HTTP error! status: ${confirmResp.status}`);
+                        }
+                        result = confirmed;
+                    }
                     const count = result.returned_count ? ` (${Number(result.returned_count) || result.returned_count})` : '';
                     const checkoutNo = result.checkout_number ? `: ${result.checkout_number}` : '';
                     const emailOk = result.return_email_sent !== false;

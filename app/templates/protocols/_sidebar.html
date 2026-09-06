@@ -62,7 +62,7 @@
             {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
             <div>
                 <label for="protocols-sort-field{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.sort.field') }}</label>
-                <select id="protocols-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort" data-inv-pill-select>
+                <select id="protocols-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort" data-mod-pill-select>
                     <option value="date" {% if sort_by|default('date') == 'date' %}selected{% endif %}>{{ _('protocols.index.sort.date') }}</option>
                     <option value="title" {% if sort_by|default('date') == 'title' %}selected{% endif %}>{{ _('protocols.index.sort.title') }}</option>
                     <option value="updated" {% if sort_by|default('date') == 'updated' %}selected{% endif %}>{{ _('protocols.index.sort.updated') }}</option>
@@ -71,7 +71,7 @@
             </div>
             <div>
                 <label for="protocols-sort-dir{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.sort.dir') }}</label>
-                <select id="protocols-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir" data-inv-pill-select>
+                <select id="protocols-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir" data-mod-pill-select>
                     <option value="desc" {% if sort_dir|default('desc') == 'desc' %}selected{% endif %}>{{ _('protocols.index.sort.desc') }}</option>
                     <option value="asc" {% if sort_dir|default('desc') == 'asc' %}selected{% endif %}>{{ _('protocols.index.sort.asc') }}</option>
                 </select>
@@ -95,7 +95,7 @@
             {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
             <div>
                 <label for="protocols-filter-status{{ id_suffix }}" class="form-label mb-1">{{ _('protocols.index.filter.status') }}</label>
-                <select id="protocols-filter-status{{ id_suffix }}" class="form-select form-select-sm" name="status" data-inv-pill-select>
+                <select id="protocols-filter-status{{ id_suffix }}" class="form-select form-select-sm" name="status" data-mod-pill-select>
                     <option value="" {% if not status_filter %}selected{% endif %}>{{ _('protocols.index.filter.all') }}</option>
                     <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>{{ _('protocols.status.draft') }}</option>
                     <option value="finalized" {% if status_filter == 'finalized' %}selected{% endif %}>{{ _('protocols.status.finalized') }}</option>

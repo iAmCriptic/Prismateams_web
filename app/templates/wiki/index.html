@@ -3,24 +3,23 @@
 {% block title %}{{ _('wiki.index.page_title') }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 {% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('wiki.index') }}" class="wiki-search" role="search" id="wikiSearchForm">
+<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon wiki-search" role="search" id="wikiSearchForm">
     {% if active_favorites|default(false) %}<input type="hidden" name="view" value="favorites">{% elif request.args.get('view') %}<input type="hidden" name="view" value="{{ request.args.get('view') }}">{% endif %}
     {% if request.args.get('team_id') %}<input type="hidden" name="team_id" value="{{ request.args.get('team_id') }}">{% endif %}
     <input type="hidden" name="sort" value="{{ sort_by }}">
     <input type="hidden" name="dir" value="{{ sort_dir }}">
     {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
     {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
-    <i class="bi bi-search wiki-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="wikiSearchInput"
            value="{{ search_query }}"
-           class="form-control wiki-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('wiki.index.search.placeholder') }}"
            aria-label="{{ _('wiki.index.search.submit') }}"
            autocomplete="off"
@@ -28,7 +27,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('wiki.index', sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none, view=('favorites' if active_favorites|default(false) else none)) }}"
-       class="btn wiki-search-clear"
+       class="btn mod-search-clear"
        id="wikiSearchClear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -65,19 +64,19 @@
 {% endif %}
 
 {% macro wiki_view_toggle(suffix='', extra_class='') %}
-<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('wiki.index.view_toggle.label') }}">
-    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.list') }}">
+<div class="mod-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('wiki.index.view_toggle.label') }}">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.grid') }}">
+    <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
 {% endmacro %}
 
 {% macro wiki_search_form(id_suffix='') %}
-<form method="GET" action="{{ url_for('wiki.index') }}" class="wiki-search" role="search" id="wikiSearchForm{{ id_suffix }}">
+<form method="GET" action="{{ url_for('wiki.index') }}" class="mod-search mod-search--icon wiki-search" role="search" id="wikiSearchForm{{ id_suffix }}">
     {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% elif active_nav in ['private', 'public', 'team'] or (active_nav and active_nav.startswith('team-')) %}
     <input type="hidden" name="view" value="{{ 'team' if active_nav.startswith('team-') else active_nav }}">
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
@@ -86,12 +85,12 @@
     <input type="hidden" name="dir" value="{{ sort_dir }}">
     {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
     {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
-    <i class="bi bi-search wiki-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="wikiSearchInput{{ id_suffix }}"
            value="{{ search_query }}"
-           class="form-control wiki-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('wiki.index.search.placeholder') }}"
            aria-label="{{ _('wiki.index.search.submit') }}"
            autocomplete="off"
@@ -99,7 +98,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('wiki.index', sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none, view=('favorites' if active_favorites else none)) }}"
-       class="btn wiki-search-clear"
+       class="btn mod-search-clear"
        id="wikiSearchClear{{ id_suffix }}"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -336,8 +335,8 @@
         </div>
     </div>
 
-    <div id="wikiViewStage" class="files-view-stage">
-    <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+    <div id="wikiViewStage" class="mod-view-stage">
+    <div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
         {% if pages %}
         <div class="row g-3" id="wikiGridRow">
             {% for page in pages %}
@@ -349,7 +348,7 @@
         {% endif %}
     </div>
 
-    <div id="listViewContainer" class="files-view-pane" style="display: none;">
+    <div id="listViewContainer" class="mod-view-pane" style="display: none;">
         {% if pages %}
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle">
@@ -409,7 +408,7 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
@@ -486,7 +485,7 @@ function openWikiPageHistory(slug) {
                         + '<small class="text-muted"><i class="bi bi-person me-1"></i>' + wikiEscapeHtml(version.creator)
                         + ' · ' + wikiEscapeHtml(version.created_at) + '</small></div>'
                         + (version.view_url
-                            ? '<a href="' + wikiEscapeHtml(version.view_url) + '" class="btn btn-sm btn-outline-primary files-pill-btn flex-shrink-0">'
+                            ? '<a href="' + wikiEscapeHtml(version.view_url) + '" class="btn btn-sm btn-outline-primary mod-pill-btn flex-shrink-0">'
                               + '<i class="bi bi-eye"></i><span class="ms-1">' + wikiEscapeHtml(viewLabel) + '</span></a>'
                             : '')
                         + '</div></div>';
@@ -554,7 +553,7 @@ function updateFavoriteUI(pageId, isFavorite) {
 
 document.addEventListener('DOMContentLoaded', function() {
     function syncAllToggleUi(mode) {
-        document.querySelectorAll('.wiki-shell .files-view-toggle').forEach((el) => {
+        document.querySelectorAll('.wiki-shell .mod-view-toggle').forEach((el) => {
             el.dataset.view = mode;
         });
         ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
@@ -573,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof window.initFilesViewToggle === 'function') {
         const viewToggleApi = window.initFilesViewToggle({
-            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            toggleEl: document.querySelector('.page-toolbar-row .mod-view-toggle'),
             listBtn: document.getElementById('listViewBtn'),
             gridBtn: document.getElementById('gridViewBtn'),
             listPane: document.getElementById('listViewContainer'),

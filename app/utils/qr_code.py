@@ -182,10 +182,12 @@ def generate_product_qr_code(product_id):
     """
     try:
         from flask import url_for
+        if product_id is None:
+            raise ValueError("product_id required")
         qr_data = url_for('inventory.public_product', product_id=product_id, _external=True)
-    except RuntimeError:
+    except Exception:
         qr_data = f"/inventory/public/product/{product_id}"
-    
+
     return qr_data
 
 

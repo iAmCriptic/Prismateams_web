@@ -13,7 +13,6 @@
     <title>{{ drawing.name }} - {{ _('excalidraw.edit.page_title_suffix') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
     <link rel="stylesheet" href="{{ excalidraw_css_url }}" onerror="this.onerror=null;this.href='{{ excalidraw_cdn_base }}index.css';">
@@ -131,18 +130,18 @@
                 <span class="badge rounded-pill text-bg-secondary">{{ _('excalidraw.edit.readonly') }}</span>
                 {% endif %}
                 {% if share_manage and not is_share_guest %}
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="excalidrawVisibilityBtn" title="{{ _('excalidraw.index.card.visibility') }}">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" id="excalidrawVisibilityBtn" title="{{ _('excalidraw.index.card.visibility') }}">
                     <i class="bi bi-eye"></i><span class="btn-label ms-1">{{ _('excalidraw.index.card.visibility') }}</span>
                 </button>
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="excalidrawShareBtn" title="{{ _('excalidraw.index.card.share') }}">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" id="excalidrawShareBtn" title="{{ _('excalidraw.index.card.share') }}">
                     <i class="bi bi-share"></i><span class="btn-label ms-1">{{ _('excalidraw.index.card.share') }}</span>
                 </button>
                 {% endif %}
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                <a href="{{ download_url }}" class="btn btn-outline-primary mod-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
                 {% if not is_share_guest %}
-                <button type="button" id="excalidrawCloseBtn" class="btn btn-outline-secondary files-pill-btn" onclick="excalidrawLeaveEditor()" title="{{ _('files.view.close') }}">
+                <button type="button" id="excalidrawCloseBtn" class="btn btn-outline-secondary mod-pill-btn" onclick="excalidrawLeaveEditor()" title="{{ _('files.view.close') }}">
                     <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
                 {% endif %}
@@ -244,8 +243,8 @@ window.PRISMATEAMS_I18N.common = {{ {
                     {{ visibility_select(field_id='excalidrawVisibilitySelect', allowed=allowed_visibilities, teams=visibility_teams, selected=visibility_selected or selected_visibility) }}
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary files-pill-btn" data-bs-dismiss="modal">{{ _('common.close') }}</button>
-                    <button type="submit" class="btn btn-accent files-pill-btn">{{ _('common.save') }}</button>
+                    <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('common.save') }}</button>
                 </div>
             </form>
         </div>
@@ -262,17 +261,17 @@ window.PRISMATEAMS_I18N.common = {{ {
                 <form id="excalidrawShareForm" class="row g-2 align-items-end mb-3">
                     <div class="col-md-3">
                         <label class="form-label small mb-1" for="excalidrawShareMode">{{ _('excalidraw.share.mode') }}</label>
-                        <select class="form-select files-pill-input" id="excalidrawShareMode" name="mode">
+                        <select class="form-select mod-pill-input" id="excalidrawShareMode" name="mode">
                             <option value="view">{{ _('excalidraw.share.mode_view') }}</option>
                             <option value="edit">{{ _('excalidraw.share.mode_edit') }}</option>
                         </select>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label small mb-1" for="excalidrawSharePassword">{{ _('excalidraw.share.password') }}</label>
-                        <input class="form-control files-pill-input" id="excalidrawSharePassword" name="password" type="text" placeholder="{{ _('excalidraw.share.password_optional') }}" autocomplete="new-password">
+                        <input class="form-control mod-pill-input" id="excalidrawSharePassword" name="password" type="text" placeholder="{{ _('excalidraw.share.password_optional') }}" autocomplete="new-password">
                     </div>
                     <div class="col-md-4">
-                        <button type="submit" class="btn btn-accent files-pill-btn w-100">{{ _('excalidraw.share.create') }}</button>
+                        <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('excalidraw.share.create') }}</button>
                     </div>
                 </form>
                 <div class="table-responsive">
@@ -342,7 +341,7 @@ window.PRISMATEAMS_I18N.common = {{ {
                 : `<span class="text-muted">${esc(I18N.noPassword)}</span>`;
             return `<tr>
               <td><div class="fw-semibold">${esc(creator.name || '—')}</div><div class="small text-muted">${esc(s.created_at_display || '')}</div></td>
-              <td><button type="button" class="btn btn-sm btn-outline-secondary files-pill-btn" data-copy-share="${esc(s.share_url)}"><i class="bi bi-clipboard me-1"></i>${esc(I18N.copy)}</button></td>
+              <td><button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-copy-share="${esc(s.share_url)}"><i class="bi bi-clipboard me-1"></i>${esc(I18N.copy)}</button></td>
               <td>${pwDisplay}</td>
               <td><span class="badge rounded-pill text-bg-secondary">${esc(s.mode_label || s.mode)}</span></td>
               <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" data-del-share="${s.id}"><i class="bi bi-trash"></i></button></td>

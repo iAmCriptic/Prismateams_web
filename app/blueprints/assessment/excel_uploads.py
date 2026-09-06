@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from io import BytesIO
 
 from flask import Blueprint, current_app, jsonify, request, send_file, send_from_directory
@@ -14,6 +15,8 @@ from app.models.assessment import (
     AssessmentStand,
     AssessmentStandType,
     AssessmentUser,
+    AssessmentUserRole,
+    password_hasher,
 )
 from app.utils.assessment_auth import assessment_role_required
 
@@ -93,6 +96,17 @@ def _clean(value):
     return str(value).strip()
 
 
+def _id_map_by_names(model, names, attr="name"):
+    """Nach Bulk-Insert: name→id für die angegebenen Namen nachladen."""
+    if not names:
+        return {}
+    col = getattr(model, attr)
+    return {
+        getattr(row, attr): row.id
+        for row in model.query.filter(col.in_(list(names))).all()
+    }
+
+
 @excel_uploads_bp.route("/api/download_sample/<which>")
 @assessment_role_required(["Administrator"])
 def download_sample(which):
@@ -118,12 +132,15 @@ def import_stands():
     if error:
         return jsonify({"success": False, "message": error}), code or 400
 
-    added, updated, errors, rooms_created = 0, 0, [], 0
+    errors = []
     default_type = get_or_create_default_stand_type()
-    rooms_by_name = {r.name: r for r in AssessmentRoom.query.all()}
-    types_by_name = {t.name: t for t in AssessmentStandType.query.all()}
-    stands_by_name = {s.name: s for s in AssessmentStand.query.all()}
+    room_ids = {r.name: r.id for r in AssessmentRoom.query.all()}
+    type_ids = {t.name: t.id for t in AssessmentStandType.query.all()}
+    stand_ids = {s.name: s.id for s in AssessmentStand.query.all()}
 
+    parsed = []
+    new_room_names = set()
+    new_type_names = set()
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Standname"))
         description = _clean(row.get("Beschreibung"))
@@ -132,48 +149,77 @@ def import_stands():
             continue
         room_name = _clean(row.get("Raum")) or None
         type_name = _clean(row.get("Stand-Typ")) or None
+        if room_name and room_name not in room_ids:
+            new_room_names.add(room_name)
+        if type_name and type_name not in type_ids:
+            new_type_names.add(type_name)
+        parsed.append(
+            {
+                "name": name,
+                "description": description,
+                "room_name": room_name,
+                "type_name": type_name,
+            }
+        )
 
-        room = None
-        if room_name:
-            room = rooms_by_name.get(room_name)
-            if not room:
-                room = AssessmentRoom(name=room_name)
-                db.session.add(room)
-                db.session.flush()
-                rooms_by_name[room_name] = room
-                rooms_created += 1
+    if new_room_names:
+        db.session.bulk_insert_mappings(
+            AssessmentRoom, [{"name": n} for n in sorted(new_room_names)]
+        )
+        db.session.flush()
+        room_ids.update(_id_map_by_names(AssessmentRoom, new_room_names))
 
-        stand_type = default_type
-        if type_name:
-            stand_type = types_by_name.get(type_name)
-            if not stand_type:
-                stand_type = AssessmentStandType(name=type_name)
-                db.session.add(stand_type)
-                db.session.flush()
-                types_by_name[type_name] = stand_type
+    if new_type_names:
+        db.session.bulk_insert_mappings(
+            AssessmentStandType,
+            [{"name": n, "sort_order": 0} for n in sorted(new_type_names)],
+        )
+        db.session.flush()
+        type_ids.update(_id_map_by_names(AssessmentStandType, new_type_names))
 
-        existing = stands_by_name.get(name)
-        if existing:
-            existing.description = description
-            existing.room_id = room.id if room else None
-            if stand_type:
-                existing.stand_type_id = stand_type.id
-            updated += 1
-        else:
-            stand = AssessmentStand(
-                name=name,
-                description=description,
-                room_id=room.id if room else None,
-                stand_type_id=stand_type.id if stand_type else None,
+    stand_updates = []
+    stand_inserts = []
+    seen_new = set()
+    for item in parsed:
+        type_id = (
+            type_ids.get(item["type_name"])
+            if item["type_name"]
+            else (default_type.id if default_type else None)
+        )
+        room_id = room_ids.get(item["room_name"]) if item["room_name"] else None
+        existing_id = stand_ids.get(item["name"])
+        if existing_id:
+            stand_updates.append(
+                {
+                    "id": existing_id,
+                    "description": item["description"],
+                    "room_id": room_id,
+                    "stand_type_id": type_id,
+                }
             )
-            db.session.add(stand)
-            stands_by_name[name] = stand
-            added += 1
+        elif item["name"] not in seen_new:
+            seen_new.add(item["name"])
+            stand_inserts.append(
+                {
+                    "name": item["name"],
+                    "description": item["description"],
+                    "room_id": room_id,
+                    "stand_type_id": type_id,
+                }
+            )
+
+    if stand_updates:
+        db.session.bulk_update_mappings(AssessmentStand, stand_updates)
+    if stand_inserts:
+        db.session.bulk_insert_mappings(AssessmentStand, stand_inserts)
 
     db.session.commit()
-    message = f"Stände importiert: {added} hinzugefügt, {updated} aktualisiert."
-    if rooms_created:
-        message += f" {rooms_created} Räume automatisch erstellt."
+    message = (
+        f"Stände importiert: {len(stand_inserts)} hinzugefügt, "
+        f"{len(stand_updates)} aktualisiert."
+    )
+    if new_room_names:
+        message += f" {len(new_room_names)} Räume automatisch erstellt."
     if errors:
         message += f" {len(errors)} Zeile(n) übersprungen."
     return jsonify({"success": True, "message": message, "errors": errors})
@@ -188,9 +234,16 @@ def import_users():
     if error:
         return jsonify({"success": False, "message": error}), code or 400
 
-    added, updated, errors = 0, 0, []
+    errors = []
     all_roles = {role.name: role for role in AssessmentRole.query.all()}
     users_by_username = {(u.username or "").lower(): u for u in AssessmentUser.query.all()}
+
+    user_updates = []
+    user_inserts = []
+    role_ids_by_username = {}
+    update_id_by_username = {}
+    seen_new = set()
+    now = datetime.utcnow()
 
     for index, row in enumerate(_row_dict(ws), start=2):
         username = _clean(row.get("Benutzername")).lower()
@@ -208,24 +261,67 @@ def import_users():
             errors.append(f"Zeile {index}: Keine gültigen Rollen für '{username}'.")
             continue
 
-        user = users_by_username.get(username)
-        if user:
-            user.display_name = display_name
-            user.set_password(password)
-            user.roles = roles
-            user.is_admin = any(role.name == "Administrator" for role in roles)
-            updated += 1
-        else:
-            user = AssessmentUser(username=username, display_name=display_name, is_active=True)
-            user.set_password(password)
-            user.roles = roles
-            user.is_admin = any(role.name == "Administrator" for role in roles)
-            db.session.add(user)
-            users_by_username[username] = user
-            added += 1
+        is_admin = any(role.name == "Administrator" for role in roles)
+        password_hash = password_hasher.hash(password)
+        role_ids_by_username[username] = [role.id for role in roles]
+
+        existing = users_by_username.get(username)
+        if existing:
+            update_id_by_username[username] = existing.id
+            user_updates.append(
+                {
+                    "id": existing.id,
+                    "display_name": display_name,
+                    "password_hash": password_hash,
+                    "is_admin": is_admin,
+                }
+            )
+        elif username not in seen_new:
+            seen_new.add(username)
+            user_inserts.append(
+                {
+                    "username": username,
+                    "password_hash": password_hash,
+                    "display_name": display_name,
+                    "is_admin": is_admin,
+                    "must_change_password": False,
+                    "is_active": True,
+                    "theme_mode": "light",
+                    "created_at": now,
+                }
+            )
+
+    if user_updates:
+        db.session.bulk_update_mappings(AssessmentUser, user_updates)
+
+    if user_inserts:
+        db.session.bulk_insert_mappings(AssessmentUser, user_inserts)
+        db.session.flush()
+        inserted_ids = _id_map_by_names(AssessmentUser, seen_new, attr="username")
+    else:
+        inserted_ids = {}
+
+    user_id_by_username = {**update_id_by_username, **inserted_ids}
+    touch_user_ids = list(user_id_by_username.values())
+    if touch_user_ids:
+        AssessmentUserRole.query.filter(
+            AssessmentUserRole.user_id.in_(touch_user_ids)
+        ).delete(synchronize_session=False)
+
+        role_rows = []
+        for username, user_id in user_id_by_username.items():
+            for role_id in role_ids_by_username.get(username, []):
+                role_rows.append(
+                    {"user_id": user_id, "role_id": role_id, "created_at": now}
+                )
+        if role_rows:
+            db.session.bulk_insert_mappings(AssessmentUserRole, role_rows)
 
     db.session.commit()
-    message = f"Benutzer importiert: {added} hinzugefügt, {updated} aktualisiert."
+    message = (
+        f"Benutzer importiert: {len(user_inserts)} hinzugefügt, "
+        f"{len(user_updates)} aktualisiert."
+    )
     return jsonify({"success": True, "message": message, "errors": errors})
 
 
@@ -245,11 +341,14 @@ def import_criteria():
     if error:
         return jsonify({"success": False, "message": error}), code or 400
 
-    added, updated, errors = 0, 0, []
+    errors = []
     existing_by_name = {
-        c.name: c for c in AssessmentCriterion.query.filter_by(list_id=list_id).all()
+        c.name: c.id for c in AssessmentCriterion.query.filter_by(list_id=list_id).all()
     }
 
+    updates = []
+    inserts = []
+    seen_new = set()
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Name"))
         max_raw = row.get("Maximale Punktzahl")
@@ -266,24 +365,35 @@ def import_criteria():
             errors.append(f"Zeile {index}: Maximalpunktzahl muss > 0 sein.")
             continue
 
-        existing = existing_by_name.get(name)
-        if existing:
-            existing.max_score = max_score
-            existing.description = description
-            updated += 1
-        else:
-            criterion = AssessmentCriterion(
-                list_id=list_id,
-                name=name,
-                max_score=max_score,
-                description=description,
+        existing_id = existing_by_name.get(name)
+        if existing_id:
+            updates.append(
+                {
+                    "id": existing_id,
+                    "max_score": max_score,
+                    "description": description,
+                }
             )
-            db.session.add(criterion)
-            existing_by_name[name] = criterion
-            added += 1
+        elif name not in seen_new:
+            seen_new.add(name)
+            inserts.append(
+                {
+                    "list_id": list_id,
+                    "name": name,
+                    "max_score": max_score,
+                    "description": description,
+                }
+            )
+
+    if updates:
+        db.session.bulk_update_mappings(AssessmentCriterion, updates)
+    if inserts:
+        db.session.bulk_insert_mappings(AssessmentCriterion, inserts)
 
     db.session.commit()
-    message = f"Kriterien importiert: {added} hinzugefügt, {updated} aktualisiert."
+    message = (
+        f"Kriterien importiert: {len(inserts)} hinzugefügt, {len(updates)} aktualisiert."
+    )
     return jsonify({"success": True, "message": message, "errors": errors})
 
 
@@ -299,25 +409,42 @@ def import_subjects():
     if error:
         return jsonify({"success": False, "message": error}), code or 400
 
-    added, updated, errors = 0, 0, []
+    errors = []
     existing_by_name = {
-        s.name: s for s in AssessmentListSubject.query.filter_by(list_id=list_id).all()
+        s.name: s.id for s in AssessmentListSubject.query.filter_by(list_id=list_id).all()
     }
+
+    updates = []
+    inserts = []
+    seen_new = set()
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Name"))
         if not name:
             continue
         description = _clean(row.get("Beschreibung")) or None
-        existing = existing_by_name.get(name)
-        if existing:
-            existing.description = description
-            updated += 1
-        else:
-            subject = AssessmentListSubject(list_id=list_id, name=name, description=description)
-            db.session.add(subject)
-            existing_by_name[name] = subject
-            added += 1
+        existing_id = existing_by_name.get(name)
+        if existing_id:
+            updates.append({"id": existing_id, "description": description})
+        elif name not in seen_new:
+            seen_new.add(name)
+            inserts.append(
+                {
+                    "list_id": list_id,
+                    "name": name,
+                    "description": description,
+                    "sort_order": 0,
+                    "is_active": True,
+                }
+            )
+
+    if updates:
+        db.session.bulk_update_mappings(AssessmentListSubject, updates)
+    if inserts:
+        db.session.bulk_insert_mappings(AssessmentListSubject, inserts)
 
     db.session.commit()
-    message = f"Bewertungsziele importiert: {added} hinzugefügt, {updated} aktualisiert."
+    message = (
+        f"Bewertungsziele importiert: {len(inserts)} hinzugefügt, "
+        f"{len(updates)} aktualisiert."
+    )
     return jsonify({"success": True, "message": message, "errors": errors})

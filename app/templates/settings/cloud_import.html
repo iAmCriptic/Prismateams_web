@@ -69,17 +69,17 @@
       <div class="sp-group-body">
         <div class="sp-row sp-row--stack">
           <div class="sp-row-control settings-about-repo-actions" style="justify-content:flex-start">
-            <button type="button" class="btn btn-accent rounded-pill sp-btn-pill" id="cloudImportShowNextcloud">
+            <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="cloudImportShowNextcloud">
               <i class="bi bi-cloud" aria-hidden="true"></i>
               {{ _('settings.cloud_import.connect_nextcloud') }}
             </button>
             {% if google_configured %}
-            <a href="{{ url_for('settings.cloud_import_connect_google') }}" class="btn btn-outline-secondary rounded-pill sp-btn-pill">
+            <a href="{{ url_for('settings.cloud_import_connect_google') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
               <i class="bi bi-google" aria-hidden="true"></i>
               {{ _('settings.cloud_import.connect_google') }}
             </a>
             {% else %}
-            <button type="button" class="btn btn-outline-secondary rounded-pill sp-btn-pill" disabled title="{{ _('settings.cloud_import.flash.google_not_configured') }}">
+            <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" disabled title="{{ _('settings.cloud_import.flash.google_not_configured') }}">
               <i class="bi bi-google" aria-hidden="true"></i>
               {{ _('settings.cloud_import.connect_google') }}
             </button>
@@ -109,7 +109,7 @@
           <div class="sp-row sp-row--stack">
             <p class="sp-row-meta mb-0 px-0">{{ _('settings.cloud_import.nextcloud.hint') }}</p>
             <div class="sp-row-control" style="justify-content:flex-start">
-              <button type="button" class="btn btn-accent rounded-pill sp-btn-pill" id="cloudImportConnectNextcloudBtn">
+              <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="cloudImportConnectNextcloudBtn">
                 {{ _('settings.cloud_import.connect') }}
               </button>
             </div>
@@ -165,7 +165,7 @@
         </div>
         <div class="sp-row">
           <div class="sp-row-control" style="justify-content:flex-start;gap:0.75rem;flex-wrap:wrap;width:100%">
-            <button type="button" class="btn btn-accent rounded-pill sp-btn-pill" id="cloudImportStartBtn" disabled>
+            <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="cloudImportStartBtn" disabled>
               <i class="bi bi-download" aria-hidden="true"></i>
               {{ _('settings.cloud_import.start') }}
             </button>

@@ -1,6 +1,6 @@
 {# Visibility select for create/edit forms.
    Pass allowed/teams/selected explicitly — imported macros have no caller context.
-   Optional attrs= is appended inside the <select> tag (e.g. 'data-inv-pill-select'). #}
+   Optional attrs= is appended inside the <select> tag (e.g. 'data-mod-pill-select'). #}
 {% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select', attrs='') %}
 {% set vis_allowed = allowed if allowed is sequence else allowed_visibilities|default([]) %}
 {% set vis_teams = teams if teams is sequence else visibility_teams|default([]) %}

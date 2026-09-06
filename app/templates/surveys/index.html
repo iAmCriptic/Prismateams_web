@@ -3,15 +3,15 @@
 {% block title %}{{ _('surveys.nav.title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('surveys.index') }}" class="surveys-search" role="search" id="surveysSearchForm">
+<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon surveys-search" role="search" id="surveysSearchForm">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
-    <i class="bi bi-search surveys-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="surveysSearchInput"
            value="{{ search_query|default('') }}"
-           class="form-control surveys-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('surveys.index.search_placeholder') }}"
            aria-label="{{ _('surveys.index.search_placeholder') }}"
            autocomplete="off"
@@ -19,7 +19,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
-       class="btn surveys-search-clear"
+       class="btn mod-search-clear"
        id="surveysSearchClear"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -46,15 +46,15 @@
 {% endif %}
 
 {% macro surveys_search_form(id_suffix='') %}
-<form method="GET" action="{{ url_for('surveys.index') }}" class="surveys-search" role="search" id="surveysSearchForm{{ id_suffix }}">
+<form method="GET" action="{{ url_for('surveys.index') }}" class="mod-search mod-search--icon surveys-search" role="search" id="surveysSearchForm{{ id_suffix }}">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
-    <i class="bi bi-search surveys-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            id="surveysSearchInput{{ id_suffix }}"
            value="{{ search_query }}"
-           class="form-control surveys-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('surveys.index.search_placeholder') }}"
            aria-label="{{ _('surveys.index.search_placeholder') }}"
            autocomplete="off"
@@ -62,7 +62,7 @@
            enterkeyhint="search">
     {% if search_query %}
     <a href="{{ url_for('surveys.index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
-       class="btn surveys-search-clear"
+       class="btn mod-search-clear"
        id="surveysSearchClear{{ id_suffix }}"
        aria-label="{{ _('common.cancel') }}">
         <i class="bi bi-x-lg"></i>
@@ -72,12 +72,12 @@
 {% endmacro %}
 
 {% macro surveys_view_toggle(suffix='', extra_class='') %}
-<div class="files-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('surveys.index.view_toggle.label') }}">
-    <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-    <button type="button" class="files-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.list') }}">
+<div class="mod-view-toggle {{ extra_class }}" data-view="grid" role="group" aria-label="{{ _('surveys.index.view_toggle.label') }}">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.grid') }}">
+    <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('surveys.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -144,7 +144,7 @@
         </div>
     </div>
     <div class="surveys-card-actions">
-        <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm surveys-btn-pill surveys-btn-accent">{{ _('surveys.index.results') }}</a>
+        <a href="{{ url_for('surveys.results', survey_id=survey.id) }}" class="btn btn-sm mod-pill-btn mod-pill-btn--accent">{{ _('surveys.index.results') }}</a>
         <div class="dropdown d-inline-block">
             <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
                 <i class="bi bi-three-dots-vertical"></i>
@@ -270,8 +270,8 @@
         </div>
 
         {% if surveys %}
-        <div id="surveysViewStage" class="files-view-stage">
-            <div id="gridViewContainer" class="files-view-pane files-view-pane--active">
+        <div id="surveysViewStage" class="mod-view-stage">
+            <div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
                 <div class="surveys-list">
                     {% for survey in surveys %}
                     {{ render_survey_card(survey) }}
@@ -279,7 +279,7 @@
                 </div>
             </div>
 
-            <div id="listViewContainer" class="files-view-pane" style="display:none">
+            <div id="listViewContainer" class="mod-view-pane" style="display:none">
                 <div class="mod-list-table-wrap">
                     <table class="table mod-list-table align-middle mb-0">
                         <thead>
@@ -303,7 +303,7 @@
         <div class="surveys-empty text-center py-5">
             <i class="bi bi-ui-checks-grid display-4 text-muted"></i>
             <p class="text-muted mt-3">{{ _('surveys.index.empty') }}</p>
-            <a href="{{ create_url }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.nav.new') }}</a>
+            <a href="{{ create_url }}" class="btn btn-primary mod-pill-btn">{{ _('surveys.nav.new') }}</a>
         </div>
         {% endif %}
     </div>
@@ -311,7 +311,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 (function () {
     document.querySelectorAll('[data-surveys-dismiss-offcanvas]').forEach(function (el) {
@@ -326,7 +326,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         function syncAllToggleUi(mode) {
-            document.querySelectorAll('.surveys-shell .files-view-toggle').forEach(function (el) {
+            document.querySelectorAll('.surveys-shell .mod-view-toggle').forEach(function (el) {
                 el.dataset.view = mode;
             });
             ['listViewBtn', 'listViewBtnMobile'].forEach(function (id) {
@@ -351,7 +351,7 @@
         }
 
         var viewToggleApi = window.initFilesViewToggle({
-            toggleEl: document.querySelector('.page-toolbar-row .files-view-toggle'),
+            toggleEl: document.querySelector('.page-toolbar-row .mod-view-toggle'),
             listBtn: document.getElementById('listViewBtn'),
             gridBtn: document.getElementById('gridViewBtn'),
             listPane: document.getElementById('listViewContainer'),

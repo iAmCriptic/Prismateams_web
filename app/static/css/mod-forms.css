@@ -1,0 +1,176 @@
+/* Shared pill form controls — select + text/select inputs */
+
+/* ——— Pill text / select inputs ——— */
+.mod-pill-input,
+.form-control.mod-pill-input,
+.form-select.mod-pill-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* ——— Custom pill select ——— */
+.mod-pill-select {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.mod-pill-select > select {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.mod-pill-select__trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    text-align: left;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color);
+    padding: 0.55rem 0.95rem;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    min-height: calc(1.5em + 1.1rem + 2px);
+    box-shadow: none;
+}
+
+.mod-pill-select__trigger:hover {
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color));
+}
+
+.mod-pill-select.is-open .mod-pill-select__trigger,
+.mod-pill-select__trigger:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
+}
+
+.mod-pill-select__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mod-pill-select__label.is-placeholder {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.mod-pill-select__chevron {
+    flex-shrink: 0;
+    opacity: 0.65;
+    font-size: 0.85rem;
+}
+
+.mod-pill-select__menu {
+    position: absolute;
+    z-index: 1085;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.45rem;
+    list-style: none;
+    border-radius: 1.1rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    background: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+    max-height: min(16rem, 50vh);
+    overflow-y: auto;
+}
+
+.mod-pill-select__menu[hidden] {
+    display: none !important;
+}
+
+.mod-pill-select__option {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.5rem 0.9rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    cursor: pointer;
+}
+
+.mod-pill-select__option:hover,
+.mod-pill-select__option:focus {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+    outline: none;
+}
+
+.mod-pill-select__option.is-selected {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    color: #fff;
+}
+
+.mod-pill-select__option.is-selected:hover,
+.mod-pill-select__option.is-selected:focus {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+    color: #fff;
+    filter: brightness(1.05);
+}
+
+.mod-sidebar-form .mod-pill-select__trigger {
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* ——— Shared pill dropdown menus ——— */
+.mod-dropdown-menu,
+.files-dropdown-menu,
+.mod-list-actions .dropdown-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+    overflow: visible;
+}
+
+.mod-dropdown-menu .dropdown-item,
+.files-dropdown-menu .dropdown-item,
+.mod-list-actions .dropdown-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.mod-dropdown-menu .dropdown-item:hover,
+.mod-dropdown-menu .dropdown-item:focus,
+.files-dropdown-menu .dropdown-item:hover,
+.files-dropdown-menu .dropdown-item:focus,
+.mod-list-actions .dropdown-menu .dropdown-item:hover {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+}
+
+.mod-dropdown-menu .dropdown-divider,
+.files-dropdown-menu .dropdown-divider {
+    margin: 0.35rem 0.5rem;
+}
+
+.mod-dropdown-menu.show,
+.files-dropdown-menu.show {
+    z-index: 1110;
+    background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
+}

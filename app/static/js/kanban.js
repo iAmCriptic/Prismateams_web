@@ -11,7 +11,7 @@
   // Overview: list/grid toggle (Files-kompatibel: indicator + data-view + active)
   var listBtn = qs('#kanbanListViewBtn');
   var gridBtn = qs('#kanbanGridViewBtn');
-  var viewToggle = qs('.kanban-toolbar .files-view-toggle') || qs('.files-view-toggle');
+  var viewToggle = qs('.kanban-toolbar .mod-view-toggle') || qs('.mod-view-toggle');
   function applyView(mode) {
     if (mode !== 'list' && mode !== 'grid') mode = 'grid';
     localStorage.setItem('kanbanViewMode', mode);
@@ -113,19 +113,19 @@
 
     var input = document.createElement('input');
     input.type = 'text';
-    input.className = 'form-control form-control-sm files-pill-input';
+    input.className = 'form-control form-control-sm mod-pill-input';
     input.value = currentName || '';
     input.setAttribute('aria-label', 'Umbenennen');
 
     var saveBtn = document.createElement('button');
     saveBtn.type = 'button';
-    saveBtn.className = 'btn btn-sm btn-accent files-pill-btn';
+    saveBtn.className = 'btn btn-sm btn-accent mod-pill-btn';
     saveBtn.innerHTML = '<i class="bi bi-check"></i>';
     saveBtn.title = 'Speichern';
 
     var cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
-    cancelBtn.className = 'btn btn-sm btn-secondary files-pill-btn';
+    cancelBtn.className = 'btn btn-sm btn-secondary mod-pill-btn';
     cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
     cancelBtn.title = 'Abbrechen';
 

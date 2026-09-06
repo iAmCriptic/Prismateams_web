@@ -29,10 +29,10 @@
                         </div>
                     </div>
                     <div class="inventory-scan-controls">
-                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                        <button class="btn mod-pill-btn mod-pill-btn--outline" id="startScannerBtn" type="button">
                             <i class="bi bi-camera"></i> {{ _('inventory.product_scan.camera_label') }}
                         </button>
-                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                        <button class="btn mod-pill-btn mod-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
                             <i class="bi bi-stop-circle"></i>
                         </button>
                     </div>
@@ -46,7 +46,7 @@
                         <input type="text" class="form-control" id="manualQrInput" autofocus
                                placeholder="{{ _('inventory.product_scan.manual_placeholder') }}"
                                autocomplete="off">
-                        <button class="btn btn-accent inventory-pill-btn flex-shrink-0" id="lookupBtn" type="button">
+                        <button class="btn btn-accent mod-pill-btn flex-shrink-0" id="lookupBtn" type="button">
                             <i class="bi bi-search"></i> {{ _('inventory.product_scan.lookup_button') }}
                         </button>
                     </div>
@@ -71,7 +71,7 @@
                     <i class="bi bi-box-seam" aria-hidden="true"></i>
                     {{ _('inventory.product_scan.panel_title') }}
                 </h2>
-                <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline d-none" id="nextScanBtn">
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline d-none" id="nextScanBtn">
                     <i class="bi bi-arrow-repeat"></i> {{ _('inventory.product_scan.next_scan') }}
                 </button>
             </div>
@@ -91,6 +91,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_scan_lookup.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory-borrow-scanner.js') }}"></script>
 <script>
 window.INVENTORY_PRODUCT_SCAN_I18N = {{ {

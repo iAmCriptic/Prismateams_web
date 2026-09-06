@@ -44,12 +44,12 @@
             {% endif %}
             <span class="protocols-status-chip protocols-status-chip--scope d-none d-md-inline-flex">{{ visibility_label }}</span>
             {% if can_edit %}
-            <a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}" class="btn protocols-btn-pill">
+            <a href="{{ url_for('protocols.edit_meta', protocol_id=protocol.id) }}" class="btn mod-pill-btn">
                 <i class="bi bi-pencil"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.index.edit') }}</span>
             </a>
             <form method="POST" action="{{ url_for('protocols.finalize', protocol_id=protocol.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-accent rounded-pill protocols-btn-pill"
+                <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn"
                         data-pt-confirm="{{ _('protocols.actions.finalize_confirm') }}"
                         data-pt-confirm-title="{{ _('protocols.actions.finalize') }}"
                         data-pt-confirm-ok="{{ _('protocols.actions.finalize') }}"
@@ -60,7 +60,7 @@
             </form>
             {% endif %}
             {% if protocol.is_finalized %}
-            <a href="{{ url_for('protocols.pdf', protocol_id=protocol.id) }}" class="btn btn-accent rounded-pill protocols-btn-pill">
+            <a href="{{ url_for('protocols.pdf', protocol_id=protocol.id) }}" class="btn btn-accent rounded-pill mod-pill-btn">
                 <i class="bi bi-filetype-pdf"></i>
                 <span class="d-none d-sm-inline">{{ _('protocols.index.pdf') }}</span>
             </a>

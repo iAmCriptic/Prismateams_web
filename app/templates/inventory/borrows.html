@@ -104,6 +104,7 @@
 {% block inventory_extra_js %}
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_borrows.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     window.currentUserId = {{ current_user.id }};

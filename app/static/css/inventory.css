@@ -1,6 +1,7 @@
 /* Touch-optimierte Styles f?r Mobile/PWA */
 
 /* Gr??ere Touch-Targets f?r Mobile */
+
 @media (max-width: 767.98px) {
     .btn:not(.mod-menu-btn):not(.mod-new-btn):not(.inventory-filter-mobile-btn) {
         min-height: 44px; /* Apple HIG empfiehlt mindestens 44x44px */
@@ -33,7 +34,7 @@
     /* Icons: nicht global vergrößern (zerreißt Toolbars) — nur Aktions-Icons */
     .product-card .bi,
     .inventory-scan-controls .bi,
-    .inventory-pill-btn .bi {
+    .mod-pill-btn .bi {
         font-size: 1.15em;
     }
 
@@ -102,6 +103,7 @@
 }
 
 /* Favoriten-Button Styles */
+
 .favorite-btn {
     transition: all 0.2s;
 }
@@ -120,12 +122,14 @@
 }
 
 /* Smooth Scrolling f?r Mobile */
+
 html {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
 
 /* Verbesserte Lesbarkeit auf kleinen Bildschirmen */
+
 @media (max-width: 576px) {
     h1 {
         font-size: 1.75rem;
@@ -145,6 +149,7 @@ html {
 }
 
 /* PWA: Safe-Area nur an Top — Bottom kommt von .mobile-nav / --portal-mobile-nav-clearance */
+
 @media (display-mode: standalone) {
     body {
         padding-top: env(safe-area-inset-top);
@@ -153,6 +158,7 @@ html {
 }
 
 /* Verbesserte Produktkarten f?r Touch */
+
 .product-card {
     cursor: pointer;
     user-select: none;
@@ -183,6 +189,7 @@ html {
 }
 
 /* Produktformular: Input-Gruppen mit Aktionsbuttons */
+
 .input-group > .btn-outline-primary,
 .input-group > .btn-outline-secondary {
     display: flex;
@@ -208,11 +215,13 @@ html {
 }
 
 /* Touch-optimierte Statistiken-Karten */
+
 .stat-card {
     touch-action: manipulation;
 }
 
 /* Dark / OLED Mode - Cards & Stat Widgets */
+
 [data-bs-theme="dark"] .stat-card,
 [data-bs-theme="dark"] .product-card,
 [data-bs-theme="dark"] .inventory-card,
@@ -238,6 +247,7 @@ html {
 }
 
 /* QR-Scanner Styles */
+
 #scannerContainer {
     touch-action: none;
 }
@@ -249,22 +259,26 @@ html {
 }
 
 /* Verbesserte Formulare f?r Touch */
+
 .form-label {
     font-weight: 500;
     margin-bottom: 0.5rem;
 }
 
 /* Gr??ere Input-Gruppen f?r Mobile */
+
 .input-group .form-control {
     min-height: 44px;
 }
 
 /* Touch-optimierte Dropdowns */
+
 .dropdown-toggle::after {
     margin-left: 0.5em;
 }
 
 /* Verbesserte Modals f?r Touch */
+
 .modal-content {
     border-radius: 12px;
 }
@@ -291,6 +305,7 @@ html {
 }
 
 /* Touch-optimierte Tabellen */
+
 .table {
     font-size: 0.95rem;
 }
@@ -301,6 +316,7 @@ html {
 }
 
 /* Dark / OLED Mode - Tabellen */
+
 [data-bs-theme="dark"] .table,
 [data-oled-mode="true"] .table {
     background-color: var(--bs-body-bg, #1a1a1a) !important;
@@ -348,23 +364,27 @@ html {
 }
 
 /* Responsive Charts */
+
 .chart-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
 
 /* Verbesserte Buttons f?r Touch */
+
 .btn-group .btn {
     min-width: 44px;
 }
 
 /* Touch-optimierte Accordions */
+
 .accordion-button {
     min-height: 50px;
     font-size: 1rem;
 }
 
 /* Dark / OLED Mode - Accordions / Filter */
+
 [data-bs-theme="dark"] .accordion-item,
 [data-oled-mode="true"] .accordion-item {
     background-color: var(--bs-body-bg, #1a1a1a) !important;
@@ -392,6 +412,7 @@ html {
 }
 
 /* Verbesserte Produktkarten-Grid */
+
 @media (max-width: 767.98px) {
     .product-card {
         margin-bottom: 1rem;
@@ -399,6 +420,7 @@ html {
 }
 
 /* Grid View Styles */
+
 .inventory-grid {
     display: flex;
     flex-wrap: wrap;
@@ -417,6 +439,7 @@ html {
 }
 
 /* Ordner-Karten */
+
 .folder-item {
     cursor: pointer;
     transition: border-color 0.15s ease, box-shadow 0.2s ease;
@@ -427,12 +450,14 @@ html {
 }
 
 /* List View Styles */
+
 .list-group-item.selection-mode {
     border: 2px solid #0d6efd;
     background-color: rgba(13, 110, 253, 0.05);
 }
 
 /* View Toggle Buttons */
+
 .btn-group .btn.active {
     background-color: #0d6efd;
     color: white;
@@ -440,12 +465,14 @@ html {
 }
 
 /* Loading States f?r Touch */
+
 .spinner-border {
     width: 3rem;
     height: 3rem;
 }
 
 /* Touch-optimierte Alerts */
+
 .alert {
     padding: 1rem 1.25rem;
     border-radius: 1.35rem;
@@ -463,11 +490,13 @@ html {
 }
 
 /* Verbesserte Navigation f?r Touch */
+
 .navbar-brand {
     font-size: 1.25rem;
 }
 
 /* Touch-freundliche Pagination */
+
 .pagination .page-link {
     min-width: 44px;
     min-height: 44px;
@@ -477,6 +506,7 @@ html {
 }
 
 /* Product Checkbox Styles — wie Dateien: erst beim Hover / Auswahl sichtbar */
+
 .product-card .form-check {
     margin: 0;
 }
@@ -510,6 +540,7 @@ to {
 }
 
 /* Produktbilder - Feste Gr??e f?r konsistentes Layout */
+
 .product-image {
     width: 100%;
     height: 200px;
@@ -519,6 +550,7 @@ to {
 }
 
 /* Dark / OLED Mode - Platzhalter und Bilder */
+
 [data-bs-theme="dark"] .product-image,
 [data-bs-theme="dark"] .product-image-placeholder,
 [data-oled-mode="true"] .product-image,
@@ -529,6 +561,7 @@ to {
 }
 
 /* Platzhalter f?r Produktbilder */
+
 .product-image-placeholder {
     width: 100%;
     height: 200px;
@@ -540,6 +573,7 @@ to {
 }
 
 /* Produktkarten-Bildcontainer */
+
 .product-card .position-relative {
     width: 100%;
     height: 200px;
@@ -554,6 +588,7 @@ to {
 }
 
 /* Produkt-Detail-Bild */
+
 .product-detail-image {
     max-width: 100%;
     height: auto;
@@ -623,6 +658,7 @@ to {
 }
 
 /* Neu-Button volle Sidebar-Breite */
+
 .inventory-shell .mod-sidebar-new-wrap,
 .inventory-shell .mod-sidebar-new,
 .inventory-shell .btn.mod-sidebar-new {
@@ -638,42 +674,6 @@ to {
 }
 
 /* ——— List / Grid pill toggle ——— */
-.inventory-view-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15rem;
-    padding: 0.2rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg);
-}
-
-.inventory-view-toggle__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0;
-    border: none;
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: transparent;
-    color: var(--bs-secondary-color);
-    transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.inventory-view-toggle__btn:hover {
-    color: var(--accent-color, var(--bs-primary));
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
-}
-
-.inventory-view-toggle__btn.active,
-.inventory-view-toggle__btn.is-active {
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    color: #fff;
-}
 
 .mod-view-heading .bi {
     font-size: 1.2rem;
@@ -699,18 +699,6 @@ to {
     right: 0 !important;
 }
 
-.inventory-mobile-view-toggle {
-    display: flex;
-    justify-content: flex-start;
-}
-
-.inventory-mobile-view-toggle .inventory-view-toggle__btn {
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-}
-
 .inventory-filter-mobile-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-size: 0.8rem;
@@ -719,6 +707,7 @@ to {
 }
 
 /* ——— Dashboard stats & panels ——— */
+
 .inventory-stats-scroll {
     width: 100%;
 }
@@ -769,6 +758,7 @@ to {
 }
 
 /* Dashboard hub tiles (settings-style) */
+
 .inv-hub {
     --inv-ease: cubic-bezier(0.22, 1, 0.36, 1);
     --inv-dur: 0.28s;
@@ -792,6 +782,7 @@ to {
 }
 
 /* Mobile: Stats + Hub horizontal scroll */
+
 @media (max-width: 767.98px) {
     .inventory-stats-scroll,
     .inv-hub-scroll {
@@ -859,12 +850,19 @@ to {
 }
 
 .inv-hub-tile:nth-child(1) { animation-delay: 0.02s; }
+
 .inv-hub-tile:nth-child(2) { animation-delay: 0.05s; }
+
 .inv-hub-tile:nth-child(3) { animation-delay: 0.08s; }
+
 .inv-hub-tile:nth-child(4) { animation-delay: 0.11s; }
+
 .inv-hub-tile:nth-child(5) { animation-delay: 0.14s; }
+
 .inv-hub-tile:nth-child(6) { animation-delay: 0.17s; }
+
 .inv-hub-tile:nth-child(7) { animation-delay: 0.2s; }
+
 .inv-hub-tile:nth-child(8) { animation-delay: 0.23s; }
 
 .inv-hub-tile:hover {
@@ -952,10 +950,15 @@ to {
 }
 
 #productDetailContent .inventory-form-card:nth-child(1) { animation-delay: 0.02s; }
+
 #productDetailContent .inventory-form-card:nth-child(2) { animation-delay: 0.05s; }
+
 #productDetailContent .inventory-form-card:nth-child(3) { animation-delay: 0.08s; }
+
 #productDetailContent .inventory-form-card:nth-child(4) { animation-delay: 0.11s; }
+
 #productDetailContent .inventory-form-card:nth-child(5) { animation-delay: 0.14s; }
+
 #productDetailContent .inventory-form-card:nth-child(6) { animation-delay: 0.17s; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1086,57 +1089,8 @@ to {
     margin: 0;
 }
 
-.inventory-search-field {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    width: 100%;
-    margin: 0;
-    padding: 0.4rem 0.95rem;
-    border: 1px solid var(--bs-border-color, #ced4da);
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg, #fff);
-    cursor: text;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.inventory-search-field:hover {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color, #ced4da));
-}
-
-.inventory-search-field:focus-within {
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 65%, var(--bs-border-color, #ced4da));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
-}
-
-.inventory-search-field > .bi-search {
-    flex-shrink: 0;
-    font-size: 0.95rem;
-    line-height: 1;
-    color: var(--accent-color, #0d6efd);
-    opacity: 1;
-}
-
-.inventory-search-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    padding: 0.2rem 0 !important;
-    height: auto !important;
-    line-height: 1.4;
-    color: var(--bs-body-color);
-    font-size: 0.95rem;
-}
-
-.inventory-search-input::placeholder {
-    color: var(--bs-secondary-color, #6c757d);
-    opacity: 0.9;
-}
-
 /* QR / Etiketten */
+
 .inventory-qr-toolbar {
     border: 1px solid var(--bs-border-color, #e9ecef);
     border-radius: var(--mod-radius-pill, 1.5rem);
@@ -1403,100 +1357,6 @@ to {
     background: color-mix(in srgb, #28a745 12%, transparent) !important;
 }
 
-.inventory-pill-btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.inventory-pill-btn--outline {
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color));
-    color: var(--accent-color, #0d6efd);
-    background: transparent;
-}
-
-.inventory-pill-btn--outline:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
-    color: var(--accent-color, #0d6efd);
-}
-
-.inventory-pill-btn--outline-muted {
-    border: 1px solid var(--bs-border-color);
-    color: var(--bs-secondary-color, #6c757d);
-    background: transparent;
-}
-
-.inventory-pill-btn--outline-muted:hover {
-    border-color: color-mix(in srgb, var(--bs-body-color) 25%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
-    color: var(--bs-body-color);
-}
-
-.inventory-pill-btn--outline-success {
-    border: 1px solid color-mix(in srgb, var(--bs-success) 55%, var(--bs-border-color));
-    color: var(--bs-success);
-    background: transparent;
-}
-
-.inventory-pill-btn--outline-success:hover {
-    background: color-mix(in srgb, var(--bs-success) 12%, transparent);
-    color: var(--bs-success);
-}
-
-.inventory-pill-btn--outline-warning {
-    border: 1px solid color-mix(in srgb, var(--bs-warning) 65%, var(--bs-border-color));
-    color: color-mix(in srgb, var(--bs-warning) 35%, #8a6d00);
-    background: transparent;
-}
-
-.inventory-pill-btn--outline-warning:hover {
-    background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
-    color: color-mix(in srgb, var(--bs-warning) 20%, #6b5500);
-}
-
-.inventory-pill-btn--outline-danger {
-    border: 1px solid color-mix(in srgb, var(--bs-danger) 55%, var(--bs-border-color));
-    color: var(--bs-danger);
-    background: transparent;
-}
-
-.inventory-pill-btn--outline-danger:hover {
-    background: color-mix(in srgb, var(--bs-danger) 12%, transparent);
-    color: var(--bs-danger);
-}
-
-.inventory-pill-btn--success {
-    background: var(--bs-success);
-    border-color: var(--bs-success);
-    color: #fff;
-}
-
-.inventory-pill-btn--muted {
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    color: var(--bs-body-color);
-}
-
-.inventory-pill-btn--primary {
-    background: var(--accent-style, var(--accent-color, #0d6efd));
-    border-color: transparent;
-    color: #fff;
-}
-
-.inventory-pill-btn--warning {
-    background: var(--bs-warning);
-    border-color: var(--bs-warning);
-    color: #212529;
-}
-
-.inventory-pill-btn--danger {
-    background: var(--bs-danger);
-    border-color: var(--bs-danger);
-    color: #fff;
-}
-
 .inventory-shell .mod-sidebar {
     max-height: none;
     overflow: visible;
@@ -1517,27 +1377,9 @@ to {
     padding-left: 0.85rem;
 }
 
-/* Desktop: Seite fest; nur Main scrollt (auch ohne Filter-Leiste) */
+/* Desktop: Seite fest; nur Main scrollt (body lock via module-ui .mod-shell--nav) */
+
 @media (min-width: 992px) {
-    body:has(.inventory-shell) {
-        overflow: hidden;
-        height: 100vh;
-        height: 100dvh;
-    }
-
-    .main-content:has(.inventory-shell) {
-        height: 100vh;
-        height: 100dvh;
-        max-height: 100vh;
-        max-height: 100dvh;
-        min-height: 0 !important;
-        overflow: hidden !important;
-        padding-bottom: 0;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-    }
-
     .main-content:has(.inventory-shell) > .container-fluid {
         flex: 1 1 auto;
         height: 100%;
@@ -1702,6 +1544,7 @@ to {
 }
 
 /* Mobile Neu — Akzent-Pill wie Kontakte/Zugangsdaten */
+
 .inventory-shell .mod-new-btn,
 .btn.mod-new-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
@@ -1723,6 +1566,7 @@ to {
 }
 
 /* List — wie Dateien/Kontakte (kein Rahmenkasten) */
+
 .inventory-list-check-col {
     width: 2.5rem;
     max-width: 2.5rem;
@@ -1777,6 +1621,7 @@ button.mod-list-name.inventory-item-name {
  * Kein Popper/fixed: sonst springt dropdown-menu-end bei Hover-Layoutwechsel
  * per right:0 an den Viewport-Rand.
  */
+
 .inventory-card-menu.dropdown,
 .mod-list-actions > .dropdown {
     position: relative;
@@ -1857,6 +1702,7 @@ button.mod-list-name.inventory-item-name {
 }
 
 /* Grid-Vorschau wie Dateien */
+
 .inventory-product-preview {
     position: relative;
     display: flex;
@@ -1908,6 +1754,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Touch: Checkboxen sichtbar, sonst keine Mehrfachauswahl startbar */
+
 @media (hover: none) {
     .inventory-product-preview-check,
     .inventory-list-check-col .product-checkbox {
@@ -1930,6 +1777,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Ordner inline edit */
+
 .inventory-folder-inline {
     display: flex;
     flex-direction: column;
@@ -1997,6 +1845,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Hover-Shortcuts absolut: sonst springt das ⋮-Dropdown (Popper), wenn Hover endet */
+
 .inventory-card-actions {
     position: relative;
     display: inline-flex;
@@ -2082,6 +1931,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Bulk selection pill bar */
+
 #bulkSelectionToolbar,
 .inventory-bulk-bar {
     border: 1px solid var(--bs-border-color, #e9ecef);
@@ -2114,11 +1964,13 @@ body.inventory-has-selection .inventory-product-preview-check {
     background-color: var(--bs-body-bg, #fff);
 }
 
-.inventory-bulk-actions .inventory-pill-btn--outline-muted {
+.inventory-bulk-actions .mod-pill-btn--outline-muted,
+.inventory-bulk-actions .mod-pill-btn--outline-muted {
     background-color: transparent;
 }
 
 /* Product form pill sections — volle Breite, große Screens zweispaltig */
+
 .inventory-form {
     display: grid;
     gap: 0.85rem;
@@ -2227,7 +2079,6 @@ body.inventory-has-selection .inventory-product-preview-check {
         border-radius: 1rem;
     }
 }
-
 
 .inventory-form-card-head {
     display: flex;
@@ -2339,6 +2190,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Locked / vorausgefüllte Felder (statt Bootstrap bg-light — bricht Dark Mode) */
+
 .form-control.inventory-input-locked,
 .form-control.inventory-input-locked:disabled {
     background-color: var(--bs-secondary-bg, #e9ecef) !important;
@@ -2373,8 +2225,10 @@ body.inventory-has-selection .inventory-product-preview-check {
     box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
 }
 
-/* Pill-Select-Basisstyles: module-ui.css (.inv-pill-select*) */
+/* Pill-Select-Basisstyles: mod-forms.css (.mod-pill-select*) */
 
+.inventory-shell .inventory-filter-tools .mod-pill-select__trigger,
+#inventoryStockFiltersNav .mod-pill-select__trigger,
 .inventory-shell .inventory-filter-tools .inv-pill-select__trigger,
 #inventoryStockFiltersNav .inv-pill-select__trigger {
     min-height: calc(1.5em + 0.75rem + 2px);
@@ -2397,6 +2251,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 .inventory-form-select-row .form-select,
+.inventory-form-select-row .mod-pill-select,
 .inventory-form-select-row .inv-pill-select {
     flex: 1 1 auto;
     min-width: 0;
@@ -2491,11 +2346,13 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* ===== Scanner / checkout panels ===== */
+
 .inventory-product-scan-panel .inventory-panel-body {
     min-height: 22rem;
 }
 
 /* Pill-Select-Menüs (z. B. Dokument-Typ) dürfen nicht am Panel-Rand abgeschnitten werden */
+
 .inventory-product-scan-panel.inventory-panel {
     overflow: visible;
 }
@@ -2506,6 +2363,8 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Dokumente/Anleitung sitzen unten — Menü nach oben öffnen */
+
+.inventory-product-scan-panel .inventory-form-card:last-child .mod-pill-select__menu,
 .inventory-product-scan-panel .inventory-form-card:last-child .inv-pill-select__menu {
     top: auto;
     bottom: calc(100% + 0.35rem);
@@ -2837,6 +2696,7 @@ body.inventory-has-selection .inventory-product-preview-check {
 }
 
 /* Papierkorb: schlicht mittig, unten in der Bestandsansicht */
+
 .inventory-stock-trash-footer {
     padding: 1.25rem 0 0.35rem;
     text-align: center;

@@ -354,7 +354,7 @@
     document.querySelectorAll('[data-settings-search-root]').forEach(function (root) {
       if (root.dataset.spSearchBound === '1') return;
       root.dataset.spSearchBound = '1';
-      var input = root.querySelector('[data-settings-search-input]');
+      var input = root.querySelector('[data-mod-search-input]');
       var results = root.querySelector('[data-settings-search-results]');
       var clearBtn = root.querySelector('[data-settings-search-clear]');
       if (!input || !results) return;

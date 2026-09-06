@@ -201,6 +201,7 @@
 }
 
 /* Dashboard stats */
+
 .booking-stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
@@ -312,6 +313,7 @@
 }
 
 /* List view */
+
 .booking-list-table-wrap {
     background: transparent;
 }
@@ -540,73 +542,13 @@
     color: #c5ccd3;
 }
 
-.booking-pill-btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.65rem 1.1rem;
-    background: transparent !important;
-}
-
-.booking-pill-btn:focus,
-.booking-pill-btn:active,
-.booking-pill-btn:focus-visible {
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-.booking-pill-btn--outline {
-    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color)) !important;
-    color: var(--accent-color, #0d6efd) !important;
-}
-
-.booking-pill-btn--outline:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
-}
-
-.booking-pill-btn--outline-muted {
-    border: 1px solid var(--bs-border-color) !important;
-    color: var(--bs-secondary-color, #6c757d) !important;
-}
-
-.booking-pill-btn--outline-muted:hover {
-    background: color-mix(in srgb, var(--bs-body-color) 6%, transparent) !important;
-    color: var(--bs-body-color) !important;
-}
-
-.booking-pill-btn--outline-success {
-    border: 1px solid color-mix(in srgb, var(--bs-success) 55%, var(--bs-border-color)) !important;
-    color: var(--bs-success) !important;
-}
-
-.booking-pill-btn--outline-success:hover {
-    background: color-mix(in srgb, var(--bs-success) 12%, transparent) !important;
-}
-
-.booking-pill-btn--outline-danger {
-    border: 1px solid color-mix(in srgb, var(--bs-danger) 55%, var(--bs-border-color)) !important;
-    color: var(--bs-danger) !important;
-}
-
-.booking-pill-btn--outline-danger:hover {
-    background: color-mix(in srgb, var(--bs-danger) 12%, transparent) !important;
-}
-
-.booking-pill-btn--sm {
-    padding: 0.4rem 0.85rem;
-    font-size: 0.875rem;
-}
-
 .booking-detail-actions {
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
 }
 
-.booking-detail-actions .booking-pill-btn {
+.booking-detail-actions .mod-pill-btn {
     width: 100%;
 }
 
@@ -781,6 +723,7 @@
 }
 
 /* ── Public booking pages (standalone) ── */
+
 .booking-public-body {
     min-height: 100vh;
     margin: 0;
@@ -1022,6 +965,7 @@
 }
 
 /* Thread / messages */
+
 .booking-msg-thread {
     display: flex;
     flex-direction: column;
@@ -1114,6 +1058,7 @@
 }
 
 /* Admin list pill dropdown */
+
 .booking-actions-menu,
 .mod-list-actions .booking-actions-menu {
     border-radius: 1.1rem !important;

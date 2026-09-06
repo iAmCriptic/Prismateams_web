@@ -33,6 +33,8 @@ from app.models.booking import (
 
 from app.utils.backup_lookups import (
     id_name_map,
+    lookup_entity,
+    lookup_entity_name,
     lookup_team_name,
     lookup_user_email,
     objects_by_name,
@@ -79,7 +81,7 @@ def export_chat_pins() -> List[Dict]:
     pins = ChatPin.query.all()
     return [{
         'user_email': _user_email(p.user_id),
-        'chat_name': Chat.query.get(p.chat_id).name if Chat.query.get(p.chat_id) else None,
+        'chat_name': lookup_entity_name('chat', p.chat_id),
         'created_at': p.created_at.isoformat() if getattr(p, 'created_at', None) else None,
     } for p in pins]
 
@@ -228,10 +230,14 @@ def import_public_calendar_feeds(data: List[Dict], user_map: Dict[str, int], cur
 def export_resource_acls() -> List[Dict]:
     out = []
     for a in ResourceACL.query.all():
-        folder = Folder.query.get(a.resource_id) if a.resource_type == 'folder' else None
+        folder_name = (
+            lookup_entity_name('folder', a.resource_id)
+            if a.resource_type == 'folder'
+            else None
+        )
         out.append({
             'resource_type': a.resource_type,
-            'folder_name': folder.name if folder else None,
+            'folder_name': folder_name,
             'grantee_email': _user_email(a.grantee_user_id),
             'grantee_team_id': getattr(a, 'grantee_team_id', None),
             'permission': a.permission,
@@ -274,7 +280,7 @@ def import_resource_acls(data: List[Dict], folder_map: Dict[str, int], user_map:
 
 def export_folder_favorites() -> List[Dict]:
     return [{
-        'folder_name': Folder.query.get(f.folder_id).name if Folder.query.get(f.folder_id) else None,
+        'folder_name': lookup_entity_name('folder', f.folder_id),
         'user_email': _user_email(f.user_id),
     } for f in FolderFavorite.query.all()]
 
@@ -1135,9 +1141,9 @@ def export_excalidraw_drawings() -> List[Dict]:
 def export_excalidraw_drawing_versions() -> List[Dict]:
     rows = []
     for version in ExcalidrawDrawingVersion.query.order_by(ExcalidrawDrawingVersion.id).all():
-        drawing = ExcalidrawDrawing.query.get(version.drawing_id)
+        drawing = lookup_entity('excalidraw', version.drawing_id)
         item = {
-            'drawing_name': drawing.name if drawing else None,
+            'drawing_name': drawing.name if drawing else lookup_entity_name('excalidraw', version.drawing_id),
             'drawing_room_id': drawing.room_id if drawing else None,
             'version_number': version.version_number,
             'created_by_email': _user_email(version.created_by),
@@ -1221,8 +1227,7 @@ def import_excalidraw_drawing_versions(data: List[Dict], room_map: Dict[str, int
             scene = json.loads(content) if content else dict(EMPTY_SCENE)
         except Exception:
             scene = dict(EMPTY_SCENE)
-        drawing = ExcalidrawDrawing.query.get(drawing_id)
-        path = new_scene_path(drawing_id, drawing.name if drawing else 'drawing')
+        path = new_scene_path(drawing_id, row.get('drawing_name') or 'drawing')
         try:
             write_scene_file(path, scene if isinstance(scene, dict) else dict(EMPTY_SCENE))
         except ValueError:

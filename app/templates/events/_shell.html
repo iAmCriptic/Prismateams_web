@@ -30,12 +30,13 @@
 </nav>
 {% endmacro %}
 
-{% macro events_view_toggle(suffix='', extra_class='') %}
-<div class="events-view-toggle {{ extra_class }}" role="group" aria-label="Ansicht umschalten">
-    <button type="button" class="events-view-toggle__btn" id="listViewBtn{{ suffix }}" title="Listenansicht">
+{% macro events_view_toggle(suffix='', extra_class='', default_view='grid') %}
+<div class="mod-view-toggle {{ extra_class }}" data-view="{{ default_view }}" role="group" aria-label="Ansicht umschalten">
+    <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+    <button type="button" class="mod-view-toggle__btn{% if default_view == 'list' %} active is-active{% endif %}" id="listViewBtn{{ suffix }}" title="Listenansicht">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="events-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="Kachelansicht">
+    <button type="button" class="mod-view-toggle__btn{% if default_view == 'grid' %} active is-active{% endif %}" id="gridViewBtn{{ suffix }}" title="Kachelansicht">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -90,7 +91,7 @@
             {% endif %}
         </div>
         {% if show_toggle %}
-        <div class="events-mobile-view-toggle mt-2">
+        <div class="mod-mobile-view-toggle mt-2">
             {{ events_view_toggle('Mobile') }}
         </div>
         {% endif %}
@@ -165,9 +166,9 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 {% endmacro %}
 
 {% macro render_appointment_list_row(appointment) %}
-<tr class="events-list-row">
+<tr class="mod-list-row">
     <td>
-        <a class="events-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
            href="{{ url_for('events.view_event', event_id=appointment.event_id) }}">
             <i class="bi bi-calendar-event text-primary flex-shrink-0"></i>
             <span class="text-truncate">{{ appointment.label }}</span>
@@ -184,8 +185,8 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         {{ appointment.location or (appointment.event.default_location if appointment.event else None) or '-' }}
     </td>
     <td class="text-end">
-        <div class="events-list-actions">
-            <div class="events-list-hover-actions">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
                 <a class="btn btn-sm btn-link" href="{{ url_for('events.view_event', event_id=appointment.event_id) }}" title="Öffnen">
                     <i class="bi bi-eye"></i>
                 </a>
@@ -197,7 +198,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
                 <button type="button" class="btn btn-sm btn-link" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
+                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                     <li>
                         <a class="dropdown-item" href="{{ url_for('events.view_event', event_id=appointment.event_id) }}">
                             <i class="bi bi-eye me-2"></i>Öffnen
@@ -245,9 +246,9 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 {% endmacro %}
 
 {% macro render_event_list_row(event) %}
-<tr class="events-list-row">
+<tr class="mod-list-row">
     <td>
-        <a class="events-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0"
            href="{{ url_for('events.view_event', event_id=event.id) }}">
             <i class="bi bi-calendar2-week text-primary flex-shrink-0"></i>
             <span class="text-truncate">{{ event.name }}</span>
@@ -263,8 +264,8 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         {{ event.assignments|length }} Personen
     </td>
     <td class="text-end">
-        <div class="events-list-actions">
-            <div class="events-list-hover-actions">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
                 <a class="btn btn-sm btn-link" href="{{ url_for('events.view_event', event_id=event.id) }}" title="Öffnen">
                     <i class="bi bi-eye"></i>
                 </a>
@@ -276,7 +277,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
                 <button type="button" class="btn btn-sm btn-link" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
+                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                     <li>
                         <a class="dropdown-item" href="{{ url_for('events.view_event', event_id=event.id) }}">
                             <i class="bi bi-eye me-2"></i>Öffnen
@@ -314,8 +315,8 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 
 <div id="listViewContainer" style="display: none;">
     {% if appointments %}
-    <div class="events-list-table-wrap">
-        <table class="table events-list-table align-middle">
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table events-list-table align-middle mb-0">
             <thead>
                 <tr>
                     <th scope="col">Termin</th>
@@ -363,8 +364,8 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 
 <div id="listViewContainer" style="display: none;">
     {% if events %}
-    <div class="events-list-table-wrap">
-        <table class="table events-list-table align-middle">
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table events-list-table align-middle mb-0">
             <thead>
                 <tr>
                     <th scope="col">Name</th>
@@ -417,6 +418,9 @@ function setEventsViewMode(mode) {
     gridBtns.forEach((btn) => {
         btn.classList.toggle('active', !isList);
         btn.classList.toggle('is-active', !isList);
+    });
+    document.querySelectorAll('.events-shell .mod-view-toggle').forEach((el) => {
+        el.dataset.view = isList ? 'list' : 'grid';
     });
     localStorage.setItem('eventsViewMode', isList ? 'list' : 'grid');
 }

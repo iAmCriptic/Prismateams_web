@@ -3,7 +3,7 @@
  * Native <select> bleibt im DOM (Form-Submit / Change-Events).
  */
 (function (global) {
-    const CLOSE_ATTR = 'data-inv-pill-select-close';
+    const CLOSE_ATTR = 'data-mod-pill-select-close';
 
     function selectedLabel(select) {
         const opt = select.options[select.selectedIndex];
@@ -24,7 +24,7 @@
         Array.from(select.options).forEach((opt, index) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'inv-pill-select__option';
+            btn.className = 'mod-pill-select__option';
             btn.textContent = (opt.textContent || '').trim();
             btn.dataset.index = String(index);
             if (opt.disabled) {
@@ -62,7 +62,7 @@
     }
 
     function closeAll(except) {
-        document.querySelectorAll('.inv-pill-select.is-open').forEach((wrap) => {
+        document.querySelectorAll('.mod-pill-select.is-open').forEach((wrap) => {
             if (wrap !== except) closeMenu(wrap);
         });
     }
@@ -75,33 +75,33 @@
     }
 
     function enhanceSelect(select) {
-        if (!select || select.dataset.pillEnhanced === '1') return select.closest('.inv-pill-select');
+        if (!select || select.dataset.pillEnhanced === '1') return select.closest('.mod-pill-select');
         if (select.multiple || select.size > 1) return null;
 
         select.dataset.pillEnhanced = '1';
 
         const wrap = document.createElement('div');
-        wrap.className = 'inv-pill-select';
+        wrap.className = 'mod-pill-select';
         wrap.dataset.invPillSelect = '1';
 
         const trigger = document.createElement('button');
         trigger.type = 'button';
-        trigger.className = 'inv-pill-select__trigger';
+        trigger.className = 'mod-pill-select__trigger';
         trigger.setAttribute('aria-haspopup', 'listbox');
         trigger.setAttribute('aria-expanded', 'false');
 
         const label = document.createElement('span');
-        label.className = 'inv-pill-select__label';
+        label.className = 'mod-pill-select__label';
 
         const chevron = document.createElement('i');
-        chevron.className = 'bi bi-chevron-down inv-pill-select__chevron';
+        chevron.className = 'bi bi-chevron-down mod-pill-select__chevron';
         chevron.setAttribute('aria-hidden', 'true');
 
         trigger.appendChild(label);
         trigger.appendChild(chevron);
 
         const menu = document.createElement('div');
-        menu.className = 'inv-pill-select__menu';
+        menu.className = 'mod-pill-select__menu';
         menu.setAttribute('role', 'listbox');
         menu.hidden = true;
 
@@ -140,8 +140,8 @@
     function enhanceAll(root) {
         const scope = root || document;
         scope.querySelectorAll('select.form-select').forEach((select) => {
-            if (select.closest('.inv-pill-select')) {
-                const wrap = select.closest('.inv-pill-select');
+            if (select.closest('.mod-pill-select')) {
+                const wrap = select.closest('.mod-pill-select');
                 if (wrap && wrap._invSelect) syncTrigger(wrap);
                 return;
             }
@@ -152,7 +152,7 @@
     if (!document[CLOSE_ATTR]) {
         document[CLOSE_ATTR] = true;
         document.addEventListener('click', (event) => {
-            if (event.target.closest('.inv-pill-select')) return;
+            if (event.target.closest('.mod-pill-select')) return;
             closeAll();
         });
         document.addEventListener('keydown', (event) => {
@@ -164,7 +164,7 @@
         enhance: enhanceSelect,
         enhanceAll,
         sync: (select) => {
-            const wrap = select && select.closest('.inv-pill-select');
+            const wrap = select && select.closest('.mod-pill-select');
             if (wrap) syncTrigger(wrap);
         },
     };

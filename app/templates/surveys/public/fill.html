@@ -14,6 +14,8 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/module-ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
@@ -36,7 +38,7 @@
 
             {% if preview_back_url %}
 
-            <a href="{{ preview_back_url }}" class="btn btn-sm btn-outline-secondary surveys-btn-pill">{{ _('surveys.builder.back') }}</a>
+            <a href="{{ preview_back_url }}" class="btn btn-sm btn-outline-secondary mod-pill-btn">{{ _('surveys.builder.back') }}</a>
 
             {% endif %}
 
@@ -146,17 +148,17 @@
 
                 {% if layout_mode == 'pages' and current_page_index > 0 %}
 
-                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index) }}" class="btn btn-outline-secondary surveys-btn-pill">{{ _('surveys.public.prev') }}</a>
+                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index) }}" class="btn btn-outline-secondary mod-pill-btn">{{ _('surveys.public.prev') }}</a>
 
                 {% endif %}
 
                 {% if layout_mode == 'pages' and current_page_index < all_pages|length - 1 %}
 
-                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index + 2) }}" class="btn btn-primary surveys-btn-pill">{{ _('surveys.public.next') }}</a>
+                <a href="{{ url_for('surveys.public_fill', token=token, page=current_page_index + 2) }}" class="btn btn-primary mod-pill-btn">{{ _('surveys.public.next') }}</a>
 
                 {% else %}
 
-                <button type="submit" class="btn btn-primary surveys-btn-pill">{{ _('surveys.public.submit') }}</button>
+                <button type="submit" class="btn btn-primary mod-pill-btn">{{ _('surveys.public.submit') }}</button>
 
                 {% endif %}
 

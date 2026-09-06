@@ -57,7 +57,7 @@
           </div>
         </div>
         <div class="px-3 pb-3">
-          <button type="button" class="btn btn-accent rounded-pill sp-btn-pill" data-test-run-all>
+          <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" data-test-run-all>
             <i class="bi bi-lightning-charge" aria-hidden="true"></i>
             {{ _('settings.admin.email_module.test.run_both') }}
           </button>
@@ -141,7 +141,7 @@
           </div>
           <div class="sp-row" id="email-manage-mailboxes-row" {% if not email_multi_enabled %}hidden{% endif %}>
             <div class="sp-row-control" style="justify-content:flex-start;width:100%">
-              <a href="{{ url_for('settings.admin_mailboxes') }}" class="btn btn-outline-secondary rounded-pill sp-btn-pill">
+              <a href="{{ url_for('settings.admin_mailboxes') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
                 <i class="bi bi-envelope-plus" aria-hidden="true"></i>
                 {{ _('settings.admin.email_module.multi.manage_link') }}
               </a>

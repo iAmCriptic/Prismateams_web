@@ -15,7 +15,7 @@
         </div>
         <div class="settings-admin-teams-header-actions">
             {% if not is_team_leader_view|default(false) %}
-            <a href="{{ url_for('settings.create_team') }}" class="btn btn-accent rounded-pill sp-btn-pill settings-admin-teams-btn">
+            <a href="{{ url_for('settings.create_team') }}" class="btn btn-accent rounded-pill mod-pill-btn settings-admin-teams-btn">
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
                 {{ _('settings.admin.teams.create') }}
             </a>
@@ -31,19 +31,19 @@
                 <input type="search" id="teamSearch" class="form-control sau-search-input" placeholder="{{ _('settings.admin.teams.search_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_placeholder') }}">
             </div>
         </div>
-        <div class="files-view-toggle" data-view="grid" role="group" aria-label="{{ _('settings.admin.teams.view_list') }} / {{ _('settings.admin.teams.view_grid') }}">
-            <span class="files-view-toggle__indicator" aria-hidden="true"></span>
-            <button type="button" class="files-view-toggle__btn" id="adminTeamsListViewBtn" title="{{ _('settings.admin.teams.view_list') }}">
+        <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('settings.admin.teams.view_list') }} / {{ _('settings.admin.teams.view_grid') }}">
+            <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+            <button type="button" class="mod-view-toggle__btn" id="adminTeamsListViewBtn" title="{{ _('settings.admin.teams.view_list') }}">
                 <i class="bi bi-list-ul" aria-hidden="true"></i>
             </button>
-            <button type="button" class="files-view-toggle__btn active is-active" id="adminTeamsGridViewBtn" title="{{ _('settings.admin.teams.view_grid') }}">
+            <button type="button" class="mod-view-toggle__btn active is-active" id="adminTeamsGridViewBtn" title="{{ _('settings.admin.teams.view_grid') }}">
                 <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
             </button>
         </div>
     </div>
 
-    <div id="adminTeamsViewStage" class="files-view-stage" data-view="grid">
-        <div id="adminTeamsListPane" class="files-view-pane d-none" style="display:none;">
+    <div id="adminTeamsViewStage" class="mod-view-stage" data-view="grid">
+        <div id="adminTeamsListPane" class="mod-view-pane d-none" style="display:none;">
             <div class="mod-list-table-wrap sp-list-wrap">
                 <table class="table mod-list-table align-middle mb-0">
                     <thead>
@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        <div id="adminTeamsGridPane" class="files-view-pane files-view-pane--active">
+        <div id="adminTeamsGridPane" class="mod-view-pane mod-view-pane--active">
             <div class="row g-3" id="teamsList">
                 {% for team in teams %}
                 <div class="col-12 col-sm-6 col-xl-4 sau-searchable" data-search-name="{{ team.name|lower }}">
@@ -123,12 +123,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/files-view-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 (function () {
     if (typeof window.initFilesViewToggle === 'function') {
         window.initFilesViewToggle({
-            toggleEl: document.querySelector('.settings-admin-teams .files-view-toggle'),
+            toggleEl: document.querySelector('.settings-admin-teams .mod-view-toggle'),
             listBtn: document.getElementById('adminTeamsListViewBtn'),
             gridBtn: document.getElementById('adminTeamsGridViewBtn'),
             listPane: document.getElementById('adminTeamsListPane'),

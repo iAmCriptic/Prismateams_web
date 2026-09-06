@@ -19,15 +19,15 @@
             {{ _('inventory.documents.list_title') }}
         </h2>
         <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <button type="button" class="btn mod-pill-btn mod-pill-btn--primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
                 <i class="bi bi-upload"></i> {{ _('inventory.documents.upload_btn') }}
             </button>
             {% if manuals %}
-            <button type="button" class="btn inventory-pill-btn inventory-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#linkManualModal">
+            <button type="button" class="btn mod-pill-btn mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#linkManualModal">
                 <i class="bi bi-link-45deg"></i> {{ _('inventory.documents.link_manual_btn') }}
             </button>
             {% endif %}
-            <a href="{{ url_for('inventory.product_edit', product_id=product.id) }}" class="btn inventory-pill-btn inventory-pill-btn--muted">
+            <a href="{{ url_for('inventory.product_edit', product_id=product.id) }}" class="btn mod-pill-btn mod-pill-btn--muted">
                 <i class="bi bi-pencil"></i> {{ _('inventory.documents.edit_product') }}
             </a>
         </div>
@@ -97,20 +97,20 @@
                             <div class="d-flex flex-wrap gap-1">
                                 {% if doc.file_path %}
                                 <a href="{{ url_for('inventory.product_document_download', product_id=product.id, document_id=doc.id) }}"
-                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.documents.download') }}">
+                                   class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.documents.download') }}">
                                     <i class="bi bi-download"></i>
                                 </a>
                                 {% endif %}
                                 {% if doc.manual_id %}
                                 <a href="{{ url_for('manuals.view', manual_id=doc.manual_id) }}"
-                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.documents.open_manual') }}">
+                                   class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.documents.open_manual') }}">
                                     <i class="bi bi-book"></i>
                                 </a>
                                 {% endif %}
                                 <form method="POST"
                                       action="{{ url_for('inventory.product_document_delete', product_id=product.id, document_id=doc.id) }}"
                                       class="d-inline">
-                                    <button type="submit" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger"
+                                    <button type="submit" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger"
                                             title="{{ _('common.delete') }}"
                                             data-confirm-delete="{{ _('inventory.documents.delete_confirm') }}">
                                         <i class="bi bi-trash"></i>
@@ -172,8 +172,8 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
                         <i class="bi bi-upload"></i> {{ _('inventory.documents.upload_btn') }}
                     </button>
                 </div>
@@ -213,8 +213,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--primary">
                         <i class="bi bi-link-45deg"></i> {{ _('inventory.documents.link_manual_btn') }}
                     </button>
                 </div>

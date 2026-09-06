@@ -236,24 +236,30 @@ def api_mobile_return():
     
     try:
         if item_ids:
-            returned = return_checkout_items(item_ids, mark_defective=mark_defective)
+            returned = return_checkout_items(item_ids, mark_defective=mark_defective, actor=user)
         elif transaction_id:
             # Compat: id kann Checkout-Item oder Checkout sein
             item = CheckoutItem.query.get(int(transaction_id))
             if item:
-                returned = return_checkout_items([item.id], mark_defective=mark_defective)
+                returned = return_checkout_items([item.id], mark_defective=mark_defective, actor=user)
             else:
                 checkout = Checkout.query.get(int(transaction_id))
                 if not checkout:
                     return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
-                returned = return_checkout_items([i.id for i in checkout.active_items], mark_defective=mark_defective)
+                returned = return_checkout_items(
+                    [i.id for i in checkout.active_items],
+                    mark_defective=mark_defective,
+                    actor=user,
+                )
         elif product_id:
-            item = find_active_checkout_item_for_product(int(product_id))
+            item = find_active_checkout_item_for_product(int(product_id), actor=user)
             if not item:
                 return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
-            returned = return_checkout_items([item.id], mark_defective=mark_defective)
+            returned = return_checkout_items([item.id], mark_defective=mark_defective, actor=user)
         else:
             return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
+    except PermissionError:
+        return jsonify({'error': translate('inventory.errors.no_return_permission')}), 403
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
     

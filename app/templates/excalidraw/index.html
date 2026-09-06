@@ -3,14 +3,14 @@
 {% block title %}{{ _('excalidraw.index.page_title') }}{% endblock %}
 
 {% block navbar_search %}
-<form method="GET" action="{{ url_for('excalidraw.index') }}" class="excalidraw-search" role="search">
+<form method="GET" action="{{ url_for('excalidraw.index') }}" class="mod-search mod-search--icon excalidraw-search" role="search">
     {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
     {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
-    <i class="bi bi-search excalidraw-search-icon" aria-hidden="true"></i>
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
     <input type="search"
            name="q"
            value="{{ search_query }}"
-           class="form-control excalidraw-search-input"
+           class="form-control mod-search-input"
            placeholder="{{ _('excalidraw.index.search.placeholder') }}"
            aria-label="{{ _('excalidraw.index.search.placeholder') }}"
            autocomplete="off"
@@ -26,11 +26,11 @@
 {% set editable_ids = editable_ids|default([]) %}
 
 {% macro excalidraw_view_toggle(suffix='') %}
-<div class="excalidraw-view-toggle" role="group" aria-label="{{ _('excalidraw.index.view_toggle.label') }}">
-    <button type="button" class="excalidraw-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.list') }}">
+<div class="mod-view-toggle" role="group" aria-label="{{ _('excalidraw.index.view_toggle.label') }}">
+    <button type="button" class="mod-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="excalidraw-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.grid') }}">
+    <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('excalidraw.index.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -198,7 +198,7 @@
         <div class="col-auto">
             <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
                 {{ excalidraw_view_toggle('') }}
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" data-excalidraw-upload>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-excalidraw-upload>
                     <i class="bi bi-upload me-1"></i>{{ _('excalidraw.index.upload_button') }}
                 </button>
             </div>
@@ -208,9 +208,9 @@
     <form method="POST" action="{{ url_for('excalidraw.create') }}" class="excalidraw-inline-create align-items-center gap-2 mb-3" id="excalidrawCreateForm">
         {% if create_view %}<input type="hidden" name="view" value="{{ create_view }}">{% endif %}
         {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
-        <input type="text" name="name" class="form-control files-pill-input" placeholder="{{ _('excalidraw.create.name_placeholder') }}" required maxlength="255" autocomplete="off">
-        <button type="submit" class="btn btn-accent files-pill-btn">{{ _('excalidraw.create.submit') }}</button>
-        <button type="button" class="btn btn-outline-secondary files-pill-btn" data-excalidraw-create-cancel>{{ _('excalidraw.create.cancel') }}</button>
+        <input type="text" name="name" class="form-control mod-pill-input" placeholder="{{ _('excalidraw.create.name_placeholder') }}" required maxlength="255" autocomplete="off">
+        <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('excalidraw.create.submit') }}</button>
+        <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-excalidraw-create-cancel>{{ _('excalidraw.create.cancel') }}</button>
     </form>
 
     <form method="POST" action="{{ url_for('excalidraw.upload') }}" enctype="multipart/form-data" class="d-none" id="excalidrawUploadForm">
@@ -272,8 +272,8 @@
                     {{ visibility_select(field_id='excalidrawVisibilitySelect', allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility) }}
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary files-pill-btn" data-bs-dismiss="modal">{{ _('common.close') }}</button>
-                    <button type="submit" class="btn btn-accent files-pill-btn">{{ _('common.save') }}</button>
+                    <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('common.close') }}</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('common.save') }}</button>
                 </div>
             </form>
         </div>
@@ -293,17 +293,17 @@
                 <form id="excalidrawShareForm" class="row g-2 align-items-end mb-3">
                     <div class="col-md-3">
                         <label class="form-label small mb-1" for="excalidrawShareMode">{{ _('excalidraw.share.mode') }}</label>
-                        <select class="form-select files-pill-input" id="excalidrawShareMode" name="mode">
+                        <select class="form-select mod-pill-input" id="excalidrawShareMode" name="mode">
                             <option value="view">{{ _('excalidraw.share.mode_view') }}</option>
                             <option value="edit">{{ _('excalidraw.share.mode_edit') }}</option>
                         </select>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label small mb-1" for="excalidrawSharePassword">{{ _('excalidraw.share.password') }}</label>
-                        <input class="form-control files-pill-input" id="excalidrawSharePassword" name="password" type="text" placeholder="{{ _('excalidraw.share.password_optional') }}" autocomplete="new-password">
+                        <input class="form-control mod-pill-input" id="excalidrawSharePassword" name="password" type="text" placeholder="{{ _('excalidraw.share.password_optional') }}" autocomplete="new-password">
                     </div>
                     <div class="col-md-4">
-                        <button type="submit" class="btn btn-accent files-pill-btn w-100">{{ _('excalidraw.share.create') }}</button>
+                        <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('excalidraw.share.create') }}</button>
                     </div>
                 </form>
                 <div class="table-responsive">
@@ -412,7 +412,7 @@
                 <div class="small text-muted">${esc(s.created_at_display || '')}</div>
               </td>
               <td>
-                <button type="button" class="btn btn-sm btn-outline-secondary files-pill-btn" data-copy-share="${esc(s.share_url)}">
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-copy-share="${esc(s.share_url)}">
                   <i class="bi bi-clipboard me-1"></i>${esc(I18N.copy)}
                 </button>
               </td>
