@@ -1,13 +1,11 @@
 """Background cleanup for expired media downloader files."""
 
 import logging
-import threading
-import time
-
 from datetime import datetime
 
 from app import db
 from app.models.media_downloader import MediaDownloadJob
+from app.tasks.interval_scheduler import IntervalScheduler
 from app.utils.media_downloader import delete_job_file
 
 logger = logging.getLogger(__name__)
@@ -45,31 +43,16 @@ def cleanup_expired_downloads():
         return 0
 
 
-class MediaDownloaderCleanupScheduler:
-    def __init__(self, app):
-        self.app = app
-        self.running = False
-        self.thread = None
+class MediaDownloaderCleanupScheduler(IntervalScheduler):
+    name = "media-downloader-cleanup"
+    wait_step_seconds = 60
+    error_wait_seconds = 60
 
-    def start(self):
-        if self.running:
-            return
-        self.running = True
-        self.thread = threading.Thread(
-            target=self._run,
-            daemon=True,
-            name='media-downloader-cleanup',
-        )
-        self.thread.start()
+    def interval_seconds(self):
+        return 900
 
-    def _run(self):
-        while self.running:
-            try:
-                with self.app.app_context():
-                    cleanup_expired_downloads()
-            except Exception as exc:
-                logger.error('Media downloader cleanup scheduler error: %s', exc, exc_info=True)
-            time.sleep(900)
+    def run_job(self):
+        cleanup_expired_downloads()
 
 
 def start_media_downloader_cleanup(app):

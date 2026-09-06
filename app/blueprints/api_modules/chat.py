@@ -14,10 +14,13 @@ from app.models.chat import Chat, ChatMember, ChatMessage
 from app.models.file import Folder
 from app.models.user import User
 from app.utils.access_control import has_module_access, get_guest_accessible_items
-from app.utils.dashboard_events import emit_dashboard_update
 from app.utils.i18n import translate
-from app.utils.notifications import enqueue_chat_notification
 from app.utils.chat_unread import unread_counts_by_chat_for_user
+from app.utils.chat_service import (
+    has_structured_message_content as _has_structured_message_content,
+    persist_outgoing_message,
+    resolve_message_type as _resolve_message_type,
+)
 from app.utils.chat_visibility import SYSTEM_ANONYMOUS_EMAIL, visible_chat_user_filters
 from app.utils.chat_nav import CHAT_PINS_MAX, toggle_chat_pin
 
@@ -33,44 +36,6 @@ ALLOWED_MEDIA_EXTENSIONS = {
 
 def _allowed_media(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_MEDIA_EXTENSIONS
-
-
-def _resolve_message_type(filename, mimetype):
-    ext = filename.rsplit(".", 1)[1].lower()
-    mimetype = (mimetype or "").lower()
-    if ext in {"png", "jpg", "jpeg", "gif", "webp"} or mimetype.startswith("image/"):
-        return "image"
-    if ext in {"mp4", "mov", "avi"} or mimetype.startswith("video/"):
-        return "video"
-    if ext in {"mp3", "wav", "m4a", "aac", "ogg"} or mimetype.startswith("audio/") or filename.startswith("voice_message"):
-        return "voice"
-    if ext == "webm":
-        return "voice" if mimetype.startswith("audio/") or filename.startswith("voice_message") else "video"
-    return "file"
-
-
-def _has_structured_message_content(message_type, metadata):
-    if not isinstance(metadata, dict):
-        return False
-    if message_type == "folder_link":
-        folder_id = metadata.get("folder_id")
-        folder_name = (metadata.get("folder_name") or "").strip()
-        try:
-            has_folder_id = int(folder_id) > 0
-        except (TypeError, ValueError):
-            has_folder_id = False
-        return has_folder_id or bool(folder_name)
-    if message_type == "calendar_event":
-        return bool((metadata.get("title") or "").strip())
-    if message_type == "poll":
-        question = (metadata.get("question") or "").strip()
-        options = metadata.get("options") if isinstance(metadata.get("options"), list) else []
-        valid_options = [
-            option for option in options
-            if isinstance(option, dict) and (option.get("text") or "").strip()
-        ]
-        return bool(question and len(valid_options) >= 2)
-    return False
 
 
 def _chat_access_required():
@@ -231,648 +196,605 @@ def _serialize_chat(chat, unread_count=None, *, last_message=_LAST_MESSAGE_UNSET
     }
 
 
-def register_chat_routes(api_bp, require_api_auth):
-    @api_bp.route("/chats", methods=["GET"])
-    @require_api_auth
-    def get_chats():
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+def get_chats():
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        memberships = (
-            ChatMember.query.options(
-                joinedload(ChatMember.chat).selectinload(Chat.members).joinedload(ChatMember.user),
-            )
-            .filter_by(user_id=current_user.id)
-            .all()
+    memberships = (
+        ChatMember.query.options(
+            joinedload(ChatMember.chat).selectinload(Chat.members).joinedload(ChatMember.user),
         )
-        chats = [m.chat for m in memberships if m.chat is not None]
-        chat_ids = [chat.id for chat in chats]
-        unread_by_chat = unread_counts_by_chat_for_user(current_user.id, chat_ids)
-        last_by_chat = _last_messages_by_chat_id(chat_ids)
+        .filter_by(user_id=current_user.id)
+        .all()
+    )
+    chats = [m.chat for m in memberships if m.chat is not None]
+    chat_ids = [chat.id for chat in chats]
+    unread_by_chat = unread_counts_by_chat_for_user(current_user.id, chat_ids)
+    last_by_chat = _last_messages_by_chat_id(chat_ids)
 
-        payload = []
-        for chat in chats:
-            chat_data = _serialize_chat(
-                chat,
-                unread_count=unread_by_chat.get(chat.id, 0),
-                last_message=last_by_chat.get(chat.id),
-            )
-            if chat.is_direct_message and not chat.is_main_chat:
-                peer_name = _direct_message_peer_name(chat, current_user.id)
-                if peer_name:
-                    chat_data["name"] = peer_name
-            payload.append(chat_data)
-        return jsonify(payload)
+    payload = []
+    for chat in chats:
+        chat_data = _serialize_chat(
+            chat,
+            unread_count=unread_by_chat.get(chat.id, 0),
+            last_message=last_by_chat.get(chat.id),
+        )
+        if chat.is_direct_message and not chat.is_main_chat:
+            peer_name = _direct_message_peer_name(chat, current_user.id)
+            if peer_name:
+                chat_data["name"] = peer_name
+        payload.append(chat_data)
+    return jsonify(payload)
 
-    @api_bp.route("/chats/<int:chat_id>", methods=["GET"])
-    @require_api_auth
-    def get_chat(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+def get_chat(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        chat = Chat.query.get_or_404(actual_chat_id)
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
-        return jsonify({"success": True, "chat": _serialize_chat(chat)}), 200
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    chat = Chat.query.get_or_404(actual_chat_id)
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
+    return jsonify({"success": True, "chat": _serialize_chat(chat)}), 200
 
-    @api_bp.route("/chats/<int:chat_id>/pin", methods=["POST"])
-    @require_api_auth
-    def pin_chat(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+def pin_chat(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
 
-        ok, pinned, error, count = toggle_chat_pin(current_user, actual_chat_id)
-        if not ok:
-            return jsonify({
-                "success": False,
-                "error": error or "Pin konnte nicht geändert werden.",
-                "pinned": pinned,
-                "count": count,
-                "max": CHAT_PINS_MAX,
-            }), 400
-
+    ok, pinned, error, count = toggle_chat_pin(current_user, actual_chat_id)
+    if not ok:
         return jsonify({
-            "success": True,
+            "success": False,
+            "error": error or "Pin konnte nicht geändert werden.",
             "pinned": pinned,
             "count": count,
             "max": CHAT_PINS_MAX,
-            "chat_id": actual_chat_id,
-        }), 200
+        }), 400
 
-    @api_bp.route("/chats/<int:chat_id>/messages", methods=["GET"])
-    @require_api_auth
-    def get_messages(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    return jsonify({
+        "success": True,
+        "pinned": pinned,
+        "count": count,
+        "max": CHAT_PINS_MAX,
+        "chat_id": actual_chat_id,
+    }), 200
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+def get_messages(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        since_id = request.args.get("since", type=int)
-        before_id = request.args.get("before", type=int)
-        limit = request.args.get("limit", default=50, type=int)
-        if limit is None or limit < 1:
-            limit = 50
-        limit = min(limit, 200)
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-        query = ChatMessage.query.filter_by(chat_id=actual_chat_id, is_deleted=False)
-        if since_id:
-            query = query.filter(ChatMessage.id > since_id)
-        elif before_id:
-            query = query.filter(ChatMessage.id < before_id)
+    since_id = request.args.get("since", type=int)
+    before_id = request.args.get("before", type=int)
+    limit = request.args.get("limit", default=50, type=int)
+    if limit is None or limit < 1:
+        limit = 50
+    limit = min(limit, 200)
 
-        # One extra row to detect whether older messages remain (before-cursor only)
-        fetch_limit = limit + 1 if before_id and not since_id else limit
-        messages = query.order_by(ChatMessage.created_at.desc()).limit(fetch_limit).all()
-        has_more = False
-        if before_id and not since_id and len(messages) > limit:
-            has_more = True
-            messages = messages[:limit]
-        messages.reverse()
-        return jsonify({
-            "success": True,
-            "messages": [_serialize_message(msg) for msg in messages],
-            "has_more": has_more,
-        }), 200
+    query = ChatMessage.query.filter_by(chat_id=actual_chat_id, is_deleted=False)
+    if since_id:
+        query = query.filter(ChatMessage.id > since_id)
+    elif before_id:
+        query = query.filter(ChatMessage.id < before_id)
 
-    @api_bp.route("/chats/<int:chat_id>/send", methods=["POST"])
-    @require_api_auth
-    def send_message(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    # One extra row to detect whether older messages remain (before-cursor only)
+    fetch_limit = limit + 1 if before_id and not since_id else limit
+    messages = query.order_by(ChatMessage.created_at.desc()).limit(fetch_limit).all()
+    has_more = False
+    if before_id and not since_id and len(messages) > limit:
+        has_more = True
+        messages = messages[:limit]
+    messages.reverse()
+    return jsonify({
+        "success": True,
+        "messages": [_serialize_message(msg) for msg in messages],
+        "has_more": has_more,
+    }), 200
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        chat = Chat.query.get_or_404(actual_chat_id)
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+def send_message(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        data = request.get_json(silent=True) or {}
-        content = ""
-        file_obj = request.files.get("file")
-        requested_type = "text"
-        metadata = None
-        if file_obj is not None:
-            content = (request.form.get("content") or "").strip()
-            requested_type = (request.form.get("message_type") or "text").strip().lower()
-            metadata_raw = request.form.get("metadata")
-            if metadata_raw:
-                try:
-                    metadata = json.loads(metadata_raw)
-                except Exception:
-                    metadata = None
-        else:
-            content = (data.get("content") or "").strip()
-            requested_type = (data.get("message_type") or "text").strip().lower()
-            metadata = data.get("metadata")
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    chat = Chat.query.get_or_404(actual_chat_id)
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-        message_type = requested_type if requested_type in {"text", "folder_link", "calendar_event", "poll"} else "text"
-        media_url = None
-
-        if file_obj and file_obj.filename:
-            if not _allowed_media(file_obj.filename):
-                return jsonify({"success": False, "error": "Dateityp nicht erlaubt"}), 400
-            original_filename = secure_filename(file_obj.filename)
-            filename = secure_filename(file_obj.filename)
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{filename}"
-
-            project_root = os.path.dirname(current_app.root_path)
-            upload_dir = os.path.join(project_root, current_app.config["UPLOAD_FOLDER"], "chat")
-            os.makedirs(upload_dir, exist_ok=True)
-            filepath = os.path.join(upload_dir, filename)
-            file_obj.save(filepath)
-            media_url = filename
-
-            message_type = _resolve_message_type(filename, file_obj.mimetype)
-            if not isinstance(metadata, dict):
-                metadata = {}
-            metadata.setdefault("original_name", original_filename)
+    data = request.get_json(silent=True) or {}
+    content = ""
+    file_obj = request.files.get("file")
+    requested_type = "text"
+    metadata = None
+    if file_obj is not None:
+        content = (request.form.get("content") or "").strip()
+        requested_type = (request.form.get("message_type") or "text").strip().lower()
+        metadata_raw = request.form.get("metadata")
+        if metadata_raw:
             try:
-                metadata.setdefault("size_bytes", os.path.getsize(filepath))
+                metadata = json.loads(metadata_raw)
             except Exception:
-                pass
+                metadata = None
+    else:
+        content = (data.get("content") or "").strip()
+        requested_type = (data.get("message_type") or "text").strip().lower()
+        metadata = data.get("metadata")
 
-        if message_type == "folder_link":
-            if not isinstance(metadata, dict):
-                metadata = {}
-            raw_folder_id = metadata.get("folder_id")
-            try:
-                folder_id = int(raw_folder_id)
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "Bitte einen Ordner auswählen."}), 400
+    message_type = requested_type if requested_type in {"text", "folder_link", "calendar_event", "poll"} else "text"
+    media_url = None
 
-            folder = Folder.query.get(folder_id)
-            if not folder:
-                return jsonify({"success": False, "error": "Ordner wurde nicht gefunden."}), 404
+    if file_obj and file_obj.filename:
+        if not _allowed_media(file_obj.filename):
+            return jsonify({"success": False, "error": "Dateityp nicht erlaubt"}), 400
+        original_filename = secure_filename(file_obj.filename)
+        filename = secure_filename(file_obj.filename)
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{filename}"
 
-            if current_user.is_guest:
-                _, guest_folders = get_guest_accessible_items(current_user)
-                accessible_folder_ids = {item.id for item in guest_folders}
-                if folder.id not in accessible_folder_ids:
-                    return jsonify({"success": False, "error": "Gast Accounts haben keinen Zugriff auf diese Funktion"}), 403
+        project_root = os.path.dirname(current_app.root_path)
+        upload_dir = os.path.join(project_root, current_app.config["UPLOAD_FOLDER"], "chat")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+        file_obj.save(filepath)
+        media_url = filename
 
-            metadata = {
-                "folder_id": folder.id,
-                "folder_name": folder.name,
-                "folder_path": folder.path,
-                "folder_url": url_for("files.browse_folder", folder_id=folder.id),
-            }
-        if message_type == "calendar_event":
-            if not isinstance(metadata, dict):
-                metadata = {}
-            raw_event_id = metadata.get("event_id")
-            try:
-                event_id = int(raw_event_id)
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "Bitte einen Termin auswählen."}), 400
-
-            event = CalendarEvent.query.get(event_id)
-            if not event:
-                return jsonify({"success": False, "error": "Termin wurde nicht gefunden."}), 404
-
-            participation = EventParticipant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
-            if participation and participation.status == "removed":
-                return jsonify({"success": False, "error": "Sie wurden aus diesem Termin entfernt."}), 403
-
-            metadata = _build_calendar_message_metadata(
-                event,
-                participation.status if participation else "pending",
-            )
-
-        if not content and not media_url and not _has_structured_message_content(message_type, metadata):
-            return jsonify({"success": False, "error": translate("chat.errors.message_empty")}), 400
-
-        message = ChatMessage(
-            chat_id=actual_chat_id,
-            sender_id=current_user.id,
-            content=content,
-            message_type=message_type,
-            media_url=media_url,
-        )
-        if isinstance(metadata, dict):
-            message.set_metadata(metadata)
-        db.session.add(message)
-        db.session.commit()
-
+        message_type = _resolve_message_type(filename, file_obj.mimetype)
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata.setdefault("original_name", original_filename)
         try:
-            enqueue_chat_notification(
-                chat_id=actual_chat_id,
-                sender_id=current_user.id,
-                message_content=content or f"[{message_type}]",
-                chat_name=chat.name,
-                message_id=message.id,
-            )
+            metadata.setdefault("size_bytes", os.path.getsize(filepath))
         except Exception:
             pass
 
+    if message_type == "folder_link":
+        if not isinstance(metadata, dict):
+            metadata = {}
+        raw_folder_id = metadata.get("folder_id")
         try:
-            from app.utils.chat_unread import total_unread_counts_for_users
+            folder_id = int(raw_folder_id)
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "Bitte einen Ordner auswählen."}), 400
 
-            chat_members = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
-            member_ids = [
-                member.user_id
-                for member in chat_members
-                if member.user_id != current_user.id
-            ]
-            if member_ids:
-                unread_by_user = total_unread_counts_for_users(member_ids)
-                for user_id in member_ids:
-                    emit_dashboard_update(
-                        user_id,
-                        "chat_update",
-                        {"count": unread_by_user.get(user_id, 0)},
-                    )
-        except Exception:
-            pass
+        folder = Folder.query.get(folder_id)
+        if not folder:
+            return jsonify({"success": False, "error": "Ordner wurde nicht gefunden."}), 404
 
-        return jsonify({"success": True, "message": _serialize_message(message)}), 200
+        if current_user.is_guest:
+            _, guest_folders = get_guest_accessible_items(current_user)
+            accessible_folder_ids = {item.id for item in guest_folders}
+            if folder.id not in accessible_folder_ids:
+                return jsonify({"success": False, "error": "Gast Accounts haben keinen Zugriff auf diese Funktion"}), 403
 
-    @api_bp.route("/chats/<int:chat_id>/messages/<int:message_id>/calendar-rsvp", methods=["POST"])
-    @require_api_auth
-    def respond_to_calendar_event(chat_id, message_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
-
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
-
-        data = request.get_json(silent=True) or {}
-        status = (data.get("status") or "").strip().lower()
-        if status not in {"accepted", "declined"}:
-            return jsonify({"success": False, "error": "Ungültiger Status"}), 400
-
-        message = ChatMessage.query.filter_by(id=message_id, chat_id=actual_chat_id, is_deleted=False).first()
-        if not message or message.message_type != "calendar_event":
-            return jsonify({"success": False, "error": "Kalender-Nachricht nicht gefunden"}), 404
-
-        metadata = message.get_metadata() if isinstance(message.get_metadata(), dict) else {}
+        metadata = {
+            "folder_id": folder.id,
+            "folder_name": folder.name,
+            "folder_path": folder.path,
+            "folder_url": url_for("files.browse_folder", folder_id=folder.id),
+        }
+    if message_type == "calendar_event":
+        if not isinstance(metadata, dict):
+            metadata = {}
         raw_event_id = metadata.get("event_id")
         try:
             event_id = int(raw_event_id)
         except (TypeError, ValueError):
-            return jsonify({"success": False, "error": "Ungültige Event-ID"}), 400
+            return jsonify({"success": False, "error": "Bitte einen Termin auswählen."}), 400
 
         event = CalendarEvent.query.get(event_id)
         if not event:
-            return jsonify({"success": False, "error": "Termin wurde nicht gefunden"}), 404
+            return jsonify({"success": False, "error": "Termin wurde nicht gefunden."}), 404
 
         participation = EventParticipant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
         if participation and participation.status == "removed":
             return jsonify({"success": False, "error": "Sie wurden aus diesem Termin entfernt."}), 403
 
-        if not participation:
-            participation = EventParticipant(
-                event_id=event.id,
-                user_id=current_user.id,
-                status=status,
-                responded_at=datetime.utcnow(),
-            )
-            db.session.add(participation)
-        else:
-            participation.status = status
-            participation.responded_at = datetime.utcnow()
+        metadata = _build_calendar_message_metadata(
+            event,
+            participation.status if participation else "pending",
+        )
 
-        db.session.commit()
+    if not content and not media_url and not _has_structured_message_content(message_type, metadata):
+        return jsonify({"success": False, "error": translate("chat.errors.message_empty")}), 400
 
-        refreshed_metadata = _build_calendar_message_metadata(event, status)
-        refreshed_metadata["updated_at"] = datetime.utcnow().isoformat()
-        message.set_metadata(refreshed_metadata)
-        db.session.commit()
+    message = persist_outgoing_message(
+        chat=chat,
+        sender_id=current_user.id,
+        content=content,
+        message_type=message_type,
+        media_url=media_url,
+        metadata=metadata,
+    )
 
-        return jsonify({"success": True, "message": _serialize_message(message)}), 200
+    return jsonify({"success": True, "message": _serialize_message(message)}), 200
 
-    @api_bp.route("/chats/<int:chat_id>/messages/<int:message_id>/poll-vote", methods=["POST"])
-    @require_api_auth
-    def vote_on_poll(chat_id, message_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+def respond_to_calendar_event(chat_id, message_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-        message = ChatMessage.query.filter_by(id=message_id, chat_id=actual_chat_id, is_deleted=False).first()
-        if not message or message.message_type != "poll":
-            return jsonify({"success": False, "error": "Abstimmung nicht gefunden"}), 404
+    data = request.get_json(silent=True) or {}
+    status = (data.get("status") or "").strip().lower()
+    if status not in {"accepted", "declined"}:
+        return jsonify({"success": False, "error": "Ungültiger Status"}), 400
 
-        data = request.get_json(silent=True) or {}
-        option_id = (data.get("option_id") or "").strip()
-        if not option_id:
-            return jsonify({"success": False, "error": "option_id fehlt"}), 400
+    message = ChatMessage.query.filter_by(id=message_id, chat_id=actual_chat_id, is_deleted=False).first()
+    if not message or message.message_type != "calendar_event":
+        return jsonify({"success": False, "error": "Kalender-Nachricht nicht gefunden"}), 404
 
-        metadata = message.get_metadata()
-        options = metadata.get("options", []) if isinstance(metadata, dict) else []
-        if not isinstance(options, list):
-            options = []
+    metadata = message.get_metadata() if isinstance(message.get_metadata(), dict) else {}
+    raw_event_id = metadata.get("event_id")
+    try:
+        event_id = int(raw_event_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Ungültige Event-ID"}), 400
 
-        allow_multiple = bool(metadata.get("allow_multiple", False))
-        if not allow_multiple:
-            for option in options:
-                votes = option.get("votes", [])
-                option["votes"] = [vote for vote in votes if int(vote) != int(current_user.id)]
+    event = CalendarEvent.query.get(event_id)
+    if not event:
+        return jsonify({"success": False, "error": "Termin wurde nicht gefunden"}), 404
 
-        selected = next((option for option in options if str(option.get("id")) == option_id), None)
-        if not selected:
-            return jsonify({"success": False, "error": "Option nicht gefunden"}), 404
+    participation = EventParticipant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if participation and participation.status == "removed":
+        return jsonify({"success": False, "error": "Sie wurden aus diesem Termin entfernt."}), 403
 
-        votes = [int(vote) for vote in selected.get("votes", [])]
-        current_user_id = int(current_user.id)
-        if current_user_id in votes:
-            if allow_multiple:
-                votes = [vote for vote in votes if vote != current_user_id]
-        else:
-            votes.append(current_user_id)
-        selected["votes"] = votes
-        metadata["options"] = options
-        metadata["total_votes"] = sum(len(option.get("votes", [])) for option in options)
-        metadata["updated_at"] = datetime.utcnow().isoformat()
-        message.set_metadata(metadata)
-        db.session.commit()
+    if not participation:
+        participation = EventParticipant(
+            event_id=event.id,
+            user_id=current_user.id,
+            status=status,
+            responded_at=datetime.utcnow(),
+        )
+        db.session.add(participation)
+    else:
+        participation.status = status
+        participation.responded_at = datetime.utcnow()
 
-        return jsonify({"success": True, "message": _serialize_message(message)}), 200
+    db.session.commit()
 
-    @api_bp.route("/chats/<int:chat_id>/members", methods=["GET"])
-    @require_api_auth
-    def get_chat_members(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    refreshed_metadata = _build_calendar_message_metadata(event, status)
+    refreshed_metadata["updated_at"] = datetime.utcnow().isoformat()
+    message.set_metadata(refreshed_metadata)
+    db.session.commit()
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+    return jsonify({"success": True, "message": _serialize_message(message)}), 200
 
-        chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
-        member_ids = [cm.user_id for cm in chat_memberships]
-        if member_ids:
-            members = User.query.filter(
-                User.id.in_(member_ids),
-                *visible_chat_user_filters(),
-            ).all()
-        else:
-            members = []
+def vote_on_poll(chat_id, message_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        chat = Chat.query.get_or_404(actual_chat_id)
-        return jsonify([{
-            "id": member.id,
-            "full_name": member.full_name,
-            "email": member.email,
-            "phone": member.phone,
-            "profile_picture": url_for("settings.profile_picture", filename=member.profile_picture) if member.profile_picture else None,
-            "is_admin": member.is_admin,
-            "is_guest": member.is_guest,
-            "guest_username": member.guest_username,
-            "is_creator": member.id == chat.created_by,
-            "is_online": member.is_online(),
-        } for member in members])
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-    @api_bp.route("/chats/create", methods=["POST"])
-    @require_api_auth
-    def create_chat():
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    message = ChatMessage.query.filter_by(id=message_id, chat_id=actual_chat_id, is_deleted=False).first()
+    if not message or message.message_type != "poll":
+        return jsonify({"success": False, "error": "Abstimmung nicht gefunden"}), 404
 
-        data = request.get_json(silent=True) or {}
-        chat_type = (data.get("chat_type") or "group").strip().lower()
-        member_ids = data.get("member_ids") or []
-        if not isinstance(member_ids, list):
-            return jsonify({"success": False, "error": "member_ids muss eine Liste sein"}), 400
+    data = request.get_json(silent=True) or {}
+    option_id = (data.get("option_id") or "").strip()
+    if not option_id:
+        return jsonify({"success": False, "error": "option_id fehlt"}), 400
 
-        if chat_type == "private":
-            if len(member_ids) != 1:
-                return jsonify({"success": False, "error": "Für private Chats genau 1 Zielnutzer angeben"}), 400
-            try:
-                other_user_id = int(member_ids[0])
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "Ungültige Nutzer-ID"}), 400
-            if other_user_id == current_user.id:
-                return jsonify({"success": False, "error": translate("chat.flash.no_self_chat")}), 400
+    metadata = message.get_metadata()
+    options = metadata.get("options", []) if isinstance(metadata, dict) else []
+    if not isinstance(options, list):
+        options = []
 
-            other_user = User.query.filter(
-                User.id == other_user_id,
-                *visible_chat_user_filters(),
-            ).first_or_404()
+    allow_multiple = bool(metadata.get("allow_multiple", False))
+    if not allow_multiple:
+        for option in options:
+            votes = option.get("votes", [])
+            option["votes"] = [vote for vote in votes if int(vote) != int(current_user.id)]
 
-            existing_dm = Chat.query.filter_by(is_direct_message=True).join(ChatMember).filter(
-                ChatMember.user_id.in_([current_user.id, other_user_id])
-            ).group_by(Chat.id).having(db.func.count(ChatMember.id) == 2).first()
-            if existing_dm:
-                return jsonify({"success": True, "chat": _serialize_chat(existing_dm), "existing": True}), 200
+    selected = next((option for option in options if str(option.get("id")) == option_id), None)
+    if not selected:
+        return jsonify({"success": False, "error": "Option nicht gefunden"}), 404
 
-            chat_name = f"{current_user.full_name}, {other_user.full_name}"
-            new_chat = Chat(
-                name=chat_name,
-                is_main_chat=False,
-                is_direct_message=True,
-                created_by=current_user.id,
-            )
-            db.session.add(new_chat)
-            db.session.flush()
-            db.session.add(ChatMember(chat_id=new_chat.id, user_id=current_user.id))
-            db.session.add(ChatMember(chat_id=new_chat.id, user_id=other_user_id))
-            db.session.commit()
-            return jsonify({"success": True, "chat": _serialize_chat(new_chat)}), 201
+    votes = [int(vote) for vote in selected.get("votes", [])]
+    current_user_id = int(current_user.id)
+    if current_user_id in votes:
+        if allow_multiple:
+            votes = [vote for vote in votes if vote != current_user_id]
+    else:
+        votes.append(current_user_id)
+    selected["votes"] = votes
+    metadata["options"] = options
+    metadata["total_votes"] = sum(len(option.get("votes", [])) for option in options)
+    metadata["updated_at"] = datetime.utcnow().isoformat()
+    message.set_metadata(metadata)
+    db.session.commit()
 
-        # group
-        name = (data.get("name") or "").strip()
-        description = (data.get("description") or "").strip()
-        if not name:
-            return jsonify({"success": False, "error": translate("chat.flash.enter_name")}), 400
-        if not member_ids:
-            return jsonify({"success": False, "error": translate("chat.flash.select_member")}), 400
+    return jsonify({"success": True, "message": _serialize_message(message)}), 200
 
+def get_chat_members(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
+
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
+
+    chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
+    member_ids = [cm.user_id for cm in chat_memberships]
+    if member_ids:
+        members = User.query.filter(
+            User.id.in_(member_ids),
+            *visible_chat_user_filters(),
+        ).all()
+    else:
+        members = []
+
+    chat = Chat.query.get_or_404(actual_chat_id)
+    return jsonify([{
+        "id": member.id,
+        "full_name": member.full_name,
+        "email": member.email,
+        "phone": member.phone,
+        "profile_picture": url_for("settings.profile_picture", filename=member.profile_picture) if member.profile_picture else None,
+        "is_admin": member.is_admin,
+        "is_guest": member.is_guest,
+        "guest_username": member.guest_username,
+        "is_creator": member.id == chat.created_by,
+        "is_online": member.is_online(),
+    } for member in members])
+
+def create_chat():
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
+
+    data = request.get_json(silent=True) or {}
+    chat_type = (data.get("chat_type") or "group").strip().lower()
+    member_ids = data.get("member_ids") or []
+    if not isinstance(member_ids, list):
+        return jsonify({"success": False, "error": "member_ids muss eine Liste sein"}), 400
+
+    if chat_type == "private":
+        if len(member_ids) != 1:
+            return jsonify({"success": False, "error": "Für private Chats genau 1 Zielnutzer angeben"}), 400
+        try:
+            other_user_id = int(member_ids[0])
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "Ungültige Nutzer-ID"}), 400
+        if other_user_id == current_user.id:
+            return jsonify({"success": False, "error": translate("chat.flash.no_self_chat")}), 400
+
+        other_user = User.query.filter(
+            User.id == other_user_id,
+            *visible_chat_user_filters(),
+        ).first_or_404()
+
+        existing_dm = Chat.query.filter_by(is_direct_message=True).join(ChatMember).filter(
+            ChatMember.user_id.in_([current_user.id, other_user_id])
+        ).group_by(Chat.id).having(db.func.count(ChatMember.id) == 2).first()
+        if existing_dm:
+            return jsonify({"success": True, "chat": _serialize_chat(existing_dm), "existing": True}), 200
+
+        chat_name = f"{current_user.full_name}, {other_user.full_name}"
         new_chat = Chat(
-            name=name,
-            description=description,
+            name=chat_name,
             is_main_chat=False,
-            is_direct_message=False,
+            is_direct_message=True,
             created_by=current_user.id,
         )
         db.session.add(new_chat)
         db.session.flush()
         db.session.add(ChatMember(chat_id=new_chat.id, user_id=current_user.id))
-
-        for member_id in member_ids:
-            try:
-                member_id_int = int(member_id)
-            except (TypeError, ValueError):
-                continue
-            if member_id_int == current_user.id:
-                continue
-            user = User.query.filter(
-                User.id == member_id_int,
-                *visible_chat_user_filters(),
-            ).first()
-            if user:
-                db.session.add(ChatMember(chat_id=new_chat.id, user_id=member_id_int))
-
+        db.session.add(ChatMember(chat_id=new_chat.id, user_id=other_user_id))
         db.session.commit()
         return jsonify({"success": True, "chat": _serialize_chat(new_chat)}), 201
 
-    @api_bp.route("/chats/<int:chat_id>/update", methods=["PUT", "POST"])
-    @require_api_auth
-    def update_chat(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    # group
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
+    if not name:
+        return jsonify({"success": False, "error": translate("chat.flash.enter_name")}), 400
+    if not member_ids:
+        return jsonify({"success": False, "error": translate("chat.flash.select_member")}), 400
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        chat = Chat.query.get_or_404(actual_chat_id)
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+    new_chat = Chat(
+        name=name,
+        description=description,
+        is_main_chat=False,
+        is_direct_message=False,
+        created_by=current_user.id,
+    )
+    db.session.add(new_chat)
+    db.session.flush()
+    db.session.add(ChatMember(chat_id=new_chat.id, user_id=current_user.id))
 
-        if chat.is_main_chat:
-            return jsonify({"success": False, "error": translate("chat.errors.main_chat_cannot_edit")}), 400
-        if chat.is_direct_message:
-            return jsonify({"success": False, "error": translate("chat.errors.private_chat_cannot_edit")}), 400
+    for member_id in member_ids:
+        try:
+            member_id_int = int(member_id)
+        except (TypeError, ValueError):
+            continue
+        if member_id_int == current_user.id:
+            continue
+        user = User.query.filter(
+            User.id == member_id_int,
+            *visible_chat_user_filters(),
+        ).first()
+        if user:
+            db.session.add(ChatMember(chat_id=new_chat.id, user_id=member_id_int))
 
-        if request.files:
-            name = (request.form.get("name") or "").strip()
-            description = (request.form.get("description") or "").strip()
-            remove_avatar = request.form.get("remove_avatar") == "1"
-            avatar_file = request.files.get("avatar")
-        else:
-            data = request.get_json(silent=True) or {}
-            name = (data.get("name") or "").strip()
-            description = (data.get("description") or "").strip()
-            remove_avatar = bool(data.get("remove_avatar"))
-            avatar_file = None
+    db.session.commit()
+    return jsonify({"success": True, "chat": _serialize_chat(new_chat)}), 201
 
-        if name:
-            chat.name = name
-        chat.description = description
+def update_chat(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        project_root = os.path.dirname(current_app.root_path)
-        avatar_dir = os.path.join(project_root, current_app.config["UPLOAD_FOLDER"], "chat", "avatars")
-        os.makedirs(avatar_dir, exist_ok=True)
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    chat = Chat.query.get_or_404(actual_chat_id)
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-        if avatar_file and avatar_file.filename:
-            if not _allowed_media(avatar_file.filename):
-                return jsonify({"success": False, "error": "Avatar-Dateityp nicht erlaubt"}), 400
-            if chat.group_avatar:
-                old_avatar_path = os.path.join(avatar_dir, chat.group_avatar)
-                if os.path.exists(old_avatar_path):
-                    try:
-                        os.remove(old_avatar_path)
-                    except Exception:
-                        pass
-            filename = secure_filename(avatar_file.filename)
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{filename}"
-            avatar_file.save(os.path.join(avatar_dir, filename))
-            chat.group_avatar = filename
+    if chat.is_main_chat:
+        return jsonify({"success": False, "error": translate("chat.errors.main_chat_cannot_edit")}), 400
+    if chat.is_direct_message:
+        return jsonify({"success": False, "error": translate("chat.errors.private_chat_cannot_edit")}), 400
 
-        if remove_avatar and chat.group_avatar:
-            avatar_path = os.path.join(avatar_dir, chat.group_avatar)
-            if os.path.exists(avatar_path):
+    if request.files:
+        name = (request.form.get("name") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        remove_avatar = request.form.get("remove_avatar") == "1"
+        avatar_file = request.files.get("avatar")
+    else:
+        data = request.get_json(silent=True) or {}
+        name = (data.get("name") or "").strip()
+        description = (data.get("description") or "").strip()
+        remove_avatar = bool(data.get("remove_avatar"))
+        avatar_file = None
+
+    if name:
+        chat.name = name
+    chat.description = description
+
+    project_root = os.path.dirname(current_app.root_path)
+    avatar_dir = os.path.join(project_root, current_app.config["UPLOAD_FOLDER"], "chat", "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+
+    if avatar_file and avatar_file.filename:
+        if not _allowed_media(avatar_file.filename):
+            return jsonify({"success": False, "error": "Avatar-Dateityp nicht erlaubt"}), 400
+        if chat.group_avatar:
+            old_avatar_path = os.path.join(avatar_dir, chat.group_avatar)
+            if os.path.exists(old_avatar_path):
                 try:
-                    os.remove(avatar_path)
+                    os.remove(old_avatar_path)
                 except Exception:
                     pass
-            chat.group_avatar = None
+        filename = secure_filename(avatar_file.filename)
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{filename}"
+        avatar_file.save(os.path.join(avatar_dir, filename))
+        chat.group_avatar = filename
 
-        chat.updated_at = datetime.utcnow()
-        db.session.commit()
-        return jsonify({"success": True, "chat": _serialize_chat(chat)}), 200
+    if remove_avatar and chat.group_avatar:
+        avatar_path = os.path.join(avatar_dir, chat.group_avatar)
+        if os.path.exists(avatar_path):
+            try:
+                os.remove(avatar_path)
+            except Exception:
+                pass
+        chat.group_avatar = None
 
-    @api_bp.route("/chats/<int:chat_id>", methods=["DELETE"])
-    @require_api_auth
-    def delete_chat(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    chat.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"success": True, "chat": _serialize_chat(chat)}), 200
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        chat = Chat.query.get_or_404(actual_chat_id)
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+def delete_chat(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        if chat.is_main_chat:
-            return jsonify({"success": False, "error": translate("chat.errors.main_chat_cannot_delete")}), 400
-        if chat.team_id:
-            return jsonify({"success": False, "error": translate("chat.errors.team_chat_cannot_delete")}), 400
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    chat = Chat.query.get_or_404(actual_chat_id)
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-        db.session.delete(chat)
-        db.session.commit()
-        return jsonify({"success": True, "message": "Chat erfolgreich gelöscht"}), 200
+    if chat.is_main_chat:
+        return jsonify({"success": False, "error": translate("chat.errors.main_chat_cannot_delete")}), 400
+    if chat.team_id:
+        return jsonify({"success": False, "error": translate("chat.errors.team_chat_cannot_delete")}), 400
 
-    @api_bp.route("/chats/<int:chat_id>/mark-read", methods=["POST"])
-    @require_api_auth
-    def mark_chat_read(chat_id):
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
+    db.session.delete(chat)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Chat erfolgreich gelöscht"}), 200
 
-        actual_chat_id = _normalize_chat_id(chat_id)
-        if not actual_chat_id:
-            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
-        membership, error = _get_membership_or_403(actual_chat_id)
-        if error:
-            return error
+def mark_chat_read(chat_id):
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
 
-        membership.last_read_at = datetime.utcnow()
-        current_user.last_seen = datetime.utcnow()
-        try:
-            from app.utils.notifications import mark_in_app_notifications_read
-            mark_in_app_notifications_read(
-                current_user.id,
-                notification_type='chat',
-                source_id=actual_chat_id,
-            )
-        except Exception:
-            pass
-        db.session.commit()
-        return jsonify({"success": True}), 200
+    actual_chat_id = _normalize_chat_id(chat_id)
+    if not actual_chat_id:
+        return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+    membership, error = _get_membership_or_403(actual_chat_id)
+    if error:
+        return error
 
-    @api_bp.route("/chat/unread-count", methods=["GET"])
-    @require_api_auth
-    def get_unread_chat_count():
-        access_error = _chat_access_required()
-        if access_error:
-            return access_error
-        try:
-            from app.utils.chat_unread import total_unread_count_for_user
+    membership.last_read_at = datetime.utcnow()
+    current_user.last_seen = datetime.utcnow()
+    try:
+        from app.utils.notifications import mark_in_app_notifications_read
+        mark_in_app_notifications_read(
+            current_user.id,
+            notification_type='chat',
+            source_id=actual_chat_id,
+        )
+    except Exception:
+        pass
+    db.session.commit()
+    return jsonify({"success": True}), 200
 
-            return jsonify({"count": total_unread_count_for_user(current_user.id)})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+def get_unread_chat_count():
+    access_error = _chat_access_required()
+    if access_error:
+        return access_error
+    try:
+        from app.utils.chat_unread import total_unread_count_for_user
 
+        return jsonify({"count": total_unread_count_for_user(current_user.id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def register_chat_routes(api_bp, require_api_auth):
+    """Bind module-level views onto the API blueprint."""
+    def _bind(rule, view, methods, auth):
+        api_bp.add_url_rule(rule, view.__name__, auth(view), methods=methods)
+
+    _bind('/chats', get_chats, ['GET'], require_api_auth)
+    _bind('/chats/<int:chat_id>', get_chat, ['GET'], require_api_auth)
+    _bind('/chats/<int:chat_id>/pin', pin_chat, ['POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>/messages', get_messages, ['GET'], require_api_auth)
+    _bind('/chats/<int:chat_id>/send', send_message, ['POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>/messages/<int:message_id>/calendar-rsvp', respond_to_calendar_event, ['POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>/messages/<int:message_id>/poll-vote', vote_on_poll, ['POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>/members', get_chat_members, ['GET'], require_api_auth)
+    _bind('/chats/create', create_chat, ['POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>/update', update_chat, ['PUT', 'POST'], require_api_auth)
+    _bind('/chats/<int:chat_id>', delete_chat, ['DELETE'], require_api_auth)
+    _bind('/chats/<int:chat_id>/mark-read', mark_chat_read, ['POST'], require_api_auth)
+    _bind('/chat/unread-count', get_unread_chat_count, ['GET'], require_api_auth)

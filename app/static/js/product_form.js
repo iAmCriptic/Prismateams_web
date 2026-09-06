@@ -1,43 +1,17 @@
 const InventoryFormManager = (() => {
-    const INVENTORY_API_BASES = ['/inventory/vnext/api', '/vnext/api'];
-    let activeInventoryApiBase = INVENTORY_API_BASES[0];
+    const INVENTORY_API_BASE = '/inventory/api';
 
     const normalizeApiPath = (path) => {
         if (!path) return '';
         return path.startsWith('/') ? path : `/${path}`;
     };
 
-    const resolveApiUrl = (path, base = activeInventoryApiBase) => {
-        return `${base}${normalizeApiPath(path)}`;
+    const resolveApiUrl = (path) => {
+        return `${INVENTORY_API_BASE}${normalizeApiPath(path)}`;
     };
 
     const inventoryApiFetch = async (path, options = {}) => {
-        const normalizedPath = normalizeApiPath(path);
-        const candidateBases = [
-            activeInventoryApiBase,
-            ...INVENTORY_API_BASES.filter(base => base !== activeInventoryApiBase)
-        ];
-
-        let lastResponse = null;
-        let lastError = null;
-
-        for (const base of candidateBases) {
-            try {
-                const response = await fetch(resolveApiUrl(normalizedPath, base), options);
-                lastResponse = response;
-                if (response.status !== 404) {
-                    activeInventoryApiBase = base;
-                    return response;
-                }
-            } catch (error) {
-                lastError = error;
-            }
-        }
-
-        if (lastResponse) {
-            return lastResponse;
-        }
-        throw lastError || new Error('API-Anfrage fehlgeschlagen.');
+        return fetch(resolveApiUrl(path), options);
     };
 
     const state = {

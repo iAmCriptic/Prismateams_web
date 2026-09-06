@@ -14,14 +14,11 @@ import hashlib
 
 def get_encryption_key():
     """Holt oder erstellt den Verschlüsselungsschlüssel für TOTP-Secrets."""
-    # Versuche den Schlüssel aus der Umgebung zu holen.
-    # Wir akzeptieren auch Werte mit Anführungszeichen aus .env-Dateien.
-    env_key = os.environ.get('TOTP_ENCRYPTION_KEY')
-    if env_key:
-        normalized = env_key.strip().strip('"').strip("'")
+    from app.utils.encryption import read_encryption_key
+
+    key_bytes = read_encryption_key('TOTP_ENCRYPTION_KEY')
+    if key_bytes:
         try:
-            key_bytes = normalized.encode()
-            # Validiert, dass es ein gültiger Fernet-Key ist
             Fernet(key_bytes)
             return key_bytes
         except Exception:

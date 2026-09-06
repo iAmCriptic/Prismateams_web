@@ -173,25 +173,8 @@ window.INVENTORY_STATS_I18N = {
 
     async function loadStatistics() {
         try {
-            const statsApiCandidates = [
-                '/inventory/api/statistics',
-                '/inventory/vnext/api/statistics',
-                '/vnext/api/statistics',
-            ];
-            let response = null;
-            let lastError = null;
-
-            for (const url of statsApiCandidates) {
-                try {
-                    const candidateResponse = await fetch(url);
-                    response = candidateResponse;
-                    if (candidateResponse.status !== 404) break;
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-
-            if (!response) throw lastError || new Error(i18n.loadError || 'Statistik-API nicht erreichbar');
+            const statsApiUrl = '/inventory/api/statistics';
+            const response = await fetch(statsApiUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
             const data = await response.json();

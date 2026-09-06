@@ -48,6 +48,7 @@ write_install_report() {
         echo "Redis: ${SETUP_REDIS:-}"
         echo "OnlyOffice: ${INSTALL_ONLYOFFICE:-}"
         echo "Excalidraw: ${INSTALL_EXCALIDRAW:-}"
+        echo "MiroTalk: ${INSTALL_MIROTALK:-}"
         echo "FFmpeg: ${INSTALL_MEDIA_DOWNLOADER:-}"
         echo ".env-Modus: ${ENV_MODE:-}"
         echo
@@ -68,6 +69,12 @@ write_install_report() {
         fi
         if [ -n "${ONLYOFFICE_SECRET:-}" ]; then
             echo "OnlyOffice JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
+        fi
+        if is_yes "${INSTALL_MIROTALK:-n}"; then
+            echo "MiroTalk URL: $(mirotalk_public_url)"
+            echo "MiroTalk Host-User: ${MIROTALK_HOST_USER:-portal}"
+            echo "MiroTalk Host-Passwort: ${MIROTALK_HOST_PASSWORD:-}"
+            echo "MiroTalk API-Key: ${MIROTALK_API_KEY:-}"
         fi
         echo
         echo "Weitere Keys liegen in: ${INSTALL_DIR}/.env"
@@ -129,6 +136,16 @@ print_summary() {
     if [ -n "${ONLYOFFICE_SECRET:-}" ]; then
         echo "OnlyOffice JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
     fi
+    if is_yes "${INSTALL_MIROTALK:-n}"; then
+        echo "MiroTalk: $(mirotalk_public_url)"
+        echo "MiroTalk Host-User: ${MIROTALK_HOST_USER:-portal}"
+        echo "MiroTalk Host-Passwort: ${MIROTALK_HOST_PASSWORD:-}"
+        echo "MiroTalk API-Key: ${MIROTALK_API_KEY:-}"
+        _meet_host=$(mirotalk_meet_hostname)
+        if [ -n "$_meet_host" ]; then
+            echo "DNS: A/AAAA-Record ${_meet_host} auf diesen Server zeigen lassen"
+        fi
+    fi
     echo "Weitere Secrets: ${INSTALL_DIR}/.env"
     echo
 
@@ -160,6 +177,7 @@ print_summary() {
     if ! is_yes "${SETUP_WEBSERVER:-n}"; then print_manual_webserver_hint; fi
     if ! is_yes "${INSTALL_ONLYOFFICE:-n}"; then print_manual_onlyoffice_hint; fi
     if ! is_yes "${INSTALL_EXCALIDRAW:-n}"; then print_manual_excalidraw_hint; fi
+    if ! is_yes "${INSTALL_MIROTALK:-n}"; then print_manual_mirotalk_hint; fi
     if ! is_yes "${INSTALL_MEDIA_DOWNLOADER:-n}"; then print_manual_media_downloader_hint; fi
     if ! is_yes "${SETUP_GUNICORN:-n}"; then print_manual_gunicorn_hint; fi
     if ! is_yes "${SETUP_MYSQL:-n}"; then print_manual_mysql_hint; fi
@@ -174,7 +192,7 @@ print_summary() {
             echo "  systemctl status apache2"
         fi
     fi
-    if is_yes "${INSTALL_ONLYOFFICE:-n}"; then
+    if is_yes "${INSTALL_ONLYOFFICE:-n}" || is_yes "${INSTALL_EXCALIDRAW:-n}" || is_yes "${INSTALL_MIROTALK:-n}"; then
         echo "  docker ps"
     fi
     echo

@@ -18,7 +18,6 @@ from app.utils.module_visibility import (
     visibility_form_context,
     visibility_nav_context,
 )
-import os
 from urllib.parse import urlparse
 import logging
 
@@ -38,15 +37,15 @@ def get_encryption_key():
     Fail-closed: only from CREDENTIAL_ENCRYPTION_KEY (env/config). No ephemeral
     key and no CWD file fallback — those break at-rest encryption guarantees.
     """
-    key = (current_app.config.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
-    if not key:
-        key = (os.environ.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
+    from app.utils.encryption import read_encryption_key
+
+    key = read_encryption_key('CREDENTIAL_ENCRYPTION_KEY')
     if not key:
         raise CredentialEncryptionError(
             "CREDENTIAL_ENCRYPTION_KEY fehlt in der .env. "
             "Erzeugen mit: python scripts/generate_encryption_keys.py"
         )
-    return key.encode('utf-8')
+    return key
 
 
 def _credentials_key_missing_response(*, as_json=False):
@@ -637,23 +636,14 @@ def move_credential(credential_id):
 @check_module_access('module_credentials')
 def toggle_favorite(credential_id):
     """Toggle per-user credential favorite status."""
+    from app.utils.favorites import toggle_user_favorite
+
     credential = Credential.query.get_or_404(credential_id)
     if not can_view_item(current_user, credential, 'credentials'):
         return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
-    existing = CredentialFavorite.query.filter_by(
-        user_id=current_user.id,
-        credential_id=credential.id
-    ).first()
-
-    if existing:
-        db.session.delete(existing)
-        is_favorite = False
-    else:
-        db.session.add(CredentialFavorite(user_id=current_user.id, credential_id=credential.id))
-        is_favorite = True
-
-    db.session.commit()
-    favorites_count = CredentialFavorite.query.filter_by(user_id=current_user.id).count()
+    is_favorite, favorites_count = toggle_user_favorite(
+        current_user.id, CredentialFavorite, 'credential_id', credential.id
+    )
     return jsonify({
         'success': True,
         'is_favorite': is_favorite,

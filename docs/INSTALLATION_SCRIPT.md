@@ -82,6 +82,8 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - MySQL ja/nein (inkl. DB-Name/User/Passwort)
 - Redis ja/nein
 - OnlyOffice inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/onlyoffice` + `/cache`
+- Excalidraw-Room (optional)
+- MiroTalk SFU (Meetings): Docker `mirotalk/sfu`, vHost `meet.${DOMAIN}` → `127.0.0.1:3010`, UDP `40000–40100`
 - FFmpeg / Media Downloader
 - `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
 
@@ -115,8 +117,10 @@ sudo bash scripts/install_ubuntu.sh --help
 | `--ssl` / `--letsencrypt-email` | Let's Encrypt |
 | `--skip-mysql` / `--skip-redis` | DB/Redis manuell |
 | `--db-name` `--db-user` `--db-pass` `--mysql-root-pass` | DB-Parameter |
-| `--skip-docker` | Docker + OnlyOffice überspringen |
+| `--skip-docker` | Docker, OnlyOffice, Excalidraw, MiroTalk überspringen |
 | `--skip-onlyoffice` / `--onlyoffice` | OnlyOffice |
+| `--skip-excalidraw` / `--excalidraw` | Excalidraw-Room |
+| `--skip-mirotalk` / `--mirotalk` | MiroTalk SFU (Meetings) |
 | `--skip-media-downloader` / `--ffmpeg` | FFmpeg |
 | `--env-mode auto\|manual\|file` | `.env`-Strategie |
 | `--env-file PATH` | Bestehende `.env` mergen |
@@ -167,6 +171,21 @@ Bei Installation setzt das Skript:
 Ohne mscorefonts fehlen Arial/Times in PDF/Druck; Calibri bleibt über Carlito im Image nutzbar. Details: [INSTALLATION.md – Schritt 5, Schriftarten](INSTALLATION.md#schriftarten-für-rendering--pdf--druck).
 
 Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen).
+
+## MiroTalk SFU (Meetings)
+
+Das Skript installiert **MiroTalk SFU** (`mirotalk/sfu:latest`) mit `network_mode: host`.
+
+Bei Installation setzt das Skript:
+
+1. `/var/lib/mirotalk-sfu/.env` mit `HOST_PROTECTED`, `API_KEY_SECRET`, `HOST_USERS`, `SFU_ANNOUNCED_IP`, `SERVER_HOST_URL=https://meet.${DOMAIN}`
+2. Container `--network host`, HTTP nur `127.0.0.1:3010`, Medien UDP/TCP `40000–40100`
+3. Nginx/Apache-vHost `meet.${DOMAIN}` → `127.0.0.1:3010` (WebSocket, **kein** Path-Prefix `/mirotalk/`)
+4. UFW: `40000:40100/udp` und `/tcp`
+5. Optional Let's Encrypt für `meet.${DOMAIN}` (eigener Certbot-Lauf; DNS-A-Record nötig)
+6. Portal-`.env`: `MIROTALK_ENABLED=True`, `MIROTALK_URL`, `MIROTALK_API_URL=http://127.0.0.1:3010`, Host-User/Passwort, API-Key
+
+Details: [INSTALLATION.md – Schritt 6d](INSTALLATION.md#schritt-6d-optionale-installation---mirotalk-sfu-meetings).
 
 ## Gunicorn-Worker
 

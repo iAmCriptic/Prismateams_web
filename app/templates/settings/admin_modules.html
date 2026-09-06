@@ -38,9 +38,11 @@
             ('module_shortlinks', 'bi-link-45deg', _('settings.admin.admin_modules.module_shortlinks'), module_shortlinks_enabled),
             ('module_kanban', 'bi-kanban', _('settings.admin.admin_modules.module_kanban'), module_kanban_enabled),
             ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
-            ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled)
+            ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled),
+            ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled)
           ] %}
           {% for key, icon, label, enabled in modules %}
+          {% if key != 'module_meetings' or mirotalk_ready %}
           <div class="sp-row settings-admin-modules-switch">
             <div class="sp-row-label">
               <span class="sp-row-label-text"><i class="bi {{ icon }}" aria-hidden="true"></i> {{ label }}</span>
@@ -51,6 +53,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
           {% endfor %}
         </div>
       </div>

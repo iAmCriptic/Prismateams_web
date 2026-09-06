@@ -87,3 +87,39 @@ def unread_counts_by_chat_for_user(user_id: int, chat_ids: Iterable[int] | None 
     for chat_id, count in rows:
         counts[int(chat_id)] = int(count or 0)
     return counts
+
+
+def unread_counts_in_chat_for_users(chat_id: int, user_ids: Iterable[int]) -> dict[int, int]:
+    """
+    Unread messages in one chat for many members (one GROUP BY).
+
+    Cutoff is COALESCE(last_read_at, joined_at), matching send_chat_notification.
+    """
+    ids = sorted({int(uid) for uid in user_ids if uid is not None})
+    if not ids or chat_id is None:
+        return {}
+
+    cutoff = func.coalesce(ChatMember.last_read_at, ChatMember.joined_at)
+    unread_join = and_(
+        ChatMessage.chat_id == ChatMember.chat_id,
+        ChatMessage.is_deleted.is_(False),
+        ChatMessage.sender_id != ChatMember.user_id,
+        or_(
+            cutoff.is_(None),
+            ChatMessage.created_at > cutoff,
+        ),
+    )
+    rows = (
+        db.session.query(ChatMember.user_id, func.count(ChatMessage.id))
+        .outerjoin(ChatMessage, unread_join)
+        .filter(
+            ChatMember.chat_id == int(chat_id),
+            ChatMember.user_id.in_(ids),
+        )
+        .group_by(ChatMember.user_id)
+        .all()
+    )
+    counts = {uid: 0 for uid in ids}
+    for uid, count in rows:
+        counts[int(uid)] = int(count or 0)
+    return counts

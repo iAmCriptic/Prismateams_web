@@ -130,6 +130,35 @@ CustomLog \${APACHE_LOG_DIR}/teamportal_access.log combined
 </VirtualHost>
 EOF
 
+_meet_host=$(mirotalk_meet_hostname)
+if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+    cat > /etc/apache2/sites-available/teamportal-meet.conf <<EOF
+<VirtualHost *:80>
+ServerName ${_meet_host}
+
+ProxyPreserveHost On
+ProxyRequests Off
+LimitRequestBody 52428800
+
+RewriteEngine On
+RewriteCond %{HTTP:Upgrade} websocket [NC]
+RewriteRule /(.*) ws://127.0.0.1:${MIROTALK_HOST_PORT:-3010}/\$1 [P,L]
+
+ProxyPass / http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}/
+ProxyPassReverse / http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}/
+
+RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+
+ErrorLog \${APACHE_LOG_DIR}/teamportal_meet_error.log
+CustomLog \${APACHE_LOG_DIR}/teamportal_meet_access.log combined
+</VirtualHost>
+EOF
+    a2ensite teamportal-meet.conf || { log_error "MiroTalk-Site-Aktivierung fehlgeschlagen"; return 1; }
+    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010}"
+fi
+
 # Site aktivieren
 log_info "Aktiviere Apache-Site..."
 a2ensite teamportal.conf || { log_error "Site-Aktivierung fehlgeschlagen"; return 1; }

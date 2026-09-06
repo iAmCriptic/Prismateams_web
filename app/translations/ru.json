@@ -28,7 +28,8 @@
       "media_downloader": "Загрузчик медиа",
       "surveys": "Опросы",
       "file_converter": "File Converter",
-      "protocols": "Протоколы"
+      "protocols": "Протоколы",
+      "meetings": "Встречи"
     },
     "cookie_consent": {
       "title": "Cookies и конфиденциальность",
@@ -610,7 +611,10 @@
       "js": {
         "load_older": "Загрузить более ранние сообщения",
         "load_older_loading": "Загрузка…",
-        "load_older_error": "Не удалось загрузить более ранние сообщения"
+        "load_older_error": "Не удалось загрузить более ранние сообщения",
+        "meeting_label": "Встреча",
+        "meeting_join": "Присоединиться",
+        "meeting_start_error": "Не удалось начать встречу"
       }
     }
   },
@@ -836,7 +840,8 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
-        "lead_short": "Включение и отключение модулей."
+        "lead_short": "Включение и отключение модулей.",
+        "module_meetings": "Встречи (видеозвонки)"
       },
       "kanban": {
         "lead_short": "Visibility and import.",
@@ -1066,7 +1071,10 @@
       "lead_short": "Продукт, система и open source.",
       "section_repository_help_button": "Справка",
       "excalidraw_label_short": "Excalidraw",
-      "file_converter_label_short": "Конвертер"
+      "file_converter_label_short": "Конвертер",
+      "mirotalk_label": "MiroTalk",
+      "mirotalk_active": "Активно",
+      "mirotalk_inactive": "Не активно"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -1567,6 +1575,77 @@
   "calendar": {
     "flash": {
       "sync_started": "Синхронизация запущена в фоне. Обновите страницу через несколько секунд."
+    }
+  },
+  "meetings": {
+    "page_title": "Встречи",
+    "heading": "Встречи",
+    "default_title": "Встреча",
+    "chat_title": "Встреча: {name}",
+    "nav": {
+      "label": "Навигация встреч",
+      "active": "Активные",
+      "ended": "Завершённые",
+      "start": "Начать встречу",
+      "menu": "Меню встреч"
+    },
+    "list": {
+      "title": "Название",
+      "access": "Доступ",
+      "host": "Организатор",
+      "started": "Начало",
+      "empty": "В этом списке нет встреч."
+    },
+    "access": {
+      "public": "Открытая",
+      "invite": "Только по приглашению"
+    },
+    "actions": {
+      "join": "Присоединиться",
+      "end": "Завершить",
+      "copy_guest": "Скопировать гостевую ссылку",
+      "more": "Ещё действия"
+    },
+    "create": {
+      "page_title": "Начать встречу",
+      "heading": "Начать встречу",
+      "title_label": "Название",
+      "title_placeholder": "например, Еженедельный созвон",
+      "access_label": "Доступ",
+      "public_help": "Видно всем с модулем встреч.",
+      "invite_help": "Видят только приглашённые пользователи портала.",
+      "invitees_label": "Пригласить людей",
+      "invitees_search": "Поиск имени или email…",
+      "invitees_host": "Вы участвуете автоматически. Другие люди необязательны.",
+      "invitees_you": "Вы",
+      "invitees_empty": "Нет других пользователей портала для приглашения.",
+      "submit": "Начать встречу"
+    },
+    "guest": {
+      "lead": "Введите имя, чтобы присоединиться.",
+      "name_label": "Ваше имя",
+      "name_required": "Введите имя.",
+      "submit": "Присоединиться",
+      "ended": "Эта встреча завершена."
+    },
+    "chat": {
+      "start": "Начать встречу"
+    },
+    "notify": {
+      "title": "Приглашение на встречу",
+      "body": "Вас пригласили на «{title}»."
+    },
+    "flash": {
+      "invitees_required": "Пригласите хотя бы одного человека.",
+      "no_access": "Нет доступа к этой встрече.",
+      "ended": "Эта встреча завершена.",
+      "ended_ok": "Встреча завершена.",
+      "not_configured": "MiroTalk не настроен. Укажите MIROTALK_URL в .env.",
+      "join_failed": "Не удалось присоединиться к встрече.",
+      "no_module": "Модуль встреч недоступен.",
+      "chat_missing": "Чат не найден.",
+      "not_chat_member": "Вы не участник этого чата.",
+      "chat_start_error": "Не удалось начать встречу."
     }
   }
 }

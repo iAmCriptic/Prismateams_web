@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models.settings import SystemSettings
+from app.utils.system_settings_cache import setting_bool as _setting_bool
 
 SETTING_ALLOW_PRIVATE = 'modules_allow_private'
 SETTING_ALLOW_TEAM = 'modules_allow_team'
@@ -18,13 +18,6 @@ VISIBILITY_MODULE_KEYS = (
     'surveys',
     'protocols',
 )
-
-
-def _setting_bool(key: str, default: bool = True) -> bool:
-    row = SystemSettings.query.filter_by(key=key).first()
-    if row is None:
-        return default
-    return str(row.value).lower() in ('true', '1', 'yes', 'on')
 
 
 def is_global_private_enabled() -> bool:

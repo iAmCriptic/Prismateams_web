@@ -37,11 +37,13 @@ Datenbank / Redis:
   --mysql-root-pass PASS     MySQL-Root-Passwort (sonst generiert/abgefragt)
 
 Optionale Dienste:
-  --skip-docker              Docker + OnlyOffice überspringen
+  --skip-docker              Docker, OnlyOffice, Excalidraw, MiroTalk überspringen
   --skip-onlyoffice          OnlyOffice überspringen
   --onlyoffice               OnlyOffice installieren
   --skip-excalidraw          Excalidraw-Room überspringen
   --excalidraw               Excalidraw-Room installieren
+  --skip-mirotalk            MiroTalk SFU (Meetings) überspringen
+  --mirotalk                 MiroTalk SFU installieren
   --skip-media-downloader    FFmpeg/Media Downloader überspringen
   --ffmpeg                   FFmpeg installieren
 
@@ -150,6 +152,7 @@ parse_arguments() {
                 INSTALL_DOCKER="n"
                 INSTALL_ONLYOFFICE="n"
                 INSTALL_EXCALIDRAW="n"
+                INSTALL_MIROTALK="n"
                 shift
                 ;;
             --skip-onlyoffice)
@@ -167,6 +170,15 @@ parse_arguments() {
                 ;;
             --excalidraw)
                 INSTALL_EXCALIDRAW="j"
+                INSTALL_DOCKER="j"
+                shift
+                ;;
+            --skip-mirotalk)
+                INSTALL_MIROTALK="n"
+                shift
+                ;;
+            --mirotalk)
+                INSTALL_MIROTALK="j"
                 INSTALL_DOCKER="j"
                 shift
                 ;;

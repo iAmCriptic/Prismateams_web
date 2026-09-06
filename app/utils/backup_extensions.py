@@ -31,11 +31,16 @@ from app.models.booking import (
 )
 
 
+from app.utils.backup_lookups import (
+    id_name_map,
+    lookup_team_name,
+    lookup_user_email,
+    objects_by_name,
+)
+
+
 def _user_email(user_id) -> Optional[str]:
-    if not user_id:
-        return None
-    u = User.query.get(user_id)
-    return u.email if u else None
+    return lookup_user_email(user_id)
 
 
 def _resolve_user(email, user_map, current_user_id):
@@ -93,19 +98,13 @@ def import_chat_pins(data: List[Dict], chat_map: Dict[str, int], user_map: Dict[
 
 
 def export_calendars() -> List[Dict]:
-    from app.models.team import Team
     out = []
     for c in Calendar.query.all():
-        team_name = None
-        if getattr(c, 'team_id', None):
-            team = Team.query.get(c.team_id)
-            if team:
-                team_name = team.name
         out.append({
             'name': c.name,
             'calendar_type': c.calendar_type,
             'owner_email': _user_email(c.owner_id),
-            'team_name': team_name,
+            'team_name': lookup_team_name(getattr(c, 'team_id', None)),
             'color': c.color,
             'is_default': bool(getattr(c, 'is_default', False)),
             'hidden_from_others': bool(getattr(c, 'hidden_from_others', False)),
@@ -119,11 +118,12 @@ def import_calendars(data: List[Dict], user_map: Dict[str, int], current_user_id
     """Map: backup calendar id -> local id"""
     from app.models.team import Team
     id_map = {}
+    teams_by_name = objects_by_name(Team)
     for row in data:
         owner_id = _resolve_user(row.get('owner_email'), user_map, current_user_id)
         team_id = None
         if row.get('team_name'):
-            team = Team.query.filter_by(name=row.get('team_name')).first()
+            team = teams_by_name.get(row.get('team_name'))
             if team:
                 team_id = team.id
         existing = Calendar.query.filter_by(
@@ -901,10 +901,11 @@ def export_assessment_bundle() -> Dict[str, List]:
         'list_export_id': getattr(c, 'list_id', None),
         'max_score': getattr(c, 'max_score', None),
     } for c in AssessmentCriterion.query.all()]
+    rooms_by_id = id_name_map(AssessmentRoom)
     data['assessment_stands'] = [{
         'name': getattr(s, 'name', None) or getattr(s, 'title', None),
         'list_export_id': getattr(s, 'list_id', None),
-        'room_name': AssessmentRoom.query.get(s.room_id).name if getattr(s, 'room_id', None) and AssessmentRoom.query.get(s.room_id) else None,
+        'room_name': rooms_by_id.get(s.room_id) if getattr(s, 'room_id', None) else None,
     } for s in AssessmentStand.query.all()]
     data['assessment_users'] = [{
         'username': u.username,
@@ -919,22 +920,28 @@ def export_assessment_bundle() -> Dict[str, List]:
 def import_assessment_bundle(backup_data: Dict, results: Dict):
     list_map = {}
     if 'assessment_roles' in backup_data:
+        roles_by_name = objects_by_name(AssessmentRole)
         for row in backup_data['assessment_roles']:
             name = row.get('name')
             if not name:
                 continue
-            if not AssessmentRole.query.filter_by(name=name).first():
+            if name not in roles_by_name:
                 kwargs = {'name': name}
                 if hasattr(AssessmentRole, 'permissions'):
                     kwargs['permissions'] = row.get('permissions')
-                db.session.add(AssessmentRole(**kwargs))
+                role = AssessmentRole(**kwargs)
+                db.session.add(role)
+                roles_by_name[name] = role
         results['imported'].append('assessment_roles')
 
     if 'assessment_stand_types' in backup_data:
+        types_by_name = objects_by_name(AssessmentStandType)
         for row in backup_data['assessment_stand_types']:
             name = row.get('name')
-            if name and not AssessmentStandType.query.filter_by(name=name).first():
-                db.session.add(AssessmentStandType(name=name, description=row.get('description')))
+            if name and name not in types_by_name:
+                st = AssessmentStandType(name=name, description=row.get('description'))
+                db.session.add(st)
+                types_by_name[name] = st
         results['imported'].append('assessment_stand_types')
 
     if 'assessment_app_settings' in backup_data:
@@ -957,13 +964,12 @@ def import_assessment_bundle(backup_data: Dict, results: Dict):
         results['imported'].append('assessment_app_settings')
 
     if 'assessment_lists' in backup_data:
+        lists_by_name = objects_by_name(AssessmentList) if hasattr(AssessmentList, 'name') else {}
         for row in backup_data['assessment_lists']:
             name = row.get('name')
             if not name:
                 continue
-            existing = None
-            if hasattr(AssessmentList, 'name'):
-                existing = AssessmentList.query.filter_by(name=name).first()
+            existing = lists_by_name.get(name)
             if existing:
                 lst = existing
             else:
@@ -977,6 +983,7 @@ def import_assessment_bundle(backup_data: Dict, results: Dict):
                 lst = AssessmentList(**kwargs)
                 db.session.add(lst)
                 db.session.flush()
+                lists_by_name[name] = lst
             if row.get('_export_id') is not None:
                 list_map[int(row['_export_id'])] = lst.id
         results['imported'].append('assessment_lists')

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="meetings-call">
+    <div class="meetings-call-bar">
+        {% if back_url %}
+        <a href="{{ back_url }}" class="mod-back-link meetings-call-back">
+            <i class="bi bi-arrow-left"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+        {% endif %}
+        <strong class="meetings-call-title text-truncate">{{ meeting.title }}</strong>
+        <div class="meetings-call-actions">
+            {% if guest_link %}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" id="meetingsCopyGuest" data-link="{{ guest_link }}">
+                <i class="bi bi-link-45deg"></i>
+                <span class="d-none d-sm-inline">{{ _('meetings.actions.copy_guest') }}</span>
+            </button>
+            {% endif %}
+            {% if can_end %}
+            <form method="post" action="{{ url_for('meetings.end', meeting_id=meeting.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                    <i class="bi bi-stop-circle"></i>
+                    <span class="d-none d-sm-inline">{{ _('meetings.actions.end') }}</span>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    <iframe
+        class="meetings-call-frame"
+        allow="camera; microphone; speaker-selection; display-capture; fullscreen; clipboard-read; clipboard-write; web-share; autoplay; picture-in-picture"
+        src="{{ iframe_src }}"
+        title="{{ meeting.title }}">
+    </iframe>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const btn = document.getElementById('meetingsCopyGuest');
+    if (!btn) return;
+    function copyText(text, onOk) {
+        if (!text) return;
+        function fallback() {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); if (onOk) onOk(); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(onOk).catch(fallback);
+            return;
+        }
+        fallback();
+    }
+    btn.addEventListener('click', function () {
+        copyText(btn.getAttribute('data-link') || '', function () {
+            btn.classList.add('text-success');
+            setTimeout(function () { btn.classList.remove('text-success'); }, 1200);
+        });
+    });
+})();
+</script>
+{% endblock %}

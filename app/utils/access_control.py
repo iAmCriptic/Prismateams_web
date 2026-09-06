@@ -143,7 +143,12 @@ def has_module_access(user, module_key):
     # Assessment-Accounts dürfen ausschließlich auf ihr Modul zugreifen.
     if user.__class__.__name__ == 'AssessmentUser':
         return module_key == 'module_assessment'
-    
+
+    if module_key == 'module_meetings':
+        from app.utils.mirotalk import mirotalk_configured
+        if not mirotalk_configured():
+            return False
+
     # Hauptadministrator und Administrator haben immer Zugriff
     if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         return True
@@ -197,6 +202,14 @@ def check_module_access(module_key):
     return decorator
 
 
+def _filter_runtime_modules(modules):
+    """Drop modules that are flagged on but have no runtime backend."""
+    from app.utils.mirotalk import mirotalk_configured
+    if mirotalk_configured():
+        return list(modules)
+    return [key for key in modules if key != 'module_meetings']
+
+
 def get_accessible_modules(user):
     """
     Gibt eine Liste aller Module zurück, auf die der Benutzer Zugriff hat.
@@ -210,7 +223,7 @@ def get_accessible_modules(user):
     # Hauptadministrator und Administrator haben Zugriff auf alle aktivierten Module
     if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         from app.utils.common import AVAILABLE_MODULES
-        return [m for m in AVAILABLE_MODULES if is_module_enabled(m)]
+        return _filter_runtime_modules([m for m in AVAILABLE_MODULES if is_module_enabled(m)])
     
     # Gast-Accounts haben nie Vollzugriff und keinen Zugriff auf E-Mail und Credentials
     is_guest = hasattr(user, 'is_guest') and user.is_guest
@@ -224,7 +237,7 @@ def get_accessible_modules(user):
     
     if has_full_access and not is_guest:
         from app.utils.common import AVAILABLE_MODULES
-        return [m for m in AVAILABLE_MODULES if is_module_enabled(m)]
+        return _filter_runtime_modules([m for m in AVAILABLE_MODULES if is_module_enabled(m)])
     
     # Prüfe modulspezifische Rollen (ein Load aller Rollen, kein Query pro Modul)
     if is_guest:
@@ -234,6 +247,7 @@ def get_accessible_modules(user):
             'module_media_downloader', 'module_file_converter', 'module_assessment', 'module_shortlinks',
             'module_kanban',
             'module_excalidraw',
+            'module_meetings',
         ]
     else:
         from app.utils.common import AVAILABLE_MODULES
@@ -245,7 +259,7 @@ def get_accessible_modules(user):
         if is_module_enabled(module_key) and roles.get(module_key):
             accessible_modules.append(module_key)
 
-    return accessible_modules
+    return _filter_runtime_modules(accessible_modules)
 
 
 def has_guest_share_access(user, share_token, share_type):

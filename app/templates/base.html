@@ -1,4 +1,5 @@
 {% set _assess_scope = session.get('user_scope') == 'assessment' %}
+{% set _is_meetings_call = request.endpoint in ('meetings.join', 'meetings.guest_join') %}
 {% if force_light_theme %}
 {% set _theme_dark = false %}{% set _theme_oled = false %}
 {% elif current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
@@ -141,6 +142,8 @@
         {% elif request.endpoint.startswith('protocols.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/protocols.css') }}">
+        {% elif request.endpoint.startswith('meetings.') %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/meetings.css') }}">
         {% elif request.endpoint.startswith('dashboard.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}
@@ -315,9 +318,9 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body{% if _assess_scope %} class="assessment-scope-solo"{% elif force_light_theme %} class="auth-scope"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
+<body{% if _assess_scope %} class="assessment-scope-solo"{% elif force_light_theme %} class="auth-scope"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif _is_meetings_call %} class="meetings-call-scope embed-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
     {% set _is_setup = request.endpoint and request.endpoint.startswith('setup.') %}
-    {% set _is_embed = request.args.get('embed') or request.form.get('embed') %}
+    {% set _is_embed = request.args.get('embed') or request.form.get('embed') or _is_meetings_call %}
     {# Standalone auth pages (login/register/confirm-email/…) — no app chrome even when logged in #}
     {% set _is_auth_shell = force_light_theme|default(false) %}
     {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
@@ -449,7 +452,7 @@
     <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>
     {% endif %}
 
-    {% if not (request.args.get('embed') or request.form.get('embed')) %}
+    {% if not (request.args.get('embed') or request.form.get('embed') or _is_meetings_call) %}
     {% include 'partials/cookie_consent.html' %}
     <script src="{{ url_for('static', filename='js/cookie-consent.js') }}"></script>
     {% endif %}

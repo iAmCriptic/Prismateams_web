@@ -120,7 +120,7 @@ class InventoryToolManager {
 
     async loadItems() {
         try {
-            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/items`);
+            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/items`);
             if (!response.ok) throw new Error('Fehler beim Laden der Inventur-Items');
 
             const data = await response.json();
@@ -503,7 +503,7 @@ class InventoryToolManager {
         try {
             const item = this.items.get(productId);
             const payload = { checked: checked, version: item?.version };
-            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
+            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/item/${productId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -765,7 +765,7 @@ class InventoryToolManager {
         }
 
         try {
-            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
+            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/item/${productId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -818,7 +818,7 @@ class InventoryToolManager {
 
     async handleScan(qrData) {
         try {
-            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/scan`, {
+            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/scan`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ qr_data: qrData }),
@@ -1041,7 +1041,7 @@ class InventoryToolManager {
 
     async acquireLock(productId) {
         try {
-            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/acquire`, {
+            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/locks/acquire`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ product_id: productId, ttl_seconds: 90, reason: 'modal_edit' }),
@@ -1064,7 +1064,7 @@ class InventoryToolManager {
 
     async releaseLock(productId) {
         try {
-            await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/release`, {
+            await fetch(`/inventory/api/inventory/${this.inventoryId}/locks/release`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ product_id: productId }),
@@ -1076,7 +1076,7 @@ class InventoryToolManager {
 
     async refreshLock(productId) {
         try {
-            await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/refresh`, {
+            await fetch(`/inventory/api/inventory/${this.inventoryId}/locks/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ product_id: productId, ttl_seconds: 90 }),

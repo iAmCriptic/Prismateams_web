@@ -10,39 +10,6 @@ from .common import api_error, api_ok
 products_bp = Blueprint("inventory_vnext_products", __name__)
 
 
-@products_bp.route("/products", methods=["GET"])
-@login_required
-def list_products():
-    item_type = request.args.get("item_type")
-    status = request.args.get("status")
-
-    query = Product.query
-    if item_type:
-        query = query.filter_by(item_type=item_type)
-    if status:
-        query = query.filter_by(status=status)
-
-    products = query.order_by(Product.name.asc()).all()
-    return api_ok(
-        {
-            "products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "item_type": p.item_type,
-                    "status": p.status,
-                    "min_stock": p.min_stock,
-                    "on_hand": p.total_on_hand,
-                    "reserved": p.total_reserved,
-                    "available": p.total_available,
-                    "needs_reorder": p.needs_reorder,
-                }
-                for p in products
-            ]
-        }
-    )
-
-
 @products_bp.route("/products/<int:product_id>/lifecycle", methods=["POST"])
 @login_required
 def change_lifecycle(product_id):

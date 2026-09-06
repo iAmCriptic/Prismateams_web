@@ -221,6 +221,36 @@ location / {
 }
 EOF
 
+# MiroTalk SFU: eigener vHost (kein Path-Prefix unter dem Portal)
+_meet_host=$(mirotalk_meet_hostname)
+if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+    cat > /etc/nginx/sites-available/teamportal-meet <<EOF
+server {
+    listen 80;
+    server_name ${_meet_host};
+
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:${MIROTALK_HOST_PORT:-3010};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+}
+EOF
+    ln -sf /etc/nginx/sites-available/teamportal-meet /etc/nginx/sites-enabled/teamportal-meet
+    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010}"
+fi
+
 # Site aktivieren
 ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default

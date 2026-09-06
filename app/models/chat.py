@@ -58,7 +58,7 @@ class ChatMessage(db.Model):
     chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     content = db.Column(db.Text, nullable=True)  # Nullable for media-only messages
-    message_type = db.Column(db.String(20), default='text', nullable=False)  # text, image, video, voice, file, folder_link, calendar_event, poll
+    message_type = db.Column(db.String(20), default='text', nullable=False)  # text, image, video, voice, file, folder_link, calendar_event, poll, meeting
     media_url = db.Column(db.String(255), nullable=True)
     metadata_json = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)

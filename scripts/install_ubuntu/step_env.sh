@@ -156,6 +156,17 @@ step_env() {
         set_env_var "EXCALIDRAW_ENABLED" "False" .env
     fi
 
+    if is_yes "$INSTALL_MIROTALK"; then
+        set_env_var "MIROTALK_ENABLED" "True" .env
+        set_env_var "MIROTALK_URL" "$(mirotalk_public_url)" .env
+        set_env_var "MIROTALK_API_URL" "http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}" .env
+        [ -n "${MIROTALK_API_KEY:-}" ] && set_env_var "MIROTALK_API_KEY" "$MIROTALK_API_KEY" .env
+        set_env_var "MIROTALK_HOST_USER" "${MIROTALK_HOST_USER:-portal}" .env
+        [ -n "${MIROTALK_HOST_PASSWORD:-}" ] && set_env_var "MIROTALK_HOST_PASSWORD" "$MIROTALK_HOST_PASSWORD" .env
+    else
+        set_env_var "MIROTALK_ENABLED" "False" .env
+    fi
+
     # Redis
     if is_yes "$SETUP_REDIS"; then
         set_env_var "REDIS_ENABLED" "True" .env

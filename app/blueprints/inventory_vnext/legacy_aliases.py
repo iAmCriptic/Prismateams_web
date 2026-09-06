@@ -1,8 +1,6 @@
-"""
-V-Next Alias-Routen.
+"""Aliase: bestehende Inventar-Handler unter /inventory/api/.
 
-Diese Routen mappen bestehende Inventar-API-Handler auf den neuen
-/inventory/vnext/api/-Pfad, damit Frontends konsistent V-Next nutzen koennen.
+Die kanonische Inventory-API liegt unter /inventory/api (ohne vnext-Präfix).
 """
 
 from flask import Blueprint, request
@@ -10,7 +8,7 @@ from flask_login import login_required
 
 from app.blueprints import inventory as legacy_inventory
 
-legacy_aliases_bp = Blueprint("inventory_vnext_legacy_aliases", __name__)
+legacy_aliases_bp = Blueprint("inventory_api_aliases", __name__)
 
 
 @legacy_aliases_bp.route("/folders", methods=["GET", "POST"])
@@ -23,6 +21,7 @@ def folders_alias():
 @login_required
 def folder_update_delete_alias(folder_id):
     return legacy_inventory.api_folder_update_delete(folder_id)
+
 
 @legacy_aliases_bp.route("/categories", methods=["GET", "POST"])
 @login_required

@@ -4,9 +4,9 @@ from sqlalchemy import or_
 
 from app import db
 from app.models.calendar import Calendar, CalendarEvent, EventParticipant
-from app.models.settings import SystemSettings
 from app.models.team import Team, TeamMember
 from app.models.user import User
+from app.utils.system_settings_cache import setting_bool as _setting_bool, setting_exists as _setting_exists
 
 PUBLIC_CALENDAR_NAME = 'Public'
 EVENTS_CALENDAR_NAME = 'Veranstaltungen'
@@ -21,18 +21,6 @@ PERSONAL_COLORS = (
     '#0d6efd', '#6610f2', '#d63384', '#fd7e14',
     '#20c997', '#0dcaf0', '#ffc107', '#dc3545',
 )
-
-
-def _setting_bool(key, default=False):
-    setting = SystemSettings.query.filter_by(key=key).first()
-    if not setting or setting.value is None or str(setting.value).strip() == '':
-        return default
-    return str(setting.value).lower() == 'true'
-
-
-def _setting_exists(key):
-    setting = SystemSettings.query.filter_by(key=key).first()
-    return setting is not None and setting.value is not None and str(setting.value).strip() != ''
 
 
 def is_calendar_personal_enabled():
@@ -524,6 +512,18 @@ def events_query_for_calendars(user, selected_calendar_ids, base_filters=None):
     if not conditions:
         return q.filter(False)
     return q.filter(or_(*conditions))
+
+
+def participations_for_user(event_ids, user_id):
+    """One IN() load of EventParticipant rows for a user, keyed by event_id."""
+    ids = sorted({int(eid) for eid in (event_ids or []) if eid is not None})
+    if not ids or user_id is None:
+        return {}
+    rows = EventParticipant.query.filter(
+        EventParticipant.event_id.in_(ids),
+        EventParticipant.user_id == int(user_id),
+    ).all()
+    return {row.event_id: row for row in rows}
 
 
 def default_calendar_for_user(user):

@@ -28,7 +28,8 @@
       "media_downloader": "Downloader de mídia",
       "surveys": "Inquéritos",
       "file_converter": "File Converter",
-      "protocols": "Atas"
+      "protocols": "Atas",
+      "meetings": "Reuniões"
     },
     "cookie_consent": {
       "title": "Cookies e privacidade",
@@ -610,7 +611,10 @@
       "js": {
         "load_older": "Carregar mensagens anteriores",
         "load_older_loading": "A carregar…",
-        "load_older_error": "Não foi possível carregar mensagens anteriores"
+        "load_older_error": "Não foi possível carregar mensagens anteriores",
+        "meeting_label": "Reunião",
+        "meeting_join": "Entrar",
+        "meeting_start_error": "Não foi possível iniciar a reunião"
       }
     }
   },
@@ -836,7 +840,8 @@
       "admin_modules": {
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
-        "lead_short": "Ativar e desativar módulos."
+        "lead_short": "Ativar e desativar módulos.",
+        "module_meetings": "Reuniões (videochamadas)"
       },
       "kanban": {
         "lead_short": "Visibility and import.",
@@ -1066,7 +1071,10 @@
       "lead_short": "Produto, sistema e open source.",
       "section_repository_help_button": "Ajuda",
       "excalidraw_label_short": "Excalidraw",
-      "file_converter_label_short": "Conversor"
+      "file_converter_label_short": "Conversor",
+      "mirotalk_label": "MiroTalk",
+      "mirotalk_active": "Ativo",
+      "mirotalk_inactive": "Inativo"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -1567,6 +1575,77 @@
   "calendar": {
     "flash": {
       "sync_started": "Sincronização iniciada em segundo plano. Atualize a página em alguns segundos."
+    }
+  },
+  "meetings": {
+    "page_title": "Reuniões",
+    "heading": "Reuniões",
+    "default_title": "Reunião",
+    "chat_title": "Reunião: {name}",
+    "nav": {
+      "label": "Navegação de reuniões",
+      "active": "Ativas",
+      "ended": "Encerradas",
+      "start": "Iniciar reunião",
+      "menu": "Menu de reuniões"
+    },
+    "list": {
+      "title": "Título",
+      "access": "Acesso",
+      "host": "Iniciada por",
+      "started": "Início",
+      "empty": "Nenhuma reunião nesta lista."
+    },
+    "access": {
+      "public": "Pública",
+      "invite": "Apenas convite"
+    },
+    "actions": {
+      "join": "Entrar",
+      "end": "Encerrar",
+      "copy_guest": "Copiar link de convidado",
+      "more": "Mais ações"
+    },
+    "create": {
+      "page_title": "Iniciar reunião",
+      "heading": "Iniciar reunião",
+      "title_label": "Título",
+      "title_placeholder": "ex. Sync semanal",
+      "access_label": "Acesso",
+      "public_help": "Visível para todos com o módulo Reuniões.",
+      "invite_help": "Só utilizadores convidados do portal veem a reunião.",
+      "invitees_label": "Convidar pessoas",
+      "invitees_search": "Pesquisar nome ou e-mail…",
+      "invitees_host": "Você entra automaticamente. Outras pessoas são opcionais.",
+      "invitees_you": "Você",
+      "invitees_empty": "Não há outros utilizadores do portal para convidar.",
+      "submit": "Iniciar reunião"
+    },
+    "guest": {
+      "lead": "Introduza o seu nome para entrar.",
+      "name_label": "O seu nome",
+      "name_required": "Introduza um nome.",
+      "submit": "Entrar",
+      "ended": "Esta reunião terminou."
+    },
+    "chat": {
+      "start": "Iniciar reunião"
+    },
+    "notify": {
+      "title": "Convite para reunião",
+      "body": "Foi convidado para \"{title}\"."
+    },
+    "flash": {
+      "invitees_required": "Convide pelo menos uma pessoa.",
+      "no_access": "Sem acesso a esta reunião.",
+      "ended": "Esta reunião terminou.",
+      "ended_ok": "Reunião encerrada.",
+      "not_configured": "MiroTalk não está configurado. Defina MIROTALK_URL no .env.",
+      "join_failed": "Não foi possível entrar na reunião.",
+      "no_module": "O módulo de reuniões não está disponível.",
+      "chat_missing": "Chat não encontrado.",
+      "not_chat_member": "Não é membro deste chat.",
+      "chat_start_error": "Não foi possível iniciar a reunião."
     }
   }
 }

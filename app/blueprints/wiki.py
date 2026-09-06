@@ -568,56 +568,35 @@ def toggle_favorite(page_id):
     if not can_view_item(current_user, page, 'wiki'):
         return jsonify({'error': _('visibility.flash.access_denied')}), 403
     
+    from app.utils.favorites import add_user_favorite, remove_user_favorite
+
     if request.method == 'POST':
-        # Prüfe ob bereits favorisiert
-        existing_favorite = WikiFavorite.query.filter_by(
-            user_id=current_user.id,
-            wiki_page_id=page_id
-        ).first()
-        
-        if existing_favorite:
-            return jsonify({'error': _('wiki.api.favorite.already'), 'is_favorite': True}), 400
-        
-        # Prüfe ob bereits 5 Favoriten vorhanden
-        favorite_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
-        if favorite_count >= 5:
-            return jsonify({'error': _('wiki.api.favorite.limit'), 'is_favorite': False}), 400
-        
-        # Füge zu Favoriten hinzu
-        favorite = WikiFavorite(
-            user_id=current_user.id,
-            wiki_page_id=page_id
+        status, is_favorite, favorites_count = add_user_favorite(
+            current_user.id, WikiFavorite, 'wiki_page_id', page_id, max_count=5
         )
-        db.session.add(favorite)
-        db.session.commit()
-        favorites_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
-        
+        if status == 'already':
+            return jsonify({'error': _('wiki.api.favorite.already'), 'is_favorite': True}), 400
+        if status == 'limit':
+            return jsonify({'error': _('wiki.api.favorite.limit'), 'is_favorite': False}), 400
         return jsonify({
             'success': True,
-            'is_favorite': True,
+            'is_favorite': is_favorite,
             'favorites_count': favorites_count,
             'message': _('wiki.api.favorite.added')
         })
-    
+
     elif request.method == 'DELETE':
-        # Entferne aus Favoriten
-        favorite = WikiFavorite.query.filter_by(
-            user_id=current_user.id,
-            wiki_page_id=page_id
-        ).first()
-        
-        if favorite:
-            db.session.delete(favorite)
-            db.session.commit()
-            favorites_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
-            return jsonify({
-                'success': True,
-                'is_favorite': False,
-                'favorites_count': favorites_count,
-                'message': _('wiki.api.favorite.removed')
-            })
-        else:
+        status, is_favorite, favorites_count = remove_user_favorite(
+            current_user.id, WikiFavorite, 'wiki_page_id', page_id
+        )
+        if status == 'missing':
             return jsonify({'error': _('wiki.api.favorite.missing'), 'is_favorite': False}), 404
+        return jsonify({
+            'success': True,
+            'is_favorite': is_favorite,
+            'favorites_count': favorites_count,
+            'message': _('wiki.api.favorite.removed')
+        })
 
 
 @wiki_bp.route('/api/favorite/check/<int:page_id>', methods=['GET'])

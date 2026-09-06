@@ -57,6 +57,15 @@ step_ssl() {
             log_warning "SSL-Setup fehlgeschlagen. Manuell: certbot --nginx -d $DOMAIN"
             return 1
         fi
+        _meet_host=$(mirotalk_meet_hostname)
+        if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+            if certbot --nginx -d "$_meet_host" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
+                log_success "SSL für MiroTalk (${_meet_host}) konfiguriert"
+                systemctl reload nginx
+            else
+                log_warning "SSL für ${_meet_host} fehlgeschlagen. DNS-A-Record prüfen, dann: certbot --nginx -d ${_meet_host}"
+            fi
+        fi
     elif [ "$WEBSERVER_TYPE" = "apache" ]; then
         if certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
             log_success "SSL konfiguriert"
@@ -64,6 +73,15 @@ step_ssl() {
         else
             log_warning "SSL-Setup fehlgeschlagen. Manuell: certbot --apache -d $DOMAIN"
             return 1
+        fi
+        _meet_host=$(mirotalk_meet_hostname)
+        if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+            if certbot --apache -d "$_meet_host" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
+                log_success "SSL für MiroTalk (${_meet_host}) konfiguriert"
+                systemctl reload apache2
+            else
+                log_warning "SSL für ${_meet_host} fehlgeschlagen. DNS-A-Record prüfen, dann: certbot --apache -d ${_meet_host}"
+            fi
         fi
     fi
     return 0

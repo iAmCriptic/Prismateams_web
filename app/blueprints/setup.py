@@ -38,7 +38,15 @@ MODULE_META = [
     {'key': 'module_kanban', 'icon': 'bi-kanban', 'label': 'Kanban', 'settings_endpoint': 'settings.kanban_import'},
     {'key': 'module_excalidraw', 'icon': 'bi-pencil-square', 'label': 'Excalidraw', 'settings_endpoint': None},
     {'key': 'module_surveys', 'icon': 'bi-ui-checks-grid', 'label': 'Umfragen', 'settings_endpoint': None},
+    {'key': 'module_meetings', 'icon': 'bi-camera-video', 'label': 'Meetings', 'settings_endpoint': None},
 ]
+
+
+def _visible_module_meta():
+    from app.utils.mirotalk import mirotalk_configured
+    if mirotalk_configured():
+        return MODULE_META
+    return [meta for meta in MODULE_META if meta['key'] != 'module_meetings']
 
 LANGUAGE_NAMES = {
     'de': 'Deutsch',
@@ -701,7 +709,7 @@ def setup_step3():
                     3,
                     setup_bot=bot_data,
                     setup_modules=AVAILABLE_MODULES,
-                    module_meta=MODULE_META,
+                    module_meta=_visible_module_meta(),
                     default_roles=default_roles,
                 ),
             )
@@ -716,7 +724,7 @@ def setup_step3():
             3,
             setup_bot=setup_bot,
             setup_modules=AVAILABLE_MODULES,
-            module_meta=MODULE_META,
+            module_meta=_visible_module_meta(),
             default_roles=default_roles,
             whitelist_entries=session.get('setup_whitelist_entries', []),
         ),
@@ -762,7 +770,7 @@ def setup_step4():
 
     saved = session.get('setup_modules') or _default_modules_dict()
     modules_for_ui = []
-    for meta in MODULE_META:
+    for meta in _visible_module_meta():
         if meta['key'] not in AVAILABLE_MODULES:
             continue
         item = dict(meta)

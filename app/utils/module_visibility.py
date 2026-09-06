@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from flask import request
 
-from app.models.settings import SystemSettings
 from app.models.team import Team, TeamMember
 from app.utils.access_control import has_module_access
 from app.utils.common import is_module_enabled
+from app.utils.system_settings_cache import setting_bool as _setting_bool
 
 VISIBILITY_PRIVATE = 'private'
 VISIBILITY_TEAM = 'team'
@@ -54,13 +54,6 @@ NO_PRIVATE_MODULES = frozenset({'protocols'})
 
 def setting_key(module: str, kind: str) -> str:
     return f'{module}_allow_{kind}'
-
-
-def _setting_bool(key: str, default: bool = True) -> bool:
-    row = SystemSettings.query.filter_by(key=key).first()
-    if row is None:
-        return default
-    return str(row.value).lower() in ('true', '1', 'yes', 'on')
 
 
 def _fallback_visibility(module: str) -> str:

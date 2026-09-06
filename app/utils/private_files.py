@@ -706,13 +706,18 @@ def list_view_contents(view, folder_id, user, team_id=None):
             ).all()
         }
 
+        all_folder_ids = folder_ids | outgoing_folder_ids
         folders = []
-        for fid in folder_ids | outgoing_folder_ids:
-            folder = Folder.query.get(fid)
-            if folder and folder.deleted_at is None and not folder.is_personal_root:
+        if all_folder_ids:
+            for folder in Folder.query.filter(
+                Folder.id.in_(all_folder_ids),
+                Folder.deleted_at.is_(None),
+            ).all():
+                if folder.is_personal_root:
+                    continue
                 if getattr(folder, 'is_team_root', False) and folder.team_id in member_team_ids:
                     continue
-                if folder.created_by != user.id or fid in outgoing_folder_ids:
+                if folder.created_by != user.id or folder.id in outgoing_folder_ids:
                     folders.append(folder)
         seen = set()
         uniq_folders = []
@@ -721,11 +726,15 @@ def list_view_contents(view, folder_id, user, team_id=None):
                 seen.add(f.id)
                 uniq_folders.append(f)
 
+        all_file_ids = file_ids | outgoing_file_ids
         files = []
-        for fid in file_ids | outgoing_file_ids:
-            file_obj = File.query.get(fid)
-            if file_obj and file_obj.deleted_at is None and file_obj.is_current:
-                if file_obj.uploaded_by != user.id or fid in outgoing_file_ids:
+        if all_file_ids:
+            for file_obj in File.query.filter(
+                File.id.in_(all_file_ids),
+                File.deleted_at.is_(None),
+                File.is_current.is_(True),
+            ).all():
+                if file_obj.uploaded_by != user.id or file_obj.id in outgoing_file_ids:
                     files.append(file_obj)
         seen_f = set()
         uniq_files = []

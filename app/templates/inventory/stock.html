@@ -520,7 +520,7 @@ async function loadFavorites() {
     try {
         const response = (typeof fetchInventoryApi === 'function')
             ? await fetchInventoryApi('/favorites')
-            : await fetch('/inventory/vnext/api/favorites');
+            : await fetch('/inventory/api/favorites');
         if (response.ok) {
             const data = await response.json();
             favorites = new Set(data.map(p => p.id));
@@ -538,7 +538,7 @@ async function loadOverdueProductIds() {
     try {
         const response = (typeof fetchInventoryApi === 'function')
             ? await fetchInventoryApi('/borrows?status=overdue')
-            : await fetch('/inventory/vnext/api/borrows?status=overdue');
+            : await fetch('/inventory/api/borrows?status=overdue');
         if (!response.ok) return;
         const data = await response.json();
         const ids = new Set();
@@ -566,7 +566,7 @@ async function toggleFavorite(productId) {
         const method = isFavorite ? 'DELETE' : 'POST';
         const response = await (typeof fetchInventoryApi === 'function'
             ? fetchInventoryApi(`/favorites/${productId}`, { method, headers: { 'Content-Type': 'application/json' } })
-            : fetch(`/inventory/vnext/api/favorites/${productId}`, { method, headers: { 'Content-Type': 'application/json' } }));
+            : fetch(`/inventory/api/favorites/${productId}`, { method, headers: { 'Content-Type': 'application/json' } }));
         if (response.ok) {
             if (isFavorite) favorites.delete(productId);
             else favorites.add(productId);

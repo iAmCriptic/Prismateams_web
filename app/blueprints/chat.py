@@ -5,8 +5,12 @@ from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.user import User
 from app.models.file import Folder
-from app.utils.notifications import enqueue_chat_notification
 from app.utils.access_control import check_module_access, get_guest_accessible_items
+from app.utils.chat_service import (
+    has_structured_message_content as _has_structured_message_content,
+    persist_outgoing_message,
+    resolve_message_type as _resolve_message_type,
+)
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat_user_filters
@@ -19,6 +23,7 @@ from app.utils.chat_nav import (
     user_is_chat_member,
     wants_desktop_chat_layout,
 )
+from app.utils.meetings import meetings_module_available, meetings_runtime_ready
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
@@ -43,44 +48,6 @@ def allowed_file(filename):
         'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'
     }
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def _resolve_message_type(filename, mimetype):
-    ext = filename.rsplit('.', 1)[1].lower()
-    mimetype = (mimetype or '').lower()
-    if ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'} or mimetype.startswith('image/'):
-        return 'image'
-    if ext in {'mp4', 'mov', 'avi'} or mimetype.startswith('video/'):
-        return 'video'
-    if ext in {'mp3', 'wav', 'm4a', 'aac', 'ogg'} or mimetype.startswith('audio/') or filename.startswith('voice_message'):
-        return 'voice'
-    if ext == 'webm':
-        return 'voice' if mimetype.startswith('audio/') or filename.startswith('voice_message') else 'video'
-    return 'file'
-
-
-def _has_structured_message_content(message_type, metadata):
-    if not isinstance(metadata, dict):
-        return False
-    if message_type == 'folder_link':
-        folder_id = metadata.get('folder_id')
-        folder_name = (metadata.get('folder_name') or '').strip()
-        try:
-            has_folder_id = int(folder_id) > 0
-        except (TypeError, ValueError):
-            has_folder_id = False
-        return has_folder_id or bool(folder_name)
-    if message_type == 'calendar_event':
-        return bool((metadata.get('title') or '').strip())
-    if message_type == 'poll':
-        question = (metadata.get('question') or '').strip()
-        options = metadata.get('options') if isinstance(metadata.get('options'), list) else []
-        valid_options = [
-            option for option in options
-            if isinstance(option, dict) and (option.get('text') or '').strip()
-        ]
-        return bool(question and len(valid_options) >= 2)
-    return False
 
 
 def _build_calendar_message_metadata(event, current_user_status='pending'):
@@ -283,6 +250,8 @@ def view_chat(chat_id):
         members=members,
         nav_items=nav_items,
         active_chat_id=active_nav_id,
+        can_start_meeting=meetings_module_available(current_user),
+        meetings_enabled=meetings_runtime_ready(),
     )
 
 
@@ -404,51 +373,15 @@ def send_message(chat_id):
 
     if not content and not media_url and not _has_structured_message_content(message_type, metadata):
         return jsonify({'error': translate('chat.errors.message_empty')}), 400
-    
-    # Create message
-    message = ChatMessage(
-        chat_id=actual_chat_id,
+
+    message = persist_outgoing_message(
+        chat=chat,
         sender_id=current_user.id,
         content=content,
         message_type=message_type,
-        media_url=media_url
+        media_url=media_url,
+        metadata=metadata,
     )
-    if isinstance(metadata, dict):
-        message.set_metadata(metadata)
-    
-    db.session.add(message)
-    db.session.commit()
-    
-    # Sende Push-Benachrichtigungen an andere Chat-Mitglieder
-    try:
-        enqueue_chat_notification(
-            chat_id=actual_chat_id,
-            sender_id=current_user.id,
-            message_content=content or f"[{message_type}]",
-            chat_name=chat.name,
-            message_id=message.id  # WICHTIG: Für Duplikat-Vermeidung
-        )
-        logger.debug("Chat-Push-Benachrichtigung asynchron eingeplant")
-    except Exception as e:
-        logger.warning("Fehler beim Senden der Push-Benachrichtigungen: %s", e, exc_info=True)
-    
-    # Sende Dashboard-Updates an alle Chat-Mitglieder (außer dem Sender)
-    try:
-        from app.utils.chat_unread import total_unread_counts_for_users
-        from app.utils.dashboard_events import emit_dashboard_update
-
-        chat_members = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
-        member_ids = [cm.user_id for cm in chat_members if cm.user_id != current_user.id]
-        if member_ids:
-            unread_by_user = total_unread_counts_for_users(member_ids)
-            for user_id in member_ids:
-                emit_dashboard_update(
-                    user_id,
-                    'chat_update',
-                    {'count': unread_by_user.get(user_id, 0)},
-                )
-    except Exception as e:
-        current_app.logger.error(f"Fehler beim Senden der Dashboard-Updates für Chat: {e}")
     
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         from app.utils import get_local_time

@@ -109,12 +109,9 @@ def apply_provider_preset(mailbox: Mailbox, provider: str) -> None:
 
 
 def _setting_bool(key: str, default: bool = False) -> bool:
-    from app.utils.system_settings_cache import get_setting
+    from app.utils.system_settings_cache import setting_bool
 
-    value = get_setting(key)
-    if value is None:
-        return default
-    return str(value).lower() == 'true'
+    return setting_bool(key, default)
 
 
 def _setting_int(key: str, default: int) -> int:

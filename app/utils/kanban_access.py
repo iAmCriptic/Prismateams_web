@@ -5,11 +5,11 @@ from __future__ import annotations
 from flask import current_app
 
 from app.models.kanban import KanbanBoard, KanbanBoardMember, KanbanCard, KanbanList
-from app.models.settings import SystemSettings
 from app.models.team import Team, TeamMember
 from app.models.user import User
 from app.utils.access_control import has_module_access
 from app.utils.common import is_module_enabled
+from app.utils.system_settings_cache import setting_bool as _setting_bool
 
 VISIBILITY_PRIVATE = 'private'
 VISIBILITY_TEAM = 'team'
@@ -19,13 +19,6 @@ VALID_VISIBILITIES = frozenset({VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_
 SETTING_ALLOW_PRIVATE = 'kanban_allow_private'
 SETTING_ALLOW_TEAM = 'kanban_allow_team'
 SETTING_ALLOW_PUBLIC = 'kanban_allow_public'
-
-
-def _setting_bool(key: str, default: bool = True) -> bool:
-    row = SystemSettings.query.filter_by(key=key).first()
-    if row is None:
-        return default
-    return str(row.value).lower() in ('true', '1', 'yes', 'on')
 
 
 def is_kanban_module_enabled() -> bool:

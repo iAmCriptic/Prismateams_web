@@ -447,23 +447,14 @@ def api_bulk_delete():
 @check_module_access('module_contacts')
 def toggle_favorite(contact_id):
     """Toggle per-user contact favorite status."""
+    from app.utils.favorites import toggle_user_favorite
+
     contact = Contact.query.get_or_404(contact_id)
     if not can_view_item(current_user, contact, 'contacts'):
         return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
-    existing = ContactFavorite.query.filter_by(
-        user_id=current_user.id,
-        contact_id=contact.id,
-    ).first()
-
-    if existing:
-        db.session.delete(existing)
-        is_favorite = False
-    else:
-        db.session.add(ContactFavorite(user_id=current_user.id, contact_id=contact.id))
-        is_favorite = True
-
-    db.session.commit()
-    favorites_count = ContactFavorite.query.filter_by(user_id=current_user.id).count()
+    is_favorite, favorites_count = toggle_user_favorite(
+        current_user.id, ContactFavorite, 'contact_id', contact.id
+    )
     return jsonify({
         'success': True,
         'is_favorite': is_favorite,

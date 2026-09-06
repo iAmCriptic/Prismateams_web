@@ -55,6 +55,7 @@ from .survey import (
     SurveyResponseLock,
 )
 from .protocol import Protocol, ProtocolAgendaItem
+from .meetings import Meeting, MeetingInvite
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -118,6 +119,7 @@ __all__ = [
     'Survey', 'SurveyPage', 'SurveyQuestion', 'SurveyLogicRule',
     'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
     'Protocol', 'ProtocolAgendaItem',
+    'Meeting', 'MeetingInvite',
 ]
 
 

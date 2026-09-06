@@ -140,6 +140,17 @@ class Config:
     MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
     FFMPEG_PATH = os.environ.get('FFMPEG_PATH', '')
 
+    MIROTALK_URL = (os.environ.get('MIROTALK_URL') or '').strip().rstrip('/')
+    MIROTALK_API_URL = (os.environ.get('MIROTALK_API_URL') or MIROTALK_URL or '').strip().rstrip('/')
+    MIROTALK_API_KEY = (os.environ.get('MIROTALK_API_KEY') or '').strip()
+    MIROTALK_HOST_USER = (os.environ.get('MIROTALK_HOST_USER') or '').strip()
+    MIROTALK_HOST_PASSWORD = (os.environ.get('MIROTALK_HOST_PASSWORD') or '').strip()
+    _mirotalk_enabled = os.environ.get('MIROTALK_ENABLED')
+    if _mirotalk_enabled is None or str(_mirotalk_enabled).strip() == '':
+        MIROTALK_ENABLED = bool(MIROTALK_URL)
+    else:
+        MIROTALK_ENABLED = str(_mirotalk_enabled).strip().lower() in ('1', 'true', 'yes', 'on')
+
     FILE_CONVERTER_RETENTION_HOURS = int(os.environ.get('FILE_CONVERTER_RETENTION_HOURS', '24'))
     FILE_CONVERTER_MAX_CONCURRENT = int(os.environ.get('FILE_CONVERTER_MAX_CONCURRENT', '2'))
     LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', '')

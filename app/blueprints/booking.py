@@ -595,21 +595,26 @@ def request_detail(request_id):
     for field_value in booking_request.field_values:
         field_values[field_value.field_id] = field_value
 
-    approvals = {}
-    user_role_assignments = {}
-
-    for role in form.roles:
-        approval = BookingRequestApproval.query.filter_by(
-            request_id=booking_request.id,
-            role_id=role.id
-        ).first()
-        approvals[role.id] = approval
-
-        role_user = BookingFormRoleUser.query.filter_by(
-            role_id=role.id,
-            user_id=current_user.id
-        ).first()
-        user_role_assignments[role.id] = role_user is not None
+    roles = list(form.roles)
+    role_ids = [role.id for role in roles]
+    approvals = {role.id: None for role in roles}
+    user_role_assignments = {role.id: False for role in roles}
+    if role_ids:
+        for approval in BookingRequestApproval.query.filter(
+            BookingRequestApproval.request_id == booking_request.id,
+            BookingRequestApproval.role_id.in_(role_ids),
+        ).all():
+            approvals[approval.role_id] = approval
+        assigned_role_ids = {
+            row.role_id
+            for row in BookingFormRoleUser.query.filter(
+                BookingFormRoleUser.user_id == current_user.id,
+                BookingFormRoleUser.role_id.in_(role_ids),
+            ).all()
+        }
+        for role_id in assigned_role_ids:
+            if role_id in user_role_assignments:
+                user_role_assignments[role_id] = True
 
     detail_view = STATUS_TO_VIEW.get(booking_request.status, 'overview')
     ctx = _booking_sidebar_context(form_id=form.id, view=detail_view)

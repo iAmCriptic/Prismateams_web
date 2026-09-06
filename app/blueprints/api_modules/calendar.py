@@ -10,6 +10,7 @@ from app.utils.multi_calendars import (
     events_query_for_calendars,
     is_calendar_multi_enabled,
     parse_calendar_ids_param,
+    participations_for_user,
 )
 
 
@@ -28,12 +29,10 @@ def register_calendar_routes(api_bp, require_api_auth):
             events = events_query_for_calendars(current_user, selected).order_by(CalendarEvent.start_time).all()
         else:
             events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
+        by_id = participations_for_user([event.id for event in events], current_user.id)
         result = []
         for event in events:
-            participation = EventParticipant.query.filter_by(
-                event_id=event.id,
-                user_id=current_user.id,
-            ).first()
+            participation = by_id.get(event.id)
             result.append({
                 "id": event.id,
                 "title": event.title,

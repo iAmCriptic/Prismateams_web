@@ -120,6 +120,9 @@ def import_stands():
 
     added, updated, errors, rooms_created = 0, 0, [], 0
     default_type = get_or_create_default_stand_type()
+    rooms_by_name = {r.name: r for r in AssessmentRoom.query.all()}
+    types_by_name = {t.name: t for t in AssessmentStandType.query.all()}
+    stands_by_name = {s.name: s for s in AssessmentStand.query.all()}
 
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Standname"))
@@ -132,22 +135,24 @@ def import_stands():
 
         room = None
         if room_name:
-            room = AssessmentRoom.query.filter_by(name=room_name).first()
+            room = rooms_by_name.get(room_name)
             if not room:
                 room = AssessmentRoom(name=room_name)
                 db.session.add(room)
                 db.session.flush()
+                rooms_by_name[room_name] = room
                 rooms_created += 1
 
         stand_type = default_type
         if type_name:
-            stand_type = AssessmentStandType.query.filter_by(name=type_name).first()
+            stand_type = types_by_name.get(type_name)
             if not stand_type:
                 stand_type = AssessmentStandType(name=type_name)
                 db.session.add(stand_type)
                 db.session.flush()
+                types_by_name[type_name] = stand_type
 
-        existing = AssessmentStand.query.filter_by(name=name).first()
+        existing = stands_by_name.get(name)
         if existing:
             existing.description = description
             existing.room_id = room.id if room else None
@@ -155,14 +160,14 @@ def import_stands():
                 existing.stand_type_id = stand_type.id
             updated += 1
         else:
-            db.session.add(
-                AssessmentStand(
-                    name=name,
-                    description=description,
-                    room_id=room.id if room else None,
-                    stand_type_id=stand_type.id if stand_type else None,
-                )
+            stand = AssessmentStand(
+                name=name,
+                description=description,
+                room_id=room.id if room else None,
+                stand_type_id=stand_type.id if stand_type else None,
             )
+            db.session.add(stand)
+            stands_by_name[name] = stand
             added += 1
 
     db.session.commit()
@@ -185,6 +190,7 @@ def import_users():
 
     added, updated, errors = 0, 0, []
     all_roles = {role.name: role for role in AssessmentRole.query.all()}
+    users_by_username = {(u.username or "").lower(): u for u in AssessmentUser.query.all()}
 
     for index, row in enumerate(_row_dict(ws), start=2):
         username = _clean(row.get("Benutzername")).lower()
@@ -202,7 +208,7 @@ def import_users():
             errors.append(f"Zeile {index}: Keine gültigen Rollen für '{username}'.")
             continue
 
-        user = AssessmentUser.query.filter_by(username=username).first()
+        user = users_by_username.get(username)
         if user:
             user.display_name = display_name
             user.set_password(password)
@@ -215,6 +221,7 @@ def import_users():
             user.roles = roles
             user.is_admin = any(role.name == "Administrator" for role in roles)
             db.session.add(user)
+            users_by_username[username] = user
             added += 1
 
     db.session.commit()
@@ -239,6 +246,9 @@ def import_criteria():
         return jsonify({"success": False, "message": error}), code or 400
 
     added, updated, errors = 0, 0, []
+    existing_by_name = {
+        c.name: c for c in AssessmentCriterion.query.filter_by(list_id=list_id).all()
+    }
 
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Name"))
@@ -256,20 +266,20 @@ def import_criteria():
             errors.append(f"Zeile {index}: Maximalpunktzahl muss > 0 sein.")
             continue
 
-        existing = AssessmentCriterion.query.filter_by(list_id=list_id, name=name).first()
+        existing = existing_by_name.get(name)
         if existing:
             existing.max_score = max_score
             existing.description = description
             updated += 1
         else:
-            db.session.add(
-                AssessmentCriterion(
-                    list_id=list_id,
-                    name=name,
-                    max_score=max_score,
-                    description=description,
-                )
+            criterion = AssessmentCriterion(
+                list_id=list_id,
+                name=name,
+                max_score=max_score,
+                description=description,
             )
+            db.session.add(criterion)
+            existing_by_name[name] = criterion
             added += 1
 
     db.session.commit()
@@ -290,19 +300,22 @@ def import_subjects():
         return jsonify({"success": False, "message": error}), code or 400
 
     added, updated, errors = 0, 0, []
+    existing_by_name = {
+        s.name: s for s in AssessmentListSubject.query.filter_by(list_id=list_id).all()
+    }
     for index, row in enumerate(_row_dict(ws), start=2):
         name = _clean(row.get("Name"))
         if not name:
             continue
         description = _clean(row.get("Beschreibung")) or None
-        existing = AssessmentListSubject.query.filter_by(list_id=list_id, name=name).first()
+        existing = existing_by_name.get(name)
         if existing:
             existing.description = description
             updated += 1
         else:
-            db.session.add(
-                AssessmentListSubject(list_id=list_id, name=name, description=description)
-            )
+            subject = AssessmentListSubject(list_id=list_id, name=name, description=description)
+            db.session.add(subject)
+            existing_by_name[name] = subject
             added += 1
 
     db.session.commit()

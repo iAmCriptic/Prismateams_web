@@ -2,10 +2,69 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+from typing import Iterable
+
 from flask import g, has_request_context
 
 _G_KEY = "_module_roles_by_user"
 _listeners_registered = False
+_fallback_roles: ContextVar[dict[int, dict[str, bool]] | None] = ContextVar(
+    "module_roles_fallback", default=None
+)
+
+
+def _request_store() -> dict | None:
+    if not has_request_context():
+        return None
+    store = getattr(g, _G_KEY, None)
+    if not isinstance(store, dict):
+        store = {}
+        setattr(g, _G_KEY, store)
+    return store
+
+
+def prefetch_user_module_roles(user_ids: Iterable[int]) -> dict[int, dict[str, bool]]:
+    """Load roles for many users in one query; fill request cache and fallback map."""
+    ids = sorted({int(uid) for uid in user_ids if uid is not None})
+    result: dict[int, dict[str, bool]] = {}
+    if not ids:
+        return result
+
+    store = _request_store()
+    missing: list[int] = []
+    for uid in ids:
+        cached = store.get(uid) if store is not None else None
+        if isinstance(cached, dict):
+            result[uid] = cached
+        else:
+            missing.append(uid)
+
+    if missing:
+        loaded = {uid: {} for uid in missing}
+        try:
+            from app.models.role import UserModuleRole
+
+            for row in UserModuleRole.query.filter(UserModuleRole.user_id.in_(missing)).all():
+                loaded[int(row.user_id)][row.module_key] = bool(row.has_access)
+        except Exception:
+            loaded = {uid: {} for uid in missing}
+        for uid, mapping in loaded.items():
+            result[uid] = mapping
+            if store is not None:
+                store[uid] = mapping
+
+    fallback = _fallback_roles.get()
+    if fallback is None:
+        fallback = {}
+        _fallback_roles.set(fallback)
+    fallback.update(result)
+    return result
+
+
+def clear_module_roles_fallback() -> None:
+    """Drop the thread/task fallback map (background notify)."""
+    _fallback_roles.set(None)
 
 
 def get_user_module_roles(user_id) -> dict[str, bool]:
@@ -14,15 +73,18 @@ def get_user_module_roles(user_id) -> dict[str, bool]:
         return {}
     uid = int(user_id)
 
-    store = None
-    if has_request_context():
-        store = getattr(g, _G_KEY, None)
-        if not isinstance(store, dict):
-            store = {}
-            setattr(g, _G_KEY, store)
+    store = _request_store()
+    if store is not None:
         cached = store.get(uid)
         if isinstance(cached, dict):
             return cached
+
+    fallback = _fallback_roles.get()
+    if fallback and uid in fallback:
+        mapping = fallback[uid]
+        if store is not None:
+            store[uid] = mapping
+        return mapping
 
     mapping: dict[str, bool] = {}
     try:

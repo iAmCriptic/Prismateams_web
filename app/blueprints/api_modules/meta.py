@@ -58,25 +58,8 @@ def register_meta_routes(api_bp, require_api_auth):
     @api_bp.route("/modules/active", methods=["GET"])
     @require_api_auth
     def get_active_modules():
-        all_modules = [
-            "module_chat",
-            "module_files",
-            "module_calendar",
-            "module_events",
-            "module_email",
-            "module_contacts",
-            "module_credentials",
-            "module_manuals",
-            "module_inventory",
-            "module_wiki",
-            "module_booking",
-            "module_music",
-            "module_media_downloader",
-            "module_assessment",
-            "module_shortlinks",
-            "module_kanban",
-            "module_excalidraw",
-        ]
+        from app.utils.common import AVAILABLE_MODULES
+        all_modules = list(AVAILABLE_MODULES)
 
         global_active, user_accessible, module_details = [], [], []
         for module_key in all_modules:

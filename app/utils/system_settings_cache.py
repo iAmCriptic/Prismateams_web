@@ -43,6 +43,22 @@ def get_setting(key: str, default: Optional[Any] = None) -> Optional[Any]:
     return value
 
 
+_TRUE_VALUES = frozenset({"true", "1", "yes", "on"})
+
+
+def setting_bool(key: str, default: bool = False) -> bool:
+    """Read a boolean setting from the request-scoped map."""
+    value = get_setting(key)
+    if value is None:
+        return default
+    return str(value).strip().lower() in _TRUE_VALUES
+
+
+def setting_exists(key: str) -> bool:
+    """True if the key is stored and non-empty."""
+    return get_setting(key) is not None
+
+
 def invalidate_system_settings_cache() -> None:
     """Drop the request-scoped settings map (e.g. after a write)."""
     if has_request_context() and hasattr(g, _G_KEY):

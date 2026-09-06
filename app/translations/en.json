@@ -34,7 +34,8 @@
       "assessment": "Assessment",
       "surveys": "Surveys",
       "file_converter": "File Converter",
-      "protocols": "Meeting Minutes"
+      "protocols": "Meeting Minutes",
+      "meetings": "Meetings"
     },
     "brand": {
       "separator": "–",
@@ -1401,7 +1402,10 @@
       "lead_short": "Product, system and open source.",
       "section_repository_help_button": "Help",
       "excalidraw_label_short": "Excalidraw",
-      "file_converter_label_short": "File converter"
+      "file_converter_label_short": "File converter",
+      "mirotalk_label": "MiroTalk",
+      "mirotalk_active": "Active",
+      "mirotalk_inactive": "Inactive"
     },
     "admin": {
       "page_title": "Administration - Settings",
@@ -1446,7 +1450,8 @@
         "allow_public": "Public variants",
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
-        "lead_short": "Enable and disable modules."
+        "lead_short": "Enable and disable modules.",
+        "module_meetings": "Meetings (video calls)"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -2660,7 +2665,10 @@
         "microphone_denied": "Microphone access was denied. Please allow it in your browser settings.",
         "load_older": "Load older messages",
         "load_older_loading": "Loading…",
-        "load_older_error": "Could not load older messages"
+        "load_older_error": "Could not load older messages",
+        "meeting_label": "Meeting",
+        "meeting_join": "Join",
+        "meeting_start_error": "Could not start the meeting"
       },
       "load_older": "Load older messages"
     },
@@ -6912,6 +6920,77 @@
       "size_normal": "Normal",
       "size_large": "Large",
       "size_huge": "Huge"
+    }
+  },
+  "meetings": {
+    "page_title": "Meetings",
+    "heading": "Meetings",
+    "default_title": "Meeting",
+    "chat_title": "Meeting: {name}",
+    "nav": {
+      "label": "Meetings navigation",
+      "active": "Active",
+      "ended": "Ended",
+      "start": "Start meeting",
+      "menu": "Meetings menu"
+    },
+    "list": {
+      "title": "Title",
+      "access": "Access",
+      "host": "Started by",
+      "started": "Started",
+      "empty": "No active meetings."
+    },
+    "access": {
+      "public": "Public",
+      "invite": "Invite only"
+    },
+    "actions": {
+      "join": "Join",
+      "end": "End",
+      "copy_guest": "Copy guest link",
+      "more": "More actions"
+    },
+    "create": {
+      "page_title": "Start meeting",
+      "heading": "Start meeting",
+      "title_label": "Title",
+      "title_placeholder": "e.g. Weekly sync",
+      "access_label": "Access",
+      "public_help": "Visible to everyone with the Meetings module.",
+      "invite_help": "Only invited portal users can see the meeting.",
+      "invitees_label": "Invite people",
+      "invitees_search": "Search name or email…",
+      "invitees_host": "You are included automatically. Additional people are optional.",
+      "invitees_you": "You",
+      "invitees_empty": "No other portal users to invite.",
+      "submit": "Start meeting"
+    },
+    "guest": {
+      "lead": "Enter your name to join.",
+      "name_label": "Your name",
+      "name_required": "Please enter a name.",
+      "submit": "Join",
+      "ended": "This meeting has ended."
+    },
+    "chat": {
+      "start": "Start meeting"
+    },
+    "notify": {
+      "title": "Meeting invitation",
+      "body": "You were invited to \"{title}\"."
+    },
+    "flash": {
+      "invitees_required": "Please invite at least one person.",
+      "no_access": "You cannot access this meeting.",
+      "ended": "This meeting has ended.",
+      "ended_ok": "Meeting ended.",
+      "not_configured": "MiroTalk is not configured. Set MIROTALK_URL in .env.",
+      "join_failed": "Could not join the meeting.",
+      "no_module": "The Meetings module is not available.",
+      "chat_missing": "Chat not found.",
+      "not_chat_member": "You are not a member of this chat.",
+      "chat_start_error": "Could not start the meeting."
     }
   }
 }

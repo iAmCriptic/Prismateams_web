@@ -18,7 +18,7 @@ from app.models.notification import (
     ChatNotificationSettings,
     PushDeliveryLog,
 )
-from app.models.chat import ChatMessage, ChatMember
+from app.models.chat import ChatMember
 from app.models.file import File
 from app.models.email import EmailMessage
 from app.models.calendar import CalendarEvent, EventParticipant
@@ -348,13 +348,30 @@ def send_push_notification(
     return success_count > 0
 
 
-def get_or_create_notification_settings(user_id: int) -> NotificationSettings:
-    settings = NotificationSettings.query.filter_by(user_id=user_id).first()
-    if not settings:
-        settings = NotificationSettings(user_id=user_id)
+def get_notification_settings_map(user_ids) -> dict[int, NotificationSettings]:
+    """Load (and create missing) NotificationSettings for many users."""
+    ids = sorted({int(uid) for uid in user_ids if uid is not None})
+    if not ids:
+        return {}
+    existing = {
+        int(row.user_id): row
+        for row in NotificationSettings.query.filter(NotificationSettings.user_id.in_(ids)).all()
+    }
+    created = False
+    for uid in ids:
+        if uid in existing:
+            continue
+        settings = NotificationSettings(user_id=uid)
         db.session.add(settings)
+        existing[uid] = settings
+        created = True
+    if created:
         db.session.commit()
-    return settings
+    return existing
+
+
+def get_or_create_notification_settings(user_id: int) -> NotificationSettings:
+    return get_notification_settings_map([user_id])[int(user_id)]
 
 
 def send_chat_notification(
@@ -364,62 +381,79 @@ def send_chat_notification(
     chat_name: str = None,
     message_id: int = None,
 ) -> int:
-    members = ChatMember.query.filter_by(chat_id=chat_id).all()
-    recipients = [m for m in members if m.user_id != sender_id]
+    from sqlalchemy.orm import joinedload
+
+    from app.utils.access_control import has_module_access
+    from app.utils.chat_unread import unread_counts_in_chat_for_users
+    from app.utils.module_roles_cache import clear_module_roles_fallback, prefetch_user_module_roles
+
     sender = User.query.get(sender_id)
     if not sender:
         return 0
 
+    members = (
+        ChatMember.query.options(joinedload(ChatMember.user))
+        .filter_by(chat_id=chat_id)
+        .all()
+    )
+    recipients = [m for m in members if m.user_id != sender_id]
+    recipient_ids = [m.user_id for m in recipients]
+    if not recipient_ids:
+        return 0
+
+    prefetch_user_module_roles(recipient_ids)
+    settings_by_id = get_notification_settings_map(recipient_ids)
+    chat_settings_by_uid = {
+        row.user_id: row
+        for row in ChatNotificationSettings.query.filter(
+            ChatNotificationSettings.chat_id == chat_id,
+            ChatNotificationSettings.user_id.in_(recipient_ids),
+        ).all()
+    }
+    unread_by_uid = unread_counts_in_chat_for_users(chat_id, recipient_ids)
+
     sent_count = 0
-    for member in recipients:
-        user = User.query.get(member.user_id)
-        if not user or not user.notifications_enabled or not user.chat_notifications:
-            continue
+    try:
+        for member in recipients:
+            user = member.user
+            if not user or not user.notifications_enabled or not user.chat_notifications:
+                continue
+            if not has_module_access(user, 'module_chat'):
+                continue
+            settings = settings_by_id.get(user.id)
+            if not settings or not settings.chat_notifications_enabled:
+                continue
+            chat_settings = chat_settings_by_uid.get(user.id)
+            if chat_settings and not chat_settings.notifications_enabled:
+                continue
 
-        from app.utils.access_control import has_module_access
-        if not has_module_access(user, 'module_chat'):
-            continue
+            unread_count = unread_by_uid.get(user.id, 0)
+            if unread_count == 0:
+                continue
 
-        settings = get_or_create_notification_settings(user.id)
-        if not settings.chat_notifications_enabled:
-            continue
+            if unread_count == 1:
+                body = _user_translate(user, 'notifications.chat.body_one')
+            else:
+                body = _user_translate(user, 'notifications.chat.body_many', count=unread_count)
+            chat_label = chat_name or _user_translate(user, 'notifications.chat.default_name')
+            title = _user_translate(user, 'notifications.chat.title', chat_name=chat_label)
+            in_app_key = f"chat:{chat_id}"
+            push_key = f"chat:{chat_id}:msg:{message_id}" if message_id else in_app_key
 
-        chat_settings = ChatNotificationSettings.query.filter_by(
-            user_id=user.id, chat_id=chat_id
-        ).first()
-        if chat_settings and not chat_settings.notifications_enabled:
-            continue
-
-        unread_count = ChatMessage.query.filter(
-            ChatMessage.chat_id == chat_id,
-            ChatMessage.sender_id != user.id,
-            ChatMessage.created_at > (member.last_read_at or member.joined_at or datetime.min),
-            ChatMessage.is_deleted == False,
-        ).count()
-        if unread_count == 0:
-            continue
-
-        if unread_count == 1:
-            body = _user_translate(user, 'notifications.chat.body_one')
-        else:
-            body = _user_translate(user, 'notifications.chat.body_many', count=unread_count)
-        chat_label = chat_name or _user_translate(user, 'notifications.chat.default_name')
-        title = _user_translate(user, 'notifications.chat.title', chat_name=chat_label)
-        in_app_key = f"chat:{chat_id}"
-        push_key = f"chat:{chat_id}:msg:{message_id}" if message_id else in_app_key
-
-        if notify_user(
-            user.id,
-            title=title,
-            body=body,
-            url=f"/chat/{chat_id}",
-            notification_type='chat',
-            dedup_key=in_app_key,
-            push_dedup_key=push_key,
-            source_id=chat_id,
-            data={'chat_id': chat_id, 'unread_count': unread_count, 'type': 'chat'},
-        ):
-            sent_count += 1
+            if notify_user(
+                user.id,
+                title=title,
+                body=body,
+                url=f"/chat/{chat_id}",
+                notification_type='chat',
+                dedup_key=in_app_key,
+                push_dedup_key=push_key,
+                source_id=chat_id,
+                data={'chat_id': chat_id, 'unread_count': unread_count, 'type': 'chat'},
+            ):
+                sent_count += 1
+    finally:
+        clear_module_roles_fallback()
 
     return sent_count
 

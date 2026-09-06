@@ -29,6 +29,7 @@ AVAILABLE_MODULES = [
     'module_excalidraw',
     'module_surveys',
     'module_protocols',
+    'module_meetings',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

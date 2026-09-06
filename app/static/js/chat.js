@@ -221,6 +221,22 @@
         `;
     }
 
+    function meetingCard(message) {
+        const metadata = message.metadata || {};
+        const joinUrl = cfg.meetingsEnabled !== false ? (metadata.join_url || "") : "";
+        const title = metadata.title || i18n.meeting_label || "Meeting";
+        const joinLabel = i18n.meeting_join || "Beitreten";
+        return `
+            <div class="message-card message-card-meeting">
+                <div class="message-card-icon"><i class="bi bi-camera-video"></i></div>
+                <div class="message-card-body">
+                    <strong>${escapeHtml(title)}</strong>
+                    ${joinUrl ? `<a href="${escapeHtml(joinUrl)}" class="btn btn-sm btn-accent rounded-pill mt-2">${escapeHtml(joinLabel)}</a>` : ""}
+                </div>
+            </div>
+        `;
+    }
+
     function messageContentHtml(message) {
         if (message.message_type === "image") {
             return `<img src="${getMediaUrl(message.media_url)}" class="img-fluid rounded" style="max-width:320px;" alt="Bild">`;
@@ -243,6 +259,9 @@
         if (message.message_type === "poll") {
             return pollCard(message);
         }
+        if (message.message_type === "meeting") {
+            return meetingCard(message);
+        }
         return `<div class="message-content">${escapeHtml(message.content || "")}</div>`;
     }
 
@@ -263,7 +282,7 @@
         wrapper.innerHTML = `
             <div class="message-header"><strong>${sender}</strong></div>
             ${messageContentHtml(message)}
-            ${message.content && message.message_type !== "text" && message.message_type !== "folder_link" && message.message_type !== "calendar_event" ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ""}
+            ${message.content && message.message_type !== "text" && message.message_type !== "folder_link" && message.message_type !== "calendar_event" && message.message_type !== "meeting" ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ""}
             <div class="message-time"><small class="text-muted">${formatTime(message.created_at)}</small></div>
         `;
         return wrapper;
@@ -767,7 +786,35 @@
         if (calendarBtn) {
             respondToCalendarEvent(calendarBtn.getAttribute("data-message-id"), calendarBtn.getAttribute("data-status"));
         }
+        const startBtn = event.target.closest("[data-start-meeting]");
+        if (startBtn) {
+            event.preventDefault();
+            startMeetingFromChat();
+        }
     });
+
+    async function startMeetingFromChat() {
+        if (!cfg.canStartMeeting || !cfg.startMeetingUrl || isSendingMessage) return;
+        isSendingMessage = true;
+        try {
+            const response = await fetch(cfg.startMeetingUrl, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || i18n.meeting_start_error || "Meeting konnte nicht gestartet werden");
+            }
+            if (payload.join_url) {
+                window.location.href = payload.join_url;
+                return;
+            }
+        } catch (err) {
+            notify(err.message || i18n.meeting_start_error || "Meeting konnte nicht gestartet werden");
+        } finally {
+            isSendingMessage = false;
+        }
+    }
 
     function bindComposer() {
         fileChanged("file-upload", "file-name");
@@ -839,6 +886,14 @@
                 closeAllAttachmentPopups();
                 const modalEl = byId("pollCreateModal");
                 if (modalEl) new bootstrap.Modal(modalEl).show();
+            });
+        });
+
+        document.querySelectorAll("[data-attachment-action='meeting']").forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                closeAllAttachmentPopups();
+                startMeetingFromChat();
             });
         });
 

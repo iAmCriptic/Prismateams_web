@@ -66,6 +66,17 @@
           </div>
         </div>
         <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.mirotalk_label') }}</span></div>
+          <div class="sp-row-control">
+            {% if mirotalk_enabled %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.mirotalk_active') }}</span>
+            {% if mirotalk_version %}<span class="settings-about-meta-value--mono ms-2">{{ mirotalk_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.mirotalk_inactive') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="sp-row">
           <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.media_downloader_label') }}</span></div>
           <div class="sp-row-control">
             {% if media_downloader_compatible %}

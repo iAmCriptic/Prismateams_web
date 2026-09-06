@@ -113,7 +113,7 @@ gather_information() {
     log_info ""
     log_info "=== Optionale Docker-Services ==="
     if [ -z "$INSTALL_DOCKER" ] && [ -z "$INSTALL_ONLYOFFICE" ]; then
-        prompt_yes_no INSTALL_DOCKER "Docker für OnlyOffice installieren?" "j"
+        prompt_yes_no INSTALL_DOCKER "Docker für OnlyOffice / Excalidraw / MiroTalk installieren?" "j"
     fi
     if [ -z "$INSTALL_DOCKER" ]; then
         if is_yes "$INSTALL_ONLYOFFICE"; then
@@ -151,6 +151,21 @@ gather_information() {
         fi
     fi
     if is_yes "$INSTALL_EXCALIDRAW"; then
+        INSTALL_DOCKER="j"
+    fi
+
+    if is_yes "$INSTALL_DOCKER"; then
+        prompt_yes_no INSTALL_MIROTALK "MiroTalk SFU (Meetings / Videoanrufe) installieren?" "j"
+        if ! is_yes "$INSTALL_MIROTALK"; then
+            print_manual_mirotalk_hint
+        fi
+    else
+        INSTALL_MIROTALK="${INSTALL_MIROTALK:-n}"
+        if ! is_yes "$INSTALL_MIROTALK"; then
+            print_manual_mirotalk_hint
+        fi
+    fi
+    if is_yes "$INSTALL_MIROTALK"; then
         INSTALL_DOCKER="j"
     fi
 
@@ -285,6 +300,7 @@ confirm_plan() {
     echo "  Redis:          $(is_yes "$SETUP_REDIS" && echo "ja" || echo "manuell")"
     echo "  OnlyOffice:     $(is_yes "$INSTALL_ONLYOFFICE" && echo "ja" || echo "nein")"
     echo "  Excalidraw:     $(is_yes "$INSTALL_EXCALIDRAW" && echo "ja" || echo "nein")"
+    echo "  MiroTalk:       $(is_yes "$INSTALL_MIROTALK" && echo "ja" || echo "nein")"
     echo "  FFmpeg:         $(is_yes "$INSTALL_MEDIA_DOWNLOADER" && echo "ja" || echo "nein")"
     echo "  .env-Modus:     $ENV_MODE"
     echo

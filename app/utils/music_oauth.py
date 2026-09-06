@@ -49,20 +49,18 @@ def get_music_setting(key, default=None):
 
 def get_encryption_key():
     """Holt oder erstellt den Verschlüsselungsschlüssel."""
-    # Versuche zuerst aus Umgebungsvariable zu lesen
-    key = os.environ.get('MUSIC_ENCRYPTION_KEY')
+    from app.utils.encryption import read_encryption_key
+
+    key = read_encryption_key('MUSIC_ENCRYPTION_KEY')
     if key:
-        # Wenn als String, in Bytes konvertieren
-        if isinstance(key, str):
-            return key.encode('utf-8')
         return key
-    
+
     # Fallback: Versuche aus Datei zu lesen (für Migration)
     key_file = 'music_token_key.key'
     if os.path.exists(key_file):
         with open(key_file, 'rb') as f:
             return f.read()
-    
+
     # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
     # In Produktion sollte der Key immer in .env gesetzt sein
     key = Fernet.generate_key()

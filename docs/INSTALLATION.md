@@ -72,9 +72,9 @@ sudo apt install -y python3 python3-pip python3-venv \
     apt-transport-https ca-certificates gnupg lsb-release
 ```
 
-### Schritt 2: Docker installieren (für Excalidraw und OnlyOffice)
+### Schritt 2: Docker installieren (für Excalidraw, OnlyOffice und MiroTalk)
 
-**Hinweis:** Docker ist nur erforderlich, wenn Sie Excalidraw oder OnlyOffice installieren möchten. Sie können diesen Schritt überspringen, wenn Sie diese Features nicht benötigen.
+**Hinweis:** Docker ist nur erforderlich, wenn Sie Excalidraw, OnlyOffice oder MiroTalk SFU (Meetings) installieren möchten. Sie können diesen Schritt überspringen, wenn Sie diese Features nicht benötigen.
 
 ```bash
 # Docker + Compose-Plugin installieren (empfohlen)
@@ -273,6 +273,101 @@ soffice --version
 - Parallel laufende Jobs begrenzt `FILE_CONVERTER_MAX_CONCURRENT` (Standard: 2)
 - Ohne LibreOffice bleiben Audio-/Bild-/PDF-Funktionen nutzbar; Dokument-Optionen fehlen dann in der UI
 
+### Schritt 6d: Optionale Installation - MiroTalk SFU (Meetings)
+
+**⚠️ OPTIONAL:** Videoanrufe im Meetings-Modul und aus dem Chat. **Kein Path-Prefix** unter dem Portal (`/mirotalk/` funktioniert mit Socket.IO/WebRTC nicht zuverlässig). Stattdessen eigener Host `meet.IHRE-DOMAIN`.
+
+Voraussetzungen:
+
+- Docker
+- DNS: A/AAAA-Record `meet.example.com` → Server-IP
+- Firewall: **UDP und TCP 40000–40100** (WebRTC-Medien). HTTP 3010 bleibt auf Loopback, Nginx/Apache proxyn HTTPS.
+
+```bash
+sudo mkdir -p /var/lib/mirotalk-sfu
+sudo tee /var/lib/mirotalk-sfu/.env >/dev/null <<'EOF'
+NODE_ENV=production
+SFU_ANNOUNCED_IP=IHRE-PUBLIC-IPv4
+SFU_LISTEN_IP=0.0.0.0
+SFU_MIN_PORT=40000
+SFU_MAX_PORT=40100
+SERVER_HOST_URL=https://meet.example.com
+SERVER_LISTEN_IP=127.0.0.1
+SERVER_LISTEN_PORT=3010
+TRUST_PROXY=true
+CORS_ORIGIN=https://example.com,https://meet.example.com
+ALLOWED_EMBED_ORIGINS=https://example.com
+HOST_PROTECTED=true
+HOST_USER_AUTH=false
+HOST_USERS="portal:SICHERES-PASSWORT:Portal:*"
+API_KEY_SECRET=SICHERER-API-KEY
+JWT_SECRET=SICHERER-JWT-SECRET
+JWT_EXPIRATION=8h
+RECORDING_ENABLED=false
+EOF
+sudo chown 1000:1000 /var/lib/mirotalk-sfu /var/lib/mirotalk-sfu/.env
+sudo chmod 750 /var/lib/mirotalk-sfu
+sudo chmod 640 /var/lib/mirotalk-sfu/.env
+
+sudo docker pull mirotalk/sfu:latest
+sudo docker run -d --restart=always \
+    --name mirotalksfu \
+    --hostname mirotalksfu \
+    --network host \
+    --user 1000:1000 \
+    -v /var/lib/mirotalk-sfu/.env:/src/.env:ro \
+    mirotalk/sfu:latest
+
+curl -I http://127.0.0.1:3010/
+```
+
+Nginx – **eigene Site** `/etc/nginx/sites-available/teamportal-meet` (nicht in `location /` des Portals):
+
+```nginx
+server {
+    listen 80;
+    server_name meet.example.com;
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3010;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_buffering off;
+    }
+}
+```
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/teamportal-meet /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d meet.example.com
+```
+
+Portal-`.env`:
+
+```env
+MIROTALK_ENABLED=True
+MIROTALK_URL=https://meet.example.com
+MIROTALK_API_URL=http://127.0.0.1:3010
+MIROTALK_API_KEY=SICHERER-API-KEY
+MIROTALK_HOST_USER=portal
+MIROTALK_HOST_PASSWORD=SICHERES-PASSWORT
+```
+
+**Hinweise:**
+
+- `SFU_ANNOUNCED_IP` muss die **öffentliche IPv4** (oder der Hostname) sein, sonst scheitert ICE/WebRTC hinter NAT
+- `ALLOWED_EMBED_ORIGINS` = Portal-Origin, damit der Call im Iframe läuft
+- Kein `X-Frame-Options SAMEORIGIN` auf dem meet.-vHost setzen
+- Image und Docs: https://hub.docker.com/r/mirotalk/sfu · https://docs.mirotalk.com/mirotalk-sfu/self-hosting/
+
 ### Schritt 7: Konfiguration (.env-Datei)
 
 ```bash
@@ -303,6 +398,9 @@ VAPID_PUBLIC_KEY=your-vapid-public-key-here
 VAPID_PRIVATE_KEY=your-vapid-private-key-here
 ONLYOFFICE_ENABLED=True
 EXCALIDRAW_ENABLED=True
+MIROTALK_ENABLED=True
+MIROTALK_URL=https://meet.example.com
+MIROTALK_API_URL=http://127.0.0.1:3010
 REDIS_ENABLED=True
 REDIS_URL=redis://localhost:6379/0
 ```
@@ -321,6 +419,7 @@ REDIS_URL=redis://localhost:6379/0
 - **EXCALIDRAW_ENABLED:**
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
+- **MIROTALK_ENABLED / MIROTALK_URL:** `True` und `https://meet.IHRE-DOMAIN`, wenn MiroTalk SFU läuft (Schritt 6d). Join-API intern über `MIROTALK_API_URL=http://127.0.0.1:3010`
 - **REDIS_ENABLED:** Setzen Sie auf `True`, wenn mehrere Gunicorn-Worker genutzt werden
 - **REDIS_URL:** Standard ist `redis://localhost:6379/0`, nur bei abweichender Redis-Konfiguration ändern
 
@@ -781,6 +880,9 @@ sudo certbot renew --dry-run
 # Firewall-Regeln setzen
 sudo ufw allow ssh
 sudo ufw allow 'Nginx Full'
+# MiroTalk SFU Medien (nur wenn Meetings installiert)
+sudo ufw allow 40000:40100/udp
+sudo ufw allow 40000:40100/tcp
 sudo ufw enable
 sudo ufw status
 ```
@@ -815,15 +917,16 @@ sudo ufw status
 
 ### Optionale Schritte (nur bei Bedarf)
 
-- **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw
+- **Docker installieren:** Nur erforderlich für OnlyOffice, Excalidraw oder MiroTalk
 - **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
 - **Excalidraw installieren:** Optional, für Canvas-Modul
+- **MiroTalk SFU installieren:** Optional, für Meetings/Videoanrufe (`meet.`-Subdomain, UDP 40000–40100)
 - **Media Downloader installieren:** Optional, FFmpeg installieren und Modul in Admin aktivieren
 - **Dateikonverter installieren:** Optional, LibreOffice für Dokumente; Audio/Bilder/PDF ohne LibreOffice nutzbar
 
 ### Wichtige Hinweise
 
-1. **.env-Konfiguration:** `ONLYOFFICE_ENABLED=False` / `EXCALIDRAW_ENABLED=False` wenn nicht installiert
+1. **.env-Konfiguration:** `ONLYOFFICE_ENABLED=False` / `EXCALIDRAW_ENABLED=False` / `MIROTALK_ENABLED=False` wenn nicht installiert
 2. **Nginx-Konfiguration:** OnlyOffice- und Excalidraw-Location-Blöcke entfernen wenn nicht genutzt
 3. **Datenbank:** Nur leere DB anlegen; Tabellen beim ersten Gunicorn-Start; `--workers 1` für ersten Start
 4. **Redis:** Erforderlich für Multi-Worker mit SocketIO

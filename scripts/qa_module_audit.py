@@ -237,6 +237,7 @@ MODULE_PAGES: list[tuple[str, str, str | None]] = [
     ("Musik", "/music/", "module_music"),
     ("Media Downloader", "/media-downloader/", "module_media_downloader"),
     ("Dateikonverter", "/file-converter/", "module_file_converter"),
+    ("Meetings", "/meetings/", "module_meetings"),
     ("Bewertungen", "/assessment/", "module_assessment"),
     ("Einstellungen", "/settings/", None),
 ]

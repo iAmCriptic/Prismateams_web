@@ -34,7 +34,8 @@
       "assessment": "Bewertung",
       "surveys": "Umfragen",
       "file_converter": "Dateikonverter",
-      "protocols": "Protokollführung"
+      "protocols": "Protokollführung",
+      "meetings": "Meetings"
     },
     "brand": {
       "separator": "–",
@@ -1401,7 +1402,10 @@
       "lead_short": "Produkt, System und Open Source.",
       "section_repository_help_button": "Hilfe",
       "excalidraw_label_short": "Excalidraw",
-      "file_converter_label_short": "Dateikonverter"
+      "file_converter_label_short": "Dateikonverter",
+      "mirotalk_label": "MiroTalk",
+      "mirotalk_active": "Aktiv",
+      "mirotalk_inactive": "Nicht aktiv"
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
@@ -1446,7 +1450,8 @@
         "allow_public": "Public-Varianten",
         "module_file_converter": "Dateikonverter",
         "module_surveys": "Umfragen",
-        "lead_short": "Module ein- und ausschalten."
+        "lead_short": "Module ein- und ausschalten.",
+        "module_meetings": "Meetings (Videoanrufe)"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -2686,7 +2691,10 @@
         "microphone_denied": "Mikrofonzugriff wurde verweigert. Bitte erlauben Sie den Zugriff in Ihren Browser-Einstellungen.",
         "load_older": "Ältere Nachrichten laden",
         "load_older_loading": "Laden…",
-        "load_older_error": "Ältere Nachrichten konnten nicht geladen werden"
+        "load_older_error": "Ältere Nachrichten konnten nicht geladen werden",
+        "meeting_label": "Meeting",
+        "meeting_join": "Beitreten",
+        "meeting_start_error": "Meeting konnte nicht gestartet werden"
       },
       "load_older": "Ältere Nachrichten laden"
     },
@@ -6912,6 +6920,77 @@
       "size_normal": "Normal",
       "size_large": "Groß",
       "size_huge": "Sehr groß"
+    }
+  },
+  "meetings": {
+    "page_title": "Meetings",
+    "heading": "Meetings",
+    "default_title": "Meeting",
+    "chat_title": "Meeting: {name}",
+    "nav": {
+      "label": "Meetings-Navigation",
+      "active": "Aktiv",
+      "ended": "Beendet",
+      "start": "Meeting starten",
+      "menu": "Meetings-Menü"
+    },
+    "list": {
+      "title": "Titel",
+      "access": "Zugang",
+      "host": "Gestartet von",
+      "started": "Gestartet",
+      "empty": "Keine aktiven Meetings."
+    },
+    "access": {
+      "public": "Öffentlich",
+      "invite": "Nur Einladung"
+    },
+    "actions": {
+      "join": "Beitreten",
+      "end": "Beenden",
+      "copy_guest": "Gast-Link kopieren",
+      "more": "Weitere Aktionen"
+    },
+    "create": {
+      "page_title": "Meeting starten",
+      "heading": "Meeting starten",
+      "title_label": "Titel",
+      "title_placeholder": "z. B. Wochenabstimmung",
+      "access_label": "Zugang",
+      "public_help": "Sichtbar für alle mit Meetings-Modul.",
+      "invite_help": "Nur eingeladene Portal-Nutzer sehen das Meeting.",
+      "invitees_label": "Personen einladen",
+      "invitees_search": "Name oder E-Mail suchen…",
+      "invitees_host": "Sie sind automatisch dabei. Weitere Personen sind optional.",
+      "invitees_you": "Sie",
+      "invitees_empty": "Keine weiteren Portal-Nutzer zum Einladen.",
+      "submit": "Meeting starten"
+    },
+    "guest": {
+      "lead": "Bitte geben Sie Ihren Namen ein, um beizutreten.",
+      "name_label": "Ihr Name",
+      "name_required": "Bitte einen Namen eingeben.",
+      "submit": "Beitreten",
+      "ended": "Dieses Meeting ist beendet."
+    },
+    "chat": {
+      "start": "Meeting starten"
+    },
+    "notify": {
+      "title": "Meeting-Einladung",
+      "body": "Sie wurden zu „{title}“ eingeladen."
+    },
+    "flash": {
+      "invitees_required": "Bitte mindestens eine Person einladen.",
+      "no_access": "Kein Zugriff auf dieses Meeting.",
+      "ended": "Dieses Meeting ist beendet.",
+      "ended_ok": "Meeting beendet.",
+      "not_configured": "MiroTalk ist nicht konfiguriert. Bitte MIROTALK_URL in der .env setzen.",
+      "join_failed": "Beitritt zum Meeting fehlgeschlagen.",
+      "no_module": "Das Meetings-Modul ist nicht verfügbar.",
+      "chat_missing": "Chat nicht gefunden.",
+      "not_chat_member": "Sie sind kein Mitglied dieses Chats.",
+      "chat_start_error": "Meeting konnte nicht gestartet werden."
     }
   }
 }

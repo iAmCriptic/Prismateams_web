@@ -72,6 +72,8 @@ CRITICAL_TABLES = (
     "survey_response_locks",
     "protocols",
     "protocol_agenda_items",
+    "meetings",
+    "meeting_invites",
     "conversion_jobs",
     "schema_migrations",
 )
@@ -121,6 +123,7 @@ def import_all_models() -> None:
         SurveyResponseLock,
     )
     from app.models.protocol import Protocol, ProtocolAgendaItem  # noqa: F401
+    from app.models.meetings import Meeting, MeetingInvite  # noqa: F401
 
 
 def should_run_startup_schema(*, debug: bool = False) -> bool:

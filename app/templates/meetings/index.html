@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% from 'meetings/_sidebar.html' import meetings_sidebar_chrome with context %}
+
+{% block title %}{{ _('meetings.page_title') }}{% endblock %}
+
+{% block content %}
+<div class="meetings-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-camera-video" aria-hidden="true"></i>
+            <span>{{ _('meetings.heading') }}</span>
+        </div>
+        {{ meetings_sidebar_chrome('') }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="meetingsMobileNav" aria-labelledby="meetingsMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="meetingsMobileNavLabel">
+                <i class="bi bi-camera-video" aria-hidden="true"></i>
+                <span>{{ _('meetings.heading') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            {{ meetings_sidebar_chrome('-mobile', true) }}
+        </div>
+    </div>
+
+    <div class="mod-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#meetingsMobileNav" aria-controls="meetingsMobileNav" aria-label="{{ _('meetings.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-camera-video" aria-hidden="true"></i>
+                    <span>{{ _('meetings.heading') }}</span>
+                </h1>
+            </div>
+        </div>
+
+        <div class="d-none d-lg-flex align-items-center mb-3">
+            <h1 class="h5 h4-lg mb-0 mod-view-heading">
+                <i class="bi bi-camera-video" aria-hidden="true"></i>
+                <span>{{ _('meetings.nav.active') }}</span>
+            </h1>
+        </div>
+
+        {% if meetings %}
+        <div class="table-responsive">
+            <table class="mod-list-table">
+                <thead>
+                    <tr>
+                        <th>{{ _('meetings.list.title') }}</th>
+                        <th class="d-none d-sm-table-cell">{{ _('meetings.list.access') }}</th>
+                        <th class="d-none d-md-table-cell">{{ _('meetings.list.host') }}</th>
+                        <th class="d-none d-md-table-cell">{{ _('meetings.list.started') }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meeting in meetings %}
+                    <tr class="mod-list-row">
+                        <td>
+                            <div class="d-flex align-items-center gap-2 min-width-0">
+                                <span class="meetings-row-icon flex-shrink-0" aria-hidden="true">
+                                    <i class="bi bi-camera-video"></i>
+                                </span>
+                                <span class="mod-list-name text-truncate">{{ meeting.title }}</span>
+                            </div>
+                        </td>
+                        <td class="d-none d-sm-table-cell">
+                            {% if meeting.access_mode == 'invite' %}
+                            <span class="badge rounded-pill text-bg-secondary">{{ _('meetings.access.invite') }}</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-success">{{ _('meetings.access.public') }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ meeting.creator.full_name if meeting.creator else '–' }}</td>
+                        <td class="d-none d-md-table-cell">{{ meeting.created_at|localdatetime('%d.%m.%Y %H:%M') }}</td>
+                        <td class="text-end">
+                            <div class="mod-list-actions">
+                                {% if meeting.is_active %}
+                                <a class="btn btn-sm btn-accent rounded-pill" href="{{ url_for('meetings.join', meeting_id=meeting.id) }}">
+                                    {{ _('meetings.actions.join') }}
+                                </a>
+                                {% endif %}
+                                {% if meeting.is_active %}
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('meetings.actions.more') }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <button type="button" class="dropdown-item meetings-copy-link" data-link="{{ url_for('meetings.guest_join', token=meeting.guest_join_token, _external=True) }}">
+                                                <i class="bi bi-link-45deg me-2"></i>{{ _('meetings.actions.copy_guest') }}
+                                            </button>
+                                        </li>
+                                        {% if meeting.created_by == current_user.id or current_user.is_admin or current_user.is_super_admin %}
+                                        <li>
+                                            <form method="post" action="{{ url_for('meetings.end', meeting_id=meeting.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="bi bi-stop-circle me-2"></i>{{ _('meetings.actions.end') }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mt-4">{{ _('meetings.list.empty') }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    function copyText(text, onOk) {
+        if (!text) return;
+        function fallback() {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); if (onOk) onOk(); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(onOk).catch(fallback);
+            return;
+        }
+        fallback();
+    }
+    document.querySelectorAll('.meetings-copy-link').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            copyText(btn.getAttribute('data-link') || '', function () {
+                btn.classList.add('text-success');
+                setTimeout(function () { btn.classList.remove('text-success'); }, 1200);
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

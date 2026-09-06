@@ -1,0 +1,15 @@
+{% macro meetings_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+<div class="mod-sidebar-new-wrap w-100">
+    <a href="{{ url_for('meetings.create') }}"
+       class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}>
+        <i class="bi bi-camera-video me-2"></i>{{ _('meetings.nav.start') }}
+    </a>
+</div>
+<nav class="mod-sidebar-nav nav flex-column gap-1 mb-3" aria-label="{{ _('meetings.nav.label') }}">
+    <a href="{{ url_for('meetings.index') }}"
+       class="nav-link mod-nav-link{% if section != 'create' %} active{% endif %}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}>
+        <i class="bi bi-camera-video me-2"></i>{{ _('meetings.nav.active') }}
+        {% if active_count %}<span class="badge mod-nav-badge ms-auto">{{ active_count }}</span>{% endif %}
+    </a>
+</nav>
+{% endmacro %}

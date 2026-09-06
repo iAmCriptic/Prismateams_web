@@ -43,6 +43,9 @@ sudo docker logs -f onlyoffice-documentserver
 
 # Excalidraw-Room Logs (falls installiert)
 sudo docker logs -f excalidraw-room
+
+# MiroTalk SFU Logs (falls installiert)
+sudo docker logs -f mirotalksfu
 ```
 
 ## Anwendung neu starten
@@ -60,6 +63,9 @@ sudo docker restart onlyoffice-documentserver
 
 # Excalidraw-Room neu starten (falls installiert)
 sudo docker restart excalidraw-room
+
+# MiroTalk SFU neu starten (falls installiert)
+sudo docker restart mirotalksfu
 ```
 
 ## Updates einspielen

@@ -110,6 +110,11 @@
     </div>
     
     <div class="desktop-chat-actions">
+        {% if can_start_meeting %}
+        <button type="button" class="btn btn-sm chat-header-menu-btn" data-start-meeting title="{{ _('meetings.chat.start') }}" aria-label="{{ _('meetings.chat.start') }}">
+            <i class="bi bi-camera-video"></i>
+        </button>
+        {% endif %}
         <div class="dropdown">
             <button type="button" class="btn btn-sm chat-header-menu-btn" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
                 <i class="bi bi-three-dots-vertical"></i>
@@ -192,6 +197,11 @@
     </div>
     
     <!-- Actions -->
+    {% if can_start_meeting %}
+    <button type="button" class="btn chat-header-menu-btn p-1 me-1" data-start-meeting title="{{ _('meetings.chat.start') }}" aria-label="{{ _('meetings.chat.start') }}">
+        <i class="bi bi-camera-video fs-5"></i>
+    </button>
+    {% endif %}
     <div class="dropdown">
         <button type="button" class="btn chat-header-menu-btn p-1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
             <i class="bi bi-three-dots-vertical fs-5"></i>
@@ -439,6 +449,24 @@
                             {{ message.created_at | smart_datetime }}
                         </small>
                     </div>
+                {% elif message.message_type == 'meeting' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
+                    </div>
+                    <div class="message-card message-card-meeting">
+                        <div class="message-card-icon"><i class="bi bi-camera-video"></i></div>
+                        <div class="message-card-body">
+                            <strong>{{ message.get_metadata().get('title') or _('meetings.default_title') }}</strong>
+                            {% if meetings_enabled and message.get_metadata().get('join_url') %}
+                            <a href="{{ message.get_metadata().get('join_url') }}" class="btn btn-sm btn-accent rounded-pill mt-2">{{ _('meetings.actions.join') }}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | smart_datetime }}
+                        </small>
+                    </div>
                 {% elif message.message_type == 'poll' %}
                     <div class="message-header">
                         <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
@@ -521,6 +549,9 @@
         <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
         <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
         <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
+        {% if can_start_meeting %}
+        <button type="button" class="btn attachment-action" data-attachment-action="meeting"><i class="bi bi-camera-video me-2"></i>{{ _('meetings.chat.start') }}</button>
+        {% endif %}
     </div>
 </div>
     </div><!-- /chat-messages-column -->
@@ -552,6 +583,9 @@
         <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
         <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
         <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
+        {% if can_start_meeting %}
+        <button type="button" class="btn attachment-action" data-attachment-action="meeting"><i class="bi bi-camera-video me-2"></i>{{ _('meetings.chat.start') }}</button>
+        {% endif %}
     </div>
 </div>
 </div><!-- /chat-main -->
@@ -570,6 +604,9 @@
         initialMemberCount: {{ members|length }},
         language: "{{ current_language }}",
         isGuest: {{ 'true' if current_user.is_guest else 'false' }},
+        canStartMeeting: {{ 'true' if can_start_meeting else 'false' }},
+        meetingsEnabled: {{ 'true' if meetings_enabled else 'false' }},
+        startMeetingUrl: {{ (url_for('meetings.from_chat', chat_id=1 if chat.is_main_chat else chat.id) if can_start_meeting else '')|tojson }},
         i18n: {{ chat_view_js|tojson }},
         profilePictureRoute: "{{ url_for('settings.profile_picture', filename='__FILENAME__') }}",
         text: {

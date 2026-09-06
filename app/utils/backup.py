@@ -38,6 +38,7 @@ from app.models.booking import (
     BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval,
 )
 from app.blueprints.credentials import get_encryption_key
+from app.utils.backup_lookups import lookup_team_name, lookup_user_email, objects_by_name
 from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
 from app.utils.backup_extensions import (
     export_user_module_roles, import_user_module_roles,
@@ -173,6 +174,9 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         'categories': categories,
         'data': {}
     }
+
+    from app.utils.backup_lookups import prime_backup_lookups
+    prime_backup_lookups()
     
     # Einstellungen exportieren
     if _category_selected(categories, 'settings'):
@@ -397,7 +401,7 @@ def export_notification_settings() -> List[Dict]:
     """Exportiert Notification-Einstellungen."""
     settings = NotificationSettings.query.all()
     return [{
-        'user_email': User.query.get(s.user_id).email if User.query.get(s.user_id) else None,
+        'user_email': lookup_user_email(s.user_id),
         'chat_notifications_enabled': s.chat_notifications_enabled,
         'file_notifications_enabled': s.file_notifications_enabled,
         'file_new_notifications': s.file_new_notifications,
@@ -430,7 +434,7 @@ def export_emails() -> List[Dict]:
         'is_sent': e.is_sent,
         'has_attachments': e.has_attachments,
         'folder': e.folder,
-        'sent_by_user_email': User.query.get(e.sent_by_user_id).email if e.sent_by_user_id and User.query.get(e.sent_by_user_id) else None,
+        'sent_by_user_email': lookup_user_email(e.sent_by_user_id),
         'received_at': e.received_at.isoformat() if e.received_at else None,
         'sent_at': e.sent_at.isoformat() if e.sent_at else None,
         'created_at': e.created_at.isoformat() if e.created_at else None
@@ -441,7 +445,7 @@ def export_email_permissions() -> List[Dict]:
     """Exportiert E-Mail-Berechtigungen."""
     permissions = EmailPermission.query.all()
     return [{
-        'user_email': User.query.get(p.user_id).email if User.query.get(p.user_id) else None,
+        'user_email': lookup_user_email(p.user_id),
         'can_read': p.can_read,
         'can_send': p.can_send
     } for p in permissions]
@@ -491,7 +495,7 @@ def export_calendar_events() -> List[Dict]:
         'recurrence_interval': getattr(e, 'recurrence_interval', 1),
         'recurrence_days': getattr(e, 'recurrence_days', None),
         'is_public': getattr(e, 'is_public', False),
-        'created_by_email': User.query.get(e.created_by).email if User.query.get(e.created_by) else None,
+        'created_by_email': lookup_user_email(e.created_by),
         'created_at': e.created_at.isoformat() if e.created_at else None,
         'updated_at': e.updated_at.isoformat() if e.updated_at else None
     } for e in events]
@@ -502,7 +506,7 @@ def export_event_participants() -> List[Dict]:
     participants = EventParticipant.query.all()
     return [{
         'event_title': CalendarEvent.query.get(p.event_id).title if CalendarEvent.query.get(p.event_id) else None,
-        'user_email': User.query.get(p.user_id).email if User.query.get(p.user_id) else None,
+        'user_email': lookup_user_email(p.user_id),
         'status': p.status,
         'responded_at': p.responded_at.isoformat() if p.responded_at else None
     } for p in participants]
@@ -525,7 +529,7 @@ def export_credentials() -> List[Dict]:
                 'favicon_url': cred.favicon_url,
                 'visibility': getattr(cred, 'visibility', 'public'),
                 'team_id': getattr(cred, 'team_id', None),
-                'created_by_email': User.query.get(cred.created_by).email if User.query.get(cred.created_by) else None,
+                'created_by_email': lookup_user_email(cred.created_by),
                 'created_at': cred.created_at.isoformat() if cred.created_at else None,
                 'updated_at': cred.updated_at.isoformat() if cred.updated_at else None
             })
@@ -547,7 +551,7 @@ def export_manuals() -> List[Dict]:
             'file_size': m.file_size,
             'visibility': getattr(m, 'visibility', 'public'),
             'team_id': getattr(m, 'team_id', None),
-            'uploaded_by_email': User.query.get(m.uploaded_by).email if User.query.get(m.uploaded_by) else None,
+            'uploaded_by_email': lookup_user_email(m.uploaded_by),
             'uploaded_at': m.uploaded_at.isoformat() if m.uploaded_at else None
         }
         
@@ -591,15 +595,12 @@ def export_chats() -> List[Dict]:
             'is_main_chat': c.is_main_chat,
             'is_direct_message': c.is_direct_message,
             'team_name': None,
-            'created_by_email': User.query.get(c.created_by).email if c.created_by and User.query.get(c.created_by) else None,
+            'created_by_email': lookup_user_email(c.created_by),
             'created_at': c.created_at.isoformat() if c.created_at else None,
             'updated_at': c.updated_at.isoformat() if c.updated_at else None
         }
         if getattr(c, 'team_id', None):
-            from app.models.team import Team
-            team = Team.query.get(c.team_id)
-            if team:
-                chat_data['team_name'] = team.name
+            chat_data['team_name'] = lookup_team_name(c.team_id)
         
         # Exportiere Gruppenbild als Base64 wenn vorhanden
         if c.group_avatar:
@@ -625,7 +626,7 @@ def export_chat_members() -> List[Dict]:
     members = ChatMember.query.all()
     return [{
         'chat_name': Chat.query.get(m.chat_id).name if Chat.query.get(m.chat_id) else None,
-        'user_email': User.query.get(m.user_id).email if User.query.get(m.user_id) else None,
+        'user_email': lookup_user_email(m.user_id),
         'joined_at': m.joined_at.isoformat() if m.joined_at else None,
         'last_read_at': m.last_read_at.isoformat() if m.last_read_at else None
     } for m in members]
@@ -638,7 +639,7 @@ def export_chat_messages() -> List[Dict]:
     for msg in messages:
         message_data = {
             'chat_name': Chat.query.get(msg.chat_id).name if Chat.query.get(msg.chat_id) else None,
-            'sender_email': User.query.get(msg.sender_id).email if User.query.get(msg.sender_id) else None,
+            'sender_email': lookup_user_email(msg.sender_id),
             'content': msg.content,
             'message_type': msg.message_type,
             'created_at': msg.created_at.isoformat() if msg.created_at else None,
@@ -687,7 +688,7 @@ def export_folders() -> List[Dict]:
     return [{
         'name': f.name,
         'parent_name': Folder.query.get(f.parent_id).name if f.parent_id and Folder.query.get(f.parent_id) else None,
-        'created_by_email': User.query.get(f.created_by).email if User.query.get(f.created_by) else None,
+        'created_by_email': lookup_user_email(f.created_by),
         'is_dropbox': f.is_dropbox,
         'share_enabled': f.share_enabled,
         'share_name': f.share_name,
@@ -709,7 +710,7 @@ def export_files() -> List[Dict]:
             'name': file.name,
             'original_name': file.original_name,
             'folder_name': Folder.query.get(file.folder_id).name if file.folder_id and Folder.query.get(file.folder_id) else None,
-            'uploaded_by_email': User.query.get(file.uploaded_by).email if User.query.get(file.uploaded_by) else None,
+            'uploaded_by_email': lookup_user_email(file.uploaded_by),
             'file_size': file.file_size,
             'mime_type': file.mime_type,
             'version_number': file.version_number,
@@ -742,7 +743,7 @@ def export_file_versions() -> List[Dict]:
             'file_name': File.query.get(v.file_id).name if File.query.get(v.file_id) else None,
             'version_number': v.version_number,
             'file_size': v.file_size,
-            'uploaded_by_email': User.query.get(v.uploaded_by).email if User.query.get(v.uploaded_by) else None,
+            'uploaded_by_email': lookup_user_email(v.uploaded_by),
             'created_at': v.created_at.isoformat() if v.created_at else None
         }
         # Dateiinhalt hinzufügen wenn vorhanden
@@ -771,7 +772,7 @@ def export_public_shares() -> List[Dict]:
             'enabled': share.enabled,
             'password_hash': share.password_hash,
             'expires_at': share.expires_at.isoformat() if share.expires_at else None,
-            'created_by_email': User.query.get(share.created_by).email if User.query.get(share.created_by) else None,
+            'created_by_email': lookup_user_email(share.created_by),
         }
         if share.resource_type == 'file':
             file_obj = File.query.get(share.resource_id)
@@ -818,7 +819,7 @@ def export_wiki_pages() -> List[Dict]:
             'slug': p.slug,
             'content': p.content,
             'category_name': p.category.name if p.category else None,
-            'created_by_email': User.query.get(p.created_by).email if User.query.get(p.created_by) else None,
+            'created_by_email': lookup_user_email(p.created_by),
             'version_number': p.version_number,
             'visibility': getattr(p, 'visibility', 'public'),
             'team_id': getattr(p, 'team_id', None),
@@ -848,7 +849,7 @@ def export_wiki_page_versions() -> List[Dict]:
             'page_slug': page.slug if page else None,
             'version_number': v.version_number,
             'content': v.content,
-            'created_by_email': User.query.get(v.created_by).email if User.query.get(v.created_by) else None,
+            'created_by_email': lookup_user_email(v.created_by),
             'created_at': v.created_at.isoformat() if v.created_at else None
         }
         # Dateiinhalt hinzufügen wenn vorhanden
@@ -884,7 +885,7 @@ def export_comments() -> List[Dict]:
             'content_type': c.content_type,
             'content_id': c.content_id,
             'content': c.content,
-            'author_email': User.query.get(c.author_id).email if User.query.get(c.author_id) else None,
+            'author_email': lookup_user_email(c.author_id),
             'parent_content_ref': parent_content_ref,  # Referenz zum Parent-Kommentar
             'created_at': c.created_at.isoformat() if c.created_at else None,
             'updated_at': c.updated_at.isoformat() if c.updated_at else None
@@ -924,7 +925,7 @@ def export_comment_mentions() -> List[Dict]:
         
         mention_data = {
             'comment_content_ref': f"{comment.content_type}:{comment.content_id}:{comment_idx}",
-            'user_email': User.query.get(m.user_id).email if User.query.get(m.user_id) else None,
+            'user_email': lookup_user_email(m.user_id),
             'notification_sent': m.notification_sent,
             'created_at': m.created_at.isoformat() if m.created_at else None,
             'notification_sent_at': m.notification_sent_at.isoformat() if m.notification_sent_at else None
@@ -940,7 +941,7 @@ def export_product_folders() -> List[Dict]:
         'name': f.name,
         'description': f.description,
         'color': f.color,
-        'created_by_email': User.query.get(f.created_by).email if User.query.get(f.created_by) else None,
+        'created_by_email': lookup_user_email(f.created_by),
         'created_at': f.created_at.isoformat() if f.created_at else None,
         'updated_at': f.updated_at.isoformat() if f.updated_at else None
     } for f in folders]
@@ -966,7 +967,7 @@ def export_products() -> List[Dict]:
             'image_path': p.image_path,
             'qr_code_data': p.qr_code_data,
             'folder_name': ProductFolder.query.get(p.folder_id).name if p.folder_id and ProductFolder.query.get(p.folder_id) else None,
-            'created_by_email': User.query.get(p.created_by).email if User.query.get(p.created_by) else None,
+            'created_by_email': lookup_user_email(p.created_by),
             'created_at': p.created_at.isoformat() if p.created_at else None,
             'updated_at': p.updated_at.isoformat() if p.updated_at else None
         }
@@ -997,8 +998,8 @@ def export_borrow_transactions() -> List[Dict]:
         'transaction_number': t.transaction_number,
         'borrow_group_id': t.borrow_group_id,
         'product_name': Product.query.get(t.product_id).name if Product.query.get(t.product_id) else None,
-        'borrower_email': User.query.get(t.borrower_id).email if User.query.get(t.borrower_id) else None,
-        'borrowed_by_email': User.query.get(t.borrowed_by_id).email if User.query.get(t.borrowed_by_id) else None,
+        'borrower_email': lookup_user_email(t.borrower_id),
+        'borrowed_by_email': lookup_user_email(t.borrowed_by_id),
         'borrow_date': t.borrow_date.isoformat() if t.borrow_date else None,
         'expected_return_date': t.expected_return_date.isoformat() if t.expected_return_date else None,
         'actual_return_date': t.actual_return_date.isoformat() if t.actual_return_date else None,
@@ -1015,7 +1016,7 @@ def export_product_sets() -> List[Dict]:
     return [{
         'name': s.name,
         'description': s.description,
-        'created_by_email': User.query.get(s.created_by).email if User.query.get(s.created_by) else None,
+        'created_by_email': lookup_user_email(s.created_by),
         'created_at': s.created_at.isoformat() if s.created_at else None,
         'updated_at': s.updated_at.isoformat() if s.updated_at else None
     } for s in sets]
@@ -1046,7 +1047,7 @@ def export_product_documents() -> List[Dict]:
             'file_size': d.file_size,
             'manual_id': d.manual_id,
             'manual_title': manual.title if manual else None,
-            'uploaded_by_email': User.query.get(d.uploaded_by).email if User.query.get(d.uploaded_by) else None,
+            'uploaded_by_email': lookup_user_email(d.uploaded_by),
             'created_at': d.created_at.isoformat() if d.created_at else None
         }
         # Dateiinhalt hinzufügen wenn vorhanden
@@ -1066,7 +1067,7 @@ def export_saved_filters() -> List[Dict]:
     """Exportiert gespeicherte Filter."""
     filters = SavedFilter.query.all()
     return [{
-        'user_email': User.query.get(f.user_id).email if User.query.get(f.user_id) else None,
+        'user_email': lookup_user_email(f.user_id),
         'name': f.name,
         'filter_data': f.filter_data,
         'created_at': f.created_at.isoformat() if f.created_at else None
@@ -1077,7 +1078,7 @@ def export_product_favorites() -> List[Dict]:
     """Exportiert Produktfavoriten."""
     favorites = ProductFavorite.query.all()
     return [{
-        'user_email': User.query.get(f.user_id).email if User.query.get(f.user_id) else None,
+        'user_email': lookup_user_email(f.user_id),
         'product_name': Product.query.get(f.product_id).name if Product.query.get(f.product_id) else None,
         'created_at': f.created_at.isoformat() if f.created_at else None
     } for f in favorites]
@@ -1090,7 +1091,7 @@ def export_inventories() -> List[Dict]:
         'name': i.name,
         'description': i.description,
         'status': i.status,
-        'started_by_email': User.query.get(i.started_by).email if User.query.get(i.started_by) else None,
+        'started_by_email': lookup_user_email(i.started_by),
         'started_at': i.started_at.isoformat() if i.started_at else None,
         'completed_at': i.completed_at.isoformat() if i.completed_at else None,
         'created_at': i.created_at.isoformat() if i.created_at else None,
@@ -1110,7 +1111,7 @@ def export_inventory_items() -> List[Dict]:
         'new_location': i.new_location,
         'condition_changed': i.condition_changed,
         'new_condition': i.new_condition,
-        'checked_by_email': User.query.get(i.checked_by).email if i.checked_by and User.query.get(i.checked_by) else None,
+        'checked_by_email': lookup_user_email(i.checked_by),
         'checked_at': i.checked_at.isoformat() if i.checked_at else None,
         'created_at': i.created_at.isoformat() if i.created_at else None,
         'updated_at': i.updated_at.isoformat() if i.updated_at else None
@@ -2143,6 +2144,11 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
     """Importiert Chats. Hauptchat aus Backup wird IMMER auf den lokalen Hauptchat gemappt."""
     chat_map = {}  # chat_name (backup) -> lokale id
     local_main = _ensure_local_main_chat(current_user_id)
+    chats_by_name = {}
+    chats_by_key = {}
+    for chat in Chat.query.all():
+        chats_by_name.setdefault(chat.name, chat)
+        chats_by_key[(chat.name, bool(chat.is_direct_message))] = chat
     
     for c_data in chats_data:
         name = c_data.get('name')
@@ -2160,7 +2166,7 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
         if name == local_main.name or name in {'Haupt-Chat', 'Team Chat', 'Team-Chat'}:
             # Namenskollision ohne Main-Flag → unter anderem Namen anlegen
             name_key = name
-            existing = Chat.query.filter_by(name=name, is_direct_message=bool(c_data.get('is_direct_message', False))).first()
+            existing = chats_by_key.get((name, bool(c_data.get('is_direct_message', False))))
             if existing and existing.id != local_main.id:
                 chat_map[name_key] = existing.id
                 continue
@@ -2192,7 +2198,7 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
         else:
             created_by_id = user_map[created_by_email]
         
-        existing = Chat.query.filter_by(name=name).first()
+        existing = chats_by_name.get(name)
         if existing:
             # Nie auf den Hauptchat mappen, wenn Backup-Chat kein Main ist
             if existing.is_main_chat and not c_data.get('is_main_chat'):
@@ -2721,9 +2727,10 @@ def import_file_versions(versions_data: List[Dict], user_map: Dict[str, int], cu
 def import_wiki_categories(categories_data: List[Dict]) -> Dict[str, int]:
     """Importiert Wiki-Kategorien und gibt ein Mapping von Name zu neuer ID zurück."""
     category_map = {}  # name -> neue_id
-    
+    existing_by_name = objects_by_name(WikiCategory)
+
     for c_data in categories_data:
-        existing = WikiCategory.query.filter_by(name=c_data['name']).first()
+        existing = existing_by_name.get(c_data['name'])
         if existing:
             # Aktualisiere bestehende Kategorie
             existing.description = c_data.get('description')
@@ -2738,6 +2745,7 @@ def import_wiki_categories(categories_data: List[Dict]) -> Dict[str, int]:
             )
             db.session.add(category)
             db.session.flush()
+            existing_by_name[c_data['name']] = category
             category_map[c_data['name']] = category.id
     
     return category_map
@@ -2746,9 +2754,10 @@ def import_wiki_categories(categories_data: List[Dict]) -> Dict[str, int]:
 def import_wiki_tags(tags_data: List[Dict]) -> Dict[str, int]:
     """Importiert Wiki-Tags und gibt ein Mapping von Name zu neuer ID zurück."""
     tag_map = {}  # name -> neue_id
-    
+    existing_by_name = objects_by_name(WikiTag)
+
     for t_data in tags_data:
-        existing = WikiTag.query.filter_by(name=t_data['name']).first()
+        existing = existing_by_name.get(t_data['name'])
         if existing:
             tag_map[t_data['name']] = existing.id
         else:
@@ -2756,6 +2765,7 @@ def import_wiki_tags(tags_data: List[Dict]) -> Dict[str, int]:
             tag = WikiTag(name=t_data['name'])
             db.session.add(tag)
             db.session.flush()
+            existing_by_name[t_data['name']] = tag
             tag_map[t_data['name']] = tag.id
     
     return tag_map
@@ -3059,6 +3069,8 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
     if not folders_data:
         current_app.logger.debug("Keine Produkt-Ordner zum Importieren vorhanden.")
         return folder_map
+
+    existing_by_name = objects_by_name(ProductFolder)
     
     for f_data in folders_data:
         if not f_data.get('name'):
@@ -3086,7 +3098,7 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
         else:
             created_by_id = user_map[created_by_email]
         
-        existing = ProductFolder.query.filter_by(name=folder_name).first()
+        existing = existing_by_name.get(folder_name)
         if existing:
             folder_map[folder_name] = existing.id
             current_app.logger.debug(f"Ordner '{folder_name}' bereits vorhanden (ID: {existing.id})")
@@ -3099,6 +3111,7 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
             )
             db.session.add(folder)
             db.session.flush()
+            existing_by_name[folder_name] = folder
             folder_map[folder_name] = folder.id
             current_app.logger.debug(f"Ordner '{folder_name}' importiert (ID: {folder.id})")
     
@@ -3112,6 +3125,8 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
 def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
     """Importiert Produkte und gibt ein Mapping von Name zu neuer ID zurück."""
     product_map = {}  # name -> neue_id
+    existing_products = objects_by_name(Product)
+    existing_folders = objects_by_name(ProductFolder)
     
     for p_data in products_data:
         created_by_email = p_data.get('created_by_email')
@@ -3138,13 +3153,13 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
             else:
                 current_app.logger.warning(f"Produkt '{p_data['name']}' - Ordner '{folder_name}' nicht im folder_map gefunden. Ordner wird nicht zugeordnet.")
                 # Versuche Ordner in der DB zu finden (falls er bereits existiert)
-                existing_folder = ProductFolder.query.filter_by(name=folder_name).first()
+                existing_folder = existing_folders.get(folder_name)
                 if existing_folder:
                     folder_id = existing_folder.id
                     folder_map[folder_name] = folder_id  # Aktualisiere folder_map für zukünftige Produkte
                     current_app.logger.info(f"Ordner '{folder_name}' in DB gefunden (ID: {folder_id}) und folder_map aktualisiert.")
         
-        existing = Product.query.filter_by(name=p_data['name']).first()
+        existing = existing_products.get(p_data['name'])
         if existing:
             product_map[p_data['name']] = existing.id
         else:
@@ -3213,6 +3228,7 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
             
             db.session.add(product)
             db.session.flush()
+            existing_products[p_data['name']] = product
             product_map[p_data['name']] = product.id
     
     return product_map
@@ -3281,6 +3297,7 @@ def import_borrow_transactions(transactions_data: List[Dict], product_map: Dict[
 def import_product_sets(sets_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
     """Importiert Produktsets und gibt ein Mapping von Name zu neuer ID zurück."""
     set_map = {}  # name -> neue_id
+    existing_by_name = objects_by_name(ProductSet)
     
     for s_data in sets_data:
         created_by_email = s_data.get('created_by_email')
@@ -3298,7 +3315,7 @@ def import_product_sets(sets_data: List[Dict], user_map: Dict[str, int], current
         else:
             created_by_id = user_map[created_by_email]
         
-        existing = ProductSet.query.filter_by(name=s_data['name']).first()
+        existing = existing_by_name.get(s_data['name'])
         if existing:
             set_map[s_data['name']] = existing.id
         else:
@@ -3309,6 +3326,7 @@ def import_product_sets(sets_data: List[Dict], user_map: Dict[str, int], current
             )
             db.session.add(product_set)
             db.session.flush()
+            existing_by_name[s_data['name']] = product_set
             set_map[s_data['name']] = product_set.id
     
     return set_map

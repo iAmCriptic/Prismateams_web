@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from 'meetings/_sidebar.html' import meetings_sidebar_chrome with context %}
+
+{% block title %}{{ _('meetings.create.page_title') }}{% endblock %}
+
+{% block content %}
+<div class="meetings-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-camera-video" aria-hidden="true"></i>
+            <span>{{ _('meetings.heading') }}</span>
+        </div>
+        {{ meetings_sidebar_chrome('') }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="meetingsMobileNav" aria-labelledby="meetingsMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="meetingsMobileNavLabel">
+                <i class="bi bi-camera-video" aria-hidden="true"></i>
+                <span>{{ _('meetings.heading') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            {{ meetings_sidebar_chrome('-mobile', true) }}
+        </div>
+    </div>
+
+    <div class="mod-main flex-grow-1 min-width-0">
+        <div class="mod-back-row">
+            <a href="{{ url_for('meetings.index') }}" class="mod-back-link">
+                <i class="bi bi-arrow-left"></i>
+                <span>{{ _('layout.nav.back') }}</span>
+            </a>
+        </div>
+        <h1 class="h5 h4-lg mb-3">{{ _('meetings.create.heading') }}</h1>
+
+        <form method="post" class="meetings-create-form" id="meetingsCreateForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="meetingTitle">{{ _('meetings.create.title_label') }}</label>
+                <input type="text" class="form-control rounded-pill px-3" id="meetingTitle" name="title" maxlength="255"
+                       value="{{ form_title }}" placeholder="{{ _('meetings.create.title_placeholder') }}">
+            </div>
+
+            <fieldset class="mb-3">
+                <legend class="form-label">{{ _('meetings.create.access_label') }}</legend>
+                <label class="meetings-access-option">
+                    <input class="form-check-input" type="radio" name="access_mode" id="accessPublic" value="public"{% if form_access_mode != 'invite' %} checked{% endif %}>
+                    <span>
+                        <span class="d-block">{{ _('meetings.access.public') }}</span>
+                        <span class="form-text">{{ _('meetings.create.public_help') }}</span>
+                    </span>
+                </label>
+                <label class="meetings-access-option mt-2">
+                    <input class="form-check-input" type="radio" name="access_mode" id="accessInvite" value="invite"{% if form_access_mode == 'invite' %} checked{% endif %}>
+                    <span>
+                        <span class="d-block">{{ _('meetings.access.invite') }}</span>
+                        <span class="form-text">{{ _('meetings.create.invite_help') }}</span>
+                    </span>
+                </label>
+            </fieldset>
+
+            <div class="mb-4 meetings-invitees{% if form_access_mode != 'invite' %} d-none{% endif %}" id="meetingsInvitees">
+                {% set selected_invitees = form_invitee_ids|default([]) %}
+                <label class="form-label" for="inviteeSearch">{{ _('meetings.create.invitees_label') }}</label>
+                <p class="form-text mt-0 mb-2">{{ _('meetings.create.invitees_host') }}</p>
+                {% if has_other_invitees %}
+                <input type="search" class="form-control rounded-pill px-3 mb-2" id="inviteeSearch" placeholder="{{ _('meetings.create.invitees_search') }}" autocomplete="off">
+                {% endif %}
+                <div class="meetings-invitee-list" id="inviteeList">
+                    {% for user in invite_users %}
+                    <label class="meetings-invitee-row{% if user.is_host %} meetings-invitee-row--host{% endif %}" data-name="{{ user.name|lower }} {{ user.email|lower }}">
+                        {% if user.is_host %}
+                        <input type="checkbox" checked disabled>
+                        {% else %}
+                        <input type="checkbox" name="invitee_ids" value="{{ user.id }}"{% if user.id in selected_invitees %} checked{% endif %}>
+                        {% endif %}
+                        <span class="meetings-invitee-name">{{ user.name }}{% if user.is_host %} <span class="text-muted">({{ _('meetings.create.invitees_you') }})</span>{% endif %}</span>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if not has_other_invitees %}
+                <p class="text-muted mb-0 mt-2" id="inviteeEmpty">{{ _('meetings.create.invitees_empty') }}</p>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-accent rounded-pill">
+                <i class="bi bi-camera-video me-1"></i>{{ _('meetings.create.submit') }}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const publicRadio = document.getElementById('accessPublic');
+    const inviteRadio = document.getElementById('accessInvite');
+    const box = document.getElementById('meetingsInvitees');
+    const search = document.getElementById('inviteeSearch');
+    function sync() {
+        const invite = inviteRadio && inviteRadio.checked;
+        if (box) box.classList.toggle('d-none', !invite);
+    }
+    publicRadio && publicRadio.addEventListener('change', sync);
+    inviteRadio && inviteRadio.addEventListener('change', sync);
+    search && search.addEventListener('input', function () {
+        const q = (search.value || '').toLowerCase().trim();
+        document.querySelectorAll('.meetings-invitee-row').forEach(function (row) {
+            const hay = row.getAttribute('data-name') || '';
+            row.classList.toggle('d-none', Boolean(q) && hay.indexOf(q) === -1);
+        });
+    });
+    sync();
+})();
+</script>
+{% endblock %}

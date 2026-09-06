@@ -103,564 +103,546 @@ def _delete_folder_recursive(folder):
     db.session.delete(folder)
 
 
-def register_files_routes(api_bp, require_api_auth):
-    @api_bp.route("/files", methods=["GET"])
-    @login_required
-    def get_files():
-        folder_id = request.args.get("folder_id", type=int)
-        files = File.query.filter_by(folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).order_by(File.name).all()
-        files = [file for file in files if can_view_file(file, current_user)]
-        return jsonify([{
-            "id": file.id,
-            "name": file.name,
-            "size": file.file_size,
-            "mime_type": file.mime_type,
-            "version": file.version_number,
-            "uploaded_by": file.uploader.full_name,
-            "uploaded_at": file.created_at.isoformat(),
-        } for file in files])
+def get_files():
+    folder_id = request.args.get("folder_id", type=int)
+    files = File.query.filter_by(folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).order_by(File.name).all()
+    files = [file for file in files if can_view_file(file, current_user)]
+    return jsonify([{
+        "id": file.id,
+        "name": file.name,
+        "size": file.file_size,
+        "mime_type": file.mime_type,
+        "version": file.version_number,
+        "uploaded_by": file.uploader.full_name,
+        "uploaded_at": file.created_at.isoformat(),
+    } for file in files])
 
-    @api_bp.route("/folders", methods=["GET"])
-    @login_required
-    def get_folders():
-        parent_id = request.args.get("parent_id", type=int)
-        folders = Folder.query.filter_by(parent_id=parent_id).filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
-        folders = [
-            folder for folder in folders
-            if not folder.is_personal_root
-            and not getattr(folder, "is_team_root", False)
-            and can_view_folder(folder, current_user)
-        ]
-        return jsonify([{
+def get_folders():
+    parent_id = request.args.get("parent_id", type=int)
+    folders = Folder.query.filter_by(parent_id=parent_id).filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
+    folders = [
+        folder for folder in folders
+        if not folder.is_personal_root
+        and not getattr(folder, "is_team_root", False)
+        and can_view_folder(folder, current_user)
+    ]
+    return jsonify([{
+        "id": folder.id,
+        "name": folder.name,
+        "created_at": folder.created_at.isoformat(),
+    } for folder in folders])
+
+def get_recent_files():
+    files = File.query.filter_by(uploaded_by=current_user.id).order_by(File.updated_at.desc()).limit(3).all()
+    return jsonify([{
+        "id": file.id,
+        "name": file.name,
+        "original_name": file.original_name,
+        "updated_at": file.updated_at.isoformat(),
+        "mime_type": file.mime_type,
+        "url": url_for("files.view_file", file_id=file.id),
+    } for file in files])
+
+def get_file_details(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+
+    file_obj = File.query.get_or_404(file_id)
+    versions = FileVersion.query.filter_by(file_id=file_obj.id).order_by(FileVersion.version_number.desc()).all()
+    file_size_str = f"{file_obj.file_size / (1024 * 1024):.1f} MB" if file_obj.file_size > 1024 * 1024 else f"{file_obj.file_size / 1024:.1f} KB"
+    ext = os.path.splitext(file_obj.original_name)[1].lower()
+    is_editable = ext in EDITABLE_EXTENSIONS
+    is_viewable = ext in EDITABLE_EXTENSIONS
+    return jsonify({
+        "success": True,
+        "file": {
+            "id": file_obj.id,
+            "name": file_obj.original_name,
+            "size": file_size_str,
+            "type": _file_type_from_extension(file_obj.original_name),
+            "uploader": file_obj.uploader.full_name,
+            "created_at": format_datetime(file_obj.created_at),
+            "version": file_obj.version_number,
+            "is_editable": is_editable,
+            "is_viewable": is_viewable,
+        },
+        "versions": [{
+            "id": version.id,
+            "version_number": version.version_number,
+            "is_current": version.version_number == file_obj.version_number,
+        } for version in versions],
+        "actions": {
+            "download_url": url_for("api.api_download_file", file_id=file_obj.id),
+            "view_url": url_for("files.view_file", file_id=file_obj.id) if is_viewable else None,
+            "edit_url": url_for("files.edit_file", file_id=file_obj.id) if is_editable else None,
+        },
+    }), 200
+
+def api_download_file(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+
+    file_obj = File.query.get_or_404(file_id)
+    file_path = _resolve_path(file_obj.file_path)
+    if not os.path.exists(file_path):
+        return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
+
+    return send_file(file_path, as_attachment=True, download_name=file_obj.original_name, mimetype=file_obj.mime_type or "application/octet-stream")
+
+def get_file_content(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+
+    file_obj = File.query.get_or_404(file_id)
+    ext = os.path.splitext(file_obj.original_name)[1].lower()
+    if ext not in EDITABLE_EXTENSIONS:
+        return jsonify({"success": False, "error": "Dateityp nicht editierbar"}), 400
+
+    file_path = _resolve_path(file_obj.file_path)
+    if not os.path.exists(file_path):
+        return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    return jsonify({
+        "success": True,
+        "file": {
+            "id": file_obj.id,
+            "name": file_obj.name,
+            "original_name": file_obj.original_name,
+            "version": file_obj.version_number,
+            "mime_type": file_obj.mime_type,
+            "updated_at": file_obj.updated_at.isoformat() if file_obj.updated_at else None,
+        },
+        "content": content,
+    }), 200
+
+def update_file_content(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    file_obj = File.query.get_or_404(file_id)
+    ext = os.path.splitext(file_obj.original_name)[1].lower()
+    if ext not in EDITABLE_EXTENSIONS:
+        return jsonify({"success": False, "error": "Dateityp nicht editierbar"}), 400
+
+    data = request.get_json(silent=True) or {}
+    content = data.get("content")
+    if content is None:
+        return jsonify({"success": False, "error": "content ist erforderlich"}), 400
+
+    # version snapshot
+    db.session.add(FileVersion(
+        file_id=file_obj.id,
+        version_number=file_obj.version_number,
+        file_path=file_obj.file_path,
+        file_size=file_obj.file_size,
+        uploaded_by=file_obj.uploaded_by,
+    ))
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"{timestamp}_{file_obj.original_name}"
+    relative_path = os.path.join("uploads", "files", filename)
+    absolute_path = os.path.abspath(relative_path)
+    os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
+    with open(absolute_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    file_obj.file_path = absolute_path
+    file_obj.file_size = os.path.getsize(absolute_path)
+    file_obj.version_number += 1
+    file_obj.uploaded_by = current_user.id
+    file_obj.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "file": {
+            "id": file_obj.id,
+            "version": file_obj.version_number,
+            "updated_at": file_obj.updated_at.isoformat(),
+        },
+    }), 200
+
+def api_rename_file(file_id):
+    data = request.get_json(silent=True) or {}
+    new_name = sanitize_files_item_name(data.get("new_name"))
+    if not new_name:
+        return jsonify({"success": False, "error": "Ungültiger Dateiname"}), 400
+
+    file_obj = File.query.get_or_404(file_id)
+    existing = File.query.filter_by(name=new_name, folder_id=file_obj.folder_id, is_current=True).first()
+    if existing and existing.id != file_obj.id:
+        return jsonify({"success": False, "error": "Dateiname existiert bereits im Zielordner"}), 409
+
+    file_obj.name = new_name
+    db.session.commit()
+    return jsonify({"success": True, "file": {"id": file_obj.id, "name": file_obj.name}})
+
+def api_rename_folder(folder_id):
+    data = request.get_json(silent=True) or {}
+    new_name = sanitize_files_item_name(data.get("new_name"))
+    if not new_name:
+        return jsonify({"success": False, "error": "Ungültiger Ordnername"}), 400
+
+    folder = Folder.query.get_or_404(folder_id)
+    folder.name = new_name
+    db.session.commit()
+    return jsonify({"success": True, "folder": {"id": folder.id, "name": folder.name}})
+
+def api_move_item():
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    payload = request.get_json(silent=True) or {}
+    item_type = (payload.get("item_type") or "").strip().lower()
+    item_id = payload.get("item_id")
+    target_folder_id = payload.get("target_folder_id")
+
+    if item_type not in {"file", "folder"}:
+        return jsonify({"success": False, "error": "item_type muss file oder folder sein"}), 400
+    try:
+        item_id = int(item_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Ungültige item_id"}), 400
+
+    if target_folder_id in (None, "", "null"):
+        target_folder_id = None
+        target_folder = None
+    else:
+        try:
+            target_folder_id = int(target_folder_id)
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "Ungültige target_folder_id"}), 400
+        target_folder = Folder.query.get(target_folder_id)
+        if not target_folder:
+            return jsonify({"success": False, "error": "Zielordner nicht gefunden"}), 404
+
+    if item_type == "file":
+        file_obj = File.query.get(item_id)
+        if not file_obj or not file_obj.is_current:
+            return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
+        if file_obj.folder_id == target_folder_id:
+            return jsonify({"success": True, "no_change": True}), 200
+        conflict = File.query.filter(
+            File.id != file_obj.id,
+            File.name == file_obj.name,
+            File.folder_id.is_(target_folder_id) if target_folder_id is None else File.folder_id == target_folder_id,
+            File.is_current == True,
+        ).first()
+        if conflict:
+            return jsonify({"success": False, "error": "Namenskonflikt im Zielordner"}), 409
+        file_obj.folder_id = target_folder_id
+        db.session.commit()
+        return jsonify({"success": True}), 200
+
+    folder = Folder.query.get(item_id)
+    if not folder:
+        return jsonify({"success": False, "error": "Ordner nicht gefunden"}), 404
+    if folder.id == target_folder_id:
+        return jsonify({"success": False, "error": "Ungültige Zielstruktur"}), 400
+    if target_folder and _is_folder_descendant(target_folder, folder.id):
+        return jsonify({"success": False, "error": "Ordner kann nicht in Unterordner verschoben werden"}), 400
+    if folder.parent_id == target_folder_id:
+        return jsonify({"success": True, "no_change": True}), 200
+
+    folder.parent_id = target_folder_id
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def api_delete_file(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    file_obj = File.query.get_or_404(file_id)
+    _remove_file_from_storage(file_obj)
+    db.session.delete(file_obj)
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def api_delete_folder(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    folder = Folder.query.get_or_404(folder_id)
+    _delete_folder_recursive(folder)
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def api_create_file_share(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    if not _is_sharing_enabled():
+        return jsonify({"success": False, "error": "Freigaben sind deaktiviert"}), 403
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    data = request.get_json(silent=True) or {}
+    modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
+    if isinstance(modes, str):
+        modes = [modes]
+    modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
+    if not modes:
+        return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
+
+    file_obj = File.query.get_or_404(file_id)
+    links = []
+    for mode in modes:
+        if mode == "dropbox":
+            continue
+        passwords = data.get(f"password_{mode}") or data.get("password") or ""
+        expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
+        label = data.get(f"label_{mode}") or data.get("label") or ""
+        share = create_share_link(
+            "file",
+            file_obj,
+            mode,
+            created_by=current_user.id,
+            password=passwords,
+            expires_at_raw=expires,
+            label=label,
+        )
+        links.append({"id": share.id, "mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
+    db.session.commit()
+    return jsonify({"success": True, "links": links}), 200
+
+def api_create_folder_share(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    if not _is_sharing_enabled():
+        return jsonify({"success": False, "error": "Freigaben sind deaktiviert"}), 403
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    data = request.get_json(silent=True) or {}
+    modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
+    if isinstance(modes, str):
+        modes = [modes]
+    modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
+    if not modes:
+        return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
+
+    folder = Folder.query.get_or_404(folder_id)
+    links = []
+    for mode in modes:
+        passwords = data.get(f"password_{mode}") or data.get("password") or ""
+        expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
+        label = data.get(f"label_{mode}") or data.get("label") or ""
+        share = create_share_link(
+            "folder",
+            folder,
+            mode,
+            created_by=current_user.id,
+            password=passwords,
+            expires_at_raw=expires,
+            label=label,
+        )
+        from app.utils.public_share import share_url
+        links.append({"id": share.id, "mode": mode, "share_url": share_url(share)})
+    db.session.commit()
+    return jsonify({"success": True, "links": links}), 200
+
+def api_get_file_share_settings(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    file_obj = File.query.get_or_404(file_id)
+    return jsonify({"success": True, "item": serialize_share_settings("file", file_obj.id, file_obj.name, dropbox_enabled=False)}), 200
+
+def api_get_folder_share_settings(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    folder = Folder.query.get_or_404(folder_id)
+    dropbox_setting = SystemSettings.query.filter_by(key="files_dropbox_enabled").first()
+    dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == "true") or False
+    return jsonify({"success": True, "item": serialize_share_settings("folder", folder.id, folder.name, dropbox_enabled=dropbox_enabled)}), 200
+
+def api_update_file_share(file_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    from app.models.public_share import PublicShare
+    from app.utils.public_share import get_share_for_mode, sync_legacy_share_flags
+
+    file_obj = File.query.get_or_404(file_id)
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip().lower()
+    if action == "disable_all":
+        for share in PublicShare.query.filter_by(resource_type="file", resource_id=file_obj.id).all():
+            share.enabled = False
+        sync_legacy_share_flags("file", file_obj)
+    elif action in ("disable_view", "disable_edit"):
+        disable_share_link("file", file_obj, "view" if action == "disable_view" else "edit")
+    else:
+        for mode in ("view", "edit"):
+            if data.get(f"update_{mode}") or data.get("share_mode") == mode:
+                upsert_share_link(
+                    "file",
+                    file_obj,
+                    mode,
+                    created_by=current_user.id,
+                    password=data.get(f"password_{mode}") or data.get("password") or "",
+                    expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
+                )
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def api_update_folder_share(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    from app.models.public_share import PublicShare
+    from app.utils.public_share import sync_legacy_share_flags
+
+    folder = Folder.query.get_or_404(folder_id)
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip().lower()
+    if action == "disable_all":
+        for share in PublicShare.query.filter_by(resource_type="folder", resource_id=folder.id).all():
+            share.enabled = False
+        sync_legacy_share_flags("folder", folder)
+    elif action in ("disable_view", "disable_edit"):
+        disable_share_link("folder", folder, "view" if action == "disable_view" else "edit")
+    else:
+        for mode in ("view", "edit"):
+            if data.get(f"update_{mode}") or data.get("share_mode") == mode:
+                upsert_share_link(
+                    "folder",
+                    folder,
+                    mode,
+                    created_by=current_user.id,
+                    password=data.get(f"password_{mode}") or data.get("password") or "",
+                    expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
+                )
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def api_enable_dropbox(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    folder = Folder.query.get_or_404(folder_id)
+    folder.is_dropbox = True
+    folder.dropbox_token = _generate_unique_dropbox_token()
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "dropbox_url": url_for("files.dropbox_upload", token=folder.dropbox_token, _external=True),
+    }), 200
+
+def api_get_dropbox_settings(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+
+    folder = Folder.query.get_or_404(folder_id)
+    if not folder.is_dropbox or not folder.dropbox_token:
+        return jsonify({"success": False, "error": "Briefkasten ist nicht aktiv"}), 404
+    return jsonify({
+        "success": True,
+        "folder": {
             "id": folder.id,
             "name": folder.name,
-            "created_at": folder.created_at.isoformat(),
-        } for folder in folders])
-
-    @api_bp.route("/files/recent", methods=["GET"])
-    @require_api_auth
-    def get_recent_files():
-        files = File.query.filter_by(uploaded_by=current_user.id).order_by(File.updated_at.desc()).limit(3).all()
-        return jsonify([{
-            "id": file.id,
-            "name": file.name,
-            "original_name": file.original_name,
-            "updated_at": file.updated_at.isoformat(),
-            "mime_type": file.mime_type,
-            "url": url_for("files.view_file", file_id=file.id),
-        } for file in files])
-
-    @api_bp.route("/files/<int:file_id>/details", methods=["GET"])
-    @require_api_auth
-    def get_file_details(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-
-        file_obj = File.query.get_or_404(file_id)
-        versions = FileVersion.query.filter_by(file_id=file_obj.id).order_by(FileVersion.version_number.desc()).all()
-        file_size_str = f"{file_obj.file_size / (1024 * 1024):.1f} MB" if file_obj.file_size > 1024 * 1024 else f"{file_obj.file_size / 1024:.1f} KB"
-        ext = os.path.splitext(file_obj.original_name)[1].lower()
-        is_editable = ext in EDITABLE_EXTENSIONS
-        is_viewable = ext in EDITABLE_EXTENSIONS
-        return jsonify({
-            "success": True,
-            "file": {
-                "id": file_obj.id,
-                "name": file_obj.original_name,
-                "size": file_size_str,
-                "type": _file_type_from_extension(file_obj.original_name),
-                "uploader": file_obj.uploader.full_name,
-                "created_at": format_datetime(file_obj.created_at),
-                "version": file_obj.version_number,
-                "is_editable": is_editable,
-                "is_viewable": is_viewable,
-            },
-            "versions": [{
-                "id": version.id,
-                "version_number": version.version_number,
-                "is_current": version.version_number == file_obj.version_number,
-            } for version in versions],
-            "actions": {
-                "download_url": url_for("api.api_download_file", file_id=file_obj.id),
-                "view_url": url_for("files.view_file", file_id=file_obj.id) if is_viewable else None,
-                "edit_url": url_for("files.edit_file", file_id=file_obj.id) if is_editable else None,
-            },
-        }), 200
-
-    @api_bp.route("/files/<int:file_id>/download", methods=["GET"])
-    @require_api_auth
-    def api_download_file(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-
-        file_obj = File.query.get_or_404(file_id)
-        file_path = _resolve_path(file_obj.file_path)
-        if not os.path.exists(file_path):
-            return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
-
-        return send_file(file_path, as_attachment=True, download_name=file_obj.original_name, mimetype=file_obj.mime_type or "application/octet-stream")
-
-    @api_bp.route("/files/<int:file_id>/content", methods=["GET"])
-    @require_api_auth
-    def get_file_content(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-
-        file_obj = File.query.get_or_404(file_id)
-        ext = os.path.splitext(file_obj.original_name)[1].lower()
-        if ext not in EDITABLE_EXTENSIONS:
-            return jsonify({"success": False, "error": "Dateityp nicht editierbar"}), 400
-
-        file_path = _resolve_path(file_obj.file_path)
-        if not os.path.exists(file_path):
-            return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
-
-        return jsonify({
-            "success": True,
-            "file": {
-                "id": file_obj.id,
-                "name": file_obj.name,
-                "original_name": file_obj.original_name,
-                "version": file_obj.version_number,
-                "mime_type": file_obj.mime_type,
-                "updated_at": file_obj.updated_at.isoformat() if file_obj.updated_at else None,
-            },
-            "content": content,
-        }), 200
-
-    @api_bp.route("/files/<int:file_id>/content", methods=["PUT"])
-    @require_api_auth
-    def update_file_content(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        file_obj = File.query.get_or_404(file_id)
-        ext = os.path.splitext(file_obj.original_name)[1].lower()
-        if ext not in EDITABLE_EXTENSIONS:
-            return jsonify({"success": False, "error": "Dateityp nicht editierbar"}), 400
-
-        data = request.get_json(silent=True) or {}
-        content = data.get("content")
-        if content is None:
-            return jsonify({"success": False, "error": "content ist erforderlich"}), 400
-
-        # version snapshot
-        db.session.add(FileVersion(
-            file_id=file_obj.id,
-            version_number=file_obj.version_number,
-            file_path=file_obj.file_path,
-            file_size=file_obj.file_size,
-            uploaded_by=file_obj.uploaded_by,
-        ))
-
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}_{file_obj.original_name}"
-        relative_path = os.path.join("uploads", "files", filename)
-        absolute_path = os.path.abspath(relative_path)
-        os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
-        with open(absolute_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        file_obj.file_path = absolute_path
-        file_obj.file_size = os.path.getsize(absolute_path)
-        file_obj.version_number += 1
-        file_obj.uploaded_by = current_user.id
-        file_obj.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "file": {
-                "id": file_obj.id,
-                "version": file_obj.version_number,
-                "updated_at": file_obj.updated_at.isoformat(),
-            },
-        }), 200
-
-    @api_bp.route("/files/<int:file_id>/rename", methods=["POST"])
-    @require_api_auth
-    def api_rename_file(file_id):
-        data = request.get_json(silent=True) or {}
-        new_name = sanitize_files_item_name(data.get("new_name"))
-        if not new_name:
-            return jsonify({"success": False, "error": "Ungültiger Dateiname"}), 400
-
-        file_obj = File.query.get_or_404(file_id)
-        existing = File.query.filter_by(name=new_name, folder_id=file_obj.folder_id, is_current=True).first()
-        if existing and existing.id != file_obj.id:
-            return jsonify({"success": False, "error": "Dateiname existiert bereits im Zielordner"}), 409
-
-        file_obj.name = new_name
-        db.session.commit()
-        return jsonify({"success": True, "file": {"id": file_obj.id, "name": file_obj.name}})
-
-    @api_bp.route("/folders/<int:folder_id>/rename", methods=["POST"])
-    @require_api_auth
-    def api_rename_folder(folder_id):
-        data = request.get_json(silent=True) or {}
-        new_name = sanitize_files_item_name(data.get("new_name"))
-        if not new_name:
-            return jsonify({"success": False, "error": "Ungültiger Ordnername"}), 400
-
-        folder = Folder.query.get_or_404(folder_id)
-        folder.name = new_name
-        db.session.commit()
-        return jsonify({"success": True, "folder": {"id": folder.id, "name": folder.name}})
-
-    @api_bp.route("/files/move", methods=["POST"])
-    @require_api_auth
-    def api_move_item():
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        payload = request.get_json(silent=True) or {}
-        item_type = (payload.get("item_type") or "").strip().lower()
-        item_id = payload.get("item_id")
-        target_folder_id = payload.get("target_folder_id")
-
-        if item_type not in {"file", "folder"}:
-            return jsonify({"success": False, "error": "item_type muss file oder folder sein"}), 400
-        try:
-            item_id = int(item_id)
-        except (TypeError, ValueError):
-            return jsonify({"success": False, "error": "Ungültige item_id"}), 400
-
-        if target_folder_id in (None, "", "null"):
-            target_folder_id = None
-            target_folder = None
-        else:
-            try:
-                target_folder_id = int(target_folder_id)
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "Ungültige target_folder_id"}), 400
-            target_folder = Folder.query.get(target_folder_id)
-            if not target_folder:
-                return jsonify({"success": False, "error": "Zielordner nicht gefunden"}), 404
-
-        if item_type == "file":
-            file_obj = File.query.get(item_id)
-            if not file_obj or not file_obj.is_current:
-                return jsonify({"success": False, "error": "Datei nicht gefunden"}), 404
-            if file_obj.folder_id == target_folder_id:
-                return jsonify({"success": True, "no_change": True}), 200
-            conflict = File.query.filter(
-                File.id != file_obj.id,
-                File.name == file_obj.name,
-                File.folder_id.is_(target_folder_id) if target_folder_id is None else File.folder_id == target_folder_id,
-                File.is_current == True,
-            ).first()
-            if conflict:
-                return jsonify({"success": False, "error": "Namenskonflikt im Zielordner"}), 409
-            file_obj.folder_id = target_folder_id
-            db.session.commit()
-            return jsonify({"success": True}), 200
-
-        folder = Folder.query.get(item_id)
-        if not folder:
-            return jsonify({"success": False, "error": "Ordner nicht gefunden"}), 404
-        if folder.id == target_folder_id:
-            return jsonify({"success": False, "error": "Ungültige Zielstruktur"}), 400
-        if target_folder and _is_folder_descendant(target_folder, folder.id):
-            return jsonify({"success": False, "error": "Ordner kann nicht in Unterordner verschoben werden"}), 400
-        if folder.parent_id == target_folder_id:
-            return jsonify({"success": True, "no_change": True}), 200
-
-        folder.parent_id = target_folder_id
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    @api_bp.route("/files/<int:file_id>", methods=["DELETE"])
-    @require_api_auth
-    def api_delete_file(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        file_obj = File.query.get_or_404(file_id)
-        _remove_file_from_storage(file_obj)
-        db.session.delete(file_obj)
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    @api_bp.route("/folders/<int:folder_id>", methods=["DELETE"])
-    @require_api_auth
-    def api_delete_folder(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        folder = Folder.query.get_or_404(folder_id)
-        _delete_folder_recursive(folder)
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    @api_bp.route("/files/<int:file_id>/share", methods=["POST"])
-    @require_api_auth
-    def api_create_file_share(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        if not _is_sharing_enabled():
-            return jsonify({"success": False, "error": "Freigaben sind deaktiviert"}), 403
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        data = request.get_json(silent=True) or {}
-        modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
-        if isinstance(modes, str):
-            modes = [modes]
-        modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
-        if not modes:
-            return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
-
-        file_obj = File.query.get_or_404(file_id)
-        links = []
-        for mode in modes:
-            if mode == "dropbox":
-                continue
-            passwords = data.get(f"password_{mode}") or data.get("password") or ""
-            expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
-            label = data.get(f"label_{mode}") or data.get("label") or ""
-            share = create_share_link(
-                "file",
-                file_obj,
-                mode,
-                created_by=current_user.id,
-                password=passwords,
-                expires_at_raw=expires,
-                label=label,
-            )
-            links.append({"id": share.id, "mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
-        db.session.commit()
-        return jsonify({"success": True, "links": links}), 200
-
-    @api_bp.route("/folders/<int:folder_id>/share", methods=["POST"])
-    @require_api_auth
-    def api_create_folder_share(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        if not _is_sharing_enabled():
-            return jsonify({"success": False, "error": "Freigaben sind deaktiviert"}), 403
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        data = request.get_json(silent=True) or {}
-        modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
-        if isinstance(modes, str):
-            modes = [modes]
-        modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
-        if not modes:
-            return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
-
-        folder = Folder.query.get_or_404(folder_id)
-        links = []
-        for mode in modes:
-            passwords = data.get(f"password_{mode}") or data.get("password") or ""
-            expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
-            label = data.get(f"label_{mode}") or data.get("label") or ""
-            share = create_share_link(
-                "folder",
-                folder,
-                mode,
-                created_by=current_user.id,
-                password=passwords,
-                expires_at_raw=expires,
-                label=label,
-            )
-            from app.utils.public_share import share_url
-            links.append({"id": share.id, "mode": mode, "share_url": share_url(share)})
-        db.session.commit()
-        return jsonify({"success": True, "links": links}), 200
-
-    @api_bp.route("/files/<int:file_id>/share-settings", methods=["GET"])
-    @require_api_auth
-    def api_get_file_share_settings(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        file_obj = File.query.get_or_404(file_id)
-        return jsonify({"success": True, "item": serialize_share_settings("file", file_obj.id, file_obj.name, dropbox_enabled=False)}), 200
-
-    @api_bp.route("/folders/<int:folder_id>/share-settings", methods=["GET"])
-    @require_api_auth
-    def api_get_folder_share_settings(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        folder = Folder.query.get_or_404(folder_id)
-        dropbox_setting = SystemSettings.query.filter_by(key="files_dropbox_enabled").first()
-        dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == "true") or False
-        return jsonify({"success": True, "item": serialize_share_settings("folder", folder.id, folder.name, dropbox_enabled=dropbox_enabled)}), 200
-
-    @api_bp.route("/files/<int:file_id>/share-settings", methods=["POST"])
-    @require_api_auth
-    def api_update_file_share(file_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        from app.models.public_share import PublicShare
-        from app.utils.public_share import get_share_for_mode, sync_legacy_share_flags
-
-        file_obj = File.query.get_or_404(file_id)
-        data = request.get_json(silent=True) or {}
-        action = (data.get("action") or "").strip().lower()
-        if action == "disable_all":
-            for share in PublicShare.query.filter_by(resource_type="file", resource_id=file_obj.id).all():
-                share.enabled = False
-            sync_legacy_share_flags("file", file_obj)
-        elif action in ("disable_view", "disable_edit"):
-            disable_share_link("file", file_obj, "view" if action == "disable_view" else "edit")
-        else:
-            for mode in ("view", "edit"):
-                if data.get(f"update_{mode}") or data.get("share_mode") == mode:
-                    upsert_share_link(
-                        "file",
-                        file_obj,
-                        mode,
-                        created_by=current_user.id,
-                        password=data.get(f"password_{mode}") or data.get("password") or "",
-                        expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
-                    )
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    @api_bp.route("/folders/<int:folder_id>/share-settings", methods=["POST"])
-    @require_api_auth
-    def api_update_folder_share(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        from app.models.public_share import PublicShare
-        from app.utils.public_share import sync_legacy_share_flags
-
-        folder = Folder.query.get_or_404(folder_id)
-        data = request.get_json(silent=True) or {}
-        action = (data.get("action") or "").strip().lower()
-        if action == "disable_all":
-            for share in PublicShare.query.filter_by(resource_type="folder", resource_id=folder.id).all():
-                share.enabled = False
-            sync_legacy_share_flags("folder", folder)
-        elif action in ("disable_view", "disable_edit"):
-            disable_share_link("folder", folder, "view" if action == "disable_view" else "edit")
-        else:
-            for mode in ("view", "edit"):
-                if data.get(f"update_{mode}") or data.get("share_mode") == mode:
-                    upsert_share_link(
-                        "folder",
-                        folder,
-                        mode,
-                        created_by=current_user.id,
-                        password=data.get(f"password_{mode}") or data.get("password") or "",
-                        expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
-                    )
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    @api_bp.route("/folders/<int:folder_id>/dropbox/enable", methods=["POST"])
-    @require_api_auth
-    def api_enable_dropbox(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        folder = Folder.query.get_or_404(folder_id)
-        folder.is_dropbox = True
-        folder.dropbox_token = _generate_unique_dropbox_token()
-        db.session.commit()
-        return jsonify({
-            "success": True,
-            "dropbox_url": url_for("files.dropbox_upload", token=folder.dropbox_token, _external=True),
-        }), 200
-
-    @api_bp.route("/folders/<int:folder_id>/dropbox", methods=["GET"])
-    @require_api_auth
-    def api_get_dropbox_settings(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-
-        folder = Folder.query.get_or_404(folder_id)
-        if not folder.is_dropbox or not folder.dropbox_token:
-            return jsonify({"success": False, "error": "Briefkasten ist nicht aktiv"}), 404
-        return jsonify({
-            "success": True,
-            "folder": {
-                "id": folder.id,
-                "name": folder.name,
-                "dropbox_url": url_for("files.dropbox_upload", token=folder.dropbox_token, _external=True),
-                "has_password": folder.dropbox_password_hash is not None,
-            },
-        }), 200
-
-    @api_bp.route("/folders/<int:folder_id>/dropbox", methods=["POST"])
-    @require_api_auth
-    def api_update_dropbox_settings(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
-
-        folder = Folder.query.get_or_404(folder_id)
-        if not folder.is_dropbox:
-            return jsonify({"success": False, "error": "Briefkasten ist nicht aktiv"}), 404
-
-        data = request.get_json(silent=True) or {}
-        action = (data.get("action") or "").strip().lower()
-        if action == "set_password":
-            password = (data.get("password") or "").strip()
-            if not password:
-                return jsonify({"success": False, "error": "Passwort fehlt"}), 400
-            folder.dropbox_password_hash = generate_password_hash(password)
-        elif action == "remove_password":
-            folder.dropbox_password_hash = None
-        elif action == "regenerate_token":
-            folder.dropbox_token = _generate_unique_dropbox_token()
-        else:
-            return jsonify({"success": False, "error": "Ungültige Aktion"}), 400
-
-        db.session.commit()
-        return jsonify({
-            "success": True,
             "dropbox_url": url_for("files.dropbox_upload", token=folder.dropbox_token, _external=True),
             "has_password": folder.dropbox_password_hash is not None,
-        }), 200
+        },
+    }), 200
 
-    @api_bp.route("/folders/<int:folder_id>/dropbox/disable", methods=["POST"])
-    @require_api_auth
-    def api_disable_dropbox(folder_id):
-        if not _check_files_access():
-            return _files_access_denied_response()
-        guest_error = _ensure_not_guest_for_write()
-        if guest_error:
-            return guest_error
+def api_update_dropbox_settings(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
 
-        folder = Folder.query.get_or_404(folder_id)
-        folder.is_dropbox = False
-        folder.dropbox_token = None
+    folder = Folder.query.get_or_404(folder_id)
+    if not folder.is_dropbox:
+        return jsonify({"success": False, "error": "Briefkasten ist nicht aktiv"}), 404
+
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip().lower()
+    if action == "set_password":
+        password = (data.get("password") or "").strip()
+        if not password:
+            return jsonify({"success": False, "error": "Passwort fehlt"}), 400
+        folder.dropbox_password_hash = generate_password_hash(password)
+    elif action == "remove_password":
         folder.dropbox_password_hash = None
-        db.session.commit()
-        return jsonify({"success": True}), 200
+    elif action == "regenerate_token":
+        folder.dropbox_token = _generate_unique_dropbox_token()
+    else:
+        return jsonify({"success": False, "error": "Ungültige Aktion"}), 400
 
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "dropbox_url": url_for("files.dropbox_upload", token=folder.dropbox_token, _external=True),
+        "has_password": folder.dropbox_password_hash is not None,
+    }), 200
+
+def api_disable_dropbox(folder_id):
+    if not _check_files_access():
+        return _files_access_denied_response()
+    guest_error = _ensure_not_guest_for_write()
+    if guest_error:
+        return guest_error
+
+    folder = Folder.query.get_or_404(folder_id)
+    folder.is_dropbox = False
+    folder.dropbox_token = None
+    folder.dropbox_password_hash = None
+    db.session.commit()
+    return jsonify({"success": True}), 200
+
+def register_files_routes(api_bp, require_api_auth):
+    """Bind module-level views onto the API blueprint."""
+    def _bind(rule, view, methods, auth):
+        api_bp.add_url_rule(rule, view.__name__, auth(view), methods=methods)
+
+    _bind('/files', get_files, ['GET'], login_required)
+    _bind('/folders', get_folders, ['GET'], login_required)
+    _bind('/files/recent', get_recent_files, ['GET'], require_api_auth)
+    _bind('/files/<int:file_id>/details', get_file_details, ['GET'], require_api_auth)
+    _bind('/files/<int:file_id>/download', api_download_file, ['GET'], require_api_auth)
+    _bind('/files/<int:file_id>/content', get_file_content, ['GET'], require_api_auth)
+    _bind('/files/<int:file_id>/content', update_file_content, ['PUT'], require_api_auth)
+    _bind('/files/<int:file_id>/rename', api_rename_file, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/rename', api_rename_folder, ['POST'], require_api_auth)
+    _bind('/files/move', api_move_item, ['POST'], require_api_auth)
+    _bind('/files/<int:file_id>', api_delete_file, ['DELETE'], require_api_auth)
+    _bind('/folders/<int:folder_id>', api_delete_folder, ['DELETE'], require_api_auth)
+    _bind('/files/<int:file_id>/share', api_create_file_share, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/share', api_create_folder_share, ['POST'], require_api_auth)
+    _bind('/files/<int:file_id>/share-settings', api_get_file_share_settings, ['GET'], require_api_auth)
+    _bind('/folders/<int:folder_id>/share-settings', api_get_folder_share_settings, ['GET'], require_api_auth)
+    _bind('/files/<int:file_id>/share-settings', api_update_file_share, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/share-settings', api_update_folder_share, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/dropbox/enable', api_enable_dropbox, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/dropbox', api_get_dropbox_settings, ['GET'], require_api_auth)
+    _bind('/folders/<int:folder_id>/dropbox', api_update_dropbox_settings, ['POST'], require_api_auth)
+    _bind('/folders/<int:folder_id>/dropbox/disable', api_disable_dropbox, ['POST'], require_api_auth)

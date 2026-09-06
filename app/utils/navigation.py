@@ -21,6 +21,7 @@ MOBILE_NAV_SLOT_KEYS = (
     'music',
     'kanban',
     'file_converter',
+    'meetings',
 )
 
 MOBILE_NAV_DEFAULT_SLOTS = {
@@ -52,6 +53,7 @@ DESKTOP_NAV_ORDER = (
     'media_downloader',
     'file_converter',
     'assessment',
+    'meetings',
 )
 
 NAV_LINK_REGISTRY = {
@@ -201,6 +203,14 @@ NAV_LINK_REGISTRY = {
         'active_prefix': 'protocols',
         'in_launcher': True,
     },
+    'meetings': {
+        'endpoint': 'meetings.index',
+        'icon': 'bi-camera-video',
+        'label_key': 'layout.nav.meetings',
+        'module': 'module_meetings',
+        'active_prefix': 'meetings',
+        'in_launcher': True,
+    },
     'media_downloader': {
         'endpoint': 'media_downloader.index',
         'icon': 'bi-download',
@@ -267,6 +277,10 @@ def is_nav_link_available(key, user):
     module = entry.get('module')
     if module and not is_module_enabled(module):
         return False
+    if key == 'meetings':
+        from app.utils.mirotalk import mirotalk_configured
+        if not mirotalk_configured():
+            return False
     if user is not None and module and not has_module_access(user, module):
         return False
     return True

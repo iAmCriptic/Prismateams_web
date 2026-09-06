@@ -218,10 +218,21 @@ def _load_termine_for_widget(user, calendar_ids):
         events = q.order_by(CalendarEvent.start_time).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
         calendars_meta = []
         if calendar_ids:
+            cal_ids = []
             for cid in calendar_ids:
-                cal = Calendar.query.get(cid)
-                if cal:
-                    calendars_meta.append(calendar_to_dict(cal, user))
+                try:
+                    cal_ids.append(int(cid))
+                except (TypeError, ValueError):
+                    continue
+            if cal_ids:
+                cal_by_id = {
+                    cal.id: cal
+                    for cal in Calendar.query.filter(Calendar.id.in_(cal_ids)).all()
+                }
+                for cid in cal_ids:
+                    cal = cal_by_id.get(cid)
+                    if cal:
+                        calendars_meta.append(calendar_to_dict(cal, user))
         return {'events': events, 'calendars': calendars_meta}
     except Exception as e:
         logger.warning(f"Fehler beim Laden der Termine: {e}")
