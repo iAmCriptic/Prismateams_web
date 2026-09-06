@@ -91,8 +91,8 @@ def _portal_display_name() -> str:
         if cached_name:
             return str(cached_name)
 
-    app_name = current_app.config.get("APP_NAME", "Rpismateams") if has_app_context() else "Rpismateams"
-    portal_name = str(app_name or "Rpismateams").strip() or "Rpismateams"
+    app_name = current_app.config.get("APP_NAME", "Prismateams") if has_app_context() else "Prismateams"
+    portal_name = str(app_name or "Prismateams").strip() or "Prismateams"
 
     try:
         from app.models.settings import SystemSettings

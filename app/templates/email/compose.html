@@ -15,7 +15,7 @@
         <div class="email-composer">
             <div class="email-composer-header">
                 <div class="email-composer-header-main">
-                    <a href="{{ compose_back_url }}" class="email-compose-back">
+                    <a href="{{ compose_back_url }}" class="mod-back-link">
                         <i class="bi bi-arrow-left" aria-hidden="true"></i>
                         <span>{{ _('layout.nav.back') }}</span>
                     </a>
@@ -295,6 +295,79 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.PrismateamsContextMenu) {
         window.PrismateamsContextMenu.setQuill(quill);
     }
+
+    (function labelComposeToolbar() {
+        var tips = EDITOR_I18N.toolbar || {};
+        var toolbar = document.querySelector('.email-composer-editor-surface .ql-toolbar');
+        if (!toolbar) return;
+
+        function mark(el, label) {
+            if (!el || !label) return;
+            el.setAttribute('title', label);
+            el.setAttribute('aria-label', label);
+            el.setAttribute('data-action-tip', '');
+        }
+
+        var simple = {
+            bold: tips.bold,
+            italic: tips.italic,
+            underline: tips.underline,
+            strike: tips.strike,
+            link: tips.link,
+            image: tips.image,
+            clean: tips.clean,
+            blockquote: tips.blockquote
+        };
+        Object.keys(simple).forEach(function (name) {
+            toolbar.querySelectorAll('.ql-' + name).forEach(function (btn) {
+                mark(btn, simple[name]);
+            });
+        });
+
+        var codeBtn = toolbar.querySelector('button.ql-code-block');
+        mark(codeBtn, tips.code_block);
+
+        toolbar.querySelectorAll('button.ql-list').forEach(function (btn) {
+            var v = btn.getAttribute('value');
+            mark(btn, v === 'ordered' ? tips.list_ordered : tips.list_bullet);
+        });
+        toolbar.querySelectorAll('button.ql-indent').forEach(function (btn) {
+            var v = btn.getAttribute('value');
+            mark(btn, v === '-1' ? tips.indent_out : tips.indent_in);
+        });
+        toolbar.querySelectorAll('button.ql-script').forEach(function (btn) {
+            var v = btn.getAttribute('value');
+            mark(btn, v === 'sub' ? tips.script_sub : tips.script_super);
+        });
+        toolbar.querySelectorAll('button.ql-align').forEach(function (btn) {
+            var v = btn.getAttribute('value') || '';
+            var map = {
+                '': tips.align_left,
+                center: tips.align_center,
+                right: tips.align_right,
+                justify: tips.align_justify
+            };
+            mark(btn, map[v] || tips.align);
+        });
+
+        var pickerMap = [
+            ['.ql-size .ql-picker-label', tips.size],
+            ['.ql-font .ql-picker-label', tips.font],
+            ['.ql-color .ql-picker-label', tips.color],
+            ['.ql-background .ql-picker-label', tips.background],
+            ['.ql-align .ql-picker-label', tips.align]
+        ];
+        pickerMap.forEach(function (pair) {
+            toolbar.querySelectorAll(pair[0]).forEach(function (el) {
+                mark(el, pair[1]);
+            });
+        });
+
+        if (typeof window.bindPortalActionTips === 'function') {
+            window.bindPortalActionTips(toolbar);
+        }
+    })();
+
     var previewContent = document.getElementById('emailPreviewContent');
     var previewStatus = document.getElementById('emailPreviewStatus');
     var subjectInput = document.getElementById('subject');
@@ -766,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Speichere Entwurf beim Klick auf Zurück / Abbrechen
     var leaveComposeLinks = document.querySelectorAll(
-        '#cancelComposeButton, .email-compose-back'
+        '#cancelComposeButton, .email-composer-header-main .mod-back-link'
     );
     leaveComposeLinks.forEach(function(leaveLink) {
         leaveLink.addEventListener('click', function(e) {

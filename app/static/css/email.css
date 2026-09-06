@@ -774,13 +774,6 @@ body {
     background-color: #000000 !important;
 }
 
-/* OLED Mode - Email Sidebar */
-
-[data-oled-mode="true"] .email-sidebar {
-    background-color: #000000 !important;
-    border-right: 1px solid #1a1a1a !important;
-}
-
 /* OLED Mode - Email Folder Links — chrome via .mod-nav-link */
 
 [data-oled-mode="true"] .email-list {
@@ -1023,11 +1016,6 @@ body:has(.email-content[data-module="email"]) {
     min-width: 0;
 }
 
-.email-list-toolbar .mod-search--icon .mod-search-input,
-.email-list-toolbar .mod-search--icon .form-control.mod-search-input {
-    height: 2.4rem;
-}
-
 .email-list-toolbar .mod-search--icon {
     position: relative;
     grid-column: 2;
@@ -1063,12 +1051,78 @@ body:has(.email-content[data-module="email"]) {
     align-items: center;
     gap: 0.35rem;
     min-width: 0;
+    flex: 1 1 auto;
     font-size: 0.95rem;
     font-weight: 500;
 }
 
+.email-mobile-path-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
 .email-mobile-path-text {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-shrink: 0;
+    margin-bottom: 0.75rem !important;
+    padding: 0.35rem 0.15rem;
+    background: var(--portal-bg, var(--bs-body-bg, #f0f2f5));
+    /* Kein Clipping der Accent-Pill am Shell-Rand */
+    overflow: visible;
+}
+
+[data-bs-theme="dark"] .email-mobile-topbar {
+    background: #1a1a1a;
+}
+
+[data-oled-mode="true"] .email-mobile-topbar {
+    background: #000;
+}
+
+.email-mobile-topbar > .d-flex {
+    min-width: 0;
+    width: 100%;
+    gap: 0.5rem;
+}
+
+.email-mobile-compose-btn {
+    flex-shrink: 0;
+    max-width: 100%;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+}
+
+.email-mobile-compose-btn .bi {
+    margin: 0 !important;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.email-mobile-compose-label {
+    margin-left: 0.3rem;
+}
+
+@media (max-width: 420px) {
+    .email-mobile-compose-label {
+        display: none;
+    }
+
+    .email-mobile-compose-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0 !important;
+        justify-content: center;
+    }
 }
 
 .email-mobile-sync-btn {
@@ -1077,8 +1131,9 @@ body:has(.email-content[data-module="email"]) {
     background: transparent !important;
     color: var(--accent-color, var(--bs-primary)) !important;
     text-decoration: none !important;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1137,88 +1192,50 @@ body:has(.email-content[data-module="email"]) {
     margin-top: auto;
 }
 
-/* Avatar Circles for Email Senders - ERZWINGE RUNDE FORM */
+/* Sender avatars — one rule (circle + accent) */
 
 .email-avatar {
     flex-shrink: 0;
 }
 
-/* ERZWINGE RUNDE FORM - Sehr hohe Spezifität */
-
 .email-avatar .avatar-circle,
 .email-item .avatar-circle,
-.list-group-item .avatar-circle,
 .email-list .avatar-circle,
-div.avatar-circle {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-    max-width: 40px !important;
-    max-height: 40px !important;
-    border-radius: 50% !important;
-    -webkit-border-radius: 50% !important;
-    -moz-border-radius: 50% !important;
-    border-top-left-radius: 50% !important;
-    border-top-right-radius: 50% !important;
-    border-bottom-left-radius: 50% !important;
-    border-bottom-right-radius: 50% !important;
-    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
-    color: white !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    text-transform: uppercase !important;
-    flex-shrink: 0 !important;
-    /* Erzwinge runde Form mit mehreren Methoden */
-    aspect-ratio: 1 / 1 !important;
-    overflow: hidden !important;
-    /* CLIP-PATH ERZWINGT RUNDE FORM */
-    clip-path: circle(50% at 50% 50%) !important;
-    -webkit-clip-path: circle(50% at 50% 50%) !important;
-    /* Shape-Outline als Backup */
-    shape-outside: circle(50%) !important;
-    /* Verhindere alle möglichen Überschreibungen */
-    border-style: none !important;
-    box-shadow: none !important;
+.email-avatar .avatar-circle-mobile,
+.email-item .avatar-circle-mobile {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+    border: none;
+    box-shadow: none;
 }
 
-/* ZUSÄTZLICHE ERZWUNGENE RUNDE FORM - Höchste Priorität */
-
-.email-avatar .avatar-circle,
-.email-avatar .avatar-circle-mobile {
-    position: relative !important;
+.email-avatar .avatar-circle-mobile,
+.email-item .avatar-circle-mobile {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 1rem;
 }
 
-/* Stelle sicher, dass ALLE Avatare in E-Mails rund sind */
-
-.email-list .email-item .email-avatar .avatar-circle,
-.email-list .email-item .email-avatar .avatar-circle-mobile,
-.list-group .list-group-item .email-avatar .avatar-circle,
-.list-group .list-group-item .email-avatar .avatar-circle-mobile {
-    border-radius: 50% !important;
-    -webkit-border-radius: 50% !important;
-    -moz-border-radius: 50% !important;
-    clip-path: circle(50% at 50% 50%) !important;
-    -webkit-clip-path: circle(50% at 50% 50%) !important;
-    border-top-left-radius: 50% !important;
-    border-top-right-radius: 50% !important;
-    border-bottom-left-radius: 50% !important;
-    border-bottom-right-radius: 50% !important;
-}
-
-/* Fallback für nicht authentifizierte Benutzer */
-
-:not([data-bs-theme]) .avatar-circle {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-[data-bs-theme="dark"] .avatar-circle {
-    /* Akzentfarbe/Gradient wird von CSS-Variable übernommen */
+[data-bs-theme="dark"] .email-avatar .avatar-circle,
+[data-bs-theme="dark"] .email-avatar .avatar-circle-mobile {
     background: var(--accent-style, linear-gradient(135deg, #4a5568 0%, #2d3748 100%));
-    color: white;
+    color: #fff;
 }
 
 /* Nested submenu: desktop hover flyout; touch/coarse = inline expand via .show */
@@ -1334,49 +1351,6 @@ div.avatar-circle {
 }
 
 /* Mobile Specific Styles */
-
-/* Mobile Avatar Circles - ERZWINGE RUNDE FORM */
-
-.email-avatar .avatar-circle-mobile,
-.email-item .avatar-circle-mobile,
-.list-group-item .avatar-circle-mobile,
-.email-list .avatar-circle-mobile,
-div.avatar-circle-mobile,
-.avatar-circle.avatar-circle-mobile {
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    min-height: 48px !important;
-    max-width: 48px !important;
-    max-height: 48px !important;
-    font-size: 1rem !important;
-    border-radius: 50% !important;
-    -webkit-border-radius: 50% !important;
-    -moz-border-radius: 50% !important;
-    border-top-left-radius: 50% !important;
-    border-top-right-radius: 50% !important;
-    border-bottom-left-radius: 50% !important;
-    border-bottom-right-radius: 50% !important;
-    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
-    color: white !important;
-    /* Erzwinge runde Form mit mehreren Methoden */
-    aspect-ratio: 1 / 1 !important;
-    overflow: hidden !important;
-    /* CLIP-PATH ERZWINGT RUNDE FORM */
-    clip-path: circle(50% at 50% 50%) !important;
-    -webkit-clip-path: circle(50% at 50% 50%) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    /* Verhindere alle möglichen Überschreibungen */
-    border-style: none !important;
-    box-shadow: none !important;
-}
-
-[data-bs-theme="dark"] .avatar-circle-mobile {
-    background: var(--accent-style, linear-gradient(135deg, #4a5568 0%, #2d3748 100%));
-    color: white;
-}
 
 /* Mobile Touch Targets - Minimum 44x44px */
 
@@ -1720,40 +1694,6 @@ div.avatar-circle-mobile,
     }
 }
 
-/* ============================================
-   KRITISCHE REGEL: ERZWINGE RUNDE AVATARE IN E-MAILS
-   Diese Regel muss am Ende stehen für höchste Priorität
-   ============================================ */
-
-div.avatar-circle,
-div.avatar-circle-mobile,
-.email-avatar div.avatar-circle,
-.email-avatar div.avatar-circle-mobile,
-.email-item .email-avatar div.avatar-circle,
-.email-item .email-avatar div.avatar-circle-mobile,
-.list-group-item .email-avatar div.avatar-circle,
-.list-group-item .email-avatar div.avatar-circle-mobile {
-    /* ERZWINGE PERFEKTE RUNDE FORM */
-    border-radius: 50% !important;
-    -webkit-border-radius: 50% !important;
-    -moz-border-radius: 50% !important;
-    border-top-left-radius: 50% !important;
-    border-top-right-radius: 50% !important;
-    border-bottom-left-radius: 50% !important;
-    border-bottom-right-radius: 50% !important;
-    /* CLIP-PATH ERZWINGT RUNDE FORM - FUNKTIONIERT IMMER */
-    clip-path: circle(50% at 50% 50%) !important;
-    -webkit-clip-path: circle(50% at 50% 50%) !important;
-    /* Verhindere alle Überschreibungen */
-    border: none !important;
-    border-style: none !important;
-    box-shadow: none !important;
-    transform: none !important;
-    /* Stelle sicher, dass es ein Quadrat ist */
-    aspect-ratio: 1 / 1 !important;
-    overflow: hidden !important;
-}
-
 /* ==========================================================================
    Mail Manager Großupdate: Drag&Drop, Ordnerbaum, Farbpunkte, Aktionen
    ========================================================================== */
@@ -1957,21 +1897,11 @@ div.avatar-circle-mobile,
         0 0 0 4px var(--accent-color, var(--bs-primary));
 }
 
-/* Email 3-dot menu — pill design (wie Dateien); Mobile = Action Sheet */
-
-.email-actions-menu,
-.email-move-menu {
-    border-radius: 1.1rem !important;
-}
+/* Email 3-dot / move menus — chrome via .mod-dropdown-menu */
 
 .email-actions-menu,
 .email-move-menu {
     min-width: 15rem;
-    padding: 0.45rem !important;
-    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
-    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14) !important;
-    overflow: visible;
-    background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
 }
 
 .email-actions-menu.show,
@@ -2352,44 +2282,8 @@ div.avatar-circle-mobile,
     margin-bottom: 0.85rem;
 }
 
-.email-view-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--bs-secondary-color, #6c757d);
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
+.email-view-header .mod-back-link {
     margin-bottom: 0.55rem;
-    padding: 0.25rem 0.15rem;
-    border-radius: var(--mod-radius-pill);
-    width: fit-content;
-}
-
-.email-view-back:hover,
-.email-view-back:focus {
-    color: var(--accent-color, var(--bs-primary));
-}
-
-.email-view-back-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: var(--mod-radius-pill);
-    border: none;
-    background: transparent;
-    color: var(--bs-secondary-color, #6c757d) !important;
-    text-decoration: none;
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.email-view-back-icon:hover,
-.email-view-back-icon:focus {
-    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
-    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .email-view-title-row {
@@ -2418,27 +2312,11 @@ div.avatar-circle-mobile,
     flex-shrink: 0;
 }
 
-.email-view-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+.email-view-actions .mod-pill-btn--icon {
     width: 2.75rem;
     height: 2.75rem;
     min-width: 2.75rem;
     min-height: 2.75rem;
-    border-radius: var(--mod-radius-pill) !important;
-    border: 1px solid var(--bs-border-color, #e9ecef) !important;
-    background: var(--bs-tertiary-bg, #f8f9fa) !important;
-    color: var(--bs-body-color, #212529) !important;
-    text-decoration: none !important;
-    padding: 0 !important;
-}
-
-.email-view-action-btn:hover,
-.email-view-action-btn:focus {
-    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color)) !important;
-    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent) !important;
-    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .email-view-shell {
@@ -2501,12 +2379,7 @@ div.avatar-circle-mobile,
     margin-bottom: 0;
 }
 
-.email-view-pill-toggle .btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    font-weight: 600;
-    padding: 0.4rem 0.9rem;
-}
-
+.email-view-pill-toggle .mod-pill-btn.active,
 .email-view-pill-toggle .btn.active {
     background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
     border-color: transparent !important;
@@ -2587,49 +2460,14 @@ div.avatar-circle-mobile,
     flex: 1 1 auto;
 }
 
-.email-compose-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--email-compose-muted);
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
+.email-composer-header-main .mod-back-link {
     margin-bottom: 0.55rem;
-    padding: 0.25rem 0.15rem;
-    border-radius: var(--mod-radius-pill);
-    width: fit-content;
+    color: var(--email-compose-muted);
 }
 
-.email-compose-back:hover,
-.email-compose-back:focus {
+.email-composer-header-main .mod-back-link:hover,
+.email-composer-header-main .mod-back-link:focus {
     color: var(--accent-color, var(--bs-primary));
-}
-
-.email-compose-back i {
-    font-size: 1rem;
-    line-height: 1;
-}
-
-.email-compose-back-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: var(--mod-radius-pill);
-    border: none;
-    background: transparent;
-    color: var(--email-compose-muted) !important;
-    text-decoration: none;
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.email-compose-back-icon:hover,
-.email-compose-back-icon:focus {
-    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
-    color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .email-compose-title {
@@ -2688,7 +2526,7 @@ div.avatar-circle-mobile,
 .email-compose-meta-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: stretch;
+    align-items: flex-start;
     gap: 0.85rem;
 }
 
@@ -2701,8 +2539,13 @@ div.avatar-circle-mobile,
     flex: 1 1 18rem;
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
-    padding: 0.7rem 0.85rem;
+    gap: 0.45rem;
+    width: auto;
+    max-width: 100%;
+    height: fit-content;
+    min-height: 0;
+    align-self: stretch;
+    padding: 0.55rem 0.85rem;
     border-radius: var(--mod-radius-pill, 1.5rem);
     border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, var(--email-compose-border));
     background:
@@ -2720,7 +2563,9 @@ div.avatar-circle-mobile,
 }
 
 .email-compose-design-card--solo {
-    flex: 1 1 100%;
+    flex: 0 1 auto;
+    width: 100%;
+    height: fit-content;
 }
 
 .email-compose-design-toggle {
@@ -2902,7 +2747,7 @@ div.avatar-circle-mobile,
     margin: 0.85rem 0.95rem 0.55rem !important;
     padding: 0.45rem 0.55rem !important;
     border: 1px solid var(--bs-border-color) !important;
-    border-radius: var(--mod-radius-pill, 999px) !important;
+    border-radius: var(--mod-radius-pill) !important;
     background: color-mix(in srgb, var(--bs-body-bg) 78%, var(--bs-secondary-bg)) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -2925,7 +2770,7 @@ div.avatar-circle-mobile,
     margin: 0 !important;
     margin-right: 0.15rem !important;
     padding: 0.15rem;
-    border-radius: var(--mod-radius-pill, 999px);
+    border-radius: var(--mod-radius-pill);
     background: color-mix(in srgb, var(--bs-secondary-bg) 45%, transparent);
     border-right: none !important;
     float: none !important;
@@ -3095,7 +2940,7 @@ div.avatar-circle-mobile,
 .email-composer-editor-surface > .ql-toolbar.ql-snow .ql-picker-item {
     display: block !important;
     width: 100%;
-    border-radius: var(--mod-radius-pill, 999px) !important;
+    border-radius: var(--mod-radius-pill) !important;
     padding: 0.45rem 0.85rem !important;
     line-height: 1.35 !important;
     color: var(--bs-body-color) !important;
@@ -3469,7 +3314,7 @@ div.avatar-circle-mobile,
     border: 1px solid var(--email-compose-border);
     background: var(--email-compose-surface);
     color: var(--email-compose-muted);
-    border-radius: var(--mod-radius-pill, 999px);
+    border-radius: var(--mod-radius-pill);
     padding: 0.4rem 0.9rem;
     font-size: 0.875rem;
     font-weight: 600;
@@ -3537,11 +3382,22 @@ div.avatar-circle-mobile,
 
     .email-compose-meta-row {
         flex-direction: column;
+        align-items: stretch;
         gap: 0.5rem;
     }
 
+    .email-compose-send-as,
+    .email-compose-design-card,
+    .email-compose-design-card--solo {
+        flex: 0 0 auto;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        align-self: stretch;
+    }
+
     .email-compose-design-card {
-        padding: 0.45rem 0.7rem;
+        padding: 0.5rem 0.75rem;
         gap: 0.35rem;
         box-shadow: none;
         backdrop-filter: none;
@@ -3557,10 +3413,6 @@ div.avatar-circle-mobile,
 
     .email-compose-design-toggle__switch {
         margin-top: 0;
-    }
-
-    .email-compose-design-toggle__hint {
-        display: none;
     }
 
     .email-compose-design-toggle--secondary {

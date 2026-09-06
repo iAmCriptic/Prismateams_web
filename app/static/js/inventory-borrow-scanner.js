@@ -1029,7 +1029,7 @@ class BorrowScannerManager {
             // Erstelle Submit-Button
             const submitBtn = document.createElement('button');
             submitBtn.type = 'submit';
-            submitBtn.className = 'btn btn-accent w-100';
+            submitBtn.className = 'btn btn-accent mod-pill-btn w-100';
             submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Produkte ausleihen';
             
             form.appendChild(borrowerDiv);

@@ -352,8 +352,12 @@ def api_inventory_scan(inventory_id):
                 'scan',
                 {'product_id': product.id, 'actor_id': current_user.id},
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning(
+                'Inventur-SSE Publish fehlgeschlagen (scan product=%s): %s',
+                product.id,
+                exc,
+            )
         
         return jsonify({
             'success': True,
@@ -421,8 +425,12 @@ def api_inventory_scan(inventory_id):
                     'actor_id': current_user.id,
                 },
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning(
+                'Inventur-SSE Publish fehlgeschlagen (scan set=%s): %s',
+                product_set.id,
+                exc,
+            )
         return jsonify({
             'success': True,
             'is_set': True,

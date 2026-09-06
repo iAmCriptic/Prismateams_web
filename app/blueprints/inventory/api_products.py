@@ -524,7 +524,7 @@ def api_products_bulk_update():
         return jsonify({'error': translate('inventory.errors.no_update_data')}), 400
 
     if convert_to_cable:
-        from app.services.inventory import StockService
+        from app.services.inventory import LifecycleService, StockService
 
         names = {str(p.name or '').strip() for p in products}
         categories = {str(p.category or '').strip() for p in products}
@@ -548,7 +548,14 @@ def api_products_bulk_update():
         try:
             target.item_type = 'consumable'
             if target.status == 'retired' and stock_total > 0:
-                target.status = 'available'
+                LifecycleService.change_status(
+                    target,
+                    'available',
+                    current_user.id,
+                    reason='bulk_convert_to_cable',
+                    note=f'bulk-convert:{target.id}',
+                    force=True,
+                )
                 _apply_retired_folder_assignment(target)
 
             for product in products:
@@ -563,7 +570,14 @@ def api_products_bulk_update():
                         context_type='manual',
                         context_id=f'bulk-convert:{target.id}',
                     )
-                product.status = 'retired'
+                LifecycleService.change_status(
+                    product,
+                    'retired',
+                    current_user.id,
+                    reason='bulk_convert_to_cable',
+                    note=f'bulk-convert:{target.id}',
+                    force=True,
+                )
                 _apply_retired_folder_assignment(product)
 
             StockService.set_stock_count(

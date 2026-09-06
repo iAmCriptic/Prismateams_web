@@ -1,7 +1,7 @@
 {% extends "inventory/layout.html" %}
 {% set inventory_show_filter_nav = true %}
 
-{% block title %}Ausleihen - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block title %}{{ _('inventory.borrows.page_title') }}{% endblock %}
 {% block inventory_heading_icon %}bi-clock-history{% endblock %}
 {% block inventory_heading %}{{ _('inventory.shell.nav.borrows') }}{% endblock %}
 

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -340,8 +340,12 @@ def update_inventory_item(inventory_id, product_id):
                 'actor_id': current_user.id,
             },
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        current_app.logger.warning(
+            'Inventur-SSE Publish fehlgeschlagen (item_updated product=%s): %s',
+            item.product_id,
+            exc,
+        )
 
     return api_ok(
         {

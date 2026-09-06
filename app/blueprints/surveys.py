@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -25,7 +26,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 
-from app import db
+from app import db, limiter
 from app.models.survey import (
     DEFAULT_SURVEY_SETTINGS,
     SURVEY_LOGIC_ACTIONS,
@@ -725,6 +726,7 @@ def public_fill(token):
 
 
 @surveys_bp.route('/fill/<token>/verify-email', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
 def public_verify_email(token):
     survey = _survey_by_public_token(token)
     if not survey:
@@ -744,9 +746,23 @@ def public_verify_email(token):
         flash(translate('surveys.public.already_submitted'), 'warning')
         return redirect(url_for('surveys.public_fill', token=token))
 
+    # Cooldown: nicht öfter als alle 2 Minuten denselben Code neu senden
+    existing = SurveyEmailVerification.query.filter_by(survey_id=survey.id, email=email).first()
+    if existing and existing.expires_at and existing.verified_at is None:
+        issued_at = existing.expires_at - timedelta(hours=24)
+        if datetime.utcnow() < issued_at + timedelta(minutes=2):
+            flash(translate('surveys.public.code_sent'), 'info')
+            session[f'survey_pending_email_{token}'] = email
+            return render_template(
+                'surveys/public/confirm_code.html',
+                survey=survey,
+                token=token,
+                email=email,
+                **_survey_bot_template_context('survey_confirm'),
+            )
+
     code = generate_confirmation_code()
     expires = datetime.utcnow() + timedelta(hours=24)
-    existing = SurveyEmailVerification.query.filter_by(survey_id=survey.id, email=email).first()
     if existing:
         existing.code = code
         existing.expires_at = expires
@@ -759,6 +775,7 @@ def public_verify_email(token):
             expires_at=expires,
         ))
     db.session.commit()
+    session.pop(f'survey_code_fails_{token}_{email}', None)
 
     subject = translate('surveys.public.verify_email_subject', title=survey.title)
     plain_text = translate('surveys.public.verify_email_body', code=code, title=survey.title)
@@ -787,6 +804,7 @@ def public_verify_email(token):
 
 
 @surveys_bp.route('/fill/<token>/confirm-code', methods=['POST'])
+@limiter.limit("10 per 15 minutes")
 def public_confirm_code(token):
     survey = _survey_by_public_token(token)
     if not survey:
@@ -803,14 +821,33 @@ def public_confirm_code(token):
         flash(translate('surveys.public.invalid_code'), 'danger')
         return redirect(url_for('surveys.public_fill', token=token))
 
-    row = SurveyEmailVerification.query.filter_by(survey_id=survey.id, email=email, code=code).first()
-    if not row or row.expires_at < datetime.utcnow():
+    fail_key = f'survey_code_fails_{token}_{email}'
+    fails = int(session.get(fail_key) or 0)
+    if fails >= 5:
+        flash(translate('surveys.public.invalid_code'), 'danger')
+        return redirect(url_for('surveys.public_fill', token=token))
+
+    row = SurveyEmailVerification.query.filter_by(survey_id=survey.id, email=email).first()
+    code_ok = (
+        row
+        and row.expires_at >= datetime.utcnow()
+        and hmac.compare_digest(str(row.code or ''), code)
+    )
+    if not code_ok:
+        fails += 1
+        session[fail_key] = fails
+        if fails >= 5 and row:
+            row.code = None
+            row.expires_at = datetime.utcnow()
+            db.session.commit()
+            session.pop(fail_key, None)
         flash(translate('surveys.public.invalid_code'), 'danger')
         return redirect(url_for('surveys.public_fill', token=token))
 
     row.verified_at = datetime.utcnow()
     session[EMAIL_VERIFY_SESSION_KEY.format(token=token)] = email
     session.pop(f'survey_pending_email_{token}', None)
+    session.pop(fail_key, None)
     db.session.commit()
     flash(translate('surveys.public.email_verified'), 'success')
     return redirect(url_for('surveys.public_fill', token=token))

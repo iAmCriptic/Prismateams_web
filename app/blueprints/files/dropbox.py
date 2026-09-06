@@ -255,6 +255,23 @@ def dropbox_upload(token):
     password_hash = _dropbox_password_hash(share, folder)
     if password_hash:
         if request.method == 'POST' and 'password' in request.form:
+            from app.utils.share_auth_lockout import (
+                clear_share_auth_failures,
+                register_share_auth_failure,
+                share_auth_locked,
+            )
+            locked, remaining = share_auth_locked('dropbox', token)
+            if locked:
+                flash(
+                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    'danger',
+                )
+                return render_template(
+                    'files/dropbox_auth.html',
+                    token=token,
+                    folder_name=folder.name,
+                    **bot_ctx,
+                )
             if not _validate_mailbox_bot(token):
                 flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
                 return render_template(
@@ -265,12 +282,20 @@ def dropbox_upload(token):
                 )
             password = request.form.get('password', '')
             if check_password_hash(password_hash, password):
+                clear_share_auth_failures('dropbox', token)
                 session[f'dropbox_auth_{token}'] = True
                 if share:
                     log_share_access(share, 'password_auth', request)
                     db.session.commit()
                 return redirect(url_for('files.dropbox_upload', token=token))
-            flash('Ungültiges Passwort.', 'danger')
+            locked_now, remaining = register_share_auth_failure('dropbox', token)
+            if locked_now:
+                flash(
+                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    'danger',
+                )
+            else:
+                flash('Ungültiges Passwort.', 'danger')
         elif not session.get(f'dropbox_auth_{token}'):
             return render_template(
                 'files/dropbox_auth.html',
@@ -332,10 +357,28 @@ def dropbox_upload_file(token):
     password_hash = _dropbox_password_hash(share, folder)
     if password_hash:
         if not session.get(f'dropbox_auth_{token}'):
+            from app.utils.share_auth_lockout import (
+                clear_share_auth_failures,
+                register_share_auth_failure,
+                share_auth_locked,
+            )
+            locked, remaining = share_auth_locked('dropbox', token)
+            if locked:
+                return jsonify({
+                    'success': False,
+                    'error': f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                }), 429
             password = request.form.get('password', '')
             if not check_password_hash(password_hash, password):
+                locked_now, remaining = register_share_auth_failure('dropbox', token)
+                if locked_now:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    }), 429
                 flash('Ungültiges Passwort.', 'danger')
                 return redirect(url_for('files.dropbox_upload', token=token))
+            clear_share_auth_failures('dropbox', token)
             session[f'dropbox_auth_{token}'] = True
             if share:
                 log_share_access(share, 'password_auth', request)

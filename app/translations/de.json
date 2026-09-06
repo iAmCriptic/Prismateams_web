@@ -3240,7 +3240,33 @@
         "subject": "Betreff"
       },
       "editor": {
-        "placeholder": "Schreiben Sie hier Ihre E-Mail..."
+        "placeholder": "Schreiben Sie hier Ihre E-Mail...",
+        "toolbar": {
+          "bold": "Fett",
+          "italic": "Kursiv",
+          "underline": "Unterstrichen",
+          "strike": "Durchgestrichen",
+          "color": "Schriftfarbe",
+          "background": "Hintergrundfarbe",
+          "size": "Schriftgröße",
+          "font": "Schriftart",
+          "script_sub": "Tiefgestellt",
+          "script_super": "Hochgestellt",
+          "list_ordered": "Nummerierte Liste",
+          "list_bullet": "Aufzählung",
+          "indent_out": "Einzug verringern",
+          "indent_in": "Einzug erhöhen",
+          "align": "Ausrichtung",
+          "align_left": "Linksbündig",
+          "align_center": "Zentriert",
+          "align_right": "Rechtsbündig",
+          "align_justify": "Blocksatz",
+          "blockquote": "Zitat",
+          "code_block": "Codeblock",
+          "link": "Link einfügen",
+          "image": "Bild einfügen",
+          "clean": "Formatierung entfernen"
+        }
       },
       "preview": {
         "toggle": "E-Mail Vorschau",
@@ -4709,7 +4735,11 @@
       }
     },
     "scanner": {
+      "page_title": "Quick Scan - Team Portal",
       "confirm_return": "Rückgabe von {checkout_number} bestätigen? ({count} Artikel, {borrower} — {event})"
+    },
+    "checkout": {
+      "page_title": "Ausleihe / Rückgabe - Team Portal"
     },
     "errors": {
       "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",

@@ -4143,7 +4143,33 @@
         "subject": "Subject"
       },
       "editor": {
-        "placeholder": "Write your email here..."
+        "placeholder": "Write your email here...",
+        "toolbar": {
+          "bold": "Bold",
+          "italic": "Italic",
+          "underline": "Underline",
+          "strike": "Strikethrough",
+          "color": "Text color",
+          "background": "Highlight color",
+          "size": "Font size",
+          "font": "Font",
+          "script_sub": "Subscript",
+          "script_super": "Superscript",
+          "list_ordered": "Numbered list",
+          "list_bullet": "Bulleted list",
+          "indent_out": "Decrease indent",
+          "indent_in": "Increase indent",
+          "align": "Alignment",
+          "align_left": "Align left",
+          "align_center": "Align center",
+          "align_right": "Align right",
+          "align_justify": "Justify",
+          "blockquote": "Quote",
+          "code_block": "Code block",
+          "link": "Insert link",
+          "image": "Insert image",
+          "clean": "Clear formatting"
+        }
       },
       "preview": {
         "toggle": "Email preview",
@@ -4709,7 +4735,11 @@
       }
     },
     "scanner": {
+      "page_title": "Quick Scan - Team Portal",
       "confirm_return": "Confirm return of {checkout_number}? ({count} items, {borrower} — {event})"
+    },
+    "checkout": {
+      "page_title": "Borrow / Return - Team Portal"
     },
     "dashboard": {
       "page_title": "Inventory - Team Portal",

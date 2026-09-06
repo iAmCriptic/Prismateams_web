@@ -128,7 +128,7 @@ def register_push_routes(api_bp, require_api_auth):
                     "action_required": "subscribe",
                 }), 400
 
-            portal_name = current_app.config.get("APP_NAME", "Rpismateams")
+            portal_name = current_app.config.get("APP_NAME", "Prismateams")
             try:
                 from app.models.settings import SystemSettings
 

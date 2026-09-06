@@ -1627,23 +1627,6 @@
     padding-right: 0.15rem;
 }
 
-.chat-list-new-btn {
-    --bs-btn-border-radius: 50rem;
-    border-radius: 50rem !important;
-    border: none;
-    font-weight: 600;
-    padding: 0.55rem 1.15rem;
-    color: #fff !important;
-    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
-    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
-}
-
-.chat-list-new-btn:hover,
-.chat-list-new-btn:focus {
-    color: #fff !important;
-    filter: brightness(1.08);
-}
-
 .chat-messages-column {
     flex: 1;
     min-width: 0;

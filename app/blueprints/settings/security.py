@@ -209,6 +209,7 @@ def security_passwords():
             # Passwort ändern
             current_user.set_password(new_password)
             current_user.password_changed_at = datetime.utcnow()
+            revoke_all_sessions(current_user.id, exclude_current=True)
             db.session.commit()
             
             flash(translate('settings.security.password.changed_success'), 'success')

@@ -248,10 +248,11 @@ body {
     color: var(--accent-color);
 }
 
-/* Floating tip for bottom-nav icons (hover + long-press) */
+/* Floating tip for icon actions (navbar, editor toolbar, …) */
+.portal-action-tip,
 .mobile-nav-tip {
     position: fixed;
-    z-index: 1080;
+    z-index: 2000;
     max-width: min(16rem, calc(100vw - 1.5rem));
     padding: 0.4rem 0.75rem;
     border-radius: 999px;
@@ -272,11 +273,13 @@ body {
     text-overflow: ellipsis;
 }
 
+.portal-action-tip.is-visible,
 .mobile-nav-tip.is-visible {
     opacity: 1;
     transform: translate(-50%, -100%);
 }
 
+[data-oled-mode="true"] .portal-action-tip,
 [data-oled-mode="true"] .mobile-nav-tip {
     background: #111;
     border-color: #2a2a2a;

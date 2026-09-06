@@ -59,7 +59,7 @@
 {% endmacro %}
 
 {% macro email_action_menu(email, folder_tree) %}
-<ul class="dropdown-menu dropdown-menu-end email-actions-menu">
+<ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu email-actions-menu">
     <li class="email-action-primary">
         <a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}"
            title="{{ _('email.index.actions.view') }}" aria-label="{{ _('email.index.actions.view') }}">
@@ -131,7 +131,7 @@
             <i class="bi bi-folder-symlink" aria-hidden="true"></i>
             <span class="email-action-label">{{ _('email.index.labels.move_to_folder') }}</span>
         </a>
-        <ul class="dropdown-menu dropdown-menu-end email-move-menu">
+        <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu email-move-menu">
             {% for entry in folder_tree %}
                 {% set folder = entry.folder %}
                 {% if folder.name != email.folder %}
@@ -416,8 +416,13 @@
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
                 </button>
             </form>
-            <a href="{{ url_for('email.compose') }}" class="btn mod-new-btn btn-sm" title="{{ _('email.index.buttons.compose') }}">
-                <i class="bi bi-pencil-square me-1"></i>{{ _('email.index.buttons.compose') }}
+            <a href="{{ url_for('email.compose') }}"
+               class="btn mod-new-btn btn-sm email-mobile-compose-btn"
+               title="{{ _('email.index.buttons.compose') }}"
+               aria-label="{{ _('email.index.buttons.compose') }}"
+               data-action-tip>
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                <span class="email-mobile-compose-label">{{ _('email.index.buttons.compose') }}</span>
             </a>
         </div>
     </div>

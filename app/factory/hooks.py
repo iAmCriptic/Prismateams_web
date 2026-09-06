@@ -295,3 +295,46 @@ def register_request_hooks(app):
         except Exception:
             pass
         return response
+
+    @app.after_request
+    def apply_security_headers(response):
+        """Baseline security headers (CSP bewusst permissiv / schrittweise)."""
+        if request.path.startswith('/socket.io/'):
+            return response
+
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        # camera/microphone bewusst nicht gesperrt (Meetings / MiroTalk)
+        response.headers.setdefault(
+            'Permissions-Policy',
+            'geolocation=(), payment=(), usb=(), interest-cohort=()',
+        )
+
+        # HSTS nur hinter HTTPS (Proxy: X-Forwarded-Proto)
+        proto = (request.headers.get('X-Forwarded-Proto') or request.scheme or '').lower()
+        if proto == 'https':
+            response.headers.setdefault(
+                'Strict-Transport-Security',
+                'max-age=31536000; includeSubDomains',
+            )
+
+        # CSP: schrittweise — blockiert object/base, erlaubt bestehende Inline-/CDN-Nutzung
+        response.headers.setdefault(
+            'Content-Security-Policy',
+            "; ".join([
+                "default-src 'self'",
+                "base-uri 'self'",
+                "object-src 'none'",
+                "frame-ancestors 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:",
+                "style-src 'self' 'unsafe-inline' https:",
+                "img-src 'self' data: blob: https:",
+                "font-src 'self' data: https:",
+                "connect-src 'self' https: wss: ws: blob:",
+                "frame-src 'self' https: blob:",
+                "media-src 'self' https: blob:",
+                "worker-src 'self' blob:",
+            ]),
+        )
+        return response

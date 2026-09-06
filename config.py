@@ -168,6 +168,10 @@ class Config:
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
     # Optional: explizites Limiter-Backend (sonst Redis wenn REDIS_ENABLED, sonst Memory)
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', '').strip() or None
+    # Production/Staging: Memory-Limiter nur mit explizitem Opt-in
+    RATELIMIT_ALLOW_MEMORY = os.environ.get('RATELIMIT_ALLOW_MEMORY', 'False').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
 
 
 class DevelopmentConfig(Config):

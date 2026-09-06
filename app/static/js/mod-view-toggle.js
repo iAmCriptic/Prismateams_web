@@ -1,4 +1,6 @@
-/* Legacy path — kept so old script tags keep working. Prefer js/mod-view-toggle.js */
+/* Shared list/grid view toggle — canonical entry for all modules.
+ * Exposes window.initModViewToggle (and legacy alias initFilesViewToggle).
+ */
 (function () {
     'use strict';
 
@@ -18,7 +20,7 @@
         gridBtn.classList.toggle('is-active', mode === 'grid');
     }
 
-    window.initFilesViewToggle = function initFilesViewToggle(options) {
+    function initModViewToggle(options) {
         const {
             toggleEl = null,
             listBtn,
@@ -154,5 +156,9 @@
                 return currentMode;
             },
         };
-    };
+    }
+
+    window.initModViewToggle = initModViewToggle;
+    /* Legacy alias — templates/JS still call initFilesViewToggle */
+    window.initFilesViewToggle = initModViewToggle;
 })();

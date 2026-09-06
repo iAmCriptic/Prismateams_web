@@ -375,6 +375,24 @@ def public_share(token):
     if share.password_hash:
         session_key = f'share_auth_{token}'
         if request.method == 'POST' and 'password' in request.form:
+            from app.utils.share_auth_lockout import (
+                clear_share_auth_failures,
+                register_share_auth_failure,
+                share_auth_locked,
+            )
+            locked, remaining = share_auth_locked('share', token)
+            if locked:
+                flash(
+                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    'danger',
+                )
+                return render_template(
+                    'files/share_auth.html',
+                    token=token,
+                    item=item,
+                    share_mode=share_mode,
+                    **bot_ctx,
+                )
             if share_mode == 'edit' and not _validate_share_edit_bot(token):
                 flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
                 return render_template(
@@ -385,11 +403,19 @@ def public_share(token):
                     **bot_ctx,
                 )
             if check_password_hash(share.password_hash, request.form.get('password', '')):
+                clear_share_auth_failures('share', token)
                 session[session_key] = True
                 log_share_access(share, 'password_auth', request)
                 db.session.commit()
                 return redirect(url_for('files.public_share', token=token))
-            flash('Ungültiges Passwort.', 'danger')
+            locked_now, remaining = register_share_auth_failure('share', token)
+            if locked_now:
+                flash(
+                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    'danger',
+                )
+            else:
+                flash('Ungültiges Passwort.', 'danger')
         elif not session.get(session_key):
             return render_template(
                 'files/share_auth.html',
@@ -779,10 +805,30 @@ def public_share_upload(token):
             return redirect(url_for('files.public_share', token=token))
         shared_folder = target_folder
     if share.password_hash and not session.get(f'share_auth_{token}'):
+        from app.utils.share_auth_lockout import (
+            clear_share_auth_failures,
+            register_share_auth_failure,
+            share_auth_locked,
+        )
+        locked, remaining = share_auth_locked('share', token)
+        if locked:
+            flash(
+                f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                'danger',
+            )
+            return redirect(url_for('files.public_share', token=token))
         password = request.form.get('password', '')
         if not check_password_hash(share.password_hash, password):
-            flash('Ungültiges Passwort.', 'danger')
+            locked_now, remaining = register_share_auth_failure('share', token)
+            if locked_now:
+                flash(
+                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
+                    'danger',
+                )
+            else:
+                flash('Ungültiges Passwort.', 'danger')
             return redirect(url_for('files.public_share', token=token))
+        clear_share_auth_failures('share', token)
         session[f'share_auth_{token}'] = True
 
     uploader_name = request.form.get('uploader_name', '').strip() or guest_name or 'Anonym'

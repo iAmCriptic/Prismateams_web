@@ -149,7 +149,7 @@ def build_registration_options(user) -> dict[str, Any]:
         user_display_name=user.full_name or user.email,
         authenticator_selection=AuthenticatorSelectionCriteria(
             resident_key=ResidentKeyRequirement.REQUIRED,
-            user_verification=UserVerificationRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
         ),
     )
     store_challenge(options.challenge, 'register')
@@ -168,7 +168,7 @@ def verify_registration(user, credential: dict, device_label: str | None = None)
         expected_challenge=challenge,
         expected_rp_id=cfg['rp_id'],
         expected_origin=cfg['origin'],
-        require_user_verification=False,
+        require_user_verification=True,
     )
 
     transports = None
@@ -210,7 +210,7 @@ def build_login_options() -> dict[str, Any]:
     cfg = get_rp_config()
     options = generate_authentication_options(
         rp_id=cfg['rp_id'],
-        user_verification=UserVerificationRequirement.PREFERRED,
+        user_verification=UserVerificationRequirement.REQUIRED,
         allow_credentials=[],
     )
     store_challenge(options.challenge, 'login')
@@ -224,7 +224,7 @@ def build_2fa_options(passkeys) -> dict[str, Any]:
     cfg = get_rp_config()
     options = generate_authentication_options(
         rp_id=cfg['rp_id'],
-        user_verification=UserVerificationRequirement.PREFERRED,
+        user_verification=UserVerificationRequirement.REQUIRED,
         allow_credentials=_credential_descriptors(passkeys),
     )
     store_challenge(options.challenge, '2fa')
@@ -257,7 +257,7 @@ def verify_login(credential: dict):
         expected_origin=cfg['origin'],
         credential_public_key=base64url_to_bytes(passkey.public_key),
         credential_current_sign_count=passkey.sign_count,
-        require_user_verification=False,
+        require_user_verification=True,
     )
 
     return passkey, verification
@@ -287,7 +287,7 @@ def verify_2fa(passkeys, credential: dict):
         expected_origin=cfg['origin'],
         credential_public_key=base64url_to_bytes(passkey.public_key),
         credential_current_sign_count=passkey.sign_count,
-        require_user_verification=False,
+        require_user_verification=True,
     )
 
     return passkey, verification

@@ -658,12 +658,20 @@ def product_edit(product_id):
             product.qr_code_data = generate_product_qr_code(product.id)
 
         if request.form.get('convert_to_cable') == '1':
-            from app.services.inventory import StockService
+            from app.services.inventory import LifecycleService, StockService
 
             merge_similar = request.form.get('merge_similar_cables') == '1'
             product.item_type = 'consumable'
             if product.status == 'retired':
-                product.status = 'available'
+                LifecycleService.change_status(
+                    product,
+                    'available',
+                    current_user.id,
+                    reason='convert_to_cable',
+                    note=f'convert:{product.id}',
+                    force=True,
+                )
+                _apply_retired_folder_assignment(product)
 
             converted_count = 1
             merged_products = []
@@ -681,7 +689,14 @@ def product_edit(product_id):
                         continue
                     merged_products.append(candidate)
                 for candidate in merged_products:
-                    candidate.status = 'retired'
+                    LifecycleService.change_status(
+                        candidate,
+                        'retired',
+                        current_user.id,
+                        reason='convert_to_cable_merge',
+                        note=f'convert:{product.id}',
+                        force=True,
+                    )
                     _apply_retired_folder_assignment(candidate)
                     converted_count += 1
 
