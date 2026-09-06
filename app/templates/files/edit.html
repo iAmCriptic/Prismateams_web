@@ -219,6 +219,9 @@ function openViewer() {
 
 function saveFile(silent = false) {
     if (EDIT_LOCKED) return;
+    if (window.MarkdownTableEditor) {
+        window.MarkdownTableEditor.sync('markdownEditor');
+    }
 
     const form = document.getElementById('editForm');
     const saveBtn = document.getElementById('saveBtn');
@@ -287,7 +290,7 @@ function formatText(type) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        if (window.MarkdownToolbar && document.getElementById('markdownToolsSheet')?.classList.contains('is-open')) {
+        if (window.MarkdownToolbar && window.MarkdownToolbar.handleEscape()) {
             return;
         }
         if (isPreviewMode) {
@@ -319,6 +322,9 @@ function togglePreview() {
 }
 
 function updatePreview() {
+    if (window.MarkdownTableEditor) {
+        window.MarkdownTableEditor.sync('markdownEditor');
+    }
     const editor = document.getElementById('markdownEditor');
     const preview = document.getElementById('markdownPreview');
     const formData = new FormData();
@@ -347,7 +353,12 @@ function updatePreview() {
 {% endblock %}
 
 {% block extra_js %}
+<script>
+window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_LINK_PREVIEW_URL = {{ url_for('files.link_preview')|tojson }};
+</script>
 <script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -355,6 +366,8 @@ document.addEventListener('DOMContentLoaded', function () {
         window.MarkdownToolbar.init({
             editorId: 'markdownEditor',
             locked: {{ 'true' if edit_locked else 'false' }},
+            visualTables: {{ 'true' if is_markdown else 'false' }},
+            i18n: window.MARKDOWN_EDITOR_I18N || {},
             labels: {
                 text: 'Text',
                 heading: 'Überschrift',

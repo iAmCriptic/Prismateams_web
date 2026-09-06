@@ -3832,6 +3832,50 @@
       "deleted": "Canvas \"{name}\" wurde gelöscht."
     }
   },
+  "markdown": {
+    "editor": {
+      "link": {
+        "insert_title": "Link einfügen",
+        "edit_title": "Link bearbeiten",
+        "text": "Linktext",
+        "url": "URL",
+        "insert": "Einfügen",
+        "save": "Übernehmen",
+        "cancel": "Abbrechen",
+        "open": "Öffnen",
+        "edit": "Bearbeiten"
+      },
+      "table": {
+        "column": "Spalte",
+        "row": "Zeile",
+        "add_row": "Zeile hinzufügen",
+        "add_col": "Spalte hinzufügen",
+        "insert_row_before": "Zeile davor einfügen",
+        "insert_row_after": "Zeile danach einfügen",
+        "insert_col_before": "Spalte davor einfügen",
+        "insert_col_after": "Spalte danach einfügen",
+        "delete_row": "Zeile löschen",
+        "delete_col": "Spalte löschen",
+        "delete_table": "Tabelle löschen",
+        "column_menu": "Spalte",
+        "row_menu": "Zeile",
+        "align_left": "Linksbündig",
+        "align_center": "Zentriert",
+        "align_right": "Rechtsbündig"
+      },
+      "preview": {
+        "open": "Öffnen",
+        "loading": "Lade Vorschau…",
+        "invalid": "Ungültige URL",
+        "unavailable_title": "Keine Vorschau",
+        "unavailable_body": "Die Seite konnte nicht geladen werden.",
+        "forbidden_title": "Kein Zugriff auf die Datei",
+        "forbidden_body": "Sie haben keine Berechtigung, diese Datei anzuzeigen.",
+        "not_found_title": "Datei nicht gefunden",
+        "not_found_body": "Die verlinkte Datei existiert nicht mehr."
+      }
+    }
+  },
   "wiki": {
     "index": {
       "page_title": "Wiki - Team Portal",

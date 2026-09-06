@@ -4,6 +4,8 @@ import json
 
 from flask import current_app, jsonify, request, url_for
 from flask_login import current_user
+from sqlalchemy import and_, func
+from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -15,7 +17,8 @@ from app.utils.access_control import has_module_access, get_guest_accessible_ite
 from app.utils.dashboard_events import emit_dashboard_update
 from app.utils.i18n import translate
 from app.utils.notifications import enqueue_chat_notification
-from app.utils.chat_visibility import visible_chat_user_filters
+from app.utils.chat_unread import unread_counts_by_chat_for_user
+from app.utils.chat_visibility import SYSTEM_ANONYMOUS_EMAIL, visible_chat_user_filters
 from app.utils.chat_nav import CHAT_PINS_MAX, toggle_chat_pin
 
 
@@ -145,21 +148,65 @@ def _serialize_message(msg):
     }
 
 
-def _serialize_chat(chat, unread_count=None):
-    last_message = ChatMessage.query.filter_by(
-        chat_id=chat.id,
-        is_deleted=False,
-    ).order_by(ChatMessage.created_at.desc()).first()
+_LAST_MESSAGE_UNSET = object()
+
+
+def _last_messages_by_chat_id(chat_ids):
+    """Latest non-deleted message per chat (one query), keyed by chat_id."""
+    if not chat_ids:
+        return {}
+    latest = (
+        db.session.query(
+            ChatMessage.chat_id,
+            func.max(ChatMessage.created_at).label("max_created"),
+        )
+        .filter(
+            ChatMessage.chat_id.in_(chat_ids),
+            ChatMessage.is_deleted.is_(False),
+        )
+        .group_by(ChatMessage.chat_id)
+        .subquery()
+    )
+    rows = (
+        ChatMessage.query.options(joinedload(ChatMessage.sender))
+        .join(
+            latest,
+            and_(
+                ChatMessage.chat_id == latest.c.chat_id,
+                ChatMessage.created_at == latest.c.max_created,
+                ChatMessage.is_deleted.is_(False),
+            ),
+        )
+        .all()
+    )
+    by_chat = {}
+    for msg in rows:
+        prev = by_chat.get(msg.chat_id)
+        if prev is None or msg.id > prev.id:
+            by_chat[msg.chat_id] = msg
+    return by_chat
+
+
+def _direct_message_peer_name(chat, current_user_id):
+    """Peer display name from already-loaded chat.members (no extra query)."""
+    for member in chat.members or []:
+        if member.user_id == current_user_id:
+            continue
+        user = member.user
+        if user is None or user.email == SYSTEM_ANONYMOUS_EMAIL:
+            continue
+        return user.full_name
+    return None
+
+
+def _serialize_chat(chat, unread_count=None, *, last_message=_LAST_MESSAGE_UNSET):
+    if last_message is _LAST_MESSAGE_UNSET:
+        last_message = ChatMessage.query.filter_by(
+            chat_id=chat.id,
+            is_deleted=False,
+        ).order_by(ChatMessage.created_at.desc()).first()
     if unread_count is None:
-        membership = ChatMember.query.filter_by(chat_id=chat.id, user_id=current_user.id).first()
-        unread_count = 0
-        if membership:
-            unread_count = ChatMessage.query.filter(
-                ChatMessage.chat_id == chat.id,
-                ChatMessage.created_at > membership.last_read_at,
-                ChatMessage.sender_id != current_user.id,
-                ChatMessage.is_deleted == False,
-            ).count()
+        unread_count = unread_counts_by_chat_for_user(current_user.id, [chat.id]).get(chat.id, 0)
     return {
         "id": chat.id,
         "name": chat.name,
@@ -192,26 +239,31 @@ def register_chat_routes(api_bp, require_api_auth):
         if access_error:
             return access_error
 
-        memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
-        chats = []
-        for membership in memberships:
-            chat = membership.chat
-            unread_count = ChatMessage.query.filter(
-                ChatMessage.chat_id == chat.id,
-                ChatMessage.created_at > membership.last_read_at,
-                ChatMessage.sender_id != current_user.id,
-            ).count()
-            chat_data = _serialize_chat(chat, unread_count=unread_count)
+        memberships = (
+            ChatMember.query.options(
+                joinedload(ChatMember.chat).selectinload(Chat.members).joinedload(ChatMember.user),
+            )
+            .filter_by(user_id=current_user.id)
+            .all()
+        )
+        chats = [m.chat for m in memberships if m.chat is not None]
+        chat_ids = [chat.id for chat in chats]
+        unread_by_chat = unread_counts_by_chat_for_user(current_user.id, chat_ids)
+        last_by_chat = _last_messages_by_chat_id(chat_ids)
+
+        payload = []
+        for chat in chats:
+            chat_data = _serialize_chat(
+                chat,
+                unread_count=unread_by_chat.get(chat.id, 0),
+                last_message=last_by_chat.get(chat.id),
+            )
             if chat.is_direct_message and not chat.is_main_chat:
-                members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                    *visible_chat_user_filters(),
-                ).all()
-                for member in members:
-                    if member.user_id != current_user.id:
-                        chat_data["name"] = member.user.full_name
-                        break
-            chats.append(chat_data)
-        return jsonify(chats)
+                peer_name = _direct_message_peer_name(chat, current_user.id)
+                if peer_name:
+                    chat_data["name"] = peer_name
+            payload.append(chat_data)
+        return jsonify(payload)
 
     @api_bp.route("/chats/<int:chat_id>", methods=["GET"])
     @require_api_auth

@@ -725,7 +725,9 @@ body.files-dnd-dragging .files-space-drop {
     color: #997404;
 }
 
-.markdown-editor-fullscreen.is-locked .markdown-editor-textarea {
+.markdown-editor-fullscreen.is-locked .markdown-editor-textarea,
+.markdown-editor-fullscreen.is-locked .md-segment-textarea,
+.markdown-editor-fullscreen.is-locked .md-table-grid [contenteditable] {
     opacity: 0.72;
     cursor: not-allowed;
 }
@@ -784,6 +786,12 @@ body.files-dnd-dragging .files-space-drop {
     flex-direction: column !important;
     margin: 0 !important;
     padding: 0 !important;
+}
+
+#editForm .md-editor-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
 }
 
 @media (max-width: 767.98px) {

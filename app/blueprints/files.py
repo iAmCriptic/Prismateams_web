@@ -2344,6 +2344,18 @@ def preview_file(file_id):
     return jsonify({'html': processed_content})
 
 
+@files_bp.route('/link-preview', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def link_preview():
+    """JSON unfurl card for Markdown link hover previews."""
+    from app.utils.link_preview import build_link_preview
+
+    payload = request.get_json(silent=True) or {}
+    url = payload.get('url') or request.form.get('url') or ''
+    return jsonify(build_link_preview(url))
+
+
 @files_bp.route('/view/<int:file_id>')
 @login_required
 @check_module_access('module_files')

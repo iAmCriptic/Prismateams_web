@@ -211,6 +211,9 @@ async function goBack() {
 }
 
 function savePage(silent = false) {
+    if (window.MarkdownTableEditor) {
+        window.MarkdownTableEditor.sync('wikiEditor');
+    }
     const form = document.getElementById('editForm');
     const categorySelect = document.getElementById('category_id');
     const newCategoryName = document.getElementById('new_category_name').value.trim();
@@ -279,15 +282,17 @@ function openPreview() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        if (window.MarkdownToolbar && document.getElementById('markdownToolsSheet')?.classList.contains('is-open')) {
+        if (window.MarkdownToolbar && window.MarkdownToolbar.handleEscape()) {
             return;
         }
         goBack();
     }
 });
 </script>
+<script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script>
+window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
 document.addEventListener('DOMContentLoaded', function () {
     const formatDefaults = Object.assign({}, WIKI_CREATE_FORMAT, WIKI_EDIT_FORMAT);
     if (window.MarkdownToolbar) {
@@ -295,6 +300,7 @@ document.addEventListener('DOMContentLoaded', function () {
             editorId: 'wikiEditor',
             locked: false,
             extras: { wikilink: true },
+            i18n: window.MARKDOWN_EDITOR_I18N || {},
             labels: {
                 text: formatDefaults.text || 'Text',
                 heading: formatDefaults.heading || 'Überschrift',

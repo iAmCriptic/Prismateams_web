@@ -471,6 +471,50 @@
       }
     }
   },
+  "markdown": {
+    "editor": {
+      "link": {
+        "insert_title": "Inserir hiperligação",
+        "edit_title": "Editar hiperligação",
+        "text": "Texto da ligação",
+        "url": "URL",
+        "insert": "Inserir",
+        "save": "Aplicar",
+        "cancel": "Cancelar",
+        "open": "Abrir",
+        "edit": "Editar"
+      },
+      "table": {
+        "column": "Coluna",
+        "row": "Linha",
+        "add_row": "Adicionar linha",
+        "add_col": "Adicionar coluna",
+        "insert_row_before": "Inserir linha antes",
+        "insert_row_after": "Inserir linha depois",
+        "insert_col_before": "Inserir coluna antes",
+        "insert_col_after": "Inserir coluna depois",
+        "delete_row": "Eliminar linha",
+        "delete_col": "Eliminar coluna",
+        "delete_table": "Eliminar tabela",
+        "column_menu": "Coluna",
+        "row_menu": "Linha",
+        "align_left": "Alinhar à esquerda",
+        "align_center": "Centrar",
+        "align_right": "Alinhar à direita"
+      },
+      "preview": {
+        "open": "Abrir",
+        "loading": "A carregar pré-visualização…",
+        "invalid": "URL inválido",
+        "unavailable_title": "Sem pré-visualização",
+        "unavailable_body": "Não foi possível carregar a página.",
+        "forbidden_title": "Sem acesso ao ficheiro",
+        "forbidden_body": "Não tem permissão para ver este ficheiro.",
+        "not_found_title": "Ficheiro não encontrado",
+        "not_found_body": "O ficheiro ligado já não existe."
+      }
+    }
+  },
   "wiki": {
     "index": {
       "new_button": "Novo",

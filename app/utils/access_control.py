@@ -7,6 +7,7 @@ from flask import abort, redirect, url_for, flash
 from flask_login import current_user
 from app.utils.common import AVAILABLE_MODULES, is_module_enabled
 from app.models.role import UserModuleRole
+from app.utils.module_roles_cache import get_user_module_roles, role_has_access
 import json
 import logging
 import re
@@ -120,10 +121,7 @@ def user_lacks_module_access(user):
         return False
     if getattr(user, 'has_full_access', False):
         return False
-    return not UserModuleRole.query.filter_by(
-        user_id=user.id,
-        has_access=True,
-    ).first()
+    return not any(get_user_module_roles(user.id).values())
 
 
 def has_module_access(user, module_key):
@@ -169,14 +167,8 @@ def has_module_access(user, module_key):
     if has_full_access:
         return True
     
-    # Prüfe modulspezifische Rolle
-    # Wenn keine Rolle existiert, Standard: Kein Zugriff (False)
-    role = UserModuleRole.query.filter_by(
-        user_id=user.id, 
-        module_key=module_key
-    ).first()
-    
-    return role.has_access if role else False
+    # Prüfe modulspezifische Rolle (ein Load aller Rollen pro User/Request)
+    return role_has_access(user.id, module_key)
 
 
 def check_module_access(module_key):
@@ -234,9 +226,7 @@ def get_accessible_modules(user):
         from app.utils.common import AVAILABLE_MODULES
         return [m for m in AVAILABLE_MODULES if is_module_enabled(m)]
     
-    # Prüfe modulspezifische Rollen
-    accessible_modules = []
-    # Gast-Accounts haben keinen Zugriff auf E-Mail und Credentials
+    # Prüfe modulspezifische Rollen (ein Load aller Rollen, kein Query pro Modul)
     if is_guest:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_events',
@@ -249,16 +239,12 @@ def get_accessible_modules(user):
         from app.utils.common import AVAILABLE_MODULES
         all_modules = list(AVAILABLE_MODULES)
     
+    roles = get_user_module_roles(user.id)
+    accessible_modules = []
     for module_key in all_modules:
-        if is_module_enabled(module_key):
-            role = UserModuleRole.query.filter_by(
-                user_id=user.id,
-                module_key=module_key
-            ).first()
-            
-            if role and role.has_access:
-                accessible_modules.append(module_key)
-    
+        if is_module_enabled(module_key) and roles.get(module_key):
+            accessible_modules.append(module_key)
+
     return accessible_modules
 
 

@@ -218,9 +218,10 @@
             ['clean'],
         ];
 
+        var toolbarEl = document.getElementById('protocolsEditorToolbar');
         var modules = {
             toolbar: {
-                container: toolbarOptions,
+                container: toolbarEl || toolbarOptions,
                 handlers: {
                     table: function () {
                         if (!hasBetterTable) {
@@ -233,6 +234,48 @@
                 },
             },
         };
+
+        if (toolbarEl) {
+            // Build toolbar DOM from config into our dedicated pill surface
+            toolbarEl.innerHTML = '';
+            toolbarOptions.forEach(function (group) {
+                var formats = document.createElement('span');
+                formats.className = 'ql-formats';
+                group.forEach(function (item) {
+                    if (typeof item === 'string') {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'ql-' + item;
+                        formats.appendChild(btn);
+                    } else if (item && typeof item === 'object') {
+                        Object.keys(item).forEach(function (key) {
+                            var val = item[key];
+                            if (Array.isArray(val)) {
+                                var select = document.createElement('select');
+                                select.className = 'ql-' + key;
+                                val.forEach(function (v) {
+                                    var opt = document.createElement('option');
+                                    if (v === false) {
+                                        opt.setAttribute('selected', 'selected');
+                                    } else {
+                                        opt.setAttribute('value', v);
+                                    }
+                                    select.appendChild(opt);
+                                });
+                                formats.appendChild(select);
+                            } else {
+                                var b = document.createElement('button');
+                                b.type = 'button';
+                                b.className = 'ql-' + key;
+                                if (val !== true && val != null) b.setAttribute('value', val);
+                                formats.appendChild(b);
+                            }
+                        });
+                    }
+                });
+                toolbarEl.appendChild(formats);
+            });
+        }
 
         if (hasBetterTable) {
             modules.table = false;
@@ -251,9 +294,11 @@
                     },
                 },
             };
-            modules.keyboard = {
-                bindings: quillBetterTable.keyboardBindings,
-            };
+            if (quillBetterTable.keyboardBindings) {
+                modules.keyboard = {
+                    bindings: quillBetterTable.keyboardBindings,
+                };
+            }
         }
 
         var quill = new Quill('#protocolsEditor', {
@@ -340,23 +385,54 @@
     function styleToolbarIcons(quill) {
         var toolbar = quill.getModule('toolbar');
         if (!toolbar || !toolbar.container) return;
+        var i18n = window.PROTOCOLS_I18N || {};
         var tableBtn = toolbar.container.querySelector('.ql-table');
         if (tableBtn && !tableBtn.querySelector('svg, i')) {
-            tableBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.table) || 'Tabelle');
+            tableBtn.setAttribute('title', i18n.table || 'Tabelle');
             tableBtn.innerHTML = '<i class="bi bi-table" aria-hidden="true"></i>';
         }
         var colorBtn = toolbar.container.querySelector('.ql-color .ql-picker-label');
-        if (colorBtn) colorBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.color) || 'Schriftfarbe');
+        if (colorBtn) colorBtn.setAttribute('title', i18n.color || 'Schriftfarbe');
         var bgBtn = toolbar.container.querySelector('.ql-background .ql-picker-label');
-        if (bgBtn) bgBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.highlight) || 'Textmarker');
+        if (bgBtn) bgBtn.setAttribute('title', i18n.highlight || 'Textmarker');
         var sizeBtn = toolbar.container.querySelector('.ql-size .ql-picker-label');
-        if (sizeBtn) sizeBtn.setAttribute('title', (window.PROTOCOLS_I18N && window.PROTOCOLS_I18N.size) || 'Größe');
+        if (sizeBtn) sizeBtn.setAttribute('title', i18n.size || 'Schriftgröße');
+
+        // Localized size picker labels (Quill uses CSS ::before content)
+        var styleId = 'protocols-ql-size-i18n';
+        if (!document.getElementById(styleId)) {
+            var style = document.createElement('style');
+            style.id = styleId;
+            var normal = i18n.size_normal || 'Normal';
+            var small = i18n.size_small || 'Klein';
+            var large = i18n.size_large || 'Groß';
+            var huge = i18n.size_huge || 'Sehr groß';
+            style.textContent =
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label::before,' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item::before{content:' + JSON.stringify(normal) + ';}' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value="small"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value="small"]::before{content:' + JSON.stringify(small) + ';}' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value="large"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value="large"]::before{content:' + JSON.stringify(large) + ';}' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,' +
+                '.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,' +
+                '#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before{content:' + JSON.stringify(huge) + ';}';
+            document.head.appendChild(style);
+        }
     }
 
     function polishToolbarChrome(quill) {
         var toolbar = quill.getModule('toolbar');
-        if (!toolbar || !toolbar.container) return;
-        toolbar.container.classList.add('protocols-ql-toolbar');
+        var el = (toolbar && toolbar.container) || document.getElementById('protocolsEditorToolbar');
+        if (!el) return;
+        el.classList.add('protocols-ql-toolbar', 'ql-toolbar', 'ql-snow');
     }
 
     document.addEventListener('DOMContentLoaded', function () {

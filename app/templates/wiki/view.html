@@ -188,6 +188,10 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_LINK_PREVIEW_URL = {{ url_for('files.link_preview')|tojson }};
+</script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
 <script>

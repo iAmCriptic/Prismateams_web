@@ -471,6 +471,50 @@
       }
     }
   },
+  "markdown": {
+    "editor": {
+      "link": {
+        "insert_title": "Insertar enlace",
+        "edit_title": "Editar enlace",
+        "text": "Texto del enlace",
+        "url": "URL",
+        "insert": "Insertar",
+        "save": "Aplicar",
+        "cancel": "Cancelar",
+        "open": "Abrir",
+        "edit": "Editar"
+      },
+      "table": {
+        "column": "Columna",
+        "row": "Fila",
+        "add_row": "Añadir fila",
+        "add_col": "Añadir columna",
+        "insert_row_before": "Insertar fila antes",
+        "insert_row_after": "Insertar fila después",
+        "insert_col_before": "Insertar columna antes",
+        "insert_col_after": "Insertar columna después",
+        "delete_row": "Eliminar fila",
+        "delete_col": "Eliminar columna",
+        "delete_table": "Eliminar tabla",
+        "column_menu": "Columna",
+        "row_menu": "Fila",
+        "align_left": "Alinear a la izquierda",
+        "align_center": "Centrar",
+        "align_right": "Alinear a la derecha"
+      },
+      "preview": {
+        "open": "Abrir",
+        "loading": "Cargando vista previa…",
+        "invalid": "URL no válida",
+        "unavailable_title": "Sin vista previa",
+        "unavailable_body": "No se pudo cargar la página.",
+        "forbidden_title": "Sin acceso al archivo",
+        "forbidden_body": "No tiene permiso para ver este archivo.",
+        "not_found_title": "Archivo no encontrado",
+        "not_found_body": "El archivo enlazado ya no existe."
+      }
+    }
+  },
   "wiki": {
     "index": {
       "new_button": "Nuevo",

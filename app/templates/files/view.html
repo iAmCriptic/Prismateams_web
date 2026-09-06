@@ -721,6 +721,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 {% endif %}
 {% if is_markdown|default(file.name.endswith('.md')) %}
+<script>
+window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+{% if current_user.is_authenticated %}
+window.MARKDOWN_LINK_PREVIEW_URL = {{ url_for('files.link_preview')|tojson }};
+{% endif %}
+</script>
 <script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

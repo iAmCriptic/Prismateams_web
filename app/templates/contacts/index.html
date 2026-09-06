@@ -234,7 +234,7 @@
 {% endmacro %}
 
 {% macro contact_menu_items(contact) %}
-{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% set can_write_mail = contact.email and can_compose_email %}
 {% set is_fav = contact.id in favorite_ids %}
 <li>
     <button type="button" class="dropdown-item" onclick="toggleContactFavorite({{ contact.id }})">
@@ -328,7 +328,7 @@
 {% endmacro %}
 
 {% macro render_contact_card(contact) %}
-{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% set can_write_mail = contact.email and can_compose_email %}
 {% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
 <div class="col-12 col-md-6 col-lg-4" data-lazy-item data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
     <div class="card h-100 contacts-card"
@@ -425,7 +425,7 @@
 {% endmacro %}
 
 {% macro render_contact_list_row(contact) %}
-{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% set can_write_mail = contact.email and can_compose_email %}
 {% set display_name = ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name %}
 <tr class="mod-list-row"
     data-lazy-item
@@ -599,7 +599,7 @@
                 <button type="button" id="contactsBulkDownloadBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.download') }}">
                     <i class="bi bi-download"></i> {{ _('contacts.bulk.download') }}
                 </button>
-                {% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+                {% if can_compose_email %}
                 <button type="button" id="contactsBulkEmailBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="{{ _('contacts.bulk.email_all') }}" disabled>
                     <i class="bi bi-envelope"></i> {{ _('contacts.bulk.email_all') }}
                 </button>
@@ -706,7 +706,7 @@
 <script>
 window.CONTACTS_BULK_DOWNLOAD_URL = {{ url_for('contacts.api_download_vcf')|tojson }};
 window.CONTACTS_BULK_DELETE_URL = {{ url_for('contacts.api_bulk_delete')|tojson }};
-{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% if can_compose_email %}
 window.CONTACTS_COMPOSE_URL = {{ url_for('email.compose')|tojson }};
 {% endif %}
 window.CONTACTS_BULK_I18N = {

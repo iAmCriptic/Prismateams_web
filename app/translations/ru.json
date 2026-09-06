@@ -471,6 +471,50 @@
       }
     }
   },
+  "markdown": {
+    "editor": {
+      "link": {
+        "insert_title": "Вставить ссылку",
+        "edit_title": "Изменить ссылку",
+        "text": "Текст ссылки",
+        "url": "URL",
+        "insert": "Вставить",
+        "save": "Применить",
+        "cancel": "Отмена",
+        "open": "Открыть",
+        "edit": "Изменить"
+      },
+      "table": {
+        "column": "Столбец",
+        "row": "Строка",
+        "add_row": "Добавить строку",
+        "add_col": "Добавить столбец",
+        "insert_row_before": "Вставить строку выше",
+        "insert_row_after": "Вставить строку ниже",
+        "insert_col_before": "Вставить столбец слева",
+        "insert_col_after": "Вставить столбец справа",
+        "delete_row": "Удалить строку",
+        "delete_col": "Удалить столбец",
+        "delete_table": "Удалить таблицу",
+        "column_menu": "Столбец",
+        "row_menu": "Строка",
+        "align_left": "По левому краю",
+        "align_center": "По центру",
+        "align_right": "По правому краю"
+      },
+      "preview": {
+        "open": "Открыть",
+        "loading": "Загрузка предпросмотра…",
+        "invalid": "Некорректный URL",
+        "unavailable_title": "Нет предпросмотра",
+        "unavailable_body": "Не удалось загрузить страницу.",
+        "forbidden_title": "Нет доступа к файлу",
+        "forbidden_body": "У вас нет прав для просмотра этого файла.",
+        "not_found_title": "Файл не найден",
+        "not_found_body": "Связанный файл больше не существует."
+      }
+    }
+  },
   "wiki": {
     "index": {
       "new_button": "Создать",

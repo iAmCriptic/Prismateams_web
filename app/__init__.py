@@ -195,6 +195,8 @@ def create_app(config_name='default'):
     try:
         from app.utils.system_settings_cache import register_settings_cache_invalidation
         register_settings_cache_invalidation()
+        from app.utils.module_roles_cache import register_module_roles_cache_invalidation
+        register_module_roles_cache_invalidation()
         from app.utils.file_storage_limits import register_usage_cache_invalidation
         register_usage_cache_invalidation()
     except Exception:
@@ -816,6 +818,16 @@ def create_app(config_name='default'):
             except Exception:
                 nav_storage_usage = None
 
+        can_compose_email = False
+        if current_user.is_authenticated:
+            try:
+                can_compose_email = bool(
+                    is_module_enabled('module_email')
+                    and has_module_access(current_user, 'module_email')
+                )
+            except Exception:
+                can_compose_email = False
+
         robots_meta = 'noindex, nofollow'
         try:
             from app.utils.search_indexing import robots_meta_content
@@ -842,6 +854,7 @@ def create_app(config_name='default'):
             'is_module_enabled': is_module_enabled,
             'is_email_multi_enabled': is_email_multi_enabled,
             'has_module_access': has_module_access,
+            'can_compose_email': can_compose_email,
             'get_chat_display_name': get_chat_display_name,
             'get_other_chat_user': get_other_chat_user,
             'mobile_nav_slots': mobile_nav_slots,

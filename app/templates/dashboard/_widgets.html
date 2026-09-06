@@ -135,7 +135,7 @@ data-col-span="{{ col_span }}"
                 <a href="tel:{{ contact.phone }}" data-stop-nav title="{{ _('dashboard.widgets.contacts.call') }}"><i class="bi bi-telephone"></i></a>
                 {% endif %}
                 {% if contact.email %}
-                <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" data-stop-nav title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
+                <a href="{% if can_compose_email %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" data-stop-nav title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
                 {% endif %}
             </div>
         </div>

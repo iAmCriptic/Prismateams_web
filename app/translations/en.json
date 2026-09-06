@@ -3296,6 +3296,50 @@
       "deleted": "Canvas \"{name}\" has been deleted."
     }
   },
+  "markdown": {
+    "editor": {
+      "link": {
+        "insert_title": "Insert link",
+        "edit_title": "Edit link",
+        "text": "Link text",
+        "url": "URL",
+        "insert": "Insert",
+        "save": "Apply",
+        "cancel": "Cancel",
+        "open": "Open",
+        "edit": "Edit"
+      },
+      "table": {
+        "column": "Column",
+        "row": "Row",
+        "add_row": "Add row",
+        "add_col": "Add column",
+        "insert_row_before": "Insert row before",
+        "insert_row_after": "Insert row after",
+        "insert_col_before": "Insert column before",
+        "insert_col_after": "Insert column after",
+        "delete_row": "Delete row",
+        "delete_col": "Delete column",
+        "delete_table": "Delete table",
+        "column_menu": "Column",
+        "row_menu": "Row",
+        "align_left": "Align left",
+        "align_center": "Align center",
+        "align_right": "Align right"
+      },
+      "preview": {
+        "open": "Open",
+        "loading": "Loading preview…",
+        "invalid": "Invalid URL",
+        "unavailable_title": "No preview",
+        "unavailable_body": "The page could not be loaded.",
+        "forbidden_title": "No access to this file",
+        "forbidden_body": "You do not have permission to view this file.",
+        "not_found_title": "File not found",
+        "not_found_body": "The linked file no longer exists."
+      }
+    }
+  },
   "wiki": {
     "index": {
       "page_title": "Wiki - Team Portal",

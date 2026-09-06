@@ -71,7 +71,10 @@
                 <div class="protocols-autosave-status text-muted small" id="protocolsAutosaveStatus" aria-live="polite"></div>
             </div>
             <div class="protocols-editor-quill-wrap">
-                <div id="protocolsEditor" class="protocols-quill protocols-quill--fill"></div>
+                <div class="protocols-editor-surface">
+                    <div id="protocolsEditorToolbar" class="protocols-ql-toolbar"></div>
+                    <div id="protocolsEditor" class="protocols-quill protocols-quill--fill"></div>
+                </div>
                 <input type="hidden" name="content_html" id="contentHtml" value="">
             </div>
         </form>
@@ -90,7 +93,11 @@ window.PROTOCOLS_I18N = {
     table: {{ _('protocols.editor.table')|tojson }},
     color: {{ _('protocols.editor.color')|tojson }},
     highlight: {{ _('protocols.editor.highlight')|tojson }},
-    size: {{ _('protocols.editor.size')|tojson }}
+    size: {{ _('protocols.editor.size')|tojson }},
+    size_small: {{ _('protocols.editor.size_small')|tojson }},
+    size_normal: {{ _('protocols.editor.size_normal')|tojson }},
+    size_large: {{ _('protocols.editor.size_large')|tojson }},
+    size_huge: {{ _('protocols.editor.size_huge')|tojson }}
 };
 </script>
 <script src="{{ url_for('static', filename='js/protocols.js') }}"></script>

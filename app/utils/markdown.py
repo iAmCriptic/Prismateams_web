@@ -14,14 +14,17 @@ def _sanitize_markdown_html(html):
             'a', 'abbr', 'acronym', 'b', 'blockquote', 'br', 'code', 'dd', 'del', 'div',
             'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'kbd',
             'li', 'mark', 'ol', 'p', 'pre', 's', 'span', 'strong', 'sub', 'sup', 'table',
-            'tbody', 'td', 'th', 'thead', 'tr', 'ul'
+            'tbody', 'td', 'th', 'thead', 'tr', 'ul', 'col', 'colgroup'
         }
         allowed_attributes = {
             '*': ['class', 'id'],
             'a': ['href', 'title', 'target', 'rel'],
             'img': ['src', 'alt', 'title'],
-            'th': ['colspan', 'rowspan'],
-            'td': ['colspan', 'rowspan'],
+            'table': ['width'],
+            'col': ['width', 'span'],
+            'colgroup': ['span'],
+            'th': ['colspan', 'rowspan', 'width', 'align'],
+            'td': ['colspan', 'rowspan', 'width', 'align'],
         }
         allowed_protocols = ['http', 'https', 'mailto']
 

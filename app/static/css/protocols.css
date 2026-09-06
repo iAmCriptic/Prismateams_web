@@ -758,22 +758,35 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.85rem 1.35rem 0.55rem;
-    background: var(--bs-body-bg);
+    padding: 0.85rem 1.15rem 0.35rem;
+    background: transparent;
     border-bottom: none;
 }
 
 .protocols-editor-title {
     flex: 1 1 16rem;
-    font-weight: 600;
-    border: none;
+    font-weight: 650;
+    border: 1px solid transparent !important;
+    border-radius: var(--mod-radius-pill, 999px) !important;
     box-shadow: none !important;
-    padding-left: 0;
-    background: transparent;
+    padding: 0.55rem 1rem !important;
+    background: color-mix(in srgb, var(--bs-secondary-bg) 35%, transparent) !important;
+    min-height: 2.65rem !important;
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .protocols-editor-title:focus {
-    box-shadow: none !important;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent) !important;
+    background: var(--bs-body-bg) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
+}
+
+.protocols-autosave-status {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-secondary-bg) 40%, transparent);
+    font-size: 0.78rem;
+    font-weight: 550;
 }
 
 .protocols-editor-quill-wrap {
@@ -781,14 +794,36 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: 0.65rem 0.85rem 0.85rem;
-    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
+    padding: 0.35rem 1rem 1rem;
+    background: transparent;
     overflow: hidden;
 }
 
+.protocols-editor-surface {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: 1.5rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-color, #0d6efd) 5%, var(--bs-body-bg)) 0%,
+            var(--bs-body-bg) 7.5rem
+        );
+    box-shadow:
+        0 0.45rem 1.4rem color-mix(in srgb, #000 10%, transparent),
+        0 0.05rem 0.2rem color-mix(in srgb, #000 5%, transparent);
+    overflow: hidden;
+    animation: protocolsCardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .protocols-quill {
-    min-height: 14rem;
-    background: var(--bs-body-bg);
+    min-height: 0;
+    background: transparent;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .protocols-quill--fill {
@@ -797,195 +832,244 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     display: flex;
     flex-direction: column;
     height: 100%;
-    border-radius: 1.25rem;
-    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.18));
-    background: var(--bs-body-bg);
-    box-shadow: 0 0.25rem 0.9rem color-mix(in srgb, #000 6%, transparent);
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     overflow: hidden;
+    background: transparent;
 }
 
 /* ---- Premium Quill pill toolbar ---- */
 
-.protocols-quill .ql-toolbar.ql-snow,
-.protocols-quill .protocols-ql-toolbar.ql-toolbar {
-    display: flex;
+.protocols-editor-surface > .protocols-ql-toolbar,
+.protocols-editor-surface > .ql-toolbar.ql-snow,
+#protocolsEditorToolbar.protocols-ql-toolbar,
+#protocolsEditorToolbar.ql-toolbar {
+    display: flex !important;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.35rem 0.45rem;
-    margin: 0.75rem 0.85rem 0.35rem;
-    padding: 0.4rem 0.5rem !important;
+    gap: 0.4rem;
+    margin: 0.85rem 0.95rem 0.55rem !important;
+    padding: 0.45rem 0.55rem !important;
     border: 1px solid var(--bs-border-color) !important;
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    background: color-mix(in srgb, var(--bs-secondary-bg) 55%, var(--bs-body-bg));
-    box-shadow: inset 0 0.05rem 0.15rem color-mix(in srgb, #000 8%, transparent);
+    border-radius: var(--mod-radius-pill, 999px) !important;
+    background: color-mix(in srgb, var(--bs-body-bg) 78%, var(--bs-secondary-bg)) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 0.2rem 0.65rem color-mix(in srgb, #000 10%, transparent),
+        inset 0 0.05rem 0 color-mix(in srgb, #fff 6%, transparent);
     flex-shrink: 0;
+    width: auto !important;
+    max-width: calc(100% - 1.9rem);
+    box-sizing: border-box;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-formats {
-    display: inline-flex;
+.protocols-editor-surface .ql-toolbar .ql-formats,
+#protocolsEditorToolbar .ql-formats {
+    display: inline-flex !important;
     align-items: center;
-    gap: 0.15rem;
-    margin-right: 0.35rem !important;
-    padding-right: 0.4rem;
-    border-right: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    gap: 0.2rem;
+    margin: 0 !important;
+    margin-right: 0.15rem !important;
+    padding: 0.15rem;
+    border-radius: var(--mod-radius-pill, 999px);
+    background: color-mix(in srgb, var(--bs-secondary-bg) 45%, transparent);
+    border-right: none !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-formats:last-child {
-    border-right: none;
+.protocols-editor-surface .ql-toolbar .ql-formats:last-child,
+#protocolsEditorToolbar .ql-formats:last-child {
     margin-right: 0 !important;
-    padding-right: 0;
 }
 
-.protocols-quill .ql-toolbar.ql-snow button,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker-label {
-    width: 2.05rem;
-    height: 2.05rem;
+.protocols-editor-surface .ql-toolbar button,
+.protocols-editor-surface .ql-toolbar .ql-picker-label,
+#protocolsEditorToolbar button,
+#protocolsEditorToolbar .ql-picker-label {
+    width: 2.15rem !important;
+    height: 2.15rem !important;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
     border-radius: 999px !important;
-    border: 1px solid transparent;
+    border: 1px solid transparent !important;
     float: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+    color: var(--bs-body-color) !important;
+    background: transparent !important;
     transition:
         background 0.18s ease,
         border-color 0.18s ease,
         color 0.18s ease,
-        transform 0.16s ease,
+        transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1),
         box-shadow 0.18s ease;
 }
 
-.protocols-quill .ql-toolbar.ql-snow button:hover,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker-label:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
-    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
-    color: var(--accent-color, var(--bs-primary));
+.protocols-editor-surface .ql-toolbar button:hover,
+.protocols-editor-surface .ql-toolbar .ql-picker-label:hover,
+#protocolsEditorToolbar button:hover,
+#protocolsEditorToolbar .ql-picker-label:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 32%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary)) !important;
     transform: translateY(-1px);
+    box-shadow: 0 0.18rem 0.45rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
 }
 
-.protocols-quill .ql-toolbar.ql-snow button:active {
-    transform: scale(0.96);
+.protocols-editor-surface .ql-toolbar button:active,
+#protocolsEditorToolbar button:active {
+    transform: scale(0.95);
 }
 
-.protocols-quill .ql-toolbar.ql-snow button.ql-active,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+.protocols-editor-surface .ql-toolbar button.ql-active,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-expanded .ql-picker-label,
+#protocolsEditorToolbar button.ql-active,
+#protocolsEditorToolbar .ql-picker.ql-expanded .ql-picker-label {
     background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-    border-color: transparent;
+    border-color: transparent !important;
     color: #fff !important;
-    box-shadow: 0 0.15rem 0.4rem color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    box-shadow: 0 0.18rem 0.5rem color-mix(in srgb, var(--accent-color, #0d6efd) 38%, transparent);
 }
 
-.protocols-quill .ql-toolbar.ql-snow button.ql-active .ql-stroke,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label .ql-stroke {
+.protocols-editor-surface .ql-toolbar button.ql-active .ql-stroke,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-expanded .ql-picker-label .ql-stroke,
+#protocolsEditorToolbar button.ql-active .ql-stroke,
+#protocolsEditorToolbar .ql-picker.ql-expanded .ql-picker-label .ql-stroke {
     stroke: #fff !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow button.ql-active .ql-fill,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label .ql-fill {
+.protocols-editor-surface .ql-toolbar button.ql-active .ql-fill,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-expanded .ql-picker-label .ql-fill,
+#protocolsEditorToolbar button.ql-active .ql-fill,
+#protocolsEditorToolbar .ql-picker.ql-expanded .ql-picker-label .ql-fill {
     fill: #fff !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker {
+.protocols-editor-surface .ql-toolbar .ql-picker,
+#protocolsEditorToolbar .ql-picker {
     float: none !important;
-    height: 2.05rem;
+    height: 2.15rem;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-header {
-    width: auto;
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label {
+    width: auto !important;
+    min-width: 6rem;
+    padding: 0 0.85rem !important;
+    gap: 0.3rem;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-header .ql-picker-label {
-    width: auto;
-    min-width: 5.5rem;
-    padding: 0 0.75rem !important;
-    gap: 0.25rem;
-}
-
-.protocols-quill .ql-toolbar.ql-snow .ql-picker-options {
-    border-radius: 1.1rem !important;
+.protocols-editor-surface .ql-toolbar .ql-picker-options,
+#protocolsEditorToolbar .ql-picker-options {
+    border-radius: 1.15rem !important;
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
     background: var(--bs-dropdown-bg, var(--bs-body-bg)) !important;
-    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.16) !important;
-    padding: 0.45rem !important;
-    margin-top: 0.35rem;
-    animation: protocolsCardIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.2) !important;
+    padding: 0.5rem !important;
+    margin-top: 0.45rem;
+    animation: protocolsCardIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker-item {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    padding: 0.4rem 0.75rem !important;
+.protocols-editor-surface .ql-toolbar .ql-picker-item,
+#protocolsEditorToolbar .ql-picker-item {
+    border-radius: var(--mod-radius-pill, 999px) !important;
+    padding: 0.45rem 0.85rem !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker-item:hover {
+.protocols-editor-surface .ql-toolbar .ql-picker-item:hover,
+#protocolsEditorToolbar .ql-picker-item:hover {
     background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
     color: var(--accent-color, var(--bs-primary)) !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-color-picker .ql-picker-options,
-.protocols-quill .ql-toolbar.ql-snow .ql-background .ql-picker-options {
-    width: 11.5rem;
-    padding: 0.55rem !important;
+.protocols-editor-surface .ql-toolbar .ql-color-picker .ql-picker-options,
+.protocols-editor-surface .ql-toolbar .ql-background .ql-picker-options,
+#protocolsEditorToolbar .ql-color-picker .ql-picker-options,
+#protocolsEditorToolbar .ql-background .ql-picker-options {
+    width: 12rem;
+    padding: 0.6rem !important;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-color-picker .ql-picker-item,
-.protocols-quill .ql-toolbar.ql-snow .ql-background .ql-picker-item {
+.protocols-editor-surface .ql-toolbar .ql-color-picker .ql-picker-item,
+.protocols-editor-surface .ql-toolbar .ql-background .ql-picker-item,
+#protocolsEditorToolbar .ql-color-picker .ql-picker-item,
+#protocolsEditorToolbar .ql-background .ql-picker-item {
     border-radius: 999px !important;
-    width: 1.35rem !important;
-    height: 1.35rem !important;
-    margin: 0.15rem !important;
+    width: 1.4rem !important;
+    height: 1.4rem !important;
+    margin: 0.18rem !important;
     padding: 0 !important;
-    border: 1px solid color-mix(in srgb, #000 12%, transparent);
+    border: 1px solid color-mix(in srgb, #fff 14%, transparent);
 }
 
-.protocols-quill .ql-toolbar.ql-snow button.ql-table {
+.protocols-editor-surface .ql-toolbar button.ql-table,
+#protocolsEditorToolbar button.ql-table {
     font-size: 0.95rem;
 }
 
-.protocols-quill .ql-toolbar.ql-snow button.ql-table i {
-    font-size: 1rem;
+.protocols-editor-surface .ql-toolbar button.ql-table i,
+#protocolsEditorToolbar button.ql-table i {
+    font-size: 1.05rem;
     line-height: 1;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-stroke {
+.protocols-editor-surface .ql-toolbar .ql-stroke,
+#protocolsEditorToolbar .ql-stroke {
     stroke: currentColor;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-fill {
+.protocols-editor-surface .ql-toolbar .ql-fill,
+#protocolsEditorToolbar .ql-fill {
     fill: currentColor;
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item::before {
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label::before,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item::before {
     content: 'Normal';
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='small']::before {
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='small']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value='small']::before {
     content: 'Klein';
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='large']::before {
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='large']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value='large']::before {
     content: 'Groß';
 }
 
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
-.protocols-quill .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='huge']::before {
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
+.protocols-editor-surface .ql-toolbar .ql-picker.ql-size .ql-picker-item[data-value='huge']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
+#protocolsEditorToolbar .ql-picker.ql-size .ql-picker-item[data-value='huge']::before {
     content: 'Sehr groß';
 }
 
-.protocols-quill .ql-container.ql-snow {
+.protocols-editor-surface .ql-container.ql-snow,
+.protocols-quill.ql-container.ql-snow {
     border: none !important;
-    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.14)) !important;
+    border-top: none !important;
     border-radius: 0;
-    min-height: 12rem;
+    min-height: 0;
     font-size: 1.05rem;
-    background: var(--bs-body-bg);
+    background: transparent;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
-.protocols-quill--fill .ql-container.ql-snow {
+.protocols-quill--fill.ql-container.ql-snow,
+.protocols-editor-surface .protocols-quill--fill {
     flex: 1;
     min-height: 0;
     height: auto !important;
@@ -993,10 +1077,20 @@ body:has(.protocols-workspace) .main-content > .container-fluid {
     overscroll-behavior: contain;
 }
 
+.protocols-editor-surface .ql-editor,
 .protocols-quill--fill .ql-editor {
     min-height: 100%;
-    padding: 1.25rem 1.75rem 3rem;
-    line-height: 1.55;
+    padding: 0.35rem 1.5rem 2.5rem;
+    line-height: 1.6;
+    font-size: 1.05rem;
+}
+
+.protocols-editor-surface .ql-editor.ql-blank::before {
+    left: 1.5rem;
+    right: 1.5rem;
+    font-style: normal;
+    color: var(--bs-secondary-color);
+    opacity: 0.75;
 }
 
 .protocols-quill .ql-editor table,

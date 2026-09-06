@@ -310,6 +310,12 @@
     min-height: 0 !important;
 }
 
+.wiki-editor-shell .markdown-editor-content .md-editor-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+}
+
 .wiki-editor-meta {
     display: flex;
     flex-wrap: wrap;
