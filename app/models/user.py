@@ -71,7 +71,8 @@ class User(UserMixin, db.Model):
     # Two-Factor Authentication (2FA)
     totp_secret = db.Column(db.String(255), nullable=True)  # Verschlüsseltes TOTP-Secret
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
-    totp_recovery_code = db.Column(db.String(6), nullable=True)
+    # SHA-256-Hex des Klartext-Recovery-Codes (früher 6-stellig Klartext)
+    totp_recovery_code = db.Column(db.String(128), nullable=True)
     totp_recovery_code_expires = db.Column(db.DateTime, nullable=True)
 
     # Google Login / Registrierung / Verknüpfung

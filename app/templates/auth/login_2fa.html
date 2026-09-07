@@ -13,15 +13,18 @@
                class="form-control text-center auth-code-input"
                id="totp_code"
                name="totp_code"
-               inputmode="numeric"
+               inputmode="{% if recovery_code_pending|default(false) %}text{% else %}numeric{% endif %}"
                autocomplete="one-time-code"
-               placeholder="••••••"
-               maxlength="6"
-               pattern="[0-9]{6}"
+               placeholder="{% if recovery_code_pending|default(false) %}••••••••••{% else %}••••••{% endif %}"
+               maxlength="{% if email_recovery_enabled|default(true) %}10{% else %}6{% endif %}"
+               spellcheck="false"
+               autocapitalize="characters"
                required
                autofocus>
         {% if recovery_code_pending|default(false) %}
         <div class="form-text text-center mt-2">{{ _('auth.login.2fa_recovery_pending') }}</div>
+        {% elif email_recovery_enabled|default(true) %}
+        <div class="form-text text-center mt-2 text-muted">{{ _('auth.login.2fa_code_or_recovery_hint') }}</div>
         {% endif %}
     </div>
 
@@ -40,6 +43,7 @@
 </button>
 {% endif %}
 
+{% if email_recovery_enabled|default(true) %}
 <div class="text-center mt-3">
     <form method="POST" action="{{ url_for('auth.login_2fa_recovery') }}" class="d-inline">
         <button type="submit" class="btn btn-link text-muted p-0 auth-2fa-recovery-link">
@@ -47,6 +51,7 @@
         </button>
     </form>
 </div>
+{% endif %}
 
 <div class="text-center mt-2">
     <a href="{{ url_for('auth.login') }}" class="text-muted">{{ _('auth.legal.back_to_login') }}</a>
@@ -57,8 +62,15 @@
 (function () {
     var input = document.getElementById('totp_code');
     if (!input) return;
+    var allowRecovery = {{ (email_recovery_enabled|default(true))|tojson }};
     input.addEventListener('input', function () {
-        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        var raw = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!allowRecovery) {
+            raw = raw.replace(/[^0-9]/g, '').slice(0, 6);
+        } else {
+            raw = raw.slice(0, 10);
+        }
+        this.value = raw;
     });
 })();
 </script>

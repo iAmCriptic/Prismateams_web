@@ -1,7 +1,8 @@
 #!/bin/bash
 # MiroTalk SFU (Meetings-Modul) via Docker
 #
-# Kein Path-Prefix unter dem Portal — eigener Host meet.${DOMAIN} → 127.0.0.1:3010.
+# Hostname: eigener Host meet.${DOMAIN} → 127.0.0.1:3010 (Nginx/Apache).
+# IP/LAN:   http://IP:3010 öffentlich, kein meet.IP (ohne Hosts-Datei nutzlos).
 # WebRTC-Medien: UDP/TCP 40000–40100 (host network).
 # Docs: https://docs.mirotalk.com/mirotalk-sfu/self-hosting/
 # Image: mirotalk/sfu:latest
@@ -24,6 +25,12 @@ _mirotalk_container_exists() {
 
 _mirotalk_detect_public_ip() {
     local ip
+    # Bei Install mit LAN-IP als DOMAIN: ICE muss diese IP announcen, sonst
+    # schlagen WebRTC-Verbindungen im lokalen Netz fehl (schwarzes iframe).
+    if [[ "${DOMAIN:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "${DOMAIN}"
+        return 0
+    fi
     ip=$(curl -4 -fsS --max-time 5 https://ifconfig.me 2>/dev/null || true)
     if [ -z "$ip" ]; then
         ip=$(curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)
@@ -37,18 +44,27 @@ _mirotalk_detect_public_ip() {
 _mirotalk_write_env() {
     local env_file="${MIROTALK_DATA_ROOT}/.env"
     local announced="${MIROTALK_ANNOUNCED_IP:-}"
-    local public_url scheme portal_origin meet_host
+    local public_url portal_origin meet_host cors_origins embed_origins
     public_url=$(mirotalk_public_url)
-    scheme=$(mirotalk_public_scheme)
+    portal_origin=$(mirotalk_portal_origin)
     meet_host=$(mirotalk_meet_hostname)
-    if [ -n "${DOMAIN:-}" ]; then
-        portal_origin="${scheme}://${DOMAIN}"
-    else
-        portal_origin=""
-    fi
 
     if [ -z "$announced" ]; then
         announced=$(_mirotalk_detect_public_ip)
+    fi
+
+    # CORS / Embed: Portal-Origin + öffentliche MiroTalk-URL (iframe-Parent = Portal)
+    cors_origins="${public_url}"
+    embed_origins=""
+    if [ -n "$portal_origin" ]; then
+        cors_origins="${portal_origin},${public_url}"
+        embed_origins="${portal_origin}"
+        # meet.-Host zusätzlich erlauben falls Browser den vHost direkt öffnet
+        if [ -n "$meet_host" ]; then
+            embed_origins="${portal_origin},$(mirotalk_public_scheme)://${meet_host}"
+        fi
+    else
+        embed_origins="${public_url}"
     fi
 
     mkdir -p "${MIROTALK_DATA_ROOT}"
@@ -63,8 +79,8 @@ SERVER_HOST_URL=${public_url}
 SERVER_LISTEN_IP=${MIROTALK_LISTEN_IP:-127.0.0.1}
 SERVER_LISTEN_PORT=${MIROTALK_HOST_PORT}
 TRUST_PROXY=true
-CORS_ORIGIN=${portal_origin}${portal_origin:+,}${public_url}
-ALLOWED_EMBED_ORIGINS=${portal_origin}
+CORS_ORIGIN=${cors_origins}
+ALLOWED_EMBED_ORIGINS=${embed_origins}
 HOST_PROTECTED=true
 HOST_USER_AUTH=false
 HOST_USERS="${MIROTALK_HOST_USER}:${MIROTALK_HOST_PASSWORD}:Portal:*"
@@ -80,6 +96,7 @@ EOF
     chmod 750 "${MIROTALK_DATA_ROOT}" 2>/dev/null || true
 
     log_info "MiroTalk .env geschrieben (${env_file})"
+    log_info "SERVER_HOST_URL / MIROTALK_URL = ${public_url}"
     if [ -n "$announced" ]; then
         log_info "SFU_ANNOUNCED_IP=${announced}"
     else
@@ -87,6 +104,8 @@ EOF
     fi
     if [ -n "$meet_host" ]; then
         log_info "DNS: A/AAAA-Record ${meet_host} → Server-IP eintragen"
+    else
+        log_info "IP-/LAN-Modus: Browser nutzt ${public_url} (kein meet.-vHost nötig)"
     fi
 }
 
@@ -127,10 +146,12 @@ step_mirotalk() {
 
     if ! domain_is_hostname "${DOMAIN:-}"; then
         MIROTALK_LISTEN_IP="0.0.0.0"
-        log_warning "Keine Hostname-Domain – MiroTalk lauscht öffentlich auf Port ${MIROTALK_HOST_PORT}"
-        log_warning "Für Produktion einen Hostnamen nutzen und meet.\${DOMAIN} per Nginx/Apache proxyn"
+        log_warning "Keine Hostname-Domain – MiroTalk lauscht auf 0.0.0.0:${MIROTALK_HOST_PORT}"
+        log_warning "Portal-.env bekommt MIROTALK_URL=http://IP:${MIROTALK_HOST_PORT} (kein meet.IP)"
+        log_warning "Produktion: Hostname + DNS meet.DOMAIN + Nginx-Proxy empfehlen"
     else
         MIROTALK_LISTEN_IP="127.0.0.1"
+        log_info "Hostname-Modus: MiroTalk nur Loopback, öffentlich über meet.${DOMAIN}"
     fi
 
     _mirotalk_write_env
@@ -190,6 +211,11 @@ step_mirotalk() {
     fi
 
     log_info "UDP/TCP ${MIROTALK_UDP_MIN}-${MIROTALK_UDP_MAX} müssen in der Firewall offen sein"
+    log_info "Portal-.env erhält dieselben Secrets: MIROTALK_API_KEY, MIROTALK_HOST_USER, MIROTALK_HOST_PASSWORD"
+    if ! is_yes "${SETUP_SSL:-n}"; then
+        log_warning "Ohne HTTPS: Browser Secure Context fehlt — Kamera/Mikrofon/WebRTC oft schwarz"
+    fi
     log_success "MiroTalk SFU installiert (${MIROTALK_IMAGE})"
+    log_success "Öffentliche Meet-URL: $(mirotalk_public_url)"
     return 0
 }

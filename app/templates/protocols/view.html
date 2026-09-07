@@ -21,7 +21,7 @@
 {% endmacro %}
 
 <div class="protocols-workspace protocols-workspace--view">
-    <header class="protocols-workspace-toolbar">
+    <header class="mod-toolbar protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
             {{ protocols_chrome_nav(back_url=index_url, close_url=index_url) }}
             {% set ns = namespace(subtitle='') %}
@@ -156,7 +156,7 @@
                     </header>
                     <div class="protocols-doc-top-body protocols-view-html">
                         {% if item.content_html and item.content_html|striptags|trim %}
-                        {{ item.content_html|safe }}
+                        {{ sanitize_protocol_html(item.content_html)|safe }}
                         {% else %}
                         <p class="protocols-view-empty">{{ _('protocols.view.no_content') }}</p>
                         {% endif %}

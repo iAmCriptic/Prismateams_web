@@ -297,7 +297,8 @@ def edit_file(file_id):
         
         # Save new version
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename = f"{timestamp}_{file.original_name}"
+        safe_name = _disk_safe_upload_basename(file.original_name)
+        filename = f"{timestamp}_{safe_name}"
         filepath = os.path.join('uploads', 'files', filename)
         
         # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.

@@ -157,7 +157,8 @@
       "2fa_code": "2FA code",
       "2fa_code_help": "Enter the 6-digit code from your authenticator app.",
       "2fa_recovery_request": "Lost access to your authenticator app? Send code by email",
-      "2fa_recovery_pending": "A recovery code was sent to your email (valid for 5 minutes). You can enter it here.",
+      "2fa_recovery_pending": "A recovery code was sent to your email (10 characters, valid for 5 minutes). You can enter it here.",
+      "2fa_code_or_recovery_hint": "Authenticator code (6 digits) or email recovery code.",
       "forgot_password": "Forgot password?"
     },
     "legal": {
@@ -271,10 +272,11 @@
       "password_reset_success": "Password was reset successfully. You can now log in.",
       "enter_2fa_code": "Please enter your 2FA code.",
       "invalid_2fa_code": "Invalid 2FA code. Please try again.",
-      "2fa_recovery_email_sent": "A recovery code was sent to {email}. It is valid for 5 minutes.",
+      "2fa_recovery_email_sent": "A recovery code was sent to {email}. It is valid for 5 minutes and can be used only once.",
       "2fa_recovery_email_failed": "Could not send the recovery code. Please try again later.",
       "2fa_recovery_mail_not_configured": "Email is not configured. Please contact an administrator.",
       "2fa_recovery_rate_limited": "Please wait a moment before requesting a new code.",
+      "2fa_recovery_disabled": "Email recovery for 2FA is disabled on this system.",
       "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts."
     },
     "bot_protection": {
@@ -1299,7 +1301,8 @@
         "setup_started": "2FA setup started. Scan the QR code and enter the code.",
         "setup_cancelled": "2FA setup was cancelled.",
         "issuer_hint": "In your authenticator app the entry will appear as \"{name}\".",
-        "recovery_hint": "Lost your authenticator? During login you can request a one-time recovery code by email (valid for 5 minutes)."
+        "recovery_hint": "Lost your authenticator? During login you can request a one-time recovery code by email (10 characters, valid for 5 minutes). Note: anyone with access to your mailbox can bypass 2FA this way. Admins can disable it with TWO_FACTOR_EMAIL_RECOVERY_ENABLED=false.",
+        "recovery_disabled_hint": "Email recovery for 2FA is disabled on this system. Keep your authenticator and passkeys safe."
       },
       "passkeys": {
         "heading": "Passkeys",
@@ -2074,8 +2077,23 @@
         "flash_saved": "Inventory management settings have been saved.",
         "page_title": "Inventory Settings - Administration",
         "heading": "Inventory Settings",
-        "lead_short": "Texts for public product pages.",
-        "subtitle": "Texts for public product pages and QR code scans.",
+        "lead_short": "Features and texts for inventory management.",
+        "subtitle": "Toggle sub-features and texts for public product pages.",
+        "features_title": "Features",
+        "features_help": "Disabled features disappear from navigation and forms.",
+        "features_lead": "As an administrator you can enable or disable inventory sub-features.",
+        "feature_borrow": "Borrowing",
+        "feature_borrow_help": "Checkout, history and borrowing from the stock overview.",
+        "feature_quick_scan": "Quick Scan",
+        "feature_quick_scan_help": "Fast scanner checkout without required header data.",
+        "feature_dguv": "DGUV",
+        "feature_dguv_help": "Inspection fields, filters and display in the stock overview.",
+        "feature_owners": "Owner",
+        "feature_owners_help": "Owner field and filter per item.",
+        "feature_accounting": "Accounting",
+        "feature_accounting_help": "Purchase date, purchase price and replacement value.",
+        "feature_stocktake": "Stocktake",
+        "feature_stocktake_help": "Stocktake tool and inventory lists.",
         "public_title": "Public product pages",
         "public_lead": "Shown on the public product page when a QR code is scanned.",
         "ownership_label": "Ownership text",
@@ -4867,6 +4885,8 @@
         "dguv_due": "Inspection due",
         "dguv_ok": "Inspection ok",
         "dguv_none": "No DGUV data",
+        "owner": "Owner",
+        "all_owners": "All owners",
         "overdue": "Overdue",
         "favorites": "Favorites",
         "favorites_any": "Any",
@@ -5037,6 +5057,8 @@
           "values": "Purchase & values",
           "dimensions": "Dimensions & weight",
           "purchase_dims": "Purchase & dimensions",
+          "accounting": "Accounting",
+          "dims": "Dimensions",
           "dguv": "DGUV",
           "media": "Status & media",
           "documents": "Documents & manuals",
@@ -5066,6 +5088,9 @@
         "dguv_next_auto_help": "Calculated automatically (or creation date if no last check).",
         "external_barcode": "Inventory No.",
         "external_barcode_placeholder": "e.g. 001",
+        "owner": "Owner",
+        "owner_placeholder": "Portal user or free text…",
+        "owner_help": "Pick a portal user or enter free text. Previous values are suggested.",
         "current_image": "Current image:",
         "remove_image": "Remove image",
         "remove_image_confirm": "Really remove the product image?",
@@ -5531,6 +5556,7 @@
       "filter_name_required": "Filter name required.",
       "filter_name_exists": "A filter with this name already exists.",
       "no_permission": "No permission.",
+      "feature_disabled": "This inventory feature is currently disabled.",
       "no_return_permission": "You do not have permission to return this checkout.",
       "insufficient_reserved_stock": "Reserved stock is insufficient for this return (already released?).",
       "insufficient_stock": "Insufficient stock available.",
@@ -6757,6 +6783,13 @@
         "list": "List view",
         "grid": "Grid view"
       }
+    },
+    "redirect_warn": {
+      "title": "External redirect",
+      "message": "This short link leads to an external website. Check the address before continuing.",
+      "destination": "Destination",
+      "continue": "Continue to website",
+      "cancel": "Cancel"
     }
   },
   "file_converter": {
@@ -7050,6 +7083,11 @@
       "submit": "Join",
       "ended": "This meeting has ended."
     },
+    "call": {
+      "loading": "Loading meeting…",
+      "insecure_title": "Not a secure context (HTTPS)",
+      "insecure_body": "Camera and microphone do not work on http://IP addresses. Use HTTPS (domain + certificate) — otherwise the call stays black."
+    },
     "chat": {
       "start": "Start meeting"
     },
@@ -7063,7 +7101,7 @@
       "ended": "This meeting has ended.",
       "ended_ok": "Meeting ended.",
       "not_configured": "MiroTalk is not configured. Set MIROTALK_URL in .env.",
-      "join_failed": "Could not join the meeting.",
+      "join_failed": "Could not join. Check MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD — they must match MiroTalk’s .env.",
       "no_module": "The Meetings module is not available.",
       "chat_missing": "Chat not found.",
       "not_chat_member": "You are not a member of this chat.",

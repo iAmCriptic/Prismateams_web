@@ -164,7 +164,7 @@
                         <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
+                        <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu wiki-pill-dropdown">
                             {{ wiki_page_menu_items(page) }}
                         </ul>
                     </div>
@@ -252,7 +252,7 @@
                 <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
+                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu wiki-pill-dropdown">
                     {{ wiki_page_menu_items(page) }}
                 </ul>
             </div>
@@ -496,7 +496,7 @@ function openWikiPageHistory(slug) {
 
             content.innerHTML = ''
                 + '<div class="mb-4"><h6>' + wikiEscapeHtml(WIKI_HISTORY_I18N.info_title || '') + '</h6>'
-                + '<div class="files-details-card">'
+                + '<div class="mod-details-card">'
                 + '<p><strong>' + wikiEscapeHtml(labels.title || '') + ':</strong> ' + wikiEscapeHtml(page.title) + '</p>'
                 + '<p><strong>' + wikiEscapeHtml(labels.author || '') + ':</strong> ' + wikiEscapeHtml(page.creator) + '</p>'
                 + '<p><strong>' + wikiEscapeHtml(labels.updated || '') + ':</strong> ' + wikiEscapeHtml(page.updated_at) + '</p>'

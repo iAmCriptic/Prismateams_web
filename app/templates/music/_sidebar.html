@@ -1,10 +1,10 @@
 {% macro music_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
 {% set has_sort_state = (sort_by != 'created') or (sort_dir != 'desc') %}
 <div class="music-sidebar-actions mb-3">
-    <a href="{{ url_for('music.public_url_page') }}" class="btn music-public-url-pill rounded-pill w-100" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('music.public_url_page') }}" class="btn mod-pill-btn mod-pill-btn--accent music-public-url-pill w-100" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-music-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-link-45deg me-1"></i>{{ _('music.index.public_url_button') }}
     </a>
-    <button type="button" class="btn music-reset-link w-100" onclick="resetAll()">
+    <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost music-reset-link w-100" onclick="resetAll()">
         <i class="bi bi-arrow-counterclockwise"></i>
         <span>{{ _('music.index.reset_all') }}</span>
     </button>

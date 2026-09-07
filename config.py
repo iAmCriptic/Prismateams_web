@@ -51,7 +51,8 @@ class Config:
 
     # CSRF (Flask-WTF)
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None
+    # Gestohlene CSRF-Tokens nicht bis Session-Ende gültig lassen (Default 4h, per .env überschreibbar)
+    WTF_CSRF_TIME_LIMIT = int(os.environ.get('WTF_CSRF_TIME_LIMIT', str(4 * 3600)))
     WTF_CSRF_HEADERS = ['X-CSRFToken', 'X-CSRF-Token']
 
     # Passwort-Policy (einheitlich für Register/Change/Reset/Setup/Assessment)
@@ -59,6 +60,16 @@ class Config:
     PASSWORD_REQUIRE_COMPLEXITY = os.environ.get(
         'PASSWORD_REQUIRE_COMPLEXITY', 'True'
     ).lower() in ('1', 'true', 'yes', 'on')
+
+    # 2FA-E-Mail-Recovery (schwächt TOTP bei Postfach-Kompromittierung ab)
+    TWO_FACTOR_EMAIL_RECOVERY_ENABLED = os.environ.get(
+        'TWO_FACTOR_EMAIL_RECOVERY_ENABLED', 'True'
+    ).lower() in ('1', 'true', 'yes', 'on')
+
+    # WebDAV HTML-Directory-Browser (Info-Leak); Default aus, Opt-in per Env
+    WEBDAV_DIR_BROWSER = os.environ.get('WEBDAV_DIR_BROWSER', 'False').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
 
     # Portal-Nutzer mit module_assessment (ohne is_admin): Assessment-Rollen (kommagetrennt)
     ASSESSMENT_PORTAL_DEFAULT_ROLES = os.environ.get(

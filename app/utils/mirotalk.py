@@ -115,26 +115,29 @@ def _api_base_url() -> str:
 
 
 def _publicize_join_url(join_url: str) -> str:
-    """Rewrite loopback/API hosts so the iframe uses the public MiroTalk URL."""
+    """Rewrite API/join URLs onto the configured public MiroTalk origin.
+
+    MiroTalk may return https://127.0.0.1 or https://LAN-IP:3010 even when the
+    portal embeds via http://meet.host (nginx). Always pin scheme+host to
+    MIROTALK_URL so the iframe matches CSP and the public vHost.
+    """
     public = _base_url()
     if not public or not join_url:
         return join_url
     parsed = urlparse(join_url)
     public_parsed = urlparse(public)
-    api_host = (urlparse(_api_base_url()).hostname or '').lower()
-    join_host = (parsed.hostname or '').lower()
-    if join_host in ('127.0.0.1', 'localhost', '::1') or (
-        api_host and join_host == api_host and join_host != (public_parsed.hostname or '').lower()
-    ):
-        return urlunparse((
-            public_parsed.scheme or parsed.scheme,
-            public_parsed.netloc,
-            parsed.path,
-            parsed.params,
-            parsed.query,
-            parsed.fragment,
-        ))
-    return join_url
+    if not public_parsed.scheme or not public_parsed.netloc:
+        return join_url
+    if parsed.scheme == public_parsed.scheme and parsed.netloc == public_parsed.netloc:
+        return join_url
+    return urlunparse((
+        public_parsed.scheme,
+        public_parsed.netloc,
+        parsed.path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment,
+    ))
 
 
 def build_direct_join_url(
@@ -162,6 +165,27 @@ def build_direct_join_url(
     return f"{_base_url()}/join?{urlencode(params)}"
 
 
+def _join_url_has_token(join_url: str) -> bool:
+    if not join_url:
+        return False
+    query = urlparse(join_url).query
+    if not query:
+        return False
+    for part in query.split('&'):
+        key, _, value = part.partition('=')
+        if key == 'token' and value:
+            return True
+    return False
+
+
+def _normalize_join_url(join_url: str) -> Optional[str]:
+    public = _publicize_join_url(join_url)
+    parsed = urlparse(public)
+    if parsed.scheme in ('http', 'https') and parsed.netloc:
+        return public
+    return None
+
+
 def request_join_url(
     room: str,
     name: str,
@@ -169,11 +193,20 @@ def request_join_url(
     avatar: Optional[str] = None,
     presenter: bool = False,
 ) -> str:
-    """Ask the SFU for a join URL; fall back to a constructed direct-join link."""
+    """Ask the SFU for a join URL; fall back to a constructed direct-join link.
+
+    When HOST credentials are configured (typical HOST_PROTECTED install), a JWT
+    token is mandatory. Without it MiroTalk only shows “Waiting for host…” in the
+    iframe — never a real room.
+    """
     if not mirotalk_configured():
         raise RuntimeError('MiroTalk is not configured')
 
     api_key = (current_app.config.get('MIROTALK_API_KEY') or '').strip()
+    host_user = (current_app.config.get('MIROTALK_HOST_USER') or '').strip()
+    host_password = (current_app.config.get('MIROTALK_HOST_PASSWORD') or '').strip()
+    auth_required = bool(api_key and host_user and host_password)
+
     payload = {
         'room': room,
         'name': name or 'Guest',
@@ -186,9 +219,7 @@ def request_join_url(
         'notify': False,
         'duration': 'unlimited',
     }
-    host_user = (current_app.config.get('MIROTALK_HOST_USER') or '').strip()
-    host_password = (current_app.config.get('MIROTALK_HOST_PASSWORD') or '').strip()
-    if host_user and host_password:
+    if auth_required:
         payload['token'] = {
             'username': host_user,
             'password': host_password,
@@ -210,22 +241,33 @@ def request_join_url(
             data = response.json() if response.content else {}
             join_url = data.get('join') if isinstance(data, dict) else None
             if response.ok and join_url:
-                public = _publicize_join_url(join_url)
-                parsed = urlparse(public)
-                if parsed.scheme in ('http', 'https') and parsed.netloc:
+                public = _normalize_join_url(join_url)
+                if public and (not auth_required or _join_url_has_token(public)):
                     return public
+                if public and auth_required and not _join_url_has_token(public):
+                    logger.warning(
+                        'MiroTalk join API returned URL without token (HOST_PROTECTED)'
+                    )
             logger.warning(
                 'MiroTalk join API %s: %s',
                 response.status_code,
                 data.get('error') if isinstance(data, dict) else response.text[:200],
             )
         except Exception:
-            logger.warning('MiroTalk join API failed, using direct URL', exc_info=True)
+            logger.warning('MiroTalk join API failed', exc_info=True)
 
-    token = None
-    if host_user and host_password and api_key:
-        token = _request_token(host_user, host_password, presenter=presenter, api_key=api_key)
-    return build_direct_join_url(room, name, avatar=avatar, token=token)
+    if auth_required:
+        token = _request_token(
+            host_user, host_password, presenter=presenter, api_key=api_key
+        )
+        if not token:
+            raise RuntimeError(
+                'MiroTalk auth failed: check MIROTALK_API_KEY / '
+                'MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD'
+            )
+        return build_direct_join_url(room, name, avatar=avatar, token=token)
+
+    return build_direct_join_url(room, name, avatar=avatar, token=None)
 
 
 def _request_token(username: str, password: str, *, presenter: bool, api_key: str) -> Optional[str]:

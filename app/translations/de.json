@@ -158,7 +158,8 @@
       "2fa_code": "2FA-Code",
       "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
       "2fa_recovery_request": "Keinen Zugang zur Authenticator-App? Code per E-Mail senden",
-      "2fa_recovery_pending": "Ein Wiederherstellungscode wurde an Ihre E-Mail gesendet (5 Min. gültig). Sie können ihn hier eingeben."
+      "2fa_recovery_pending": "Ein Wiederherstellungscode wurde an Ihre E-Mail gesendet (10 Zeichen, 5 Min. gültig). Sie können ihn hier eingeben.",
+      "2fa_code_or_recovery_hint": "Authenticator-Code (6 Ziffern) oder E-Mail-Wiederherstellungscode."
     },
     "legal": {
       "nav_label": "Rechtliche Hinweise",
@@ -290,10 +291,11 @@
       "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden.",
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
-      "2fa_recovery_email_sent": "Ein Wiederherstellungscode wurde an {email} gesendet. Er ist 5 Minuten gültig.",
+      "2fa_recovery_email_sent": "Ein Wiederherstellungscode wurde an {email} gesendet. Er ist 5 Minuten gültig und nur einmal nutzbar.",
       "2fa_recovery_email_failed": "Der Wiederherstellungscode konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.",
       "2fa_recovery_mail_not_configured": "E-Mail ist nicht konfiguriert. Bitte wenden Sie sich an einen Administrator.",
       "2fa_recovery_rate_limited": "Bitte warten Sie kurz, bevor Sie einen neuen Code anfordern.",
+      "2fa_recovery_disabled": "E-Mail-Wiederherstellung für 2FA ist auf diesem System deaktiviert.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt.",
       "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF sind erlaubt.",
@@ -1159,7 +1161,8 @@
         "setup_started": "2FA-Einrichtung gestartet. Bitte scannen Sie den QR-Code und geben Sie den Code ein.",
         "setup_cancelled": "2FA-Einrichtung wurde abgebrochen.",
         "issuer_hint": "In Ihrer Authenticator-App erscheint der Eintrag als „{name}“.",
-        "recovery_hint": "Authenticator verloren? Beim Login können Sie sich einen einmaligen Wiederherstellungscode per E-Mail senden lassen (5 Min. gültig)."
+        "recovery_hint": "Authenticator verloren? Beim Login können Sie sich einen einmaligen Wiederherstellungscode per E-Mail senden lassen (10 Zeichen, 5 Min. gültig). Hinweis: Wer Ihr Postfach kontrolliert, kann damit 2FA umgehen. Administratoren können die Funktion per TWO_FACTOR_EMAIL_RECOVERY_ENABLED=false abschalten.",
+        "recovery_disabled_hint": "E-Mail-Wiederherstellung für 2FA ist auf diesem System deaktiviert. Bewahren Sie Ihren Authenticator bzw. Passkeys sicher auf."
       },
       "passkeys": {
         "heading": "Passkeys",
@@ -1729,8 +1732,23 @@
         "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert.",
         "page_title": "Lagerverwaltung-Einstellungen - Administration",
         "heading": "Lagerverwaltung-Einstellungen",
-        "lead_short": "Texte für öffentliche Produktseiten.",
-        "subtitle": "Texte für öffentliche Produktseiten und QR-Code-Scans.",
+        "lead_short": "Funktionen und Texte für die Lagerverwaltung.",
+        "subtitle": "Teilfunktionen steuern und Texte für öffentliche Produktseiten.",
+        "features_title": "Funktionen",
+        "features_help": "Deaktivierte Funktionen verschwinden aus Navigation und Formularen.",
+        "features_lead": "Als Administrator kannst du Inventar-Teilfunktionen ein- und ausschalten.",
+        "feature_borrow": "Ausleihe",
+        "feature_borrow_help": "Checkout, Historie und Ausleihen aus der Bestandsübersicht.",
+        "feature_quick_scan": "Quick Scan",
+        "feature_quick_scan_help": "Schnelles Ausleihen per Scanner ohne Pflicht-Kopfdaten.",
+        "feature_dguv": "DGUV",
+        "feature_dguv_help": "Prüfungsfelder, Filter und Anzeige in der Bestandsübersicht.",
+        "feature_owners": "Eigentümer",
+        "feature_owners_help": "Eigentümer-Feld und Filter pro Artikel.",
+        "feature_accounting": "Buchhaltung",
+        "feature_accounting_help": "Anschaffungsdatum, Kaufpreis und Wiederbeschaffungswert.",
+        "feature_stocktake": "Inventur",
+        "feature_stocktake_help": "Inventur-Tool und Inventurlisten.",
         "public_title": "Öffentliche Produktseiten",
         "public_lead": "Wird bei QR-Scans auf der öffentlichen Produktseite angezeigt.",
         "ownership_label": "Eigentumstext",
@@ -4781,6 +4799,7 @@
       "filter_name_required": "Filtername erforderlich.",
       "filter_name_exists": "Ein Filter mit diesem Namen existiert bereits.",
       "no_permission": "Keine Berechtigung.",
+      "feature_disabled": "Diese Inventar-Funktion ist derzeit deaktiviert.",
       "no_return_permission": "Keine Berechtigung für diese Rückgabe.",
       "insufficient_reserved_stock": "Reservierter Bestand reicht für die Rückgabe nicht aus (bereits freigegeben?).",
       "insufficient_stock": "Nicht genügend Bestand verfügbar.",
@@ -5010,6 +5029,8 @@
         "dguv_due": "Prüfung fällig",
         "dguv_ok": "Prüfung ok",
         "dguv_none": "Keine DGUV-Daten",
+        "owner": "Eigentümer",
+        "all_owners": "Alle Eigentümer",
         "overdue": "Überfällig",
         "favorites": "Favoriten",
         "favorites_any": "Alle",
@@ -5180,6 +5201,8 @@
           "values": "Kauf & Werte",
           "dimensions": "Maße & Gewicht",
           "purchase_dims": "Kauf & Maße",
+          "accounting": "Buchhaltung",
+          "dims": "Maße",
           "dguv": "DGUV",
           "media": "Status & Medien",
           "documents": "Dokumente & Anleitungen",
@@ -5209,6 +5232,9 @@
         "dguv_next_auto_help": "Automatisch berechnet (oder Anlagedatum, wenn keine letzte Prüfung).",
         "external_barcode": "Inventar-Nr.",
         "external_barcode_placeholder": "z.B. 001",
+        "owner": "Eigentümer",
+        "owner_placeholder": "Portalnutzer oder Freitext…",
+        "owner_help": "Portalnutzer auswählen oder freien Text eingeben. Frühere Angaben werden vorgeschlagen.",
         "current_image": "Aktuelles Bild:",
         "remove_image": "Bild entfernen",
         "remove_image_confirm": "Möchten Sie das Produktbild wirklich entfernen?",
@@ -6757,6 +6783,13 @@
         "list": "Listenansicht",
         "grid": "Kachelansicht"
       }
+    },
+    "redirect_warn": {
+      "title": "Externe Weiterleitung",
+      "message": "Dieser Kurzlink führt zu einer externen Website. Prüfen Sie die Adresse, bevor Sie fortfahren.",
+      "destination": "Zieladresse",
+      "continue": "Weiter zur Website",
+      "cancel": "Abbrechen"
     }
   },
   "file_converter": {
@@ -7050,6 +7083,11 @@
       "submit": "Beitreten",
       "ended": "Dieses Meeting ist beendet."
     },
+    "call": {
+      "loading": "Meeting wird geladen…",
+      "insecure_title": "Kein sicherer Kontext (HTTPS)",
+      "insecure_body": "Kamera und Mikrofon funktionieren unter http://IP-Adressen nicht. Nutzen Sie HTTPS (z. B. Domain mit Zertifikat) oder öffnen Sie das Portal über https://… — sonst bleibt der Call schwarz."
+    },
     "chat": {
       "start": "Meeting starten"
     },
@@ -7063,7 +7101,7 @@
       "ended": "Dieses Meeting ist beendet.",
       "ended_ok": "Meeting beendet.",
       "not_configured": "MiroTalk ist nicht konfiguriert. Bitte MIROTALK_URL in der .env setzen.",
-      "join_failed": "Beitritt zum Meeting fehlgeschlagen.",
+      "join_failed": "Beitritt fehlgeschlagen. API-Key und Host-Zugangsdaten (MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD) prüfen — sie müssen zur MiroTalk-.env passen.",
       "no_module": "Das Meetings-Modul ist nicht verfügbar.",
       "chat_missing": "Chat nicht gefunden.",
       "not_chat_member": "Sie sind kein Mitglied dieses Chats.",

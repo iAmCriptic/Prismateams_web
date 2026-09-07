@@ -714,15 +714,15 @@ body.files-dnd-dragging .files-space-drop {
 
 /* Presence avatars on file rows / cards */
 
-.files-presence-anchor {
+.mod-presence-anchor {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
     line-height: 1;
 }
 
-.files-presence-anchor:empty,
-.files-presence-anchor[hidden] {
+.mod-presence-anchor:empty,
+.mod-presence-anchor[hidden] {
     display: none;
 }
 
@@ -984,7 +984,7 @@ body:has(.files-shell) {
 
 /* File cards: preview area should match folder preview height */
 
-.file-item .files-grid-preview,
+.file-item .mod-grid-preview,
 .card.file-item .text-center.mb-3:has(.file-preview),
 .card.file-item .text-center.mb-3:has(.media-mini-preview),
 .card.file-item .text-center.mb-3:has(.pdf-mini-preview),
@@ -1005,18 +1005,18 @@ body:has(.files-shell) {
     height: 100%;
 }
 
-/* .files-grid-preview base + hover + item-name: see mod-list-chrome.css */
+/* .mod-grid-preview base + hover + item-name: see mod-list-chrome.css */
 
-.files-grid-preview .pdf-mini-preview,
-.files-grid-preview .file-text-preview,
-.files-grid-preview .media-mini-preview {
+.mod-grid-preview .pdf-mini-preview,
+.mod-grid-preview .file-text-preview,
+.mod-grid-preview .media-mini-preview {
     width: 100%;
     height: 100%;
     min-height: 0;
     max-height: 100%;
 }
 
-.files-grid-preview .file-text-preview {
+.mod-grid-preview .file-text-preview {
     margin: 0;
 }
 
@@ -1246,54 +1246,6 @@ body:has(.files-shell) {
     padding: 0.1rem 0.4rem;
 }
 
-.files-dropdown-menu,
-#newDropdownMenu,
-.files-sidebar-new-menu,
-.files-mobile-new-menu,
-.folder-item .dropdown-menu,
-.file-item .dropdown-menu,
-.mod-list-actions .dropdown-menu,
-#files-browser-context-menu .dropdown-menu {
-    border-radius: 1.1rem !important;
-    padding: 0.45rem !important;
-    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
-    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
-    overflow: visible;
-}
-
-.files-dropdown-menu .dropdown-item,
-#newDropdownMenu .dropdown-item,
-.files-sidebar-new-menu .dropdown-item,
-.files-mobile-new-menu .dropdown-item,
-.folder-item .dropdown-menu .dropdown-item,
-.file-item .dropdown-menu .dropdown-item,
-.mod-list-actions .dropdown-menu .dropdown-item,
-#files-browser-context-menu .dropdown-item {
-    border-radius: var(--mod-radius-pill, 1.5rem);
-    padding: 0.45rem 0.85rem;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.files-dropdown-menu .dropdown-item:hover,
-.files-dropdown-menu .dropdown-item:focus,
-#newDropdownMenu .dropdown-item:hover,
-#newDropdownMenu .dropdown-item:focus,
-.files-sidebar-new-menu .dropdown-item:hover,
-.files-mobile-new-menu .dropdown-item:hover,
-.folder-item .dropdown-menu .dropdown-item:hover,
-.file-item .dropdown-menu .dropdown-item:hover,
-.mod-list-actions .dropdown-menu .dropdown-item:hover {
-    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
-}
-
-.files-dropdown-menu .dropdown-divider,
-#newDropdownMenu .dropdown-divider,
-.files-sidebar-new-menu .dropdown-divider,
-.files-mobile-new-menu .dropdown-divider {
-    margin: 0.35rem 0.5rem;
-}
 
 .card.folder-item,
 .card.file-item {
@@ -1358,8 +1310,9 @@ body:has(.files-shell) {
 
 .card.folder-item .dropdown-menu.show,
 .card.file-item .dropdown-menu.show,
-.mod-list-actions .dropdown-menu.show,
-.files-dropdown-menu.show {
+.files-sidebar-new-menu.show,
+.files-mobile-new-menu.show,
+#newDropdownMenu.show {
     z-index: 1110;
     background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
 }
@@ -1407,7 +1360,7 @@ body:has(.files-shell) {
     flex-shrink: 0;
 }
 
-/* side-menu chrome + files-details-card: see mod-list-chrome.css */
+/* side-menu chrome + mod-details-card: see mod-list-chrome.css */
 
 .side-menu .alert {
     border-radius: 1rem;
@@ -1880,6 +1833,13 @@ body:has(.dropbox-shell) .container-fluid {
 .dropbox-upload-card > .card-body {
     padding-left: 0 !important;
     padding-right: 0 !important;
+}
+
+/* Panel without Bootstrap card-body wrapper */
+.files-ext-panel.share-browser-card,
+.files-ext-panel.dropbox-upload-card {
+    padding-left: 0;
+    padding-right: 0;
 }
 
 .files-ext-toolbar {

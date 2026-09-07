@@ -76,7 +76,7 @@
     qsa('[data-rename-target="board-' + id + '"]').forEach(function (el) {
       if (el.classList.contains('files-inline-rename')) return;
       if (el.tagName === 'A') {
-        var text = el.querySelector('.files-item-name-text');
+        var text = el.querySelector('.mod-item-name-text');
         if (text) {
           text.textContent = title;
           text.setAttribute('title', title);

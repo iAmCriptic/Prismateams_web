@@ -546,7 +546,8 @@ def create_file():
 
     # Create file
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    stored_filename = f"{timestamp}_{filename}"
+    safe_name = _disk_safe_upload_basename(filename)
+    stored_filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', stored_filename)
 
     # Ensure directory exists
@@ -665,7 +666,8 @@ def create_office_file():
     
     # Create empty document
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    stored_filename = f"{timestamp}_{filename}"
+    safe_name = _disk_safe_upload_basename(filename)
+    stored_filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', stored_filename)
     
     # Ensure directory exists

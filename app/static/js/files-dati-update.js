@@ -882,7 +882,7 @@
                     <span class="files-share-mode-label">${escapeHtml(first.label)}</span>
                     <i class="bi bi-chevron-down"></i>
                 </button>
-                <ul class="dropdown-menu files-dropdown-menu files-share-mode-menu">${items}</ul>
+                <ul class="dropdown-menu mod-dropdown-menu files-share-mode-menu">${items}</ul>
                 <input type="hidden" name="mode" value="${escapeHtml(first.value)}" required>
             </div>`;
     }
@@ -1089,14 +1089,14 @@
     }
 
     function renderPresence(presenceMap) {
-        document.querySelectorAll('.files-presence-anchor').forEach(el => {
+        document.querySelectorAll('.mod-presence-anchor').forEach(el => {
             el.innerHTML = '';
             el.hidden = true;
         });
         Object.keys(presenceMap || {}).forEach(fileId => {
             const users = presenceMap[fileId] || [];
             if (!users.length) return;
-            const anchors = document.querySelectorAll(`.files-presence-anchor[data-presence-file="${fileId}"]`);
+            const anchors = document.querySelectorAll(`.mod-presence-anchor[data-presence-file="${fileId}"]`);
             anchors.forEach(anchor => {
                 const stack = document.createElement('span');
                 stack.className = 'files-presence-stack';

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, session, send_from_directory
 from flask_login import login_required, current_user
-from app import db
+from app import db, limiter
 from app.utils.i18n import _, translate
 from app.models.inventory import Product, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 from app.models.api_token import ApiToken
@@ -40,11 +40,12 @@ from app.blueprints.inventory._bp import (
 from app.blueprints.inventory.helpers import *  # noqa: F401,F403
 
 @inventory_bp.route('/public/product/<int:product_id>')
+@limiter.limit("60 per minute")
 def public_product(product_id):
     """Öffentliche Produktseite (signierte URL, kein Login)."""
     from flask import abort
     from app.utils.access_control import has_module_access
-    from app.utils.qr_code import verify_public_product_signature
+    from app.utils.qr_code import public_product_signature, verify_public_product_signature
     from app.utils.system_settings_cache import get_setting
 
     sig = request.args.get('s') or request.args.get('sig') or ''
@@ -62,10 +63,14 @@ def public_product(product_id):
         or translate('inventory.public.ownership_default')
     )
 
+    # Bild-URL nur mit gültiger Signatur (auch im Staff-Preview mit frischer Sig)
+    image_sig = sig if signed_ok else public_product_signature(product_id)
+
     return render_template(
         'inventory/public_product.html',
         product=product,
         ownership_text=ownership_text,
+        public_image_sig=image_sig,
     )
 
 
@@ -466,6 +471,7 @@ def product_new():
                     purchase_price=_parse_optional_float(request.form.get('purchase_price')),
                     replacement_value=_parse_optional_float(request.form.get('replacement_value')),
                 )
+                _apply_owner_from_form(product, request.form)
                 _apply_dguv_from_form(
                     product,
                     request.form,
@@ -603,25 +609,31 @@ def product_edit(product_id):
                     _apply_retired_folder_assignment(product)
         
         purchase_date_str = request.form.get('purchase_date', '').strip()
-        if purchase_date_str:
-            try:
-                product.purchase_date = datetime.strptime(purchase_date_str, '%Y-%m-%d').date()
-            except ValueError:
+        if 'purchase_date' in request.form or 'purchase_price' in request.form or 'replacement_value' in request.form:
+            if purchase_date_str:
+                try:
+                    product.purchase_date = datetime.strptime(purchase_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    product.purchase_date = None
+            elif 'purchase_date' in request.form:
                 product.purchase_date = None
-        else:
-            product.purchase_date = None
+            if 'purchase_price' in request.form:
+                product.purchase_price = _parse_optional_float(request.form.get('purchase_price'))
+            if 'replacement_value' in request.form:
+                product.replacement_value = _parse_optional_float(request.form.get('replacement_value'))
 
         product.weight_kg = _parse_optional_float(request.form.get('weight_kg'))
         product.width_cm = _parse_optional_float(request.form.get('width_cm'))
         product.height_cm = _parse_optional_float(request.form.get('height_cm'))
         product.depth_cm = _parse_optional_float(request.form.get('depth_cm'))
-        product.purchase_price = _parse_optional_float(request.form.get('purchase_price'))
-        product.replacement_value = _parse_optional_float(request.form.get('replacement_value'))
-        _apply_dguv_from_form(
-            product,
-            request.form,
-            next_equals_created_if_no_last=True,
-        )
+        if 'owner_user_id' in request.form or 'owner_label' in request.form or 'owner_input' in request.form:
+            _apply_owner_from_form(product, request.form)
+        if request.form.get('dguv_required') is not None or 'dguv_last_check' in request.form:
+            _apply_dguv_from_form(
+                product,
+                request.form,
+                next_equals_created_if_no_last=True,
+            )
         if request.form.get('remove_image') == '1':
             if product.image_path:
                 upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -746,29 +758,50 @@ def product_edit(product_id):
 
 
 @inventory_bp.route('/public/product-images/<path:filename>')
+@limiter.limit("120 per minute")
 def serve_public_product_image(filename):
-    """Serviere Produktbilder für öffentliche Produktseiten."""
+    """Serviere Produktbilder für öffentliche Produktseiten (nur mit Signatur)."""
     try:
         from flask import abort
         from urllib.parse import unquote
-        
+        from app.utils.qr_code import verify_public_product_signature
+
+        product_id = request.args.get('pid', type=int)
+        sig = request.args.get('s') or request.args.get('sig') or ''
+        if not product_id or not verify_public_product_signature(product_id, sig):
+            abort(404)
+
+        product = Product.query.get_or_404(product_id)
         filename = unquote(filename)
-        
+
         if os.path.isabs(filename) or '/' in filename or '\\' in filename:
             filename = os.path.basename(filename)
-        
+
+        # Nur Dateiname des zugehörigen Produkts (keine fremden Bilder)
+        expected = ''
+        if product.image_path:
+            expected = (
+                product.image_path.split('/')[-1]
+                if '/' in product.image_path
+                else product.image_path
+            )
+        if not expected or os.path.basename(expected) != os.path.basename(filename):
+            abort(404)
+
         project_root = os.path.dirname(current_app.root_path)
         directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
         full_path = os.path.join(directory, filename)
-        
+
         if not os.path.abspath(full_path).startswith(os.path.abspath(directory)):
             abort(403)
-        
+
         if os.path.isfile(full_path):
             return send_from_directory(directory, filename)
-        else:
-            abort(404)
+        abort(404)
     except Exception as e:
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            raise
         current_app.logger.error(f"Fehler beim Servieren des Produktbildes: {e}")
         abort(404)
 

@@ -281,7 +281,8 @@ def _create_new_file_version(existing_file, uploaded_file, user_id):
         db.session.delete(oldest)
 
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{existing_file.name}"
+    safe_name = _disk_safe_upload_basename(existing_file.name or existing_file.original_name)
+    filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     uploaded_file.save(filepath)
@@ -631,13 +632,27 @@ def _get_safe_file_back_url(file_obj, accessible_folder_ids=None, view=None):
         view=view,
     )
 
+def _disk_safe_upload_basename(original_name: str) -> str:
+    """Basename + secure_filename für Disk-Pfade (kein Path Traversal)."""
+    raw = (original_name or '').replace('\\', '/').split('/')[-1].strip()
+    safe = secure_filename(raw)
+    if not safe or safe in {'.', '..'}:
+        safe = 'file'
+    return safe
+
+
 def _process_file_upload(file, original_name, folder_id, user_id, space='public', team_id=None):
     """Helper function to process a single file upload."""
     if not is_allowed_upload_filename(original_name):
         raise ValueError('disallowed_extension')
 
+    display_name = (original_name or '').replace('\\', '/').split('/')[-1].strip() or 'file'
+    safe_name = _disk_safe_upload_basename(display_name)
+    if not is_allowed_upload_filename(safe_name):
+        raise ValueError('disallowed_extension')
+
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{original_name}"
+    filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', filename)
     
     # Ensure directory exists
@@ -656,8 +671,8 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
             team_id = getattr(parent, 'team_id', None)
     
     new_file = File(
-        name=original_name,
-        original_name=original_name,
+        name=display_name,
+        original_name=display_name,
         folder_id=folder_id,
         uploaded_by=user_id,
         file_path=absolute_filepath,
@@ -816,6 +831,7 @@ __all__ = [
     '_files_context_url',
     '_redirect_to_files_context',
     '_get_safe_file_back_url',
+    '_disk_safe_upload_basename',
     '_process_file_upload',
     '_is_sharing_enabled',
     '_is_dropbox_enabled',

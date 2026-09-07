@@ -1,89 +1,81 @@
-{% extends "base.html" %}
+{% extends "calendar/base_calendar.html" %}
+
+{% set calendar_back_url = url_for('calendar.view_event', event_id=master_event.id) %}
+{% set calendar_back_label = _('layout.nav.back') %}
 
 {% block title %}Instanzen von {{ master_event.title }} - Termine{% endblock %}
+{% block calendar_mobile_title %}Instanzen{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">Termine</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('calendar.view_event', event_id=master_event.id) }}">{{ master_event.title }}</a></li>
-        <li class="breadcrumb-item active">Instanzen</li>
-    </ol>
-</nav>
-
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="mb-0">Instanzen von "{{ master_event.title }}"</h3>
-            </div>
-            <div class="card-body">
-                <p class="text-muted">
-                    {% if master_event.recurrence_type == 'daily' %}
-                        Täglich
-                    {% elif master_event.recurrence_type == 'weekly' %}
-                        Wöchentlich
-                    {% elif master_event.recurrence_type == 'monthly' %}
-                        Monatlich
-                    {% elif master_event.recurrence_type == 'yearly' %}
-                        Jährlich
-                    {% endif %}
-                    {% if master_event.recurrence_end_date %}
-                        - Endet am: {{ master_event.recurrence_end_date.strftime('%d.%m.%Y') }}
-                    {% else %}
-                        - Unbegrenzt
-                    {% endif %}
-                </p>
-                
-                {% if instances %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Datum</th>
-                                <th>Uhrzeit</th>
-                                <th>Ort</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for instance in instances %}
-                            <tr>
-                                <td>{{ instance.recurrence_sequence + 1 }}</td>
-                                <td>{{ instance.start_time.strftime('%d.%m.%Y') }}</td>
-                                <td>{{ instance.start_time.strftime('%H:%M') }} - {{ instance.end_time.strftime('%H:%M') }} Uhr</td>
-                                <td>{{ instance.location or '-' }}</td>
-                                <td>
-                                    <a href="{{ url_for('calendar.view_event', event_id=master_event.id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> Anzeigen
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <p class="text-muted mt-3">
-                    <small>Es werden die nächsten 2 Jahre angezeigt. Insgesamt {{ instances|length }} Instanz(en).</small>
-                </p>
-                {% else %}
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    Keine Instanzen gefunden.
-                </div>
-                {% endif %}
-                
-                <div class="mt-3">
-                    <a href="{{ url_for('calendar.view_event', event_id=master_event.id) }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Zurück zum Termin
-                    </a>
-                </div>
-            </div>
-        </div>
+{% block calendar_content %}
+<div class="calendar-form">
+    <div class="calendar-form-header">
+        <h1 class="calendar-form-title">Instanzen von „{{ master_event.title }}“</h1>
+        <p class="calendar-form-subtitle text-muted mb-0">
+            {% if master_event.recurrence_type == 'daily' %}
+                Täglich
+            {% elif master_event.recurrence_type == 'weekly' %}
+                Wöchentlich
+            {% elif master_event.recurrence_type == 'monthly' %}
+                Monatlich
+            {% elif master_event.recurrence_type == 'yearly' %}
+                Jährlich
+            {% endif %}
+            {% if master_event.recurrence_end_date %}
+                – Endet am: {{ master_event.recurrence_end_date.strftime('%d.%m.%Y') }}
+            {% else %}
+                – Unbegrenzt
+            {% endif %}
+        </p>
     </div>
+
+    <section class="calendar-form-card" aria-labelledby="cal-recurring-list">
+        <div class="calendar-form-card-head">
+            <h2 id="cal-recurring-list" class="calendar-form-section-title">
+                <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                Instanzen
+            </h2>
+        </div>
+
+        {% if instances %}
+        <div class="table-responsive">
+            <table class="table table-hover mod-list-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Datum</th>
+                        <th>Uhrzeit</th>
+                        <th>Ort</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instance in instances %}
+                    <tr class="mod-list-row">
+                        <td>{{ instance.recurrence_sequence + 1 }}</td>
+                        <td>{{ instance.start_time.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ instance.start_time.strftime('%H:%M') }} – {{ instance.end_time.strftime('%H:%M') }} Uhr</td>
+                        <td>{{ instance.location or '—' }}</td>
+                        <td class="text-end mod-list-actions">
+                            <a href="{{ url_for('calendar.view_event', event_id=master_event.id) }}"
+                               class="btn btn-sm mod-pill-btn mod-pill-btn--outline">
+                                <i class="bi bi-eye" aria-hidden="true"></i>
+                                Anzeigen
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted mt-3 mb-0 px-1">
+            <small>Es werden die nächsten 2 Jahre angezeigt. Insgesamt {{ instances|length }} Instanz(en).</small>
+        </p>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            Keine Instanzen gefunden.
+        </div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
-
-

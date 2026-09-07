@@ -28,6 +28,8 @@ class AssessmentUser(UserMixin, db.Model):
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     theme_mode = db.Column(db.String(16), default="light", nullable=False)
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    failed_login_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)

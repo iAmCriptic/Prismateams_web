@@ -154,7 +154,7 @@
         <button class="btn mod-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
             <i class="bi bi-plus-lg me-2"></i> {{ _('files.index.new_button') }}
         </button>
-        <ul class="dropdown-menu files-sidebar-new-menu files-dropdown-menu" id="newDropdownMenuSidebar" style="display: none;">
+        <ul class="dropdown-menu files-sidebar-new-menu mod-dropdown-menu" id="newDropdownMenuSidebar" style="display: none;">
             <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</a></li>
             <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-cloud-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</a></li>
             <li><hr class="dropdown-divider"></li>
@@ -254,7 +254,7 @@
             <button class="btn mod-new-btn files-mobile-new-btn btn-sm" type="button" id="newButtonMobile">
                 <i class="bi bi-plus-lg"></i> {{ _('files.index.new_button') }}
             </button>
-            <ul class="dropdown-menu dropdown-menu-end files-mobile-new-menu files-dropdown-menu" id="newDropdownMenuMobile" style="display: none;">
+            <ul class="dropdown-menu dropdown-menu-end files-mobile-new-menu mod-dropdown-menu" id="newDropdownMenuMobile" style="display: none;">
                 <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</a></li>
                 <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-cloud-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</a></li>
                 <li><hr class="dropdown-divider"></li>
@@ -336,7 +336,7 @@
                     <button class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" type="button" id="newButton">
                         <i class="bi bi-plus-lg me-1"></i> {{ _('files.index.new_button') }}
                     </button>
-                    <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu" style="display: none;">
+                    <ul class="dropdown-menu mod-dropdown-menu" id="newDropdownMenu" style="display: none;">
                         <li>
                             <a class="dropdown-item" href="#" id="uploadFileMenuItem">
                                 <i class="bi bi-upload me-2"></i> {{ _('files.index.dropdown.upload_files') }}
@@ -389,7 +389,7 @@
 </div>
 
 <div class="context-menu-source d-none" id="files-browser-context-menu">
-    <ul class="dropdown-menu">
+    <ul class="dropdown-menu mod-dropdown-menu">
         <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</button></li>
         <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-cloud-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</button></li>
         <li><hr class="dropdown-divider"></li>
@@ -408,37 +408,37 @@
 <!-- ============================================ -->
 <!-- GRID VIEW - Ordner zuerst, dann Dateien (ein Grid) -->
 <!-- ============================================ -->
-<div id="filesBulkToolbar" class="files-bulk-bar mb-3" style="display: none;">
-    <div class="files-bulk-inner">
+<div id="filesBulkToolbar" class="mod-bulk-bar mb-3" style="display: none;">
+    <div class="mod-bulk-inner">
         <div>
             <span class="text-muted">
                 <strong id="filesBulkCount">0</strong> ausgewählt
             </span>
         </div>
-        <div class="files-bulk-actions">
-            <button type="button" id="filesBulkSelectAllBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Alle auswählen">
+        <div class="mod-bulk-actions">
+            <button type="button" id="filesBulkSelectAllBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline" title="Alle auswählen">
                 <i class="bi bi-check-square"></i> Alle
             </button>
-            <button type="button" id="filesBulkDeselectBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--muted" title="Auswahl aufheben">
+            <button type="button" id="filesBulkDeselectBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--muted" title="Auswahl aufheben">
                 <i class="bi bi-square"></i> Keine
             </button>
-            <button type="button" id="filesBulkZipBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Als ZIP herunterladen">
+            <button type="button" id="filesBulkZipBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline" title="Als ZIP herunterladen">
                 <i class="bi bi-file-earmark-zip"></i> ZIP
             </button>
             {% if files_sharing_enabled or files_dropbox_enabled %}
-            <button type="button" id="filesBulkShareBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Freigaben">
+            <button type="button" id="filesBulkShareBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline" title="Freigaben">
                 <i class="bi bi-share"></i> Freigeben
             </button>
             {% endif %}
             {% if not is_trash_view %}
-            <button type="button" id="filesBulkDeleteBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--danger" title="Löschen">
+            <button type="button" id="filesBulkDeleteBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--danger" title="Löschen">
                 <i class="bi bi-trash"></i> Löschen
             </button>
             {% else %}
-            <button type="button" id="filesBulkRestoreBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Wiederherstellen">
+            <button type="button" id="filesBulkRestoreBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline" title="Wiederherstellen">
                 <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
             </button>
-            <button type="button" id="filesBulkPurgeBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--danger" title="Endgültig löschen">
+            <button type="button" id="filesBulkPurgeBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--danger" title="Endgültig löschen">
                 <i class="bi bi-trash"></i> Endgültig
             </button>
             {% endif %}
@@ -494,24 +494,24 @@
             <div class="card folder-item h-100 files-drop-target files-draggable-item position-relative" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
                 {{ files_item_chips(folder=folder) }}
                 {% if not folder.is_personal_root|default(false) %}
-                <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
+                <label class="mod-select-check" onclick="event.stopPropagation()" title="Auswählen">
                     <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="folder" data-item-id="{{ folder.id }}">
                 </label>
                 {% endif %}
                 <div class="card-body d-flex flex-column">
-                    <div class="files-grid-preview text-center mb-3">
+                    <div class="mod-grid-preview text-center mb-3">
                         <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
                     </div>
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1 min-width-0">
-                            <h6 class="mb-1 files-item-name" data-rename-target="folder-{{ folder.id }}" title="{{ folder.name }}">{{ folder.name }}</h6>
+                            <h6 class="mb-1 mod-item-name" data-rename-target="folder-{{ folder.id }}" title="{{ folder.name }}">{{ folder.name }}</h6>
                         </div>
                         <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
                             <button type="button" class="btn btn-sm btn-link files-dnd-handle" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" title="{{ _('files.index.messages.drag_to_move') }}">
                                 <i class="bi bi-grip-vertical"></i>
                             </button>
                             {% if not is_trash_view %}
-                            <div class="files-grid-hover-actions">
+                            <div class="mod-grid-hover-actions">
                                 {% if files_dropbox_enabled or files_sharing_enabled %}
                                 <button type="button" class="btn btn-sm btn-link" title="Freigaben" onclick="openShareManagement('folder', {{ folder.id }}); return false;"><i class="bi bi-share"></i></button>
                                 {% endif %}
@@ -522,7 +522,7 @@
                                 <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                                 {% if files_dropbox_enabled or files_sharing_enabled %}
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="openShareManagement('folder', {{ folder.id }}); return false;">
@@ -648,12 +648,12 @@
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
                 {{ files_item_chips(file=file) }}
-                <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
+                <label class="mod-select-check" onclick="event.stopPropagation()" title="Auswählen">
                     <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="file" data-item-id="{{ file.id }}">
                 </label>
                 <div class="card-body d-flex flex-column">
                     <!-- File Preview/Icon -->
-                    <div class="files-grid-preview text-center mb-3">
+                    <div class="mod-grid-preview text-center mb-3">
                         {% set file_preview = file_preview_map.get(file.id) %}
                         {% set file_preview_html = file_preview_html_map.get(file.id) %}
                         {% if file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
@@ -696,8 +696,8 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1 min-width-0">
                             <div class="d-flex align-items-center gap-1 min-width-0 mb-1">
-                                <h6 class="mb-0 files-item-name" data-rename-target="file-{{ file.id }}" title="{{ file.name }}">{{ file.name }}</h6>
-                                <span class="files-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
+                                <h6 class="mb-0 mod-item-name" data-rename-target="file-{{ file.id }}" title="{{ file.name }}">{{ file.name }}</h6>
+                                <span class="mod-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
                             </div>
                             {% if file.version_number > 1 %}
                             <span class="badge bg-info">v{{ file.version_number }}</span>
@@ -708,7 +708,7 @@
                                 <i class="bi bi-grip-vertical"></i>
                             </button>
                             {% if not is_trash_view %}
-                            <div class="files-grid-hover-actions">
+                            <div class="mod-grid-hover-actions">
                                 <a class="btn btn-sm btn-link" href="{{ url_for('files.download_file', file_id=file.id) }}" title="{{ _('files.index.file_actions.download') }}"><i class="bi bi-download"></i></a>
                                 <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.file_actions.rename') }}" onclick='startInlineRename("file", {{ file.id }}, {{ file.name|tojson }}); return false;'><i class="bi bi-pencil"></i></button>
                                 {% if files_sharing_enabled %}
@@ -721,7 +721,7 @@
                                 <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                                 <li><a class="dropdown-item" href="{{ url_for('files.download_file', file_id=file.id) }}">
                                     <i class="bi bi-download me-2"></i> {{ _('files.index.file_actions.download') }}
                                 </a></li>
@@ -872,7 +872,7 @@
             <thead>
                 <tr>
                     <th scope="col">
-                        <span class="files-list-select-all-wrap" title="Alle auswählen">
+                        <span class="mod-list-select-all-wrap" title="Alle auswählen">
                             <input type="checkbox" class="form-check-input" id="filesSelectAllCheckbox" title="Alle auswählen">
                         </span>
                         {{ _('files.index.list.name') }}
@@ -889,14 +889,14 @@
                 {% set owner = users_by_id.get(folder.created_by) %}
                 {% set allow_internal_acl = files_view != 'public' and (folder.space|default('public')) != 'public' %}
                 <tr class="mod-list-row files-drop-target files-draggable-item" data-lazy-item draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
-                    <td class="files-list-name-cell">
+                    <td class="mod-list-name-cell">
                         {% if not folder.is_personal_root|default(false) %}
-                        <label class="files-select-check files-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
+                        <label class="mod-select-check mod-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
                             <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="folder" data-item-id="{{ folder.id }}">
                         </label>
                         {% endif %}
-                        <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="folder-{{ folder.id }}" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
-                            <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="files-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
+                        <a class="mod-list-name text-decoration-none mod-item-name" data-rename-target="folder-{{ folder.id }}" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
+                            <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="mod-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
                         </a>
                         {{ files_list_chips(folder=folder) }}
                     </td>
@@ -918,7 +918,7 @@
                             </div>
                             <div class="dropdown d-inline-block">
                                 <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'><i class="bi bi-three-dots-vertical"></i></button>
-                                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                                     {% if is_trash_view %}
                                     <li><form method="POST" action="{{ url_for('files.restore_folder_route', folder_id=folder.id) }}"><button class="dropdown-item" type="submit"><i class="bi bi-arrow-counterclockwise me-2"></i> {{ _('files.index.trash_actions.restore') }}</button></form></li>
                                     <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}"><input type="hidden" name="purge" value="1"><button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}</button></form></li>
@@ -954,14 +954,14 @@
                     {% set open_url = url_for('files.download_file', file_id=file.id) %}
                 {% endif %}
                 <tr class="mod-list-row files-draggable-item" data-lazy-item draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-search-name="{{ file.name|e }}" data-context-zone data-context-menu="dropdown">
-                    <td class="files-list-name-cell">
-                        <label class="files-select-check files-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
+                    <td class="mod-list-name-cell">
+                        <label class="mod-select-check mod-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
                             <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="file" data-item-id="{{ file.id }}">
                         </label>
-                        <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="file-{{ file.id }}" href="{{ open_url }}">
-                            {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="files-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
+                        <a class="mod-list-name text-decoration-none mod-item-name" data-rename-target="file-{{ file.id }}" href="{{ open_url }}">
+                            {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="mod-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
                         </a>
-                        <span class="files-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
+                        <span class="mod-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
                         {{ files_list_chips(file=file) }}
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
@@ -984,7 +984,7 @@
                             </div>
                             <div class="dropdown d-inline-block">
                                 <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'><i class="bi bi-three-dots-vertical"></i></button>
-                                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
                                     {% if is_trash_view %}
                                     <li><form method="POST" action="{{ url_for('files.restore_file_route', file_id=file.id) }}"><button class="dropdown-item" type="submit"><i class="bi bi-arrow-counterclockwise me-2"></i> {{ _('files.index.trash_actions.restore') }}</button></form></li>
                                     <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}"><input type="hidden" name="purge" value="1"><button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}</button></form></li>
@@ -2573,7 +2573,7 @@ function openFileDetails(fileId) {
                 content.innerHTML = `
                     <div class="mb-4">
                         <h6>${sideMenuLabels.info_title}</h6>
-                        <div class="files-details-card">
+                        <div class="mod-details-card">
                             <p><strong>${sideMenuLabels.info_labels.name}:</strong> ${file.name}</p>
                             <p><strong>${sideMenuLabels.info_labels.size}:</strong> ${file.size}</p>
                             <p><strong>${sideMenuLabels.info_labels.type}:</strong> ${file.type}</p>

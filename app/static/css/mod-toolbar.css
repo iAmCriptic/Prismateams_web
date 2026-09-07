@@ -1,12 +1,6 @@
 /* Shared module toolbars — search + actions row */
 
-.mod-toolbar,
-.email-list-toolbar,
-.kanban-toolbar,
-.protocols-workspace-toolbar,
-.surveys-workspace-toolbar,
-.media-jobs-toolbar,
-.dashboard-main-toolbar {
+.mod-toolbar {
     display: flex;
     align-items: center;
     gap: 0.5rem;

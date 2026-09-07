@@ -1628,6 +1628,11 @@
       "submit": "Присоединиться",
       "ended": "Эта встреча завершена."
     },
+    "call": {
+      "loading": "Загрузка встречи…",
+      "insecure_title": "Небезопасный контекст (HTTPS)",
+      "insecure_body": "Камера и микрофон не работают на http://IP. Используйте HTTPS (домен + сертификат) — иначе звонок остаётся чёрным."
+    },
     "chat": {
       "start": "Начать встречу"
     },
@@ -1641,7 +1646,7 @@
       "ended": "Эта встреча завершена.",
       "ended_ok": "Встреча завершена.",
       "not_configured": "MiroTalk не настроен. Укажите MIROTALK_URL в .env.",
-      "join_failed": "Не удалось присоединиться к встрече.",
+      "join_failed": "Не удалось войти. Проверьте MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD — они должны совпадать с .env MiroTalk.",
       "no_module": "Модуль встреч недоступен.",
       "chat_missing": "Чат не найден.",
       "not_chat_member": "Вы не участник этого чата.",

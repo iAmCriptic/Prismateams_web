@@ -49,8 +49,7 @@
             </div>
         </div>
         {% else %}
-        <div class="card dropbox-upload-card files-ext-panel">
-            <div class="card-body">
+        <div class="files-ext-panel dropbox-upload-card">
                 <h4 class="files-ext-title">{{ folder.name }}</h4>
                 <p class="files-ext-meta">Als Gast angemeldet: {{ guest_name }}</p>
 
@@ -59,7 +58,7 @@
                         <button class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" type="button" id="dropboxNewButton" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-plus-lg me-1"></i> Neu
                         </button>
-                        <ul class="dropdown-menu files-dropdown-menu">
+                        <ul class="dropdown-menu mod-dropdown-menu">
                             <li>
                                 <button type="button" class="dropdown-item" id="chooseFilesBtn">
                                     <i class="bi bi-upload me-2"></i>Dateien hochladen
@@ -150,7 +149,6 @@
                     {% endif %}
                 </div>
                 </div>
-            </div>
         </div>
         {% endif %}
     </div>

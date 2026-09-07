@@ -58,7 +58,7 @@
                     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">${menuHtml}</ul>
+                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">${menuHtml}</ul>
                 </div>
             </div>`;
     }
@@ -131,7 +131,7 @@
             if (bar) bar.hidden = selected.size === 0;
             if (countEl) countEl.textContent = String(selected.size);
             document.body.classList.toggle('assessment-has-selection', selected.size > 0);
-            document.body.classList.toggle('files-has-selection', selected.size > 0);
+            document.body.classList.toggle('mod-has-selection', selected.size > 0);
         }
 
         container.addEventListener('change', (e) => {

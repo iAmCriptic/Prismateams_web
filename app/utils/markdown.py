@@ -14,7 +14,7 @@ def _sanitize_markdown_html(html):
             'a', 'abbr', 'acronym', 'b', 'blockquote', 'br', 'code', 'dd', 'del', 'div',
             'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'kbd',
             'li', 'mark', 'ol', 'p', 'pre', 's', 'span', 'strong', 'sub', 'sup', 'table',
-            'tbody', 'td', 'th', 'thead', 'tr', 'ul', 'col', 'colgroup'
+            'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul', 'col', 'colgroup'
         }
         allowed_attributes = {
             '*': ['class', 'id'],

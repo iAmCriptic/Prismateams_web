@@ -41,7 +41,7 @@
         <form method="POST" class="contacts-form-body">
             {% include "contacts/_form.html" %}
             <div class="contacts-form-actions">
-                <button type="submit" class="btn btn-accent contacts-form-submit">
+                <button type="submit" class="btn btn-accent mod-pill-btn contacts-form-submit">
                     <i class="bi bi-save" aria-hidden="true"></i> {{ _('contacts.form.buttons.save') }}
                 </button>
                 <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary contacts-form-cancel">{{ _('contacts.form.buttons.cancel') }}</a>

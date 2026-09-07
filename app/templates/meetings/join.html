@@ -30,12 +30,27 @@
             {% endif %}
         </div>
     </div>
-    <iframe
-        class="meetings-call-frame"
-        allow="camera; microphone; speaker-selection; display-capture; fullscreen; clipboard-read; clipboard-write; web-share; autoplay; picture-in-picture"
-        src="{{ iframe_src }}"
-        title="{{ meeting.title }}">
-    </iframe>
+    <div id="meetingsInsecureBanner" class="meetings-call-banner d-none" role="alert">
+        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+        <div>
+            <strong>{{ _('meetings.call.insecure_title') }}</strong>
+            <span>{{ _('meetings.call.insecure_body') }}</span>
+        </div>
+    </div>
+    <div class="meetings-call-stage">
+        <div id="meetingsFrameLoading" class="meetings-call-loading" aria-live="polite">
+            <div class="spinner-border text-light" role="status"></div>
+            <span>{{ _('meetings.call.loading') }}</span>
+        </div>
+        <iframe
+            id="meetingsCallFrame"
+            class="meetings-call-frame"
+            allow="camera; microphone; display-capture; fullscreen; clipboard-read; clipboard-write; web-share; autoplay; picture-in-picture"
+            referrerpolicy="no-referrer-when-downgrade"
+            src="{{ iframe_src }}"
+            title="{{ meeting.title }}">
+        </iframe>
+    </div>
 </div>
 {% endblock %}
 
@@ -43,6 +58,22 @@
 <script>
 (function () {
     const btn = document.getElementById('meetingsCopyGuest');
+    const frame = document.getElementById('meetingsCallFrame');
+    const loading = document.getElementById('meetingsFrameLoading');
+    const insecure = document.getElementById('meetingsInsecureBanner');
+
+    if (insecure && (!window.isSecureContext || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia))) {
+        insecure.classList.remove('d-none');
+    }
+
+    function hideLoading() {
+        if (loading) loading.classList.add('is-done');
+    }
+    if (frame) {
+        frame.addEventListener('load', hideLoading);
+        setTimeout(hideLoading, 12000);
+    }
+
     if (!btn) return;
     function copyText(text, onOk) {
         if (!text) return;

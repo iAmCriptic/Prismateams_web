@@ -12,6 +12,7 @@ class StockManager {
         this.locations = new Set();
         this.lengths = new Set();
         this.purchaseYears = new Set();
+        this.owners = []; // [{id, label, type, key}]
         this.searchTimeout = null;
         this.selectedProducts = new Set(); // Verwaltet ausgewählte Produkt-IDs
         this.currentFolderId = null; // Aktueller Ordner (aus URL)
@@ -173,6 +174,7 @@ class StockManager {
                 this.locations.clear();
                 this.lengths.clear();
                 this.purchaseYears.clear();
+                this.owners = [];
                 
                 // Aktualisiere alle Filter-Sets mit Daten vom Server (nur für aktuellen Ordner)
                 if (filterData.categories && Array.isArray(filterData.categories)) {
@@ -214,6 +216,15 @@ class StockManager {
                         }
                     });
                 }
+
+                if (filterData.owners && Array.isArray(filterData.owners)) {
+                    this.owners = filterData.owners.map((o) => ({
+                        id: o.id,
+                        label: o.label,
+                        type: o.type,
+                        key: o.id != null ? `user:${o.id}` : `label:${(o.label || '').trim()}`,
+                    })).filter((o) => o.label);
+                }
                 
                 // Aktualisiere alle Filter-Dropdowns
                 this.updateCategories();
@@ -221,6 +232,7 @@ class StockManager {
                 this.updateLocations();
                 this.updateLengths();
                 this.updatePurchaseYears();
+                this.updateOwners();
                 
             } else {
                 console.warn('Fehler beim Laden der Filter-Optionen, verwende nur Optionen aus geladenen Produkten');
@@ -448,12 +460,35 @@ class StockManager {
             sortFn: (a, b) => (parseInt(String(b), 10) || 0) - (parseInt(String(a), 10) || 0),
         });
     }
+
+    updateOwners() {
+        const selects = this.getFilterEls('ownerFilter');
+        if (!selects.length) return;
+        const current = this.getFilterValue('ownerFilter') || '';
+        selects.forEach((select) => {
+            const placeholder = select.options[0]?.textContent || 'Alle Eigentümer';
+            select.innerHTML = '';
+            const opt0 = document.createElement('option');
+            opt0.value = '';
+            opt0.textContent = placeholder;
+            select.appendChild(opt0);
+            (this.owners || []).forEach((o) => {
+                const opt = document.createElement('option');
+                opt.value = o.key;
+                opt.textContent = o.label;
+                select.appendChild(opt);
+            });
+            if (current && Array.from(select.options).some((o) => o.value === current)) {
+                select.value = current;
+            }
+        });
+    }
     
     setupEventListeners() {
         const filterKeys = [
             'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
             'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
-            'serialPresenceFilter', 'dguvFilter',
+            'serialPresenceFilter', 'dguvFilter', 'ownerFilter',
         ];
 
         filterKeys.forEach((key) => {
@@ -559,6 +594,7 @@ class StockManager {
         const purchaseYear = this.getFilterValue('purchaseYearFilter') || '';
         const serialPresence = this.getFilterValue('serialPresenceFilter') || '';
         const dguv = this.getFilterValue('dguvFilter') || '';
+        const owner = this.getFilterValue('ownerFilter') || '';
         const favoritesOnly = this.getFilterValue('favoritesFilter') === 'favorites';
         const today = new Date().toISOString().slice(0, 10);
         
@@ -598,10 +634,21 @@ class StockManager {
                 || (dguv === 'due' && dguvDate && dguvDate <= today)
                 || (dguv === 'ok' && dguvDate && dguvDate > today)
                 || (dguv === 'none' && !dguvDate);
+
+            let matchesOwner = true;
+            if (owner) {
+                if (owner.startsWith('user:')) {
+                    matchesOwner = Number(p.owner_user_id) === Number(owner.slice(5));
+                } else if (owner.startsWith('label:')) {
+                    const want = owner.slice(6).trim().toLowerCase();
+                    const have = (p.owner_display || p.owner_label || '').trim().toLowerCase();
+                    matchesOwner = have === want;
+                }
+            }
             
             return matchesSearch && matchesFolder && matchesCategory && matchesStatus &&
                    matchesFavorites && matchesCondition && matchesLocation && matchesLength &&
-                   matchesPurchaseYear && matchesSerial && matchesDguv;
+                   matchesPurchaseYear && matchesSerial && matchesDguv && matchesOwner;
         });
         
         this.sortFilteredProducts();
@@ -617,6 +664,13 @@ class StockManager {
         
         // Seriennummer
         if (product.serial_number && product.serial_number.toLowerCase().includes(searchLower)) return true;
+
+        // Inventar-Nr. (eigene oder Portal PROD-{id})
+        const invDisplay = product.inventory_number_display
+            || product.external_barcode
+            || (product.id != null ? `PROD-${product.id}` : '');
+        if (invDisplay && String(invDisplay).toLowerCase().includes(searchLower)) return true;
+        if (product.external_barcode && product.external_barcode.toLowerCase().includes(searchLower)) return true;
         
         // Länge (z.B. "5m" findet "5m", "5 m", etc.)
         if (product.length && product.length.toLowerCase().includes(searchLower)) return true;
@@ -635,6 +689,10 @@ class StockManager {
         
         // Zustand
         if (product.condition && product.condition.toLowerCase().includes(searchLower)) return true;
+
+        // Eigentümer
+        const owner = product.owner_display || product.owner_label || '';
+        if (owner && String(owner).toLowerCase().includes(searchLower)) return true;
         
         return false;
     }
@@ -708,7 +766,7 @@ class StockManager {
         [
             'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
             'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
-            'serialPresenceFilter', 'dguvFilter',
+            'serialPresenceFilter', 'dguvFilter', 'ownerFilter',
         ].forEach((key) => this.setFilterValue(key, ''));
         this.loadProducts();
     }

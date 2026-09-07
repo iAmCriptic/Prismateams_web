@@ -264,11 +264,11 @@
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3 media-youtube-auth-bar" id="youtubeAuthBar">
         <span class="badge rounded-pill bg-secondary" id="youtubeAuthStatusSignedOut">{{ _('media_downloader.youtube_auth.signed_out') }}</span>
         <span class="badge rounded-pill bg-success d-none" id="youtubeAuthStatusSignedIn">{{ _('media_downloader.youtube_auth.signed_in') }}</span>
-        <button type="button" class="btn btn-accent rounded-pill btn-sm" id="youtubeSignInBtn">
+        <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--sm" id="youtubeSignInBtn">
             <span class="spinner-border spinner-border-sm me-1 d-none" data-yt-auth-spinner role="status" aria-hidden="true"></span>
             <span data-yt-auth-label><i class="bi bi-youtube me-1" aria-hidden="true"></i>{{ _('media_downloader.youtube_auth.sign_in') }}</span>
         </button>
-        <button type="button" class="btn btn-outline-secondary rounded-pill btn-sm d-none" id="youtubeSignOutBtn">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted mod-pill-btn--sm d-none" id="youtubeSignOutBtn">
             {{ _('media_downloader.youtube_auth.sign_out') }}
         </button>
         <div class="alert alert-danger py-2 px-3 mb-0 d-none w-100" id="youtubeAuthError" role="alert"></div>
@@ -409,7 +409,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-accent rounded-pill" id="downloadSubmitBtn">
+            <button type="submit" class="btn btn-accent mod-pill-btn" id="downloadSubmitBtn">
                 <i class="bi bi-download me-1"></i><span data-submit-label>{{ _('media_downloader.form.submit') }}</span>
             </button>
         </form>
@@ -417,7 +417,7 @@
 
     {# —— Jobs panel —— #}
     <div class="media-panel d-none" id="media-panel-jobs" data-media-panel="jobs" role="tabpanel" hidden>
-        <div class="media-jobs-toolbar">
+        <div class="mod-toolbar media-jobs-toolbar">
             <h2 class="h5 mb-0 mod-view-heading d-lg-none">
                 <i class="bi bi-list-ul" aria-hidden="true"></i>
                 <span>{{ _('media_downloader.jobs.title') }}</span>
@@ -477,7 +477,7 @@
                 <p class="mb-3">{{ _('media_downloader.youtube_auth.instructions') }}</p>
                 <p class="display-6 text-center fw-bold font-monospace mb-3" id="youtubeAuthUserCode"></p>
                 <div class="d-grid">
-                    <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-accent rounded-pill" id="youtubeAuthVerifyLink">
+                    <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-accent mod-pill-btn" id="youtubeAuthVerifyLink">
                         {{ _('media_downloader.youtube_auth.open_link') }}
                     </a>
                 </div>

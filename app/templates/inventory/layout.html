@@ -3,6 +3,10 @@
 {% block navbar_search %}{{ super() }}{% endblock %}
 
 {% set ep = request.endpoint or '' %}
+{% set inv_features = inventory_features|default({
+  'borrow': true, 'quick_scan': true, 'dguv': true,
+  'owners': true, 'accounting': true, 'stocktake': true
+}) %}
 {% set inv_nav = {
   'overview': ep == 'inventory.dashboard',
   'stock': ep.startswith('inventory.stock') or ep in (
@@ -65,11 +69,14 @@
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-clipboard2-pulse me-2"></i>{{ _('inventory.shell.nav.product_scan') }}
     </a>
+    {% if inv_features.quick_scan %}
     <a class="nav-link mod-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
        href="{{ url_for('inventory.borrow_scanner') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-qr-code-scan me-2"></i>{{ _('inventory.shell.nav.quick_scan') }}
     </a>
+    {% endif %}
+    {% if inv_features.borrow %}
     <a class="nav-link mod-nav-link {% if inv_nav.checkout %}active{% endif %}"
        href="{{ url_for('inventory.inventory_checkout') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
@@ -80,16 +87,19 @@
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-clock-history me-2"></i>{{ _('inventory.shell.nav.borrows') }}
     </a>
+    {% endif %}
     <a class="nav-link mod-nav-link {% if inv_nav.sets %}active{% endif %}"
        href="{{ url_for('inventory.sets') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-collection me-2"></i>{{ _('inventory.shell.nav.sets') }}
     </a>
+    {% if inv_features.stocktake %}
     <a class="nav-link mod-nav-link {% if inv_nav.inventory_tool %}active{% endif %}"
        href="{{ url_for('inventory.inventory_tool') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-clipboard2-check me-2"></i>{{ _('inventory.shell.nav.inventory_tool') }}
     </a>
+    {% endif %}
     <a class="nav-link mod-nav-link {% if inv_nav.print_qr %}active{% endif %}"
        href="{{ url_for('inventory.print_qr') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>

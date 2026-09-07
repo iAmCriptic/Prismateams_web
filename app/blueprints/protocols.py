@@ -42,6 +42,18 @@ from app.utils.module_visibility import (
 protocols_bp = Blueprint('protocols', __name__, url_prefix='/protocols')
 
 
+def sanitize_protocol_html(html: str) -> str:
+    """Sanitize Protocol-Editor-HTML (Stored-XSS-Schutz)."""
+    if not html:
+        return ''
+    try:
+        from app.utils.markdown import _sanitize_markdown_html
+        return _sanitize_markdown_html(html)
+    except Exception:
+        from markupsafe import escape
+        return str(escape(html))
+
+
 def _denied():
     flash(translate('visibility.flash.access_denied'), 'danger')
     return redirect(url_for('protocols.index'))
@@ -443,7 +455,7 @@ def edit_item(protocol_id, item_id):
         title = (request.form.get('title') or '').strip()
         if title:
             item.title = title[:500]
-        item.content_html = request.form.get('content_html') or ''
+        item.content_html = sanitize_protocol_html(request.form.get('content_html') or '')
         db.session.commit()
         action = (request.form.get('action') or 'save').strip()
         if action == 'finalize':
@@ -493,7 +505,7 @@ def autosave_item(protocol_id, item_id):
     if title:
         item.title = title[:500]
     if 'content_html' in data:
-        item.content_html = data.get('content_html') or ''
+        item.content_html = sanitize_protocol_html(data.get('content_html') or '')
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -511,6 +523,7 @@ def view(protocol_id):
         protocol=protocol,
         can_edit=can_edit,
         visibility_label=_visibility_label(protocol),
+        sanitize_protocol_html=sanitize_protocol_html,
         **_sidebar_context(),
     )
 

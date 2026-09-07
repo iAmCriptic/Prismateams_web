@@ -92,7 +92,7 @@
             selectAll.indeterminate = checked > 0 && checked < boxes.length;
         }
 
-        document.body.classList.toggle('files-has-selection', n > 0);
+        document.body.classList.toggle('mod-has-selection', n > 0);
     }
 
     function visibleCheckboxes() {
@@ -291,7 +291,7 @@
 
     function onCardClickCapture(e) {
         if (!selected.size) return;
-        if (e.target.closest('.files-item-checkbox, .files-select-check, .dropdown, button, .files-dnd-handle, input, textarea, form')) {
+        if (e.target.closest('.files-item-checkbox, .mod-select-check, .dropdown, button, .files-dnd-handle, input, textarea, form')) {
             return;
         }
         const card = e.target.closest('.card.file-item[data-item-type], .card.folder-item[data-item-type], tr.mod-list-row[data-item-type]');

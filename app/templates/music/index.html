@@ -43,7 +43,7 @@
                     <span>{{ _('music.common.title') }}</span>
                 </h1>
             </div>
-            <a href="{{ url_for('music.public_url_page') }}" class="btn music-public-url-pill music-public-url-pill--sm rounded-pill flex-shrink-0" target="_blank" rel="noopener">
+            <a href="{{ url_for('music.public_url_page') }}" class="btn mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm music-public-url-pill music-public-url-pill--sm flex-shrink-0" target="_blank" rel="noopener">
                 <i class="bi bi-link-45deg"></i>
             </a>
         </div>
@@ -55,13 +55,13 @@
             <span>{{ _('music.index.tabs.wishlist') }}</span>
         </h1>
         <div class="music-panel-actions">
-            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearWishlistBtn" onclick="clearWishlist()" {% if not wishes %}hidden{% endif %}>
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost music-clear-btn" id="musicClearWishlistBtn" onclick="clearWishlist()" {% if not wishes %}hidden{% endif %}>
                 <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.wishlist.clear') }}</span>
             </button>
-            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearQueueBtn" onclick="clearQueue()" hidden>
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost music-clear-btn" id="musicClearQueueBtn" onclick="clearQueue()" hidden>
                 <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.queue.clear') }}</span>
             </button>
-            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearPlayedBtn" onclick="clearPlayed()" hidden>
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost music-clear-btn" id="musicClearPlayedBtn" onclick="clearPlayed()" hidden>
                 <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.played.clear') }}</span>
             </button>
         </div>
@@ -84,13 +84,13 @@
                         <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
                     </div>
                     <div class="music-track-actions">
-                        <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
+                        <button class="btn btn-sm mod-pill-btn mod-pill-btn--success mod-pill-btn--icon" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
                             <i class="bi bi-arrow-up-circle"></i>
                         </button>
-                        <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
+                        <button class="btn btn-sm mod-pill-btn mod-pill-btn--accent mod-pill-btn--icon" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
                             <i class="bi bi-arrow-down-circle"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="markAsPlayed({{ wish.id }})" title="{{ _('music.index.wishlist.mark_played') }}">
+                        <button class="btn btn-sm mod-pill-btn mod-pill-btn--danger mod-pill-btn--icon" onclick="markAsPlayed({{ wish.id }})" title="{{ _('music.index.wishlist.mark_played') }}">
                             <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
@@ -128,7 +128,7 @@
                         <span class="badge bg-{{ 'success' if entry.wish.provider == 'spotify' else 'danger' }} provider-badge">{{ entry.wish.provider }}</span>
                     </div>
                     <div class="music-track-actions">
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue({{ entry.id }})" title="{{ _('music.index.queue.remove') }}">
+                        <button class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger mod-pill-btn--icon" onclick="removeFromQueue({{ entry.id }})" title="{{ _('music.index.queue.remove') }}">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>

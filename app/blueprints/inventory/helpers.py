@@ -19,7 +19,7 @@ from app.utils.lengths import normalize_length_input, parse_length_to_meters
 from app.utils.dates import compute_dguv_next
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, distinct
 from sqlalchemy.orm import joinedload, selectinload
 import os
 import secrets
@@ -40,7 +40,9 @@ from app.blueprints.inventory._bp import (
 
 @inventory_bp.context_processor
 def inject_inventory_trash_folder():
-    """Papierkorb für Sidebar-Footer und Templates bereitstellen."""
+    """Papierkorb, Feature-Flags und Templates-Kontext bereitstellen."""
+    from app.utils.inventory_features import inventory_feature_flags
+
     folder = _get_retired_folder(create=False)
     if not folder:
         try:
@@ -56,11 +58,21 @@ def inject_inventory_trash_folder():
     except RuntimeError:
         view_folder_id = None
     trash_url = url_for('inventory.stock', folder_id=folder.id) if folder else None
-    return {
+    features = inventory_feature_flags()
+    ctx = {
         'inventory_trash_folder': folder,
         'inventory_trash_url': trash_url,
         'is_inventory_trash_view': bool(folder and view_folder_id and int(view_folder_id) == int(folder.id)),
+        'inventory_features': features,
+        'owner_suggestions': [],
     }
+    try:
+        ep = request.endpoint or ''
+        if features.get('owners') and ep in ('inventory.product_new', 'inventory.product_edit'):
+            ctx['owner_suggestions'] = owner_suggestion_payload()
+    except Exception:
+        pass
+    return ctx
 
 
 def _flash_checkout_receipt_email(checkout):
@@ -556,18 +568,107 @@ def _apply_dguv_from_form(product, form, *, next_equals_created_if_no_last=False
     )
 
 
+def inventory_number_display(product) -> str:
+    """Anzeige-Inventar-Nr.: eigene Etiketten-Nr. oder Portal-Code PROD-{id}."""
+    code = getattr(product, 'external_barcode', None)
+    if code and str(code).strip():
+        return str(code).strip()
+    pid = getattr(product, 'id', None)
+    if pid is not None:
+        return f'PROD-{int(pid)}'
+    return ''
+
+
+def product_owner_display(product) -> str | None:
+    """Lesbarer Eigentümer-Text für Listen/Detail."""
+    label = (getattr(product, 'owner_label', None) or '').strip()
+    if label:
+        return label
+    owner = getattr(product, 'owner_user', None)
+    if owner is not None:
+        return owner.full_name
+    return None
+
+
+def _apply_owner_from_form(product, form):
+    """Setzt owner_user_id / owner_label aus Formularfeldern."""
+    raw_user_id = (form.get('owner_user_id') or '').strip()
+    raw_label = (form.get('owner_label') or form.get('owner_input') or '').strip()
+    owner_user_id = None
+    if raw_user_id.isdigit():
+        uid = int(raw_user_id)
+        user = User.query.filter_by(id=uid, is_active=True).first()
+        if user and not getattr(user, 'is_guest', False):
+            owner_user_id = user.id
+            if not raw_label:
+                raw_label = user.full_name
+    product.owner_user_id = owner_user_id
+    product.owner_label = raw_label or None
+
+
+def _apply_owner_from_data(product, data: dict):
+    """Setzt Eigentümer aus JSON/API-Payload."""
+    raw_user_id = data.get('owner_user_id')
+    raw_label = data.get('owner_label')
+    if raw_label is None:
+        raw_label = data.get('owner_input')
+    raw_label = (str(raw_label).strip() if raw_label is not None else '')
+    owner_user_id = None
+    if raw_user_id is not None and str(raw_user_id).strip().isdigit():
+        uid = int(raw_user_id)
+        user = User.query.filter_by(id=uid, is_active=True).first()
+        if user and not getattr(user, 'is_guest', False):
+            owner_user_id = user.id
+            if not raw_label:
+                raw_label = user.full_name
+    product.owner_user_id = owner_user_id
+    product.owner_label = raw_label or None
+
+
+def owner_suggestion_payload():
+    """Portalnutzer + bisherige Freitext-Labels für Combobox/Filter."""
+    users = (
+        User.query.filter_by(is_active=True, is_guest=False)
+        .order_by(User.last_name, User.first_name)
+        .all()
+    )
+    user_items = [
+        {'id': u.id, 'label': u.full_name, 'type': 'user'}
+        for u in users
+    ]
+    labels = (
+        db.session.query(distinct(Product.owner_label))
+        .filter(Product.owner_label.isnot(None), Product.owner_label != '')
+        .all()
+    )
+    user_names = {u['label'].casefold() for u in user_items}
+    free_labels = sorted(
+        {lab[0].strip() for lab in labels if lab[0] and lab[0].strip() and lab[0].strip().casefold() not in user_names},
+        key=lambda s: s.casefold(),
+    )
+    free_items = [{'id': None, 'label': lab, 'type': 'label'} for lab in free_labels]
+    return user_items + free_items
+
+
 def _product_extra_fields(p):
+    display = inventory_number_display(p)
+    owner_label = product_owner_display(p)
     return {
         'weight_kg': p.weight_kg,
         'width_cm': p.width_cm,
         'height_cm': p.height_cm,
         'depth_cm': p.depth_cm,
-        'purchase_price': p.purchase_price,
-        'replacement_value': p.replacement_value,
+        'purchase_price': float(p.purchase_price) if p.purchase_price is not None else None,
+        'replacement_value': float(p.replacement_value) if p.replacement_value is not None else None,
         'dguv_last_check': p.dguv_last_check.isoformat() if p.dguv_last_check else None,
         'dguv_next_check': p.dguv_next_check.isoformat() if p.dguv_next_check else None,
         'dguv_interval_months': p.dguv_interval_months,
         'external_barcode': p.external_barcode,
+        'inventory_number_display': display,
+        'inventory_number_is_portal': not bool(p.external_barcode and str(p.external_barcode).strip()),
+        'owner_user_id': p.owner_user_id,
+        'owner_label': p.owner_label,
+        'owner_display': owner_label,
     }
 
 

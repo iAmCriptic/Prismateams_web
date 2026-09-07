@@ -1230,6 +1230,16 @@ def admin_inventory_settings():
     if not current_user.is_admin:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
+
+    from app.utils.inventory_features import (
+        FEATURE_KEYS,
+        is_inventory_accounting_enabled,
+        is_inventory_borrow_enabled,
+        is_inventory_dguv_enabled,
+        is_inventory_owners_enabled,
+        is_inventory_quick_scan_enabled,
+        is_inventory_stocktake_enabled,
+    )
     
     if request.method == 'POST':
         ownership_text = request.form.get('ownership_text', '').strip()
@@ -1245,6 +1255,10 @@ def admin_inventory_settings():
                 description='Text der auf öffentlichen Produktseiten angezeigt wird'
             )
             db.session.add(ownership_setting)
+
+        for key in FEATURE_KEYS:
+            enabled = request.form.get(key) == 'on'
+            _upsert_bool_setting(key, enabled)
         
         db.session.commit()
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_inventory_settings')
@@ -1253,7 +1267,16 @@ def admin_inventory_settings():
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
     ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
     
-    return render_template('settings/admin_inventory_settings.html', ownership_text=ownership_text)
+    return render_template(
+        'settings/admin_inventory_settings.html',
+        ownership_text=ownership_text,
+        inventory_borrow_enabled=is_inventory_borrow_enabled(),
+        inventory_quick_scan_enabled=is_inventory_quick_scan_enabled(),
+        inventory_dguv_enabled=is_inventory_dguv_enabled(),
+        inventory_owners_enabled=is_inventory_owners_enabled(),
+        inventory_accounting_enabled=is_inventory_accounting_enabled(),
+        inventory_stocktake_enabled=is_inventory_stocktake_enabled(),
+    )
 
 
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])

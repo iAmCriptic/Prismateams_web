@@ -383,7 +383,7 @@
         <div class="form-text">{{ _('email.index.folder_create.hint') }}</div>
         <div class="email-folder-form-error text-danger small mb-2" role="alert" hidden></div>
         <div class="email-folder-inline-actions">
-            <button type="submit" class="btn btn-sm btn-accent email-folder-inline-submit">
+            <button type="submit" class="btn btn-sm btn-accent mod-pill-btn email-folder-inline-submit">
                 <i class="bi bi-check2 me-1" aria-hidden="true"></i>{{ _('email.index.folder_create.submit') }}
             </button>
             <button type="button" class="btn btn-sm email-folder-inline-cancel" data-action="close-folder-create">{{ _('email.index.buttons.cancel') }}</button>
@@ -565,7 +565,7 @@
     </div>
 
     <div class="mod-main email-main-content">
-        <div class="email-list-toolbar mb-3">
+        <div class="mod-toolbar email-list-toolbar mb-3">
             <h4 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
         </div>
         <div class="card">
@@ -610,12 +610,12 @@
         <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
             {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
             {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
-            <button type="submit" class="btn btn-outline-accent sync-btn">
+            <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline sync-btn">
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
                 <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
             </button>
         </form>
-        <a href="{{ url_for('email.compose') }}" class="btn btn-accent">
+        <a href="{{ url_for('email.compose') }}" class="btn btn-accent mod-pill-btn">
             <i class="bi bi-pencil-square"></i> {{ _('email.index.buttons.compose') }}
         </a>
     </div>
@@ -624,7 +624,7 @@
 <!-- Mid-desktop email list (md to xl) -->
 <div class="d-none d-lg-block d-xl-none">
     <div class="card">
-        <div class="card-header email-list-toolbar">
+        <div class="card-header mod-toolbar email-list-toolbar">
             <h5 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
         </div>
         <div class="card-body p-0">

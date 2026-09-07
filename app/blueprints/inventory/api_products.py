@@ -276,6 +276,8 @@ def api_product_create():
         external_barcode=external_barcode,
         created_by=current_user.id
     )
+    if any(k in data for k in ('owner_user_id', 'owner_label', 'owner_input')):
+        _apply_owner_from_data(product, data)
 
     db.session.add(product)
     db.session.flush()  # ID nötig für QR-URL
@@ -334,6 +336,8 @@ def api_product_update(product_id):
             product.purchase_date = datetime.strptime(data['purchase_date'], '%Y-%m-%d').date()
         else:
             product.purchase_date = None
+    if any(k in data for k in ('owner_user_id', 'owner_label', 'owner_input')):
+        _apply_owner_from_data(product, data)
     if 'status' in data:
         from app.services.inventory import LifecycleService
         status_value = (data.get('status') or '').strip()
@@ -955,6 +959,12 @@ def api_filter_options():
             key=lambda x: int(x) if x.isdigit() else 0,
             reverse=True
         )
+
+        owners = []
+        try:
+            owners = owner_suggestion_payload()
+        except Exception as owner_exc:
+            current_app.logger.warning(f'Owner-Filter-Optionen: {owner_exc}')
         
         folder_info = f"Ordner {folder_id_param}" if folder_id_param is not None else "alle Ordner"
         current_app.logger.debug(f"Filter-Optionen extrahiert für {folder_info}: {len(categories)} Kategorien, {len(conditions)} Zustände, {len(locations)} Lagerorte, {len(lengths)} Längen, {len(purchase_years)} Jahre")
@@ -964,7 +974,8 @@ def api_filter_options():
             'conditions': conditions,
             'locations': locations,
             'lengths': lengths,
-            'purchase_years': purchase_years
+            'purchase_years': purchase_years,
+            'owners': owners,
         })
     except Exception as e:
         current_app.logger.error(f"Fehler beim Abrufen der Filter-Optionen: {e}", exc_info=True)

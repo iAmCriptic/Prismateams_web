@@ -370,7 +370,7 @@ body.assessment-scope-solo .mod-sidebar {
 
 /* Kein Dateien-Flex-Collapse: Namen + 3-Punkte sichtbar */
 
-.assessment-page .mod-list-table td.files-list-name-cell,
+.assessment-page .mod-list-table td.mod-list-name-cell,
 .assessment-page .mod-list-table td:first-child {
     display: table-cell !important;
     max-width: 0;

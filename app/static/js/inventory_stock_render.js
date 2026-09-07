@@ -147,7 +147,7 @@ Object.assign(StockManager.prototype, {
             ? `<span class="badge bg-info-subtle text-dark ms-2">Bestand: ${this.escapeHtml(String(product.available ?? 0))}</span>`
             : '';
 
-        const hoverBorrow = (!this.isRetiredFolderView && isBorrowable)
+        const hoverBorrow = (!this.isRetiredFolderView && isBorrowable && window.INVENTORY_FEATURES?.borrow !== false)
             ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
             : '';
 
@@ -222,7 +222,7 @@ Object.assign(StockManager.prototype, {
         }
         let items = '';
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${id});}"><i class="bi bi-eye me-2"></i>Ansehen</button></li>`;
-        if (this.isProductBorrowable(product)) {
+        if (this.isProductBorrowable(product) && window.INVENTORY_FEATURES?.borrow !== false) {
             items += `<li><a class="dropdown-item" href="/inventory/products/${id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>`;
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
@@ -366,7 +366,7 @@ Object.assign(StockManager.prototype, {
                <div class="inventory-product-preview-fallback" style="display: none;"><i class="bi bi-box-seam"></i></div>`
             : `<div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div>`;
 
-        const hoverBorrow = isBorrowable
+        const hoverBorrow = (isBorrowable && window.INVENTORY_FEATURES?.borrow !== false)
             ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
             : '';
 
@@ -503,7 +503,7 @@ Object.assign(StockManager.prototype, {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                 <h4 class="mb-0">${this.escapeHtml(product.name)}</h4>
                                 ${statusBadge}
-                                ${dguvDue ? '<span class="badge bg-danger">DGUV fällig</span>' : ''}
+                                ${(window.INVENTORY_FEATURES?.dguv !== false) && dguvDue ? '<span class="badge bg-danger">DGUV fällig</span>' : ''}
                             </div>
                             <div class="text-muted small mb-2">${val(product.category)}</div>
                             ${this.isValidValue(product.description) ? `<p class="mb-0">${this.escapeHtml(product.description)}</p>` : ''}
@@ -516,8 +516,22 @@ Object.assign(StockManager.prototype, {
                         <h2 class="inventory-form-section-title"><i class="bi bi-info-circle"></i> Stammdaten</h2>
                     </div>
                     <div class="inventory-detail-list">
-                        ${product.external_barcode ? row('Inventar-Nr.', `<strong>${val(product.external_barcode)}</strong>`) : ''}
+                        ${(() => {
+                            const invNo = product.inventory_number_display
+                                || product.external_barcode
+                                || (product.id != null ? `PROD-${product.id}` : '');
+                            const isPortal = product.inventory_number_is_portal
+                                ?? !(product.external_barcode && String(product.external_barcode).trim());
+                            const invHtml = `<strong>${this.escapeHtml(String(invNo || '—'))}</strong>`
+                                + (isPortal && invNo
+                                    ? ` <span class="text-muted small">(Portal)</span>`
+                                    : '');
+                            return row('Inventar-Nr.', invHtml);
+                        })()}
                         ${row('Seriennummer', val(product.serial_number))}
+                        ${(window.INVENTORY_FEATURES?.owners !== false)
+                            ? row('Eigentümer', val(product.owner_display || product.owner_label))
+                            : ''}
                         ${row('Lagerort', val(product.location))}
                         ${row('Zustand', val(product.condition))}
                         ${row('Länge', val(product.length))}
@@ -528,6 +542,7 @@ Object.assign(StockManager.prototype, {
                     </div>
                 </section>
 
+                ${(window.INVENTORY_FEATURES?.dguv !== false) ? `
                 <section class="inventory-form-card">
                     <div class="inventory-form-card-head">
                         <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> DGUV-Prüfung</h2>
@@ -537,17 +552,26 @@ Object.assign(StockManager.prototype, {
                         ${row('Intervall', this.escapeHtml(dguvInterval))}
                         ${row('Nächste Prüfung', dguvDue ? `<span class="text-danger fw-semibold">${dguvNext}</span>` : dguvNext)}
                     </div>
-                </section>
+                </section>` : ''}
 
-                ${(product.purchase_date || product.purchase_price != null || product.replacement_value != null || product.weight_kg != null || dims) ? `
+                ${(window.INVENTORY_FEATURES?.accounting !== false) && (product.purchase_date || product.purchase_price != null || product.replacement_value != null) ? `
                 <section class="inventory-form-card">
                     <div class="inventory-form-card-head">
-                        <h2 class="inventory-form-section-title"><i class="bi bi-clipboard-data"></i> Weitere Angaben</h2>
+                        <h2 class="inventory-form-section-title"><i class="bi bi-cash-coin"></i> Buchhaltung</h2>
                     </div>
                     <div class="inventory-detail-list">
-                        ${product.purchase_date ? row('Anschaffung', this.formatDateDe(product.purchase_date)) : ''}
-                        ${product.purchase_price != null ? row('Kaufpreis', this.escapeHtml(String(product.purchase_price))) : ''}
-                        ${product.replacement_value != null ? row('Wiederbeschaffung', this.escapeHtml(String(product.replacement_value))) : ''}
+                        ${row('Anschaffung', product.purchase_date ? this.formatDateDe(product.purchase_date) : '—')}
+                        ${row('Kaufpreis', product.purchase_price != null ? this.escapeHtml(String(product.purchase_price)) : '—')}
+                        ${row('Wiederbeschaffung', product.replacement_value != null ? this.escapeHtml(String(product.replacement_value)) : '—')}
+                    </div>
+                </section>` : ''}
+
+                ${(product.weight_kg != null || dims) ? `
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-rulers"></i> Maße</h2>
+                    </div>
+                    <div class="inventory-detail-list">
                         ${product.weight_kg != null ? row('Gewicht', `${this.escapeHtml(String(product.weight_kg))} kg`) : ''}
                         ${dims ? row('Abmessungen', this.escapeHtml(dims)) : ''}
                     </div>
@@ -567,7 +591,7 @@ Object.assign(StockManager.prototype, {
                         <h2 class="inventory-form-section-title"><i class="bi bi-lightning"></i> Aktionen</h2>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        ${product.status === 'available'
+                        ${(window.INVENTORY_FEATURES?.borrow !== false) && product.status === 'available'
                             ? `<a href="/inventory/products/${product.id}/borrow" class="btn mod-pill-btn mod-pill-btn--primary">Ausleihen</a>`
                             : ''}
                         <a href="/inventory/products/${product.id}/edit" class="btn mod-pill-btn mod-pill-btn--outline">Bearbeiten</a>

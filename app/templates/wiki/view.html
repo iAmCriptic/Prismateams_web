@@ -59,7 +59,7 @@
                     <button class="btn btn-outline-secondary mod-pill-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mehr">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
+                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu wiki-pill-dropdown">
                         <li>
                             <a class="dropdown-item" href="#" id="toggle-favorite-btn" data-page-id="{{ page.id }}">
                                 <i class="bi bi-star" id="favorite-icon"></i>
@@ -128,7 +128,7 @@
         <div class="side-menu-content" id="wikiHistoryContent">
             <div class="mb-4">
                 <h6>{{ _('wiki.history.info_title') }}</h6>
-                <div class="files-details-card">
+                <div class="mod-details-card">
                     <p><strong>{{ _('wiki.history.info_labels.title') }}:</strong> {{ page.title }}</p>
                     <p><strong>{{ _('wiki.history.info_labels.author') }}:</strong> {{ page.creator.full_name if page.creator else '—' }}</p>
                     <p><strong>{{ _('wiki.history.info_labels.updated') }}:</strong> {{ page.updated_at|localdatetime('%d.%m.%Y %H:%M') }}</p>

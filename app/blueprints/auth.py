@@ -98,13 +98,20 @@ def _clear_pending_2fa_login():
 
 
 def _login_2fa_template_context(user, has_passkeys):
+    from flask import current_app
+
+    email_recovery_enabled = bool(
+        current_app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED', True)
+    )
     recovery_pending = bool(
-        user.totp_recovery_code
+        email_recovery_enabled
+        and user.totp_recovery_code
         and user.totp_recovery_code_expires
         and portal_now_naive() <= user.totp_recovery_code_expires
     )
     return {
         'has_passkeys': has_passkeys,
+        'email_recovery_enabled': email_recovery_enabled,
         'recovery_code_pending': recovery_pending,
         **_auth_template_kwargs(),
     }
@@ -459,7 +466,23 @@ def login():
             from app.models.assessment import AssessmentUser
 
             assessment_user = AssessmentUser.query.filter_by(username=login_input.lower()).first()
+
+            if assessment_user and assessment_user.failed_login_until and datetime.utcnow() < assessment_user.failed_login_until:
+                remaining_seconds = int(
+                    (assessment_user.failed_login_until - datetime.utcnow()).total_seconds()
+                )
+                flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
+                return render_template('auth/login.html', **_auth_template_kwargs())
+
             if not assessment_user or not assessment_user.check_password(password):
+                if assessment_user:
+                    assessment_user.failed_login_attempts = (
+                        assessment_user.failed_login_attempts or 0
+                    ) + 1
+                    if assessment_user.failed_login_attempts >= 5:
+                        assessment_user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                        assessment_user.failed_login_attempts = 0
+                    db.session.commit()
                 flash('Ungültiger Benutzername oder Passwort.', 'danger')
                 return render_template('auth/login.html', **_auth_template_kwargs())
 
@@ -467,6 +490,8 @@ def login():
                 flash('Konto ist deaktiviert.', 'warning')
                 return render_template('auth/login.html', **_auth_template_kwargs())
 
+            assessment_user.failed_login_attempts = 0
+            assessment_user.failed_login_until = None
             assessment_user.last_login = datetime.utcnow()
             db.session.commit()
             from app.utils.session_manager import start_assessment_session
@@ -858,8 +883,12 @@ def login_2fa():
 
         verified = verify_totp(user.totp_secret, totp_code)
         if not verified:
-            from app.utils.email_sender import verify_and_consume_2fa_recovery_code
-            verified = verify_and_consume_2fa_recovery_code(user, totp_code)
+            from app.utils.email_sender import (
+                is_2fa_email_recovery_enabled,
+                verify_and_consume_2fa_recovery_code,
+            )
+            if is_2fa_email_recovery_enabled():
+                verified = verify_and_consume_2fa_recovery_code(user, totp_code)
 
         if not verified:
             user.failed_login_attempts += 1
@@ -888,10 +917,18 @@ def login_2fa():
 def login_2fa_recovery():
     """Sendet einen 2FA-Wiederherstellungscode per E-Mail (5 Min. gültig)."""
     import time
-    from app.utils.email_sender import send_2fa_recovery_email, _mail_configured
+    from app.utils.email_sender import (
+        send_2fa_recovery_email,
+        _mail_configured,
+        is_2fa_email_recovery_enabled,
+    )
 
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
+
+    if not is_2fa_email_recovery_enabled():
+        flash(translate('auth.flash.2fa_recovery_disabled'), 'warning')
+        return redirect(url_for('auth.login_2fa'))
 
     pending_user_id = session.get('pending_2fa_user_id')
     if not pending_user_id:

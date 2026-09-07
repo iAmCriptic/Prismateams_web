@@ -13,7 +13,7 @@
   <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
-  <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+  <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
     <li>
       <a class="dropdown-item" href="{{ url_for('kanban.api_export_board', board_id=b.id, format='json') }}" onclick="event.stopPropagation();">
         <i class="bi bi-download me-2"></i>{{ _('kanban.export.json') }}
@@ -65,7 +65,7 @@
        data-href="{{ board_url }}"
        onclick="location.href=this.dataset.href;">
     <div class="card-body d-flex flex-column">
-      <div class="files-grid-preview text-center mb-3 kanban-grid-cover" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
+      <div class="mod-grid-preview text-center mb-3 kanban-grid-cover" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
         {% set cover_url = kanban_board_cover_url(b) %}
         {% if cover_url %}
         <img src="{{ cover_url }}" alt="" class="kanban-grid-cover__img" data-board-cover-img="{{ b.id }}">
@@ -75,12 +75,12 @@
       </div>
       <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
         <div class="flex-grow-1 min-width-0">
-          <h6 class="mb-1 files-item-name" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
+          <h6 class="mb-1 mod-item-name" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
           <div class="small text-muted">{{ _('kanban.index.vis_' + b.visibility) }}{% if b.team %} · {{ b.team.name }}{% endif %}</div>
         </div>
         <div class="d-flex align-items-start gap-1 kanban-board-actions" onclick="event.stopPropagation();">
           {% if manage %}
-          <div class="files-grid-hover-actions">
+          <div class="mod-grid-hover-actions">
             <a class="btn btn-sm btn-link" href="{{ board_url }}?share=1" title="{{ _('kanban.board.share') }}" onclick="event.stopPropagation(); return true;"><i class="bi bi-share"></i></a>
             <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
                     data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
@@ -98,10 +98,10 @@
 {% macro board_list_row(b) %}
 {% set manage = b.id in manageable_ids %}
 <tr class="mod-list-row" data-board-wrapper="{{ b.id }}">
-  <td class="files-list-name-cell">
-    <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
+  <td class="mod-list-name-cell">
+    <a class="mod-list-name text-decoration-none mod-item-name" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
-      <span class="files-item-name-text" title="{{ b.title }}">{{ b.title }}</span>
+      <span class="mod-item-name-text" title="{{ b.title }}">{{ b.title }}</span>
     </a>
   </td>
   <td class="d-none d-md-table-cell text-muted">{{ _('kanban.index.vis_' + b.visibility) }}</td>
@@ -160,9 +160,9 @@
       <button type="button" class="btn mod-pill-btn mod-pill-btn--new mod-pill-btn--accent btn-accent" data-bs-toggle="modal" data-bs-target="#createBoardModal"><i class="bi bi-plus-lg"></i></button>
     </div>
 
-    <div class="page-toolbar-row kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="page-toolbar-row mod-toolbar kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
       <h1 class="h4 mb-0 d-none d-lg-block">{{ _('kanban.index.title') }}</h1>
-      <div class="kanban-toolbar-actions ms-auto">
+      <div class="mod-toolbar-actions kanban-toolbar-actions ms-auto">
         <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
           <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
           <button type="button" class="mod-view-toggle__btn" id="kanbanListViewBtn" title="{{ _('kanban.index.list_view') }}">

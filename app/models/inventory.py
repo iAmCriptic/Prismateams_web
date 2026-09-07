@@ -59,6 +59,9 @@ class Product(db.Model):
     dguv_interval_months = db.Column(db.Integer, nullable=True)
     external_barcode = db.Column(db.String(100), nullable=True, index=True)
     damage_image_path = db.Column(db.String(500), nullable=True)
+    # Eigentümer: Portalnutzer und/oder Freitext-Label (Vorschläge aus bestehenden Labels)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    owner_label = db.Column(db.String(255), nullable=True)
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -66,6 +69,7 @@ class Product(db.Model):
     
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
+    owner_user = db.relationship('User', foreign_keys=[owner_user_id])
     folder = db.relationship('ProductFolder', back_populates='products')
     borrow_transactions = db.relationship('BorrowTransaction', back_populates='product', cascade='all, delete-orphan')
     checkout_items = db.relationship('CheckoutItem', back_populates='product', cascade='all, delete-orphan')

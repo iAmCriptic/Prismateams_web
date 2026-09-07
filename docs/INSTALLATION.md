@@ -337,7 +337,8 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        # An öffentliche Meet-URL koppeln (http oder https) — nicht Client-Header
+        proxy_set_header X-Forwarded-Proto http;
         proxy_read_timeout 86400s;
         proxy_buffering off;
     }
@@ -361,11 +362,16 @@ MIROTALK_HOST_USER=portal
 MIROTALK_HOST_PASSWORD=SICHERES-PASSWORT
 ```
 
+Diese sechs Werte schreibt das Installationsskript bei `--mirotalk` automatisch in die Portal-`.env` (API-Key und Host-Passwort identisch zu `/var/lib/mirotalk-sfu/.env`).
 **Hinweise:**
 
 - `SFU_ANNOUNCED_IP` muss die **öffentliche IPv4** (oder der Hostname) sein, sonst scheitert ICE/WebRTC hinter NAT
+- **LAN / nur IP ohne DNS:** kein `meet.192.168.…` — Browser braucht Hosts-Datei. Stattdessen `SERVER_HOST_URL`/`MIROTALK_URL=http://SERVER-IP:3010`, Container auf `0.0.0.0:3010`, Firewall `3010/tcp` + Medienports, `SFU_ANNOUNCED_IP=SERVER-IP` (LAN)
+- **HTTPS Pflicht für Kamera/Mikrofon:** unter `http://IP` ist kein Secure Context — Browser setzen `mediaDevices` außer Kraft (Blackscreen). Produktion: Domain + Let's Encrypt für Portal und `meet.`
+- Portal-`.env` und `/var/lib/mirotalk-sfu/.env` müssen dieselben Secrets teilen: `MIROTALK_API_KEY`=`API_KEY_SECRET`, `MIROTALK_HOST_USER`/`PASSWORD`=`HOST_USERS` — sonst nur „Waiting for host…“
 - `ALLOWED_EMBED_ORIGINS` = Portal-Origin, damit der Call im Iframe läuft
 - Kein `X-Frame-Options SAMEORIGIN` auf dem meet.-vHost setzen
+- Am Proxy `X-Forwarded-Proto` an die öffentliche Meet-URL koppeln (nicht blind Client-Header), sonst erzeugt MiroTalk oft `https://…`-Join-Links unter HTTP
 - Image und Docs: https://hub.docker.com/r/mirotalk/sfu · https://docs.mirotalk.com/mirotalk-sfu/self-hosting/
 
 ### Schritt 7: Konfiguration (.env-Datei)
@@ -401,6 +407,9 @@ EXCALIDRAW_ENABLED=True
 MIROTALK_ENABLED=True
 MIROTALK_URL=https://meet.example.com
 MIROTALK_API_URL=http://127.0.0.1:3010
+MIROTALK_API_KEY=SICHERER-API-KEY
+MIROTALK_HOST_USER=portal
+MIROTALK_HOST_PASSWORD=SICHERES-PASSWORT
 REDIS_ENABLED=True
 REDIS_URL=redis://localhost:6379/0
 ```
@@ -420,6 +429,8 @@ REDIS_URL=redis://localhost:6379/0
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
 - **MIROTALK_ENABLED / MIROTALK_URL:** `True` und `https://meet.IHRE-DOMAIN`, wenn MiroTalk SFU läuft (Schritt 6d). Join-API intern über `MIROTALK_API_URL=http://127.0.0.1:3010`
+- **MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD:** Pflicht bei `HOST_PROTECTED` — identisch zu `API_KEY_SECRET` und `HOST_USERS` in `/var/lib/mirotalk-sfu/.env`. Ohne passende Werte: Join scheitert bzw. „Waiting for host…“
+- **HTTPS:** Ohne Secure Context (nur `http://IP`) blockieren Browser Kamera/Mikrofon → Blackscreen. Für produktive Meetings SSL für Portal und `meet.` setzen; dann `SESSION_COOKIE_SECURE=True`
 - **REDIS_ENABLED:** Setzen Sie auf `True`, wenn mehrere Gunicorn-Worker genutzt werden
 - **REDIS_URL:** Standard ist `redis://localhost:6379/0`, nur bei abweichender Redis-Konfiguration ändern
 

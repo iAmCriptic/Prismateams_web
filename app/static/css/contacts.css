@@ -634,9 +634,9 @@
 
 /* ——— Multi-select / Premium list polish ——— */
 
-.contacts-card:hover .files-select-check,
-.contacts-card.is-selected .files-select-check,
-body.files-has-selection .contacts-card .files-select-check {
+.contacts-card:hover .mod-select-check,
+.contacts-card.is-selected .mod-select-check,
+body.mod-has-selection .contacts-card .mod-select-check {
     opacity: 1;
 }
 
@@ -660,14 +660,14 @@ body.files-has-selection .contacts-card .files-select-check {
     line-height: 1;
 }
 
-.mod-list-row:hover .files-list-name-cell > .d-flex,
-.mod-list-row.is-selected .files-list-name-cell > .d-flex,
-body.files-has-selection .files-list-name-cell > .d-flex {
+.mod-list-row:hover .mod-list-name-cell > .d-flex,
+.mod-list-row.is-selected .mod-list-name-cell > .d-flex,
+body.mod-has-selection .mod-list-name-cell > .d-flex {
     padding-left: 1.55rem;
     transition: padding-left 0.12s ease;
 }
 
-.contacts-shell .files-list-name-cell {
+.contacts-shell .mod-list-name-cell {
     max-width: 18rem;
 }
 

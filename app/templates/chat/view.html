@@ -458,7 +458,7 @@
                         <div class="message-card-body">
                             <strong>{{ message.get_metadata().get('title') or _('meetings.default_title') }}</strong>
                             {% if meetings_enabled and message.get_metadata().get('join_url') %}
-                            <a href="{{ message.get_metadata().get('join_url') }}" class="btn btn-sm btn-accent rounded-pill mt-2">{{ _('meetings.actions.join') }}</a>
+                            <a href="{{ message.get_metadata().get('join_url') }}" class="btn btn-sm btn-accent mod-pill-btn mt-2">{{ _('meetings.actions.join') }}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -538,7 +538,7 @@
             </button>
             <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
-            <button class="btn btn-accent chat-composer-send" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
+            <button class="btn btn-accent mod-pill-btn chat-composer-send" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
                 <i class="bi bi-send"></i>
             </button>
         </div>
@@ -570,7 +570,7 @@
             <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input" class="form-control" name="content" 
                    placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
-            <button class="btn chat-composer-send" type="submit" id="send-button" title="{{ _('chat.view.input.send') }}">
+            <button class="btn mod-pill-btn mod-pill-btn--accent chat-composer-send" type="submit" id="send-button" title="{{ _('chat.view.input.send') }}">
                 <i class="bi bi-send-fill"></i>
             </button>
         </div>

@@ -1,4 +1,10 @@
-"""HTTP Basic Auth for WebDAV (login password; 2FA intentionally skipped)."""
+"""HTTP Basic Auth for WebDAV (login password; 2FA intentionally skipped).
+
+Akzeptiertes Design: Clients (Explorer, macOS, DAV-Apps) unterstützen kein TOTP
+über Basic Auth. Residualrisiko (Passwort-Phishing/Stuffing trotz Browser-2FA)
+wird mit Feature-Flag, module_files, Guest-Sperre und Account-Lockout 5/15min
+mitigiert. Später optional: App-Passwörter / IP-Allowlist — kein Muss.
+"""
 
 from __future__ import annotations
 

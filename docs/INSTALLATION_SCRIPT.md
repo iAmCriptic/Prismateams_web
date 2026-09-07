@@ -83,7 +83,7 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - Redis ja/nein
 - OnlyOffice inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/onlyoffice` + `/cache`
 - Excalidraw-Room (optional)
-- MiroTalk SFU (Meetings): Docker `mirotalk/sfu`, vHost `meet.${DOMAIN}` → `127.0.0.1:3010`, UDP `40000–40100`
+- MiroTalk SFU (Meetings): Docker `mirotalk/sfu`; Hostname → `meet.${DOMAIN}` → `127.0.0.1:3010`; IP/LAN → `http://IP:3010`; UDP `40000–40100`
 - FFmpeg / Media Downloader
 - `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
 
@@ -176,14 +176,35 @@ Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehler
 
 Das Skript installiert **MiroTalk SFU** (`mirotalk/sfu:latest`) mit `network_mode: host`.
 
-Bei Installation setzt das Skript:
+Zwei Modi je nach `DOMAIN`:
 
-1. `/var/lib/mirotalk-sfu/.env` mit `HOST_PROTECTED`, `API_KEY_SECRET`, `HOST_USERS`, `SFU_ANNOUNCED_IP`, `SERVER_HOST_URL=https://meet.${DOMAIN}`
+### Hostname (Produktion)
+
+1. `/var/lib/mirotalk-sfu/.env` mit `HOST_PROTECTED`, `API_KEY_SECRET`, `HOST_USERS`, `SFU_ANNOUNCED_IP`, `SERVER_HOST_URL=https?://meet.${DOMAIN}`
 2. Container `--network host`, HTTP nur `127.0.0.1:3010`, Medien UDP/TCP `40000–40100`
 3. Nginx/Apache-vHost `meet.${DOMAIN}` → `127.0.0.1:3010` (WebSocket, **kein** Path-Prefix `/mirotalk/`)
-4. UFW: `40000:40100/udp` und `/tcp`
-5. Optional Let's Encrypt für `meet.${DOMAIN}` (eigener Certbot-Lauf; DNS-A-Record nötig)
-6. Portal-`.env`: `MIROTALK_ENABLED=True`, `MIROTALK_URL`, `MIROTALK_API_URL=http://127.0.0.1:3010`, Host-User/Passwort, API-Key
+4. `X-Forwarded-Proto` wird auf das öffentliche Schema (`http`/`https` laut SSL-Wahl) gesetzt — verhindert falsche `https://…`-Join-URLs unter MiroTalk `TRUST_PROXY`
+5. UFW: `40000:40100/udp` und `/tcp`
+6. Optional Let's Encrypt für `meet.${DOMAIN}` (eigener Certbot-Lauf; DNS-A-Record nötig)
+7. Portal-`.env` (Skript schreibt **immer** alle Felder):
+   - `MIROTALK_ENABLED=True`
+   - `MIROTALK_URL=https://meet.${DOMAIN}` (bei SSL) bzw. `http://…` ohne SSL
+   - `MIROTALK_API_URL=http://127.0.0.1:3010`
+   - `MIROTALK_API_KEY` (= `API_KEY_SECRET`)
+   - `MIROTALK_HOST_USER` / `MIROTALK_HOST_PASSWORD` (= `HOST_USERS`)
+8. Ohne SSL fragt das Skript bei Hostname-Install erneut nach Let's Encrypt (empfohlen): Browser brauchen **HTTPS** für Kamera/Mikrofon (Secure Context), sonst Blackscreen.
+
+### IP / LAN (ohne DNS)
+
+Wenn `DOMAIN` eine IPv4-Adresse ist (oder kein Hostname):
+
+1. **Kein** `meet.${IP}`-vHost — Browser können das ohne Hosts-Datei nicht auflösen
+2. `MIROTALK_URL` / `SERVER_HOST_URL` = `http://IP:3010`
+3. Container lauscht `0.0.0.0:3010`, UFW zusätzlich `3010/tcp`
+4. `SFU_ANNOUNCED_IP` = Install-IP (LAN), nicht zwingend die WAN-IP — sonst WebRTC schwarz
+5. `ALLOWED_EMBED_ORIGINS` / CORS = Portal-Origin `http://IP` plus Meet-URL
+6. Portal-`.env` erhält dieselben Secrets wie oben — **nicht** weglassen
+7. **Hinweis:** Unter `http://IP` blockieren Chromium-Browser `getUserMedia` → produktive Calls brauchen später Domain + HTTPS
 
 Details: [INSTALLATION.md – Schritt 6d](INSTALLATION.md#schritt-6d-optionale-installation---mirotalk-sfu-meetings).
 

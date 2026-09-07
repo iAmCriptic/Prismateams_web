@@ -62,6 +62,7 @@
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% if inventory_features.quick_scan %}
         <a href="{{ url_for('inventory.borrow_scanner') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">
@@ -70,6 +71,8 @@
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% endif %}
+        {% if inventory_features.borrow %}
         <a href="{{ url_for('inventory.inventory_checkout') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">
@@ -86,6 +89,7 @@
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% endif %}
         <a href="{{ url_for('inventory.sets') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-collection" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">
@@ -94,6 +98,7 @@
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% if inventory_features.stocktake %}
         <a href="{{ url_for('inventory.inventory_tool') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-clipboard2-check" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">
@@ -102,6 +107,7 @@
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% endif %}
         <a href="{{ url_for('inventory.print_qr') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-printer" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">

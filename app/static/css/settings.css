@@ -731,28 +731,9 @@
   margin-bottom: 1rem;
 }
 
-.sp-back-row {
-  margin-bottom: 1rem;
-}
+/* Back-Navigation: shared .mod-back-row / .mod-back-link (module-ui.css) */
 
-.sp-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  text-decoration: none;
-  color: var(--sp-muted);
-  font-size: 0.88rem;
-  border-radius: var(--mod-radius-pill, 1.5rem);
-  padding: 0.25rem 0.65rem;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.sp-back-link:hover {
-  color: var(--accent-color, var(--bs-primary));
-  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
-}
-
-/* Ã¢ÂÂÃ¢ÂÂ Color / type toggles Ã¢ÂÂÃ¢ÂÂ */
+/* Color / type toggles */
 
 .sp-seg {
   display: inline-flex;
@@ -1187,7 +1168,6 @@
 .btn-check:checked + .settings-appearance-type-btn { background: var(--accent-style, var(--accent-color)); color: #fff; border-color: transparent; }
 
 .settings-admin-users-btn,
-.mod-pill-btn,
 .settings-admin-inventory-submit { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
 
 /* Admin user modals (Rollen / Gast / Teams) — pill style */

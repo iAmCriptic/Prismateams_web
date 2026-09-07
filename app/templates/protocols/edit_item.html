@@ -12,7 +12,7 @@
 {% set index_url = protocols_index_url() %}
 
 <div class="protocols-workspace protocols-workspace--editor">
-    <header class="protocols-workspace-toolbar">
+    <header class="mod-toolbar protocols-workspace-toolbar">
         <div class="protocols-workspace-toolbar-start">
             {{ protocols_chrome_nav(
                 back_url=url_for('protocols.edit_agenda', protocol_id=protocol.id),

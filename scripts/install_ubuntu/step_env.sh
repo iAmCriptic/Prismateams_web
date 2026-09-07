@@ -44,6 +44,7 @@ import sys, os
 sys.path.insert(0, os.getcwd())
 from scripts.generate_encryption_keys import generate_encryption_key
 print('CREDENTIAL_KEY=' + generate_encryption_key())
+print('MAILBOX_KEY=' + generate_encryption_key())
 print('MUSIC_KEY=' + generate_encryption_key())
 print('TOTP_KEY=' + generate_encryption_key())
 " 2>&1) || {
@@ -51,6 +52,7 @@ print('TOTP_KEY=' + generate_encryption_key())
         return 1
     }
     CREDENTIAL_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "CREDENTIAL_KEY=" | head -n1 | sed 's/^CREDENTIAL_KEY=//' | tr -d '\r\n')
+    MAILBOX_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MAILBOX_KEY=" | head -n1 | sed 's/^MAILBOX_KEY=//' | tr -d '\r\n')
     MUSIC_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MUSIC_KEY=" | head -n1 | sed 's/^MUSIC_KEY=//' | tr -d '\r\n')
     TOTP_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "TOTP_KEY=" | head -n1 | sed 's/^TOTP_KEY=//' | tr -d '\r\n')
 
@@ -58,7 +60,7 @@ print('TOTP_KEY=' + generate_encryption_key())
         log_error "VAPID Keys ungültig"
         return 1
     fi
-    if [ -z "$CREDENTIAL_KEY" ] || [ -z "$MUSIC_KEY" ] || [ -z "$TOTP_KEY" ]; then
+    if [ -z "$CREDENTIAL_KEY" ] || [ -z "$MAILBOX_KEY" ] || [ -z "$MUSIC_KEY" ] || [ -z "$TOTP_KEY" ]; then
         log_error "Encryption Keys ungültig"
         return 1
     fi
@@ -128,6 +130,7 @@ step_env() {
     set_env_var "VAPID_CLAIM_EMAIL" "${VAPID_CLAIM_EMAIL:-admin@example.com}" .env
 
     [ -n "${CREDENTIAL_KEY:-}" ] && set_env_var "CREDENTIAL_ENCRYPTION_KEY" "$CREDENTIAL_KEY" .env
+    [ -n "${MAILBOX_KEY:-}" ] && set_env_var "MAILBOX_ENCRYPTION_KEY" "$MAILBOX_KEY" .env
     [ -n "${MUSIC_KEY:-}" ] && set_env_var "MUSIC_ENCRYPTION_KEY" "$MUSIC_KEY" .env
     [ -n "${TOTP_KEY:-}" ] && set_env_var "TOTP_ENCRYPTION_KEY" "$TOTP_KEY" .env
 
@@ -156,13 +159,52 @@ step_env() {
         set_env_var "EXCALIDRAW_ENABLED" "False" .env
     fi
 
+    # Meetings / MiroTalk — Secrets müssen 1:1 zu /var/lib/mirotalk-sfu/.env passen
+    # (API_KEY_SECRET, HOST_USERS). Ohne JWT hängt der Call auf „Waiting for host…“.
     if is_yes "$INSTALL_MIROTALK"; then
+        MIROTALK_HOST_USER="${MIROTALK_HOST_USER:-portal}"
+        local _mirotalk_secrets_regenerated=0
+        if [ -z "${MIROTALK_API_KEY:-}" ]; then
+            MIROTALK_API_KEY=$(generate_secret)
+            _mirotalk_secrets_regenerated=1
+            log_warning "MIROTALK_API_KEY fehlte — neu generiert"
+        fi
+        if [ -z "${MIROTALK_HOST_PASSWORD:-}" ]; then
+            MIROTALK_HOST_PASSWORD=$(generate_password)
+            _mirotalk_secrets_regenerated=1
+            log_warning "MIROTALK_HOST_PASSWORD fehlte — neu generiert"
+        fi
+        if [ -z "${MIROTALK_JWT_SECRET:-}" ]; then
+            MIROTALK_JWT_SECRET=$(generate_secret)
+            _mirotalk_secrets_regenerated=1
+        fi
+        if [ "$_mirotalk_secrets_regenerated" = "1" ] && declare -F _mirotalk_write_env >/dev/null 2>&1; then
+            if [ -d "${MIROTALK_DATA_ROOT:-/var/lib/mirotalk-sfu}" ]; then
+                log_warning "Schreibe MiroTalk-.env neu (Portal- und SFU-Secrets müssen übereinstimmen)"
+                _mirotalk_write_env || log_warning "MiroTalk-.env konnte nicht aktualisiert werden"
+                if declare -F _mirotalk_container_running >/dev/null 2>&1 && _mirotalk_container_running; then
+                    log_warning "MiroTalk-Container neu starten: docker restart ${MIROTALK_CONTAINER:-mirotalksfu}"
+                    docker restart "${MIROTALK_CONTAINER:-mirotalksfu}" >/dev/null 2>&1 || true
+                fi
+            fi
+        fi
+
         set_env_var "MIROTALK_ENABLED" "True" .env
         set_env_var "MIROTALK_URL" "$(mirotalk_public_url)" .env
         set_env_var "MIROTALK_API_URL" "http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}" .env
-        [ -n "${MIROTALK_API_KEY:-}" ] && set_env_var "MIROTALK_API_KEY" "$MIROTALK_API_KEY" .env
-        set_env_var "MIROTALK_HOST_USER" "${MIROTALK_HOST_USER:-portal}" .env
-        [ -n "${MIROTALK_HOST_PASSWORD:-}" ] && set_env_var "MIROTALK_HOST_PASSWORD" "$MIROTALK_HOST_PASSWORD" .env
+        set_env_var "MIROTALK_API_KEY" "$MIROTALK_API_KEY" .env
+        set_env_var "MIROTALK_HOST_USER" "$MIROTALK_HOST_USER" .env
+        set_env_var "MIROTALK_HOST_PASSWORD" "$MIROTALK_HOST_PASSWORD" .env
+
+        if ! grep -qE '^MIROTALK_API_KEY=.+' .env || ! grep -qE '^MIROTALK_HOST_PASSWORD=.+' .env; then
+            log_error "MiroTalk-Secrets konnten nicht in .env geschrieben werden"
+            return 1
+        fi
+
+        if ! is_yes "${SETUP_SSL:-n}"; then
+            log_warning "Kein SSL: Browser blockieren Kamera/Mikrofon unter http://IP oder http://Hostname"
+            log_warning "  → Meetings bleiben schwarz (kein Secure Context). HTTPS für Portal + Meet empfohlen."
+        fi
     else
         set_env_var "MIROTALK_ENABLED" "False" .env
     fi

@@ -118,7 +118,11 @@
             <div class="settings-security-status-row">
                 <span class="badge rounded-pill text-bg-success">{{ _('settings.security.2fa.status_on') }}</span>
             </div>
+            {% if email_recovery_enabled|default(true) %}
             <p class="settings-security-hint">{{ _('settings.security.2fa.recovery_hint') }}</p>
+            {% else %}
+            <p class="settings-security-hint">{{ _('settings.security.2fa.recovery_disabled_hint') }}</p>
+            {% endif %}
 
             <form method="POST" action="{{ url_for('settings.disable_2fa') }}" class="settings-security-form">
                 <div class="settings-security-field">

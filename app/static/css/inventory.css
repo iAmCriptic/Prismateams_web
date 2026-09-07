@@ -638,11 +638,6 @@ to {
     color: var(--bs-body-color, #212529);
 }
 
-.mod-nav-link.active {
-    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
-    color: var(--accent-color, var(--bs-primary));
-    font-weight: 600;
-}
 
 .inventory-new-wrap {
     position: relative;

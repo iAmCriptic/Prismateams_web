@@ -1,0 +1,28 @@
+name: CSS Design Guardrails
+
+on:
+  push:
+    paths:
+      - "app/static/css/**"
+      - "app/templates/**"
+      - "app/static/js/**"
+      - "scripts/qa_css_design_guardrails.py"
+      - ".github/workflows/css-design-guardrails.yml"
+  pull_request:
+    paths:
+      - "app/static/css/**"
+      - "app/templates/**"
+      - "app/static/js/**"
+      - "scripts/qa_css_design_guardrails.py"
+      - ".github/workflows/css-design-guardrails.yml"
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run CSS design guardrails
+        run: python scripts/qa_css_design_guardrails.py

@@ -121,6 +121,15 @@
                     <option value="without">{{ _('inventory.stock.filters.serial_without') }}</option>
                 </select>
             </div>
+            {% if inventory_features.owners %}
+            <div>
+                <label for="ownerFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.owner') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="ownerFilter{{ id_suffix }}" data-inv-filter="ownerFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_owners') }}</option>
+                </select>
+            </div>
+            {% endif %}
+            {% if inventory_features.dguv %}
             <div>
                 <label for="dguvFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.dguv') }}</label>
                 <select class="form-select form-select-sm inventory-filter-control mod-pill-input" id="dguvFilter{{ id_suffix }}" data-inv-filter="dguvFilter">
@@ -130,6 +139,7 @@
                     <option value="none">{{ _('inventory.stock.filters.dguv_none') }}</option>
                 </select>
             </div>
+            {% endif %}
         </div>
         <button type="button" class="btn mod-sidebar-action w-100 inventory-reset-filters-btn mt-2" id="resetFiltersBtn{{ id_suffix }}">
             <i class="bi bi-x-circle"></i>
@@ -214,9 +224,11 @@
             <button id="bulkEditBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.edit') }}">
                 <i class="bi bi-pencil"></i> {{ _('inventory.stock.bulk_selection.edit') }}
             </button>
+            {% if inventory_features.borrow %}
             <button id="bulkBorrowBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
                 <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
             </button>
+            {% endif %}
             <button id="bulkRepairBtn" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-warning" title="{{ _('inventory.stock.bulk_selection.repair') }}">
                 <i class="bi bi-tools"></i> {{ _('inventory.stock.bulk_selection.repair') }}
             </button>
@@ -391,6 +403,7 @@
                         </div>
                     </section>
 
+                    {% if inventory_features.dguv %}
                     <section class="inventory-form-card">
                         <div class="inventory-form-card-head">
                             <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> {{ _('inventory.stock.modals.bulk_edit.section_dguv') }}</h2>
@@ -411,6 +424,7 @@
                             </div>
                         </div>
                     </section>
+                    {% endif %}
 
                     <section class="inventory-form-card">
                         <div class="inventory-form-card-head">
@@ -472,6 +486,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     window.INVENTORY_RETIRED_FOLDER_ID = {{ retired_folder_id|tojson }};
     window.INVENTORY_IS_RETIRED_FOLDER_VIEW = {{ 'true' if is_retired_folder_view else 'false' }};
+    window.INVENTORY_FEATURES = {{ inventory_features|default({})|tojson }};
     window.INVENTORY_MANUALS = [
         {% if manuals is defined %}
         {% for m in manuals %}

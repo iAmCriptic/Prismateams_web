@@ -1628,6 +1628,11 @@
       "submit": "Unirse",
       "ended": "Esta reunión ha terminado."
     },
+    "call": {
+      "loading": "Cargando reunión…",
+      "insecure_title": "Contexto no seguro (HTTPS)",
+      "insecure_body": "Cámara y micrófono no funcionan en http://IP. Use HTTPS (dominio + certificado); si no, la llamada permanece en negro."
+    },
     "chat": {
       "start": "Iniciar reunión"
     },
@@ -1641,7 +1646,7 @@
       "ended": "Esta reunión ha terminado.",
       "ended_ok": "Reunión finalizada.",
       "not_configured": "MiroTalk no está configurado. Defina MIROTALK_URL en .env.",
-      "join_failed": "No se pudo unir a la reunión.",
+      "join_failed": "No se pudo unir. Compruebe MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD — deben coincidir con el .env de MiroTalk.",
       "no_module": "El módulo de reuniones no está disponible.",
       "chat_missing": "Chat no encontrado.",
       "not_chat_member": "No es miembro de este chat.",

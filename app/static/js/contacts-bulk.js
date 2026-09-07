@@ -102,7 +102,7 @@
         const count = countEl();
         if (count) count.textContent = String(n);
 
-        document.body.classList.toggle('files-has-selection', n > 0);
+        document.body.classList.toggle('mod-has-selection', n > 0);
 
         checkboxNodes().forEach((cb) => {
             const id = cb.getAttribute('data-item-id');
@@ -299,7 +299,7 @@
 
     function onRowClickCapture(e) {
         if (!selected.size) return;
-        if (e.target.closest('.files-item-checkbox, .files-select-check, .dropdown, button, a, input, textarea, form')) {
+        if (e.target.closest('.files-item-checkbox, .mod-select-check, .dropdown, button, a, input, textarea, form')) {
             return;
         }
         const row = e.target.closest(

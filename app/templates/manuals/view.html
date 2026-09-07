@@ -138,14 +138,14 @@
         border-radius: var(--mod-radius-pill, 1.5rem) !important;
     }
 
-    .file-viewer .btn-outline-primary,
+    .file-viewer .mod-pill-btn--outline,
     .file-viewer .btn-outline-secondary {
         border-color: var(--accent-color) !important;
         color: var(--accent-color) !important;
         background: transparent !important;
     }
-    .file-viewer .btn-outline-primary:hover,
-    .file-viewer .btn-outline-primary:focus,
+    .file-viewer .mod-pill-btn--outline:hover,
+    .file-viewer .mod-pill-btn--outline:focus,
     .file-viewer .btn-outline-secondary:hover,
     .file-viewer .btn-outline-secondary:focus {
         background: var(--accent-style) !important;
@@ -219,7 +219,7 @@
                 <button type="button" class="btn btn-outline-secondary file-viewer-close-btn" onclick="closeViewer()" title="{{ _('manuals.view.close') }}">
                     <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('manuals.view.close') }}</span>
                 </button>
-                <a href="{{ download_url }}" class="btn btn-outline-primary" title="{{ _('manuals.view.download') }}">
+                <a href="{{ download_url }}" class="btn mod-pill-btn mod-pill-btn--outline" title="{{ _('manuals.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('manuals.view.download') }}</span>
                 </a>
             </div>

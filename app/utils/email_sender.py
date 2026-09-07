@@ -824,12 +824,36 @@ def resend_confirmation_email(user):
     return send_confirmation_email(user)
 
 
+_2FA_RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # ohne O/0/I/1
+TWO_FACTOR_RECOVERY_CODE_LENGTH = 10
+TWO_FACTOR_RECOVERY_TTL = timedelta(minutes=5)
+
+
+def is_2fa_email_recovery_enabled() -> bool:
+    return bool(current_app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED', True))
+
+
+def generate_2fa_recovery_code() -> str:
+    """Längerer einmaliger Recovery-Code (nicht nur 6 Ziffern wie TOTP)."""
+    return ''.join(
+        secrets.choice(_2FA_RECOVERY_ALPHABET)
+        for _ in range(TWO_FACTOR_RECOVERY_CODE_LENGTH)
+    )
+
+
+def hash_2fa_recovery_code(code: str) -> str:
+    return hashlib.sha256((code or '').strip().upper().encode('utf-8')).hexdigest()
+
+
 def send_2fa_recovery_email(user):
     """Sendet einen einmaligen 2FA-Wiederherstellungscode (5 Minuten gültig)."""
+    if not is_2fa_email_recovery_enabled():
+        logging.warning('2FA email recovery disabled; skip send for user_id=%s', getattr(user, 'id', None))
+        return False
     try:
-        recovery_code = generate_confirmation_code()
-        expires_at = portal_now_naive() + timedelta(minutes=5)
-        user.totp_recovery_code = recovery_code
+        recovery_code = generate_2fa_recovery_code()
+        expires_at = portal_now_naive() + TWO_FACTOR_RECOVERY_TTL
+        user.totp_recovery_code = hash_2fa_recovery_code(recovery_code)
         user.totp_recovery_code_expires = expires_at
         from app import db
         db.session.commit()
@@ -844,7 +868,9 @@ def send_2fa_recovery_email(user):
         portal_name = _portal_name()
         plain_text = (
             f'2FA-Wiederherstellungscode: {recovery_code}\n\n'
-            'Geben Sie diesen Code auf der 2FA-Anmeldeseite ein. Der Code ist 5 Minuten gültig.'
+            'Geben Sie diesen Code auf der 2FA-Anmeldeseite ein (statt des Authenticator-Codes). '
+            'Der Code ist 5 Minuten gültig und nur einmal nutzbar. '
+            'Hinweis: Wer Ihr Postfach kontrolliert, kann damit 2FA umgehen.'
         )
         ok = render_and_send_portal_email(
             subject=f'2FA-Wiederherstellung - {portal_name}',
@@ -866,11 +892,24 @@ def send_2fa_recovery_email(user):
 
 def verify_and_consume_2fa_recovery_code(user, code):
     """Prüft den 2FA-Wiederherstellungscode und invalidiert ihn bei Erfolg."""
+    if not is_2fa_email_recovery_enabled():
+        return False
     if not code or not user.totp_recovery_code or not user.totp_recovery_code_expires:
         return False
     if portal_now_naive() > user.totp_recovery_code_expires:
         return False
-    if user.totp_recovery_code != code.strip():
+
+    submitted = (code or '').strip().upper()
+    stored = user.totp_recovery_code
+    # Neu: SHA-256-Hex; Alt (Migration): Klartext-6-Ziffern bis Ablauf
+    if len(stored) == 64 and all(c in '0123456789abcdef' for c in stored.lower()):
+        ok = hmac.compare_digest(stored.lower(), hash_2fa_recovery_code(submitted))
+    else:
+        ok = hmac.compare_digest(stored, submitted) or hmac.compare_digest(
+            stored, (code or '').strip()
+        )
+
+    if not ok:
         return False
 
     user.totp_recovery_code = None

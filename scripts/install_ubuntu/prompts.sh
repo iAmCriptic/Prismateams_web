@@ -167,6 +167,23 @@ gather_information() {
     fi
     if is_yes "$INSTALL_MIROTALK"; then
         INSTALL_DOCKER="j"
+        # WebRTC braucht Secure Context (HTTPS). Ohne SSL: Blackscreen / keine Kamera.
+        if ! is_yes "${SETUP_SSL:-n}"; then
+            log_warning "Meetings (MiroTalk): Kamera/Mikrofon funktionieren nur in einem Secure Context (HTTPS)."
+            log_warning "  Unter http://IP oder http://Hostname bleibt der Call im Browser schwarz."
+            if is_yes "${SETUP_WEBSERVER:-n}" && domain_is_hostname "${DOMAIN:-}"; then
+                if is_yes "$NON_INTERACTIVE"; then
+                    log_warning "  Non-Interactive: SSL bleibt aus — bitte später Let's Encrypt für ${DOMAIN} und meet.${DOMAIN} einrichten."
+                else
+                    prompt_yes_no SETUP_SSL "SSL mit Let's Encrypt jetzt einrichten (stark empfohlen für Meetings)?" "j"
+                    if is_yes "$SETUP_SSL"; then
+                        prompt_or_default LETSENCRYPT_EMAIL "E-Mail für Let's Encrypt" "webmaster@$DOMAIN"
+                    fi
+                fi
+            else
+                log_warning "  LAN/IP-Modus: später HTTPS (Domain + Zertifikat) oder mkcert — sonst kein WebRTC."
+            fi
+        fi
     fi
 
     log_info ""

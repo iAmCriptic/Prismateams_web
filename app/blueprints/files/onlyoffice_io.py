@@ -140,16 +140,12 @@ def onlyoffice_document(file_id):
     # Access token is REQUIRED — OnlyOffice Document Server cannot use session cookies
     access_token = request.args.get('token')
     if access_token:
-        token_preview = (
-            f'{access_token[:8]}…{access_token[-4:]}'
-            if len(access_token) > 12
-            else '(short)'
-        )
+        import hashlib
+        token_fp = hashlib.sha256(access_token.encode('utf-8')).hexdigest()[:12]
         logging.info(
-            'ONLYOFFICE document request - file_id=%s token_len=%s preview=%s remote=%s',
+            'ONLYOFFICE document request - file_id=%s token_fp=%s remote=%s',
             file_id,
-            len(access_token),
-            token_preview,
+            token_fp,
             request.remote_addr,
         )
     else:
@@ -488,7 +484,8 @@ def onlyoffice_save(file_id):
     
     # Save new version
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{file.original_name}"
+    safe_name = _disk_safe_upload_basename(file.original_name)
+    filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', filename)
     
     # Ensure directory exists
@@ -584,7 +581,8 @@ def share_onlyoffice_save(token, file_id):
     
     # Save new version
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{file.original_name}"
+    safe_name = _disk_safe_upload_basename(file.original_name)
+    filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', filename)
     
     # Ensure directory exists
@@ -664,7 +662,8 @@ def _download_onlyoffice_saved_content(saved_file_url):
 def _onlyoffice_save_callback_file(file, saved_content, increment_version=True):
     """Persist document bytes received from an OnlyOffice callback."""
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{file.original_name}"
+    safe_name = _disk_safe_upload_basename(file.original_name)
+    filename = f"{timestamp}_{safe_name}"
     filepath = os.path.join('uploads', 'files', filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
@@ -890,7 +889,8 @@ def share_onlyoffice_callback(token):
                         db.session.flush()
 
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                    filename = f"{timestamp}_{file.original_name}"
+                    safe_name = _disk_safe_upload_basename(file.original_name)
+                    filename = f"{timestamp}_{safe_name}"
                     filepath = os.path.join('uploads', 'files', filename)
                     
                     os.makedirs(os.path.dirname(filepath), exist_ok=True)

@@ -1,12 +1,33 @@
 """Request hooks and CSRF handling."""
 
 
+from urllib.parse import urlparse
+
 from flask import flash, jsonify, redirect, request, session, url_for as flask_url_for
 from flask_wtf.csrf import CSRFError
 
 from app import db
 from app.factory._util import is_same_origin as _is_same_origin
 from app.utils.i18n import translate
+
+
+def _csp_frame_src_extra(app):
+    """Origins that may be embedded (e.g. MiroTalk on :3010 / meet.-Host)."""
+    extras = []
+    enabled = app.config.get('MIROTALK_ENABLED')
+    if enabled is False:
+        return extras
+    for key in ('MIROTALK_URL', 'MIROTALK_API_URL'):
+        raw = (app.config.get(key) or '').strip()
+        if not raw:
+            continue
+        parsed = urlparse(raw)
+        if parsed.scheme in ('http', 'https') and parsed.netloc:
+            origin = f'{parsed.scheme}://{parsed.netloc}'
+            if origin not in extras:
+                extras.append(origin)
+    return extras
+
 
 def register_request_hooks(app):
     """before_request guards, CSRF error page, indexing headers."""
@@ -308,7 +329,7 @@ def register_request_hooks(app):
         # camera/microphone bewusst nicht gesperrt (Meetings / MiroTalk)
         response.headers.setdefault(
             'Permissions-Policy',
-            'geolocation=(), payment=(), usb=(), interest-cohort=()',
+            'geolocation=(), payment=(), usb=()',
         )
 
         # HSTS nur hinter HTTPS (Proxy: X-Forwarded-Proto)
@@ -319,7 +340,9 @@ def register_request_hooks(app):
                 'max-age=31536000; includeSubDomains',
             )
 
-        # CSP: schrittweise — blockiert object/base, erlaubt bestehende Inline-/CDN-Nutzung
+        # CSP: schrittweise — blockiert object/base, erlaubt bestehende Inline-/CDN-Nutzung.
+        # MiroTalk-Join läuft oft als http://HOST:3010 (anderes Origin) → frame-src ergänzen.
+        frame_src = ["'self'", 'https:', 'blob:'] + _csp_frame_src_extra(app)
         response.headers.setdefault(
             'Content-Security-Policy',
             "; ".join([
@@ -332,7 +355,7 @@ def register_request_hooks(app):
                 "img-src 'self' data: blob: https:",
                 "font-src 'self' data: https:",
                 "connect-src 'self' https: wss: ws: blob:",
-                "frame-src 'self' https: blob:",
+                "frame-src " + " ".join(frame_src),
                 "media-src 'self' https: blob:",
                 "worker-src 'self' blob:",
             ]),

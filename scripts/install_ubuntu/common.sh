@@ -368,7 +368,10 @@ mirotalk_public_scheme() {
 }
 
 mirotalk_public_url() {
-    local host
+    # Hostname-Domain (Produktion): https?://meet.${DOMAIN} hinter Nginx/Apache
+    # IP-Domain / kein DNS: http://${DOMAIN|LAN}:${PORT} direkt (kein meet.IP —
+    # das wäre ohne Hosts-Datei im Browser nicht auflösbar).
+    local host lan
     host=$(mirotalk_meet_hostname)
     if [ -n "$host" ]; then
         echo "$(mirotalk_public_scheme)://${host}"
@@ -378,24 +381,49 @@ mirotalk_public_url() {
         echo "http://${DOMAIN}:${MIROTALK_HOST_PORT:-3010}"
         return 0
     fi
+    lan=$(hostname -I 2>/dev/null | awk '{print $1}')
+    if [ -n "$lan" ]; then
+        echo "http://${lan}:${MIROTALK_HOST_PORT:-3010}"
+        return 0
+    fi
     echo "http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}"
+}
+
+mirotalk_portal_origin() {
+    local scheme
+    scheme=$(mirotalk_public_scheme)
+    if [ -z "${DOMAIN:-}" ]; then
+        return 0
+    fi
+    if domain_is_hostname "${DOMAIN}"; then
+        echo "${scheme}://${DOMAIN}"
+    else
+        # Portal hinter Nginx :80, nicht :3010
+        echo "http://${DOMAIN}"
+    fi
 }
 
 print_manual_mirotalk_hint() {
     echo
     log_manual "=== MiroTalk SFU (Meetings) manuell einrichten ==="
-    log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
-    log_manual "  2. DNS: A/AAAA-Record meet.\${DOMAIN} auf diesen Server"
-    log_manual "  3. Container (host network, HTTP nur Loopback):"
-    log_manual "       docker pull mirotalk/sfu:latest"
-    log_manual "       # .env unter /var/lib/mirotalk-sfu/.env (HOST_PROTECTED, API_KEY_SECRET, SFU_ANNOUNCED_IP)"
-    log_manual "       docker run -d --name mirotalksfu --restart=always --network host \\"
-    log_manual "         --user 1000:1000 -v /var/lib/mirotalk-sfu/.env:/src/.env:ro \\"
-    log_manual "         mirotalk/sfu:latest"
-    log_manual "  4. Nginx/Apache: eigener vHost meet.\${DOMAIN} → 127.0.0.1:3010 (WebSocket, kein /mirotalk/-Prefix)"
-    log_manual "  5. Firewall: UDP+TCP 40000-40100 (WebRTC-Medien)"
-    log_manual "  6. In Portal-.env: MIROTALK_ENABLED=True, MIROTALK_URL=https://meet.\${DOMAIN},"
-    log_manual "     MIROTALK_API_URL=http://127.0.0.1:3010, MIROTALK_API_KEY, MIROTALK_HOST_USER/PASSWORD"
+    log_manual "  Produktion (Hostname + DNS + HTTPS):"
+    log_manual "    - DNS A/AAAA: meet.\${DOMAIN} → Server"
+    log_manual "    - Container host-network, HTTP nur 127.0.0.1:3010"
+    log_manual "    - Nginx/Apache-vHost meet.\${DOMAIN} → 127.0.0.1:3010 (WebSocket, kein /mirotalk/-Prefix)"
+    log_manual "    - Portal-.env: MIROTALK_URL=https://meet.\${DOMAIN}"
+    log_manual "  LAN / nur IP (ohne DNS):"
+    log_manual "    - MIROTALK_URL=http://SERVER-IP:3010 (nicht meet.IP — braucht Hosts-Datei)"
+    log_manual "    - Container lauscht 0.0.0.0:3010, UFW 3010/tcp + 40000-40100 udp/tcp"
+    log_manual "    - SFU_ANNOUNCED_IP=SERVER-IP (LAN), sonst WebRTC schwarz"
+    log_manual "    - Ohne HTTPS blockieren Browser Kamera/Mikrofon (Secure Context) → Blackscreen"
+    log_manual "  Portal-.env (Pflicht, identisch zu /var/lib/mirotalk-sfu/.env):"
+    log_manual "    MIROTALK_ENABLED=True"
+    log_manual "    MIROTALK_URL=… (öffentliche Meet-URL)"
+    log_manual "    MIROTALK_API_URL=http://127.0.0.1:3010"
+    log_manual "    MIROTALK_API_KEY=… (= API_KEY_SECRET)"
+    log_manual "    MIROTALK_HOST_USER=portal"
+    log_manual "    MIROTALK_HOST_PASSWORD=… (= HOST_USERS-Passwort)"
+    log_manual "  Details: docs/INSTALLATION.md Schritt 6d"
     echo
 }
 

@@ -39,14 +39,16 @@ def init_realtime(app, config_name):
         logger.warning(f"Setze REDIS_ENABLED=True in der .env oder stelle sicher, dass Redis läuft")
     
     # Flask-Limiter für Rate Limiting initialisieren
-    # Verwende Redis als Storage-Backend wenn verfügbar (für Production)
+    # Flask-Limiter 4+: storage_uri nur ueber app.config['RATELIMIT_STORAGE_URI']
+    # (init_app(app) akzeptiert keinen storage_uri-Kwarg mehr).
     rate_limit_uri = app.config.get('RATELIMIT_STORAGE_URI') or (redis_url if redis_enabled else None)
     allow_memory = bool(app.config.get('RATELIMIT_ALLOW_MEMORY'))
     production_like = config_name in ('production', 'staging')
 
     if rate_limit_uri:
+        app.config['RATELIMIT_STORAGE_URI'] = rate_limit_uri
         try:
-            limiter.init_app(app, storage_uri=rate_limit_uri)
+            limiter.init_app(app)
             logger.info(f"Flask-Limiter Storage: {rate_limit_uri}")
         except Exception as e:
             if production_like and not allow_memory:
@@ -62,6 +64,7 @@ def init_realtime(app, config_name):
                 ) from e
             logger.warning(f"Fehler beim Konfigurieren von Flask-Limiter mit Redis: {e}")
             logger.warning("Verwende Memory-Storage als Fallback (nicht für Production empfohlen)")
+            app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
             limiter.init_app(app)
     else:
         if production_like and not allow_memory:
@@ -78,6 +81,7 @@ def init_realtime(app, config_name):
             logger.warning("⚠️  Flask-Limiter Memory-Storage in Production (RATELIMIT_ALLOW_MEMORY=true)")
         else:
             logger.info("Flask-Limiter: Memory-Storage (Dev). Für Multi-Worker: REDIS_ENABLED=True")
+        app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
         limiter.init_app(app)
 
     socketio_cors = _resolve_socketio_cors_origins(app)

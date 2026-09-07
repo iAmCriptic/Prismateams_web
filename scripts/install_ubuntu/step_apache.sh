@@ -130,7 +130,10 @@ CustomLog \${APACHE_LOG_DIR}/teamportal_access.log combined
 </VirtualHost>
 EOF
 
+# X-Forwarded-Proto an öffentliche Meet-URL koppeln (kein REQUEST_SCHEME —
+# MiroTalk sonst oft mit https Join-URLs trotz reinem HTTP-vHost).
 _meet_host=$(mirotalk_meet_hostname)
+_meet_scheme=$(mirotalk_public_scheme)
 if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
     cat > /etc/apache2/sites-available/teamportal-meet.conf <<EOF
 <VirtualHost *:80>
@@ -149,14 +152,14 @@ ProxyPassReverse / http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}/
 
 RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
 RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
-RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+RequestHeader set X-Forwarded-Proto "${_meet_scheme}"
 
 ErrorLog \${APACHE_LOG_DIR}/teamportal_meet_error.log
 CustomLog \${APACHE_LOG_DIR}/teamportal_meet_access.log combined
 </VirtualHost>
 EOF
     a2ensite teamportal-meet.conf || { log_error "MiroTalk-Site-Aktivierung fehlgeschlagen"; return 1; }
-    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010}"
+    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010} (X-Forwarded-Proto=${_meet_scheme})"
 fi
 
 # Site aktivieren

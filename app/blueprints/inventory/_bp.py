@@ -71,6 +71,15 @@ def require_inventory_module_access():
         return redirect(url_for('auth.login', next=request.url))
 
     from app.utils.access_control import has_module_access
-    if has_module_access(current_user, 'module_inventory'):
-        return None
-    return deny_inventory_module_access()
+    if not has_module_access(current_user, 'module_inventory'):
+        return deny_inventory_module_access()
+
+    from app.utils.inventory_features import feature_enabled_for_endpoint
+    if not feature_enabled_for_endpoint(endpoint):
+        from app.utils.i18n import translate
+        if inventory_wants_json():
+            return jsonify({'error': translate('inventory.errors.feature_disabled')}), 403
+        flash(translate('inventory.errors.feature_disabled'), 'warning')
+        return redirect(url_for('inventory.stock'))
+
+    return None

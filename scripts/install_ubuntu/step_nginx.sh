@@ -222,7 +222,10 @@ location / {
 EOF
 
 # MiroTalk SFU: eigener vHost (kein Path-Prefix unter dem Portal)
+# X-Forwarded-Proto an SERVER_HOST_URL / MIROTALK_URL koppeln — sonst liefert
+# MiroTalk (TRUST_PROXY) oft https://… Join-URLs obwohl nur HTTP läuft.
 _meet_host=$(mirotalk_meet_hostname)
+_meet_scheme=$(mirotalk_public_scheme)
 if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
     cat > /etc/nginx/sites-available/teamportal-meet <<EOF
 server {
@@ -239,7 +242,7 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Proto ${_meet_scheme};
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
         proxy_buffering off;
@@ -248,7 +251,7 @@ server {
 }
 EOF
     ln -sf /etc/nginx/sites-available/teamportal-meet /etc/nginx/sites-enabled/teamportal-meet
-    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010}"
+    log_info "MiroTalk-vHost ${_meet_host} → 127.0.0.1:${MIROTALK_HOST_PORT:-3010} (X-Forwarded-Proto=${_meet_scheme})"
 fi
 
 # Site aktivieren

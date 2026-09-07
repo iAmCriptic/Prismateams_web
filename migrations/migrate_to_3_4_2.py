@@ -48,6 +48,17 @@ def run(db=None, report=None):
         )
 
         env_key = read_encryption_key('MAILBOX_ENCRYPTION_KEY')
+        # Placeholder aus docs/env.example oder ungültige Werte wie "nicht gesetzt" behandeln
+        if env_key:
+            try:
+                Fernet(env_key)
+            except Exception:
+                report.note_warn(
+                    'MAILBOX_ENCRYPTION_KEY ist kein gültiger Fernet-Key '
+                    '(z.B. Placeholder aus env.example) — behandle als nicht gesetzt'
+                )
+                env_key = None
+
         if not env_key:
             legacy = SystemSettings.query.filter_by(key=ENC_KEY_SETTING).first()
             if legacy and legacy.value:
@@ -61,12 +72,6 @@ def run(db=None, report=None):
                 )
             report.note_ok('migrate_to_3_4_2 abgeschlossen (kein Re-Encrypt)')
             return
-
-        try:
-            Fernet(env_key)
-        except Exception as exc:
-            report.note_error(f'MAILBOX_ENCRYPTION_KEY ungültig: {exc}')
-            raise
 
         primary = _encryption_key()
         if primary != env_key:

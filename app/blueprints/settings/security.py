@@ -111,6 +111,9 @@ def _render_security_page(scroll_to_devices=False):
         passkeys=passkeys,
         passkeys_supported=passkeys_supported_for_request(),
         passkeys_localhost_url=localhost_passkey_url(),
+        email_recovery_enabled=bool(
+            current_app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED', True)
+        ),
     )
 
 

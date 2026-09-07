@@ -12,6 +12,88 @@
   </header>
 
   <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_inventory_settings') }}">
+    <section class="sp-group" id="inventory-features" data-settings-search-id="inventory-features" aria-labelledby="inventory-features-title">
+      <div class="sp-group-head">
+        <h2 id="inventory-features-title" class="sp-group-title"><i class="bi bi-sliders" aria-hidden="true"></i>{{ _('settings.admin.inventory.features_title') }}</h2>
+        {{ sp_info(_('settings.admin.inventory.features_help')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.inventory.features_lead') }}</p>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_borrow') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_borrow_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_borrow_enabled" name="inventory_borrow_enabled" {% if inventory_borrow_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_quick_scan') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_quick_scan_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_quick_scan_enabled" name="inventory_quick_scan_enabled" {% if inventory_quick_scan_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_dguv') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_dguv_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_dguv_enabled" name="inventory_dguv_enabled" {% if inventory_dguv_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_owners') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_owners_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_owners_enabled" name="inventory_owners_enabled" {% if inventory_owners_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_accounting') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_accounting_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_accounting_enabled" name="inventory_accounting_enabled" {% if inventory_accounting_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.feature_stocktake') }}</span>
+            {{ sp_info(_('settings.admin.inventory.feature_stocktake_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="inventory_stocktake_enabled" name="inventory_stocktake_enabled" {% if inventory_stocktake_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="sp-group" id="inventory-public" data-settings-search-id="inventory-public" aria-labelledby="inventory-public-title">
       <div class="sp-group-head">
         <h2 id="inventory-public-title" class="sp-group-title"><i class="bi bi-qr-code-scan" aria-hidden="true"></i>{{ _('settings.admin.inventory.public_title') }}</h2>

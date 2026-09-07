@@ -1,4 +1,8 @@
 {% extends "inventory/layout.html" %}
+{% set inv_form_features = inventory_features|default({
+  'borrow': true, 'quick_scan': true, 'dguv': true,
+  'owners': true, 'accounting': true, 'stocktake': true
+}) %}
 
 {% block title %}{% if product %}{{ _('inventory.product.form.page_title_edit') }}{% else %}{{ _('inventory.product.form.page_title_new') }}{% endif %}{% endblock %}
 {% block inventory_heading_icon %}bi-box-seam{% endblock %}
@@ -206,6 +210,32 @@
                 <input type="text" class="form-control mod-pill-input" id="serial_number" name="serial_number"
                        value="{{ product.serial_number if product else '' }}">
             </div>
+            {% if inv_form_features.owners %}
+            <div class="inventory-form-field">
+                <label for="owner_input" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.owner') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.owner_help') }}"
+                            aria-label="{{ _('inventory.product.form.owner_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
+                <input type="hidden" id="owner_user_id" name="owner_user_id"
+                       value="{{ product.owner_user_id if product and product.owner_user_id else '' }}">
+                <input type="text" class="form-control mod-pill-input" id="owner_input" name="owner_label"
+                       list="ownerSuggestions"
+                       value="{{ product.owner_label if product and product.owner_label else '' }}"
+                       placeholder="{{ _('inventory.product.form.owner_placeholder') }}"
+                       autocomplete="off"
+                       maxlength="255">
+                <datalist id="ownerSuggestions">
+                    {% for item in owner_suggestions|default([]) %}
+                    <option value="{{ item.label }}" data-user-id="{{ item.id or '' }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            {% endif %}
             {% if product %}
             <div class="inventory-form-field">
                 <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
@@ -246,12 +276,13 @@
         </div>
     </section>
 
-    {# ——— 4. Kauf & Maße ——— #}
-    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-purchase-dims">
+    {% if inv_form_features.accounting %}
+    {# ——— 4. Buchhaltung ——— #}
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-accounting">
         <div class="inventory-form-card-head">
-            <h2 id="inv-form-purchase-dims" class="inventory-form-section-title">
-                <i class="bi bi-rulers" aria-hidden="true"></i>
-                {{ _('inventory.product.form.sections.purchase_dims') }}
+            <h2 id="inv-form-accounting" class="inventory-form-section-title">
+                <i class="bi bi-cash-coin" aria-hidden="true"></i>
+                {{ _('inventory.product.form.sections.accounting') }}
             </h2>
         </div>
         <div class="inventory-form-fields inventory-form-fields--3">
@@ -270,6 +301,17 @@
                 <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="replacement_value" name="replacement_value"
                        value="{{ product.replacement_value if product and product.replacement_value is not none else '' }}">
             </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ——— Maße ——— #}
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-dims">
+        <div class="inventory-form-card-head">
+            <h2 id="inv-form-dims" class="inventory-form-section-title">
+                <i class="bi bi-rulers" aria-hidden="true"></i>
+                {{ _('inventory.product.form.sections.dims') }}
+            </h2>
         </div>
         <div class="inventory-form-fields inventory-form-fields--4">
             <div class="inventory-form-field">
@@ -295,6 +337,7 @@
         </div>
     </section>
 
+    {% if inv_form_features.dguv %}
     {# ——— 5. DGUV ——— #}
     <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-dguv">
         <div class="inventory-form-card-head inventory-form-card-head--split">
@@ -357,6 +400,7 @@
             </div>
         </div>
     </section>
+    {% endif %}
 
     {# ——— 6. Medien & Dokumente ——— #}
     <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="inv-form-media-docs">
@@ -525,6 +569,7 @@ window.inventoryFormData = {
         {% endfor %}
     ],
     categories: {{ categories|tojson }},
+    ownerSuggestions: {{ owner_suggestions|default([])|tojson }},
     selectedFolderId: {% if product and product.folder_id %}{{ product.folder_id }}{% else %}null{% endif %},
     selectedCategory: {% if product and product.category %}{{ product.category|tojson }}{% else %}null{% endif %},
     labels: {
@@ -542,6 +587,21 @@ window.inventoryFormData = {
 document.addEventListener('DOMContentLoaded', function () {
     if (window.InventoryPillSelect) {
         window.InventoryPillSelect.enhanceAll(document.querySelector('.inventory-form') || document);
+    }
+    const ownerInput = document.getElementById('owner_input');
+    const ownerUserId = document.getElementById('owner_user_id');
+    const suggestions = (window.inventoryFormData && window.inventoryFormData.ownerSuggestions) || [];
+    if (ownerInput && ownerUserId) {
+        const syncOwnerUserId = () => {
+            const value = (ownerInput.value || '').trim().toLowerCase();
+            const match = suggestions.find((s) => (s.label || '').trim().toLowerCase() === value && s.id);
+            ownerUserId.value = match ? String(match.id) : '';
+        };
+        ownerInput.addEventListener('change', syncOwnerUserId);
+        ownerInput.addEventListener('blur', syncOwnerUserId);
+        ownerInput.addEventListener('input', () => {
+            if (!(ownerInput.value || '').trim()) ownerUserId.value = '';
+        });
     }
 });
 </script>

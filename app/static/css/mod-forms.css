@@ -137,7 +137,6 @@
 
 /* ——— Shared pill dropdown menus ——— */
 .mod-dropdown-menu,
-.files-dropdown-menu,
 .mod-list-actions .dropdown-menu {
     border-radius: 1.1rem !important;
     padding: 0.45rem !important;
@@ -147,7 +146,6 @@
 }
 
 .mod-dropdown-menu .dropdown-item,
-.files-dropdown-menu .dropdown-item,
 .mod-list-actions .dropdown-menu .dropdown-item {
     border-radius: var(--mod-radius-pill, 1.5rem);
     padding: 0.45rem 0.85rem;
@@ -158,19 +156,15 @@
 
 .mod-dropdown-menu .dropdown-item:hover,
 .mod-dropdown-menu .dropdown-item:focus,
-.files-dropdown-menu .dropdown-item:hover,
-.files-dropdown-menu .dropdown-item:focus,
 .mod-list-actions .dropdown-menu .dropdown-item:hover {
     background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
-.mod-dropdown-menu .dropdown-divider,
-.files-dropdown-menu .dropdown-divider {
+.mod-dropdown-menu .dropdown-divider {
     margin: 0.35rem 0.5rem;
 }
 
-.mod-dropdown-menu.show,
-.files-dropdown-menu.show {
+.mod-dropdown-menu.show {
     z-index: 1110;
     background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
 }

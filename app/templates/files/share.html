@@ -22,8 +22,7 @@
                 <span class="files-ext-brand-kind">{% if share_mode == 'edit' %}Bearbeiten-Freigabe{% else %}Betrachten-Freigabe{% endif %}</span>
             </div>
         </div>
-        <div class="card share-browser-card files-ext-panel">
-            <div class="card-body">
+        <div class="files-ext-panel share-browser-card">
                 {% if item_type == 'file' %}
                     <div class="d-flex align-items-center mb-3">
                         {{ file_type_icon(file.name, 'sm') }}
@@ -70,7 +69,7 @@
                             <button class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" type="button" id="newButton">
                                 <i class="bi bi-plus-lg me-1"></i> Neu
                             </button>
-                            <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu">
+                            <ul class="dropdown-menu mod-dropdown-menu" id="newDropdownMenu">
                                 <li><a class="dropdown-item" href="#" id="uploadFileMenuItem"><i class="bi bi-upload me-2"></i>Dateien hochladen</a></li>
                                 <li><a class="dropdown-item" href="#" id="uploadFolderMenuItem"><i class="bi bi-cloud-upload me-2"></i>Ordner hochladen</a></li>
                                 <li><hr class="dropdown-divider"></li>
@@ -267,7 +266,6 @@
                     {% endif %}
                     
                 {% endif %}
-            </div>
         </div>
 </div>
 {% endblock %}

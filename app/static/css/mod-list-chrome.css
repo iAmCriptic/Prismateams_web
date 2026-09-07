@@ -1,10 +1,11 @@
-/* Shared list / grid / bulk chrome — used by files, contacts, kanban, wiki.
- * Keeps domain modules from loading the full files.css for these patterns.
+/* Shared list / grid / bulk chrome — used by files, contacts, kanban, wiki, …
+ * Keeps domain modules from loading files.css for these patterns.
+ * Canonical classes: mod-bulk-*, mod-select-*, mod-grid-preview, mod-item-name*, mod-details-card.
  */
 
 /* ——— Multi-select / bulk bar ——— */
 
-.files-bulk-bar {
+.mod-bulk-bar {
     border: 1px solid var(--bs-border-color, #e9ecef);
     border-left: 4px solid var(--accent-color, var(--bs-primary));
     border-radius: var(--mod-radius-pill, 1.5rem);
@@ -17,7 +18,7 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.files-bulk-inner {
+.mod-bulk-inner {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -26,51 +27,51 @@
     padding: 0.75rem 1rem;
 }
 
-.files-bulk-actions {
+.mod-bulk-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
     align-items: center;
 }
 
-.files-bulk-btn {
+.mod-bulk-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-weight: 600;
     font-size: 0.8rem;
     background-color: var(--bs-body-bg, #fff);
 }
 
-.files-bulk-btn--outline {
+.mod-bulk-btn--outline {
     border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--bs-border-color, #dee2e6));
     color: var(--bs-body-color, #212529);
 }
 
-.files-bulk-btn--outline:hover {
+.mod-bulk-btn--outline:hover {
     border-color: var(--accent-color, var(--bs-primary));
     color: var(--accent-color, var(--bs-primary));
 }
 
-.files-bulk-btn--muted {
+.mod-bulk-btn--muted {
     border: 1px solid var(--bs-border-color, #dee2e6);
     color: var(--bs-secondary-color, #6c757d);
     background: transparent;
 }
 
-.files-bulk-btn--danger {
+.mod-bulk-btn--danger {
     border: 1px solid color-mix(in srgb, #dc3545 40%, var(--bs-border-color, #dee2e6));
     color: #dc3545;
 }
 
-.files-bulk-btn--danger:hover {
+.mod-bulk-btn--danger:hover {
     background: color-mix(in srgb, #dc3545 10%, transparent);
 }
 
-.files-bulk-btn:disabled {
+.mod-bulk-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
 
-.files-select-check {
+.mod-select-check {
     position: absolute;
     top: 0.55rem;
     left: 0.55rem;
@@ -84,15 +85,15 @@
     cursor: pointer;
 }
 
-.card.file-item:hover .files-select-check,
-.card.folder-item:hover .files-select-check,
-.card.file-item.is-selected .files-select-check,
-.card.folder-item.is-selected .files-select-check,
-body.files-has-selection .files-select-check {
+.card.file-item:hover .mod-select-check,
+.card.folder-item:hover .mod-select-check,
+.card.file-item.is-selected .mod-select-check,
+.card.folder-item.is-selected .mod-select-check,
+body.mod-has-selection .mod-select-check {
     opacity: 1;
 }
 
-.files-select-col {
+.mod-select-col {
     width: 2.25rem !important;
     min-width: 2.25rem !important;
     max-width: 2.25rem !important;
@@ -104,7 +105,7 @@ body.files-has-selection .files-select-check {
 
 /* table-cell behalten — display:flex auf <td> zerstört Zeilenhöhe/Namen */
 
-.files-list-name-cell {
+.mod-list-name-cell {
     position: relative;
     max-width: 0;
     overflow: hidden;
@@ -113,7 +114,7 @@ body.files-has-selection .files-select-check {
     white-space: nowrap;
 }
 
-.files-list-name-cell .mod-list-name.files-item-name {
+.mod-list-name-cell .mod-list-name.mod-item-name {
     display: inline-flex;
     align-items: center;
     min-width: 0;
@@ -124,13 +125,13 @@ body.files-has-selection .files-select-check {
     transition: padding-left 0.12s ease;
 }
 
-.files-list-name-cell .files-presence-anchor {
+.mod-list-name-cell .mod-presence-anchor {
     display: inline-flex;
     vertical-align: middle;
     margin-left: 0.35rem;
 }
 
-.files-select-check--list {
+.mod-select-check--list {
     position: absolute;
     left: 0.15rem;
     top: 50%;
@@ -142,19 +143,19 @@ body.files-has-selection .files-select-check {
     background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, transparent);
 }
 
-.mod-list-row:hover .files-select-check--list,
-.mod-list-row.is-selected .files-select-check--list,
-body.files-has-selection .files-select-check--list {
+.mod-list-row:hover .mod-select-check--list,
+.mod-list-row.is-selected .mod-select-check--list,
+body.mod-has-selection .mod-select-check--list {
     opacity: 1;
 }
 
-.mod-list-row:hover .files-list-name-cell .mod-list-name.files-item-name,
-.mod-list-row.is-selected .files-list-name-cell .mod-list-name.files-item-name,
-body.files-has-selection .files-list-name-cell .mod-list-name.files-item-name {
+.mod-list-row:hover .mod-list-name-cell .mod-list-name.mod-item-name,
+.mod-list-row.is-selected .mod-list-name-cell .mod-list-name.mod-item-name,
+body.mod-has-selection .mod-list-name-cell .mod-list-name.mod-item-name {
     padding-left: 1.55rem;
 }
 
-.files-list-select-all-wrap {
+.mod-list-select-all-wrap {
     display: inline-flex;
     align-items: center;
     margin-right: 0.4rem;
@@ -171,7 +172,7 @@ tr.mod-list-row.is-selected {
 
 /* ——— Grid preview / hover shortcuts / item names ——— */
 
-.files-grid-preview {
+.mod-grid-preview {
     min-height: 7.5rem;
     height: 7.5rem;
     display: flex;
@@ -181,13 +182,13 @@ tr.mod-list-row.is-selected {
     overflow: hidden;
 }
 
-.files-grid-preview .bi {
+.mod-grid-preview .bi {
     font-size: 3.4rem;
     line-height: 1;
 }
 
-.files-grid-preview .image-mini-preview,
-.files-grid-preview > img {
+.mod-grid-preview .image-mini-preview,
+.mod-grid-preview > img {
     max-height: 100%;
     max-width: 100%;
     width: auto;
@@ -195,35 +196,35 @@ tr.mod-list-row.is-selected {
     object-fit: cover;
 }
 
-.files-grid-hover-actions {
+.mod-grid-hover-actions {
     display: none !important;
     align-items: center;
     gap: 0.1rem;
 }
 
 @media (min-width: 992px) {
-    .card.folder-item:hover .files-grid-hover-actions,
-    .card.file-item:hover .files-grid-hover-actions,
-    .card.folder-item:focus-within .files-grid-hover-actions,
-    .card.file-item:focus-within .files-grid-hover-actions {
+    .card.folder-item:hover .mod-grid-hover-actions,
+    .card.file-item:hover .mod-grid-hover-actions,
+    .card.folder-item:focus-within .mod-grid-hover-actions,
+    .card.file-item:focus-within .mod-grid-hover-actions {
         display: inline-flex !important;
     }
 }
 
-.files-grid-hover-actions .btn-link {
+.mod-grid-hover-actions .btn-link {
     color: var(--bs-secondary-color);
     text-decoration: none;
     padding: 0.2rem 0.35rem;
     border-radius: var(--mod-radius-pill, 1.5rem);
 }
 
-.files-grid-hover-actions .btn-link:hover {
+.mod-grid-hover-actions .btn-link:hover {
     color: var(--accent-color, var(--bs-primary));
     background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
 }
 
-.card.folder-item .files-item-name,
-.card.file-item .files-item-name {
+.card.folder-item .mod-item-name,
+.card.file-item .mod-item-name {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -236,7 +237,7 @@ tr.mod-list-row.is-selected {
     white-space: normal;
 }
 
-.mod-list-name.files-item-name {
+.mod-list-name.mod-item-name {
     display: inline-flex;
     align-items: center;
     column-gap: 0.15rem;
@@ -246,24 +247,24 @@ tr.mod-list-row.is-selected {
     max-width: 100%;
 }
 
-.mod-list-name.files-item-name > *,
-.mod-list-name.files-item-name .file-type-icon-wrap,
-.mod-list-name.files-item-name .file-type-bi,
-.mod-list-name.files-item-name .bi {
+.mod-list-name.mod-item-name > *,
+.mod-list-name.mod-item-name .file-type-icon-wrap,
+.mod-list-name.mod-item-name .file-type-bi,
+.mod-list-name.mod-item-name .bi {
     flex-shrink: 0;
     margin: 0 !important;
     padding-right: 0 !important;
 }
 
-.mod-list-name.files-item-name .files-item-name-text {
+.mod-list-name.mod-item-name .mod-item-name-text {
     margin: 0 !important;
     padding-left: 0 !important;
     flex: 1 1 auto;
     min-width: 0;
 }
 
-.card.folder-item .files-item-name-text,
-.card.file-item .files-item-name-text {
+.card.folder-item .mod-item-name-text,
+.card.file-item .mod-item-name-text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -275,7 +276,7 @@ tr.mod-list-row.is-selected {
     min-width: 0;
 }
 
-.mod-list-name .files-item-name-text {
+.mod-list-name .mod-item-name-text {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
@@ -288,18 +289,18 @@ tr.mod-list-row.is-selected {
 
 /* ——— Details card (files viewer + wiki side panels) ——— */
 
-.files-details-card {
+.mod-details-card {
     border-radius: 1rem;
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
     background: var(--bs-tertiary-bg);
     padding: 1rem;
 }
 
-.files-details-card p {
+.mod-details-card p {
     margin-bottom: 0.45rem;
 }
 
-.files-details-card p:last-child {
+.mod-details-card p:last-child {
     margin-bottom: 0;
 }
 

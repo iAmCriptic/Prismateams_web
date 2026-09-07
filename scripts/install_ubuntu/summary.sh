@@ -75,6 +75,15 @@ write_install_report() {
             echo "MiroTalk Host-User: ${MIROTALK_HOST_USER:-portal}"
             echo "MiroTalk Host-Passwort: ${MIROTALK_HOST_PASSWORD:-}"
             echo "MiroTalk API-Key: ${MIROTALK_API_KEY:-}"
+            echo "MiroTalk Secrets: müssen mit /var/lib/mirotalk-sfu/.env übereinstimmen"
+            if [ -z "$(mirotalk_meet_hostname)" ]; then
+                echo "MiroTalk-Modus: IP/LAN (direkt Port ${MIROTALK_HOST_PORT:-3010})"
+            else
+                echo "MiroTalk-Modus: Hostname $(mirotalk_meet_hostname) hinter Webserver"
+            fi
+            if ! is_yes "${SETUP_SSL:-n}"; then
+                echo "MiroTalk HTTPS: nein — WebRTC/Kamera unter http:// oft blockiert (Blackscreen)"
+            fi
         fi
         echo
         echo "Weitere Keys liegen in: ${INSTALL_DIR}/.env"
@@ -141,9 +150,17 @@ print_summary() {
         echo "MiroTalk Host-User: ${MIROTALK_HOST_USER:-portal}"
         echo "MiroTalk Host-Passwort: ${MIROTALK_HOST_PASSWORD:-}"
         echo "MiroTalk API-Key: ${MIROTALK_API_KEY:-}"
+        echo "  (Portal-.env und /var/lib/mirotalk-sfu/.env müssen diese Werte teilen)"
         _meet_host=$(mirotalk_meet_hostname)
         if [ -n "$_meet_host" ]; then
             echo "DNS: A/AAAA-Record ${_meet_host} auf diesen Server zeigen lassen"
+        else
+            echo "Hinweis: IP-/LAN-Modus — Meetings über Port ${MIROTALK_HOST_PORT:-3010} (kein meet.-Hostname)"
+            echo "Firewall: ${MIROTALK_HOST_PORT:-3010}/tcp sowie ${MIROTALK_UDP_MIN:-40000}-${MIROTALK_UDP_MAX:-40100} udp/tcp"
+        fi
+        if ! is_yes "${SETUP_SSL:-n}"; then
+            echo "WARNUNG: Kein SSL — Browser blockieren Kamera/Mikrofon unter http://… (Meetings-Blackscreen)."
+            echo "  Für produktive Calls: HTTPS für Portal und Meet einrichten."
         fi
     fi
     echo "Weitere Secrets: ${INSTALL_DIR}/.env"

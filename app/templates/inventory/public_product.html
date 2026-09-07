@@ -38,7 +38,7 @@
             {% if product.image_path %}
             {% set image_filename = product.image_path.split('/')[-1] if '/' in product.image_path else product.image_path %}
             <div class="inventory-public-media">
-                <img src="{{ url_for('inventory.serve_public_product_image', filename=image_filename) }}"
+                <img src="{{ url_for('inventory.serve_public_product_image', filename=image_filename, pid=product.id, s=public_image_sig) }}"
                      alt="{{ product.name }}"
                      class="inventory-public-image">
             </div>

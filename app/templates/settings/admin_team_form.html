@@ -8,8 +8,8 @@
 {% block settings_content %}
 <div class="sp-layout">
   <div class="sp-page sp-page--fluid settings-admin-teams">
-    <div class="sp-back-row">
-      <a href="{% if is_edit %}{{ url_for('settings.admin_team_detail', team_id=team.id) }}{% else %}{{ url_for('settings.admin_teams') }}{% endif %}" class="sp-back-link">
+  <div class="mod-back-row">
+      <a href="{% if is_edit %}{{ url_for('settings.admin_team_detail', team_id=team.id) }}{% else %}{{ url_for('settings.admin_teams') }}{% endif %}" class="mod-back-link">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
       </a>

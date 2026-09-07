@@ -29,8 +29,9 @@ def create_webdav_wsgi_app(flask_app):
             'accept_digest': False,
             'default_to_digest': False,
         },
+        # HTML-Directory-Browser: Default aus (Info-Leak); Opt-in WEBDAV_DIR_BROWSER=true
         'dir_browser': {
-            'enable': True,
+            'enable': bool(flask_app.config.get('WEBDAV_DIR_BROWSER', False)),
             'response_trailer': False,
             'davmount': False,
             'ms_support': True,

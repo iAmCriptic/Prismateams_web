@@ -17,7 +17,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="form-label" for="guestName">{{ _('meetings.guest.name_label') }}</label>
             <input type="text" class="form-control rounded-pill px-3 mb-3" id="guestName" name="guest_name" required minlength="2" maxlength="80" autocomplete="nickname">
-            <button type="submit" class="btn btn-accent rounded-pill w-100">
+            <button type="submit" class="btn btn-accent mod-pill-btn w-100">
                 {{ _('meetings.guest.submit') }}
             </button>
         </form>
