@@ -315,6 +315,8 @@ sudo systemctl restart teamportal
 
 Nach nachträglichem SSL (Certbot): Flag auf `True` setzen und Service neu starten. Sonst bleiben Cookies unsicher über HTTP nutzbar.
 
+**Produkt-Checks:** In `production`/`staging` schreibt die App eine Startup-Warnung, wenn `SESSION_COOKIE_SECURE` oder `REMEMBER_COOKIE_SECURE` False ist bzw. `PUBLIC_BASE_URL` mit `https://` beginnt, das Secure-Flag aber aus ist. Admins sehen den Ist-Zustand unter Einstellungen → System → Session-Cookies.
+
 **Stuck-Setup:** Wenn nach Admin-Anlage nur noch der Login erscheint — siehe [ERROR_HANDLING.md – Setup hängt](ERROR_HANDLING.md#setup-hängt-nach-account-erstellung-login-schleife).
 
 ## Bei Problemen

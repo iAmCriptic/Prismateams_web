@@ -1666,6 +1666,10 @@
         "share_access_log_retention_label": "Share-Zugriffsprotokolle (Tage)",
         "share_access_log_retention_help": "ShareAccessLog-Einträge älter als N Tage werden gelöscht. 0 = kein Auto-Purge.",
         "log_retention_note": "Standard: Sessions 30 Tage, Share-Logs 90 Tage. Überschreibt SESSION_RECORD_RETENTION_DAYS / SHARE_ACCESS_LOG_RETENTION_DAYS aus der Umgebung, sobald gespeichert. Fristen in der Datenschutzerklärung nennen.",
+        "section_cookie_security": "Session-Cookies",
+        "cookie_security_help": "Secure-Flags für Session- und Remember-Me-Cookies (nur über .env steuerbar). Bei HTTPS in Produktion müssen beide True sein.",
+        "cookie_security_warn_insecure": "SESSION_COOKIE_SECURE ist False: Cookies können über HTTP mitgelesen werden. Für produktiven HTTPS-Betrieb in der .env auf True setzen und Dienst neu starten.",
+        "cookie_security_note": "Produktion/Staging: Default True. Nur bei bewusstem HTTP-Zugriff False. Nach Certbot/SSL prüfen. Details: docs/WARTUNG.md (Session-Cookies).",
         "portal_name_label": "Portalsname",
         "portal_name_placeholder": "z.B. Prismateams",
         "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
@@ -2002,6 +2006,7 @@
         "create_subtitle": "Titel, PDF-Text, Felder und Rollen auf einer Seite.",
         "edit_heading": "Formular bearbeiten",
         "edit_subtitle": "Grunddaten, PDF, Integration, Felder und Zustimmungsrollen.",
+        "special_category_hint": "Freitextfelder nicht für besondere Kategorien (Art. 9 DSGVO) vorsehen, sofern nicht freigegeben und abgesichert.",
         "draft_title": "Neues Formular",
         "section_basics": "Grunddaten",
         "section_pdf": "PDF",
@@ -3751,6 +3756,7 @@
       "hints": {
         "sort_name": "Leer lassen, um den angezeigten Namen für die Sortierung zu verwenden."
       },
+      "notes_privacy_hint": "Keine besonderen Kategorien (z. B. Gesundheit, Religion) in Notizen speichern, sofern nicht ausdrücklich freigegeben.",
       "buttons": {
         "save": "Speichern",
         "update": "Aktualisieren",
@@ -6766,7 +6772,8 @@
       "delete_confirm": "Umfrage wirklich löschen?",
       "back": "Zurück",
       "preview": "Vorschau",
-      "share": "Freigeben"
+      "share": "Freigeben",
+      "special_category_hint": "Keine besonderen Kategorien (Art. 9 DSGVO, z. B. Gesundheit) in Fragen oder Freitext erfragen, sofern nicht ausdrücklich freigegeben und abgesichert. Das Portal filtert Inhalte nicht automatisch."
     },
     "settings": {
       "title": "Einstellungen",

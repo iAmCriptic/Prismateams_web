@@ -13,8 +13,29 @@
 - [ ] Für jeden aktiven Drittdienst: AVV / SCC / DPA geprüft und abgelegt (siehe unten)
 - [ ] Hosting, Backup und Log-Retention dokumentiert
 - [ ] Prozess für Betroffenenanfragen (Auskunft, Löschung, Export) bekannt
+- [ ] Freitext-Module: keine besondere Kategorien (Art. 9) / Minderjährigen-Prozess geklärt (siehe unten)
 
-## Empfänger und Auftragsverarbeitung (GDPR-07)
+## Besondere Kategorien und Freitext (Art. 9 / Minderjährige)
+
+Das Portal enthält **Freitextfelder** (Umfragen, Buchungsformulare, Kontakte-Notizen,
+Assessment-Beschreibungen, Chat, Wiki u. a.). Dort können theoretisch auch
+besondere Kategorien personenbezogener Daten (Gesundheit, Religion, politische
+Meinung, biometrische Daten usw., Art. 9 DSGVO) eingetragen werden. Es gibt
+**keine automatische Inhaltsfilterung** und **keine Altersprüfung**.
+
+### Betreiber-Richtlinie (empfohlen)
+
+1. In internen Nutzungsregeln / Schulungen festlegen: **keine Art.-9-Daten** in Freitext,
+   sofern keine explizite Rechtsgrundlage und Schutzmaßnahmen vorliegen
+2. Umfragen und Buchungsfelder so gestalten, dass keine sensiblen Angaben erfragt werden
+3. Module mit hohem Risiko nur für geschulte Rollen freigeben oder deaktivieren
+4. Bei beabsichtigter Erhebung besonderer Kategorien: Einwilligung / gesetzliche Grundlage,
+   Zweckbindung, Zugriffsbeschränkung und Löschkonzept dokumentieren
+5. Minderjährige: Portal ist kein Angebot an Kinder im Sinne von Art. 8 DSGVO ohne
+   elterliche Zustimmung — Registrierung/Whitelist organisatorisch steuern
+
+Produktseitig gibt es Hinweise im Umfrage-Builder, bei Kontakt-Notizen und in der
+Datenschutz-/Nutzungsbedingungen-Vorlage.
 
 Prismateams speichert personenbezogene Daten primär auf dem vom Betreiber betriebenen
 Server. Zusätzlich können optionale Integrationen Daten an Dritte übermitteln oder
@@ -108,6 +129,7 @@ Export oder Löschung über Admin ausführen und Ergebnis festhalten.
 Siehe auch `docs/WARTUNG.md` und `docs/INSTALLATION.md`:
 
 - Argon2-Passwörter, CSRF, Session-Cookies (`HttpOnly` / `SameSite` / `Secure` bei HTTPS)
+- In Production/Staging: Startup-Warnung und Admin-Anzeige, wenn `SESSION_COOKIE_SECURE=False`
 - Fernet-Verschlüsselung für Secrets (Credentials, Mailbox, Musik, TOTP)
 - Modul- und Rollenrechte, Rate-Limits
 - HTTPS in Produktion (`SESSION_COOKIE_SECURE=True`)

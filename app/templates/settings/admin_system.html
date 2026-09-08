@@ -153,6 +153,58 @@
         </div>
       </section>
 
+      <section class="sp-group" id="system-cookie-security" data-settings-search-id="system-cookie-security">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-shield-lock" aria-hidden="true"></i>{{ _('settings.admin.system.section_cookie_security') }}</h2>
+          {{ sp_info(_('settings.admin.system.cookie_security_help')) }}
+        </div>
+        <div class="sp-group-body">
+          {% if not session_cookie_secure %}
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0 text-warning">
+              <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+              {{ _('settings.admin.system.cookie_security_warn_insecure') }}
+            </p>
+          </div>
+          {% endif %}
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">SESSION_COOKIE_SECURE</span>
+            </div>
+            <div class="sp-row-control">
+              {% if session_cookie_secure %}
+              <span class="badge text-bg-success rounded-pill">True</span>
+              {% else %}
+              <span class="badge text-bg-warning rounded-pill">False</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">REMEMBER_COOKIE_SECURE</span>
+            </div>
+            <div class="sp-row-control">
+              {% if remember_cookie_secure %}
+              <span class="badge text-bg-success rounded-pill">True</span>
+              {% else %}
+              <span class="badge text-bg-warning rounded-pill">False</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">FLASK_ENV</span>
+            </div>
+            <div class="sp-row-control">
+              <span class="badge text-bg-secondary rounded-pill">{{ flask_env }}</span>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0">{{ _('settings.admin.system.cookie_security_note') }}</p>
+          </div>
+        </div>
+      </section>
+
       <section class="sp-group sp-group--span2" id="system-branding" data-settings-search-id="system-branding">
         <div class="sp-group-head">
           <h2 class="sp-group-title"><i class="bi bi-brush" aria-hidden="true"></i>{{ _('settings.admin.system.section_branding') }}</h2>

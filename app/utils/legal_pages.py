@@ -109,18 +109,29 @@ Ihre Auswahl wird lokal (Browser) gespeichert und zusätzlich serverseitig als
 Nachweis (Zeitpunkt, Kategorien, Version, ggf. Benutzerkonto / anonyme Consent-ID)
 protokolliert. Widerruf bzw. Änderung jederzeit über die Cookie-Einstellungen.
 
-8. Ihre Rechte
+8. Besondere Kategorien personenbezogener Daten (Art. 9 DSGVO)
+Das Portal ist nicht darauf ausgelegt, besondere Kategorien personenbezogener Daten
+(z. B. Gesundheitsdaten, religiöse oder weltanschauliche Überzeugungen, biometrische
+Daten) zu erheben. Freitextfelder in Modulen wie Umfragen, Buchungen, Kontakte,
+Assessment oder Chat können solche Angaben jedoch technisch speichern.
+
+Bitte tragen Sie dort keine besonderen Kategorien ein, es sei denn, der Betreiber hat
+dies ausdrücklich freigegeben und eine geeignete Rechtsgrundlage sowie Schutzmaßnahmen
+eingerichtet. Das Portal prüft Freitextinhalte nicht automatisch und führt keine
+Altersverifikation durch. [Ggf. ergänzen: organisierte Freigabe / Verbote Ihrer Organisation]
+
+9. Ihre Rechte
 Sie haben nach Maßgabe der DSGVO insbesondere folgende Rechte:
 Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit
 sowie Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen.
 Sofern eine Verarbeitung auf Einwilligung beruht, können Sie diese jederzeit widerrufen.
 Im Portal: Datenexport unter Einstellungen → Datenschutz; Kontolöschung unter Einstellungen → Profil.
 
-9. Beschwerderecht
+10. Beschwerderecht
 Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.
 Zuständige Aufsichtsbehörde: [Name und Kontakt der Aufsichtsbehörde]
 
-10. Hinweis
+11. Hinweis
 Dieser Text ist eine generische Vorlage und ersetzt keine individuelle Rechtsberatung.
 Bitte passen Sie die Angaben an Ihre Organisation und Ihren tatsächlichen Betrieb an."""
 
@@ -186,6 +197,8 @@ Mit der Registrierung oder Nutzung des Portals erklären Sie sich mit diesen Nut
 3.2 Der Nutzer verpflichtet sich, keine Inhalte zu übermitteln oder zu speichern, die gegen geltendes Recht, gute Sitten oder Rechte Dritter verstoßen.
 3.3 Untersagt sind insbesondere:
 - Die Verbreitung rechtswidriger, beleidigender oder schädlicher Inhalte.
+- Die Eingabe besonderer Kategorien personenbezogener Daten (Art. 9 DSGVO, z. B. Gesundheitsdaten)
+  in Freitextfelder, sofern der Betreiber dies nicht ausdrücklich freigegeben hat.
 - Versuche, die Sicherheit, Integrität oder Verfügbarkeit des Portals zu beeinträchtigen.
 - Die unbefugte Weitergabe von Zugangsdaten an Dritte.
 

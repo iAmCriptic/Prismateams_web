@@ -1911,6 +1911,10 @@
         "share_access_log_retention_label": "Share access logs (days)",
         "share_access_log_retention_help": "ShareAccessLog entries older than N days are deleted. 0 = no auto-purge.",
         "log_retention_note": "Defaults: sessions 30 days, share logs 90 days. Overrides SESSION_RECORD_RETENTION_DAYS / SHARE_ACCESS_LOG_RETENTION_DAYS from the environment once saved. State the periods in your privacy policy.",
+        "section_cookie_security": "Session cookies",
+        "cookie_security_help": "Secure flags for session and remember-me cookies (controlled via .env only). With HTTPS in production both must be True.",
+        "cookie_security_warn_insecure": "SESSION_COOKIE_SECURE is False: cookies can be read over HTTP. For production HTTPS set True in .env and restart the service.",
+        "cookie_security_note": "Production/staging default to True. Use False only for intentional HTTP access. Re-check after Certbot/SSL. Details: docs/WARTUNG.md (Session cookies).",
         "portal_name_label": "Portal Name",
         "portal_name_placeholder": "e.g. Prismateams",
         "portal_name_help": "The name of the portal that is displayed in various places.",
@@ -2022,6 +2026,7 @@
         "create_subtitle": "Title, PDF text, fields and roles on one page.",
         "edit_heading": "Edit form",
         "edit_subtitle": "Basics, PDF, integration, fields and approval roles.",
+        "special_category_hint": "Do not design free-text fields for special-category data (GDPR Art. 9) unless approved and safeguarded.",
         "draft_title": "New form",
         "section_basics": "Basics",
         "section_pdf": "PDF",
@@ -4667,6 +4672,7 @@
       "hints": {
         "sort_name": "Leave empty to use the display name for sorting."
       },
+      "notes_privacy_hint": "Do not store special-category data (e.g. health, religion) in notes unless explicitly approved.",
       "buttons": {
         "save": "Save",
         "update": "Update",
@@ -6766,7 +6772,8 @@
       "delete_confirm": "Delete this survey?",
       "back": "Back",
       "preview": "Preview",
-      "share": "Share"
+      "share": "Share",
+      "special_category_hint": "Do not request special-category data (GDPR Art. 9, e.g. health) in questions or free text unless explicitly approved and safeguarded. The portal does not filter content automatically."
     },
     "settings": {
       "title": "Settings",

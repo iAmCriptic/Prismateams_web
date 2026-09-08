@@ -27,14 +27,36 @@ def configure_core(app, config_name, basedir):
             f"{config_name.capitalize()} requires a strong SECRET_KEY via environment variable SECRET_KEY."
         )
 
+    if config_name in ('production', 'staging') and not app.config.get('SESSION_COOKIE_SECURE'):
+        logging.getLogger(__name__).warning(
+            "%s läuft mit SESSION_COOKIE_SECURE=False — Session-Cookies sind über HTTP lesbar. "
+            "Produktion sollte HTTPS nutzen und SESSION_COOKIE_SECURE=True setzen "
+            "(nur für bewusstes HTTP-Staging auf False lassen). Siehe docs/WARTUNG.md.",
+            config_name.capitalize(),
+        )
+    if config_name in ('production', 'staging') and not app.config.get('REMEMBER_COOKIE_SECURE'):
+        logging.getLogger(__name__).warning(
+            "%s: REMEMBER_COOKIE_SECURE=False — Remember-Me-Cookies ohne Secure-Flag.",
+            config_name.capitalize(),
+        )
+
+    public_base = (app.config.get('PUBLIC_BASE_URL') or '').strip().lower()
+    if (
+        config_name in ('production', 'staging')
+        and public_base.startswith('https://')
+        and not app.config.get('SESSION_COOKIE_SECURE')
+    ):
+        logging.getLogger(__name__).warning(
+            "PUBLIC_BASE_URL ist HTTPS, aber SESSION_COOKIE_SECURE=False — bitte auf True setzen."
+        )
+
     if (
         config_name in ('production', 'staging')
         and app.config.get('ONLYOFFICE_ENABLED')
         and not (app.config.get('ONLYOFFICE_SECRET_KEY') or '').strip()
         and not app.config.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
     ):
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
+        logging.getLogger(__name__).warning(
             "ONLYOFFICE is enabled without ONLYOFFICE_SECRET_KEY in %s. "
             "Callbacks will be rejected until the secret matches Document Server JWT_SECRET "
             "(or set ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true for JWT_ENABLED=false).",

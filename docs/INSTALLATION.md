@@ -952,6 +952,8 @@ sudo ufw status
 - [ ] Firewall ist konfiguriert
 - [ ] Regelmäßige Backups sind eingerichtet ([WARTUNG.md](WARTUNG.md))
 - [ ] Datenschutz: AVV-Inventar und Rechtstexte geprüft ([DSGVO.md](DSGVO.md))
+- [ ] `SESSION_COOKIE_SECURE=True` bei HTTPS (Admin → System → Session-Cookies prüfen)
+- [ ] Freitext/Art. 9: Richtlinie bekannt ([DSGVO.md](DSGVO.md#besondere-kategorien-und-freitext-art-9--minderjährige))
 - [ ] Standard-Ports sind geschützt
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell

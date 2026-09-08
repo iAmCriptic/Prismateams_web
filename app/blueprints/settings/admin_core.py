@@ -473,6 +473,9 @@ def admin_system():
     search_indexing_enabled = is_search_indexing_enabled()
     session_record_retention_days = get_session_record_retention_days()
     share_access_log_retention_days = get_share_access_log_retention_days()
+    session_cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    remember_cookie_secure = bool(current_app.config.get('REMEMBER_COOKIE_SECURE'))
+    flask_env = (os.environ.get('FLASK_ENV') or ('development' if current_app.debug else 'production')).strip()
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -489,6 +492,9 @@ def admin_system():
                          search_indexing_enabled=search_indexing_enabled,
                          session_record_retention_days=session_record_retention_days,
                          share_access_log_retention_days=share_access_log_retention_days,
+                         session_cookie_secure=session_cookie_secure,
+                         remember_cookie_secure=remember_cookie_secure,
+                         flask_env=flask_env,
                          timezone_choices=get_timezone_choices())
 
 
