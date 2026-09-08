@@ -21,7 +21,13 @@ class CalendarSyncScheduler(IntervalScheduler):
         return SYNC_INTERVAL_SECONDS
 
     def run_job(self):
+        from app.utils.common import is_module_enabled
         from app.utils.ical import sync_all_active_sources
+
+        # PERF-02: Admin hat Modul abgeschaltet → keine iCal-Fetches
+        if not is_module_enabled('module_calendar'):
+            logger.debug("module_calendar deaktiviert — Kalender-Sync idle")
+            return
 
         logger.info("Starte automatische Kalender-Synchronisation...")
         results = sync_all_active_sources()

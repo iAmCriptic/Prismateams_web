@@ -28,13 +28,19 @@ def run_app_startup(app):
 
     # Background-Jobs nur im Hauptprozess starten
     if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
-        start_email_sync(app)
-        
+        from app.utils.common import is_module_enabled
+
+        # PERF-01: E-Mail-Sync nur wenn Modul adminseitig aktiv
+        if is_module_enabled('module_email'):
+            start_email_sync(app)
+
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
 
-        from app.tasks.calendar_sync_scheduler import start_calendar_sync_scheduler
-        start_calendar_sync_scheduler(app)
+        # PERF-02: Kalender-Sync nur wenn Modul adminseitig aktiv
+        if is_module_enabled('module_calendar'):
+            from app.tasks.calendar_sync_scheduler import start_calendar_sync_scheduler
+            start_calendar_sync_scheduler(app)
 
         from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
         start_media_downloader_cleanup(app)

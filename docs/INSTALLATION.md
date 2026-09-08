@@ -860,6 +860,31 @@ server {
 - Entfernen Sie den Excalidraw-Location-Block (`/excalidraw-room/`), wenn der Room-Server NICHT installiert ist
 - Ersetzen Sie `ihre-domain.de` mit Ihrer tatsächlichen Domain oder IP-Adresse
 
+#### Optional: Ticket-Shop Custom Domain
+
+Der öffentliche Ticketshop läuft immer unter `/tickets/shop` und `/tickets/e/<slug>` auf der Portal-Domain.
+Zusätzlich können in **Einstellungen → Tickets** Shop-Hostnames hinterlegt werden (z. B. `tickets.ihre-marke.de`).
+Nginx/Apache muss denselben Upstream wie das Portal nutzen und `Host` + `X-Forwarded-*` durchreichen:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name tickets.ihre-marke.de;
+    # SSL wie Portal …
+    client_max_body_size 100M;
+    location / {
+        proxy_pass http://teamportal_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Auf diesen Hosts liefert die App nur den öffentlichen Shop sowie Impressum/Datenschutz (kein Team-Portal).
+Stripe-Webhook: `https://ihre-portal-domain.de/tickets/webhooks/stripe` (oder Shop-Host, wenn erreichbar).
+
 ```bash
 # Site aktivieren
 sudo ln -s /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/

@@ -68,20 +68,26 @@ def email_sync_scheduler(app):
         lock_acquired = False
         try:
             with app.app_context():
-                # Non-blocking: Leader-Thread wartet nicht hinter manuellem Sync
-                with acquire_email_sync_lock(timeout=0) as acquired:
-                    lock_acquired = acquired
-                    if acquired:
-                        try:
-                            success, message = sync_all_configured_mailboxes()
-                            if success:
-                                logger.debug("Auto-sync: %s", message)
-                            else:
-                                logger.error("Auto-sync failed: %s", message)
-                        except Exception as sync_error:
-                            logger.error(f"Fehler während der Synchronisation: {sync_error}", exc_info=True)
-                    else:
-                        logger.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
+                from app.utils.common import is_module_enabled
+
+                # PERF-01: Admin hat Modul abgeschaltet → keine IMAP-Arbeit
+                if not is_module_enabled('module_email'):
+                    logger.debug("module_email deaktiviert — Auto-Sync idle")
+                else:
+                    # Non-blocking: Leader-Thread wartet nicht hinter manuellem Sync
+                    with acquire_email_sync_lock(timeout=0) as acquired:
+                        lock_acquired = acquired
+                        if acquired:
+                            try:
+                                success, message = sync_all_configured_mailboxes()
+                                if success:
+                                    logger.debug("Auto-sync: %s", message)
+                                else:
+                                    logger.error("Auto-sync failed: %s", message)
+                            except Exception as sync_error:
+                                logger.error(f"Fehler während der Synchronisation: {sync_error}", exc_info=True)
+                        else:
+                            logger.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
         except Exception as e:
             logger.error(f"E-Mail-Sync-Scheduler Fehler: {e}", exc_info=True)
         finally:
@@ -114,7 +120,13 @@ def _leader_heartbeat_loop():
 def start_email_sync(app):
     """Start the background email synchronization thread (nur ein Worker = Leader)."""
     global sync_thread, _sync_started, _email_sync_leader
-    
+
+    with app.app_context():
+        from app.utils.common import is_module_enabled
+        if not is_module_enabled('module_email'):
+            logger.info("module_email deaktiviert — E-Mail-Sync-Scheduler startet nicht")
+            return
+
     # Prüfe zuerst, ob bereits ein Thread mit diesem Namen läuft (auch nach Reload)
     existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
     if existing_threads:

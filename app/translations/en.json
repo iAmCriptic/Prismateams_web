@@ -35,7 +35,8 @@
       "surveys": "Surveys",
       "file_converter": "File Converter",
       "protocols": "Meeting Minutes",
-      "meetings": "Meetings"
+      "meetings": "Meetings",
+      "tickets": "Tickets"
     },
     "brand": {
       "separator": "–",
@@ -905,7 +906,8 @@
       "team_lead_heading": "Team lead",
       "kanban": "Kanban",
       "kanban_desc": "Visibility Private / Team / Public for boards",
-      "push": "Push subscriptions"
+      "push": "Push subscriptions",
+      "tickets": "Tickets"
     },
     "search": {
       "label": "Search settings",
@@ -1491,7 +1493,8 @@
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
         "lead_short": "Enable and disable modules.",
-        "module_meetings": "Meetings (video calls)"
+        "module_meetings": "Meetings (video calls)",
+        "module_tickets": "Tickets"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1766,6 +1769,10 @@
         },
         "inventory": {
           "short": "Ownership text"
+        },
+        "tickets": {
+          "title": "Tickets",
+          "short": "Stripe, tax and shop domain"
         }
       },
       "registration": {
@@ -2426,6 +2433,16 @@
         "allow_public": "Public area (entire portal)",
         "save": "Save",
         "flash_saved": "Visibility settings saved."
+      },
+      "tickets": {
+        "page_title": "Ticket settings",
+        "heading": "Tickets",
+        "lead": "Stripe payments, tax and public shop for the tickets module.",
+        "stripe_title": "Stripe",
+        "tax_title": "Tax",
+        "shop_title": "Shop",
+        "flash_saved": "Ticket settings saved.",
+        "flash_module_disabled": "Please enable the tickets module first."
       }
     },
     "mailboxes": {
@@ -7191,6 +7208,135 @@
       "chat_missing": "Chat not found.",
       "not_chat_member": "You are not a member of this chat.",
       "chat_start_error": "Could not start the meeting."
+    }
+  },
+  "tickets": {
+    "nav": {
+      "title": "Tickets",
+      "all": "All events",
+      "published": "Published",
+      "drafts": "Drafts",
+      "orders": "Orders",
+      "scanner": "Scanner",
+      "settings": "Settings",
+      "new_event": "New event",
+      "public_shop": "Public shop"
+    },
+    "index": {
+      "page_title": "Tickets",
+      "empty": "No events yet.",
+      "stripe_hint": "Stripe is not configured yet."
+    },
+    "settings": {
+      "page_title": "Ticket settings",
+      "heading": "Stripe & shop",
+      "stripe_rk": "Stripe secret / restricted key",
+      "stripe_rk_help": "Prefer a restricted API key (rk_). Stored encrypted.",
+      "stripe_pk": "Publishable key",
+      "webhook_secret": "Webhook signing secret",
+      "webhook_url": "Webhook URL",
+      "tax_code": "Stripe tax code",
+      "tax_code_help": "From the Stripe Tax Codes API / Dashboard. Do not guess.",
+      "tax_behavior": "Tax behavior",
+      "automatic_tax": "Enable Stripe Tax (automatic_tax)",
+      "automatic_tax_help": "Requires an active DE tax registration in Stripe. Otherwise tax stays at 0.",
+      "shop_hosts": "Shop hostnames (optional)",
+      "shop_hosts_help": "Comma-separated. These hosts only serve the public ticket shop.",
+      "hold_minutes": "Quota hold (minutes)"
+    },
+    "event": {
+      "new": "New event",
+      "edit": "Edit event",
+      "title": "Title",
+      "doors": "Doors",
+      "starts": "Start",
+      "ends": "End",
+      "venue": "Venue",
+      "address": "Address",
+      "organizer": "Organizer",
+      "lineup": "Line-up",
+      "description": "Description",
+      "status": "Status",
+      "banner": "Ticket banner (A5 area)",
+      "poster": "Poster / thumbnail",
+      "terms": "Ticket terms note",
+      "terms_default": "Tickets are non-refundable and non-exchangeable. Tickets sind generell von Rückgabe und Umtausch ausgeschlossen.",
+      "info_de": "Info text DE (PDF bottom)",
+      "info_en": "Info text EN (PDF bottom)"
+    },
+    "tiers": {
+      "heading": "Quotas",
+      "empty": "No ticket tiers yet.",
+      "add": "Add quota",
+      "name": "Name"
+    },
+    "discounts": {
+      "heading": "Discounts / private links",
+      "empty": "No discount codes.",
+      "name": "Campaign",
+      "private_link": "Private link"
+    },
+    "stats": {
+      "sold": "Sold",
+      "revenue": "Revenue",
+      "orders": "Orders (shown)"
+    },
+    "orders": {
+      "page_title": "Orders",
+      "heading": "Orders",
+      "empty": "No orders.",
+      "buyer": "Buyer",
+      "total": "Total",
+      "resend": "Resend tickets",
+      "refund": "Cancel / refund",
+      "refund_reason": "Reason (required)",
+      "refund_confirm": "Really refund this order and void tickets?"
+    },
+    "scanner": {
+      "page_title": "Door scanner",
+      "heading": "Scan tickets",
+      "select_event": "Active event",
+      "manual": "Enter code manually",
+      "start": "Start camera",
+      "no_events": "No events available."
+    },
+    "public": {
+      "shop_title": "Tickets",
+      "no_events": "No events right now.",
+      "tickets": "TICKETS",
+      "available": "available",
+      "qty": "Qty",
+      "name": "Name",
+      "discount_code": "Discount code",
+      "discount_active": "Discount active",
+      "discount_invalid": "Discount invalid or expired",
+      "checkout": "Checkout",
+      "stripe_missing": "Ticket sales are not configured.",
+      "checkout_failed": "Checkout failed. Check quota and details.",
+      "info": "Information",
+      "no_tiers": "No ticket tiers available.",
+      "success_title": "Thank you!",
+      "success_body": "Your payment is being processed. You will receive tickets by email.",
+      "download_pdf": "Tickets PDF",
+      "invoice": "Invoice",
+      "pending_payment": "Payment not confirmed yet — check email or reload."
+    },
+    "flash": {
+      "admin_only": "Admins only.",
+      "settings_saved": "Settings saved.",
+      "title_required": "Title is required.",
+      "starts_required": "Start time is required.",
+      "event_created": "Event created.",
+      "event_saved": "Event saved.",
+      "tier_added": "Tier added.",
+      "tier_updated": "Tier updated.",
+      "discount_added": "Discount created.",
+      "mail_sent": "Email sent.",
+      "mail_failed": "Email failed.",
+      "refund_reason_required": "Please provide a refund reason.",
+      "refund_invalid": "Refund not possible.",
+      "refund_stripe_failed": "Stripe refund failed.",
+      "refund_done": "Order refunded, tickets voided."
     }
   }
 }

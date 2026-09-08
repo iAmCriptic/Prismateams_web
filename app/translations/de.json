@@ -35,7 +35,8 @@
       "surveys": "Umfragen",
       "file_converter": "Dateikonverter",
       "protocols": "Protokollführung",
-      "meetings": "Meetings"
+      "meetings": "Meetings",
+      "tickets": "Tickets"
     },
     "brand": {
       "separator": "–",
@@ -905,7 +906,8 @@
       "team_lead_heading": "Teamleitung",
       "kanban": "Kanban",
       "kanban_desc": "Sichtbarkeit Private / Team / Public für Boards",
-      "push": "Push-Abos"
+      "push": "Push-Abos",
+      "tickets": "Tickets"
     },
     "search": {
       "label": "Einstellungen durchsuchen",
@@ -1491,7 +1493,8 @@
         "module_file_converter": "Dateikonverter",
         "module_surveys": "Umfragen",
         "lead_short": "Module ein- und ausschalten.",
-        "module_meetings": "Meetings (Videoanrufe)"
+        "module_meetings": "Meetings (Videoanrufe)",
+        "module_tickets": "Tickets"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -2212,6 +2215,10 @@
         },
         "inventory": {
           "short": "Ownership-Text"
+        },
+        "tickets": {
+          "title": "Tickets",
+          "short": "Stripe, Steuern und Shop-Domain"
         }
       },
       "registration": {
@@ -2426,6 +2433,16 @@
         "allow_public": "Öffentlicher Bereich (gesamtes Portal)",
         "save": "Speichern",
         "flash_saved": "Sichtbarkeitseinstellungen gespeichert."
+      },
+      "tickets": {
+        "page_title": "Ticket-Einstellungen",
+        "heading": "Tickets",
+        "lead": "Stripe-Zahlungen, Steuer und öffentlicher Shop für das Ticketmodul.",
+        "stripe_title": "Stripe",
+        "tax_title": "Steuer",
+        "shop_title": "Shop",
+        "flash_saved": "Ticket-Einstellungen gespeichert.",
+        "flash_module_disabled": "Bitte zuerst das Ticketmodul aktivieren."
       }
     },
     "mailboxes": {
@@ -7191,6 +7208,135 @@
       "chat_missing": "Chat nicht gefunden.",
       "not_chat_member": "Sie sind kein Mitglied dieses Chats.",
       "chat_start_error": "Meeting konnte nicht gestartet werden."
+    }
+  },
+  "tickets": {
+    "nav": {
+      "title": "Tickets",
+      "all": "Alle Events",
+      "published": "Veröffentlicht",
+      "drafts": "Entwürfe",
+      "orders": "Bestellungen",
+      "scanner": "Scanner",
+      "settings": "Einstellungen",
+      "new_event": "Neues Event",
+      "public_shop": "Öffentlicher Shop"
+    },
+    "index": {
+      "page_title": "Tickets",
+      "empty": "Noch keine Events angelegt.",
+      "stripe_hint": "Stripe ist noch nicht konfiguriert."
+    },
+    "settings": {
+      "page_title": "Ticket-Einstellungen",
+      "heading": "Stripe & Shop",
+      "stripe_rk": "Stripe Secret / Restricted Key",
+      "stripe_rk_help": "Restricted API Key (rk_) empfohlen. Wird verschlüsselt gespeichert.",
+      "stripe_pk": "Publishable Key",
+      "webhook_secret": "Webhook Signing Secret",
+      "webhook_url": "Webhook-URL",
+      "tax_code": "Stripe Tax Code",
+      "tax_code_help": "Aus dem Stripe Dashboard / Tax Codes API (z.B. passender Event-Code). Kein stilles Raten.",
+      "tax_behavior": "Tax behavior",
+      "automatic_tax": "Stripe Tax (automatic_tax) aktivieren",
+      "automatic_tax_help": "Nur mit aktiver DE-Tax-Registration im Stripe Dashboard. Sonst bleibt die Steuerberechnung bei 0.",
+      "shop_hosts": "Shop-Hostnames (optional)",
+      "shop_hosts_help": "Kommagetrennt. Diese Hosts zeigen nur den öffentlichen Ticketshop.",
+      "hold_minutes": "Kontingent-Hold (Minuten)"
+    },
+    "event": {
+      "new": "Neues Event",
+      "edit": "Event bearbeiten",
+      "title": "Titel",
+      "doors": "Einlass",
+      "starts": "Beginn",
+      "ends": "Ende",
+      "venue": "Ort",
+      "address": "Adresse",
+      "organizer": "Veranstalter",
+      "lineup": "Line-up",
+      "description": "Beschreibung",
+      "status": "Status",
+      "banner": "Ticket-Banner (A5-Bereich)",
+      "poster": "Poster / Thumbnail",
+      "terms": "AGB-Hinweis Ticket",
+      "terms_default": "Tickets sind generell von Rückgabe und Umtausch ausgeschlossen. Tickets are non-refundable and non-exchangeable.",
+      "info_de": "Infotext DE (PDF unten)",
+      "info_en": "Infotext EN (PDF unten)"
+    },
+    "tiers": {
+      "heading": "Kontingente",
+      "empty": "Noch keine Ticketkategorien.",
+      "add": "Kontingent hinzufügen",
+      "name": "Name"
+    },
+    "discounts": {
+      "heading": "Rabatte / Private Links",
+      "empty": "Keine Rabattcodes.",
+      "name": "Kampagne",
+      "private_link": "Privater Link"
+    },
+    "stats": {
+      "sold": "Verkauf",
+      "revenue": "Umsatz",
+      "orders": "Bestellungen (Anzeige)"
+    },
+    "orders": {
+      "page_title": "Bestellungen",
+      "heading": "Bestellungen",
+      "empty": "Keine Bestellungen.",
+      "buyer": "Käufer",
+      "total": "Summe",
+      "resend": "Tickets erneut senden",
+      "refund": "Stornieren",
+      "refund_reason": "Grund (Pflicht)",
+      "refund_confirm": "Bestellung wirklich stornieren und Tickets entwerten?"
+    },
+    "scanner": {
+      "page_title": "Einlass-Scanner",
+      "heading": "Ticket scannen",
+      "select_event": "Aktives Event",
+      "manual": "Code manuell eingeben",
+      "start": "Kamera starten",
+      "no_events": "Keine Events verfügbar."
+    },
+    "public": {
+      "shop_title": "Tickets",
+      "no_events": "Aktuell keine Events.",
+      "tickets": "TICKETS",
+      "available": "verfügbar",
+      "qty": "Anzahl",
+      "name": "Name",
+      "discount_code": "Rabattcode",
+      "discount_active": "Rabatt aktiv",
+      "discount_invalid": "Rabatt ungültig oder abgelaufen",
+      "checkout": "Zur Kasse",
+      "stripe_missing": "Ticketverkauf ist derzeit nicht konfiguriert.",
+      "checkout_failed": "Checkout fehlgeschlagen. Bitte Kontingent und Angaben prüfen.",
+      "info": "Informationen",
+      "no_tiers": "Keine Ticketkategorien verfügbar.",
+      "success_title": "Vielen Dank!",
+      "success_body": "Deine Zahlung wird verarbeitet. Du erhältst die Tickets per E-Mail.",
+      "download_pdf": "Tickets als PDF",
+      "invoice": "Rechnung",
+      "pending_payment": "Zahlung noch nicht bestätigt — bitte E-Mail prüfen oder Seite neu laden."
+    },
+    "flash": {
+      "admin_only": "Nur Administratoren.",
+      "settings_saved": "Einstellungen gespeichert.",
+      "title_required": "Titel ist erforderlich.",
+      "starts_required": "Beginn ist erforderlich.",
+      "event_created": "Event erstellt.",
+      "event_saved": "Event gespeichert.",
+      "tier_added": "Kontingent hinzugefügt.",
+      "tier_updated": "Kontingent aktualisiert.",
+      "discount_added": "Rabatt angelegt.",
+      "mail_sent": "E-Mail gesendet.",
+      "mail_failed": "E-Mail fehlgeschlagen.",
+      "refund_reason_required": "Bitte einen Storno-Grund angeben.",
+      "refund_invalid": "Storno nicht möglich.",
+      "refund_stripe_failed": "Stripe-Refund fehlgeschlagen.",
+      "refund_done": "Bestellung storniert, Tickets entwertet."
     }
   }
 }
