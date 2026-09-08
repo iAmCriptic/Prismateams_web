@@ -122,7 +122,7 @@ def onlyoffice_debug():
     debug_info = {
         'config': {
             'ONLYOFFICE_ENABLED': current_app.config.get('ONLYOFFICE_ENABLED', False),
-            'ONLYOFFICE_DOCUMENT_SERVER_URL': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice'),
+            'ONLYOFFICE_DOCUMENT_SERVER_URL': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice'),
             'ONLYOFFICE_PUBLIC_URL': current_app.config.get('ONLYOFFICE_PUBLIC_URL', ''),
             'ONLYOFFICE_SECRET_KEY_SET': bool(current_app.config.get('ONLYOFFICE_SECRET_KEY', '').strip()),
         },
@@ -191,7 +191,7 @@ def onlyoffice_diagnose():
     
     results = {
         'onlyoffice_enabled': current_app.config.get('ONLYOFFICE_ENABLED', False),
-        'onlyoffice_url': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice'),
+        'onlyoffice_url': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice'),
         'tests': {}
     }
     
@@ -422,7 +422,7 @@ def edit_onlyoffice(file_id):
     """Edit a file using ONLYOFFICE editor."""
     # Check if ONLYOFFICE is enabled
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
-        flash('ONLYOFFICE ist nicht aktiviert.', 'warning')
+        flash('Euro-Office ist nicht aktiviert.', 'warning')
         return redirect(url_for('files.index'))
     
     file = File.query.get_or_404(file_id)
@@ -444,7 +444,7 @@ def edit_onlyoffice(file_id):
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if not is_onlyoffice_file_type(file_ext):
-        flash('Dieser Dateityp wird von ONLYOFFICE nicht unterstützt.', 'warning')
+        flash('Dieser Dateityp wird von Euro-Office nicht unterstützt.', 'warning')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     # Get document type and file type
@@ -485,7 +485,7 @@ def edit_onlyoffice(file_id):
     logging.info(f"ONLYOFFICE callback_url: {callback_url}")
     logging.info(f"ONLYOFFICE access_token: {access_token[:8]}... (length: {len(access_token)})")
     
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
+    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
     
     # Build full URL to ONLYOFFICE API
     if onlyoffice_url.startswith('http'):
@@ -599,7 +599,7 @@ def share_edit_onlyoffice(token):
     """Edit a shared file using ONLYOFFICE editor (Gast-Zugriff)."""
     # Check if ONLYOFFICE is enabled
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
-        flash('ONLYOFFICE ist nicht aktiviert.', 'warning')
+        flash('Euro-Office ist nicht aktiviert.', 'warning')
         return redirect(url_for('files.public_share', token=token))
     
     share = get_share_by_token(token)
@@ -632,7 +632,7 @@ def share_edit_onlyoffice(token):
     else:
         # Direkt freigegebene Datei
         if not isinstance(item, File):
-            flash('Ordner können nicht mit ONLYOFFICE bearbeitet werden. Bitte wählen Sie eine Datei aus.', 'warning')
+            flash('Ordner können nicht mit Euro-Office bearbeitet werden. Bitte wählen Sie eine Datei aus.', 'warning')
             return redirect(url_for('files.public_share', token=token))
         file = item
     
@@ -641,7 +641,7 @@ def share_edit_onlyoffice(token):
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if not is_onlyoffice_file_type(file_ext):
-        flash('Dieser Dateityp wird von ONLYOFFICE nicht unterstützt.', 'warning')
+        flash('Dieser Dateityp wird von Euro-Office nicht unterstützt.', 'warning')
         return redirect(url_for('files.public_share', token=token))
     
     # Get document type and file type
@@ -676,7 +676,7 @@ def share_edit_onlyoffice(token):
         document_url = f"{base_doc}?token={encoded_token}"
         callback_url = url_for('files.share_onlyoffice_callback', token=token, file_id=file.id, _external=True)
     
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
+    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
     
     # Build full URL to ONLYOFFICE API
     if onlyoffice_url.startswith('http'):

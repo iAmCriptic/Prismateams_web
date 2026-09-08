@@ -113,7 +113,7 @@ gather_information() {
     log_info ""
     log_info "=== Optionale Docker-Services ==="
     if [ -z "$INSTALL_DOCKER" ] && [ -z "$INSTALL_ONLYOFFICE" ]; then
-        prompt_yes_no INSTALL_DOCKER "Docker für OnlyOffice / Excalidraw / MiroTalk installieren?" "j"
+        prompt_yes_no INSTALL_DOCKER "Docker für Euro-Office / Excalidraw / MiroTalk installieren?" "j"
     fi
     if [ -z "$INSTALL_DOCKER" ]; then
         if is_yes "$INSTALL_ONLYOFFICE"; then
@@ -124,7 +124,7 @@ gather_information() {
     fi
 
     if is_yes "$INSTALL_DOCKER"; then
-        prompt_yes_no INSTALL_ONLYOFFICE "OnlyOffice Document Server (Docs) installieren?" "j"
+        prompt_yes_no INSTALL_ONLYOFFICE "Euro-Office Document Server (Docs) installieren?" "j"
         if ! is_yes "$INSTALL_ONLYOFFICE"; then
             print_manual_onlyoffice_hint
         fi
@@ -134,7 +134,7 @@ gather_information() {
             print_manual_onlyoffice_hint
         fi
     fi
-    # OnlyOffice Docs braucht immer Docker
+    # Euro-Office Document Server braucht immer Docker
     if is_yes "$INSTALL_ONLYOFFICE"; then
         INSTALL_DOCKER="j"
     fi
@@ -315,7 +315,7 @@ confirm_plan() {
     echo "  SSL:            $(is_yes "$SETUP_SSL" && echo "ja" || echo "nein")"
     echo "  MySQL:          $(is_yes "$SETUP_MYSQL" && echo "ja ($DB_NAME / $DB_USER)" || echo "manuell")"
     echo "  Redis:          $(is_yes "$SETUP_REDIS" && echo "ja" || echo "manuell")"
-    echo "  OnlyOffice:     $(is_yes "$INSTALL_ONLYOFFICE" && echo "ja" || echo "nein")"
+    echo "  Euro-Office:    $(is_yes "$INSTALL_ONLYOFFICE" && echo "ja" || echo "nein")"
     echo "  Excalidraw:     $(is_yes "$INSTALL_EXCALIDRAW" && echo "ja" || echo "nein")"
     echo "  MiroTalk:       $(is_yes "$INSTALL_MIROTALK" && echo "ja" || echo "nein")"
     echo "  FFmpeg:         $(is_yes "$INSTALL_MEDIA_DOWNLOADER" && echo "ja" || echo "nein")"

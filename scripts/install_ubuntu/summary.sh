@@ -46,7 +46,7 @@ write_install_report() {
         fi
         echo "MySQL: ${SETUP_MYSQL:-}"
         echo "Redis: ${SETUP_REDIS:-}"
-        echo "OnlyOffice: ${INSTALL_ONLYOFFICE:-}"
+        echo "Euro-Office: ${INSTALL_ONLYOFFICE:-}"
         echo "Excalidraw: ${INSTALL_EXCALIDRAW:-}"
         echo "MiroTalk: ${INSTALL_MIROTALK:-}"
         echo "FFmpeg: ${INSTALL_MEDIA_DOWNLOADER:-}"
@@ -68,7 +68,7 @@ write_install_report() {
             echo "MySQL Root-Passwort: ${MYSQL_ROOT_PASS:-}"
         fi
         if [ -n "${ONLYOFFICE_SECRET:-}" ]; then
-            echo "OnlyOffice JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
+            echo "Euro-Office JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
         fi
         if is_yes "${INSTALL_MIROTALK:-n}"; then
             echo "MiroTalk URL: $(mirotalk_public_url)"
@@ -143,7 +143,7 @@ print_summary() {
         echo "MySQL: nicht vom Skript eingerichtet"
     fi
     if [ -n "${ONLYOFFICE_SECRET:-}" ]; then
-        echo "OnlyOffice JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
+        echo "Euro-Office JWT / ONLYOFFICE_SECRET_KEY: ${ONLYOFFICE_SECRET}"
     fi
     if is_yes "${INSTALL_MIROTALK:-n}"; then
         echo "MiroTalk: $(mirotalk_public_url)"

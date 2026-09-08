@@ -30,9 +30,9 @@ LimitRequestBody 104857600
 ProxyPreserveHost On
 ProxyRequests Off
 
-# OnlyOffice Cache (MUSS VOR /onlyoffice kommen!)
-# OnlyOffice benötigt diesen Pfad für interne Cache-Dateien
-# Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+# Document Server Cache (MUSS VOR /onlyoffice und /eurooffice kommen!)
+# Euro-Office / OnlyOffice benötigen diesen Pfad für interne Cache-Dateien
+# Entfernen Sie diesen Block, wenn der Document Server NICHT installiert ist
 <Location /cache>
     ProxyPass http://127.0.0.1:8080/cache
     ProxyPassReverse http://127.0.0.1:8080/cache
@@ -45,8 +45,7 @@ ProxyRequests Off
     RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
 </Location>
 
-# OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
-# Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+# Document Server – Legacy-Pfad /onlyoffice (bestehende .env)
 <Location /onlyoffice>
     ProxyPass http://127.0.0.1:8080/
     ProxyPassReverse http://127.0.0.1:8080/
@@ -57,7 +56,24 @@ ProxyRequests Off
     RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
     RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
     
-    # CORS headers for OnlyOffice
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type"
+    Header always set Access-Control-Allow-Credentials "true"
+</Location>
+
+# Document Server – Standard-Pfad /eurooffice (neue Installationen)
+# Parallel zu /onlyoffice; ONLYOFFICE_DOCUMENT_SERVER_URL steuert, welchen die App nutzt
+<Location /eurooffice>
+    ProxyPass http://127.0.0.1:8080/
+    ProxyPassReverse http://127.0.0.1:8080/
+    
+    ProxyPreserveHost On
+    RequestHeader set Host "\${HTTP_HOST}"
+    RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+    RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+    RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+    
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header always set Access-Control-Allow-Headers "Authorization, Content-Type"

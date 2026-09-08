@@ -134,10 +134,11 @@ step_env() {
     [ -n "${MUSIC_KEY:-}" ] && set_env_var "MUSIC_ENCRYPTION_KEY" "$MUSIC_KEY" .env
     [ -n "${TOTP_KEY:-}" ] && set_env_var "TOTP_ENCRYPTION_KEY" "$TOTP_KEY" .env
 
-    # OnlyOffice
+    # Document Server (Euro-Office Default; ENV-Keys historisch ONLYOFFICE_*)
     if is_yes "$INSTALL_ONLYOFFICE"; then
         set_env_var "ONLYOFFICE_ENABLED" "True" .env
-        set_env_var "ONLYOFFICE_DOCUMENT_SERVER_URL" "/onlyoffice" .env
+        # Neu: /eurooffice; bestehende Installationen behalten /onlyoffice
+        set_env_var_if_absent "ONLYOFFICE_DOCUMENT_SERVER_URL" "/eurooffice" .env
         [ -n "${ONLYOFFICE_SECRET:-}" ] && set_env_var "ONLYOFFICE_SECRET_KEY" "$ONLYOFFICE_SECRET" .env
         if [ -n "${DOMAIN:-}" ]; then
             if is_yes "$SETUP_SSL"; then

@@ -166,6 +166,17 @@ set_env_var() {
     fi
 }
 
+set_env_var_if_absent() {
+    # set_env_var_if_absent KEY VALUE [file] — bestehende Werte nicht überschreiben
+    local key="$1"
+    local value="$2"
+    local file="${3:-.env}"
+    if [ -f "$file" ] && grep -q "^${key}=" "$file" 2>/dev/null; then
+        return 0
+    fi
+    set_env_var "$key" "$value" "$file"
+}
+
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         log_error "Dieses Skript muss als root ausgeführt werden!"
@@ -235,7 +246,7 @@ print_manual_webserver_hint() {
     log_manual "  1. apt install nginx"
     log_manual "  2. VHost: /etc/nginx/sites-available/teamportal"
     log_manual "  3. Upstream: server 127.0.0.1:${GUNICORN_PORT:-5000};"
-    log_manual "  4. Proxy-Pfade: / -> Gunicorn, /onlyoffice -> :8080"
+    log_manual "  4. Proxy-Pfade: / -> Gunicorn, /eurooffice und /onlyoffice -> :8080, /cache -> :8080"
     log_manual "  5. ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/"
     log_manual "  6. nginx -t && systemctl enable nginx && systemctl restart nginx"
     log_manual "  7. Firewall: ufw allow 'Nginx Full'"
@@ -247,32 +258,34 @@ print_manual_webserver_hint() {
 
 print_manual_onlyoffice_hint() {
     echo
-    log_manual "=== OnlyOffice Docs (Document Server) manuell einrichten ==="
-    log_manual "  Hinweis: Portal braucht Document Server, NICHT Community Server/Workspace."
-    log_manual "  Offiziell: https://github.com/ONLYOFFICE/Docker-DocumentServer"
+    log_manual "=== Euro-Office Document Server manuell einrichten ==="
+    log_manual "  Hinweis: Portal braucht Document Server (Euro-Office), nicht Community Server/Workspace."
+    log_manual "  Offiziell: https://github.com/Euro-Office/DocumentServer"
+    log_manual "  ENV-Keys heißen historisch ONLYOFFICE_* (API-kompatibel)."
     log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
-    log_manual "  2. Volumes: mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}"
+    log_manual "  2. Volumes: mkdir -p /var/lib/eurooffice/DocumentServer/{data,logs,config,fonts}"
     log_manual "  3. Schriftarten (PDF/Druck): nur ttf-mscorefonts-installer (Arial/Times/…)"
-    log_manual "     TTFs nach /var/lib/onlyoffice/DocumentServer/fonts kopieren."
+    log_manual "     TTFs nach /var/lib/eurooffice/DocumentServer/fonts kopieren."
     log_manual "     Carlito/Liberation NICHT kopieren (liegen im Image; Duplikate zerlegen Calibri)"
     log_manual "  4. Container:"
-    log_manual "       docker pull onlyoffice/documentserver:latest"
-    log_manual "       docker run -d --name onlyoffice-documentserver --restart=always \\"
+    log_manual "       docker pull ghcr.io/euro-office/documentserver:latest"
+    log_manual "       docker run -d --name eurooffice-documentserver --restart=always \\"
     log_manual "         -p 127.0.0.1:8080:80 \\"
-    log_manual "         -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \\"
-    log_manual "         -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \\"
-    log_manual "         -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \\"
-    log_manual "         -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \\"
+    log_manual "         -v /var/lib/eurooffice/DocumentServer/logs:/var/log/euro-office/documentserver \\"
+    log_manual "         -v /var/lib/eurooffice/DocumentServer/data:/var/lib/euro-office/documentserver \\"
+    log_manual "         -v /var/lib/eurooffice/DocumentServer/config:/etc/euro-office/documentserver \\"
+    log_manual "         -v /var/lib/eurooffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \\"
     log_manual "         -e JWT_ENABLED=true -e JWT_SECRET=IHR-SECRET \\"
     log_manual "         -e ALLOW_PRIVATE_IP_ADDRESS=true \\"
-    log_manual "         onlyoffice/documentserver:latest"
+    log_manual "         ghcr.io/euro-office/documentserver:latest"
     log_manual "  5. Font-Index: Container startet den Index selbst. Spaeter neue TTFs:"
-    log_manual "     docker restart onlyoffice-documentserver (kein Live-generate-allfonts)"
-    log_manual "  6. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice,"
+    log_manual "     docker restart eurooffice-documentserver (kein Live-generate-allfonts)"
+    log_manual "  6. In .env (neu): ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/eurooffice,"
     log_manual "     ONLYOFFICE_SECRET_KEY=<gleicher JWT_SECRET>"
-    log_manual "  7. Webserver-Proxy fuer /onlyoffice und /cache auf 127.0.0.1:8080"
+    log_manual "     Legacy: bestehende Installationen können /onlyoffice behalten."
+    log_manual "  7. Webserver-Proxy fuer /eurooffice, /onlyoffice und /cache auf 127.0.0.1:8080"
     echo
-    log_manual "Details: docs/INSTALLATION.md (Schritt 5, Schriftarten)"
+    log_manual "Details: docs/INSTALLATION.md (Schritt 5, Schriftarten); optionaler Wechsel: docs/WARTUNG.md"
     echo
 }
 

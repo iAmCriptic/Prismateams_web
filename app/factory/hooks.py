@@ -81,6 +81,7 @@ def register_request_hooks(app):
             endpoint.startswith('files.share_onlyoffice') or
             endpoint.startswith('kanban.onlyoffice') or
             request.path.startswith('/onlyoffice') or
+            request.path.startswith('/eurooffice') or
             '/onlyoffice-callback' in request.path
         ):
             return

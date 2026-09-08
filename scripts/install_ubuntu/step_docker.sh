@@ -1,5 +1,5 @@
 #!/bin/bash
-# Docker (für OnlyOffice Document Server)
+# Docker (für Euro-Office Document Server)
 
 step_docker() {
     if ! is_yes "$INSTALL_ONLYOFFICE" && ! is_yes "$INSTALL_EXCALIDRAW" && ! is_yes "$INSTALL_MIROTALK" && ! is_yes "$INSTALL_DOCKER"; then

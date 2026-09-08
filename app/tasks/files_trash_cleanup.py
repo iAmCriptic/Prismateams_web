@@ -20,6 +20,11 @@ class FilesTrashCleanupScheduler(IntervalScheduler):
         return 3600  # hourly
 
     def run_job(self):
+        from app.utils.common import is_module_enabled
+
+        if not is_module_enabled('module_files'):
+            logger.debug("module_files deaktiviert — Trash-Cleanup idle")
+            return
         result = purge_expired_trash()
         if result.get('disabled'):
             return

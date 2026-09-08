@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – API-Authentifizierung</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.1</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
+  <strong>Dokumentation · Version 3.4.12</strong><br>
+  <img src="https://img.shields.io/badge/version-3.4.12-7c3aed?style=flat-square" alt="Version 3.4.12">
 </p>
 
 <p align="center">
@@ -132,5 +132,5 @@ Mehr Endpunkte: **[API_Übersicht.md](API_Übersicht.md)**
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.1</sub>
+  <sub>Prismateams 3.4.12</sub>
 </p>

@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – Installationsskript (Ubuntu)</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.1</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
+  <strong>Dokumentation · Version 3.4.12</strong><br>
+  <img src="https://img.shields.io/badge/version-3.4.12-7c3aed?style=flat-square" alt="Version 3.4.12">
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 24.04">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 26.04">
   <img src="https://img.shields.io/badge/Installer-ready-22c55e?style=flat-square" alt="Installer ready">
@@ -40,14 +40,14 @@ Der Installer erkennt `/etc/os-release` und akzeptiert beide LTS-Batches ohne Ex
 
 Andere Ubuntu-Versionen: Warnung + Nachfrage (im Non-Interactive-Modus: Warnung, dann weiter). Nicht-Ubuntu: Abbruch.
 
-Beide Batches nutzen denselben modularen Ablauf (Pakete, MySQL, Redis, Docker/OnlyOffice, venv, Nginx/Apache, Gunicorn). Kein separates Skript nötig.
+Beide Batches nutzen denselben modularen Ablauf (Pakete, MySQL, Redis, Docker/Euro-Office, venv, Nginx/Apache, Gunicorn). Kein separates Skript nötig.
 
 ## Voraussetzungen
 
 - Ubuntu **24.04** LTS oder **26.04** LTS
 - Root-Zugriff (`sudo`)
 - Internet-Verbindung
-- Mindestens 4 GB RAM empfohlen (für OnlyOffice)
+- Mindestens 4 GB RAM empfohlen (für Euro-Office)
 
 ## Schnellstart
 
@@ -81,7 +81,7 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - Nginx oder Apache (oder manuell)
 - MySQL ja/nein (inkl. DB-Name/User/Passwort)
 - Redis ja/nein
-- OnlyOffice inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/onlyoffice` + `/cache`
+- Euro-Office inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/eurooffice` + `/onlyoffice` + `/cache`
 - Excalidraw-Room (optional)
 - MiroTalk SFU (Meetings): Docker `mirotalk/sfu`; Hostname → `meet.${DOMAIN}` → `127.0.0.1:3010`; IP/LAN → `http://IP:3010`; UDP `40000–40100`
 - FFmpeg / Media Downloader
@@ -117,8 +117,8 @@ sudo bash scripts/install_ubuntu.sh --help
 | `--ssl` / `--letsencrypt-email` | Let's Encrypt |
 | `--skip-mysql` / `--skip-redis` | DB/Redis manuell |
 | `--db-name` `--db-user` `--db-pass` `--mysql-root-pass` | DB-Parameter |
-| `--skip-docker` | Docker, OnlyOffice, Excalidraw, MiroTalk überspringen |
-| `--skip-onlyoffice` / `--onlyoffice` | OnlyOffice |
+| `--skip-docker` | Docker, Euro-Office, Excalidraw, MiroTalk überspringen |
+| `--skip-onlyoffice` / `--onlyoffice` | Euro-Office Document Server |
 | `--skip-excalidraw` / `--excalidraw` | Excalidraw-Room |
 | `--skip-mirotalk` / `--mirotalk` | MiroTalk SFU (Meetings) |
 | `--skip-media-downloader` / `--ffmpeg` | FFmpeg |
@@ -139,7 +139,7 @@ sudo bash scripts/install_ubuntu.sh \
   --repo-url https://github.com/MEINUSER/Prismateams_web.git \
   --branch Development
 
-# Nur App + FFmpeg, ohne Webserver/OnlyOffice
+# Nur App + FFmpeg, ohne Webserver/Euro-Office
 sudo bash scripts/install_ubuntu.sh --no-webserver --skip-onlyoffice --ffmpeg --port 8000
 
 # Produktion mit Nginx, 4 Workern
@@ -155,22 +155,22 @@ sudo bash scripts/install_ubuntu.sh --non-interactive \
 
 Regel: **CLI setzt Werte vorab → Prompt nur für leere Felder.**
 
-## OnlyOffice-Verdrahtung
+## Euro-Office-Verdrahtung
 
-Das Skript installiert **ONLYOFFICE Docs (Document Server)** (`onlyoffice/documentserver:latest`), nicht Community Server/Workspace.
+Das Skript installiert **Euro-Office Document Server** (`ghcr.io/euro-office/documentserver:latest`), API-kompatibel zu ONLYOFFICE Docs. ENV-Keys bleiben `ONLYOFFICE_*`.
 
 Bei Installation setzt das Skript:
 
-1. Host-Schriftarten: `ttf-mscorefonts-installer` (EULA non-interactive) – nur Arial/Times/… nach `/var/lib/onlyoffice/DocumentServer/fonts`. Carlito/Liberation/DejaVu nicht kopieren (liegen im Image; Duplikate zerstören Calibri→Carlito)
-2. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`, **`fonts` → `/usr/share/fonts/truetype/custom`**), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
+1. Host-Schriftarten: `ttf-mscorefonts-installer` (EULA non-interactive) – nur Arial/Times/… nach `/var/lib/eurooffice/DocumentServer/fonts`. Carlito/Liberation/DejaVu nicht kopieren (liegen im Image; Duplikate zerstören Calibri→Carlito)
+2. `docker pull` + Container mit Euro-Office-Volumes (`data`, `logs`, `config`, **`fonts` → `/usr/share/fonts/truetype/custom`**), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
 3. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s). Der Entrypoint indexiert das Fonts-Volume beim Start – kein Live-`documentserver-generate-allfonts.sh`
-4. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
+4. In `.env` (neu): `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/eurooffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>` — bestehende URL `/onlyoffice` wird nicht überschrieben
 5. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
-6. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+6. Nginx/Apache-Proxy für `/cache`, `/eurooffice` und `/onlyoffice` (Parallelbetrieb)
 
 Ohne mscorefonts fehlen Arial/Times in PDF/Druck; Calibri bleibt über Carlito im Image nutzbar. Details: [INSTALLATION.md – Schritt 5, Schriftarten](INSTALLATION.md#schriftarten-für-rendering--pdf--druck).
 
-Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen).
+Bei Fehler: `docker logs eurooffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen). Legacy-Container `onlyoffice-documentserver` wird bei Re-Install belassen, solange er Port 8080 belegt.
 
 ## MiroTalk SFU (Meetings)
 
@@ -219,7 +219,7 @@ Details: [INSTALLATION.md – Schritt 6d](INSTALLATION.md#schritt-6d-optionale-i
 Am Ende (auch bei Abbruch, soweit möglich):
 
 1. Schritt-Tabelle mit Status
-2. Zugangsdaten (MySQL-Root, DB-Passwort, OnlyOffice-JWT)
+2. Zugangsdaten (MySQL-Root, DB-Passwort, Euro-Office-JWT / `ONLYOFFICE_SECRET_KEY`)
 3. Gewählte Config (Pfad, Repo, Port, Worker, Webserver)
 4. `[MANUELL]`-Hinweise für übersprungene Schritte
 5. Datei `$INSTALL_DIR/install-report.txt`
@@ -239,5 +239,5 @@ Weitere Schritte: [WARTUNG.md](WARTUNG.md) · Probleme: [ERROR_HANDLING.md](ERRO
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.1 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
+  <sub>Prismateams 3.4.12 · Modularer Ubuntu-Installer · 24.04 & 26.04 LTS · einsatzbereit</sub>
 </p>

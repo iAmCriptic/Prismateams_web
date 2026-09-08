@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – Installation</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.1</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
+  <strong>Dokumentation · Version 3.4.12</strong><br>
+  <img src="https://img.shields.io/badge/version-3.4.12-7c3aed?style=flat-square" alt="Version 3.4.12">
   <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
 </p>
 
@@ -49,10 +49,10 @@ CLI, Module und Beispiele: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
 
 ## Produktionsinstallation (Ubuntu Server) – Manuelle Methode
 
-Schritt-für-Schritt-Installation von **Prismateams 3.0.1** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, OnlyOffice).
+Schritt-für-Schritt-Installation von **Prismateams 3.4.12** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, Euro-Office).
 
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
-- **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
+- **Euro-Office** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
 - **Media Downloader** ist **OPTIONAL** (benötigt FFmpeg, kein Docker)
 - **Dateikonverter** ist **OPTIONAL** (Audio/Bilder/PDF ohne Extra-Tools; Dokumente benötigen LibreOffice)
 - Wenn Sie diese Features **NICHT** benötigen, können Sie die entsprechenden Schritte überspringen
@@ -72,9 +72,9 @@ sudo apt install -y python3 python3-pip python3-venv \
     apt-transport-https ca-certificates gnupg lsb-release
 ```
 
-### Schritt 2: Docker installieren (für Excalidraw, OnlyOffice und MiroTalk)
+### Schritt 2: Docker installieren (für Excalidraw, Euro-Office und MiroTalk)
 
-**Hinweis:** Docker ist nur erforderlich, wenn Sie Excalidraw, OnlyOffice oder MiroTalk SFU (Meetings) installieren möchten. Sie können diesen Schritt überspringen, wenn Sie diese Features nicht benötigen.
+**Hinweis:** Docker ist nur erforderlich, wenn Sie Excalidraw, Euro-Office oder MiroTalk SFU (Meetings) installieren möchten. Sie können diesen Schritt überspringen, wenn Sie diese Features nicht benötigen.
 
 ```bash
 # Docker + Compose-Plugin installieren (empfohlen)
@@ -143,44 +143,45 @@ sudo ./venv/bin/pip install --upgrade pip
 sudo ./venv/bin/pip install -r requirements.txt
 ```
 
-### Schritt 5: Optionale Installation - OnlyOffice Document Server (Docs)
+### Schritt 5: Optionale Installation - Euro-Office Document Server (Docs)
 
 **⚠️ OPTIONAL:** Nur nötig für Dokumentenbearbeitung im Portal. Sonst `ONLYOFFICE_ENABLED=False` in der `.env`.
 
-**Wichtig:** Installieren Sie **ONLYOFFICE Docs (Document Server)**, nicht Community Server / Workspace.
-Community Server ([Docker-CommunityServer](https://github.com/ONLYOFFICE/Docker-CommunityServer)) ist ein eigenes Portal und kollidiert mit Nginx/Apache (Port 80/443).
-Offizielles Image: [Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer) → `onlyoffice/documentserver:latest`.
+**Wichtig:** Installieren Sie den **Euro-Office Document Server** ([GitHub](https://github.com/Euro-Office/DocumentServer)), einen EU-Fork mit ONLYOFFICE-kompatibler API — nicht Community Server / Workspace.
+Standard-Image: `ghcr.io/euro-office/documentserver:latest`. ENV-Keys heißen historisch `ONLYOFFICE_*`.
+
+**Proxy-Pfade (Parallelbetrieb):** Neue Installationen nutzen `ONLYOFFICE_DOCUMENT_SERVER_URL=/eurooffice`. Bestehende Installationen können `/onlyoffice` behalten; Nginx/Apache verdrahten beide Prefixe auf denselben Container.
 
 **Voraussetzungen:** ≥4 GB RAM, mehrere GB freier Disk, Architektur **amd64/x86_64**, Docker Engine ≥20.10.21.
 
 ```bash
-# Volumes (Community Edition, offizielles Layout)
-sudo mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}
+# Volumes (Euro-Office Layout)
+sudo mkdir -p /var/lib/eurooffice/DocumentServer/{data,logs,config,fonts}
 
 # Neueste Docs-Version laden und starten (JWT aktiv, nur localhost)
-sudo docker pull onlyoffice/documentserver:latest
+sudo docker pull ghcr.io/euro-office/documentserver:latest
 sudo docker run -d --restart=always \
-    --name onlyoffice-documentserver \
+    --name eurooffice-documentserver \
     -p 127.0.0.1:8080:80 \
-    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
-    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -v /var/lib/eurooffice/DocumentServer/logs:/var/log/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/data:/var/lib/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/config:/etc/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
     -e JWT_ENABLED=true \
     -e JWT_SECRET=dein-jwt-secret-key-hier \
     -e JWT_HEADER=Authorization \
     -e ALLOW_PRIVATE_IP_ADDRESS=true \
-    onlyoffice/documentserver:latest
+    ghcr.io/euro-office/documentserver:latest
 
 # Prüfen (Erststart kann 1–3 Minuten dauern)
-sudo docker ps | grep onlyoffice
+sudo docker ps | grep eurooffice
 curl -s http://127.0.0.1:8080/healthcheck
 curl -s http://127.0.0.1:8080/welcome/ | head
 ```
 
 **Wichtig:** Notieren Sie den `JWT_SECRET`-Wert – er muss mit `ONLYOFFICE_SECRET_KEY` in der `.env` übereinstimmen.
 
-**Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT lokal: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` leer lassen (Dev erlaubt unsigned Callbacks automatisch). In **Production** ohne Secret werden Callbacks abgelehnt – entweder Secret setzen oder explizit `ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true`.
+**Hinweis:** JWT ist standardmäßig aktiv. Ohne JWT lokal: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` leer lassen (Dev erlaubt unsigned Callbacks automatisch). In **Production** ohne Secret werden Callbacks abgelehnt – entweder Secret setzen oder explizit `ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true`.
 
 #### Schriftarten für Rendering / PDF / Druck
 
@@ -193,23 +194,23 @@ echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select tr
 sudo apt install -y ttf-mscorefonts-installer cabextract
 
 # Volume leeren und nur mscorefonts kopieren (überlebt Container-Updates)
-sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
-sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+sudo mkdir -p /var/lib/eurooffice/DocumentServer/fonts
+sudo find /var/lib/eurooffice/DocumentServer/fonts -maxdepth 1 -type f \
   \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
 sudo find /usr/share/fonts/truetype/msttcorefonts \
   -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
-  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+  -exec cp {} /var/lib/eurooffice/DocumentServer/fonts/ \; 2>/dev/null || true
 
 # Font-Index: Container neu starten (Entrypoint indexiert das Volume selbst).
 # documentserver-generate-allfonts.sh nicht gegen einen laufenden Editor ausführen.
-sudo docker restart onlyoffice-documentserver
+sudo docker restart eurooffice-documentserver
 ```
 
 **Hinweise:**
-- **Carlito** (im Image) ist metric-kompatibel zu **Calibri**. Neue Dateien behalten den OOXML-Namen Calibri; OnlyOffice rendert sie als Carlito.
+- **Carlito** (im Image) ist metric-kompatibel zu **Calibri**. Neue Dateien behalten den OOXML-Namen Calibri; der Document Server rendert sie als Carlito.
 - Echte `Calibri.ttf` können Sie zusätzlich ins Fonts-Volume legen und den Container **neu starten** (kein Live-Generate-allfonts).
-- Browser-Cache leeren (Strg+F5 bzw. Cmd+Shift+R). Ab OnlyOffice Docs 8.2 oft nicht mehr nötig.
-- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern nutzt OnlyOffice die Image-Fonts weiter.
+- Browser-Cache leeren (Strg+F5 bzw. Cmd+Shift+R).
+- `ttf-mscorefonts-installer` lädt Schriften von SourceForge; bei Download-Fehlern nutzt der Document Server die Image-Fonts weiter.
 
 ### Schritt 6: Optionale Installation - Excalidraw Room
 
@@ -423,8 +424,9 @@ REDIS_URL=redis://localhost:6379/0
 - **VAPID_PRIVATE_KEY:** Kopieren Sie den Private Key aus der Ausgabe von `generate_vapid_keys.py`
 - **TOTP_ENCRYPTION_KEY:** Optional, aber empfohlen für stabile 2FA/TOTP-Verschlüsselung
 - **ONLYOFFICE_ENABLED:** 
-  - Setzen Sie auf `True`, wenn OnlyOffice installiert ist (Schritt 5)
-  - Setzen Sie auf `False`, wenn OnlyOffice NICHT installiert ist
+  - Setzen Sie auf `True`, wenn Euro-Office Document Server installiert ist (Schritt 5)
+  - Setzen Sie auf `False`, wenn der Document Server NICHT installiert ist
+  - Neu: `ONLYOFFICE_DOCUMENT_SERVER_URL=/eurooffice` (Legacy: `/onlyoffice`)
 - **EXCALIDRAW_ENABLED:**
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
@@ -441,7 +443,7 @@ REDIS_URL=redis://localhost:6379/0
 
 **Weitere optionale `.env`-Variablen (nicht in `env.example`):**
 
-- **OnlyOffice:** `ONLYOFFICE_DOCUMENT_SERVER_URL`, `ONLYOFFICE_SECRET_KEY`, `ONLYOFFICE_PUBLIC_URL`
+- **Euro-Office / Document Server:** `ONLYOFFICE_DOCUMENT_SERVER_URL` (`/eurooffice` neu, `/onlyoffice` Legacy), `ONLYOFFICE_SECRET_KEY`, `ONLYOFFICE_PUBLIC_URL`
 - **Excalidraw:** `EXCALIDRAW_ROOM_URL` (Standard `/excalidraw-room`)
 - **Redis:** `REDIS_URL` (Standard: `redis://localhost:6379/0`)
 - **Portal-Fallbacks:** `APP_NAME`, `APP_LOGO` (optional, wenn nicht über Setup/System-Einstellungen gesetzt)
@@ -664,9 +666,9 @@ server {
     # File upload limit
     client_max_body_size 100M;
 
-    # OnlyOffice Cache (MUSS VOR /onlyoffice kommen!)
-    # OnlyOffice benötigt diesen Pfad für interne Cache-Dateien
-    # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+    # Document Server Cache (MUSS VOR /onlyoffice und /eurooffice kommen!)
+    # Euro-Office / OnlyOffice benötigen diesen Pfad für interne Cache-Dateien
+    # Entfernen Sie diesen Block, wenn der Document Server NICHT installiert ist
     location /cache {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
@@ -687,33 +689,25 @@ server {
         proxy_request_buffering off;
     }
 
-    # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
-    # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+    # Document Server – Legacy-Pfad /onlyoffice (bestehende .env)
     location /onlyoffice {
-        # WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
-        # OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...
+        # WICHTIG: MIT trailing slash bei proxy_pass, damit der Präfix entfernt wird
+        # Backend erwartet /web-apps/... nicht /onlyoffice/web-apps/...
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
-        # OnlyOffice spezifische Header
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         
-        # WICHTIG: Content-Type Header vom Backend übernehmen
-        # Standardmäßig sollte Nginx den Content-Type vom Backend übernehmen,
-        # aber wir stellen sicher, dass er nicht überschrieben wird
-        
-        # CORS headers für OnlyOffice (wichtig für API-Zugriff)
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
         add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
         add_header Access-Control-Allow-Credentials true always;
         
-        # Handle preflight requests
         if ($request_method = 'OPTIONS') {
             add_header Access-Control-Allow-Origin * always;
             add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
@@ -724,13 +718,47 @@ server {
             return 204;
         }
         
-        # Timeouts für große Dokumente
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
         
-        # Disable buffering für OnlyOffice (wichtig für Streaming)
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # Document Server – Standard-Pfad /eurooffice (neue Installationen)
+    location /eurooffice {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+        
+        if ($request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin * always;
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+            add_header Access-Control-Allow-Credentials true always;
+            add_header Content-Length 0;
+            add_header Content-Type text/plain;
+            return 204;
+        }
+        
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+        
         proxy_buffering off;
         proxy_request_buffering off;
     }
@@ -856,39 +884,13 @@ server {
 ```
 
 **Wichtig:** 
-- Entfernen Sie die OnlyOffice-Location-Blöcke (`/onlyoffice`), wenn OnlyOffice NICHT installiert ist
+- Entfernen Sie die Document-Server-Location-Blöcke (`/eurooffice`, `/onlyoffice`, `/cache`), wenn der Document Server NICHT installiert ist
 - Entfernen Sie den Excalidraw-Location-Block (`/excalidraw-room/`), wenn der Room-Server NICHT installiert ist
 - Ersetzen Sie `ihre-domain.de` mit Ihrer tatsächlichen Domain oder IP-Adresse
-
-#### Optional: Ticket-Shop Custom Domain
-
-Der öffentliche Ticketshop läuft immer unter `/tickets/shop` und `/tickets/e/<slug>` auf der Portal-Domain.
-Zusätzlich können in **Einstellungen → Tickets** Shop-Hostnames hinterlegt werden (z. B. `tickets.ihre-marke.de`).
-Nginx/Apache muss denselben Upstream wie das Portal nutzen und `Host` + `X-Forwarded-*` durchreichen:
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name tickets.ihre-marke.de;
-    # SSL wie Portal …
-    client_max_body_size 100M;
-    location / {
-        proxy_pass http://teamportal_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Auf diesen Hosts liefert die App nur den öffentlichen Shop sowie Impressum/Datenschutz (kein Team-Portal).
-Stripe-Webhook: `https://ihre-portal-domain.de/tickets/webhooks/stripe` (oder Shop-Host, wenn erreichbar).
 
 ```bash
 # Site aktivieren
 sudo ln -s /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/
-
 # Standard-Site deaktivieren (falls vorhanden)
 sudo rm -f /etc/nginx/sites-enabled/default
 
@@ -955,8 +957,8 @@ sudo ufw status
 
 ### Optionale Schritte (nur bei Bedarf)
 
-- **Docker installieren:** Nur erforderlich für OnlyOffice, Excalidraw oder MiroTalk
-- **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
+- **Docker installieren:** Nur erforderlich für Euro-Office, Excalidraw oder MiroTalk
+- **Euro-Office installieren:** Optional, für Dokumentenbearbeitung
 - **Excalidraw installieren:** Optional, für Canvas-Modul
 - **MiroTalk SFU installieren:** Optional, für Meetings/Videoanrufe (`meet.`-Subdomain, UDP 40000–40100)
 - **Media Downloader installieren:** Optional, FFmpeg installieren und Modul in Admin aktivieren
@@ -965,7 +967,7 @@ sudo ufw status
 ### Wichtige Hinweise
 
 1. **.env-Konfiguration:** `ONLYOFFICE_ENABLED=False` / `EXCALIDRAW_ENABLED=False` / `MIROTALK_ENABLED=False` wenn nicht installiert
-2. **Nginx-Konfiguration:** OnlyOffice- und Excalidraw-Location-Blöcke entfernen wenn nicht genutzt
+2. **Nginx-Konfiguration:** Document-Server- und Excalidraw-Location-Blöcke entfernen wenn nicht genutzt
 3. **Datenbank:** Nur leere DB anlegen; Tabellen beim ersten Gunicorn-Start; `--workers 1` für ersten Start
 4. **Redis:** Erforderlich für Multi-Worker mit SocketIO
 
@@ -982,7 +984,7 @@ sudo ufw status
 - [ ] Standard-Ports sind geschützt
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell
-- [ ] OnlyOffice JWT ist aktiviert (falls OnlyOffice installiert)
+- [ ] Document-Server-JWT ist aktiviert (falls Euro-Office installiert)
 - [ ] 2FA (TOTP) für Admin-Accounts empfohlen
 - [ ] Redis aktiv, wenn Gunicorn mit mehreren Workern läuft
 - [ ] `TOTP_ENCRYPTION_KEY` / Encryption-Keys gesetzt ([env.example](env.example))
@@ -1020,9 +1022,10 @@ Der frühere **Lageplan-Editor** und die **Besucherbewertung / Besucherrangliste
 ## Weitere Informationen
 
 - **Excalidraw Dokumentation:** https://docs.excalidraw.com
-- **OnlyOffice Dokumentation:** https://api.onlyoffice.com/
+- **Euro-Office DocumentServer:** https://github.com/Euro-Office/DocumentServer
+- **Euro-Office Organisation:** https://github.com/Euro-Office
+- **API (ONLYOFFICE-kompatibel):** https://api.onlyoffice.com/
 - **Docker Hub Excalidraw Room:** https://hub.docker.com/r/excalidraw/excalidraw-room
-- **Docker Hub OnlyOffice:** https://hub.docker.com/r/onlyoffice/documentserver
 
 ## Support
 
@@ -1036,5 +1039,5 @@ Bei Problemen:
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.1</sub>
+  <sub>Prismateams 3.4.12</sub>
 </p>

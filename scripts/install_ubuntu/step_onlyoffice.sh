@@ -1,17 +1,28 @@
 #!/bin/bash
-# OnlyOffice Document Server (Docs) via Docker
+# Euro-Office Document Server (Docs) via Docker
 #
-# WICHTIG: Prismateams braucht ONLYOFFICE Docs (Document Server),
-# nicht Community Server / Workspace (Docker-CommunityServer).
-# Community Server ist ein eigenes Portal und belegt Port 80/443.
+# Standard: Euro-Office (EU-Fork, API-kompatibel zu ONLYOFFICE Docs).
+# Override: ONLYOFFICE_IMAGE=onlyoffice/documentserver:latest für klassisches OnlyOffice.
 #
-# Offiziell: https://github.com/ONLYOFFICE/Docker-DocumentServer
-# Image:     onlyoffice/documentserver:latest
+# Proxy-Pfade (Nginx/Apache, parallel):
+#   /eurooffice  – Default für neue Installationen (.env)
+#   /onlyoffice  – Legacy für bestehende Installationen
+#
+# Offiziell: https://github.com/Euro-Office/DocumentServer
+# Image:     ghcr.io/euro-office/documentserver:latest
 
-ONLYOFFICE_IMAGE="${ONLYOFFICE_IMAGE:-onlyoffice/documentserver:latest}"
+ONLYOFFICE_IMAGE="${ONLYOFFICE_IMAGE:-ghcr.io/euro-office/documentserver:latest}"
 ONLYOFFICE_HOST_PORT="${ONLYOFFICE_HOST_PORT:-8080}"
-ONLYOFFICE_CONTAINER="${ONLYOFFICE_CONTAINER:-onlyoffice-documentserver}"
-ONLYOFFICE_DATA_ROOT="${ONLYOFFICE_DATA_ROOT:-/var/lib/onlyoffice/DocumentServer}"
+ONLYOFFICE_CONTAINER="${ONLYOFFICE_CONTAINER:-eurooffice-documentserver}"
+ONLYOFFICE_DATA_ROOT="${ONLYOFFICE_DATA_ROOT:-/var/lib/eurooffice/DocumentServer}"
+LEGACY_ONLYOFFICE_CONTAINER="${LEGACY_ONLYOFFICE_CONTAINER:-onlyoffice-documentserver}"
+
+_onlyoffice_is_eurooffice_image() {
+    case "${ONLYOFFICE_IMAGE}" in
+        *euro-office*|*eurooffice*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 _onlyoffice_container_running() {
     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "${ONLYOFFICE_CONTAINER}"
@@ -19,6 +30,10 @@ _onlyoffice_container_running() {
 
 _onlyoffice_container_exists() {
     docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "${ONLYOFFICE_CONTAINER}"
+}
+
+_legacy_onlyoffice_container_running() {
+    docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "${LEGACY_ONLYOFFICE_CONTAINER}"
 }
 
 _onlyoffice_port_in_use() {
@@ -35,7 +50,7 @@ _onlyoffice_port_in_use() {
 }
 
 _onlyoffice_dump_logs() {
-    log_info "Letzte OnlyOffice-Container-Logs:"
+    log_info "Letzte Document-Server-Container-Logs:"
     docker logs --tail 60 "${ONLYOFFICE_CONTAINER}" 2>&1 || true
 }
 
@@ -54,7 +69,7 @@ _onlyoffice_ensure_font_repos() {
 }
 
 _onlyoffice_install_host_fonts() {
-    log_info "Installiere Microsoft Core Fonts für OnlyOffice (Arial, Times New Roman, …)..."
+    log_info "Installiere Microsoft Core Fonts für Document Server (Arial, Times New Roman, …)..."
     _onlyoffice_ensure_font_repos
 
     echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
@@ -62,17 +77,17 @@ _onlyoffice_install_host_fonts() {
 
     # mscorefonts lädt TTFs von SourceForge – kann fehlschlagen; Carlito bleibt im Image
     if apt-get install -y -qq ttf-mscorefonts-installer cabextract; then
-        log_success "Host-Schriftarten installiert (mscorefonts); Calibri rendert OnlyOffice als Carlito"
+        log_success "Host-Schriftarten installiert (mscorefonts); Calibri rendert als Carlito"
     else
         log_warning "ttf-mscorefonts-installer fehlgeschlagen (EULA/Download) – Arial/Times ggf. unvollständig"
-        log_warning "OnlyOffice nutzt dann die im Image enthaltenen Ersatzschriften (Carlito/Liberation)"
+        log_warning "Document Server nutzt dann die im Image enthaltenen Ersatzschriften (Carlito/Liberation)"
     fi
 }
 
 _onlyoffice_copy_fonts_to_volume() {
     local dest="${ONLYOFFICE_DATA_ROOT}/fonts"
     mkdir -p "$dest"
-    log_info "Bereite OnlyOffice-Fonts-Volume vor (nur mscorefonts, keine Duplikate)..."
+    log_info "Bereite Document-Server-Fonts-Volume vor (nur mscorefonts, keine Duplikate)..."
 
     # Alte Kopien von Carlito/Liberation/DejaVu entfernen – sonst bleibt ein kaputter Index
     find "$dest" -maxdepth 1 -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete 2>/dev/null || true
@@ -88,10 +103,45 @@ _onlyoffice_copy_fonts_to_volume() {
     fi
 
     if [ "$copied" -gt 0 ]; then
-        log_success "${copied} Microsoft-Core-Schriften im OnlyOffice-Fonts-Volume"
+        log_success "${copied} Microsoft-Core-Schriften im Document-Server-Fonts-Volume"
     else
-        log_warning "Keine mscorefonts zum Kopieren gefunden – OnlyOffice nutzt Image-Fonts (Carlito für Calibri)"
+        log_warning "Keine mscorefonts zum Kopieren gefunden – Document Server nutzt Image-Fonts (Carlito für Calibri)"
     fi
+}
+
+_onlyoffice_run_container() {
+    local run_err="$1"
+    if _onlyoffice_is_eurooffice_image; then
+        docker run -d \
+            --name "${ONLYOFFICE_CONTAINER}" \
+            --restart=always \
+            -p "127.0.0.1:${ONLYOFFICE_HOST_PORT}:80" \
+            -v "${ONLYOFFICE_DATA_ROOT}/logs:/var/log/euro-office/documentserver" \
+            -v "${ONLYOFFICE_DATA_ROOT}/data:/var/lib/euro-office/documentserver" \
+            -v "${ONLYOFFICE_DATA_ROOT}/config:/etc/euro-office/documentserver" \
+            -v "${ONLYOFFICE_DATA_ROOT}/fonts:/usr/share/fonts/truetype/custom" \
+            -e JWT_ENABLED=true \
+            -e JWT_SECRET="${ONLYOFFICE_SECRET}" \
+            -e JWT_HEADER=Authorization \
+            -e ALLOW_PRIVATE_IP_ADDRESS=true \
+            "${ONLYOFFICE_IMAGE}" >"${run_err}" 2>&1
+        return $?
+    fi
+
+    # Legacy OnlyOffice volume layout (wenn ONLYOFFICE_IMAGE auf onlyoffice/… gesetzt)
+    docker run -d \
+        --name "${ONLYOFFICE_CONTAINER}" \
+        --restart=always \
+        -p "127.0.0.1:${ONLYOFFICE_HOST_PORT}:80" \
+        -v "${ONLYOFFICE_DATA_ROOT}/logs:/var/log/onlyoffice" \
+        -v "${ONLYOFFICE_DATA_ROOT}/data:/var/www/onlyoffice/Data" \
+        -v "${ONLYOFFICE_DATA_ROOT}/lib:/var/lib/onlyoffice" \
+        -v "${ONLYOFFICE_DATA_ROOT}/fonts:/usr/share/fonts/truetype/custom" \
+        -e JWT_ENABLED=true \
+        -e JWT_SECRET="${ONLYOFFICE_SECRET}" \
+        -e JWT_HEADER=Authorization \
+        -e ALLOW_PRIVATE_IP_ADDRESS=true \
+        "${ONLYOFFICE_IMAGE}" >"${run_err}" 2>&1
 }
 
 step_onlyoffice() {
@@ -101,7 +151,7 @@ step_onlyoffice() {
     fi
 
     if ! command -v docker >/dev/null 2>&1; then
-        log_error "Docker nicht gefunden – OnlyOffice Docs braucht Docker"
+        log_error "Docker nicht gefunden – Euro-Office Document Server braucht Docker"
         log_error "Schritt 'Docker' muss vorher erfolgreich sein"
         return 1
     fi
@@ -120,7 +170,7 @@ step_onlyoffice() {
     mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
     mem_gb=$((mem_kb / 1024 / 1024))
     if [ "$mem_gb" -gt 0 ] && [ "$mem_gb" -lt 4 ]; then
-        log_warning "OnlyOffice Docs empfiehlt ≥4 GB RAM (aktuell ca. ${mem_gb} GB) – Start kann scheitern/OOM"
+        log_warning "Document Server empfiehlt ≥4 GB RAM (aktuell ca. ${mem_gb} GB) – Start kann scheitern/OOM"
     fi
 
     local free_kb=0
@@ -135,7 +185,7 @@ step_onlyoffice() {
     local arch
     arch=$(uname -m)
     if [ "$arch" != "x86_64" ] && [ "$arch" != "amd64" ]; then
-        log_error "OnlyOffice Docs Docker-Image ist nur für amd64/x86_64 (diese Maschine: ${arch})"
+        log_error "Document-Server-Docker-Image ist nur für amd64/x86_64 (diese Maschine: ${arch})"
         return 1
     fi
 
@@ -143,11 +193,27 @@ step_onlyoffice() {
         ONLYOFFICE_SECRET=$(generate_secret)
     fi
 
-    # Offizielle Volume-Layout (Docker-DocumentServer Community Edition)
+    # Legacy-Schutz: laufender OnlyOffice-Container belassen, wenn wir Euro-Office neu installieren
+    if [ "${ONLYOFFICE_CONTAINER}" != "${LEGACY_ONLYOFFICE_CONTAINER}" ] \
+        && _legacy_onlyoffice_container_running \
+        && ! _onlyoffice_container_running; then
+        if _onlyoffice_port_in_use "${ONLYOFFICE_HOST_PORT}"; then
+            log_warning "Legacy-Container ${LEGACY_ONLYOFFICE_CONTAINER} läuft weiter auf Port ${ONLYOFFICE_HOST_PORT}"
+            log_warning "Bestehende .env mit ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice bleibt kompatibel"
+            log_warning "Optionaler Wechsel zu Euro-Office: siehe docs/WARTUNG.md"
+            log_success "Document Server (Legacy OnlyOffice) belassen – kein Ersatz-Install"
+            return 0
+        fi
+    fi
+
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/data"
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/logs"
-    mkdir -p "${ONLYOFFICE_DATA_ROOT}/lib"
     mkdir -p "${ONLYOFFICE_DATA_ROOT}/fonts"
+    if _onlyoffice_is_eurooffice_image; then
+        mkdir -p "${ONLYOFFICE_DATA_ROOT}/config"
+    else
+        mkdir -p "${ONLYOFFICE_DATA_ROOT}/lib"
+    fi
 
     _onlyoffice_install_host_fonts
     _onlyoffice_copy_fonts_to_volume
@@ -166,32 +232,24 @@ step_onlyoffice() {
         docker rm "${ONLYOFFICE_CONTAINER}" >/dev/null 2>&1 || true
     fi
 
-    log_info "Lade OnlyOffice Docs Image (${ONLYOFFICE_IMAGE})..."
+    log_info "Lade Document-Server-Image (${ONLYOFFICE_IMAGE})..."
     if ! docker pull "${ONLYOFFICE_IMAGE}"; then
         log_error "docker pull fehlgeschlagen: ${ONLYOFFICE_IMAGE}"
         log_error "Netzwerk, Registry-Zugang und Speicherplatz prüfen"
-        log_error "Quelle: https://github.com/ONLYOFFICE/Docker-DocumentServer"
+        if _onlyoffice_is_eurooffice_image; then
+            log_error "Quelle: https://github.com/Euro-Office/DocumentServer"
+        else
+            log_error "Quelle: https://github.com/ONLYOFFICE/Docker-DocumentServer"
+        fi
         return 1
     fi
 
-    log_info "Starte OnlyOffice Document Server (JWT aktiv, Port ${ONLYOFFICE_HOST_PORT})..."
+    log_info "Starte Document Server (JWT aktiv, Port ${ONLYOFFICE_HOST_PORT})..."
     local run_err cid
     run_err="$(mktemp)"
 
-    if ! docker run -d \
-        --name "${ONLYOFFICE_CONTAINER}" \
-        --restart=always \
-        -p "127.0.0.1:${ONLYOFFICE_HOST_PORT}:80" \
-        -v "${ONLYOFFICE_DATA_ROOT}/logs:/var/log/onlyoffice" \
-        -v "${ONLYOFFICE_DATA_ROOT}/data:/var/www/onlyoffice/Data" \
-        -v "${ONLYOFFICE_DATA_ROOT}/lib:/var/lib/onlyoffice" \
-        -v "${ONLYOFFICE_DATA_ROOT}/fonts:/usr/share/fonts/truetype/custom" \
-        -e JWT_ENABLED=true \
-        -e JWT_SECRET="${ONLYOFFICE_SECRET}" \
-        -e JWT_HEADER=Authorization \
-        -e ALLOW_PRIVATE_IP_ADDRESS=true \
-        "${ONLYOFFICE_IMAGE}" >"${run_err}" 2>&1; then
-        log_error "OnlyOffice Container konnte nicht gestartet werden"
+    if ! _onlyoffice_run_container "${run_err}"; then
+        log_error "Document-Server-Container konnte nicht gestartet werden"
         log_error "$(cat "${run_err}")"
         rm -f "${run_err}"
         return 1
@@ -201,7 +259,7 @@ step_onlyoffice() {
     log_info "Container gestartet: ${cid:0:12}"
 
     # Erststart (DB/Fonts) kann 2–3 Minuten dauern
-    log_info "Warte auf OnlyOffice Docs (bis 180s)..."
+    log_info "Warte auf Document Server (bis 180s)..."
     local OO_READY=0
     local i
     for i in $(seq 1 180); do
@@ -213,7 +271,7 @@ step_onlyoffice() {
         if curl -sf "http://127.0.0.1:${ONLYOFFICE_HOST_PORT}/healthcheck" >/dev/null 2>&1 \
             || curl -sf "http://127.0.0.1:${ONLYOFFICE_HOST_PORT}/welcome/" >/dev/null 2>&1; then
             OO_READY=1
-            log_success "OnlyOffice Docs ist bereit (${i}s)"
+            log_success "Document Server ist bereit (${i}s)"
             break
         fi
         if [ $((i % 30)) -eq 0 ]; then
@@ -224,11 +282,11 @@ step_onlyoffice() {
 
     if [ "$OO_READY" -eq 0 ]; then
         if _onlyoffice_container_running; then
-            log_warning "OnlyOffice antwortet noch nicht nach 180s – Container läuft weiter"
+            log_warning "Document Server antwortet noch nicht nach 180s – Container läuft weiter"
             log_warning "Später prüfen: curl -s http://127.0.0.1:${ONLYOFFICE_HOST_PORT}/healthcheck"
             _onlyoffice_dump_logs
         else
-            log_error "OnlyOffice Container nicht mehr aktiv"
+            log_error "Document-Server-Container nicht mehr aktiv"
             _onlyoffice_dump_logs
             return 1
         fi
@@ -238,9 +296,10 @@ step_onlyoffice() {
     # beim Start selbst. documentserver-generate-allfonts.sh danach nicht live ausführen –
     # das überschreibt AllFonts.js/font_selection.bin während docservice läuft und
     # bricht Calibri→Carlito (Open-Fehler in Word/Excel/PowerPoint).
-    # Zusätzliche TTFs später: ins Volume legen, dann `docker restart onlyoffice-documentserver`.
+    # Zusätzliche TTFs später: ins Volume legen, dann `docker restart ${ONLYOFFICE_CONTAINER}`.
 
-    log_info "OnlyOffice JWT_SECRET = ONLYOFFICE_SECRET_KEY (für .env)"
-    log_success "OnlyOffice Document Server installiert (${ONLYOFFICE_IMAGE})"
+    log_info "JWT_SECRET = ONLYOFFICE_SECRET_KEY (für .env)"
+    log_info "Proxy: /eurooffice (neu) und /onlyoffice (Legacy) → Port ${ONLYOFFICE_HOST_PORT}"
+    log_success "Document Server installiert (${ONLYOFFICE_IMAGE})"
     return 0
 }

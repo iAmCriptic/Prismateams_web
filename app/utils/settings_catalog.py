@@ -273,7 +273,7 @@ def build_settings_catalog(user) -> list[dict]:
         translate('settings.admin.cards.file_settings.title'),
         'settings.admin_file_settings',
         'admin',
-        'dateien speicher sharing dropbox onlyoffice format',
+        'dateien speicher sharing dropbox onlyoffice eurooffice euro-office format',
     ))
 
     return catalog

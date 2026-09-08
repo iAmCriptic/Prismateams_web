@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – Fehlerbehebung</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.1</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
+  <strong>Dokumentation · Version 3.4.12</strong><br>
+  <img src="https://img.shields.io/badge/version-3.4.12-7c3aed?style=flat-square" alt="Version 3.4.12">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ---
 
-Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.0.1**.
+Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.4.12**.
 
 > **Installer:** Modularer Ubuntu-Installer ist einsatzbereit — [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Bei Skript-Problemen Terminal-Ausgabe und `$INSTALL_DIR/install-report.txt` prüfen.
 
@@ -87,46 +87,48 @@ sudo journalctl -u teamportal -n 100
 
 **Häufige Ursache:** Gunicorn lauscht auf einem anderen Port als in der Nginx-Konfiguration (Standard: `127.0.0.1:5000`). Siehe [INSTALLATION.md – Schritt 10 und 11](INSTALLATION.md#schritt-10-systemd-service-konfigurieren).
 
-## OnlyOffice nicht erreichbar (falls installiert)
+## Euro-Office / Document Server nicht erreichbar (falls installiert)
 
 ```bash
-# Prüfe ob OnlyOffice Container läuft
-sudo docker ps | grep onlyoffice
+# Prüfe ob Document-Server-Container läuft (neu oder Legacy)
+sudo docker ps | grep -E 'eurooffice|onlyoffice'
 
 # Prüfe Port 8080
 sudo ss -ltnp | grep 8080
 
-# Prüfe OnlyOffice Logs
-sudo docker logs onlyoffice-documentserver
+# Logs (je nach Container-Name)
+sudo docker logs eurooffice-documentserver
+# Legacy: sudo docker logs onlyoffice-documentserver
 
-# OnlyOffice neu starten
-sudo docker restart onlyoffice-documentserver
+# Neu starten
+sudo docker restart eurooffice-documentserver
 
 # Healthcheck / Welcome (Installer bindet 127.0.0.1:8080)
 curl -s http://127.0.0.1:8080/healthcheck
 curl -s http://127.0.0.1:8080/welcome/ | head
 
-# Teste ob OnlyOffice API über Nginx erreichbar ist
+# API über Nginx (neu /eurooffice oder Legacy /onlyoffice)
+curl http://IHRE-DOMAIN/eurooffice/web-apps/apps/api/documents/api.js | head -20
 curl http://IHRE-DOMAIN/onlyoffice/web-apps/apps/api/documents/api.js | head -20
 
 # Wenn die API HTML statt JavaScript zurückgibt, ist die Nginx-Konfiguration fehlerhaft
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-**Installer: `OnlyOffice FEHLGESCHLAGEN Fehlercode 1`:** meist `docker pull`/`docker run` fehlgeschlagen (zu wenig RAM/Disk, kein amd64, Port 8080 belegt, Daemon down). Installer-Output und `docker logs onlyoffice-documentserver` prüfen. Neu: `sudo docker pull onlyoffice/documentserver:latest`.
+**Installer: Document Server FEHLGESCHLAGEN Fehlercode 1:** meist `docker pull`/`docker run` fehlgeschlagen (zu wenig RAM/Disk, kein amd64, Port 8080 belegt, Daemon down). Installer-Output und `docker logs eurooffice-documentserver` prüfen. Neu: `sudo docker pull ghcr.io/euro-office/documentserver:latest`.
 
 **Hinweis:** Portal braucht **Document Server (Docs)**, nicht Community Server/Workspace.
 
-**Hinweis zur Nginx-Konfiguration:** Für OnlyOffice muss `proxy_pass` mit trailing slash gesetzt sein: `proxy_pass http://127.0.0.1:8080/;` — siehe [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren).
+**Hinweis zur Nginx-Konfiguration:** Für `/eurooffice` und `/onlyoffice` muss `proxy_pass` mit trailing slash gesetzt sein: `proxy_pass http://127.0.0.1:8080/;` — siehe [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren).
 
-## OnlyOffice JWT-Fehler (falls installiert)
+## Document-Server JWT-Fehler (falls installiert)
 
-- Stellen Sie sicher, dass `ONLYOFFICE_SECRET_KEY` in `.env` mit dem OnlyOffice `JWT_SECRET` übereinstimmt
-- Prüfen Sie die OnlyOffice-Logs: `sudo docker logs onlyoffice-documentserver`
-- Wenn OnlyOffice lokal ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` leer (Dev/Test akzeptiert unsigned Callbacks)
+- Stellen Sie sicher, dass `ONLYOFFICE_SECRET_KEY` in `.env` mit dem Container-`JWT_SECRET` übereinstimmt
+- Prüfen Sie die Logs: `sudo docker logs eurooffice-documentserver` (Legacy: `onlyoffice-documentserver`)
+- Wenn der Document Server lokal ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` leer (Dev/Test akzeptiert unsigned Callbacks)
 - In Production ohne Secret: Callbacks werden abgelehnt, außer `ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true`
 
-## OnlyOffice: Schriften fehlen / PDF sieht falsch aus (falls installiert)
+## Document Server: Schriften fehlen / PDF sieht falsch aus (falls installiert)
 
 PDF, Druck und Konvertierung brauchen TTFs, die das Image nicht mitbringt (Microsoft Core Fonts). **Carlito/Liberation nicht** ins Custom-Volume kopieren – Duplikate zerlegen `font_selection.bin` und führen zu „Fehler beim Öffnen der Datei“.
 
@@ -135,14 +137,15 @@ sudo apt update
 echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
 sudo apt install -y ttf-mscorefonts-installer cabextract
 
-sudo mkdir -p /var/lib/onlyoffice/DocumentServer/fonts
-sudo find /var/lib/onlyoffice/DocumentServer/fonts -maxdepth 1 -type f \
+# Euro-Office (Standard)
+sudo mkdir -p /var/lib/eurooffice/DocumentServer/fonts
+sudo find /var/lib/eurooffice/DocumentServer/fonts -maxdepth 1 -type f \
   \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.ttc' \) -delete
 sudo find /usr/share/fonts/truetype/msttcorefonts \
   -type f \( -iname '*.ttf' -o -iname '*.otf' \) \
-  -exec cp {} /var/lib/onlyoffice/DocumentServer/fonts/ \; 2>/dev/null || true
+  -exec cp {} /var/lib/eurooffice/DocumentServer/fonts/ \; 2>/dev/null || true
 
-sudo docker restart onlyoffice-documentserver
+sudo docker restart eurooffice-documentserver
 ```
 
 Danach Browser hart neu laden (Strg+F5). **Carlito** (im Image) ersetzt Calibri. Echte Calibri-TTFs optional ins selbe Volume, dann Container neu starten – nicht `documentserver-generate-allfonts.sh` gegen den laufenden Editor. Beim Container-Update das Fonts-Volume nicht vergessen – siehe [WARTUNG.md](WARTUNG.md#docker-container-aktualisieren-falls-installiert).
@@ -295,5 +298,5 @@ Bei anhaltenden Problemen:
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.1</sub>
+  <sub>Prismateams 3.4.12</sub>
 </p>

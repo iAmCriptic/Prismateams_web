@@ -53,7 +53,7 @@ als **eigenständige Verantwortliche** agieren.
 | Google Drive Import | Auftragsverarbeitung / API-Nutzung | Cloud-Import Google | Dateimetadaten, Dateiinhalte beim Import | USA / SCCs |
 | Nextcloud Import | je Hosting | Cloud-Import Nextcloud | Dateien beim Transfer | je Nextcloud-Host |
 | Spotify (Musikmodul) | eigener Verantwortlicher / API | `module_music` + OAuth | Account-Token, Playlist-Metadaten | USA / Spotify-Bedingungen |
-| OnlyOffice Document Server | Auftragsverarbeiter (wenn fremd gehostet) | `ONLYOFFICE_ENABLED` | Dokumentinhalte zur Bearbeitung | Self-Host = oft keine Extra-Übermittlung |
+| Euro-Office Document Server (EU-Fork von ONLYOFFICE Open Source, AGPL) | Auftragsverarbeiter (wenn fremd gehostet) | `ONLYOFFICE_ENABLED` (ENV-Name historisch) | Dokumentinhalte zur Bearbeitung | Self-Host = oft keine Extra-Übermittlung; kein russischer Vendor |
 | MiroTalk SFU (Meetings) | Auftragsverarbeiter (wenn fremd gehostet) | `MIROTALK_*` | Meeting-Metadaten, A/V-Streams | Self-Host bevorzugt |
 | Excalidraw | Auftragsverarbeiter (wenn fremd gehostet) | `EXCALIDRAW_*` / Modul | Zeichnungsinhalte | Self-Host bevorzugt |
 | Web-Push (Browser/OS) | technisch notwendig | VAPID konfiguriert | Push-Endpoint, Keys | Browser-Hersteller |

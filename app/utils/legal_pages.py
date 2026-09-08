@@ -85,7 +85,7 @@ Aktuell können je nach Konfiguration insbesondere folgende Empfänger betroffen
   Zweck: einmaliger Dateiimport in das Dateimodul
 - Spotify (Musikmodul, optional): Spotify AB
   Zweck: Wiedergabe/Playlists laut Nutzereinstellung; eigene Spotify-Bedingungen
-- OnlyOffice Document Server (optional): [Self-Host / Anbieter]
+- Euro-Office Document Server (optional): [Self-Host / Anbieter]
   Zweck: Bearbeitung von Office-Dokumenten im Browser
 - MiroTalk / Meetings (optional): [Self-Host / Anbieter]
   Zweck: Audio-/Video-Meetings

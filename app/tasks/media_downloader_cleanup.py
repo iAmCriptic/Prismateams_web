@@ -52,6 +52,11 @@ class MediaDownloaderCleanupScheduler(IntervalScheduler):
         return 900
 
     def run_job(self):
+        from app.utils.common import is_module_enabled
+
+        if not is_module_enabled('module_media_downloader'):
+            logger.debug("module_media_downloader deaktiviert — Cleanup idle")
+            return
         cleanup_expired_downloads()
 
 

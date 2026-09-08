@@ -48,9 +48,9 @@ add_header X-XSS-Protection "1; mode=block" always;
 # File upload limit
 client_max_body_size 100M;
 
-# OnlyOffice Cache (MUSS VOR /onlyoffice kommen!)
-# OnlyOffice benötigt diesen Pfad für interne Cache-Dateien
-# Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+# Document Server Cache (MUSS VOR /onlyoffice und /eurooffice kommen!)
+# Euro-Office / OnlyOffice benötigen diesen Pfad für interne Cache-Dateien
+# Entfernen Sie diesen Block, wenn der Document Server NICHT installiert ist
 location /cache {
     proxy_pass http://127.0.0.1:8080;
     proxy_set_header Host \$host;
@@ -71,9 +71,9 @@ location /cache {
     proxy_request_buffering off;
 }
 
-# OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
-# WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
-# OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...
+# Document Server – Legacy-Pfad /onlyoffice (bestehende .env)
+# WICHTIG: MIT trailing slash bei proxy_pass, damit der Präfix entfernt wird
+# Backend erwartet /web-apps/... nicht /onlyoffice/web-apps/...
 location /onlyoffice {
     proxy_pass http://127.0.0.1:8080/;
     proxy_set_header Host \$host;
@@ -81,22 +81,15 @@ location /onlyoffice {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto \$scheme;
     
-    # OnlyOffice spezifische Header
     proxy_http_version 1.1;
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection "upgrade";
     
-    # WICHTIG: Content-Type Header vom Backend übernehmen
-    # Standardmäßig sollte Nginx den Content-Type vom Backend übernehmen,
-    # aber wir stellen sicher, dass er nicht überschrieben wird
-    
-    # CORS headers for OnlyOffice (wichtig für API-Zugriff)
     add_header Access-Control-Allow-Origin * always;
     add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
     add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
     add_header Access-Control-Allow-Credentials true always;
     
-    # Handle preflight requests
     if (\$request_method = 'OPTIONS') {
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
@@ -107,13 +100,48 @@ location /onlyoffice {
         return 204;
     }
     
-    # Timeouts für große Dokumente
     proxy_connect_timeout 600;
     proxy_send_timeout 600;
     proxy_read_timeout 600;
     send_timeout 600;
     
-    # Disable buffering for OnlyOffice (wichtig für Streaming)
+    proxy_buffering off;
+    proxy_request_buffering off;
+}
+
+# Document Server – Standard-Pfad /eurooffice (neue Installationen)
+# Parallel zu /onlyoffice; ONLYOFFICE_DOCUMENT_SERVER_URL steuert, welchen die App nutzt
+location /eurooffice {
+    proxy_pass http://127.0.0.1:8080/;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    
+    add_header Access-Control-Allow-Origin * always;
+    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+    add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+    add_header Access-Control-Allow-Credentials true always;
+    
+    if (\$request_method = 'OPTIONS') {
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+        add_header Content-Length 0;
+        add_header Content-Type text/plain;
+        return 204;
+    }
+    
+    proxy_connect_timeout 600;
+    proxy_send_timeout 600;
+    proxy_read_timeout 600;
+    send_timeout 600;
+    
     proxy_buffering off;
     proxy_request_buffering off;
 }

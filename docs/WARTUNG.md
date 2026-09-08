@@ -5,8 +5,8 @@
 <h1 align="center">Prismateams – Wartung</h1>
 
 <p align="center">
-  <strong>Dokumentation · Version 3.0.1</strong><br>
-  <img src="https://img.shields.io/badge/version-3.0.1-7c3aed?style=flat-square" alt="Version 3.0.1">
+  <strong>Dokumentation · Version 3.4.12</strong><br>
+  <img src="https://img.shields.io/badge/version-3.4.12-7c3aed?style=flat-square" alt="Version 3.4.12">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ---
 
-Laufender Betrieb von **Prismateams 3.0.1**: Logs, Neustart, Updates, Migrationen, Backups und Performance.
+Laufender Betrieb von **Prismateams 3.4.12**: Logs, Neustart, Updates, Migrationen, Backups und Performance.
 
 Bei Fehlern: [ERROR_HANDLING.md](ERROR_HANDLING.md)
 
@@ -38,8 +38,9 @@ sudo tail -f /var/log/nginx/error.log
 # Redis Logs
 sudo journalctl -u redis-server -f
 
-# OnlyOffice Logs (falls installiert)
-sudo docker logs -f onlyoffice-documentserver
+# Euro-Office / Document Server Logs (falls installiert)
+sudo docker logs -f eurooffice-documentserver
+# Legacy: sudo docker logs -f onlyoffice-documentserver
 
 # Excalidraw-Room Logs (falls installiert)
 sudo docker logs -f excalidraw-room
@@ -67,8 +68,9 @@ sudo systemctl status teamportal
 ## Docker-Container neu starten (falls installiert)
 
 ```bash
-# OnlyOffice neu starten (falls installiert)
-sudo docker restart onlyoffice-documentserver
+# Euro-Office neu starten (falls installiert)
+sudo docker restart eurooffice-documentserver
+# Legacy: sudo docker restart onlyoffice-documentserver
 
 # Excalidraw-Room neu starten (falls installiert)
 sudo docker restart excalidraw-room
@@ -127,24 +129,24 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.
 ## Docker-Container aktualisieren (falls installiert)
 
 ```bash
-# OnlyOffice aktualisieren (falls installiert)
+# Euro-Office aktualisieren (falls installiert)
 # Fonts-Volume beibehalten (nur mscorefonts, keine Carlito-/Liberation-Duplikate).
 # Der neue Container indexiert das Volume beim Start selbst.
-sudo docker stop onlyoffice-documentserver
-sudo docker rm onlyoffice-documentserver
-sudo docker pull onlyoffice/documentserver:latest
+sudo docker stop eurooffice-documentserver
+sudo docker rm eurooffice-documentserver
+sudo docker pull ghcr.io/euro-office/documentserver:latest
 sudo docker run -d --restart=always \
-    --name onlyoffice-documentserver \
+    --name eurooffice-documentserver \
     -p 127.0.0.1:8080:80 \
-    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
-    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -v /var/lib/eurooffice/DocumentServer/logs:/var/log/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/data:/var/lib/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/config:/etc/euro-office/documentserver \
+    -v /var/lib/eurooffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
     -e JWT_ENABLED=true \
     -e JWT_SECRET=dein-jwt-secret-key-hier \
     -e JWT_HEADER=Authorization \
     -e ALLOW_PRIVATE_IP_ADDRESS=true \
-    onlyoffice/documentserver:latest
+    ghcr.io/euro-office/documentserver:latest
 
 # Font-Index: der neue Container indexiert das Fonts-Volume beim Start selbst.
 # documentserver-generate-allfonts.sh nicht extra gegen den laufenden Editor ausführen
@@ -160,6 +162,19 @@ sudo docker run -d -p 127.0.0.1:8082:80 --restart=always \
     excalidraw/excalidraw-room:latest
 ```
 
+### Optional: OnlyOffice → Euro-Office wechseln
+
+Bestehende Installationen **müssen nicht** umstellen. `/onlyoffice` in der `.env` und der Legacy-Container bleiben gültig.
+
+Freiwilliger Wechsel:
+
+1. Nginx/Apache um `/eurooffice`-Location ergänzen (siehe Installer-Templates) und reload
+2. Alten Container stoppen/entfernen: `docker stop onlyoffice-documentserver && docker rm onlyoffice-documentserver`
+3. Euro-Office-Container wie oben starten (neues Volume-Layout; Fonts ggf. neu kopieren)
+4. In `.env` entweder `ONLYOFFICE_DOCUMENT_SERVER_URL=/eurooffice` setzen **oder** `/onlyoffice` behalten (beide Prefixe zeigen auf denselben Port)
+5. `ONLYOFFICE_SECRET_KEY` unverändert lassen (gleicher JWT_SECRET)
+6. `systemctl restart teamportal`
+
 ## Backup erstellen
 
 ```bash
@@ -169,17 +184,19 @@ sudo mysqldump -u teamportal -p teamportal > backup_$(date +%Y%m%d).sql
 # Upload-Verzeichnis sichern
 sudo tar -czf uploads_backup_$(date +%Y%m%d).tar.gz /var/www/teamportal/uploads/
 
-# OnlyOffice Daten sichern (falls installiert)
-sudo tar -czf onlyoffice_backup_$(date +%Y%m%d).tar.gz /var/lib/onlyoffice/
+# Euro-Office Daten sichern (falls installiert)
+sudo tar -czf eurooffice_backup_$(date +%Y%m%d).tar.gz /var/lib/eurooffice/
+# Legacy: sudo tar -czf onlyoffice_backup_$(date +%Y%m%d).tar.gz /var/lib/onlyoffice/
 ```
 
 ## Optionale Services deaktivieren
 
-### OnlyOffice deaktivieren
+### Euro-Office / Document Server deaktivieren
 
 ```bash
 # 1. Container stoppen
-sudo docker stop onlyoffice-documentserver
+sudo docker stop eurooffice-documentserver
+# Legacy: sudo docker stop onlyoffice-documentserver
 
 # 2. .env-Datei bearbeiten
 sudo nano /var/www/teamportal/.env
@@ -187,7 +204,7 @@ sudo nano /var/www/teamportal/.env
 
 # 3. Nginx-Konfiguration bearbeiten
 sudo nano /etc/nginx/sites-available/teamportal
-# Entfernen Sie den /onlyoffice Location-Block
+# Entfernen Sie die /eurooffice-, /onlyoffice- und /cache-Location-Blöcke
 
 # 4. Nginx neu laden
 sudo nginx -t
@@ -266,20 +283,21 @@ location = /sw.js {
 
 **Wichtig:** `/sw.js` nicht unter die allgemeine Static-/immutable-Regel legen. Die App setzt zusätzlich `Cache-Control: no-cache` beim Ausliefern von `/sw.js`.
 
-### OnlyOffice Performance (falls installiert)
+### Document-Server Performance (falls installiert)
 
-OnlyOffice kann viel Speicherplatz und RAM benötigen. Überwachen Sie regelmäßig:
+Euro-Office / Document Server kann viel Speicherplatz und RAM benötigen. Überwachen Sie regelmäßig:
 
 ```bash
 # Speicherplatz prüfen
 df -h
-du -sh /var/lib/onlyoffice/DocumentServer/data
+du -sh /var/lib/eurooffice/DocumentServer/data
+# Legacy: du -sh /var/lib/onlyoffice/DocumentServer/data
 
 # RAM-Verbrauch prüfen
-sudo docker stats onlyoffice-documentserver
+sudo docker stats eurooffice-documentserver
 ```
 
-**Empfohlene Systemanforderungen für OnlyOffice:**
+**Empfohlene Systemanforderungen für den Document Server:**
 - Mindestens 4 GB RAM (8 GB empfohlen)
 - Mindestens 20 GB freier Speicherplatz
 - Mehrere CPU-Kerne für bessere Performance
@@ -329,5 +347,5 @@ Nach nachträglichem SSL (Certbot): Flag auf `True` setzen und Service neu start
 
 <p align="center">
   <img src="../app/static/img/logo.png" alt="" width="40"><br>
-  <sub>Prismateams 3.0.1</sub>
+  <sub>Prismateams 3.4.12</sub>
 </p>

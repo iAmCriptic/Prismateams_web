@@ -2323,6 +2323,42 @@ a.sp-dir-card:hover {
   width: 100%;
 }
 
+/* Integrations — lead + redirect need the same horizontal inset as .sp-row */
+
+.settings-admin-integrations .settings-integrations-lead {
+  margin: 0;
+  padding: 0.85rem 1.25rem 0.25rem;
+  color: var(--sp-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.settings-admin-integrations .settings-integrations-redirect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  padding: 0.85rem 1.25rem 1.05rem;
+  border-top: 1px solid color-mix(in srgb, var(--sp-border) 70%, transparent);
+  color: var(--sp-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.settings-admin-integrations .settings-integrations-redirect-label {
+  font-weight: 550;
+  color: var(--sp-muted);
+  flex: 0 0 auto;
+}
+
+.settings-admin-integrations .settings-integrations-redirect-url {
+  color: var(--accent-color, var(--bs-primary));
+  background: transparent;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
 /* Modules â responsive switch grid */
 
 .settings-admin-modules-grid {

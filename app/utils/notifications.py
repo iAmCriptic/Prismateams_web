@@ -955,6 +955,10 @@ def send_booking_message_notification(booking_request, message=None) -> int:
 
 def schedule_calendar_reminders():
     try:
+        from app.utils.common import is_module_enabled
+        if not is_module_enabled('module_calendar'):
+            return
+
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
         if 'calendar_events' not in inspector.get_table_names():

@@ -47,7 +47,7 @@
                         {% if share_mode == 'edit' and onlyoffice_available %}
                             {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
                         <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success mod-pill-btn">
-                            <i class="bi bi-file-earmark-text"></i> Mit ONLYOFFICE bearbeiten
+                            <i class="bi bi-file-earmark-text"></i> Mit Euro-Office bearbeiten
                         </a>
                             {% endif %}
                         {% endif %}

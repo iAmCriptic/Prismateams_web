@@ -52,6 +52,11 @@ class FileConverterCleanupScheduler(IntervalScheduler):
         return 900
 
     def run_job(self):
+        from app.utils.common import is_module_enabled
+
+        if not is_module_enabled('module_file_converter'):
+            logger.debug("module_file_converter deaktiviert — Cleanup idle")
+            return
         cleanup_expired_conversions()
 
 

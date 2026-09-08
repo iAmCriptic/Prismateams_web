@@ -42,14 +42,22 @@ def run_app_startup(app):
             from app.tasks.calendar_sync_scheduler import start_calendar_sync_scheduler
             start_calendar_sync_scheduler(app)
 
-        from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
-        start_media_downloader_cleanup(app)
+        # PERF-03: Modulgebundene Cleanups nur bei aktivem Modul
+        if is_module_enabled('module_media_downloader'):
+            from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
+            start_media_downloader_cleanup(app)
 
-        from app.tasks.file_converter_cleanup import start_file_converter_cleanup
-        start_file_converter_cleanup(app)
+        if is_module_enabled('module_file_converter'):
+            from app.tasks.file_converter_cleanup import start_file_converter_cleanup
+            start_file_converter_cleanup(app)
 
-        from app.tasks.files_trash_cleanup import start_files_trash_cleanup
-        start_files_trash_cleanup(app)
+        if is_module_enabled('module_files'):
+            from app.tasks.files_trash_cleanup import start_files_trash_cleanup
+            start_files_trash_cleanup(app)
+
+        if is_module_enabled('module_booking'):
+            from app.tasks.booking_archiver import start_booking_archiver
+            start_booking_archiver(app)
 
         from app.tasks.access_log_cleanup import start_access_log_cleanup
         start_access_log_cleanup(app)
