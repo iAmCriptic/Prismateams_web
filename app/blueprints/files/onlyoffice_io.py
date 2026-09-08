@@ -111,7 +111,7 @@ def onlyoffice_document(file_id):
     
     # Handle OPTIONS request for CORS preflight
     if request.method == 'OPTIONS':
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+        onlyoffice_url = get_onlyoffice_document_server_url()
         response = jsonify({})
         if onlyoffice_url.startswith('http'):
             from urllib.parse import urlparse
@@ -223,7 +223,7 @@ def onlyoffice_document(file_id):
     
     # Add CORS headers to allow OnlyOffice (auch wenn auf demselben Server über Proxy)
     # OnlyOffice läuft über einen Proxy, daher benötigen wir CORS-Header
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     if onlyoffice_url.startswith('http'):
         # Extract origin from OnlyOffice URL
         from urllib.parse import urlparse
@@ -249,7 +249,7 @@ def share_onlyoffice_document(token, file_id):
     """Serve document to ONLYOFFICE editor (Gast-Zugriff)."""
     # Handle OPTIONS request for CORS preflight
     if request.method == 'OPTIONS':
-        onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+        onlyoffice_url = get_onlyoffice_document_server_url()
         response = jsonify({})
         if onlyoffice_url.startswith('http'):
             from urllib.parse import urlparse
@@ -359,7 +359,7 @@ def share_onlyoffice_document(token, file_id):
     
     # Add CORS headers to allow OnlyOffice (auch wenn auf demselben Server über Proxy)
     # OnlyOffice läuft über einen Proxy, daher benötigen wir CORS-Header
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     if onlyoffice_url.startswith('http'):
         # Extract origin from OnlyOffice URL
         from urllib.parse import urlparse
@@ -607,7 +607,7 @@ def share_onlyoffice_save(token, file_id):
 def _onlyoffice_cors_response(payload, status_code=200):
     """Return JSON response with ONLYOFFICE CORS headers."""
     response = jsonify(payload)
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     if onlyoffice_url.startswith('http'):
         from urllib.parse import urlparse
         parsed = urlparse(onlyoffice_url)

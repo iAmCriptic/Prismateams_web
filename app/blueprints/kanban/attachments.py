@@ -189,7 +189,7 @@ def download_attachment(attachment_id):
 
 def _kanban_oo_cors(payload, status_code=200):
     response = jsonify(payload)
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     if onlyoffice_url.startswith('http'):
         from urllib.parse import urlparse
         parsed = urlparse(onlyoffice_url)
@@ -258,7 +258,7 @@ def edit_onlyoffice(attachment_id):
         document_url = f"{base_url}?token={quote(access_token, safe='')}"
         callback_url = url_for('kanban.onlyoffice_callback', attachment_id=att.id, _external=True)
 
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     if onlyoffice_url.startswith('http'):
         api_url = f"{onlyoffice_url.rstrip('/')}/web-apps/apps/api/documents/api.js"
     else:

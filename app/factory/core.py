@@ -57,7 +57,7 @@ def configure_core(app, config_name, basedir):
         and not app.config.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
     ):
         logging.getLogger(__name__).warning(
-            "ONLYOFFICE is enabled without ONLYOFFICE_SECRET_KEY in %s. "
+            "Euro-Office is enabled without ONLYOFFICE_SECRET_KEY in %s. "
             "Callbacks will be rejected until the secret matches Document Server JWT_SECRET "
             "(or set ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true for JWT_ENABLED=false).",
             config_name,

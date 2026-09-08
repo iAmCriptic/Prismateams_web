@@ -108,8 +108,12 @@ from app.blueprints.files.helpers import *  # noqa: F401,F403
 @login_required
 @check_module_access('module_files')
 def onlyoffice_debug():
-    """Debug endpoint to show OnlyOffice configuration and URLs."""
+    """Debug endpoint to show Euro-Office configuration and URLs."""
     from flask import abort, url_for
+    from app.utils.onlyoffice import (
+        generate_onlyoffice_access_token,
+        get_onlyoffice_document_server_url,
+    )
     if not current_app.debug:
         abort(404)
     from urllib.parse import quote
@@ -122,7 +126,7 @@ def onlyoffice_debug():
     debug_info = {
         'config': {
             'ONLYOFFICE_ENABLED': current_app.config.get('ONLYOFFICE_ENABLED', False),
-            'ONLYOFFICE_DOCUMENT_SERVER_URL': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice'),
+            'ONLYOFFICE_DOCUMENT_SERVER_URL': get_onlyoffice_document_server_url(),
             'ONLYOFFICE_PUBLIC_URL': current_app.config.get('ONLYOFFICE_PUBLIC_URL', ''),
             'ONLYOFFICE_SECRET_KEY_SET': bool(current_app.config.get('ONLYOFFICE_SECRET_KEY', '').strip()),
         },
@@ -136,7 +140,6 @@ def onlyoffice_debug():
     
     if test_file:
         # Generate URLs like in edit_onlyoffice
-        from app.utils.onlyoffice import generate_onlyoffice_access_token
         access_token = generate_onlyoffice_access_token(test_file.id, current_user.id)
         public_url = current_app.config.get('ONLYOFFICE_PUBLIC_URL', '').strip()
         
@@ -185,13 +188,14 @@ def onlyoffice_debug():
 @login_required
 @check_module_access('module_files')
 def onlyoffice_diagnose():
-    """Diagnose OnlyOffice Document Server connectivity."""
+    """Diagnose Euro-Office Document Server connectivity."""
     import requests
-    from urllib.parse import urljoin
-    
+    from app.utils.onlyoffice import get_onlyoffice_document_server_url
+
     results = {
         'onlyoffice_enabled': current_app.config.get('ONLYOFFICE_ENABLED', False),
-        'onlyoffice_url': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice'),
+        'onlyoffice_url': get_onlyoffice_document_server_url(),
+        'brand': 'Euro-Office',
         'tests': {}
     }
     
@@ -200,19 +204,23 @@ def onlyoffice_diagnose():
     
     onlyoffice_url = results['onlyoffice_url']
     
-    # Test 1: Direct connection to OnlyOffice on port 8080
+    # Test 1: Direct connection to Document Server on port 8080
     try:
         response = requests.get('http://127.0.0.1:8080/welcome/', timeout=5)
         results['tests']['direct_8080'] = {
             'status': 'success' if response.status_code == 200 else 'failed',
             'status_code': response.status_code,
             'content_type': response.headers.get('Content-Type', ''),
-            'message': 'OnlyOffice is reachable on port 8080' if response.status_code == 200 else f'OnlyOffice returned status {response.status_code}'
+            'message': (
+                'Euro-Office is reachable on port 8080'
+                if response.status_code == 200
+                else f'Euro-Office returned status {response.status_code}'
+            )
         }
     except requests.exceptions.ConnectionError:
         results['tests']['direct_8080'] = {
             'status': 'failed',
-            'message': 'Cannot connect to OnlyOffice on port 8080. Is the Docker container running?'
+            'message': 'Cannot connect to Euro-Office on port 8080. Is the Docker container running?'
         }
     except Exception as e:
         results['tests']['direct_8080'] = {
@@ -220,7 +228,7 @@ def onlyoffice_diagnose():
             'message': f'Error: {str(e)}'
         }
     
-    # Test 2: OnlyOffice API via Nginx proxy
+    # Test 2: Document Server API via reverse proxy (/eurooffice or /onlyoffice)
     if onlyoffice_url.startswith('http'):
         api_url = f"{onlyoffice_url.rstrip('/')}/web-apps/apps/api/documents/api.js"
     else:
@@ -251,10 +259,10 @@ def onlyoffice_diagnose():
         results['tests']['api_via_nginx'] = {
             'status': 'error',
             'url': api_url,
-            'message': f'Error accessing API via Nginx: {str(e)}'
+            'message': f'Error accessing API via proxy: {str(e)}'
         }
     
-    # Test 3: OnlyOffice welcome page via Nginx
+    # Test 3: Welcome page via reverse proxy
     if onlyoffice_url.startswith('http'):
         welcome_url = f"{onlyoffice_url.rstrip('/')}/welcome/"
     else:
@@ -267,13 +275,13 @@ def onlyoffice_diagnose():
             'status_code': response.status_code,
             'content_type': response.headers.get('Content-Type', ''),
             'url': welcome_url,
-            'message': 'Welcome page is accessible via Nginx' if response.status_code == 200 else f'Welcome page returned status {response.status_code}'
+            'message': 'Welcome page is accessible via proxy' if response.status_code == 200 else f'Welcome page returned status {response.status_code}'
         }
     except Exception as e:
         results['tests']['welcome_via_nginx'] = {
             'status': 'error',
             'url': welcome_url,
-            'message': f'Error accessing welcome page via Nginx: {str(e)}'
+            'message': f'Error accessing welcome page via proxy: {str(e)}'
         }
     
     return jsonify(results)
@@ -440,7 +448,7 @@ def edit_onlyoffice(file_id):
         return redirect(url_for('files.index'))
     
     # Check if file type is supported by ONLYOFFICE
-    from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token
+    from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token, get_onlyoffice_document_server_url
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if not is_onlyoffice_file_type(file_ext):
@@ -485,7 +493,7 @@ def edit_onlyoffice(file_id):
     logging.info(f"ONLYOFFICE callback_url: {callback_url}")
     logging.info(f"ONLYOFFICE access_token: {access_token[:8]}... (length: {len(access_token)})")
     
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     
     # Build full URL to ONLYOFFICE API
     if onlyoffice_url.startswith('http'):
@@ -676,7 +684,7 @@ def share_edit_onlyoffice(token):
         document_url = f"{base_doc}?token={encoded_token}"
         callback_url = url_for('files.share_onlyoffice_callback', token=token, file_id=file.id, _external=True)
     
-    onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    onlyoffice_url = get_onlyoffice_document_server_url()
     
     # Build full URL to ONLYOFFICE API
     if onlyoffice_url.startswith('http'):

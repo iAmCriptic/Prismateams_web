@@ -1,5 +1,8 @@
 """
-ONLYOFFICE helper functions and utilities.
+Euro-Office / Document Server helpers (ONLYOFFICE-compatible API).
+
+Product branding is Euro-Office; configuration keys remain ONLYOFFICE_* for
+compatibility with Document Server JWT and existing deployments.
 """
 import hashlib
 import os
@@ -8,7 +11,7 @@ import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-from flask import current_app
+from flask import current_app, has_request_context, request
 
 try:
     import jwt
@@ -29,8 +32,19 @@ _ONLYOFFICE_VERSION_RE = re.compile(
 
 
 def is_onlyoffice_enabled():
-    """Check if ONLYOFFICE is enabled in configuration."""
+    """Check if Euro-Office (Document Server) is enabled in configuration."""
     return current_app.config.get('ONLYOFFICE_ENABLED', False)
+
+
+def get_onlyoffice_document_server_url():
+    """
+    Return configured Document Server base URL or path.
+
+    Empty values normalize to ``/eurooffice`` (new installs). Legacy
+    ``/onlyoffice`` remains valid when set explicitly in .env.
+    """
+    url = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
+    return url or '/eurooffice'
 
 
 def get_onlyoffice_secret_key():
@@ -122,7 +136,7 @@ def get_onlyoffice_internal_base_urls():
 
     add('http://127.0.0.1:8080')
     add('http://localhost:8080')
-    configured = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
+    configured = get_onlyoffice_document_server_url()
     if configured.startswith('http://') or configured.startswith('https://'):
         add(configured)
     return candidates
@@ -552,8 +566,10 @@ def verify_onlyoffice_callback_token(raw_body, auth_header=None):
 
 def is_onlyoffice_callback_download_url_allowed(saved_file_url):
     """
-    Restrict ONLYOFFICE callback download URL to trusted ONLYOFFICE host(s).
-    Prevents arbitrary SSRF targets while keeping ONLYOFFICE-compatible flows.
+    Restrict Document Server callback download URL to trusted host(s).
+
+    Prevents arbitrary SSRF while allowing Euro-Office behind a same-host
+    proxy (``/eurooffice`` or legacy ``/onlyoffice``, plus ``/cache``).
     """
     if not saved_file_url:
         return False, "empty_url"
@@ -571,33 +587,49 @@ def is_onlyoffice_callback_download_url_allowed(saved_file_url):
     allowed_hosts = set()
     allowed_host_ports = set()
 
-    configured_ds_url = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
-    if configured_ds_url.startswith('http://') or configured_ds_url.startswith('https://'):
+    def add_url_host(url):
+        if not url or not (url.startswith('http://') or url.startswith('https://')):
+            return
         try:
-            parsed_ds = urlparse(configured_ds_url)
-            ds_host = parsed_ds.hostname
-            if ds_host:
-                allowed_hosts.add(ds_host.lower())
-                if parsed_ds.port:
-                    allowed_host_ports.add((ds_host.lower(), parsed_ds.port))
+            parsed_url = urlparse(url)
+            host = parsed_url.hostname
+            if not host:
+                return
+            host = host.lower()
+            allowed_hosts.add(host)
+            if parsed_url.port:
+                allowed_host_ports.add((host, parsed_url.port))
         except Exception:
             pass
 
-    configured_public_url = (current_app.config.get('ONLYOFFICE_PUBLIC_URL') or '').strip()
-    if configured_public_url.startswith('http://') or configured_public_url.startswith('https://'):
-        try:
-            parsed_public = urlparse(configured_public_url)
-            public_host = parsed_public.hostname
-            if public_host:
-                allowed_hosts.add(public_host.lower())
-                if parsed_public.port:
-                    allowed_host_ports.add((public_host.lower(), parsed_public.port))
-        except Exception:
-            pass
+    def add_host_port(host, port=None):
+        if not host:
+            return
+        host = str(host).lower().strip('[]')
+        if not host:
+            return
+        allowed_hosts.add(host)
+        if port:
+            try:
+                allowed_host_ports.add((host, int(port)))
+            except (TypeError, ValueError):
+                pass
 
-    # Same-host/proxy deployments often use relative ONLYOFFICE URL.
+    configured_ds_url = get_onlyoffice_document_server_url()
+    add_url_host(configured_ds_url)
+    add_url_host((current_app.config.get('ONLYOFFICE_PUBLIC_URL') or '').strip())
+    add_url_host((current_app.config.get('PUBLIC_BASE_URL') or '').strip())
+
+    # Same-host/proxy deployments: relative /eurooffice or /onlyoffice.
+    # Document Server often returns https://portal-host/cache/... after save.
     if configured_ds_url.startswith('/'):
         allowed_hosts.update({'localhost', '127.0.0.1', '::1'})
+        if has_request_context():
+            try:
+                parsed_req = urlparse(f'//{request.host}')
+                add_host_port(parsed_req.hostname, parsed_req.port)
+            except Exception:
+                pass
 
     if not allowed_hosts:
         return False, "no_allowed_hosts_configured"

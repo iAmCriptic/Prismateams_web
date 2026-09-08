@@ -126,10 +126,12 @@ class Config:
     EMAIL_TEXT_MAX_LENGTH = int(os.environ.get('EMAIL_TEXT_MAX_LENGTH', 10000))
     EMAIL_HTML_STORAGE_TYPE = os.environ.get('EMAIL_HTML_STORAGE_TYPE', 'TEXT')
     
+    # Euro-Office Document Server (API-kompatibel zu ONLYOFFICE Docs; ENV-Keys historisch)
     ONLYOFFICE_ENABLED = os.environ.get('ONLYOFFICE_ENABLED', 'False').lower() == 'true'
-    ONLYOFFICE_DOCUMENT_SERVER_URL = os.environ.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/eurooffice')
+    _oo_ds_url = (os.environ.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '/eurooffice').strip()
+    ONLYOFFICE_DOCUMENT_SERVER_URL = _oo_ds_url or '/eurooffice'
     ONLYOFFICE_SECRET_KEY = os.environ.get('ONLYOFFICE_SECRET_KEY', '')
-    ONLYOFFICE_PUBLIC_URL = os.environ.get('ONLYOFFICE_PUBLIC_URL', '')
+    ONLYOFFICE_PUBLIC_URL = (os.environ.get('ONLYOFFICE_PUBLIC_URL') or '').strip()
     # Unsigned callbacks (JWT_ENABLED=false am Document Server):
     # None = auto (nur Dev/Test), True/False = explizit aus .env
     _oo_unsigned = os.environ.get('ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS')
