@@ -68,7 +68,11 @@ from app.utils.kanban_access import (
     KanbanImportPermissionError,
     visibility_allowed,
 )
-from app.utils.onlyoffice import is_onlyoffice_enabled, is_onlyoffice_file_type
+from app.utils.onlyoffice import (
+    is_onlyoffice_enabled,
+    is_onlyoffice_file_type,
+    get_onlyoffice_document_server_url,
+)
 from app.utils.public_share import (
     generate_unique_share_token,
     get_share_by_token,
@@ -185,7 +189,7 @@ def download_attachment(attachment_id):
     return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
 
 
-# ── OnlyOffice for Kanban attachments ───────────────────────────────────
+# ── Euro-Office for Kanban attachments ───────────────────────────────────
 
 def _kanban_oo_cors(payload, status_code=200):
     response = jsonify(payload)

@@ -70,8 +70,8 @@ def register_blueprints(app):
     app.register_blueprint(meetings_bp)
 
     # Server-to-server callbacks ohne Browser-CSRF-Token.
-    # OnlyOffice: CSRF-Exempt ist nötig; kompensierendes Control ist JWT
-    # (verify_onlyoffice_callback_token / H3). Unsigned nur Dev/Test oder
+    # Euro-Office: CSRF-Exempt nötig; kompensierendes Control ist JWT
+    # (verify_onlyoffice_callback_token). Unsigned nur Dev/Test oder
     # ONLYOFFICE_ALLOW_UNSIGNED_CALLBACKS=true.
     for endpoint in (
         'files.onlyoffice_callback',

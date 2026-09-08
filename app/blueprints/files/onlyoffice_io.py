@@ -82,6 +82,7 @@ from app.utils.onlyoffice_presence import (
     presence_for_folder,
     upsert_session as oo_upsert_session,
 )
+from app.utils.onlyoffice import get_onlyoffice_document_server_url
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
