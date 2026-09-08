@@ -645,7 +645,13 @@ def share_edit_onlyoffice(token):
         file = item
     
     # Check if file type is supported by ONLYOFFICE
-    from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token
+    from app.utils.onlyoffice import (
+        is_onlyoffice_file_type,
+        get_onlyoffice_document_type,
+        get_onlyoffice_file_type,
+        generate_onlyoffice_token,
+        get_onlyoffice_document_server_url,
+    )
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if not is_onlyoffice_file_type(file_ext):
