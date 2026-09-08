@@ -171,7 +171,7 @@ data-col-span="{{ col_span }}"
         {% for message in unread_messages %}
         <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" data-stop-nav>
             <div class="dash-widget-row-top">
-                <p class="dash-widget-row-title">{{ message.sender.full_name }}</p>
+                <p class="dash-widget-row-title">{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}</p>
                 <span class="dash-widget-row-meta">{{ message.created_at|localtime('%H:%M') }}</span>
             </div>
             <p class="dash-widget-row-sub">{{ message.content or _('dashboard.widgets.chat.fallback_file') }}</p>

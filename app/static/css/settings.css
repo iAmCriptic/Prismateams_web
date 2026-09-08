@@ -1346,6 +1346,109 @@
   padding: 1rem 1.25rem;
 }
 
+/* —— Privacy / data export —— */
+
+.settings-privacy.sp-page--fluid {
+  max-width: 56rem;
+  width: 100%;
+}
+
+.settings-privacy-header {
+  margin-bottom: 1.75rem;
+}
+
+.settings-privacy-header .sp-page-lead {
+  margin-top: 0.15rem;
+  line-height: 1.55;
+}
+
+.settings-privacy-grid {
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.settings-privacy-card.sp-group {
+  padding: 0;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 0.2rem 0.55rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, transparent),
+    0 0.55rem 1.5rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 7%, transparent);
+}
+
+.settings-privacy-card .sp-group-head {
+  padding: 1.2rem 1.45rem;
+}
+
+.settings-privacy-card .sp-group-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.settings-privacy .sp-group-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.35rem 1.45rem 1.5rem;
+}
+
+.settings-privacy-intro {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--bs-body-color, #212529);
+}
+
+.settings-privacy-list {
+  margin: 0;
+  padding: 0 0 0 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--bs-body-color, #212529);
+}
+
+.settings-privacy-list--muted {
+  color: var(--sp-muted);
+  font-size: 0.875rem;
+}
+
+.settings-privacy-footer {
+  margin-top: auto;
+  padding-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.settings-privacy-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.settings-privacy-hint {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 991.98px) {
+  .settings-privacy.sp-page--fluid {
+    max-width: none;
+  }
+
+  .settings-privacy .sp-group-body {
+    padding: 1.2rem 1.25rem 1.35rem;
+  }
+}
+
 /* Hide classic save footers when autosave is active */
 
 form[data-sp-autosave] .settings-admin-system-actions,

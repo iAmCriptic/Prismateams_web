@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request, jsonify
-from flask_login import login_required, current_user
-from app import db
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request, jsonify, session
+from flask_login import login_required, current_user, logout_user
+from app import db, limiter
 from app.models.user import User
 from app.models.email import EmailPermission
 from app.models.settings import SystemSettings
@@ -125,7 +125,24 @@ def profile():
         db.session.commit()
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.profile')
     
-    return render_template('settings/profile.html', user=current_user, user_teams=_profile_teams())
+    from app.utils.account_deletion import can_self_delete, user_requires_second_factor, passkey_recently_verified
+    from app.models.passkey import UserPasskey
+
+    can_delete, delete_block_reason = can_self_delete(current_user)
+    has_passkeys = UserPasskey.query.filter_by(user_id=current_user.id).count() > 0
+    requires_2fa = user_requires_second_factor(current_user)
+
+    return render_template(
+        'settings/profile.html',
+        user=current_user,
+        user_teams=_profile_teams(),
+        can_delete_account=can_delete,
+        delete_block_reason=delete_block_reason,
+        requires_second_factor=requires_2fa,
+        has_passkeys=has_passkeys,
+        totp_enabled=bool(current_user.totp_enabled),
+        passkey_verified=passkey_recently_verified(session),
+    )
 
 
 @settings_bp.route('/profile/remove-picture', methods=['POST'])
@@ -390,3 +407,196 @@ def appearance():
         language_options=language_options,
         is_guest=is_guest,
     )
+
+
+@settings_bp.route('/privacy')
+@login_required
+def privacy():
+    """Privacy & personal data settings (export / rights info)."""
+    return render_template('settings/privacy.html', user=current_user)
+
+
+@settings_bp.route('/privacy/export', methods=['POST'])
+@login_required
+@limiter.limit('5 per hour')
+def privacy_export():
+    """Download a machine-readable export of the current user's personal data."""
+    from app.utils.user_data_export import export_user_data_json_bytes
+    import zipfile
+    import io
+
+    try:
+        json_bytes = export_user_data_json_bytes(current_user)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('personal_data.json', json_bytes)
+            zf.writestr(
+                'README.txt',
+                (
+                    'PrismaTeams personal data export (GDPR Art. 20)\n'
+                    f'User ID: {current_user.id}\n'
+                    f'Generated (UTC): {timestamp}\n\n'
+                    'Secrets (passwords, 2FA secrets, session tokens, push keys) are excluded.\n'
+                    'Uploaded file binaries are listed as metadata only.\n'
+                ).encode('utf-8'),
+            )
+        zip_buffer.seek(0)
+
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name=f'prismateams_personal_data_{current_user.id}_{timestamp}.zip',
+            mimetype='application/zip',
+        )
+    except Exception as exc:
+        current_app.logger.exception('Personal data export failed for user %s: %s', current_user.id, exc)
+        flash(translate('settings.privacy.export_error'), 'danger')
+        return redirect(url_for('settings.privacy'))
+
+
+@settings_bp.route('/profile/delete/request', methods=['POST'])
+@login_required
+@limiter.limit('5 per hour')
+def profile_delete_request():
+    """Validate password (+ 2FA) and send account-deletion confirmation email."""
+    from app.utils.account_deletion import (
+        can_self_delete,
+        clear_passkey_verified,
+        generate_deletion_token,
+        second_factor_ok,
+        send_account_deletion_email,
+    )
+
+    allowed, reason = can_self_delete(current_user)
+    if not allowed:
+        flash(translate(f'settings.profile.delete.{reason}'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    password = request.form.get('password', '')
+    totp_code = request.form.get('totp_code', '').strip()
+    confirm_text = (request.form.get('confirm_text') or '').strip().upper()
+
+    if confirm_text not in ('LÖSCHEN', 'LOESCHEN', 'DELETE'):
+        flash(translate('settings.profile.delete.flash_confirm_text'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    if not password or not current_user.check_password(password):
+        flash(translate('settings.profile.delete.flash_wrong_password'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    if not second_factor_ok(current_user, totp_code=totp_code, session=session):
+        flash(translate('settings.profile.delete.flash_2fa_required'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    token = generate_deletion_token(current_user.id)
+    sent = send_account_deletion_email(current_user, token)
+    clear_passkey_verified(session)
+
+    if not sent:
+        flash(translate('settings.profile.delete.flash_email_failed'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    flash(translate('settings.profile.delete.flash_email_sent'), 'success')
+    return redirect(url_for('settings.profile'))
+
+
+@settings_bp.route('/profile/delete/passkey/options', methods=['POST'])
+@login_required
+@limiter.limit('30 per hour')
+def profile_delete_passkey_options():
+    from app.models.passkey import UserPasskey
+    from app.utils.webauthn_helper import WebAuthnError, build_2fa_options
+
+    if getattr(current_user, 'is_guest', False):
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.guest_not_allowed')}), 403
+
+    passkeys = UserPasskey.query.filter_by(user_id=current_user.id).all()
+    if not passkeys:
+        return jsonify({'success': False, 'error': translate('settings.profile.delete.flash_no_passkey')}), 400
+
+    try:
+        options = build_2fa_options(passkeys)
+        return jsonify({'success': True, 'options': options})
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        current_app.logger.exception('Passkey options for account deletion failed')
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.register_failed')}), 500
+
+
+@settings_bp.route('/profile/delete/passkey/verify', methods=['POST'])
+@login_required
+@limiter.limit('30 per hour')
+def profile_delete_passkey_verify():
+    from app.models.passkey import UserPasskey
+    from app.utils.account_deletion import mark_passkey_verified
+    from app.utils.webauthn_helper import WebAuthnError, verify_2fa
+
+    if getattr(current_user, 'is_guest', False):
+        return jsonify({'success': False, 'error': translate('settings.security.passkeys.guest_not_allowed')}), 403
+
+    credential = request.get_json(silent=True) or {}
+    if isinstance(credential, dict) and 'credential' in credential:
+        credential = credential.get('credential') or {}
+    passkeys = UserPasskey.query.filter_by(user_id=current_user.id).all()
+    if not passkeys:
+        return jsonify({'success': False, 'error': translate('settings.profile.delete.flash_no_passkey')}), 400
+
+    try:
+        passkey, verification = verify_2fa(passkeys, credential)
+        from app.utils.webauthn_helper import apply_verification_result
+        apply_verification_result(passkey, verification)
+        db.session.commit()
+        mark_passkey_verified(session)
+        return jsonify({'success': True})
+    except WebAuthnError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), exc.status_code
+    except Exception:
+        current_app.logger.exception('Passkey verify for account deletion failed')
+        return jsonify({'success': False, 'error': translate('auth.passkey.verify_failed')}), 500
+
+
+@settings_bp.route('/profile/delete/confirm/<token>', methods=['GET', 'POST'])
+@limiter.limit('20 per hour')
+def profile_delete_confirm(token):
+    """Confirm account deletion via emailed token (login optional but user must match if logged in)."""
+    from app.utils.account_deletion import erase_user_account, verify_deletion_token
+
+    user_id = verify_deletion_token(token)
+    if not user_id:
+        flash(translate('settings.profile.delete.flash_token_invalid'), 'danger')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.get(user_id)
+    if not user:
+        flash(translate('settings.profile.delete.flash_token_invalid'), 'danger')
+        return redirect(url_for('auth.login'))
+
+    if current_user.is_authenticated and current_user.id != user.id:
+        flash(translate('settings.profile.delete.flash_wrong_user'), 'danger')
+        return redirect(url_for('settings.profile'))
+
+    if request.method == 'GET':
+        return render_template(
+            'settings/profile_delete_confirm.html',
+            token=token,
+            user=user,
+        )
+
+    # POST — final delete
+    if current_user.is_authenticated and current_user.id == user.id:
+        logout_user()
+    session.clear()
+
+    try:
+        erase_user_account(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Account deletion failed for user_id=%s', user_id)
+        flash(translate('settings.profile.delete.flash_failed'), 'danger')
+        return redirect(url_for('auth.login'))
+
+    flash(translate('settings.profile.delete.flash_deleted'), 'success')
+    return redirect(url_for('auth.login'))

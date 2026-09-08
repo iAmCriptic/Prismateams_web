@@ -38,6 +38,13 @@ def build_settings_catalog(user) -> list[dict]:
         'profil name email telefon bild avatar',
     ))
     catalog.append(_entry(
+        translate('settings.profile.delete.heading'),
+        'settings.profile',
+        'user',
+        'konto löschen delete account dsgvo erasure',
+        anchor='profile-delete',
+    ))
+    catalog.append(_entry(
         translate('settings.index.cards.appearance.title'),
         'settings.appearance',
         'user',
@@ -82,6 +89,19 @@ def build_settings_catalog(user) -> list[dict]:
         'settings.security',
         'user',
         'sicherheit passwort 2fa zwei faktor geräte session google login',
+    ))
+    catalog.append(_entry(
+        translate('settings.index.cards.privacy.title'),
+        'settings.privacy',
+        'user',
+        'datenschutz privacy export daten download dsgvo gdpr portabilität auskunft',
+    ))
+    catalog.append(_entry(
+        translate('settings.privacy.export.heading'),
+        'settings.privacy',
+        'user',
+        'datenexport zip json persönliche daten herunterladen',
+        anchor='privacy-export',
     ))
     catalog.append(_entry(
         translate('settings.index.cards.about.title'),

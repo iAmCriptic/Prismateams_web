@@ -167,6 +167,13 @@ class Config:
     FILE_CONVERTER_MAX_CONCURRENT = int(os.environ.get('FILE_CONVERTER_MAX_CONCURRENT', '2'))
     LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', '')
 
+    # Soft-deleted files/folders: hard-purge after N days (0 = disabled). Overridable in Admin → Datei-Einstellungen.
+    FILES_TRASH_DAYS = int(os.environ.get('FILES_TRASH_DAYS', '30'))
+
+    # IP/UA-bearing DB rows: purge after N days (0 = disabled). Overridable in Admin → System.
+    SESSION_RECORD_RETENTION_DAYS = int(os.environ.get('SESSION_RECORD_RETENTION_DAYS', '30'))
+    SHARE_ACCESS_LOG_RETENTION_DAYS = int(os.environ.get('SHARE_ACCESS_LOG_RETENTION_DAYS', '90'))
+
     # Static-Dateien: langes Browser-Caching (Templates hängen ?v=ABOUT_BUILD_NUMBER an).
     # Nginx sollte zusätzlich Cache-Control: public, immutable setzen (siehe docs/WARTUNG.md).
     SEND_FILE_MAX_AGE_DEFAULT = int(os.environ.get('SEND_FILE_MAX_AGE_DEFAULT', '31536000'))

@@ -1,0 +1,27 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}Konto löschen bestätigen - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block content %}
+<h2>Hallo {{ user.first_name }}!</h2>
+<p>Sie haben die Löschung Ihres Kontos bei <strong>{{ app_name or 'Prismateams' }}</strong> angefordert.</p>
+<p>Um die Löschung abzuschließen, bestätigen Sie bitte über den folgenden Link. Danach werden Ihr Konto und die zugehörigen personenbezogenen Daten unwiderruflich entfernt.</p>
+
+{% if confirm_url %}
+<p style="margin: 20px 0;">
+    <a href="{{ confirm_url }}" style="display: inline-block; padding: 10px 18px; background: #dc3545; color: #fff; text-decoration: none; border-radius: 6px;">
+        Konto endgültig löschen
+    </a>
+</p>
+<p style="font-size: 13px; color: #666;">Oder öffnen Sie diesen Link:<br>{{ confirm_url }}</p>
+{% else %}
+<div class="email-code-box">
+    <div class="email-code-label">Bestätigungs-Token</div>
+    <span class="email-code" style="font-size: 14px; letter-spacing: 0.02em; word-break: break-all;">{{ token }}</span>
+</div>
+{% endif %}
+
+<div class="email-security">
+    <strong>Sicherheitshinweis:</strong> Dieser Link ist 1 Stunde gültig. Falls Sie diese Anfrage nicht gestellt haben, ignorieren Sie diese E-Mail — Ihr Konto bleibt unverändert.
+</div>
+
+<p style="margin-bottom: 0;">Mit freundlichen Grüßen,<br>Ihr {{ app_name or 'Prismateams' }} Team</p>
+{% endblock %}

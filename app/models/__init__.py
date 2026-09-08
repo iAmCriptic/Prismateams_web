@@ -8,6 +8,7 @@ from .contact import Contact, ContactFavorite
 from .credential import Credential, CredentialFolder, CredentialFavorite
 from .manual import Manual, ManualFolder
 from .settings import SystemSettings
+from .cookie_consent import CookieConsentLog
 from .whitelist import WhitelistEntry
 from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog, PushDeliveryLog
 from .inventory import Product, BorrowTransaction, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
@@ -87,6 +88,7 @@ __all__ = [
     'Credential', 'CredentialFolder', 'CredentialFavorite',
     'Manual', 'ManualFolder',
     'SystemSettings',
+    'CookieConsentLog',
     'WhitelistEntry',
     'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog', 'PushDeliveryLog',
     'Product', 'BorrowTransaction', 'Checkout', 'CheckoutItem', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem', 'ProductLot', 'StockMovement', 'ProductStatusHistory', 'InventoryItemLock',

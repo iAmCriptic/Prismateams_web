@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('settings.profile.delete.confirm_page_title') }}{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 560px;">
+    <div class="sp-group">
+        <div class="sp-group-head">
+            <h1 class="sp-group-title">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+                {{ _('settings.profile.delete.confirm_heading') }}
+            </h1>
+        </div>
+        <div class="sp-group-body">
+            <p>{{ _('settings.profile.delete.confirm_body', email=user.email, name=user.full_name) }}</p>
+            <form method="POST" action="{{ url_for('settings.profile_delete_confirm', token=token) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-danger rounded-pill mod-pill-btn"
+                            data-pt-confirm="{{ _('settings.profile.delete.confirm_final') }}"
+                            data-pt-confirm-danger="true"
+                            data-pt-confirm-ok="{{ _('settings.profile.delete.confirm_button') }}">
+                        {{ _('settings.profile.delete.confirm_button') }}
+                    </button>
+                    <a href="{{ url_for('settings.profile') if current_user.is_authenticated else url_for('auth.login') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
+                        {{ _('common.cancel') }}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

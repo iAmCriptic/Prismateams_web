@@ -975,82 +975,11 @@ def delete_user(user_id):
     if user.is_super_admin:
         flash(translate('settings.admin.users.flash_cannot_delete_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
-    
-    # Delete profile picture
-    if user.profile_picture:
-        project_root = os.path.dirname(current_app.root_path)
-        upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'profile_pics')
-        old_path = os.path.join(upload_dir, user.profile_picture)
-        if os.path.exists(old_path):
-            os.remove(old_path)
-    
-    # Delete guest share access entries before deleting user
-    # This prevents foreign key constraint errors
-    from app.models.guest import GuestShareAccess
-    GuestShareAccess.query.filter_by(user_id=user_id).delete()
-    
-    # Delete user module roles before deleting user
-    # This prevents foreign key constraint errors
-    from app.models.role import UserModuleRole
-    UserModuleRole.query.filter_by(user_id=user_id).delete()
-    
-    # Delete notification-related entries before deleting user
-    # This prevents foreign key constraint errors (user_id cannot be null)
-    NotificationSettings.query.filter_by(user_id=user_id).delete()
-    ChatNotificationSettings.query.filter_by(user_id=user_id).delete()
-    PushSubscription.query.filter_by(user_id=user_id).delete()
-    NotificationLog.query.filter_by(user_id=user_id).delete()
-    
-    # Delete API tokens before deleting user
-    from app.models.api_token import ApiToken
-    ApiToken.query.filter_by(user_id=user_id).delete()
 
-    # Delete session entries before deleting user
-    # This prevents foreign key constraint errors on user_sessions.user_id
-    from app.models.user_session import UserSession
-    UserSession.query.filter_by(user_id=user_id).delete()
-
-    # Delete explicit email permission entry (1:1 relation)
-    EmailPermission.query.filter_by(user_id=user_id).delete()
-    
-    # Delete inventory-related user entries
-    from app.models.inventory import ProductFavorite, SavedFilter
-    ProductFavorite.query.filter_by(user_id=user_id).delete()
-    SavedFilter.query.filter_by(user_id=user_id).delete()
-    
-    # Delete wiki favorites before deleting user
-    from app.models.wiki import WikiFavorite
-    WikiFavorite.query.filter_by(user_id=user_id).delete()
-
-    # Delete credential favorites before deleting user
-    from app.models.credential import CredentialFavorite
-    CredentialFavorite.query.filter_by(user_id=user_id).delete()
-    
-    # Delete comment mentions before deleting user
-    from app.models.comment import CommentMention
-    CommentMention.query.filter_by(user_id=user_id).delete()
-    
-    # Delete music provider tokens before deleting user
-    from app.models.music import MusicProviderToken
-    MusicProviderToken.query.filter_by(user_id=user_id).delete()
-    
-    # Delete booking role assignments before deleting user
-    from app.models.booking import BookingFormRoleUser
-    BookingFormRoleUser.query.filter_by(user_id=user_id).delete()
-
-    # Clear team leadership and memberships before deleting user
-    from app.models.team import Team, TeamMember
-    from app.utils.team_chat import sync_team_chat_members
-    Team.query.filter_by(leader_id=user_id).update({'leader_id': None})
-    former_team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user_id).all()]
-    TeamMember.query.filter_by(user_id=user_id).delete()
-    for tid in former_team_ids:
-        team = Team.query.get(tid)
-        if team:
-            sync_team_chat_members(team)
-    
-    db.session.delete(user)
+    from app.utils.account_deletion import erase_user_account
+    name = user.full_name
+    erase_user_account(user)
     db.session.commit()
     
-    flash(translate('settings.admin.users.flash_user_deleted', name=user.full_name), 'success')
+    flash(translate('settings.admin.users.flash_user_deleted', name=name), 'success')
     return redirect(url_for('settings.admin_users'))

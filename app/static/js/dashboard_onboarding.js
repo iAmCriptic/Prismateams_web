@@ -33,28 +33,55 @@
 
     function clearActiveTarget() {
         if (activeTarget) {
+            activeTarget.removeEventListener('click', onTargetInteract, true);
             activeTarget.classList.remove('portal-onboarding-target');
             activeTarget = null;
         }
     }
 
+    function getCsrfToken() {
+        if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function') {
+            return window.PrismateamsCsrf.getToken() || '';
+        }
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta && meta.content ? meta.content : '';
+    }
+
     function markComplete() {
         if (!shouldPersistCompletion || completionSent || !completeUrl) return;
         completionSent = true;
-        const payload = JSON.stringify({});
-        try {
-            if (navigator.sendBeacon) {
-                const blob = new Blob([payload], { type: 'application/json' });
-                if (navigator.sendBeacon(completeUrl, blob)) return;
-            }
-        } catch (_) { /* fallback */ }
+        const token = getCsrfToken();
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+        if (token) headers['X-CSRFToken'] = token;
+
+        // fetch (nicht sendBeacon/JSON): CSRFProtect braucht den Token-Header.
+        // keepalive deckt Navigation ab, z. B. Klick auf das Spotlight-Ziel.
         fetch(completeUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers,
             credentials: 'same-origin',
             keepalive: true,
-            body: payload,
-        }).catch(() => { completionSent = false; });
+            body: JSON.stringify({}),
+        }).catch(() => {
+            completionSent = false;
+            try {
+                if (navigator.sendBeacon && token) {
+                    const fd = new FormData();
+                    fd.append('csrf_token', token);
+                    if (navigator.sendBeacon(completeUrl, fd)) {
+                        completionSent = true;
+                    }
+                }
+            } catch (_) { /* ignore */ }
+        });
+    }
+
+    function onTargetInteract() {
+        // Klick auf Highlight (z. B. Einstellungen) verlässt die Seite oft ohne Skip/Finish.
+        markComplete();
     }
 
     function closeTour() {
@@ -118,6 +145,7 @@
         spotlight.dataset.compact = shape.compact ? '1' : '0';
 
         target.classList.add('portal-onboarding-target');
+        target.addEventListener('click', onTargetInteract, true);
         activeTarget = target;
 
         positionCard(top, left, width, height, card);
@@ -237,6 +265,10 @@
     }, true);
 
     window.openPortalOnboardingTour = openTour;
+
+    window.addEventListener('pagehide', () => {
+        if (root.classList.contains('is-open')) markComplete();
+    });
 
     if (boot.autoOpen === true) {
         window.setTimeout(openTour, 450);

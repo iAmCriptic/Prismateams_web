@@ -1042,6 +1042,12 @@
           "title": "Cloud-Import",
           "description": "Nextcloud und Google Drive nach PrismaTeams übertragen.",
           "short": "Nextcloud & Drive"
+        },
+        "privacy": {
+          "title": "Datenschutz",
+          "description": "Personenbezogene Daten exportieren und Rechte einsehen",
+          "button": "Öffnen",
+          "short": "Export & Rechte"
         }
       },
       "lead_short": "Alles an einem Ort."
@@ -1099,6 +1105,37 @@
         "heading": "Meine Teams",
         "empty": "Du bist derzeit in keinem Team.",
         "leader_badge": "Leitung"
+      },
+      "delete": {
+        "heading": "Konto löschen",
+        "intro": "Löscht Ihr Konto unwiderruflich nach Bestätigung per E-Mail. Exportieren Sie Ihre Daten vorher unter Datenschutz.",
+        "password_label": "Passwort zur Bestätigung",
+        "second_factor_hint": "Zusätzlich ist eine Zwei-Faktor-Bestätigung (Authenticator oder Passkey) erforderlich.",
+        "totp_label": "Authenticator-Code (2FA)",
+        "passkey_button": "Mit Passkey bestätigen",
+        "passkey_ok": "Passkey bestätigt",
+        "passkey_pending": "Noch nicht bestätigt",
+        "confirm_label": "Zur Bestätigung LÖSCHEN eingeben",
+        "confirm_placeholder": "LÖSCHEN",
+        "submit_button": "Bestätigungs-E-Mail senden",
+        "submit_confirm": "Wirklich eine Löschungs-E-Mail an Ihre Adresse senden?",
+        "email_hint": "Erst nach Klick auf den Link in der E-Mail wird das Konto gelöscht. Der Link ist 1 Stunde gültig.",
+        "blocked_super_admin": "Das Hauptadministrator-Konto kann nicht selbst gelöscht werden.",
+        "flash_confirm_text": "Bitte geben Sie zur Bestätigung „LÖSCHEN“ bzw. „DELETE“ ein.",
+        "flash_wrong_password": "Das Passwort ist falsch.",
+        "flash_2fa_required": "Zwei-Faktor-Bestätigung fehlt oder ist ungültig (Authenticator-Code oder Passkey).",
+        "flash_no_passkey": "Kein Passkey für dieses Konto gefunden.",
+        "flash_email_failed": "Die Bestätigungs-E-Mail konnte nicht gesendet werden. Prüfen Sie die E-Mail-Konfiguration.",
+        "flash_email_sent": "Bestätigungs-E-Mail gesendet. Bitte prüfen Sie Ihren Posteingang.",
+        "flash_token_invalid": "Der Lösch-Link ist ungültig oder abgelaufen.",
+        "flash_wrong_user": "Bitte melden Sie sich mit dem Konto an, das gelöscht werden soll.",
+        "flash_failed": "Die Kontolöschung ist fehlgeschlagen. Bitte kontaktieren Sie einen Administrator.",
+        "flash_deleted": "Ihr Konto wurde gelöscht.",
+        "confirm_page_title": "Konto löschen bestätigen",
+        "confirm_heading": "Konto endgültig löschen?",
+        "confirm_body": "Konto von {name} ({email}) unwiderruflich löschen?",
+        "confirm_final": "Konto wirklich endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+        "confirm_button": "Jetzt endgültig löschen"
       }
     },
     "security": {
@@ -1622,6 +1659,13 @@
         "indexing_label": "Seite für Google indexieren",
         "indexing_help": "Steuert, ob Suchmaschinen die öffentlichen Seiten finden dürfen. Interne Bereiche bleiben immer gesperrt.",
         "indexing_hint": "Aktiv: Login, Registrierung, Impressum, Datenschutz und Nutzungsbedingungen dürfen in Google erscheinen. Deaktiviert: robots.txt und Meta-Tags blockieren alle Crawler.",
+        "section_log_retention": "Zugriffsprotokolle",
+        "log_retention_help": "Löscht IP-Adressen und User-Agents aus Session- und Share-Zugriffsprotokollen nach Ablauf der Frist (stündlicher Job).",
+        "session_record_retention_label": "Session-Einträge (Tage)",
+        "session_record_retention_help": "UserSession-Zeilen mit letzter Aktivität älter als N Tage werden gelöscht. 0 = kein Auto-Purge.",
+        "share_access_log_retention_label": "Share-Zugriffsprotokolle (Tage)",
+        "share_access_log_retention_help": "ShareAccessLog-Einträge älter als N Tage werden gelöscht. 0 = kein Auto-Purge.",
+        "log_retention_note": "Standard: Sessions 30 Tage, Share-Logs 90 Tage. Überschreibt SESSION_RECORD_RETENTION_DAYS / SHARE_ACCESS_LOG_RETENTION_DAYS aus der Umgebung, sobald gespeichert. Fristen in der Datenschutzerklärung nennen.",
         "portal_name_label": "Portalsname",
         "portal_name_placeholder": "z.B. Prismateams",
         "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
@@ -2259,7 +2303,11 @@
         "flash_exception_exists": "Für diesen Nutzer existiert bereits eine Ausnahme.",
         "flash_exception_user_invalid": "Bitte einen gültigen Nutzer wählen.",
         "flash_exception_empty": "Bitte mindestens Dateilimit oder Kontingent für die Ausnahme setzen.",
-        "visibility_moved": "Private und Team-Ordner steuern Sie zentral unter Module → Sichtbarkeits-Varianten."
+        "visibility_moved": "Private und Team-Ordner steuern Sie zentral unter Module → Sichtbarkeits-Varianten.",
+        "trash_retention_label": "Papierkorb-Aufbewahrung",
+        "trash_retention_help": "Soft-gelöschte Dateien und Ordner werden nach dieser Frist automatisch endgültig gelöscht. 0 deaktiviert den Auto-Purge.",
+        "trash_retention_unit": "Tage",
+        "trash_retention_note": "Standard: 30 Tage. Überschreibt den ENV-Wert FILES_TRASH_DAYS, sobald gespeichert."
       },
       "calendar_settings": {
         "page_title": "Kalender-Einstellungen - Administration",
@@ -2598,6 +2646,31 @@
       "quick_lead": "Häufig genutzte Bereiche",
       "tip_title": "Tipp",
       "tip_body": "Nutze die Suche oben, um Einstellungen direkt zu finden."
+    },
+    "privacy": {
+      "page_title": "Datenschutz & Daten",
+      "heading": "Datenschutz & Daten",
+      "lead": "Exportieren Sie Ihre personenbezogenen Daten und finden Sie Hinweise zu Ihren Rechten.",
+      "export": {
+        "heading": "Datenexport",
+        "intro": "Laden Sie eine ZIP-Datei mit Ihren personenbezogenen Daten im JSON-Format herunter (Datenübertragbarkeit).",
+        "includes_profile": "Profil, Teams, Sitzungen, Passkeys und Benachrichtigungseinstellungen",
+        "includes_activity": "Von Ihnen erstellte Kontakte, Termine, Datei-Metadaten, Chat-Nachrichten und weitere modulbezogene Daten",
+        "excludes_secrets": "Keine Passwörter, 2FA-Geheimnisse, Session-Tokens oder Dateiinhalte",
+        "button": "Meine Daten herunterladen",
+        "hint": "Der Download ist auf wenige Anfragen pro Stunde begrenzt."
+      },
+      "export_error": "Der Datenexport ist fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+      "rights": {
+        "heading": "Ihre Rechte",
+        "intro": "Nach der DSGVO haben Sie insbesondere folgende Rechte:",
+        "access": "Auskunft über gespeicherte personenbezogene Daten",
+        "rectification": "Berichtigung unrichtiger Daten (z. B. im Profil)",
+        "portability": "Datenübertragbarkeit über den Export auf dieser Seite",
+        "erasure": "Löschung – Self-Service im Profil (Passwort, ggf. 2FA, Bestätigungs-E-Mail)",
+        "policy_link": "Datenschutzerklärung",
+        "delete_link": "Konto löschen"
+      }
     }
   },
   "chat": {
@@ -3135,7 +3208,9 @@
       "back_button_label": "Zurück",
       "saving": "Speichern…",
       "unsaved_changes": "Wirklich verlassen? Ungespeicherte Änderungen gehen verloren."
-    }
+    },
+    "trash_retention_banner": "Einträge im Papierkorb werden nach {days} Tagen automatisch endgültig gelöscht.",
+    "trash_retention_disabled": "Für den Papierkorb ist keine automatische Endlöschung konfiguriert."
   },
   "email": {
     "flash": {
@@ -4894,7 +4969,8 @@
       "manual_already_linked": "Anleitung \"{title}\" ist bereits verknüpft.",
       "manual_linked": "Anleitung \"{title}\" wurde verknüpft.",
       "external_barcode_taken": "Inventar-Nr. \"{code}\" ist bereits vergeben.",
-      "external_barcode_qty": "Inventar-Nr. kann nur gesetzt werden, wenn die Menge 1 ist."
+      "external_barcode_qty": "Inventar-Nr. kann nur gesetzt werden, wenn die Menge 1 ist.",
+      "barcode_label_error": "Barcode-Etikett konnte nicht erzeugt werden."
     },
     "cart": {
       "set_badge": "Set",
@@ -5246,6 +5322,8 @@
         "manage_documents": "Alle Dokumente verwalten",
         "external_barcode_help": "Code vom Inventar-Etikett tippen oder per Handscanner hier einscannen. Für QuickScan & Ausleihe.",
         "external_barcode_qty_hint": "Inventar-Nr. nur bei Menge 1 möglich (jede Nummer ist eindeutig).",
+        "print_barcode": "Barcode drucken",
+        "print_barcode_hint": "Etikett ~56 mm, Druckmaßstab 100 % (Actual size).",
         "cable_migration": "Kabel-Migration",
         "cable_migration_help": "Zusammengeführte Einzelartikel werden auf ausgemustert gesetzt.",
         "convert_to_cable": "In Kabel/Mengenartikel umwandeln",

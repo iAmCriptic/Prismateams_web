@@ -118,6 +118,19 @@
           </div>
           <div class="sp-row sp-row--stack">
             <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.trash_retention_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.trash_retention_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%;justify-content:flex-start">
+              <div class="settings-admin-files-size-row">
+                <input type="number" class="form-control" id="files_trash_retention_days" name="files_trash_retention_days" min="0" max="3650" step="1" value="{{ files_trash_retention_days }}" required>
+                <span class="text-muted small align-self-center">{{ _('settings.admin.file_settings.trash_retention_unit') }}</span>
+              </div>
+              <p class="sp-row-meta mb-0 mt-1">{{ _('settings.admin.file_settings.trash_retention_note') }}</p>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.admin.file_settings.quota_label') }}</span>
             </div>
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">

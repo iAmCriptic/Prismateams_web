@@ -48,6 +48,15 @@ sudo docker logs -f excalidraw-room
 sudo docker logs -f mirotalksfu
 ```
 
+### Datenschutz in Logs
+
+- App-Logs maskieren E-Mail-Adressen über `app.utils.log_privacy.mask_email` (z. B. `j***@e***.com`).
+- Log-Level: `LOG_LEVEL=INFO` (Produktion) bzw. `WARNING` für weniger Detail; siehe `docs/env.example`.
+- journald-Retention begrenzen, z. B. in `/etc/systemd/journald.conf`:
+  - `SystemMaxUse=500M` und/oder `MaxRetentionSec=30day`
+  - danach `sudo systemctl restart systemd-journald`
+- Nginx-Access-Logs können weiterhin Query-Strings enthalten — Rotation/Retention über `logrotate` steuern; Zugriffe auf Log-Dateien beschränken.
+
 ## Anwendung neu starten
 
 ```bash

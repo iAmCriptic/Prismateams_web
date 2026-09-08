@@ -233,6 +233,7 @@ Prismateams_web/
 | [INSTALLATION.md](INSTALLATION.md) | Manuelle Installation |
 | [WEBDAV.md](WEBDAV.md) | Windows-Explorer-Zugriff (WebDAV) |
 | [WARTUNG.md](WARTUNG.md) | Updates & Backups |
+| [DSGVO.md](DSGVO.md) | Datenschutz: AVV-Inventar, Fristen, Betroffenenrechte |
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Troubleshooting |
 | [API_Übersicht.md](API_Übersicht.md) | API-Endpunkte |
 | [API_AUTH.md](API_AUTH.md) | API-Login, 2FA, Tokens |

@@ -123,6 +123,36 @@
         </div>
       </section>
 
+      <section class="sp-group" id="system-log-retention" data-settings-search-id="system-log-retention">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i>{{ _('settings.admin.system.section_log_retention') }}</h2>
+          {{ sp_info(_('settings.admin.system.log_retention_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.session_record_retention_label') }}</span>
+              {{ sp_info(_('settings.admin.system.session_record_retention_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <input type="number" class="form-control" id="session_record_retention_days" name="session_record_retention_days" min="0" max="3650" step="1" value="{{ session_record_retention_days }}" required>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.share_access_log_retention_label') }}</span>
+              {{ sp_info(_('settings.admin.system.share_access_log_retention_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <input type="number" class="form-control" id="share_access_log_retention_days" name="share_access_log_retention_days" min="0" max="3650" step="1" value="{{ share_access_log_retention_days }}" required>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0">{{ _('settings.admin.system.log_retention_note') }}</p>
+          </div>
+        </div>
+      </section>
+
       <section class="sp-group sp-group--span2" id="system-branding" data-settings-search-id="system-branding">
         <div class="sp-group-head">
           <h2 class="sp-group-title"><i class="bi bi-brush" aria-hidden="true"></i>{{ _('settings.admin.system.section_branding') }}</h2>

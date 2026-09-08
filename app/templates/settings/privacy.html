@@ -1,0 +1,72 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.privacy.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.index.cards.privacy.title') }}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-privacy">
+    <header class="sp-page-header settings-privacy-header">
+        <h1 class="sp-page-title"><i class="bi bi-shield-check" aria-hidden="true"></i><span>{{ _('settings.privacy.heading') }}</span></h1>
+        <p class="sp-page-lead">{{ _('settings.privacy.lead') }}</p>
+    </header>
+
+    <div class="sp-card-grid settings-privacy-grid">
+        <section class="sp-group settings-privacy-card" aria-labelledby="privacy-export-heading" id="privacy-export" data-settings-search-id="privacy-export">
+            <div class="sp-group-head">
+                <h2 id="privacy-export-heading" class="sp-group-title">
+                    <i class="bi bi-download" aria-hidden="true"></i>{{ _('settings.privacy.export.heading') }}
+                </h2>
+            </div>
+            <div class="sp-group-body">
+                <p class="settings-privacy-intro">{{ _('settings.privacy.export.intro') }}</p>
+                <ul class="settings-privacy-list settings-privacy-list--muted">
+                    <li>{{ _('settings.privacy.export.includes_profile') }}</li>
+                    <li>{{ _('settings.privacy.export.includes_activity') }}</li>
+                    <li>{{ _('settings.privacy.export.excludes_secrets') }}</li>
+                </ul>
+                <div class="settings-privacy-footer">
+                    <form method="POST" action="{{ url_for('settings.privacy_export') }}" data-sp-no-autosave>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn">
+                            <i class="bi bi-file-earmark-zip" aria-hidden="true"></i>
+                            {{ _('settings.privacy.export.button') }}
+                        </button>
+                    </form>
+                    <p class="settings-privacy-hint">{{ _('settings.privacy.export.hint') }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="sp-group settings-privacy-card" aria-labelledby="privacy-rights-heading" id="privacy-rights" data-settings-search-id="privacy-rights">
+            <div class="sp-group-head">
+                <h2 id="privacy-rights-heading" class="sp-group-title">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>{{ _('settings.privacy.rights.heading') }}
+                </h2>
+            </div>
+            <div class="sp-group-body">
+                <p class="settings-privacy-intro">{{ _('settings.privacy.rights.intro') }}</p>
+                <ul class="settings-privacy-list">
+                    <li>{{ _('settings.privacy.rights.access') }}</li>
+                    <li>{{ _('settings.privacy.rights.rectification') }}</li>
+                    <li>{{ _('settings.privacy.rights.portability') }}</li>
+                    <li>{{ _('settings.privacy.rights.erasure') }}</li>
+                </ul>
+                <div class="settings-privacy-footer settings-privacy-actions">
+                    <a href="{{ url_for('settings.profile') }}#profile-delete" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                        {{ _('settings.privacy.rights.delete_link') }}
+                    </a>
+                    <a href="{{ url_for('settings.profile') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        {{ _('settings.index.cards.profile.title') }}
+                    </a>
+                    <a href="{{ url_for('auth.privacy') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn" target="_blank" rel="noopener">
+                        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                        {{ _('settings.privacy.rights.policy_link') }}
+                    </a>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

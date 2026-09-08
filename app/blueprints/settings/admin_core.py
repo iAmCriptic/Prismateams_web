@@ -420,6 +420,21 @@ def admin_system():
                 value=str(indexing_enabled),
                 description=INDEXING_DESC,
             ))
+
+        from app.utils.access_log_retention import (
+            set_session_record_retention_days,
+            set_share_access_log_retention_days,
+        )
+        try:
+            session_ret_days = int(request.form.get('session_record_retention_days', '30') or 30)
+        except (TypeError, ValueError):
+            session_ret_days = 30
+        try:
+            share_log_days = int(request.form.get('share_access_log_retention_days', '90') or 90)
+        except (TypeError, ValueError):
+            share_log_days = 90
+        set_session_record_retention_days(session_ret_days)
+        set_share_access_log_retention_days(share_log_days)
         
         db.session.commit()
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_system')
@@ -427,6 +442,10 @@ def admin_system():
     # Get current settings
     from app.utils.guest_accounts import get_guest_email_domain
     from app.utils.search_indexing import is_search_indexing_enabled
+    from app.utils.access_log_retention import (
+        get_session_record_retention_days,
+        get_share_access_log_retention_days,
+    )
 
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
@@ -452,6 +471,8 @@ def admin_system():
     )
     guest_email_domain = get_guest_email_domain()
     search_indexing_enabled = is_search_indexing_enabled()
+    session_record_retention_days = get_session_record_retention_days()
+    share_access_log_retention_days = get_share_access_log_retention_days()
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -466,6 +487,8 @@ def admin_system():
                          auth_brand_logo_positions=AUTH_BRAND_LOGO_POSITIONS,
                          guest_email_domain=guest_email_domain,
                          search_indexing_enabled=search_indexing_enabled,
+                         session_record_retention_days=session_record_retention_days,
+                         share_access_log_retention_days=share_access_log_retention_days,
                          timezone_choices=get_timezone_choices())
 
 
@@ -714,6 +737,17 @@ def admin_file_settings():
         _upsert_text(SETTING_QUOTA_ENABLED, str(quota_enabled).lower(), 'Speicherkontingente aktiv')
         _upsert_text(SETTING_QUOTA_BYTES, str(max(0, quota_bytes)), 'Standard-Speicherkontingent pro Nutzer')
 
+        from app.utils.files_trash_retention import set_trash_retention_days
+        try:
+            trash_days = int(request.form.get('files_trash_retention_days', '30') or 30)
+        except (TypeError, ValueError):
+            trash_days = 30
+        if trash_days < 0:
+            trash_days = 0
+        if trash_days > 3650:
+            trash_days = 3650
+        set_trash_retention_days(trash_days)
+
         db.session.commit()
         try:
             sync_flask_max_content_length(current_app._get_current_object())
@@ -746,6 +780,9 @@ def admin_file_settings():
     max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
     quota_value, quota_unit = split_bytes_for_ui(get_default_quota())
     quota_enabled = is_quota_enabled()
+
+    from app.utils.files_trash_retention import get_trash_retention_days
+    files_trash_retention_days = get_trash_retention_days()
 
     exceptions = (
         FileStorageException.query
@@ -792,6 +829,7 @@ def admin_file_settings():
         exception_rows=exception_rows,
         users_for_exceptions=users_for_exceptions,
         size_units=('KB', 'MB', 'GB', 'TB'),
+        files_trash_retention_days=files_trash_retention_days,
     )
 
 

@@ -23,11 +23,10 @@
       </div>
     </section>
 
-    {% set show_tools = (is_module_enabled('module_files')) or (is_module_enabled('module_email') and is_email_multi_enabled()) or (is_module_enabled('module_kanban') and kanban_import_targets) %}
-    {% if show_tools %}
     <section class="sp-hub-section" aria-labelledby="hub-tools">
       <h2 id="hub-tools" class="sp-hub-section-title">{{ _('settings.sidebar.sections.tools') }}</h2>
       <div class="sp-hub-grid">
+        {{ sp_hub_tile(url_for('settings.privacy'), 'bi-shield-check', _('settings.index.cards.privacy.title'), _('settings.index.cards.privacy.short')) }}
         {% if is_module_enabled('module_files') %}
         {{ sp_hub_tile(url_for('settings.cloud_import'), 'bi-cloud-arrow-down', _('settings.cloud_import.title'), _('settings.index.cards.cloud_import.short')) }}
         {% endif %}
@@ -39,7 +38,6 @@
         {% endif %}
       </div>
     </section>
-    {% endif %}
 
     {% if current_user.led_teams and current_user.led_teams|length > 0 and not current_user.is_admin %}
     <section class="sp-hub-section" aria-labelledby="hub-leader">
@@ -105,6 +103,7 @@
         <a href="{{ url_for('settings.appearance') }}" class="sp-sidepanel-link"><i class="bi bi-palette"></i>{{ _('settings.index.cards.appearance.title') }}</a>
         <a href="{{ url_for('settings.notifications') }}" class="sp-sidepanel-link"><i class="bi bi-bell"></i>{{ _('settings.index.cards.notifications.title') }}</a>
         <a href="{{ url_for('settings.security') }}" class="sp-sidepanel-link"><i class="bi bi-shield-lock"></i>{{ _('settings.index.cards.security.title') }}</a>
+        <a href="{{ url_for('settings.privacy') }}" class="sp-sidepanel-link"><i class="bi bi-shield-check"></i>{{ _('settings.index.cards.privacy.title') }}</a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('settings.admin_modules') }}" class="sp-sidepanel-link"><i class="bi bi-grid-3x3-gap"></i>{{ _('settings.admin.cards.modules.title') }}</a>
         {% endif %}

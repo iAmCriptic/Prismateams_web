@@ -270,6 +270,22 @@
     </div>
 </div>
 {% endif %}
+{% if is_trash_view %}
+<div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+    <div class="portal-msg__body">
+        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+        <div class="portal-msg__content">
+            <p class="portal-msg__text mb-0">
+                {% if files_trash_retention_days and files_trash_retention_days > 0 %}
+                {{ _('files.trash_retention_banner', days=files_trash_retention_days) }}
+                {% else %}
+                {{ _('files.trash_retention_disabled') }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-2 g-lg-3">
     <div class="col-12 col-lg-3 min-width-0">
         <div class="files-path-row mb-0 {% if files_view %}d-none d-lg-flex{% endif %}">

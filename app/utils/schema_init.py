@@ -46,6 +46,7 @@ CRITICAL_TABLES = (
     "manuals",
     "manual_folders",
     "system_settings",
+    "cookie_consent_logs",
     "whitelist_entries",
     "products",
     "checkouts",

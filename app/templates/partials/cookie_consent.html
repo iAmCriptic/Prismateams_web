@@ -4,7 +4,8 @@
      role="dialog"
      aria-modal="true"
      aria-labelledby="cookieConsentTitle"
-     aria-describedby="cookieConsentDesc">
+     aria-describedby="cookieConsentDesc"
+     data-consent-sync-url="{{ url_for('auth.cookie_consent_record') }}">
     <div class="cookie-consent-inner">
         <div class="cookie-consent-main">
             <div class="cookie-consent-icon" aria-hidden="true">

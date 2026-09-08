@@ -42,6 +42,12 @@ def run_app_startup(app):
         from app.tasks.file_converter_cleanup import start_file_converter_cleanup
         start_file_converter_cleanup(app)
 
+        from app.tasks.files_trash_cleanup import start_files_trash_cleanup
+        start_files_trash_cleanup(app)
+
+        from app.tasks.access_log_cleanup import start_access_log_cleanup
+        start_access_log_cleanup(app)
+
     try:
         from app.utils.webdav import mount_webdav
         mount_webdav(app)

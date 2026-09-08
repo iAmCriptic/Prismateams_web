@@ -204,6 +204,18 @@
                        autocomplete="off"
                        maxlength="100">
                 <small class="form-text text-warning d-none" id="externalBarcodeQtyHint">{{ _('inventory.product.form.external_barcode_qty_hint') }}</small>
+                {% if product %}
+                <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
+                    <a href="{{ url_for('inventory.product_print_barcode', product_id=product.id) }}"
+                       class="btn mod-pill-btn mod-pill-btn--outline btn-sm"
+                       target="_blank" rel="noopener"
+                       title="{{ _('inventory.product.form.print_barcode_hint') }}">
+                        <i class="bi bi-upc" aria-hidden="true"></i>
+                        {{ _('inventory.product.form.print_barcode') }}
+                    </a>
+                    <small class="form-text text-muted mb-0">{{ _('inventory.product.form.print_barcode_hint') }}</small>
+                </div>
+                {% endif %}
             </div>
             <div class="inventory-form-field">
                 <label for="serial_number" class="form-label">{{ _('inventory.product.form.serial_number') }}</label>

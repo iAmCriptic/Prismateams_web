@@ -361,16 +361,19 @@ def _nav_label_sort_key(key):
 
 
 def iter_launcher_keys_alphabetical():
-    """Launcher registry keys in alphabetical display order (by locale label)."""
+    """Launcher keys: Dashboard first, then alphabetical by locale label."""
     keys = [
         key for key in DESKTOP_NAV_ORDER
         if (NAV_LINK_REGISTRY.get(key) or {}).get('in_launcher', True)
     ]
-    return sorted(keys, key=_nav_label_sort_key)
+    rest = sorted((k for k in keys if k != 'dashboard'), key=_nav_label_sort_key)
+    if 'dashboard' in keys:
+        return ['dashboard', *rest]
+    return rest
 
 
 def get_desktop_nav_modules(user):
-    """Launcher modules the user may open, alphabetically by label."""
+    """Launcher modules: Dashboard first, then alphabetically by label."""
     modules = []
     for key in iter_launcher_keys_alphabetical():
         resolved = resolve_nav_link(key, user)

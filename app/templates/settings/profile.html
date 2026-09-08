@@ -121,10 +121,91 @@
         <p class="settings-profile-hint mb-0">{{ _('settings.profile.teams.empty') }}</p>
         {% endif %}
     </section>
+
+    <section class="settings-profile-card mt-3 settings-profile-card--danger" aria-labelledby="profile-delete-title" id="profile-delete" data-settings-search-id="profile-delete">
+        <div class="settings-profile-card-head">
+            <h2 id="profile-delete-title" class="settings-profile-section-title mb-0">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+                {{ _('settings.profile.delete.heading') }}
+            </h2>
+        </div>
+        <p class="settings-profile-hint">{{ _('settings.profile.delete.intro') }}</p>
+
+        {% if not can_delete_account %}
+        <div class="alert alert-permanent portal-msg portal-msg--warning mb-0" role="status">
+            <div class="portal-msg__body">
+                <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portal-msg__content">
+                    <p class="portal-msg__text">{{ _('settings.profile.delete.' ~ (delete_block_reason or 'blocked_super_admin')) }}</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('settings.profile_delete_request') }}" class="settings-profile-delete-form" id="profileDeleteForm" data-sp-no-autosave>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="settings-profile-field">
+                <label for="delete_password" class="form-label">{{ _('settings.profile.delete.password_label') }}</label>
+                <input type="password" class="form-control settings-profile-input" id="delete_password" name="password" required autocomplete="current-password">
+            </div>
+
+            {% if requires_second_factor %}
+            <p class="settings-profile-hint">{{ _('settings.profile.delete.second_factor_hint') }}</p>
+            {% if totp_enabled %}
+            <div class="settings-profile-field">
+                <label for="delete_totp" class="form-label">{{ _('settings.profile.delete.totp_label') }}</label>
+                <input type="text" class="form-control settings-profile-input" id="delete_totp" name="totp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="8" {% if not has_passkeys %}required{% endif %}>
+            </div>
+            {% endif %}
+            {% if has_passkeys %}
+            <div class="settings-profile-field mb-2">
+                <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" id="profile-delete-passkey-btn">
+                    <i class="bi bi-fingerprint" aria-hidden="true"></i>
+                    {{ _('settings.profile.delete.passkey_button') }}
+                </button>
+                {% if passkey_verified %}
+                <span class="badge rounded-pill text-bg-success ms-2">{{ _('settings.profile.delete.passkey_ok') }}</span>
+                {% else %}
+                <span class="text-muted small ms-2" id="profile-delete-passkey-status">{{ _('settings.profile.delete.passkey_pending') }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <div class="settings-profile-field">
+                <label for="delete_confirm_text" class="form-label">{{ _('settings.profile.delete.confirm_label') }}</label>
+                <input type="text" class="form-control settings-profile-input" id="delete_confirm_text" name="confirm_text" required autocomplete="off" placeholder="{{ _('settings.profile.delete.confirm_placeholder') }}">
+            </div>
+
+            <button type="submit" class="btn btn-outline-danger rounded-pill mod-pill-btn"
+                    data-pt-confirm="{{ _('settings.profile.delete.submit_confirm') }}"
+                    data-pt-confirm-danger="true"
+                    data-pt-confirm-ok="{{ _('settings.profile.delete.submit_button') }}">
+                <i class="bi bi-envelope-exclamation" aria-hidden="true"></i>
+                {{ _('settings.profile.delete.submit_button') }}
+            </button>
+            <p class="settings-profile-hint mt-2 mb-0">{{ _('settings.profile.delete.email_hint') }}</p>
+        </form>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{% if can_delete_account and has_passkeys %}
+<script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.PrismateamsPasskeys && window.PrismateamsPasskeys.init2fa) {
+        window.PrismateamsPasskeys.init2fa({
+            buttonSelector: '#profile-delete-passkey-btn',
+            optionsUrl: {{ url_for('settings.profile_delete_passkey_options') | tojson }},
+            verifyUrl: {{ url_for('settings.profile_delete_passkey_verify') | tojson }}
+        });
+    }
+});
+</script>
+{% endif %}
 <script>
 function previewProfilePicture(input) {
     var file = input.files[0];

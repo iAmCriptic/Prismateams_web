@@ -8,11 +8,35 @@
     const fab = document.getElementById('cookieConsentFab');
     if (!banner) return;
 
+    const syncUrl = banner.getAttribute('data-consent-sync-url') || '';
     const details = document.getElementById('cookieConsentDetails');
     const functionalToggle = document.getElementById('cookieConsentFunctional');
     const analyticsToggle = document.getElementById('cookieConsentAnalytics');
 
     let hideTimer = null;
+
+    function csrfHeaders() {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        if (token) headers['X-CSRFToken'] = token;
+        return headers;
+    }
+
+    function syncConsentToServer(data) {
+        if (!syncUrl || !data) return;
+        try {
+            fetch(syncUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: csrfHeaders(),
+                body: JSON.stringify({
+                    version: data.version || CONSENT_VERSION,
+                    functional: !!(data.categories && data.categories.functional),
+                    analytics: !!(data.categories && data.categories.analytics)
+                })
+            }).catch(function () { /* Nachweis best-effort; localStorage bleibt Quelle für UI */ });
+        } catch (e) { /* ignore */ }
+    }
 
     function readConsent() {
         try {
@@ -40,12 +64,15 @@
         applyConsent(data);
         hideBanner();
         showFab();
+        syncConsentToServer(data);
         window.dispatchEvent(new CustomEvent('cookieconsentchange', { detail: data }));
         return data;
     }
 
     function applyConsent(data) {
         window.PRISMATEAMS_COOKIE_CONSENT = data;
+        // Derzeit werden keine optionalen Drittanbieter-Skripte geladen.
+        // hasCookieConsent('analytics'|'functional') ist für künftige Hooks vorgesehen.
     }
 
     function showBanner() {

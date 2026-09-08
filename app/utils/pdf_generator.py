@@ -1171,6 +1171,61 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
     )
 
 
+def generate_inventory_barcode_label_pdf(product, output=None):
+    """
+    Einzelnes Thermodirekt-Etikett (~56×30 mm) mit Code-128.
+    Inhalt: Inventar-Nr. (scannbar) + lesbare Inventar-Nr. + Produktname.
+    Kein Logo, nur Schwarz/Weiß — geeignet für Brother TD-2020A.
+    """
+    from reportlab.graphics.barcode import createBarcodeDrawing
+
+    code = (getattr(product, 'external_barcode', None) or '').strip()
+    if not code:
+        pid = getattr(product, 'id', None)
+        if pid is None:
+            raise ValueError("Keine Inventar-Nr. für Etikett vorhanden.")
+        code = f'PROD-{int(pid)}'
+
+    name = (getattr(product, 'name', None) or '').strip() or f'ID {getattr(product, "id", "")}'
+    if len(name) > 42:
+        name = name[:39] + '…'
+
+    page_w = 56 * mm
+    page_h = 30 * mm
+    margin_x = 2 * mm
+    usable_w = page_w - 2 * margin_x
+
+    buffer = output if output is not None else BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=(page_w, page_h))
+
+    barcode_h = 11 * mm
+    drawing = createBarcodeDrawing(
+        'Code128',
+        value=code,
+        barHeight=barcode_h,
+        width=usable_w,
+        humanReadable=False,
+    )
+    barcode_y = page_h - margin_x - barcode_h - 0.5 * mm
+    barcode_x = margin_x + max(0, (usable_w - float(drawing.width)) / 2)
+    drawing.drawOn(c, barcode_x, barcode_y)
+
+    c.setFillColor(colors.black)
+    c.setFont('Helvetica-Bold', 9)
+    code_y = barcode_y - 3.2 * mm
+    c.drawCentredString(page_w / 2, code_y, code)
+
+    c.setFont('Helvetica', 7)
+    name_y = code_y - 3.0 * mm
+    c.drawCentredString(page_w / 2, name_y, name)
+
+    c.showPage()
+    c.save()
+    if output is None:
+        buffer.seek(0)
+    return buffer
+
+
 def generate_inventory_list_pdf(products, output=None):
     """Inventurliste als PDF im Standard-Layout."""
     styles = getSampleStyleSheet()

@@ -451,6 +451,8 @@ REDIS_URL=redis://localhost:6379/0
 - **Uploads:** `UPLOAD_FOLDER` (Dateigrößenlimits werden in den Datei-Einstellungen verwaltet)
 - **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
 - **Dateikonverter:** `FILE_CONVERTER_RETENTION_HOURS`, `FILE_CONVERTER_MAX_CONCURRENT`, `LIBREOFFICE_PATH`
+- **Datei-Papierkorb:** `FILES_TRASH_DAYS` (Standard 30; `0` = kein Auto-Purge; auch in Admin → Datei-Einstellungen)
+- **Zugriffsprotokolle (IP/UA):** `SESSION_RECORD_RETENTION_DAYS` (Standard 30), `SHARE_ACCESS_LOG_RETENTION_DAYS` (Standard 90); `0` = kein Auto-Purge; auch in Admin → System
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
   - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
   - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
@@ -949,6 +951,7 @@ sudo ufw status
 - [ ] SSL/HTTPS ist aktiviert
 - [ ] Firewall ist konfiguriert
 - [ ] Regelmäßige Backups sind eingerichtet ([WARTUNG.md](WARTUNG.md))
+- [ ] Datenschutz: AVV-Inventar und Rechtstexte geprüft ([DSGVO.md](DSGVO.md))
 - [ ] Standard-Ports sind geschützt
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell

@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 
 from wsgidav.dc.base_dc import BaseDomainController
 
+from app.utils.log_privacy import mask_email
+
 from app import db
 from app.models.user import User
 from app.utils.access_control import has_module_access
@@ -68,7 +70,7 @@ class PrismaDomainController(BaseDomainController):
 
             user = User.query.filter(db.func.lower(User.email) == email).first()
             if not user:
-                logger.warning('WebDAV auth rejected: unknown user %r (raw=%r)', email, user_name)
+                logger.warning('WebDAV auth rejected: unknown user %r (raw=%r)', mask_email(email), mask_email(user_name) if '@' in str(user_name or '') else user_name)
                 return False
 
             if user.failed_login_until and datetime.utcnow() < user.failed_login_until:
@@ -108,5 +110,5 @@ class PrismaDomainController(BaseDomainController):
                 'edit_resource',
             )
             environ['prisma.user_id'] = user.id
-            logger.info('WebDAV auth ok user_id=%s email=%s', user.id, user.email)
+            logger.info('WebDAV auth ok user_id=%s email=%s', user.id, mask_email(user.email))
             return True

@@ -13,6 +13,7 @@ from flask import render_template, current_app, url_for
 from flask_mail import Message
 from app.models.user import User
 from app.utils.common import portal_now_naive
+from app.utils.log_privacy import mask_email
 
 # Flask-Mail ist nicht thread-sicher innerhalb eines Workers; Worker untereinander
 # dürfen parallel SMTP nutzen (kein Cross-Process-File-Lock mit 60s-Wartezeit).
@@ -361,15 +362,15 @@ def send_password_reset_email(user):
                 reset_url=reset_url,
             )
             if not ok:
-                logging.error(f'Password reset email send returned False for {user.email}')
+                logging.error(f'Password reset email send returned False for {mask_email(user.email)}')
                 return False
-            logging.info('Password reset email sent to %s', user.email)
+            logging.info('Password reset email sent to %s', mask_email(user.email))
             return True
         except Exception as send_error:
-            logging.error(f'Failed to send password reset email to {user.email}: {str(send_error)}')
+            logging.error(f'Failed to send password reset email to {mask_email(user.email)}: {str(send_error)}')
             return False
     except Exception as e:
-        logging.error(f'Failed to send password reset email to {user.email}: {str(e)}')
+        logging.error(f'Failed to send password reset email to {mask_email(user.email)}: {str(e)}')
         return False
 
 
@@ -781,9 +782,9 @@ def send_confirmation_email(user):
                 confirmation_code=confirmation_code,
             )
             if ok:
-                logging.info('Confirmation email sent to %s', user.email)
+                logging.info('Confirmation email sent to %s', mask_email(user.email))
                 return True
-            logging.error('Confirmation email send returned False for %s — retrying once', user.email)
+            logging.error('Confirmation email send returned False for %s — retrying once', mask_email(user.email))
             ok = render_and_send_portal_email(
                 subject=f'E-Mail-Bestätigung - {portal_name}',
                 recipients=[user.email],
@@ -793,15 +794,15 @@ def send_confirmation_email(user):
                 confirmation_code=confirmation_code,
             )
             if ok:
-                logging.info(f'Alternative E-Mail erfolgreich gesendet an {user.email}')
+                logging.info(f'Alternative E-Mail erfolgreich gesendet an {mask_email(user.email)}')
                 return True
-            logging.error(f'Alternative E-Mail-Versand auch fehlgeschlagen für {user.email}')
+            logging.error(f'Alternative E-Mail-Versand auch fehlgeschlagen für {mask_email(user.email)}')
             return False
         except Exception as send_error:
-            logging.error(f'Failed to send confirmation email to {user.email}: {str(send_error)}')
+            logging.error(f'Failed to send confirmation email to {mask_email(user.email)}: {str(send_error)}')
             return False
     except Exception as e:
-        logging.error(f'Failed to send confirmation email to {user.email}: {str(e)}')
+        logging.error(f'Failed to send confirmation email to {mask_email(user.email)}: {str(e)}')
         return False
 
 def verify_confirmation_code(user, code):
@@ -881,12 +882,12 @@ def send_2fa_recovery_email(user):
             recovery_code=recovery_code,
         )
         if not ok:
-            logging.error('2FA recovery email send returned False for %s', user.email)
+            logging.error('2FA recovery email send returned False for %s', mask_email(user.email))
             return False
-        logging.info('2FA recovery email sent to %s', user.email)
+        logging.info('2FA recovery email sent to %s', mask_email(user.email))
         return True
     except Exception as e:
-        logging.error('Failed to send 2FA recovery email to %s: %s', user.email, e)
+        logging.error('Failed to send 2FA recovery email to %s: %s', mask_email(user.email), e)
         return False
 
 
@@ -1003,7 +1004,7 @@ def send_borrow_receipt_email(checkout):
         if not ok:
             logging.error(f'Borrow receipt email send returned False for {checkout.checkout_number}')
             return False
-        logging.info(f'Borrow receipt email sent to {recipient} for {checkout.checkout_number}')
+        logging.info(f'Borrow receipt email sent to {mask_email(recipient)} for {checkout.checkout_number}')
         return True
     except Exception as e:
         logging.error(f'Failed to send borrow receipt email: {str(e)}')
@@ -1073,7 +1074,7 @@ def send_return_confirmation_email(checkout, returned_items=None):
         if not ok:
             logging.error(f'Return confirmation email send returned False for {checkout.checkout_number}')
             return False
-        logging.info(f'Return confirmation email sent to {recipient} for {checkout.checkout_number}')
+        logging.info(f'Return confirmation email sent to {mask_email(recipient)} for {checkout.checkout_number}')
         return True
     except Exception as e:
         logging.error(f'Failed to send return confirmation email: {str(e)}')
@@ -1133,12 +1134,12 @@ def send_booking_confirmation_email(booking_request):
             if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
                 return False
             logging.info(
-                f'Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}'
+                f'Booking confirmation email sent to {mask_email(booking_request.email)} for booking {booking_request.id}'
             )
             return True
         except Exception as send_error:
             logging.error(
-                f'Failed to send booking confirmation email to {booking_request.email}: {str(send_error)}'
+                f'Failed to send booking confirmation email to {mask_email(booking_request.email)}: {str(send_error)}'
             )
             return False
     except Exception as e:
@@ -1178,12 +1179,12 @@ def send_booking_accepted_email(booking_request, calendar_event):
             if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
                 return False
             logging.info(
-                f'Booking accepted email sent to {booking_request.email} for booking {booking_request.id}'
+                f'Booking accepted email sent to {mask_email(booking_request.email)} for booking {booking_request.id}'
             )
             return True
         except Exception as send_error:
             logging.error(
-                f'Failed to send booking accepted email to {booking_request.email}: {str(send_error)}'
+                f'Failed to send booking accepted email to {mask_email(booking_request.email)}: {str(send_error)}'
             )
             return False
     except Exception as e:
@@ -1217,12 +1218,12 @@ def send_booking_rejected_email(booking_request):
             if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
                 return False
             logging.info(
-                f'Booking rejected email sent to {booking_request.email} for booking {booking_request.id}'
+                f'Booking rejected email sent to {mask_email(booking_request.email)} for booking {booking_request.id}'
             )
             return True
         except Exception as send_error:
             logging.error(
-                f'Failed to send booking rejected email to {booking_request.email}: {str(send_error)}'
+                f'Failed to send booking rejected email to {mask_email(booking_request.email)}: {str(send_error)}'
             )
             return False
     except Exception as e:
@@ -1260,12 +1261,12 @@ def send_booking_staff_message(booking_request, subject, body_text, created_by=N
             ):
                 return False
             logging.info(
-                f'Booking staff message sent to {booking_request.email} for booking {booking_request.id}'
+                f'Booking staff message sent to {mask_email(booking_request.email)} for booking {booking_request.id}'
             )
             return True
         except Exception as send_error:
             logging.error(
-                f'Failed to send booking staff message to {booking_request.email}: {str(send_error)}'
+                f'Failed to send booking staff message to {mask_email(booking_request.email)}: {str(send_error)}'
             )
             return False
     except Exception as e:
@@ -1287,9 +1288,9 @@ def send_smtp_test_email(recipient_email):
             recipient_email=recipient_email,
         )
         if not ok:
-            logging.error(f'SMTP test email send returned False for {recipient_email}')
+            logging.error(f'SMTP test email send returned False for {mask_email(recipient_email)}')
             raise RuntimeError('SMTP test email send failed')
-        logging.info(f'SMTP test email sent to {recipient_email}')
+        logging.info(f'SMTP test email sent to {mask_email(recipient_email)}')
         return True
     except Exception as e:
         logging.error(f'Failed to send SMTP test email: {str(e)}')
@@ -1332,15 +1333,15 @@ def send_account_creation_email(user, password):
                 login_url=login_url,
             )
             if not ok:
-                logging.error(f'Account creation email send returned False for {user.email}')
+                logging.error(f'Account creation email send returned False for {mask_email(user.email)}')
                 return False
-            logging.info(f'Account creation email sent to {user.email}')
+            logging.info(f'Account creation email sent to {mask_email(user.email)}')
             return True
         except Exception as send_error:
-            logging.error(f'Failed to send account creation email to {user.email}: {str(send_error)}')
+            logging.error(f'Failed to send account creation email to {mask_email(user.email)}: {str(send_error)}')
             return False
     except Exception as e:
-        logging.error(f'Failed to send account creation email to {user.email}: {str(e)}')
+        logging.error(f'Failed to send account creation email to {mask_email(user.email)}: {str(e)}')
         return False
 
 
@@ -1354,7 +1355,7 @@ def send_guest_credentials_email(recipient, full_name, username, password):
         if not _mail_configured():
             logging.warning(
                 'E-Mail-Konfiguration unvollständig. Gast-Zugangsdaten an %s nicht gesendet.',
-                recipient,
+                mask_email(recipient),
             )
             return False
 
@@ -1381,9 +1382,9 @@ def send_guest_credentials_email(recipient, full_name, username, password):
             login_url=login_url,
         )
         if not ok:
-            logging.error('Gast-Zugangsdaten-E-Mail an %s fehlgeschlagen.', recipient)
+            logging.error('Gast-Zugangsdaten-E-Mail an %s fehlgeschlagen.', mask_email(recipient))
             return False
-        logging.info('Gast-Zugangsdaten-E-Mail an %s gesendet.', recipient)
+        logging.info('Gast-Zugangsdaten-E-Mail an %s gesendet.', mask_email(recipient))
         return True
     except Exception as e:
         logging.error('Gast-Zugangsdaten-E-Mail fehlgeschlagen: %s', e)

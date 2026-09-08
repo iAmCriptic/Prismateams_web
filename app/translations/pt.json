@@ -713,7 +713,9 @@
     "index": {
       "search_placeholder": "Pesquisar em ficheiros",
       "search_empty": "Sem resultados nesta pasta."
-    }
+    },
+    "trash_retention_banner": "Itens no lixo são eliminados definitivamente após {days} dias.",
+    "trash_retention_disabled": "Não há eliminação automática definitiva configurada para o lixo."
   },
   "settings": {
     "admin": {
@@ -880,6 +882,12 @@
       },
       "registration": {
         "lead_short": "Captcha e honeypot para login e formulários."
+      },
+      "file_settings": {
+        "trash_retention_label": "Retenção do lixo",
+        "trash_retention_help": "Ficheiros e pastas eliminados são removidos definitivamente após este período. 0 desativa a limpeza automática.",
+        "trash_retention_unit": "dias",
+        "trash_retention_note": "Predefinição: 30 dias. Substitui FILES_TRASH_DAYS do ambiente após guardar."
       }
     },
     "notifications": {
@@ -911,6 +919,37 @@
         "heading": "My teams",
         "empty": "You are not in any team yet.",
         "leader_badge": "Lead"
+      },
+      "delete": {
+        "heading": "Eliminar conta",
+        "intro": "Elimina a sua conta de forma permanente após confirmação por e-mail. Exporte primeiro os dados em Privacidade.",
+        "password_label": "Palavra-passe para confirmar",
+        "second_factor_hint": "É também necessário um segundo fator (autenticador ou passkey).",
+        "totp_label": "Código do autenticador (2FA)",
+        "passkey_button": "Confirmar com passkey",
+        "passkey_ok": "Passkey confirmado",
+        "passkey_pending": "Ainda não confirmado",
+        "confirm_label": "Escreva DELETE para confirmar",
+        "confirm_placeholder": "DELETE",
+        "submit_button": "Enviar e-mail de confirmação",
+        "submit_confirm": "Enviar mesmo um e-mail de eliminação para o seu endereço?",
+        "email_hint": "A conta só é eliminada após clicar no link do e-mail. O link é válido por 1 hora.",
+        "blocked_super_admin": "A conta de administrador principal não se pode eliminar a si própria.",
+        "flash_confirm_text": "Escreva DELETE (ou LÖSCHEN) para confirmar.",
+        "flash_wrong_password": "A palavra-passe está incorreta.",
+        "flash_2fa_required": "Falta a confirmação do segundo fator ou é inválida.",
+        "flash_no_passkey": "Nenhum passkey encontrado para esta conta.",
+        "flash_email_failed": "Não foi possível enviar o e-mail de confirmação.",
+        "flash_email_sent": "E-mail de confirmação enviado. Verifique a sua caixa de entrada.",
+        "flash_token_invalid": "O link de eliminação é inválido ou expirou.",
+        "flash_wrong_user": "Inicie sessão com a conta que pretende eliminar.",
+        "flash_failed": "A eliminação da conta falhou.",
+        "flash_deleted": "A sua conta foi eliminada.",
+        "confirm_page_title": "Confirmar eliminação da conta",
+        "confirm_heading": "Eliminar a conta definitivamente?",
+        "confirm_body": "Eliminar definitivamente a conta de {name} ({email})?",
+        "confirm_final": "Eliminar mesmo esta conta de forma permanente?",
+        "confirm_button": "Eliminar agora"
       }
     },
     "mailboxes": {
@@ -1148,6 +1187,12 @@
         },
         "my_mailboxes": {
           "short": "Private mailboxes"
+        },
+        "privacy": {
+          "title": "Privacidade",
+          "description": "Exportar dados pessoais e ver os seus direitos",
+          "button": "Abrir",
+          "short": "Exportar e direitos"
         }
       },
       "lead_short": "Tudo num só sítio."
@@ -1200,6 +1245,31 @@
     },
     "security": {
       "lead_short": "Palavra-passe, 2FA e dispositivos."
+    },
+    "privacy": {
+      "page_title": "Privacidade e dados",
+      "heading": "Privacidade e dados",
+      "lead": "Exporte os seus dados pessoais e consulte informações sobre os seus direitos.",
+      "export": {
+        "heading": "Exportação de dados",
+        "intro": "Descarregue um ficheiro ZIP com os seus dados pessoais em JSON (portabilidade).",
+        "includes_profile": "Perfil, equipas, sessões, passkeys e definições de notificações",
+        "includes_activity": "Contactos criados, eventos, metadados de ficheiros, mensagens de chat e outros dados de módulos",
+        "excludes_secrets": "Sem palavras-passe, segredos 2FA, tokens de sessão ou conteúdos de ficheiros",
+        "button": "Descarregar os meus dados",
+        "hint": "Os downloads estão limitados a poucos pedidos por hora."
+      },
+      "export_error": "A exportação de dados falhou. Tente novamente mais tarde.",
+      "rights": {
+        "heading": "Os seus direitos",
+        "intro": "Ao abrigo do RGPD tem em particular os seguintes direitos:",
+        "access": "Acesso aos dados pessoais armazenados",
+        "rectification": "Retificação de dados incorretos (p. ex. no perfil)",
+        "portability": "Portabilidade de dados através da exportação nesta página",
+        "erasure": "Apagamento – self-service no Perfil (palavra-passe, 2FA se ativo, e-mail de confirmação)",
+        "policy_link": "Política de privacidade",
+        "delete_link": "Eliminar conta"
+      }
     }
   },
   "surveys": {
@@ -1341,7 +1411,8 @@
       "manual_already_linked": "O manual \"{title}\" já está associado.",
       "manual_linked": "O manual \"{title}\" foi associado.",
       "external_barcode_taken": "O N.º de inventário \"{code}\" já está em uso.",
-      "external_barcode_qty": "O N.º de inventário só pode ser definido com quantidade 1."
+      "external_barcode_qty": "O N.º de inventário só pode ser definido com quantidade 1.",
+      "barcode_label_error": "Não foi possível gerar a etiqueta de código de barras."
     },
     "documents": {
       "page_title": "Documentos - {name}",
@@ -1394,7 +1465,9 @@
         "external_barcode": "N.º de inventário",
         "external_barcode_placeholder": "ex. 001",
         "external_barcode_help": "Digite o código da etiqueta ou leia com o scanner. Para QuickScan e empréstimos.",
-        "external_barcode_qty_hint": "N.º de inventário só com quantidade 1 (cada número é único)."
+        "external_barcode_qty_hint": "N.º de inventário só com quantidade 1 (cada número é único).",
+        "print_barcode": "Imprimir código de barras",
+        "print_barcode_hint": "Etiqueta ~56 mm, escala de impressão 100 % (Actual size)."
       }
     },
     "stock": {

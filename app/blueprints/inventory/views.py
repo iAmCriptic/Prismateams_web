@@ -12,7 +12,11 @@ from app.utils.qr_code import (
     generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code,
     parse_qr_code, generate_qr_code_bytes
 )
-from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf
+from app.utils.pdf_generator import (
+    generate_borrow_receipt_pdf,
+    generate_inventory_barcode_label_pdf,
+    generate_qr_code_sheet_pdf,
+)
 from app.utils.pdf_generator_color_table import generate_color_code_table_pdf
 from app.utils.lengths import normalize_length_input, parse_length_to_meters
 from app.utils.dates import compute_dguv_next
@@ -754,6 +758,31 @@ def product_edit(product_id):
         categories=categories,
         folders=folders,
         manuals=_accessible_manuals(),
+    )
+
+
+@inventory_bp.route('/products/<int:product_id>/print-barcode')
+@login_required
+@check_module_access('module_inventory')
+def product_print_barcode(product_id):
+    """Einzelnes Code-128-Etikett-PDF für Thermodrucker (z. B. Brother TD-2020A)."""
+    product = Product.query.get_or_404(product_id)
+    inv_nr = inventory_number_display(product)
+    try:
+        pdf_buffer = BytesIO()
+        generate_inventory_barcode_label_pdf(product, pdf_buffer)
+        pdf_buffer.seek(0)
+    except Exception as e:
+        current_app.logger.error(f"Barcode-Etikett fehlgeschlagen (product {product_id}): {e}", exc_info=True)
+        flash(translate('inventory.flash.barcode_label_error'), 'danger')
+        return redirect(url_for('inventory.product_edit', product_id=product_id))
+
+    safe_nr = re.sub(r'[^\w.\-]+', '_', inv_nr or str(product_id)).strip('_') or str(product_id)
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=f'Etikett_{safe_nr}.pdf',
     )
 
 

@@ -833,6 +833,7 @@ __all__ = [
     "get_inventory_categories",
     "get_product_folders",
     "inject_inventory_trash_folder",
+    "inventory_number_display",
     "save_inventory_categories",
     "_accessible_manuals",
     "_apply_dguv_fields",

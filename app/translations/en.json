@@ -1042,6 +1042,12 @@
           "title": "Cloud import",
           "description": "Transfer from Nextcloud and Google Drive.",
           "short": "Nextcloud & Drive"
+        },
+        "privacy": {
+          "title": "Privacy",
+          "description": "Export personal data and review your rights",
+          "button": "Open",
+          "short": "Export & rights"
         }
       },
       "lead_short": "Everything in one place."
@@ -1099,6 +1105,37 @@
         "heading": "My teams",
         "empty": "You are not in any team yet.",
         "leader_badge": "Lead"
+      },
+      "delete": {
+        "heading": "Delete account",
+        "intro": "Permanently deletes your account after email confirmation. Export your data under Privacy first.",
+        "password_label": "Password for confirmation",
+        "second_factor_hint": "A second factor (authenticator or passkey) is also required.",
+        "totp_label": "Authenticator code (2FA)",
+        "passkey_button": "Confirm with passkey",
+        "passkey_ok": "Passkey confirmed",
+        "passkey_pending": "Not confirmed yet",
+        "confirm_label": "Type DELETE to confirm",
+        "confirm_placeholder": "DELETE",
+        "submit_button": "Send confirmation email",
+        "submit_confirm": "Really send a deletion email to your address?",
+        "email_hint": "Your account is only deleted after you click the link in the email. The link is valid for 1 hour.",
+        "blocked_super_admin": "The primary administrator account cannot delete itself.",
+        "flash_confirm_text": "Please type DELETE (or LÖSCHEN) to confirm.",
+        "flash_wrong_password": "The password is incorrect.",
+        "flash_2fa_required": "Second-factor confirmation is missing or invalid (authenticator code or passkey).",
+        "flash_no_passkey": "No passkey found for this account.",
+        "flash_email_failed": "The confirmation email could not be sent. Check the mail configuration.",
+        "flash_email_sent": "Confirmation email sent. Please check your inbox.",
+        "flash_token_invalid": "The deletion link is invalid or expired.",
+        "flash_wrong_user": "Please sign in with the account that should be deleted.",
+        "flash_failed": "Account deletion failed. Please contact an administrator.",
+        "flash_deleted": "Your account has been deleted.",
+        "confirm_page_title": "Confirm account deletion",
+        "confirm_heading": "Permanently delete account?",
+        "confirm_body": "Permanently delete the account of {name} ({email})?",
+        "confirm_final": "Really delete this account permanently? This cannot be undone.",
+        "confirm_button": "Delete permanently now"
       }
     },
     "notifications": {
@@ -1825,7 +1862,11 @@
         "flash_exception_exists": "An exception already exists for this user.",
         "flash_exception_user_invalid": "Please select a valid user.",
         "flash_exception_empty": "Set at least a file limit or quota for the exception.",
-        "visibility_moved": "Private and team folders are configured centrally under Modules → Visibility variants."
+        "visibility_moved": "Private and team folders are configured centrally under Modules → Visibility variants.",
+        "trash_retention_label": "Trash retention",
+        "trash_retention_help": "Soft-deleted files and folders are permanently removed after this period. 0 disables auto-purge.",
+        "trash_retention_unit": "days",
+        "trash_retention_note": "Default: 30 days. Overrides FILES_TRASH_DAYS from the environment once saved."
       },
       "calendar_settings": {
         "page_title": "Calendar Settings - Administration",
@@ -1863,6 +1904,13 @@
         "indexing_label": "Allow Google to index this site",
         "indexing_help": "Controls whether search engines may find the public pages. Internal areas always stay blocked.",
         "indexing_hint": "On: login, registration, imprint, privacy policy and terms may appear in Google. Off: robots.txt and meta tags block all crawlers.",
+        "section_log_retention": "Access logs",
+        "log_retention_help": "Deletes IP addresses and user agents from session and share access logs after the retention period (hourly job).",
+        "session_record_retention_label": "Session records (days)",
+        "session_record_retention_help": "UserSession rows whose last activity is older than N days are deleted. 0 = no auto-purge.",
+        "share_access_log_retention_label": "Share access logs (days)",
+        "share_access_log_retention_help": "ShareAccessLog entries older than N days are deleted. 0 = no auto-purge.",
+        "log_retention_note": "Defaults: sessions 30 days, share logs 90 days. Overrides SESSION_RECORD_RETENTION_DAYS / SHARE_ACCESS_LOG_RETENTION_DAYS from the environment once saved. State the periods in your privacy policy.",
         "portal_name_label": "Portal Name",
         "portal_name_placeholder": "e.g. Prismateams",
         "portal_name_help": "The name of the portal that is displayed in various places.",
@@ -2598,6 +2646,31 @@
       "quick_lead": "Frequently used areas",
       "tip_title": "Tip",
       "tip_body": "Use the search above to jump to any setting."
+    },
+    "privacy": {
+      "page_title": "Privacy & data",
+      "heading": "Privacy & data",
+      "lead": "Export your personal data and review information about your rights.",
+      "export": {
+        "heading": "Data export",
+        "intro": "Download a ZIP file with your personal data in JSON format (data portability).",
+        "includes_profile": "Profile, teams, sessions, passkeys and notification settings",
+        "includes_activity": "Contacts you created, events, file metadata, chat messages and other module-related data",
+        "excludes_secrets": "No passwords, 2FA secrets, session tokens or file contents",
+        "button": "Download my data",
+        "hint": "Downloads are rate-limited to a few requests per hour."
+      },
+      "export_error": "The data export failed. Please try again later.",
+      "rights": {
+        "heading": "Your rights",
+        "intro": "Under the GDPR you have in particular the following rights:",
+        "access": "Access to stored personal data",
+        "rectification": "Rectification of incorrect data (e.g. in your profile)",
+        "portability": "Data portability via the export on this page",
+        "erasure": "Erasure – self-service in Profile (password, 2FA if enabled, confirmation email)",
+        "policy_link": "Privacy policy",
+        "delete_link": "Delete account"
+      }
     }
   },
   "chat": {
@@ -3135,7 +3208,9 @@
     },
     "errors": {
       "file_type_not_supported": "File type not supported"
-    }
+    },
+    "trash_retention_banner": "Items in the trash are permanently deleted after {days} days.",
+    "trash_retention_disabled": "Automatic permanent deletion is not configured for the trash."
   },
   "excalidraw": {
     "index": {
@@ -5102,6 +5177,8 @@
         "manage_documents": "Manage all documents",
         "external_barcode_help": "Type the label code or scan it here with a handheld scanner. Used for QuickScan & checkout.",
         "external_barcode_qty_hint": "Inventory No. only allowed when quantity is 1 (each number must be unique).",
+        "print_barcode": "Print barcode",
+        "print_barcode_hint": "Label ~56 mm, print scale 100% (Actual size).",
         "cable_migration": "Cable migration",
         "cable_migration_help": "Merged individual items will be marked as retired.",
         "convert_to_cable": "Convert to cable/consumable",
@@ -5507,7 +5584,8 @@
       "manual_already_linked": "Manual \"{title}\" is already linked.",
       "manual_linked": "Manual \"{title}\" was linked.",
       "external_barcode_taken": "Inventory No. \"{code}\" is already in use.",
-      "external_barcode_qty": "Inventory No. can only be set when quantity is 1."
+      "external_barcode_qty": "Inventory No. can only be set when quantity is 1.",
+      "barcode_label_error": "Could not generate the barcode label."
     },
     "cart": {
       "set_badge": "Set",

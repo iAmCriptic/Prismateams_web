@@ -7,7 +7,6 @@ import logging
 from datetime import datetime, timedelta
 from app import db
 from app.models.user import User
-from app.models.guest import GuestShareAccess
 from app.utils.common import portal_now_naive
 from app.utils.session_manager import revoke_all_sessions
 
@@ -37,16 +36,19 @@ def cleanup_expired_guests():
                 revoke_all_sessions(guest.id, exclude_current=False)
                 deactivated_count += 1
                 logger.info(
-                    "Abgelaufener Gast-Account deaktiviert: %s@%s",
+                    "Abgelaufener Gast-Account deaktiviert: %s (id=%s)",
                     guest.guest_username,
-                    guest.email,
+                    guest.id,
                 )
             except Exception as e:
                 logger.error(f"Fehler beim Deaktivieren des Gast-Accounts {guest.id}: {e}")
                 db.session.rollback()
                 continue
 
-        # 2) Bereits deaktivierte Gäste nach 7 Tagen endgültig löschen.
+        if deactivated_count > 0:
+            db.session.commit()
+
+        # 2) Bereits deaktivierte Gäste nach 7 Tagen endgültig löschen (gleiche Pipeline wie Admin/Self-Service).
         deletable_guests = User.query.filter(
             User.is_guest == True,
             User.is_active == False,
@@ -55,24 +57,27 @@ def cleanup_expired_guests():
         ).all()
 
         deleted_count = 0
+        from app.utils.account_deletion import erase_user_account
+
         for guest in deletable_guests:
+            guest_id = guest.id
+            guest_label = guest.guest_username
             try:
-                GuestShareAccess.query.filter_by(user_id=guest.id).delete()
-                revoke_all_sessions(guest.id, exclude_current=False)
-                db.session.delete(guest)
+                revoke_all_sessions(guest_id, exclude_current=False)
+                erase_user_account(guest)
+                db.session.commit()
                 deleted_count += 1
                 logger.info(
-                    "Deaktivierter Gast-Account gelöscht: %s@%s",
-                    guest.guest_username,
-                    guest.email,
+                    "Deaktivierter Gast-Account gelöscht: %s (id=%s)",
+                    guest_label,
+                    guest_id,
                 )
             except Exception as e:
-                logger.error(f"Fehler beim Löschen des Gast-Accounts {guest.id}: {e}")
+                logger.error(f"Fehler beim Löschen des Gast-Accounts {guest_id}: {e}")
                 db.session.rollback()
                 continue
 
         if deactivated_count > 0 or deleted_count > 0:
-            db.session.commit()
             logger.info(
                 f"Gast-Bereinigung: {deactivated_count} deaktiviert, {deleted_count} gelöscht."
             )

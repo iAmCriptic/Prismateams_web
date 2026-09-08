@@ -37,37 +37,88 @@ die Nutzerverwaltung, die Anmeldung sowie die von Ihnen genutzten Module erforde
 Je nach Nutzung können insbesondere folgende Daten verarbeitet werden:
 - Stammdaten (z. B. Name, E-Mail-Adresse)
 - Zugangs- und Authentifizierungsdaten
-- Nutzungs- und Protokolldaten (z. B. Login-Zeitpunkte, technische Logs)
+- Nutzungs- und Protokolldaten (z. B. Login-Zeitpunkte, IP-Adresse, User-Agent)
+- Zugriffsprotokolle bei öffentlichen Freigaben (IP-Adresse, User-Agent, ggf. Gastname)
 - Inhalte, die Sie im Portal speichern oder versenden (z. B. Dateien, Nachrichten)
 
 4. Rechtsgrundlagen
 Die Verarbeitung erfolgt je nach Kontext auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO
 (Vertragserfüllung / vorvertragliche Maßnahmen), Art. 6 Abs. 1 lit. f DSGVO
-(berechtigtes Interesse am sicheren Betrieb) und – soweit erforderlich –
+(berechtigtes Interesse am sicheren Betrieb und Missbrauchserkennung) und – soweit erforderlich –
 Art. 6 Abs. 1 lit. a DSGVO (Einwilligung).
 
 5. Speicherdauer
 Personenbezogene Daten werden nur so lange gespeichert, wie es für die genannten Zwecke
 erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen.
 
+Soweit nicht abweichend konfiguriert bzw. in dieser Erklärung konkretisiert, gelten
+folgende produktseitige Standardfristen (Admin kann Werte anpassen; 0 = kein Auto-Purge):
+- Sitzungsprotokolle (IP-Adresse, User-Agent): [SESSION_RECORD_RETENTION_DAYS, Standard: 30 Tage]
+  nach letzter Aktivität; Einstellung: Admin → System → Zugriffsprotokolle
+- Zugriffsprotokolle öffentlicher Freigaben (IP-Adresse, User-Agent, ggf. Gastname):
+  [SHARE_ACCESS_LOG_RETENTION_DAYS, Standard: 90 Tage]; Einstellung: Admin → System → Zugriffsprotokolle
+- Datei-Papierkorb: Soft-gelöschte Dateien/Ordner werden nach [FILES_TRASH_DAYS, Standard: 30 Tage]
+  endgültig gelöscht; Einstellung: Admin → Datei-Einstellungen
+- Gastkonten: nach Ablauf deaktiviert und nach weiteren 7 Tagen endgültig gelöscht
+- Media-Downloader / Dateikonverter: kurzfristige Zwischenspeicher gemäß Systemkonfiguration
+
+Kontobezogene Daten werden bei Kontolöschung entfernt bzw. anonymisiert, soweit keine
+gesetzlichen Aufbewahrungspflichten (z. B. Buchhaltung) entgegenstehen. Bitte ersetzen Sie
+die Platzhalter in eckigen Klammern durch die bei Ihnen tatsächlich konfigurierten Fristen.
+
 6. Empfänger / Auftragsverarbeitung
 Eine Weitergabe an Dritte erfolgt nur, wenn dies für den Betrieb technisch notwendig ist,
 eine gesetzliche Pflicht besteht oder Sie eingewilligt haben.
-Soweit Dienstleister eingesetzt werden, erfolgt dies im Rahmen von Auftragsverarbeitung.
+Soweit Dienstleister eingesetzt werden, erfolgt dies im Rahmen von Auftragsverarbeitung
+(Art. 28 DSGVO) bzw. – bei eigenständigen Anbietern – nach deren Bedingungen.
+
+Bitte streichen Sie nicht genutzte Dienste und ersetzen Sie die Platzhalter.
+Aktuell können je nach Konfiguration insbesondere folgende Empfänger betroffen sein:
+
+- Hosting / Serverbetrieb: [Name Hosting-Anbieter], [Land/Region]
+  Zweck: Betrieb und Speicherung des Portals; AVV: [ja/nein, Datum]
+- E-Mail-Versand / Postfach (SMTP/IMAP): [Anbieter], [Land/Region]
+  Zweck: Transaktions- und Kommunikations-E-Mails; AVV: [ja/nein]
+- Google-Anmeldung (optional): Google Ireland Ltd. / Google LLC
+  Zweck: Login/Registrierung; Daten: Name, E-Mail, Google-ID; Hinweis: ggf. Drittlandtransfer
+- Cloud-Import Google Drive / Nextcloud (optional): [Anbieter]
+  Zweck: einmaliger Dateiimport in das Dateimodul
+- Spotify (Musikmodul, optional): Spotify AB
+  Zweck: Wiedergabe/Playlists laut Nutzereinstellung; eigene Spotify-Bedingungen
+- OnlyOffice Document Server (optional): [Self-Host / Anbieter]
+  Zweck: Bearbeitung von Office-Dokumenten im Browser
+- MiroTalk / Meetings (optional): [Self-Host / Anbieter]
+  Zweck: Audio-/Video-Meetings
+- Excalidraw (optional): [Self-Host / Anbieter]
+  Zweck: gemeinsame Zeichnungen / Whiteboards
+
+Ungenutzte Integrationen werden vom Betreiber deaktiviert. Details und Checkliste:
+siehe Betriebsdokumentation docs/DSGVO.md (AVV-Inventar).
 
 7. Cookies und lokale Speicherung
 Für Anmeldung, Sicherheit und grundlegende Funktionen werden notwendige Cookies
-bzw. vergleichbare Speichermechanismen eingesetzt. Optionale Funktionen können
-zusätzliche lokale Einstellungen speichern.
+bzw. vergleichbare Speichermechanismen eingesetzt (Session, CSRF, Consent-ID).
+
+Über das Cookie-Banner können zusätzlich die Kategorien „Funktional“ und „Analyse“
+gewählt werden. Derzeit lädt das Portal keine optionalen Drittanbieter-Tracking-
+oder Marketing-Skripte; diese Kategorien sind für künftige optionale Funktionen
+vorgesehen und werden erst nach Einwilligung aktiviert, sobald solche Funktionen
+eingebunden werden.
+
+Ihre Auswahl wird lokal (Browser) gespeichert und zusätzlich serverseitig als
+Nachweis (Zeitpunkt, Kategorien, Version, ggf. Benutzerkonto / anonyme Consent-ID)
+protokolliert. Widerruf bzw. Änderung jederzeit über die Cookie-Einstellungen.
 
 8. Ihre Rechte
 Sie haben nach Maßgabe der DSGVO insbesondere folgende Rechte:
 Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit
 sowie Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen.
 Sofern eine Verarbeitung auf Einwilligung beruht, können Sie diese jederzeit widerrufen.
+Im Portal: Datenexport unter Einstellungen → Datenschutz; Kontolöschung unter Einstellungen → Profil.
 
 9. Beschwerderecht
 Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.
+Zuständige Aufsichtsbehörde: [Name und Kontakt der Aufsichtsbehörde]
 
 10. Hinweis
 Dieser Text ist eine generische Vorlage und ersetzt keine individuelle Rechtsberatung.

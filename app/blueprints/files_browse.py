@@ -290,6 +290,9 @@ def register_browse_routes(files_bp):
         files_webdav_enabled = is_webdav_enabled()
         webdav_url = f"{request.url_root.rstrip('/')}/webdav"
 
+        from app.utils.files_trash_retention import get_trash_retention_days
+        files_trash_retention_days = get_trash_retention_days()
+
         return render_template(
             'files/index.html',
             current_folder=current_folder if current_folder != 'forbidden' else None,
@@ -323,6 +326,7 @@ def register_browse_routes(files_bp):
                 resolve_limits_for_user(current_user.id)['max_file_size']
                 if not is_guest else get_global_max_file_size()
             ),
+            files_trash_retention_days=files_trash_retention_days,
         )
 
 

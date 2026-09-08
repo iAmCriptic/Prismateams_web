@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 import logging
 from app.utils.common import portal_now_naive
+from app.utils.log_privacy import mask_email
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -382,7 +383,7 @@ def register():
             return render_template('auth/register.html', **_google_register_template_kwargs())
         except Exception as e:
             db.session.rollback()
-            logging.exception('User create failed during registration for %s: %s', email, e)
+            logging.exception('User create failed during registration for %s: %s', mask_email(email), e)
             flash(translate('auth.flash.fill_all_fields'), 'danger')
             return render_template('auth/register.html', **_google_register_template_kwargs())
 
@@ -414,7 +415,7 @@ def register():
                         db.session.add(member)
                         db.session.commit()
         except Exception as e:
-            logging.exception('Post-create steps failed during registration for %s: %s', email, e)
+            logging.exception('Post-create steps failed during registration for %s: %s', mask_email(email), e)
         
         return _finish_registration(
             new_user, email_sent, is_whitelisted, google_verified=google_verified
@@ -1387,6 +1388,57 @@ def logout():
     rotate_session_on_login()
     flash(translate('auth.flash.logout_success'), 'success')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/cookie-consent', methods=['POST'])
+@limiter.limit('60 per hour')
+def cookie_consent_record():
+    """Serverseitiger Nachweis von Cookie-Einwilligung / Widerruf (Kategorien)."""
+    import secrets
+    from datetime import timedelta
+    from flask import make_response
+    from app.models.cookie_consent import CookieConsentLog
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        version = int(payload.get('version') or 1)
+    except (TypeError, ValueError):
+        version = 1
+    functional = bool(payload.get('functional'))
+    analytics = bool(payload.get('analytics'))
+
+    cookie_name = 'prismateams_consent_id'
+    anon_id = (request.cookies.get(cookie_name) or '').strip()
+    if not anon_id or len(anon_id) > 64:
+        anon_id = secrets.token_urlsafe(24)
+
+    user_id = current_user.id if current_user.is_authenticated else None
+    row = CookieConsentLog(
+        user_id=user_id,
+        anon_id=anon_id,
+        consent_version=version,
+        necessary=True,
+        functional=functional,
+        analytics=analytics,
+    )
+    db.session.add(row)
+    db.session.commit()
+
+    resp = make_response(jsonify({
+        'ok': True,
+        'id': row.id,
+        'anon_id': anon_id,
+        'created_at': row.created_at.isoformat() + 'Z' if row.created_at else None,
+    }))
+    resp.set_cookie(
+        cookie_name,
+        anon_id,
+        max_age=int(timedelta(days=400).total_seconds()),
+        httponly=True,
+        samesite='Lax',
+        secure=bool(request.is_secure),
+    )
+    return resp
 
 
 @auth_bp.route('/datenschutz')
