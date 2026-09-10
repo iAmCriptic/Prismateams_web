@@ -8,7 +8,7 @@ step_ffmpeg() {
     fi
 
     export DEBIAN_FRONTEND=noninteractive
-    if ! apt-get install -y ffmpeg; then
+    if ! apt_install ffmpeg; then
         log_error "FFmpeg konnte nicht installiert werden"
         return 1
     fi

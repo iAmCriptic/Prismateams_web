@@ -297,8 +297,8 @@ ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Optional Brotli (Paket variiert je Ubuntu-Release; nur wenn nginx -t damit durchläuft)
-apt-get install -y libnginx-mod-http-brotli >/dev/null 2>&1 || \
-    apt-get install -y libnginx-mod-brotli >/dev/null 2>&1 || true
+apt_install libnginx-mod-http-brotli >/dev/null 2>&1 || \
+    apt_install libnginx-mod-brotli >/dev/null 2>&1 || true
 _brotli_src="${LIB_DIR}/nginx-brotli.conf"
 _brotli_dst="/etc/nginx/conf.d/teamportal-brotli.conf"
 rm -f "$_brotli_dst"

@@ -26,6 +26,7 @@ write_install_report() {
     {
         echo "Team Portal – Installationsbericht"
         echo "Erstellt: $(date -Iseconds 2>/dev/null || date)"
+        echo "Ubuntu: ${UBUNTU_VERSION_ID:-?} (${UBUNTU_CODENAME:-?})"
         echo "Abbruch: ${INSTALL_ABORTED:-0}"
         echo
         echo "Konfiguration"
@@ -106,6 +107,7 @@ print_summary() {
 
     echo "Konfiguration"
     echo "============="
+    echo "Ubuntu: ${UBUNTU_VERSION_ID:-?} (${UBUNTU_CODENAME:-?})"
     echo "Installationspfad: ${INSTALL_DIR:-}"
     echo "Repository: ${REPO_URL:-}"
     echo "Branch: ${GIT_BRANCH:-<default>}"

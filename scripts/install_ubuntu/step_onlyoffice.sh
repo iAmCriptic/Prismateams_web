@@ -65,7 +65,7 @@ _onlyoffice_ensure_font_repos() {
         add-apt-repository -y multiverse >/dev/null 2>&1 || true
     fi
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq || log_warning "apt-get update für Schriftarten fehlgeschlagen"
+    apt_update -qq || log_warning "apt-get update für Schriftarten fehlgeschlagen"
 }
 
 _onlyoffice_install_host_fonts() {
@@ -76,7 +76,7 @@ _onlyoffice_install_host_fonts() {
     echo "ttf-mscorefonts-installer msttcorefonts/present-mscorefonts-eula note" | debconf-set-selections
 
     # mscorefonts lädt TTFs von SourceForge – kann fehlschlagen; Carlito bleibt im Image
-    if apt-get install -y -qq ttf-mscorefonts-installer cabextract; then
+    if apt_install ttf-mscorefonts-installer cabextract; then
         log_success "Host-Schriftarten installiert (mscorefonts); Calibri rendert als Carlito"
     else
         log_warning "ttf-mscorefonts-installer fehlgeschlagen (EULA/Download) – Arial/Times ggf. unvollständig"

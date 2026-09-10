@@ -35,12 +35,22 @@ Der Installer erkennt `/etc/os-release` und akzeptiert beide LTS-Batches ohne Ex
 
 | Batch | Version | Codename | Status |
 |-------|---------|----------|--------|
-| **Batch 1** | Ubuntu **24.04** LTS | Noble Numbat | freigegeben |
-| **Batch 2** | Ubuntu **26.04** LTS | Resolute Raccoon | freigegeben |
+| **Batch 1** | Ubuntu **24.04** LTS | Noble Numbat | Python 3.12, MySQL 8.0 |
+| **Batch 2** | Ubuntu **26.04** LTS | Resolute Raccoon | Python 3.14, MySQL 8.4 |
 
 Andere Ubuntu-Versionen: Warnung + Nachfrage (im Non-Interactive-Modus: Warnung, dann weiter). Nicht-Ubuntu: Abbruch.
 
 Beide Batches nutzen denselben modularen Ablauf (Pakete, MySQL, Redis, Docker/Euro-Office, venv, Nginx/Apache, Gunicorn). Kein separates Skript nötig.
+
+### Ubuntu 26.04 (Resolute) – was der Installer anders macht
+
+Frische 26.04-VMs scheitern oft nicht an der App, sondern an Systemunterschieden gegenüber 24.04. Der Installer berücksichtigt das:
+
+- **cloud-init / apt-Sperre:** Wartet auf cloud-init, stoppt `unattended-upgrades` und nutzt `DPkg::Lock::Timeout`. `needrestart` startet Dienste nicht interaktiv (kein hängendes TUI in der VM).
+- **universe/multiverse:** Wird vor den Paketen aktiviert. `mysql-server` 8.4 liegt in universe.
+- **MySQL 8.4:** Kein `mysql_native_password` (Plugin in 8.4 deaktiviert). Root/App-User bekommen das Server-Default (`caching_sha2_password`). PyMySQL kommt damit klar.
+- **Python 3.14:** System-`pip` wird nicht angefasst (PEP 668). Dependencies nur im venv, bevorzugt als Wheel (`greenlet` 3.5.x / `eventlet` 0.41 für 3.14).
+- **Docker:** Zuerst Docker-CE-Repo mit Codename `resolute`. Fehlt das Repo oder die Pakete, Fallback auf `noble`, danach Ubuntu-Paket `docker.io`.
 
 ## Voraussetzungen
 

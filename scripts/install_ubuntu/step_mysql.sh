@@ -30,10 +30,13 @@ step_mysql() {
         return 2
     fi
 
-    local MYSQL
-    local MYSQLADMIN
+    local MYSQL MYSQLADMIN mysql_err mysql_ver i
+    local root_sql_pass db_sql_pass
     MYSQL="$(_mysql_cli)"
     MYSQLADMIN="$(_mysql_admin)"
+    # SQL-String: einzelnes ' verdoppeln
+    root_sql_pass=$(printf '%s' "$MYSQL_ROOT_PASS" | sed "s/'/''/g")
+    db_sql_pass=$(printf '%s' "$DB_PASS" | sed "s/'/''/g")
 
     if systemctl is-active --quiet mysql || systemctl is-active --quiet mariadb; then
         log_info "MySQL/MariaDB läuft bereits"
@@ -44,7 +47,6 @@ step_mysql() {
 
     log_info "Warte auf MySQL-Service..."
     MYSQL_READY=0
-    local i
     for i in {1..60}; do
         if "$MYSQLADMIN" ping -h localhost --silent 2>/dev/null \
             || "$MYSQL" --protocol=socket -u root -e "SELECT 1" >/dev/null 2>&1; then
@@ -60,19 +62,17 @@ step_mysql() {
         return 1
     fi
 
-    local mysql_ver
     mysql_ver=$("$MYSQL" --version 2>/dev/null | head -n1 || echo unbekannt)
     log_info "Datenbank-Server: ${mysql_ver}"
 
     log_info "Konfiguriere MySQL (Standard-Auth, kein mysql_native_password)..."
-    local mysql_err
     mysql_err=$(mktemp)
 
     if "$MYSQL" --protocol=socket -u root -e "SELECT 1" >/dev/null 2>&1; then
         log_info "Setze MySQL Root-Passwort (caching_sha2 / Server-Default)..."
         # IDENTIFIED BY ohne WITH → Default-Plugin (8.0/8.4: caching_sha2_password)
         if ! "$MYSQL" --protocol=socket -u root >"$mysql_err" 2>&1 <<EOF
-ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${root_sql_pass}';
 FLUSH PRIVILEGES;
 EOF
         then
@@ -93,8 +93,8 @@ EOF
     log_info "Erstelle Datenbank und Benutzer..."
     if ! "$MYSQL" -u root -p"${MYSQL_ROOT_PASS}" >"$mysql_err" 2>&1 <<EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
-ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${db_sql_pass}';
+ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${db_sql_pass}';
 GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF

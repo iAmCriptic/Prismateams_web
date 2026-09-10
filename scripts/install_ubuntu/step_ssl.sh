@@ -15,18 +15,18 @@ step_ssl() {
     if ! command -v certbot &> /dev/null; then
         log_warning "Certbot nicht gefunden. Installiere..."
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
-            apt-get install -y -qq certbot python3-certbot-nginx || {
+            apt_install certbot python3-certbot-nginx || {
                 log_warning "Certbot Installation fehlgeschlagen"
                 return 1
             }
         elif [ "$WEBSERVER_TYPE" = "apache" ]; then
             if apt-cache show python3-certbot-apache &>/dev/null; then
-                apt-get install -y -qq certbot python3-certbot-apache || {
+                apt_install certbot python3-certbot-apache || {
                     log_warning "Certbot Installation fehlgeschlagen"
                     return 1
                 }
             else
-                apt-get install -y -qq certbot || {
+                apt_install certbot || {
                     log_warning "Certbot Installation fehlgeschlagen"
                     return 1
                 }

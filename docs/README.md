@@ -155,7 +155,7 @@ Aktueller Stand **3.4.12** – Aufbau auf der 3.x-Oberfläche mit Datenschutz-, 
 | Deploy | Gunicorn, Nginx/Apache, Ubuntu-Skript |
 
 **Minimal:** Python 3.8+, 2 GB RAM, 10 GB Speicher  
-**Empfohlen:** Python 3.12+, MySQL/MariaDB, 4 GB+ RAM, Redis bei Multi-Worker
+**Empfohlen:** Python 3.12–3.14 (Ubuntu 24.04 / 26.04), MySQL/MariaDB, 4 GB+ RAM, Redis bei Multi-Worker
 
 ---
 
