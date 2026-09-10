@@ -218,7 +218,29 @@ def mark_in_app_notifications_read(
     )
     if commit:
         db.session.commit()
-    return int(updated or 0)
+    count = int(updated or 0)
+    if count:
+        emit_notification_badge(user_id)
+    return count
+
+
+def emit_notification_badge(user_id: int, unread_count: Optional[int] = None) -> None:
+    """Aktualisiert das Glocken-Badge über Dashboard-SSE (andere Tabs)."""
+    if not user_id:
+        return
+    try:
+        if unread_count is None:
+            unread_count = NotificationLog.query.filter_by(
+                user_id=user_id, is_read=False
+            ).count()
+        from app.utils.dashboard_events import emit_dashboard_update
+        emit_dashboard_update(
+            user_id,
+            "notification_update",
+            {"unread_count": int(unread_count)},
+        )
+    except Exception:
+        logging.debug("Notification-Badge-SSE übersprungen", exc_info=True)
 
 
 def notify_user(
@@ -265,6 +287,7 @@ def notify_user(
         logging.error(f"Fehler beim Speichern der Benachrichtigung: {e}")
         db.session.rollback()
         return False
+    emit_notification_badge(user_id)
     return push_ok or True
 
 

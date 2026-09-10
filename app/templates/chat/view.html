@@ -607,6 +607,7 @@
         canStartMeeting: {{ 'true' if can_start_meeting else 'false' }},
         meetingsEnabled: {{ 'true' if meetings_enabled else 'false' }},
         startMeetingUrl: {{ (url_for('meetings.from_chat', chat_id=1 if chat.is_main_chat else chat.id) if can_start_meeting else '')|tojson }},
+        sseUrl: {{ (chat_sse_url|default(''))|tojson }},
         i18n: {{ chat_view_js|tojson }},
         profilePictureRoute: "{{ url_for('settings.profile_picture', filename='__FILENAME__') }}",
         text: {

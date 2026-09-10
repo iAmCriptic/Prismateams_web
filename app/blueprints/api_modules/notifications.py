@@ -161,6 +161,8 @@ def mark_notification_read(notification_id):
         unread_count = NotificationLog.query.filter_by(
             user_id=current_user.id, is_read=False
         ).count()
+        from app.utils.notifications import emit_notification_badge
+        emit_notification_badge(current_user.id, unread_count)
         return jsonify({
             "success": True,
             "message": "Benachrichtigung als gelesen markiert",
@@ -179,6 +181,8 @@ def mark_all_notifications_read():
             synchronize_session=False,
         )
         db.session.commit()
+        from app.utils.notifications import emit_notification_badge
+        emit_notification_badge(current_user.id, 0)
         return jsonify({
             "success": True,
             "updated": int(updated or 0),
@@ -202,6 +206,8 @@ def delete_notification(notification_id):
         unread_count = NotificationLog.query.filter_by(
             user_id=current_user.id, is_read=False
         ).count()
+        from app.utils.notifications import emit_notification_badge
+        emit_notification_badge(current_user.id, unread_count)
         return jsonify({"success": True, "unread_count": unread_count}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -210,6 +216,8 @@ def delete_all_notifications():
     try:
         deleted = NotificationLog.query.filter_by(user_id=current_user.id).delete()
         db.session.commit()
+        from app.utils.notifications import emit_notification_badge
+        emit_notification_badge(current_user.id, 0)
         return jsonify({
             "success": True,
             "deleted": int(deleted or 0),

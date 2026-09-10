@@ -185,6 +185,73 @@ check_root() {
     fi
 }
 
+# APT-Timeout: frische Cloud-VMs halten dpkg oft Minuten (cloud-init / unattended-upgrades)
+APT_LOCK_TIMEOUT="${APT_LOCK_TIMEOUT:-180}"
+UBUNTU_VERSION_ID=""
+UBUNTU_CODENAME=""
+
+prepare_apt_environment() {
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+    export NEEDRESTART_SUSPEND=1
+    mkdir -p /etc/needrestart/conf.d
+    cat > /etc/needrestart/conf.d/99-prismateams-auto.conf <<'EOF'
+# Installer: Dienste nicht interaktiv nach apt neu starten
+$nrconf{restart} = 'a';
+EOF
+
+    # Frische Ubuntu-VMs: cloud-init hält apt/dpkg – ohne Warten scheitert der erste apt-get
+    if command -v cloud-init >/dev/null 2>&1; then
+        log_info "Warte auf cloud-init (typisch auf frischen VMs, no-op wenn fertig)..."
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 300 cloud-init status --wait >/dev/null 2>&1 || true
+        else
+            cloud-init status --wait >/dev/null 2>&1 || true
+        fi
+    fi
+    systemctl stop unattended-upgrades.service >/dev/null 2>&1 || true
+    systemctl stop apt-daily.service apt-daily-upgrade.service >/dev/null 2>&1 || true
+}
+
+apt_update() {
+    DEBIAN_FRONTEND=noninteractive apt-get \
+        -o DPkg::Lock::Timeout="${APT_LOCK_TIMEOUT}" \
+        update "$@"
+}
+
+apt_install() {
+    DEBIAN_FRONTEND=noninteractive apt-get \
+        -o DPkg::Lock::Timeout="${APT_LOCK_TIMEOUT}" \
+        install -y "$@"
+}
+
+enable_ubuntu_components() {
+    # mysql-server / mscorefonts liegen in universe/multiverse (26.04: MySQL 8.4 in universe)
+    if command -v add-apt-repository >/dev/null 2>&1; then
+        add-apt-repository -y universe >/dev/null 2>&1 || true
+        add-apt-repository -y restricted >/dev/null 2>&1 || true
+        add-apt-repository -y multiverse >/dev/null 2>&1 || true
+        return 0
+    fi
+    local src
+    for src in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+        [ -f "$src" ] || continue
+        if grep -qE '^Components:' "$src" 2>/dev/null; then
+            sed -i -E 's/^(Components:).*/\1 main restricted universe multiverse/' "$src"
+        fi
+    done
+}
+
+ubuntu_codename() {
+    if [ -n "${UBUNTU_CODENAME:-}" ]; then
+        echo "$UBUNTU_CODENAME"
+        return 0
+    fi
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+}
+
 check_ubuntu() {
     if [ ! -f /etc/os-release ]; then
         log_error "Konnte /etc/os-release nicht finden. Nicht Ubuntu?"
@@ -199,13 +266,19 @@ check_ubuntu() {
         exit 1
     fi
 
+    UBUNTU_VERSION_ID="${VERSION_ID}"
+    UBUNTU_CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+
     # Unterstützte LTS-Batches: 24.04 (Noble) und 26.04 (Resolute)
     case "$VERSION_ID" in
-        24.04|26.04)
-            log_info "Ubuntu $VERSION_ID erkannt (unterstützt)"
+        24.04|24.04.*|26.04|26.04.*)
+            log_info "Ubuntu ${VERSION_ID} (${UBUNTU_CODENAME}) erkannt (unterstützt)"
+            if [ "${VERSION_ID%%.*}" = "26" ]; then
+                log_info "26.04: Python 3.14, MySQL 8.4 (caching_sha2_password), Docker-CE oder docker.io"
+            fi
             ;;
         *)
-            log_warning "Dieses Skript ist für Ubuntu 24.04 / 26.04 LTS freigegeben. Aktuelle Version: $VERSION_ID"
+            log_warning "Dieses Skript ist für Ubuntu 24.04 / 26.04 LTS freigegeben. Aktuelle Version: $VERSION_ID (${UBUNTU_CODENAME})"
             if is_yes "$NON_INTERACTIVE"; then
                 log_warning "Non-interactive: fahre trotzdem fort"
             else

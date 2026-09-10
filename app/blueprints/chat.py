@@ -40,6 +40,13 @@ chat_bp = Blueprint('chat', __name__)
 CHAT_INITIAL_MESSAGE_LIMIT = 50
 
 
+def _chat_sse_url(chat_id):
+    """SSE-URL nur mit Redis; sonst pollt der Client inkrementell."""
+    if not current_app.config.get('REDIS_ENABLED'):
+        return ''
+    return url_for('sse.chat_events', chat_id=chat_id)
+
+
 def allowed_file(filename):
     """Check if file extension is allowed."""
     ALLOWED_EXTENSIONS = {
@@ -255,6 +262,7 @@ def view_chat(chat_id):
         active_chat_id=active_nav_id,
         can_start_meeting=meetings_module_available(current_user),
         meetings_enabled=meetings_runtime_ready(),
+        chat_sse_url=_chat_sse_url(chat.id),
     )
 
 

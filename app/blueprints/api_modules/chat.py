@@ -16,6 +16,7 @@ from app.utils.access_control import has_module_access, get_guest_accessible_ite
 from app.utils.i18n import translate
 from app.utils.chat_unread import unread_counts_by_chat_for_user
 from app.utils.chat_service import (
+    emit_chat_live,
     has_structured_message_content as _has_structured_message_content,
     persist_outgoing_message,
     resolve_message_type as _resolve_message_type,
@@ -474,6 +475,11 @@ def respond_to_calendar_event(chat_id, message_id):
     refreshed_metadata["updated_at"] = datetime.utcnow().isoformat()
     message.set_metadata(refreshed_metadata)
     db.session.commit()
+    emit_chat_live(
+        actual_chat_id,
+        "updated",
+        {"chat_id": actual_chat_id, "message_id": message.id, "kind": "calendar"},
+    )
 
     return jsonify({"success": True, "message": _serialize_message(message)}), 200
 
@@ -526,6 +532,11 @@ def vote_on_poll(chat_id, message_id):
     metadata["updated_at"] = datetime.utcnow().isoformat()
     message.set_metadata(metadata)
     db.session.commit()
+    emit_chat_live(
+        actual_chat_id,
+        "updated",
+        {"chat_id": actual_chat_id, "message_id": message.id, "kind": "poll"},
+    )
 
     return jsonify({"success": True, "message": _serialize_message(message)}), 200
 

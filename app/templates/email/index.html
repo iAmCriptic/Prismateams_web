@@ -830,14 +830,21 @@ function refreshFolderUnreadCounts() {
         }
     });
     try {
-        const es = new EventSource('/sse/events/dashboard');
-        es.addEventListener('dashboard:email_update', (evt) => {
-            try {
-                applyUnreadUpdate(JSON.parse(evt.data || '{}'));
-            } catch (_) { /* ignore */ }
-        });
+        const url = window.PT_DASHBOARD_SSE_URL;
+        if (url && window.EventSource) {
+            const es = window.ptDashboardSSE || new EventSource(url);
+            window.ptDashboardSSE = es;
+            es.addEventListener('dashboard:email_update', (evt) => {
+                try {
+                    applyUnreadUpdate(JSON.parse(evt.data || '{}'));
+                } catch (_) { /* ignore */ }
+            });
+        }
     } catch (_) { /* ignore */ }
-    setInterval(refreshFolderUnreadCounts, 90000);
+    setInterval(() => {
+        if (document.hidden) return;
+        refreshFolderUnreadCounts();
+    }, 90000);
 })();
 
 async function handleToggleRead(emailId, state) {

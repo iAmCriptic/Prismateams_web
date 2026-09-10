@@ -199,8 +199,12 @@ class DashboardUpdater {
     }
 
     initSSE() {
+        const url = window.PT_DASHBOARD_SSE_URL;
+        if (!url || !window.EventSource) return;
         try {
-            this.eventSource = new EventSource('/sse/events/dashboard');
+            const es = window.ptDashboardSSE || new EventSource(url);
+            window.ptDashboardSSE = es;
+            this.eventSource = es;
             this.eventSource.addEventListener('dashboard:chat_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('#chat-count-badge', data.count);

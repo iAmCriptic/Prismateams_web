@@ -11,14 +11,26 @@ step_venv() {
         python3 -m venv venv || return 1
     fi
 
-    log_info "Installiere Python-Dependencies..."
     # shellcheck disable=SC1091
     source venv/bin/activate
-    pip install --upgrade pip --quiet
-    pip install -r requirements.txt --quiet || {
+    if [ ! -x venv/bin/pip ] && [ ! -x venv/bin/pip3 ]; then
+        log_info "pip fehlt im venv – ensurepip..."
+        python3 -m ensurepip --upgrade || {
+            log_error "ensurepip fehlgeschlagen (Paket python3-venv / python3-pip prüfen)"
+            return 1
+        }
+        # shellcheck disable=SC1091
+        source venv/bin/activate
+    fi
+
+    log_info "Installiere Python-Dependencies ($(python3 --version 2>/dev/null))..."
+    pip install --upgrade pip wheel setuptools || log_warning "pip/wheel Upgrade fehlgeschlagen, fahre fort..."
+    # --prefer-binary: auf 26.04/Python 3.14 zuerst Wheels, kein Source-Build ohne rustc
+    if ! pip install --prefer-binary -r requirements.txt; then
         log_error "pip install requirements.txt fehlgeschlagen"
+        log_error "Python: $(python3 --version 2>/dev/null || true) auf Ubuntu ${UBUNTU_VERSION_ID:-?}"
         return 1
-    }
+    fi
 
     log_success "Virtual Environment eingerichtet"
     return 0

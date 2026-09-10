@@ -227,12 +227,54 @@ def emit_kanban_update(board_id, event_type, data):
     return publish_event(channel, f'kanban:{event_type}', data)
 
 
+def emit_chat_update(chat_id, event_type, data):
+    """Sendet ein Chat-Live-Update an alle verbundenen Clients des Chats."""
+    channel = f'chat:{chat_id}'
+    payload = dict(data or {})
+    payload.setdefault('chat_id', chat_id)
+    return publish_event(channel, f'chat:{event_type}', payload)
+
+
 def emit_inventory_update(inventory_id, event_type, data=None):
     """Sendet ein Inventur-Update an alle verbundenen Clients der Session."""
     channel = f'inventory:{inventory_id}'
     payload = dict(data or {})
     payload.setdefault('inventory_id', inventory_id)
     return publish_event(channel, f'inventory:{event_type}', payload)
+
+
+@sse_bp.route('/events/chat/<int:chat_id>')
+@login_required
+def chat_events(chat_id):
+    """SSE-Endpoint für Chat-Live-Updates (Nachrichten, Polls, RSVP)."""
+    from app.models.chat import Chat, ChatMember
+
+    Chat.query.get_or_404(chat_id)
+    membership = ChatMember.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id,
+    ).first()
+    if not membership:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    if not get_redis_client():
+        return jsonify({'error': 'SSE unavailable'}), 503
+
+    channels = [f'chat:{chat_id}']
+
+    def generate():
+        yield from event_stream(channels, current_user.id)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            'Access-Control-Allow-Origin': '*',
+        },
+    )
 
 
 @sse_bp.route('/events/kanban/<int:board_id>')

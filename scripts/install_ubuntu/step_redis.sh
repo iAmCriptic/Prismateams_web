@@ -7,12 +7,18 @@ step_redis() {
         return 2
     fi
 
-    if systemctl is-active --quiet redis-server; then
+    local redis_unit="redis-server"
+    if ! systemctl list-unit-files redis-server.service >/dev/null 2>&1 \
+        && systemctl list-unit-files redis.service >/dev/null 2>&1; then
+        redis_unit="redis"
+    fi
+
+    if systemctl is-active --quiet "$redis_unit"; then
         log_info "Redis läuft bereits"
     else
-        log_info "Starte Redis..."
-        systemctl start redis-server || { log_error "Redis Start fehlgeschlagen"; return 1; }
-        systemctl enable redis-server || { log_error "Redis Aktivierung fehlgeschlagen"; return 1; }
+        log_info "Starte Redis (${redis_unit})..."
+        systemctl start "$redis_unit" || { log_error "Redis Start fehlgeschlagen"; return 1; }
+        systemctl enable "$redis_unit" || { log_error "Redis Aktivierung fehlgeschlagen"; return 1; }
     fi
 
     log_info "Warte auf Redis-Service..."

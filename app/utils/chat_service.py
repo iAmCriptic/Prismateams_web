@@ -15,6 +15,17 @@ from app.utils.notifications import enqueue_chat_notification
 logger = logging.getLogger(__name__)
 
 
+def emit_chat_live(chat_id, event_type, data=None):
+    """Publiziert ein Chat-SSE-Event; ohne Redis ein No-Op."""
+    try:
+        from app.blueprints.sse import emit_chat_update
+        payload = dict(data or {})
+        payload.setdefault("chat_id", chat_id)
+        emit_chat_update(chat_id, event_type, payload)
+    except Exception:
+        logger.debug("Chat-SSE-Emit übersprungen", exc_info=True)
+
+
 def resolve_message_type(filename, mimetype):
     ext = filename.rsplit(".", 1)[1].lower()
     mimetype = (mimetype or "").lower()
@@ -97,5 +108,11 @@ def persist_outgoing_message(*, chat, sender_id, content, message_type, media_ur
                 )
     except Exception as exc:
         current_app.logger.error("Fehler beim Senden der Dashboard-Updates für Chat: %s", exc)
+
+    emit_chat_live(
+        chat.id,
+        "message",
+        {"chat_id": chat.id, "message_id": message.id, "sender_id": sender_id},
+    )
 
     return message

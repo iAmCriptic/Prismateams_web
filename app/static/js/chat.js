@@ -24,6 +24,9 @@
     let pollTimer = null;
     let structuredTimer = null;
     let markReadTimer = null;
+    const sseUrl = cfg.sseUrl || "";
+    let sseLive = false;
+    let chatEventSource = null;
 
     const MESSAGE_POLL_MS = 5000;
     const STRUCTURED_POLL_MS = 10000;
@@ -376,6 +379,18 @@
         markReadTimer = null;
     }
 
+    function scheduleMessagePoll() {
+        if (isPolling && !document.hidden && !sseLive) {
+            pollTimer = setTimeout(pollMessages, MESSAGE_POLL_MS);
+        }
+    }
+
+    function scheduleStructuredPoll() {
+        if (isPolling && !document.hidden && !sseLive) {
+            structuredTimer = setTimeout(syncStructuredMessageUpdates, STRUCTURED_POLL_MS);
+        }
+    }
+
     function replacePollCardInMessage(messageElement, message) {
         if (!messageElement || !message || message.message_type !== "poll") return;
         const existingPollCard = messageElement.querySelector(".message-card-poll");
@@ -527,8 +542,7 @@
         }
     };
 
-    async function pollMessages() {
-        if (!isPolling || document.hidden) return;
+    async function fetchNewMessages() {
         try {
             const response = await fetch(`/api/chats/${chatId}/messages?since=${lastMessageId}&limit=100`, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -547,22 +561,19 @@
         } catch (e) {
             console.error(e);
         }
-        if (isPolling && !document.hidden) {
-            pollTimer = setTimeout(pollMessages, MESSAGE_POLL_MS);
-        }
     }
 
-    async function syncStructuredMessageUpdates() {
+    async function pollMessages() {
         if (!isPolling || document.hidden) return;
+        await fetchNewMessages();
+        scheduleMessagePoll();
+    }
+
+    async function applyStructuredUpdates() {
         const structuredEls = document.querySelectorAll(
             ".chat-message[data-poll-updated-at], .chat-message[data-calendar-updated-at]"
         );
-        if (!structuredEls.length) {
-            if (isPolling && !document.hidden) {
-                structuredTimer = setTimeout(syncStructuredMessageUpdates, STRUCTURED_POLL_MS);
-            }
-            return;
-        }
+        if (!structuredEls.length) return;
         try {
             const response = await fetch(`/api/chats/${chatId}/messages?limit=50`, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -594,8 +605,56 @@
         } catch (e) {
             console.error(e);
         }
-        if (isPolling && !document.hidden) {
-            structuredTimer = setTimeout(syncStructuredMessageUpdates, STRUCTURED_POLL_MS);
+    }
+
+    async function syncStructuredMessageUpdates() {
+        if (!isPolling || document.hidden) return;
+        await applyStructuredUpdates();
+        scheduleStructuredPoll();
+    }
+
+    function onChatLiveEvent() {
+        if (!isPolling || document.hidden) return;
+        fetchNewMessages();
+        applyStructuredUpdates();
+    }
+
+    function connectChatSSE() {
+        if (!sseUrl || !window.EventSource) {
+            pollMessages();
+            syncStructuredMessageUpdates();
+            return;
+        }
+        try {
+            chatEventSource = new EventSource(sseUrl);
+            chatEventSource.addEventListener("connected", () => {
+                sseLive = true;
+                if (pollTimer) {
+                    clearTimeout(pollTimer);
+                    pollTimer = null;
+                }
+                if (structuredTimer) {
+                    clearTimeout(structuredTimer);
+                    structuredTimer = null;
+                }
+                fetchNewMessages();
+                applyStructuredUpdates();
+            });
+            chatEventSource.onerror = () => {
+                if (chatEventSource && chatEventSource.readyState === EventSource.CLOSED) {
+                    sseLive = false;
+                    if (isPolling && !document.hidden) {
+                        pollMessages();
+                        syncStructuredMessageUpdates();
+                    }
+                }
+            };
+            chatEventSource.addEventListener("chat:message", onChatLiveEvent);
+            chatEventSource.addEventListener("chat:updated", onChatLiveEvent);
+            fetchNewMessages();
+        } catch (e) {
+            pollMessages();
+            syncStructuredMessageUpdates();
         }
     }
 
@@ -1089,13 +1148,16 @@
             }
             if (!isPolling) return;
             clearPollTimers();
-            pollMessages();
-            syncStructuredMessageUpdates();
+            fetchNewMessages();
+            applyStructuredUpdates();
+            if (!sseLive) {
+                scheduleMessagePoll();
+                scheduleStructuredPoll();
+            }
             markRead();
         });
         setTimeout(scrollToBottom, 120);
-        pollMessages();
-        syncStructuredMessageUpdates();
+        connectChatSSE();
         markRead();
     });
 })();

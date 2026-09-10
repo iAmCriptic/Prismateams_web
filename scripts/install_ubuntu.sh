@@ -89,6 +89,7 @@ main() {
 
     check_root
     check_ubuntu
+    prepare_apt_environment
     gather_information
 
     run_step "system" "System-Pakete" step_system critical

@@ -443,6 +443,9 @@
     <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
+    <script>
+    window.PT_DASHBOARD_SSE_URL = {{ (url_for('sse.dashboard_events') if config.REDIS_ENABLED else '')|tojson }};
+    </script>
     <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
     <script src="{{ url_for('static', filename='js/module-launcher.js') }}"></script>
     <script src="{{ url_for('static', filename='js/account-popup.js') }}"></script>
