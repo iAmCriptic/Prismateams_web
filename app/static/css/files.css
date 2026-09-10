@@ -2472,3 +2472,56 @@ body:has(.dropbox-shell) .container-fluid {
     padding-bottom: 0;
     border-top: none;
 }
+
+/* files/index.html dropdown (P09) */
+/* Dropdown Menu Positioning */
+#newButtonDropdown {
+    position: relative;
+}
+
+#newDropdownMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.5rem;
+    min-width: 220px;
+    z-index: 1000;
+    background: var(--bs-body-bg, white);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: 1.1rem;
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+    padding: 0.45rem;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+/* Dark Mode Dropdown Menu */
+[data-bs-theme="dark"] #newDropdownMenu {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+/* OLED Mode - Dropdown Menu (Neu-Menü) */
+[data-oled-mode="true"] #newDropdownMenu {
+    background: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] #newDropdownMenu .dropdown-item {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+[data-oled-mode="true"] #newDropdownMenu .dropdown-item:hover {
+    background-color: #0a0a0a !important;
+    color: #ffffff !important;
+}
+
+/* Hauptmenü nach rechts positionieren wenn kein Platz links */
+#newDropdownMenu.position-right {
+    left: auto;
+    right: 0;
+}
+

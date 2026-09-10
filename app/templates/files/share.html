@@ -142,9 +142,11 @@
                                         </div>
                                         {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
                                         <div class="mb-2">
-                                            <img src="{{ url_for('files.public_share_folder_file_media', token=token, file_id=file.id) }}"
+                                            <img src="{{ url_for('files.public_share_folder_file_thumb', token=token, file_id=file.id) }}"
                                                  class="image-mini-preview"
                                                  alt="{{ file.name }}"
+                                                 loading="lazy"
+                                                 decoding="async"
                                                  onerror="this.style.display='none';">
                                         </div>
                                         {% elif file.name.endswith(('.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mkv')) %}

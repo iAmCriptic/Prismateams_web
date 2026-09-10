@@ -107,11 +107,11 @@
 
 <script src="{{ url_for('static', filename='js/wiki_meta_select.js') }}"></script>
 <script>
-const WIKI_EDIT_I18N = {{ current_translations.get('wiki', {}).get('edit', {})|tojson }};
+const WIKI_EDIT_I18N = {{ i18n_ns('wiki', 'edit')|tojson }};
 const WIKI_EDIT_TOOLBAR = WIKI_EDIT_I18N.toolbar || {};
 const WIKI_EDIT_ALERTS = WIKI_EDIT_I18N.alerts || {};
 const WIKI_EDIT_FORMAT = WIKI_EDIT_I18N.format_defaults || {};
-const WIKI_CREATE_I18N = {{ current_translations.get('wiki', {}).get('create', {})|tojson }};
+const WIKI_CREATE_I18N = {{ i18n_ns('wiki', 'create')|tojson }};
 const WIKI_CREATE_FORMAT = WIKI_CREATE_I18N.format_defaults || {};
 
 function wikiEditFormatDefault(key, fallback) {
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const editor = document.getElementById('wikiEditor');
     const titleInput = document.getElementById('title');
     const brandTitle = document.getElementById('wikiBrandTitle');
-    const createEditor = {{ current_translations.get('wiki', {}).get('create', {}).get('editor', {})|tojson }};
+    const createEditor = {{ i18n_ns('wiki', 'create', 'editor')|tojson }};
 
     if (editor) {
         editor.placeholder = createEditor.placeholder || editor.placeholder;
@@ -291,7 +291,7 @@ document.addEventListener('keydown', function(e) {
 <script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script>
-window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 document.addEventListener('DOMContentLoaded', function () {
     const formatDefaults = Object.assign({}, WIKI_CREATE_FORMAT, WIKI_EDIT_FORMAT);
     if (window.MarkdownToolbar) {

@@ -4,6 +4,8 @@ from datetime import datetime
 
 from flask_login import current_user
 
+from sqlalchemy.orm import joinedload
+
 from app import db
 from app.models.file import File, Folder, ResourceACL, FolderFavorite
 from app.models.settings import SystemSettings
@@ -240,6 +242,50 @@ def _alive_folder_query():
 
 def _alive_file_query():
     return File.query.filter(File.deleted_at.is_(None), File.is_current.is_(True))
+
+
+def window_folders_then_files(folder_query, file_query, offset=0, limit=48):
+    """SQL window: folders first, then files. Does not load the full folder."""
+    offset = max(0, int(offset or 0))
+    limit = max(1, int(limit or 48))
+    folder_count = int(folder_query.order_by(None).count() or 0)
+    file_count = int(file_query.order_by(None).count() or 0)
+    total = folder_count + file_count
+    has_more = (offset + limit) < total
+    folders = []
+    files = []
+    fetch_files = file_query.options(joinedload(File.uploader))
+    if offset < folder_count:
+        take_folders = min(limit, folder_count - offset)
+        folders = folder_query.offset(offset).limit(take_folders).all()
+        remain = limit - len(folders)
+        if remain > 0:
+            files = fetch_files.offset(0).limit(remain).all()
+    else:
+        files = fetch_files.offset(offset - folder_count).limit(limit).all()
+    return folders, files, has_more, total
+
+
+def _apply_browse_window(folders, files, offset, limit, window_meta):
+    """In-memory window for mixed/ACL-filtered lists. SQL paths use window_folders_then_files."""
+    folders = list(folders or [])
+    files = list(files or [])
+    total = len(folders) + len(files)
+    if limit is None:
+        if window_meta is not None:
+            window_meta['has_more'] = False
+            window_meta['total'] = total
+        return folders, files
+    offset = max(0, int(offset or 0))
+    limit = max(1, int(limit or 48))
+    combined = [('folder', f) for f in folders] + [('file', f) for f in files]
+    window = combined[offset:offset + limit]
+    out_folders = [item for kind, item in window if kind == 'folder']
+    out_files = [item for kind, item in window if kind == 'file']
+    if window_meta is not None:
+        window_meta['has_more'] = (offset + limit) < total
+        window_meta['total'] = total
+    return out_folders, out_files
 
 
 def _folder_owned_by(folder, user_id):
@@ -615,10 +661,12 @@ def list_move_destinations(user, exclude_folder_id=None):
     return spaces
 
 
-def list_view_contents(view, folder_id, user, team_id=None):
+def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=None, window_meta=None):
     """
     Return (current_folder, subfolders, files, breadcrumb_extra).
     breadcrumb_extra is the virtual root label for the view.
+    If limit is set, only a window of folders-then-files is returned and
+    window_meta is filled with has_more / total.
     """
     personal_root = ensure_personal_root(user.id) if view in ('ablage',) else None
     team_root = None
@@ -630,7 +678,7 @@ def list_view_contents(view, folder_id, user, team_id=None):
             return 'forbidden', [], [], 'team'
 
     if view == 'trash':
-        folders = (
+        folder_q = (
             Folder.query.filter(
                 Folder.deleted_at.isnot(None),
                 Folder.created_by == user.id,
@@ -638,18 +686,24 @@ def list_view_contents(view, folder_id, user, team_id=None):
                 Folder.is_team_root.is_(False),
             )
             .order_by(Folder.deleted_at.desc())
-            .all()
         )
-        files = (
+        file_q = (
             File.query.filter(
                 File.deleted_at.isnot(None),
                 File.uploaded_by == user.id,
                 File.is_current.is_(True),
             )
             .order_by(File.deleted_at.desc())
-            .all()
         )
-        return None, folders, files, 'trash'
+        if limit is not None:
+            folders, files, has_more, total = window_folders_then_files(
+                folder_q, file_q, offset, limit,
+            )
+            if window_meta is not None:
+                window_meta['has_more'] = has_more
+                window_meta['total'] = total
+            return None, folders, files, 'trash'
+        return None, folder_q.all(), file_q.all(), 'trash'
 
     if view == 'freigaben' and not folder_id:
         member_team_ids = list(user_file_team_ids(user))
@@ -745,6 +799,9 @@ def list_view_contents(view, folder_id, user, team_id=None):
 
         uniq_folders.sort(key=lambda x: x.name.lower())
         uniq_files.sort(key=lambda x: x.name.lower())
+        uniq_folders, uniq_files = _apply_browse_window(
+            uniq_folders, uniq_files, offset, limit, window_meta,
+        )
         return None, uniq_folders, uniq_files, 'freigaben'
 
     current_folder = None
@@ -827,11 +884,14 @@ def list_view_contents(view, folder_id, user, team_id=None):
                 files.append(file_obj)
                 existing_f.add(file_obj.id)
         files.sort(key=lambda x: x.name.lower())
+        subfolders, files = _apply_browse_window(
+            subfolders, files, offset, limit, window_meta,
+        )
         return current_folder, subfolders, files, 'public'
 
     # Standard child listing for a parent
     parent_id = effective_parent_id
-    subfolders = (
+    folder_q = (
         _alive_folder_query()
         .filter(
             Folder.parent_id == parent_id,
@@ -839,14 +899,30 @@ def list_view_contents(view, folder_id, user, team_id=None):
             Folder.is_team_root.is_(False),
         )
         .order_by(Folder.name)
-        .all()
     )
-    files = (
+    file_q = (
         _alive_file_query()
         .filter(File.folder_id == parent_id)
         .order_by(File.name)
-        .all()
     )
+
+    if limit is not None:
+        subfolders, files, has_more, total = window_folders_then_files(
+            folder_q, file_q, offset, limit,
+        )
+        if view == 'ablage':
+            subfolders = [f for f in subfolders if f.created_by == user.id or can_view_folder(f, user)]
+            files = [f for f in files if f.uploaded_by == user.id or can_view_file(f, user)]
+        elif view == 'team':
+            subfolders = [f for f in subfolders if can_view_folder(f, user, team_enabled=True)]
+            files = [f for f in files if can_view_file(f, user, team_enabled=True)]
+        if window_meta is not None:
+            window_meta['has_more'] = has_more
+            window_meta['total'] = total
+        return current_folder, subfolders, files, view
+
+    subfolders = folder_q.all()
+    files = file_q.all()
 
     if view == 'ablage':
         subfolders = [f for f in subfolders if f.created_by == user.id or can_view_folder(f, user)]
@@ -924,6 +1000,11 @@ def hard_delete_file_disk_and_db(file_obj, os_module):
                 _os.remove(file_path)
             except OSError:
                 pass
+    try:
+        from app.utils.file_thumbnails import purge_thumbnails_for_file
+        purge_thumbnails_for_file(file_obj.id)
+    except Exception:
+        pass
     db.session.delete(file_obj)
 
 

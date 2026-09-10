@@ -98,6 +98,14 @@
         </div>
 
         {% if protocols %}
+        <div id="protocolsViewStage"
+             data-lazy-more
+             data-lazy-silent="1"
+             data-lazy-page="{{ list_page|default(1) }}"
+             data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+             data-lazy-param="page"
+             data-lazy-items="[data-lazy-item]"
+             data-lazy-targets="#protocolsListBody">
         <div class="mod-list-table-wrap">
             <table class="table mod-list-table align-middle mb-0">
                 <thead>
@@ -109,10 +117,10 @@
                         <th scope="col" class="text-end">{{ _('common.actions') }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="protocolsListBody">
                     {% for p in protocols %}
                     {% set open_url = url_for('protocols.view', protocol_id=p.id) if p.is_finalized else url_for('protocols.edit_meta', protocol_id=p.id) %}
-                    <tr class="mod-list-row">
+                    <tr class="mod-list-row" data-lazy-item>
                         <td>
                             <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ open_url }}">
                                 <i class="bi bi-journal-richtext flex-shrink-0 text-muted"></i>
@@ -189,6 +197,8 @@
                 </tbody>
             </table>
         </div>
+        {% include 'partials/mod_lazy_more.html' %}
+        </div>
         {% else %}
         <div class="protocols-empty mod-empty-state">
             <i class="bi bi-journal-richtext protocols-empty-icon" aria-hidden="true"></i>
@@ -201,6 +211,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {

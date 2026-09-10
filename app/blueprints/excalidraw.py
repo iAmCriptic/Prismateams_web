@@ -14,6 +14,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -38,6 +39,7 @@ from app.utils.excalidraw import (
     write_scene_file,
 )
 from app.utils.i18n import _, get_current_language
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     accessible_query,
     apply_section_filter,
@@ -310,12 +312,14 @@ def index():
 
     _remember_section(section, filter_team_id)
 
-    query = accessible_query(current_user, ExcalidrawDrawing, MODULE)
+    query = accessible_query(current_user, ExcalidrawDrawing, MODULE).options(
+        joinedload(ExcalidrawDrawing.creator)
+    )
     if section in ('private', 'team', 'public'):
         query = apply_section_filter(query, ExcalidrawDrawing, section, filter_team_id)
     if search_query:
         query = query.filter(ExcalidrawDrawing.name.ilike(f'%{search_query}%'))
-    drawings = query.order_by(ExcalidrawDrawing.updated_at.desc()).all()
+    drawings, pagination = paginate_list(query.order_by(ExcalidrawDrawing.updated_at.desc()))
     editable_ids = {d.id for d in drawings if can_edit_item(current_user, d, MODULE)}
 
     nav = visibility_nav_context(MODULE, current_user, section, filter_team_id)
@@ -332,6 +336,8 @@ def index():
         editable_ids=editable_ids,
         search_query=search_query,
         heading_label=heading,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **ctx,
     )
 

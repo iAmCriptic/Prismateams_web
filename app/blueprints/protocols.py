@@ -28,6 +28,7 @@ from app.models.protocol import (
 from app.utils.access_control import check_module_access
 from app.utils.common import is_module_enabled, portal_now_naive
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     accessible_query,
     apply_section_filter,
@@ -303,7 +304,7 @@ def index():
     else:
         query = query.order_by(order_expr, Protocol.meeting_date.desc())
 
-    protocols = query.all()
+    protocols, pagination = paginate_list(query)
     ctx = _sidebar_context()
     return render_template(
         'protocols/index.html',
@@ -313,6 +314,8 @@ def index():
         sort_by=sort_by,
         sort_dir=sort_dir,
         visibility_label=_visibility_label,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **ctx,
     )
 

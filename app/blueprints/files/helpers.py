@@ -229,6 +229,32 @@ def _send_inline_media(file_obj):
     ))
 
 
+def _send_image_preview(file_obj):
+    """Grid/share thumbnail: cached WebP, original only if generation fails."""
+    file_ext = _file_extension(file_obj.original_name)
+    if media_kind(file_ext) != 'image':
+        abort(404)
+    file_path = _resolve_absolute_file_path(file_obj.file_path)
+    if not file_path or not os.path.exists(file_path):
+        abort(404)
+    from app.utils.file_thumbnails import ensure_image_thumbnail
+    thumb_path = ensure_image_thumbnail(
+        file_obj.id,
+        getattr(file_obj, 'version_number', 0) or 0,
+        file_path,
+    )
+    if not thumb_path:
+        return _send_inline_media(file_obj)
+    response = _response_with_nosniff(send_file(
+        thumb_path,
+        mimetype='image/webp',
+        as_attachment=False,
+        conditional=True,
+    ))
+    response.headers['Cache-Control'] = 'private, max-age=86400'
+    return response
+
+
 def _response_with_nosniff(response):
     """Verhindert MIME-Sniffing bei Downloads/Inline-Auslieferung."""
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -801,6 +827,7 @@ __all__ = [
     '_file_extension',
     '_mimetype_for_extension',
     '_send_inline_media',
+    '_send_image_preview',
     '_response_with_nosniff',
     '_split_filename_parts',
     '_generate_unique_filename_in_folder',

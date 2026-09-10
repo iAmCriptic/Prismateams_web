@@ -10,7 +10,16 @@ log_info "=== Apache Konfiguration ==="
 
 # Apache-Module aktivieren
 log_info "Aktiviere erforderliche Apache-Module..."
-a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl 2>/dev/null || true
+a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl deflate 2>/dev/null || true
+
+_deflate_src="${LIB_DIR}/apache-deflate.conf"
+if [ -f "$_deflate_src" ]; then
+    cp "$_deflate_src" /etc/apache2/conf-available/teamportal-deflate.conf
+    a2enconf teamportal-deflate >/dev/null 2>&1 || a2enconf teamportal-deflate.conf 2>/dev/null || true
+    log_success "Gzip/Deflate aktiviert (mod_deflate)"
+else
+    log_warning "apache-deflate.conf nicht gefunden unter ${LIB_DIR}"
+fi
 
 # Apache Virtual Host-Konfiguration erstellen
 log_info "Erstelle Apache Virtual Host-Konfiguration..."

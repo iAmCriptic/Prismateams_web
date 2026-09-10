@@ -42,7 +42,11 @@ uploads/
 static/uploads/
 
 # Downloaded Excalidraw/React/Socket.IO vendor assets (scripts/download_excalidraw_vendor.py)
-app/static/vendor/
+app/static/vendor/*
+!app/static/vendor/bootstrap/
+!app/static/vendor/bootstrap/**
+!app/static/vendor/bootstrap-icons/
+!app/static/vendor/bootstrap-icons/**
 
 # IDE
 .vscode/

@@ -116,6 +116,21 @@ def register_app_routes(app):
         response.headers['Service-Worker-Allowed'] = '/'
         return response
 
+    @app.route('/assets/core.css')
+    def core_css():
+        """One stylesheet for always-on chrome CSS (P04)."""
+        from flask import Response, make_response, request
+        from app.utils.static_packs import build_core_css
+
+        body, etag = build_core_css(app.static_folder)
+        response = make_response(Response(body, mimetype='text/css; charset=utf-8'))
+        response.set_etag(etag)
+        if app.debug:
+            response.headers['Cache-Control'] = 'no-cache'
+        else:
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response.make_conditional(request)
+
     @app.route('/robots.txt')
     def robots_txt():
         from flask import Response

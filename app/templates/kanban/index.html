@@ -58,7 +58,7 @@
 {% macro board_grid_card(b) %}
 {% set manage = b.id in manageable_ids %}
 {% set board_url = url_for('kanban.board', board_id=b.id) %}
-<div class="col-12 col-md-6 col-lg-3" data-board-wrapper="{{ b.id }}">
+<div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}">
   <div class="card folder-item kanban-board-card h-100 position-relative"
        role="link"
        tabindex="0"
@@ -97,7 +97,7 @@
 
 {% macro board_list_row(b) %}
 {% set manage = b.id in manageable_ids %}
-<tr class="mod-list-row" data-board-wrapper="{{ b.id }}">
+<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}">
   <td class="mod-list-name-cell">
     <a class="mod-list-name text-decoration-none mod-item-name" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
@@ -123,9 +123,19 @@
 </tr>
 {% endmacro %}
 
-{% macro section(title, boards, section_key) %}
+{% macro section(title, boards, section_key, has_more=false, lazy_url=none, list_page=1) %}
 {% if boards %}
-<section class="kanban-section mb-4" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}">
+<section class="kanban-section mb-4" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}"
+  {%- if has_more %}
+  data-lazy-more
+  data-lazy-silent="1"
+  data-lazy-page="{{ list_page }}"
+  data-lazy-has-more="1"
+  data-lazy-param="page"
+  data-lazy-items="[data-lazy-item]"
+  data-lazy-targets="#kanbanGrid-{{ section_key }},#kanbanList-{{ section_key }}"
+  {%- if lazy_url %} data-lazy-url="{{ lazy_url }}"{% endif %}
+  {%- endif %}>
   <h2 class="kanban-section__title">{{ title }}</h2>
   <div class="row g-3" data-view-grid id="kanbanGrid-{{ section_key }}">
     {% for b in boards %}{{ board_grid_card(b) }}{% endfor %}
@@ -141,11 +151,12 @@
           <th class="text-end" scope="col" style="width:7rem;"></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="kanbanList-{{ section_key }}">
         {% for b in boards %}{{ board_list_row(b) }}{% endfor %}
       </tbody>
     </table>
   </div>
+  {% with list_has_more=has_more %}{% include 'partials/mod_lazy_more.html' %}{% endwith %}
 </section>
 {% endif %}
 {% endmacro %}
@@ -182,16 +193,16 @@
     {% else %}
       {% if not section_filter or section_filter == 'all' %}
         {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
-        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private', has_more=private_has_more|default(false), lazy_url=url_for('kanban.index', section='private'), list_page=1) }}
         {% for group in team_board_groups %}
-          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none'), has_more=group.has_more|default(false), lazy_url=group.lazy_url, list_page=group.page|default(1)) }}
         {% endfor %}
-        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+        {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1) }}
       {% elif section_filter == 'recent' %}
         {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
         {% if not recent_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'private' %}
-        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private', has_more=list_has_more|default(false), list_page=list_page|default(1)) }}
         {% if not private_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'team' %}
         {% set ns = namespace(title=_('kanban.index.team')) %}
@@ -200,18 +211,18 @@
             {% set ns.title = t.name %}
           {% endif %}
         {% endfor %}
-        {{ section(ns.title, team_boards, 'team') }}
+        {{ section(ns.title, team_boards, 'team-' ~ (filter_team_id if filter_team_id else 'none'), has_more=list_has_more|default(false), list_page=list_page|default(1)) }}
         {% if not team_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% elif section_filter == 'public' %}
-        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+        {{ section(_('kanban.index.public'), public_boards, 'public', has_more=list_has_more|default(false), list_page=list_page|default(1)) }}
         {% if not public_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
       {% else %}
         {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
-        {{ section(_('kanban.index.private'), private_boards, 'private') }}
+        {{ section(_('kanban.index.private'), private_boards, 'private', has_more=private_has_more|default(false), lazy_url=url_for('kanban.index', section='private'), list_page=1) }}
         {% for group in team_board_groups %}
-          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none')) }}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none'), has_more=group.has_more|default(false), lazy_url=group.lazy_url, list_page=group.page|default(1)) }}
         {% endfor %}
-        {{ section(_('kanban.index.public'), public_boards, 'public') }}
+        {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1) }}
       {% endif %}
     {% endif %}
   </div>
@@ -332,5 +343,6 @@
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
 {% endblock %}

@@ -412,10 +412,10 @@
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
-const WIKI_INDEX_I18N = {{ current_translations.get('wiki', {}).get('index', {})|tojson }};
+const WIKI_INDEX_I18N = {{ i18n_ns('wiki', 'index')|tojson }};
 const WIKI_INDEX_CARD = WIKI_INDEX_I18N.card || {};
 const WIKI_INDEX_JS = WIKI_INDEX_I18N.js || {};
-const WIKI_HISTORY_I18N = {{ current_translations.get('wiki', {}).get('history', {})|tojson }};
+const WIKI_HISTORY_I18N = {{ i18n_ns('wiki', 'history')|tojson }};
 const WIKI_ACTIVE_FAVORITES = {{ active_favorites|tojson }};
 
 function wikiEscapeHtml(value) {

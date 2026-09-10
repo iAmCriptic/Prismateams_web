@@ -49,6 +49,12 @@ class Config:
     # Absichtliche /test/* Error-Seiten — nur Dev (oder explizit per Env)
     ENABLE_ERROR_TEST_ROUTES = False
 
+    # App-Gzip (Flask-Compress). Production/Staging: Nginx/Apache übernehmen;
+    # per ENABLE_APP_GZIP überschreibbar (z. B. Gunicorn ohne Reverse-Proxy).
+    ENABLE_APP_GZIP = os.environ.get('ENABLE_APP_GZIP', 'False').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
+
     # CSRF (Flask-WTF)
     WTF_CSRF_ENABLED = True
     # Gestohlene CSRF-Tokens nicht bis Session-Ende gültig lassen (Default 4h, per .env überschreibbar)
@@ -200,6 +206,10 @@ class DevelopmentConfig(Config):
     TESTING = False
     # Error-Testrouten (/test/404 …) standardmäßig an; abschalten: ENABLE_ERROR_TEST_ROUTES=False
     ENABLE_ERROR_TEST_ROUTES = os.environ.get('ENABLE_ERROR_TEST_ROUTES', 'True').lower() == 'true'
+    # python app.py ohne Nginx: Antworten komprimieren (P05)
+    ENABLE_APP_GZIP = os.environ.get('ENABLE_APP_GZIP', 'True').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
 
 
 class ProductionConfig(Config):
@@ -216,6 +226,9 @@ class ProductionConfig(Config):
         os.environ.get('SESSION_COOKIE_SECURE', 'True'),
     ).lower() == 'true'
     ENABLE_ERROR_TEST_ROUTES = os.environ.get('ENABLE_ERROR_TEST_ROUTES', 'False').lower() == 'true'
+    ENABLE_APP_GZIP = os.environ.get('ENABLE_APP_GZIP', 'False').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
 
 
 class StagingConfig(ProductionConfig):
@@ -232,6 +245,7 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
     ENABLE_ERROR_TEST_ROUTES = False
+    ENABLE_APP_GZIP = False
 
 
 config = {

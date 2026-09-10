@@ -1,13 +1,11 @@
-from datetime import datetime
-
 from flask import jsonify
 from flask_login import current_user
 
 from app.models.calendar import CalendarEvent
-from app.models.chat import ChatMember, ChatMessage
 from app.models.file import File
 from app.utils.common import portal_now_naive
 from app.utils.email_counts import count_unread_emails
+from app.utils.chat_unread import total_unread_count_for_user
 
 
 def register_dashboard_routes(api_bp, require_api_auth):
@@ -15,17 +13,7 @@ def register_dashboard_routes(api_bp, require_api_auth):
     @require_api_auth
     def get_dashboard_stats():
         upcoming_events = CalendarEvent.query.filter(CalendarEvent.start_time >= portal_now_naive()).count()
-
-        user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
-        unread_count = 0
-        for membership in user_chats:
-            count = ChatMessage.query.filter(
-                ChatMessage.chat_id == membership.chat_id,
-                ChatMessage.created_at > membership.last_read_at,
-                ChatMessage.sender_id != current_user.id,
-            ).count()
-            unread_count += count
-
+        unread_count = total_unread_count_for_user(current_user.id)
         unread_emails = count_unread_emails(user=current_user)
         total_files = File.query.filter_by(is_current=True).count()
 

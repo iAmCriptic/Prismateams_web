@@ -20,7 +20,11 @@
   let commentSystem = null;
   let ignoreSSE = false;
   let cardModal = null;
-  const sortableInstances = [];
+  const cardSortables = new Map();
+  let listsSortable = null;
+  let lastBoardSig = '';
+  let pollTimer = null;
+  let sseLive = false;
 
   board.custom_field_categories = board.custom_field_categories || [];
 
@@ -505,9 +509,55 @@
   }
 
   function destroySortables() {
-    while (sortableInstances.length) {
-      try { sortableInstances.pop().destroy(); } catch (_) { /* ignore */ }
+    cardSortables.forEach((inst) => {
+      try { inst.destroy(); } catch (_) { /* ignore */ }
+    });
+    cardSortables.clear();
+    if (listsSortable) {
+      try { listsSortable.destroy(); } catch (_) { /* ignore */ }
+      listsSortable = null;
     }
+  }
+
+  function htmlToElement(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(html || '').trim();
+    return tpl.content.firstElementChild;
+  }
+
+  function cardSignature(card) {
+    const cl = card.checklist || {};
+    const cover = card.cover || {};
+    const labels = (card.labels || []).map((lb) => `${lb.id}:${lb.color}:${lb.name || ''}`).join(',');
+    const assignees = (card.assignees || []).map((a) => `${a.id}:${a.name || ''}:${a.avatar_url || a.profile_picture || ''}`).join(',');
+    return [
+      card.id,
+      card.title || '',
+      card.completed ? 1 : 0,
+      card.due_date || '',
+      cl.done || 0,
+      cl.total || 0,
+      card.comment_count || 0,
+      card.attachment_count || 0,
+      card.vote_count || 0,
+      card.poll_text || '',
+      cover.preview_url || cover.url || '',
+      labels,
+      assignees,
+    ].join('\x1f');
+  }
+
+  function boardRenderSignature(lists) {
+    return (lists || []).map((list) => {
+      const cards = (list.cards || []).map(cardSignature).join('\x1e');
+      return `${list.id}\x1f${list.title || ''}\x1f${cards}`;
+    }).join('\x1d');
+  }
+
+  function isBoardBusy() {
+    return ignoreSSE
+      || document.hidden
+      || !!(listsEl && listsEl.querySelector('.sortable-chosen, .sortable-ghost'));
   }
 
   function cardHtml(card) {
@@ -589,42 +639,42 @@
     </div>`;
   }
 
-  function renderBoard() {
-    destroySortables();
-    listsEl.innerHTML = (board.lists || []).map(listHtml).join('') + addListColumnHtml();
-    bindListInteractions();
-    if (typeof applyFilters === 'function') {
-      applyFilters();
-    }
+  function cardSortableOptions() {
+    return {
+      group: 'kanban-cards',
+      animation: 200,
+      ghostClass: 'opacity-50',
+      onEnd: async (evt) => {
+        const cardId = Number(evt.item.dataset.cardId);
+        const listId = Number(evt.to.dataset.listCards);
+        const position = evt.newIndex;
+        ignoreSSE = true;
+        try {
+          const data = await api(`/kanban/api/boards/${boardId}/cards/move`, {
+            method: 'POST',
+            body: { card_id: cardId, list_id: listId, position },
+          });
+          if (data.card) upsertCardLocal(data.card);
+          lastBoardSig = boardRenderSignature(board.lists);
+        } catch (err) {
+          notify(err.message || 'Verschieben fehlgeschlagen');
+          refreshBoard();
+        }
+        ignoreSSE = false;
+      },
+    };
   }
 
-  function bindListInteractions() {
-    if (!canEdit || !window.Sortable) return;
-    listsEl.querySelectorAll('[data-list-cards]').forEach((container) => {
-      sortableInstances.push(Sortable.create(container, {
-        group: 'kanban-cards',
-        animation: 200,
-        ghostClass: 'opacity-50',
-        onEnd: async (evt) => {
-          const cardId = Number(evt.item.dataset.cardId);
-          const listId = Number(evt.to.dataset.listCards);
-          const position = evt.newIndex;
-          ignoreSSE = true;
-          try {
-            const data = await api(`/kanban/api/boards/${boardId}/cards/move`, {
-              method: 'POST',
-              body: { card_id: cardId, list_id: listId, position },
-            });
-            if (data.card) upsertCardLocal(data.card);
-          } catch (err) {
-            notify(err.message || 'Verschieben fehlgeschlagen');
-            refreshBoard();
-          }
-          ignoreSSE = false;
-        },
-      }));
-    });
-    sortableInstances.push(Sortable.create(listsEl, {
+  function ensureCardSortable(container) {
+    if (!canEdit || !window.Sortable || !container) return;
+    const listId = Number(container.dataset.listCards);
+    if (!listId || cardSortables.has(listId)) return;
+    cardSortables.set(listId, Sortable.create(container, cardSortableOptions()));
+  }
+
+  function ensureListsSortable() {
+    if (!canEdit || !window.Sortable || listsSortable) return;
+    listsSortable = Sortable.create(listsEl, {
       animation: 200,
       handle: '.kanban-list-col__head',
       draggable: '.kanban-list-col',
@@ -635,13 +685,147 @@
         try {
           await api(`/kanban/api/boards/${boardId}/lists/reorder`, { method: 'POST', body: { order } });
           board.lists.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+          lastBoardSig = boardRenderSignature(board.lists);
         } catch (err) {
           notify(err.message || 'Sortieren fehlgeschlagen');
           refreshBoard();
         }
         ignoreSSE = false;
       },
-    }));
+    });
+  }
+
+  function pruneCardSortables() {
+    cardSortables.forEach((inst, listId) => {
+      if (listsEl.querySelector(`[data-list-cards="${listId}"]`)) return;
+      try { inst.destroy(); } catch (_) { /* ignore */ }
+      cardSortables.delete(listId);
+    });
+  }
+
+  function bindListInteractions() {
+    listsEl.querySelectorAll('[data-list-cards]').forEach((container) => ensureCardSortable(container));
+    pruneCardSortables();
+    ensureListsSortable();
+  }
+
+  function patchCardNode(el, card) {
+    const next = htmlToElement(cardHtml(card));
+    if (!next) return;
+    if (el.className !== next.className) el.className = next.className;
+    if (el.innerHTML !== next.innerHTML) el.innerHTML = next.innerHTML;
+  }
+
+  function patchCards(container, cards) {
+    const desired = cards || [];
+    const existing = new Map();
+    container.querySelectorAll('.kanban-card').forEach((el) => {
+      existing.set(String(el.dataset.cardId), el);
+    });
+    existing.forEach((el, id) => {
+      if (!desired.some((c) => String(c.id) === id)) el.remove();
+    });
+    desired.forEach((card, index) => {
+      let el = container.querySelector(`.kanban-card[data-card-id="${card.id}"]`);
+      if (!el) {
+        el = htmlToElement(cardHtml(card));
+        const ref = container.querySelectorAll('.kanban-card')[index];
+        if (ref) container.insertBefore(el, ref);
+        else container.appendChild(el);
+      } else {
+        patchCardNode(el, card);
+        const nodes = container.querySelectorAll('.kanban-card');
+        if (nodes[index] !== el) {
+          const ref = nodes[index] || null;
+          container.insertBefore(el, ref);
+        }
+      }
+    });
+  }
+
+  function patchListCol(col, list) {
+    const titleEl = col.querySelector(`[data-list-title="${list.id}"]`);
+    if (titleEl && titleEl.textContent !== (list.title || '')) {
+      titleEl.textContent = list.title || '';
+    }
+    const countEl = col.querySelector('.kanban-list-col__count');
+    if (countEl) countEl.textContent = String((list.cards || []).length);
+    const cardsEl = col.querySelector(`[data-list-cards="${list.id}"]`);
+    if (cardsEl) patchCards(cardsEl, list.cards || []);
+  }
+
+  function patchBoard() {
+    const lists = board.lists || [];
+    const sig = boardRenderSignature(lists);
+    if (sig === lastBoardSig && listsEl.querySelector('.kanban-list-col')) {
+      return false;
+    }
+
+    const scrollLeft = listsEl.scrollLeft;
+    const listScrolls = {};
+    listsEl.querySelectorAll('[data-list-cards]').forEach((el) => {
+      listScrolls[el.dataset.listCards] = el.scrollTop;
+    });
+
+    const desiredIds = lists.map((l) => String(l.id));
+    listsEl.querySelectorAll('.kanban-list-col').forEach((el) => {
+      if (!desiredIds.includes(el.dataset.listId)) el.remove();
+    });
+
+    let addWrap = document.getElementById('kanbanAddListWrap');
+    lists.forEach((list, index) => {
+      let col = listsEl.querySelector(`.kanban-list-col[data-list-id="${list.id}"]`);
+      if (!col) {
+        col = htmlToElement(listHtml(list));
+        const cols = listsEl.querySelectorAll('.kanban-list-col');
+        const ref = cols[index] || addWrap;
+        if (ref) listsEl.insertBefore(col, ref);
+        else listsEl.appendChild(col);
+      } else {
+        patchListCol(col, list);
+        const cols = listsEl.querySelectorAll('.kanban-list-col');
+        if (cols[index] !== col) {
+          listsEl.insertBefore(col, cols[index] || addWrap);
+        }
+      }
+    });
+
+    addWrap = document.getElementById('kanbanAddListWrap');
+    if (canEdit && !addWrap) {
+      listsEl.insertAdjacentHTML('beforeend', addListColumnHtml());
+    } else if (addWrap && addWrap.nextSibling) {
+      listsEl.appendChild(addWrap);
+    }
+
+    bindListInteractions();
+    lastBoardSig = sig;
+    listsEl.scrollLeft = scrollLeft;
+    Object.keys(listScrolls).forEach((id) => {
+      const el = listsEl.querySelector(`[data-list-cards="${id}"]`);
+      if (el) el.scrollTop = listScrolls[id];
+    });
+    return true;
+  }
+
+  function renderBoardFull() {
+    destroySortables();
+    listsEl.innerHTML = (board.lists || []).map(listHtml).join('') + addListColumnHtml();
+    lastBoardSig = boardRenderSignature(board.lists);
+    bindListInteractions();
+  }
+
+  function renderBoard() {
+    let changed = true;
+    try {
+      changed = patchBoard() !== false;
+    } catch (err) {
+      console.warn('Kanban incremental render failed', err);
+      renderBoardFull();
+      changed = true;
+    }
+    if (changed && typeof applyFilters === 'function') {
+      applyFilters();
+    }
   }
 
   function upsertCardLocal(card) {
@@ -2165,26 +2349,39 @@
     scheduleFilter();
   });
 
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function startPolling() {
+    if (pollTimer || sseLive) return;
+    pollTimer = setInterval(() => {
+      if (isBoardBusy() || sseLive) return;
+      refreshBoard();
+    }, 8000);
+  }
+
   function connectSSE() {
     const url = app.dataset.sseUrl;
     if (!url || !window.EventSource) {
-      setInterval(async () => {
-        if (document.hidden || ignoreSSE) return;
-        try {
-          const data = await api(`/kanban/api/boards/${boardId}`);
-          if (data.lists) {
-            board.lists = data.lists;
-            board.labels = data.labels;
-            board.members = data.members || board.members;
-            renderBoardMembers();
-            renderBoard();
-          }
-        } catch (_) { /* ignore */ }
-      }, 8000);
+      startPolling();
       return;
     }
     try {
       const es = new EventSource(url);
+      es.addEventListener('connected', () => {
+        sseLive = true;
+        stopPolling();
+      });
+      es.onerror = () => {
+        if (es.readyState === EventSource.CLOSED) {
+          sseLive = false;
+          startPolling();
+        }
+      };
       es.onmessage = (ev) => {
         if (ignoreSSE) return;
         try {
@@ -2200,7 +2397,9 @@
           try { handleLiveEvent({ event: name, data: JSON.parse(ev.data) }); } catch (_) {}
         });
       });
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      startPolling();
+    }
   }
 
   function handleLiveEvent(msg) {
@@ -2249,6 +2448,12 @@
       }
     } catch (_) { /* ignore */ }
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !sseLive && !ignoreSSE) {
+      refreshBoard();
+    }
+  });
 
   if (new URLSearchParams(window.location.search).get('share') === '1' && canManage) {
     setTimeout(openShareModal, 400);

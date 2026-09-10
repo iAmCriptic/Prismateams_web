@@ -122,7 +122,12 @@
     "required": "Required",
     "language": "Language",
     "select_language": "Select language",
-    "unknown_error": "Unknown error"
+    "unknown_error": "Unknown error",
+    "pagination": {
+      "load_more": "Load more",
+      "load_more_loading": "Loading…",
+      "load_error": "Could not load more items"
+    }
   },
   "context_menu": {
     "copy_info": "Copy info",

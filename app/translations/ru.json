@@ -81,7 +81,12 @@
     "optional": "Необязательно",
     "required": "Обязательно",
     "language": "Язык",
-    "select_language": "Выберите язык"
+    "select_language": "Выберите язык",
+    "pagination": {
+      "load_more": "Загрузить ещё",
+      "load_more_loading": "Загрузка…",
+      "load_error": "Не удалось загрузить дополнительные записи"
+    }
   },
   "auth": {
     "login": {

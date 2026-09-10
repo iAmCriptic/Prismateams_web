@@ -16,6 +16,8 @@ from app.utils.i18n import translate
 from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat_user_filters
 from app.utils.chat_nav import (
     CHAT_PINS_MAX,
+    CHAT_WITH_MEMBERS,
+    MESSAGE_WITH_SENDER,
     build_chat_nav_items,
     ensure_user_in_main_chat,
     get_main_chat,
@@ -170,7 +172,7 @@ def view_chat(chat_id):
     else:
         actual_chat_id = chat_id
     
-    chat = Chat.query.get_or_404(actual_chat_id)
+    chat = Chat.query.options(CHAT_WITH_MEMBERS).filter_by(id=actual_chat_id).first_or_404()
 
     if chat.is_main_chat:
         ensure_user_in_main_chat(current_user)
@@ -188,7 +190,8 @@ def view_chat(chat_id):
     
     # Get newest messages only (older history via API cursor)
     messages = (
-        ChatMessage.query.filter_by(
+        ChatMessage.query.options(MESSAGE_WITH_SENDER)
+        .filter_by(
             chat_id=actual_chat_id,
             is_deleted=False,
         )

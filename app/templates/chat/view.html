@@ -593,7 +593,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% set chat_view_js = current_translations.get('chat', {}).get('view', {}).get('js', {}) %}
+{% set chat_view_js = i18n_ns('chat', 'view', 'js') %}
 <script>
     window.ChatPageConfig = {
         chatId: {{ 1 if chat.is_main_chat else chat.id }},

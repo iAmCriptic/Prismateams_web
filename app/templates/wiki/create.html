@@ -105,7 +105,7 @@
 
 <script src="{{ url_for('static', filename='js/wiki_meta_select.js') }}"></script>
 <script>
-const WIKI_CREATE_I18N = {{ current_translations.get('wiki', {}).get('create', {})|tojson }};
+const WIKI_CREATE_I18N = {{ i18n_ns('wiki', 'create')|tojson }};
 const WIKI_CREATE_TOOLBAR = WIKI_CREATE_I18N.toolbar || {};
 const WIKI_CREATE_ALERTS = WIKI_CREATE_I18N.alerts || {};
 const WIKI_CREATE_EDITOR = WIKI_CREATE_I18N.editor || {};
@@ -229,7 +229,7 @@ document.addEventListener('keydown', function(e) {
 <script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script>
-window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 document.addEventListener('DOMContentLoaded', function () {
     if (window.MarkdownToolbar) {
         window.MarkdownToolbar.init({

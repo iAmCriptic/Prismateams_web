@@ -32,7 +32,7 @@ Verwendung: {% set content_type='file' %}{% set content_id=file.id %}{% include 
 </div>
 
 <script>
-window.COMMENTS_I18N = {{ current_translations.get('comments', {})|tojson }};
+window.COMMENTS_I18N = {{ i18n_ns('comments')|tojson }};
 document.addEventListener('DOMContentLoaded', function() {
     const commentSystem = new CommentSystem('{{ content_type }}', {{ content_id }}, 'comments-section-{{ content_type }}-{{ content_id }}');
     window.commentSystem = commentSystem;

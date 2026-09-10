@@ -26,6 +26,15 @@ else
     log_info "Connection-Upgrade Map bereits vorhanden in nginx.conf"
 fi
 
+# Gzip (CSS/JS/JSON) — Ubuntu-Default komprimiert oft nur HTML
+_gzip_src="${LIB_DIR}/nginx-gzip.conf"
+if [ -f "$_gzip_src" ]; then
+    cp "$_gzip_src" /etc/nginx/conf.d/teamportal-gzip.conf
+    log_success "Gzip aktiviert: /etc/nginx/conf.d/teamportal-gzip.conf"
+else
+    log_warning "nginx-gzip.conf nicht gefunden unter ${LIB_DIR}"
+fi
+
 # Nginx Site-Konfiguration erstellen
 cat > /etc/nginx/sites-available/teamportal <<EOF
 # Upstream-Block für Session-Stickiness (MUSS VOR server-Block sein!)
@@ -227,6 +236,7 @@ location /webdav {
     proxy_http_version 1.1;
     proxy_request_buffering off;
     proxy_buffering off;
+    gzip off;
     client_max_body_size 100M;
     proxy_connect_timeout 600;
     proxy_send_timeout 600;
@@ -285,6 +295,22 @@ fi
 # Site aktivieren
 ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
+
+# Optional Brotli (Paket variiert je Ubuntu-Release; nur wenn nginx -t damit durchläuft)
+apt-get install -y libnginx-mod-http-brotli >/dev/null 2>&1 || \
+    apt-get install -y libnginx-mod-brotli >/dev/null 2>&1 || true
+_brotli_src="${LIB_DIR}/nginx-brotli.conf"
+_brotli_dst="/etc/nginx/conf.d/teamportal-brotli.conf"
+rm -f "$_brotli_dst"
+if [ -f "$_brotli_src" ]; then
+    cp "$_brotli_src" "$_brotli_dst"
+    if nginx -t >/dev/null 2>&1; then
+        log_success "Brotli aktiviert: ${_brotli_dst}"
+    else
+        rm -f "$_brotli_dst"
+        log_info "Brotli-Modul nicht geladen — nur Gzip (optional: apt install libnginx-mod-http-brotli)"
+    fi
+fi
 
 # Nginx testen
 if ! nginx -t; then

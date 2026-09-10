@@ -5,7 +5,6 @@ import json
 from flask import current_app, jsonify, request, url_for
 from flask_login import current_user
 from sqlalchemy import and_, func
-from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -21,8 +20,8 @@ from app.utils.chat_service import (
     persist_outgoing_message,
     resolve_message_type as _resolve_message_type,
 )
-from app.utils.chat_visibility import SYSTEM_ANONYMOUS_EMAIL, visible_chat_user_filters
-from app.utils.chat_nav import CHAT_PINS_MAX, toggle_chat_pin
+from app.utils.chat_visibility import visible_chat_user_filters
+from app.utils.chat_nav import CHAT_MEMBERS_WITH_USER, CHAT_PINS_MAX, MESSAGE_WITH_SENDER, other_user_for_chat, toggle_chat_pin
 
 
 ALLOWED_MEDIA_EXTENSIONS = {
@@ -133,7 +132,7 @@ def _last_messages_by_chat_id(chat_ids):
         .subquery()
     )
     rows = (
-        ChatMessage.query.options(joinedload(ChatMessage.sender))
+        ChatMessage.query.options(MESSAGE_WITH_SENDER)
         .join(
             latest,
             and_(
@@ -154,14 +153,8 @@ def _last_messages_by_chat_id(chat_ids):
 
 def _direct_message_peer_name(chat, current_user_id):
     """Peer display name from already-loaded chat.members (no extra query)."""
-    for member in chat.members or []:
-        if member.user_id == current_user_id:
-            continue
-        user = member.user
-        if user is None or user.email == SYSTEM_ANONYMOUS_EMAIL:
-            continue
-        return user.full_name
-    return None
+    user = other_user_for_chat(chat, current_user_id)
+    return user.full_name if user else None
 
 
 def _serialize_chat(chat, unread_count=None, *, last_message=_LAST_MESSAGE_UNSET):
@@ -202,9 +195,7 @@ def get_chats():
         return access_error
 
     memberships = (
-        ChatMember.query.options(
-            joinedload(ChatMember.chat).selectinload(Chat.members).joinedload(ChatMember.user),
-        )
+        ChatMember.query.options(CHAT_MEMBERS_WITH_USER)
         .filter_by(user_id=current_user.id)
         .all()
     )
@@ -287,7 +278,9 @@ def get_messages(chat_id):
         limit = 50
     limit = min(limit, 200)
 
-    query = ChatMessage.query.filter_by(chat_id=actual_chat_id, is_deleted=False)
+    query = ChatMessage.query.options(MESSAGE_WITH_SENDER).filter_by(
+        chat_id=actual_chat_id, is_deleted=False
+    )
     if since_id:
         query = query.filter(ChatMessage.id > since_id)
     elif before_id:

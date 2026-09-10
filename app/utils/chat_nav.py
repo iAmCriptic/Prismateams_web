@@ -2,12 +2,22 @@
 
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import func, inspect as sa_inspect
 from sqlalchemy.orm import joinedload, selectinload
 
 from app import db
 from app.models.chat import Chat, ChatMember, ChatMessage, ChatPin
 from app.utils.chat_unread import unread_counts_by_chat_for_user
+from app.utils.chat_visibility import SYSTEM_ANONYMOUS_EMAIL
+from app.utils.i18n import translate
+
+CHAT_MEMBERS_WITH_USER = (
+    joinedload(ChatMember.chat)
+    .selectinload(Chat.members)
+    .joinedload(ChatMember.user)
+)
+CHAT_WITH_MEMBERS = selectinload(Chat.members).joinedload(ChatMember.user)
+MESSAGE_WITH_SENDER = joinedload(ChatMessage.sender)
 
 CHAT_PINS_MAX = 6
 
@@ -165,6 +175,54 @@ def _unread_count_for_membership(membership, user_id):
     ).count()
 
 
+def _chat_members(chat):
+    """ChatMember rows with .user available; one query only if not already loaded."""
+    if chat is None:
+        return []
+    try:
+        state = sa_inspect(chat)
+        if 'members' not in state.unloaded:
+            return list(chat.members or [])
+    except Exception:
+        pass
+    chat_id = getattr(chat, 'id', None)
+    if not chat_id:
+        return []
+    return (
+        ChatMember.query
+        .options(joinedload(ChatMember.user))
+        .filter_by(chat_id=chat_id)
+        .all()
+    )
+
+
+def other_user_for_chat(chat, current_user_id):
+    """Peer in a DM from loaded members (no extra query when eager-loaded)."""
+    if not chat or not chat.is_direct_message or chat.is_main_chat:
+        return None
+    for member in _chat_members(chat):
+        if member.user_id == current_user_id:
+            continue
+        user = member.user
+        if user is None or getattr(user, 'email', None) == SYSTEM_ANONYMOUS_EMAIL:
+            continue
+        return user
+    return None
+
+
+def display_name_for_chat(chat, current_user_id):
+    """Same labels as the previous template helpers, without per-call queries."""
+    if chat is None:
+        return ''
+    if chat.is_main_chat:
+        return translate('chat.common.main_chat_name')
+    if chat.is_direct_message:
+        peer = other_user_for_chat(chat, current_user_id)
+        if peer is not None:
+            return peer.full_name
+    return chat.name
+
+
 def _last_message_times(chat_ids):
     if not chat_ids:
         return {}
@@ -188,9 +246,7 @@ def build_chat_nav_items(user):
     """
     memberships = (
         ChatMember.query
-        .options(
-            joinedload(ChatMember.chat).selectinload(Chat.members),
-        )
+        .options(CHAT_MEMBERS_WITH_USER)
         .filter_by(user_id=user.id)
         .all()
     )
@@ -248,6 +304,8 @@ def build_chat_nav_items(user):
             'is_pinned': chat.id in pinned_ids and not chat.is_main_chat and not is_team,
             'can_pin': not chat.is_main_chat and not is_team,
             'is_team_chat': is_team,
+            'display_name': display_name_for_chat(chat, user.id),
+            'other_user': other_user_for_chat(chat, user.id),
         })
     return items
 

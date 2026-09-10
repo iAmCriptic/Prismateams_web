@@ -10,7 +10,7 @@ from config import config
 
 from app import csrf, db, login_manager, mail
 from app.factory._util import configure_app_logging, is_insecure_secret_key as _is_insecure_secret_key
-from app.utils.i18n import init_i18n, register_i18n
+from app.utils.i18n import register_i18n
 
 def configure_core(app, config_name, basedir):
     """Config, logging, CSRF, upload path, reverse-proxy."""
@@ -77,6 +77,40 @@ def configure_core(app, config_name, basedir):
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count, x_host=proxy_count, x_prefix=proxy_count)
 
+    init_response_compression(app)
+
+
+def init_response_compression(app):
+    """Gzip/Brotli for python app.py / Gunicorn without Nginx (P05)."""
+    if not app.config.get('ENABLE_APP_GZIP'):
+        return
+    try:
+        from flask_compress import Compress
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "ENABLE_APP_GZIP ist an, aber flask-compress ist nicht installiert."
+        )
+        return
+    app.config.setdefault(
+        'COMPRESS_MIMETYPES',
+        [
+            'text/html',
+            'text/plain',
+            'text/css',
+            'text/xml',
+            'text/javascript',
+            'application/javascript',
+            'application/json',
+            'application/xml',
+            'image/svg+xml',
+        ],
+    )
+    app.config.setdefault('COMPRESS_LEVEL', 5)
+    app.config.setdefault('COMPRESS_MIN_SIZE', 256)
+    app.config.setdefault('COMPRESS_STREAMS', False)
+    app.config.setdefault('COMPRESS_ALGORITHM', ['br', 'gzip'])
+    Compress(app)
+
 
 def init_base_extensions(app):
     """DB, caches, login, mail, i18n, upload directories."""
@@ -119,9 +153,6 @@ def init_base_extensions(app):
                 return AssessmentUser.query.get(int(raw_id))
             return None
         return User.query.get(int(user_id))
-    
-    from app.utils.i18n import init_i18n
-    init_i18n(app)
 
     upload_dirs = [
         app.config['UPLOAD_FOLDER'],

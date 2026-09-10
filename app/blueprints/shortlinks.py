@@ -14,6 +14,7 @@ from app.models.shortlink import ShortLink
 from app.utils.access_control import check_module_access
 from app.utils.common import portal_now_naive
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     accessible_query,
     apply_section_filter,
@@ -224,7 +225,7 @@ def index():
         col = sort_column_map[sort_by]
         query = query.order_by(col.asc() if sort_dir == 'asc' else col.desc())
 
-    links = query.all()
+    links, pagination = paginate_list(query)
     nav = visibility_nav_context('shortlinks', current_user, section, filter_team_id)
     return render_template(
         'shortlinks/index.html',
@@ -236,6 +237,8 @@ def index():
         expiry_filter=expiry_filter,
         password_filter=password_filter,
         clicks_filter=clicks_filter,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **nav,
     )
 

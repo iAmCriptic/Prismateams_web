@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, jsonify
 from flask_login import login_required, current_user
 from app.models.calendar import CalendarEvent, Calendar
-from app.models.chat import ChatMessage, ChatMember
+from app.models.chat import ChatMember
 from app.models.email import EmailMessage, EmailPermission
 from app.models.file import File
 from app.models.credential import Credential, CredentialFavorite
@@ -15,7 +15,8 @@ from app import db
 from app.utils.common import is_module_enabled, check_for_updates, portal_now_naive
 from app.utils.i18n import translate
 from app.utils.module_visibility import accessible_query, can_view_item
-from app.utils.kanban_access import accessible_boards_query, can_view_board
+from app.utils.kanban_access import accessible_boards_query
+from app.utils.chat_unread import recent_unread_messages_for_user
 from app.utils.multi_mailboxes import get_accessible_mailboxes
 from app.utils.navigation import (
     get_dashboard_modules,
@@ -29,8 +30,9 @@ from app.utils.multi_calendars import (
     calendar_to_dict,
     is_calendar_multi_enabled,
 )
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 from datetime import datetime
-from sqlalchemy import and_, or_
 import json
 import logging
 
@@ -293,8 +295,13 @@ def _load_credentials_for_widget(user, credential_ids):
 
 def _load_kanban_activity_for_widget(user, board_ids):
     try:
-        accessible = accessible_boards_query(user, include_closed=False).all()
-        accessible_ids = {b.id for b in accessible}
+        accessible_ids = {
+            bid
+            for (bid,) in (
+                accessible_boards_query(user, include_closed=False)
+                .with_entities(KanbanBoard.id)
+            )
+        }
         if board_ids:
             target_ids = [bid for bid in board_ids if bid in accessible_ids]
         else:
@@ -302,18 +309,18 @@ def _load_kanban_activity_for_widget(user, board_ids):
         if not target_ids:
             return []
         rows = (
-            KanbanActivity.query
+            KanbanActivity.query.options(
+                joinedload(KanbanActivity.user),
+                joinedload(KanbanActivity.board),
+            )
             .filter(KanbanActivity.board_id.in_(target_ids))
             .order_by(KanbanActivity.created_at.desc())
             .limit(DASHBOARD_WIDGET_LIST_LIMIT)
             .all()
         )
-        board_by_id = {b.id: b for b in accessible if b.id in target_ids}
         activities = []
         for a in rows:
-            board = board_by_id.get(a.board_id) or KanbanBoard.query.get(a.board_id)
-            if board and not can_view_board(user, board):
-                continue
+            board = a.board
             activities.append({
                 'id': a.id,
                 'action': a.action,
@@ -340,18 +347,9 @@ def _load_widget_payload(user, widgets):
     unread_messages = []
     if 'nachrichten' in enabled_types and is_module_enabled('module_chat'):
         try:
-            user_chats = ChatMember.query.filter_by(user_id=user.id).all()
-            for membership in user_chats:
-                messages = ChatMessage.query.filter(
-                    and_(
-                        ChatMessage.chat_id == membership.chat_id,
-                        ChatMessage.created_at > membership.last_read_at,
-                        ChatMessage.sender_id != user.id,
-                        ChatMessage.is_deleted == False
-                    )
-                ).order_by(ChatMessage.created_at.desc()).limit(DASHBOARD_WIDGET_LIST_LIMIT).all()
-                unread_messages.extend(messages)
-            unread_messages = sorted(unread_messages, key=lambda x: x.created_at, reverse=True)[:DASHBOARD_WIDGET_LIST_LIMIT]
+            unread_messages = recent_unread_messages_for_user(
+                user.id, DASHBOARD_WIDGET_LIST_LIMIT
+            )
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Nachrichten: {e}")
 

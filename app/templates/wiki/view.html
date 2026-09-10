@@ -188,7 +188,7 @@
 
 {% block extra_js %}
 <script>
-window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 window.MARKDOWN_LINK_PREVIEW_URL = {{ url_for('files.link_preview')|tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
@@ -201,8 +201,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <script>
-const WIKI_VIEW_I18N = {{ current_translations.get('wiki', {}).get('view', {})|tojson }};
-const WIKI_INDEX_JS = {{ current_translations.get('wiki', {}).get('index', {}).get('js', {})|tojson }};
+const WIKI_VIEW_I18N = {{ i18n_ns('wiki', 'view')|tojson }};
+const WIKI_INDEX_JS = {{ i18n_ns('wiki', 'index', 'js')|tojson }};
 
 function openWikiHistory() {
     const menu = document.getElementById('wikiHistoryMenu');

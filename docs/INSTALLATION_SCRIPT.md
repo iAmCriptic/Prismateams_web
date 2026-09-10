@@ -78,7 +78,7 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 - Installationsverzeichnis
 - Git-Repository-URL und Branch (Fork / Development)
 - Gunicorn-Port, Worker-Anzahl, Service ja/nein
-- Nginx oder Apache (oder manuell)
+- Nginx oder Apache (oder manuell) — Nginx setzt Gzip für CSS/JS/JSON; optional Brotli
 - MySQL ja/nein (inkl. DB-Name/User/Passwort)
 - Redis ja/nein
 - Euro-Office inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/eurooffice` + `/onlyoffice` + `/cache`
@@ -109,7 +109,7 @@ sudo bash scripts/install_ubuntu.sh --help
 | `--repo-url URL` | Git-Remote (Fork/Dev) |
 | `--branch BRANCH` | Git-Branch |
 | `--port PORT` | Gunicorn-Port (Standard 5000) |
-| `--workers N` | Gunicorn-Worker (bei N>1: One-Shot-DB-Init, dann N Worker) |
+| `--workers N` | Gunicorn-Worker (Standard 2; Redis für SocketIO bei N>1) |
 | `--no-gunicorn` | Keinen systemd-Service anlegen |
 | `--no-webserver` | Kein Nginx/Apache |
 | `--webserver nginx\|apache` | Webserver-Typ |
@@ -210,9 +210,10 @@ Details: [INSTALLATION.md – Schritt 6d](INSTALLATION.md#schritt-6d-optionale-i
 
 ## Gunicorn-Worker
 
-- Default: 1 Worker (DB-Init beim ersten Start)
-- `--workers N` mit N>1: One-Shot `create_app()` vor Service-Start, dann systemd mit N Workern
-- Redis empfohlen bei mehreren Workern (Warnung, falls `--skip-redis`)
+- Default: **2 Worker**, `--timeout 180`, `--max-requests 1000` (hängender Request blockiert nicht das ganze Portal)
+- Schema-Init läuft als One-Shot vor dem Service (`scripts/init_database.py`), unabhängig von der Worker-Zahl
+- Redis in Produktion für Kanban-SSE, SocketIO und mehrere Worker (Warnung, falls `--skip-redis`)
+- Ohne Redis: `--workers 1` (SocketIO sonst nur im jeweiligen Prozess)
 
 ## Abschlussübersicht
 

@@ -1,0 +1,9 @@
+{# Silent infinite-scroll sentinel. Parent must be [data-lazy-more][data-lazy-silent]. #}
+{% if list_has_more|default(false) %}
+<div class="mod-lazy-more" data-lazy-more-wrap>
+    <span class="visually-hidden" data-lazy-more-status data-error="{{ _('common.pagination.load_error') }}" hidden>
+        {{ _('common.pagination.load_more_loading') }}
+    </span>
+    <div data-lazy-more-sentinel aria-hidden="true" style="height:1px;"></div>
+</div>
+{% endif %}

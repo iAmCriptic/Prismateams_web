@@ -139,13 +139,27 @@ def serve_pdf(file_id):
 def serve_media(file_id):
     """Serve image/video/audio inline for browser preview."""
     file = File.query.get_or_404(file_id)
-    if _is_guest_user():
-        from app.utils.access_control import guest_has_file_access
-        if not guest_has_file_access(current_user, file):
-            abort(403)
-    elif not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         abort(403)
     return _send_inline_media(file)
+
+
+def _can_serve_file_media(file):
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        return guest_has_file_access(current_user, file)
+    return bool(can_view_file(file, current_user) or current_user.is_admin)
+
+
+@files_bp.route('/thumb/<int:file_id>')
+@login_required
+@check_module_access('module_files')
+def serve_thumb(file_id):
+    """Small WebP preview for the files grid (not the full original)."""
+    file = File.query.get_or_404(file_id)
+    if not _can_serve_file_media(file):
+        abort(403)
+    return _send_image_preview(file)
 
 
 @files_bp.route('/download/<int:file_id>')

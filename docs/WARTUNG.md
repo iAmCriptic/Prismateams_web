@@ -242,15 +242,17 @@ sudo systemctl restart teamportal
 
 ```bash
 # In /etc/systemd/system/teamportal.service
-# Faustregel: (2 x CPU-Kerne) + 1
-# Für 4 CPU-Kerne: --workers 9
+# Produktion: 2–4 Worker (mit Redis). Ein Worker reicht nur ohne Redis.
+# Timeout 180s: hängende Requests geben den Worker frei; Converter/Downloads laufen im Thread.
 sudo nano /etc/systemd/system/teamportal.service
-# Ändern Sie die Zeile: --workers 1 zu --workers 9
+# --workers 2  (oder 3–4 bei mehr CPU/RAM)
+# --timeout 180
+# --max-requests 1000 --max-requests-jitter 100
 sudo systemctl daemon-reload
 sudo systemctl restart teamportal
 ```
 
-**Hinweis:** Für mehrere Worker muss Redis installiert und in `.env` konfiguriert sein (`REDIS_ENABLED=True`).
+**Hinweis:** Für mehrere Worker und Kanban-SSE muss Redis installiert und in `.env` konfiguriert sein (`REDIS_ENABLED=True`). Ohne Redis pollt das Kanban-Board inkrementell (kein Full-Redraw).
 
 ### Nginx Caching
 

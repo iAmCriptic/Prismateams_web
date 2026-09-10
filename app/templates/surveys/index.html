@@ -124,7 +124,7 @@
 {% endmacro %}
 
 {% macro render_survey_card(survey) %}
-<article class="surveys-card">
+<article class="surveys-card" data-lazy-item>
     <div class="surveys-card-body">
         <h2 class="h6 mb-1">
             <a href="{{ url_for('surveys.edit', survey_id=survey.id) }}">{{ survey.title }}</a>
@@ -158,7 +158,7 @@
 {% endmacro %}
 
 {% macro render_survey_list_row(survey) %}
-<tr class="mod-list-row">
+<tr class="mod-list-row" data-lazy-item>
     <td>
         <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('surveys.edit', survey_id=survey.id) }}">
             <i class="bi bi-ui-checks-grid flex-shrink-0 text-muted"></i>
@@ -270,9 +270,16 @@
         </div>
 
         {% if surveys %}
-        <div id="surveysViewStage" class="mod-view-stage">
+        <div id="surveysViewStage" class="mod-view-stage"
+             data-lazy-more
+             data-lazy-silent="1"
+             data-lazy-page="{{ list_page|default(1) }}"
+             data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+             data-lazy-param="page"
+             data-lazy-items="[data-lazy-item]"
+             data-lazy-targets="#surveysGrid,#surveysListBody">
             <div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
-                <div class="surveys-list">
+                <div class="surveys-list" id="surveysGrid">
                     {% for survey in surveys %}
                     {{ render_survey_card(survey) }}
                     {% endfor %}
@@ -290,7 +297,7 @@
                                 <th scope="col" class="text-end">{{ _('common.actions') }}</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="surveysListBody">
                             {% for survey in surveys %}
                             {{ render_survey_list_row(survey) }}
                             {% endfor %}
@@ -298,6 +305,7 @@
                     </table>
                 </div>
             </div>
+            {% include 'partials/mod_lazy_more.html' %}
         </div>
         {% else %}
         <div class="surveys-empty text-center py-5">
@@ -311,6 +319,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
 (function () {

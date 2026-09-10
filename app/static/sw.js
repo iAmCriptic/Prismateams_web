@@ -5,14 +5,13 @@ const CACHE_NAME = '__SW_CACHE_NAME__';
 const ASSET_VERSION = '__SW_ASSET_VERSION__';
 const PORTAL_INFO_CACHE_KEY = 'portal-info';
 const urlsToCache = [
-  '/static/css/base.css',
-  '/static/css/cookie-consent.css',
+  '/assets/core.css',
   '/static/js/app.js',
   '/static/js/cookie-consent.js',
   '/static/img/logo.png',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'
+  '/static/vendor/bootstrap/bootstrap.min.css',
+  '/static/vendor/bootstrap-icons/bootstrap-icons.min.css',
+  '/static/vendor/bootstrap/bootstrap.bundle.min.js'
 ];
 
 // Routen, die IMMER frisch geladen werden sollen (nie aus Cache)

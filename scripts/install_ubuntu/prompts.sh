@@ -17,12 +17,12 @@ gather_information() {
 
     prompt_yes_no SETUP_GUNICORN "Gunicorn systemd-Service einrichten?" "j"
     if is_yes "$SETUP_GUNICORN"; then
-        prompt_or_default GUNICORN_WORKERS "Anzahl Gunicorn-Worker" "1"
+        prompt_or_default GUNICORN_WORKERS "Anzahl Gunicorn-Worker (2–4 mit Redis empfohlen)" "2"
         if ! [[ "$GUNICORN_WORKERS" =~ ^[0-9]+$ ]] || [ "$GUNICORN_WORKERS" -lt 1 ]; then
             error_exit "Ungültige Worker-Anzahl: $GUNICORN_WORKERS"
         fi
     else
-        GUNICORN_WORKERS="${GUNICORN_WORKERS:-1}"
+        GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
         print_manual_gunicorn_hint
     fi
 
@@ -104,8 +104,8 @@ gather_information() {
     prompt_yes_no SETUP_REDIS "Redis automatisch einrichten?" "j"
     if ! is_yes "$SETUP_REDIS"; then
         print_manual_redis_hint
-        if is_yes "$SETUP_GUNICORN" && [ "${GUNICORN_WORKERS:-1}" -gt 1 ]; then
-            log_warning "Mehrere Worker ohne Redis: SocketIO/Rate-Limit eingeschränkt"
+        if is_yes "$SETUP_GUNICORN" && [ "${GUNICORN_WORKERS:-2}" -gt 1 ]; then
+            log_warning "Mehrere Worker ohne Redis: SocketIO/Kanban-SSE/Rate-Limit eingeschränkt"
         fi
     fi
 

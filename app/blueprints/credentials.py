@@ -5,6 +5,7 @@ from app import db
 from app.models.credential import Credential, CredentialFolder, CredentialFavorite
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     VISIBILITY_PRIVATE,
     VISIBILITY_PUBLIC,
@@ -329,7 +330,7 @@ def index():
             )
         )
 
-    credentials = credentials_query.all()
+    credentials, pagination = paginate_list(credentials_query)
     nav = visibility_nav_context('credentials', current_user, section, filter_team_id)
 
     return render_template(
@@ -343,6 +344,8 @@ def index():
         favorite_ids=favorite_ids,
         show_favorites_nav=show_favorites_nav,
         search_query=search_query,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **nav,
     )
 

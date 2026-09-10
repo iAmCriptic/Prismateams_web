@@ -81,7 +81,12 @@
     "optional": "Opcional",
     "required": "Obrigatório",
     "language": "Idioma",
-    "select_language": "Selecionar idioma"
+    "select_language": "Selecionar idioma",
+    "pagination": {
+      "load_more": "Carregar mais",
+      "load_more_loading": "A carregar…",
+      "load_error": "Não foi possível carregar mais itens"
+    }
   },
   "auth": {
     "login": {

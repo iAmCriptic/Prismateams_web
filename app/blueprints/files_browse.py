@@ -31,6 +31,7 @@ def register_browse_routes(files_bp):
     def browse_folder(folder_id=None):
         """Browse the files root or a specific folder."""
         from app.blueprints.files import FILES_BROWSE_PAGE_SIZE, _is_guest_user, _paginate_browse_items
+        from app.utils.private_files import window_folders_then_files
 
         accessible_folder_ids = set()
         is_guest = _is_guest_user()
@@ -76,6 +77,11 @@ def register_browse_routes(files_bp):
                 session['files_last_team_id'] = files_team_id
             elif files_view != 'team':
                 session.pop('files_last_team_id', None)
+
+        browse_offset = max(0, request.args.get('offset', 0, type=int) or 0)
+        files_has_more = False
+        files_total_count = 0
+        browse_windowed = False
 
         # Gast-Accounts: Nur Freigabelinks anzeigen
         if is_guest:
@@ -123,12 +129,25 @@ def register_browse_routes(files_bp):
             # Sortiere
             subfolders = sorted(subfolders, key=lambda x: x.name)
             files = sorted(files, key=lambda x: x.name)
+            subfolders, files, files_has_more, files_total_count = _paginate_browse_items(
+                subfolders, files, offset=browse_offset, limit=FILES_BROWSE_PAGE_SIZE,
+            )
+            browse_windowed = True
         elif spaces_enabled:
             if files_view == 'ablage':
                 ensure_personal_root(current_user.id)
             if files_view == 'team' and files_team_id:
                 ensure_team_root(files_team_id, current_user.id)
-            result = list_view_contents(files_view, folder_id, current_user, team_id=files_team_id)
+            window_meta = {}
+            result = list_view_contents(
+                files_view,
+                folder_id,
+                current_user,
+                team_id=files_team_id,
+                offset=browse_offset,
+                limit=FILES_BROWSE_PAGE_SIZE,
+                window_meta=window_meta,
+            )
             current_folder, subfolders, files, _view_key = result
             if current_folder == 'forbidden':
                 flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
@@ -136,11 +155,14 @@ def register_browse_routes(files_bp):
                 if files_view == 'team' and files_team_id:
                     view_kwargs['team_id'] = files_team_id
                 return redirect(url_for('files.index', **view_kwargs))
+            files_has_more = bool(window_meta.get('has_more'))
+            files_total_count = int(window_meta.get('total') or 0)
+            browse_windowed = True
         else:
             # Ohne Private-/Team-Ordner: Public-Baum + optional Papierkorb (Sidebar bleibt)
             current_folder = None
             if files_view == 'trash':
-                subfolders = (
+                folder_q = (
                     Folder.query.filter(
                         Folder.deleted_at.isnot(None),
                         Folder.created_by == current_user.id,
@@ -148,16 +170,14 @@ def register_browse_routes(files_bp):
                         Folder.is_team_root.is_(False),
                     )
                     .order_by(Folder.deleted_at.desc())
-                    .all()
                 )
-                files = (
+                file_q = (
                     File.query.filter(
                         File.deleted_at.isnot(None),
                         File.uploaded_by == current_user.id,
                         File.is_current.is_(True),
                     )
                     .order_by(File.deleted_at.desc())
-                    .all()
                 )
             else:
                 if folder_id:
@@ -169,40 +189,43 @@ def register_browse_routes(files_bp):
                         flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
                         return redirect(url_for('files.index', view='public'))
 
-                # Get subfolders
                 if folder_id:
-                    subfolders = Folder.query.filter(
+                    folder_q = Folder.query.filter(
                         Folder.parent_id == folder_id,
                         Folder.deleted_at.is_(None),
                         Folder.is_personal_root.is_(False),
                         Folder.is_team_root.is_(False),
-                    ).order_by(Folder.name).all()
+                    ).order_by(Folder.name)
+                    file_q = File.query.filter(
+                        File.folder_id == folder_id,
+                        File.is_current.is_(True),
+                        File.deleted_at.is_(None),
+                    ).order_by(File.name)
                 else:
-                    subfolders = Folder.query.filter(
+                    folder_q = Folder.query.filter(
                         Folder.parent_id.is_(None),
                         Folder.deleted_at.is_(None),
                         Folder.is_personal_root.is_(False),
                         Folder.is_team_root.is_(False),
                         Folder.space != 'team',
-                    ).order_by(Folder.name).all()
-
-                if folder_id:
-                    files = File.query.filter(
-                        File.folder_id == folder_id,
-                        File.is_current.is_(True),
-                        File.deleted_at.is_(None),
-                    ).order_by(File.name).all()
-                else:
-                    files = File.query.filter(
+                    ).order_by(Folder.name)
+                    file_q = File.query.filter(
                         File.folder_id.is_(None),
                         File.is_current.is_(True),
                         File.deleted_at.is_(None),
                         File.space != 'team',
-                    ).order_by(File.name).all()
+                    ).order_by(File.name)
 
-                if files is None:
-                    files = []
-    
+            subfolders, files, files_has_more, files_total_count = window_folders_then_files(
+                folder_q, file_q, browse_offset, FILES_BROWSE_PAGE_SIZE,
+            )
+            browse_windowed = True
+
+        if not browse_windowed:
+            subfolders, files, files_has_more, files_total_count = _paginate_browse_items(
+                subfolders, files, offset=browse_offset, limit=FILES_BROWSE_PAGE_SIZE,
+            )
+
         # Build breadcrumbs starting from root to current folder
         breadcrumb_folders = []
         view_kwargs = {'view': files_view} if files_view else {}
@@ -250,22 +273,9 @@ def register_browse_routes(files_bp):
         from app.utils.onlyoffice import is_onlyoffice_enabled
         onlyoffice_available = is_onlyoffice_enabled()
 
-        # Lazy loading: Text-Previews nicht mehr synchron vom Disk lesen (P17).
-        # Media/PDF laden clientseitig per IntersectionObserver.
-        browse_offset = max(0, request.args.get('offset', 0, type=int) or 0)
-        subfolders, files, files_has_more, files_total_count = _paginate_browse_items(
-            subfolders, files, offset=browse_offset, limit=FILES_BROWSE_PAGE_SIZE
-        )
         file_preview_map = {}
         file_preview_html_map = {}
 
-        # Uploader names for list view
-        # Eager-load uploaders for list view (relationship) + map fallback
-        for f in files:
-            try:
-                _ = f.uploader
-            except Exception:
-                pass
         uploader_ids = {f.uploaded_by for f in files if f.uploaded_by}
         creator_ids = {folder.created_by for folder in subfolders if folder.created_by}
         user_ids = uploader_ids | creator_ids
@@ -301,7 +311,7 @@ def register_browse_routes(files_bp):
             file_preview_map=file_preview_map,
             file_preview_html_map=file_preview_html_map,
             files_browse_offset=browse_offset,
-            files_browse_next_offset=browse_offset + len(subfolders) + len(files),
+            files_browse_next_offset=browse_offset + FILES_BROWSE_PAGE_SIZE,
             files_has_more=files_has_more,
             files_total_count=files_total_count,
             files_dropbox_enabled=files_dropbox_enabled,

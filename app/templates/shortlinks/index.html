@@ -124,7 +124,7 @@
 
 {% macro render_shortlink_card(link) %}
 {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
-<div class="col-12 col-md-6 col-lg-4 shortlink-item">
+<div class="col-12 col-md-6 col-lg-4 shortlink-item" data-lazy-item>
     <div class="card h-100 shortlinks-card">
         <div class="card-body d-flex flex-column">
             <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
@@ -179,7 +179,7 @@
 
 {% macro render_shortlink_list_row(link) %}
 {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
-<tr class="mod-list-row">
+<tr class="mod-list-row" data-lazy-item>
     <td>
         <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
             <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
@@ -293,7 +293,14 @@
         </div>
     </div>
 
-    <div id="shortlinksViewStage" class="mod-view-stage">
+    <div id="shortlinksViewStage" class="mod-view-stage"
+         data-lazy-more
+         data-lazy-silent="1"
+         data-lazy-page="{{ list_page|default(1) }}"
+         data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+         data-lazy-param="page"
+         data-lazy-items="[data-lazy-item]"
+         data-lazy-targets="#shortlinksListBody,#shortlinksGridRow">
         <div id="listViewContainer" class="mod-view-pane mod-view-pane--active">
             {% if links %}
             <div class="mod-list-table-wrap">
@@ -308,7 +315,7 @@
                             <th class="text-end"></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="shortlinksListBody">
                         {% for link in links %}
                         {{ render_shortlink_list_row(link) }}
                         {% endfor %}
@@ -322,7 +329,7 @@
 
         <div id="gridViewContainer" class="mod-view-pane" style="display: none;">
             {% if links %}
-            <div class="row g-3">
+            <div class="row g-3" id="shortlinksGridRow">
                 {% for link in links %}
                 {{ render_shortlink_card(link) }}
                 {% endfor %}
@@ -331,12 +338,14 @@
             {{ shortlinks_empty_state() }}
             {% endif %}
         </div>
+        {% include 'partials/mod_lazy_more.html' %}
     </div>
 </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script>
@@ -409,13 +418,13 @@
         }
     }
 
-    document.querySelectorAll('.shortlinks-copy-btn').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            var url = btn.getAttribute('data-copy-url');
-            if (!url) return;
-            copyUrl(url, btn);
-        });
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.shortlinks-copy-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var url = btn.getAttribute('data-copy-url');
+        if (!url) return;
+        copyUrl(url, btn);
     });
 })();
 </script>

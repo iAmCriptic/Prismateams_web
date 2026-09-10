@@ -141,7 +141,7 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
-window.DASHBOARD_I18N = {{ current_translations.get('dashboard', {})|tojson }};
+window.DASHBOARD_I18N = {{ i18n_ns('dashboard')|tojson }};
 window.DASHBOARD_BOOT = {
     widgets: {{ dashboard_widgets|tojson }},
     options: {{ (widget_options or {})|tojson }},

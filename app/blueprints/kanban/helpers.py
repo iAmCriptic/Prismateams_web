@@ -22,6 +22,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -78,6 +79,104 @@ from app.utils.public_share import (
 )
 
 from app.blueprints.kanban._bp import BOARD_BACKGROUNDS, CUSTOM_FIELD_TYPES, kanban_bp
+
+_COMMENT_COUNT_CHUNK = 500
+
+
+def _card_board_summary_load_options():
+    """Collections needed for card tiles on the board (same JSON as before)."""
+    return (
+        selectinload(KanbanCard.card_labels).joinedload(KanbanCardLabel.label),
+        selectinload(KanbanCard.assignees).joinedload(KanbanCardAssignee.user),
+        selectinload(KanbanCard.checklists).selectinload(KanbanChecklist.items),
+        selectinload(KanbanCard.attachments),
+        selectinload(KanbanCard.votes),
+    )
+
+
+def _board_full_load_options():
+    cards = selectinload(KanbanBoard.lists).selectinload(KanbanList.cards)
+    return (
+        joinedload(KanbanBoard.team),
+        selectinload(KanbanBoard.labels),
+        selectinload(KanbanBoard.members).joinedload(KanbanBoardMember.user),
+        selectinload(KanbanBoard.custom_fields),
+        selectinload(KanbanBoard.custom_field_categories),
+        cards.options(*_card_board_summary_load_options()),
+    )
+
+
+def _list_full_load_options():
+    return (
+        joinedload(KanbanList.board),
+        selectinload(KanbanList.cards).options(*_card_board_summary_load_options()),
+    )
+
+
+def _card_detail_load_options():
+    return (
+        joinedload(KanbanCard.list).joinedload(KanbanList.board),
+        selectinload(KanbanCard.card_labels).joinedload(KanbanCardLabel.label),
+        selectinload(KanbanCard.assignees).joinedload(KanbanCardAssignee.user),
+        selectinload(KanbanCard.checklists)
+        .selectinload(KanbanChecklist.items)
+        .joinedload(KanbanChecklistItem.assignee),
+        selectinload(KanbanCard.attachments),
+        selectinload(KanbanCard.votes),
+        selectinload(KanbanCard.field_values),
+        selectinload(KanbanCard.enabled_fields).joinedload(KanbanCardFieldEnabled.field),
+        selectinload(KanbanCard.local_fields),
+    )
+
+
+def _reload_with_options(model, obj, *options):
+    """Re-fetch obj with eager loaders. Identity map keeps the same instance."""
+    if obj is None or getattr(obj, 'id', None) is None:
+        return obj
+    loaded = db.session.get(
+        model,
+        obj.id,
+        options=list(options),
+        populate_existing=True,
+    )
+    return loaded or obj
+
+
+def _kanban_comment_counts(card_ids) -> dict[int, int]:
+    """One GROUP BY per chunk instead of Comment.count() per card."""
+    ids = []
+    seen = set()
+    for raw in card_ids or ():
+        if raw is None:
+            continue
+        cid = int(raw)
+        if cid in seen:
+            continue
+        seen.add(cid)
+        ids.append(cid)
+    if not ids:
+        return {}
+    counts: dict[int, int] = {}
+    for offset in range(0, len(ids), _COMMENT_COUNT_CHUNK):
+        chunk = ids[offset:offset + _COMMENT_COUNT_CHUNK]
+        rows = (
+            db.session.query(Comment.content_id, db.func.count(Comment.id))
+            .filter(
+                Comment.content_type == 'kanban_card',
+                Comment.content_id.in_(chunk),
+                Comment.is_deleted.is_(False),
+            )
+            .group_by(Comment.content_id)
+            .all()
+        )
+        for content_id, cnt in rows:
+            counts[int(content_id)] = int(cnt)
+    return counts
+
+
+def _visible_cards_in_list(lst: KanbanList, include_archived_cards: bool = False) -> list[KanbanCard]:
+    return [c for c in lst.cards if include_archived_cards or not c.archived_at]
+
 
 def _share_token_from_request() -> str | None:
     token = (request.headers.get('X-Share-Token') or request.args.get('share_token') or '').strip()
@@ -171,6 +270,13 @@ def login_or_share_required(f):
             return f(*args, **kwargs)
         return jsonify({'error': 'Unauthorized'}), 401
     return wrapped
+
+
+def _kanban_sse_url(board_id, is_share=False):
+    """SSE-URL nur mit Redis; sonst pollt der Client inkrementell."""
+    if is_share or not current_app.config.get('REDIS_ENABLED'):
+        return ''
+    return url_for('sse.kanban_events', board_id=board_id)
 
 
 def _emit_board(board_id: int, event_type: str, data: dict):
@@ -382,7 +488,13 @@ def _serialize_checklist_item(it: KanbanChecklistItem) -> dict:
     }
 
 
-def _serialize_card_summary(card: KanbanCard, share_token: str | None = None) -> dict:
+def _serialize_card_summary(
+    card: KanbanCard,
+    share_token: str | None = None,
+    *,
+    comment_count: int | None = None,
+    comment_counts: dict[int, int] | None = None,
+) -> dict:
     actor_id = _actor_user_id(card.list.board if card.list else None)
     cover = None
     if card.cover_attachment_id:
@@ -391,9 +503,11 @@ def _serialize_card_summary(card: KanbanCard, share_token: str | None = None) ->
             att = KanbanAttachment.query.get(card.cover_attachment_id)
         if att:
             cover = _serialize_attachment(att, share_token=share_token)
-    comment_count = Comment.query.filter_by(
-        content_type='kanban_card', content_id=card.id, is_deleted=False
-    ).count()
+    if comment_count is None:
+        if comment_counts is not None:
+            comment_count = comment_counts.get(card.id, 0)
+        else:
+            comment_count = _kanban_comment_counts([card.id]).get(card.id, 0)
     return {
         'id': card.id,
         'list_id': card.list_id,
@@ -462,6 +576,7 @@ def _serialize_custom_field(field: KanbanCustomField) -> dict:
 
 
 def _serialize_card_detail(card: KanbanCard, share_token: str | None = None) -> dict:
+    card = _reload_with_options(KanbanCard, card, *_card_detail_load_options())
     token = share_token if share_token is not None else _share_token_from_request()
     data = _serialize_card_summary(card, share_token=token)
     data.update({
@@ -495,15 +610,25 @@ def _serialize_list(
     lst: KanbanList,
     include_archived_cards: bool = False,
     share_token: str | None = None,
+    *,
+    comment_counts: dict[int, int] | None = None,
+    already_loaded: bool = False,
 ) -> dict:
-    cards = [c for c in lst.cards if include_archived_cards or not c.archived_at]
+    if not already_loaded:
+        lst = _reload_with_options(KanbanList, lst, *_list_full_load_options())
+    cards = _visible_cards_in_list(lst, include_archived_cards)
+    if comment_counts is None:
+        comment_counts = _kanban_comment_counts([c.id for c in cards])
     return {
         'id': lst.id,
         'title': lst.title,
         'position': lst.position,
         'archived': bool(lst.archived_at),
         'card_count': len(cards),
-        'cards': [_serialize_card_summary(c, share_token=share_token) for c in cards],
+        'cards': [
+            _serialize_card_summary(c, share_token=share_token, comment_counts=comment_counts)
+            for c in cards
+        ],
     }
 
 
@@ -513,6 +638,8 @@ def _serialize_board(
     full: bool = False,
     share_token: str | None = None,
 ) -> dict:
+    if full:
+        board = _reload_with_options(KanbanBoard, board, *_board_full_load_options())
     data = {
         'id': board.id,
         'title': board.title,
@@ -530,9 +657,20 @@ def _serialize_board(
         'url': url_for('kanban.board', board_id=board.id),
     }
     if full:
+        lists = [lst for lst in board.lists if not lst.archived_at]
+        comment_counts = _kanban_comment_counts([
+            card.id
+            for lst in lists
+            for card in _visible_cards_in_list(lst)
+        ])
         data['lists'] = [
-            _serialize_list(l, share_token=share_token)
-            for l in board.lists if not l.archived_at
+            _serialize_list(
+                lst,
+                share_token=share_token,
+                comment_counts=comment_counts,
+                already_loaded=True,
+            )
+            for lst in lists
         ]
         data['labels'] = [
             {'id': lb.id, 'name': lb.name, 'color': lb.color, 'position': lb.position}
@@ -636,6 +774,7 @@ __all__ = [
     '_can_manage_board_ctx',
     'kanban_board_cover_url',
     'login_or_share_required',
+    '_kanban_sse_url',
     '_emit_board',
     '_log_activity',
     '_upload_root',

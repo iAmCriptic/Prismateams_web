@@ -5,6 +5,7 @@ from app import db
 from app.models.manual import Manual, ManualFolder
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     VISIBILITY_PRIVATE,
     VISIBILITY_PUBLIC,
@@ -223,7 +224,7 @@ def index():
             )
         )
 
-    manuals = manuals_query.all()
+    manuals, pagination = paginate_list(manuals_query)
     nav = visibility_nav_context('manuals', current_user, section, filter_team_id)
 
     return render_template(
@@ -234,6 +235,8 @@ def index():
         active_folder_id=active_folder_id,
         active_folder=active_folder,
         search_query=search_query,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **nav,
     )
 

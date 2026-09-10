@@ -22,6 +22,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -53,6 +54,7 @@ from app.models.user import User
 from app.utils.access_control import check_module_access
 from app.utils.common import portal_now_naive
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.kanban_access import (
     VISIBILITY_PRIVATE,
     VISIBILITY_PUBLIC,
@@ -95,43 +97,95 @@ def index():
             filter_team_id = int(request.args.get('team_id') or 0) or None
         except (TypeError, ValueError):
             filter_team_id = None
-    boards = (
+
+    teams = _user_kanban_teams(current_user)
+    if filter_team_id and not any(t.id == filter_team_id for t in teams):
+        filter_team_id = None
+        section = 'all'
+
+    allowed = set(get_allowed_visibilities())
+    base = (
         accessible_boards_query(current_user, include_closed=False)
+        .options(joinedload(KanbanBoard.team))
         .order_by(KanbanBoard.updated_at.desc())
-        .all()
     )
+
+    def vis_query(vis):
+        return base.filter(KanbanBoard.visibility == vis)
+
     recent_views = (
         KanbanBoardView.query.filter_by(user_id=current_user.id)
+        .options(joinedload(KanbanBoardView.board).joinedload(KanbanBoard.team))
         .order_by(KanbanBoardView.viewed_at.desc())
         .limit(8)
         .all()
     )
     recent_boards = []
-    for v in recent_views:
-        if v.board and not v.board.closed_at and can_view_board(current_user, v.board):
-            recent_boards.append(v.board)
+    if section in ('all', 'recent'):
+        for v in recent_views:
+            if v.board and not v.board.closed_at and can_view_board(current_user, v.board):
+                recent_boards.append(v.board)
 
-    private_boards = [b for b in boards if b.visibility == VISIBILITY_PRIVATE] if VISIBILITY_PRIVATE in get_allowed_visibilities() else []
-    team_boards = [b for b in boards if b.visibility == VISIBILITY_TEAM] if VISIBILITY_TEAM in get_allowed_visibilities() else []
-    public_boards = [b for b in boards if b.visibility == VISIBILITY_PUBLIC] if VISIBILITY_PUBLIC in get_allowed_visibilities() else []
-
-    teams = _user_kanban_teams(current_user)
+    private_boards = []
+    public_boards = []
+    selected_team_boards = []
     team_board_groups = []
-    for team in teams:
-        group_boards = [b for b in team_boards if b.team_id == team.id]
-        if group_boards:
-            team_board_groups.append({'team': team, 'boards': group_boards})
-    ungrouped_team_boards = [b for b in team_boards if not b.team_id]
-    if ungrouped_team_boards:
-        team_board_groups.append({'team': None, 'boards': ungrouped_team_boards})
+    list_has_more = False
+    list_page = 1
+    private_has_more = False
+    public_has_more = False
 
-    selected_team_boards = team_boards
-    if filter_team_id:
-        if not any(t.id == filter_team_id for t in teams):
-            filter_team_id = None
-            section = 'all'
+    all_first_page = section == 'all'
+
+    if section in ('all', 'private') and VISIBILITY_PRIVATE in allowed:
+        items, pag = paginate_list(vis_query(VISIBILITY_PRIVATE), page=1 if all_first_page else None)
+        private_boards = items
+        private_has_more = pag.has_next
+        if section == 'private':
+            list_has_more = pag.has_next
+            list_page = pag.page
+
+    if section in ('all', 'public') and VISIBILITY_PUBLIC in allowed:
+        items, pag = paginate_list(vis_query(VISIBILITY_PUBLIC), page=1 if all_first_page else None)
+        public_boards = items
+        public_has_more = pag.has_next
+        if section == 'public':
+            list_has_more = pag.has_next
+            list_page = pag.page
+
+    if VISIBILITY_TEAM in allowed and section in ('all', 'team'):
+        if section == 'team':
+            q = vis_query(VISIBILITY_TEAM)
+            if filter_team_id:
+                q = q.filter(KanbanBoard.team_id == filter_team_id)
+            items, pag = paginate_list(q)
+            selected_team_boards = items
+            list_has_more = pag.has_next
+            list_page = pag.page
         else:
-            selected_team_boards = [b for b in team_boards if b.team_id == filter_team_id]
+            for team in teams:
+                q = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == team.id)
+                items, pag = paginate_list(q, page=1)
+                if items:
+                    team_board_groups.append({
+                        'team': team,
+                        'boards': items,
+                        'has_more': pag.has_next,
+                        'page': pag.page,
+                        'lazy_url': url_for('kanban.index', section='team', team_id=team.id),
+                    })
+            items, pag = paginate_list(
+                vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id.is_(None)),
+                page=1,
+            )
+            if items:
+                team_board_groups.append({
+                    'team': None,
+                    'boards': items,
+                    'has_more': False,
+                    'page': pag.page,
+                    'lazy_url': None,
+                })
 
     templates = KanbanBoardTemplate.query.filter(
         db.or_(
@@ -140,13 +194,10 @@ def index():
         )
     ).order_by(KanbanBoardTemplate.name).all()
 
-    all_visible = {b.id: b for b in boards}
-    for b in recent_boards:
-        all_visible[b.id] = b
-    manageable_ids = {
-        bid for bid, b in all_visible.items()
-        if can_manage_board(current_user, b)
-    }
+    displayed = list(recent_boards) + list(private_boards) + list(public_boards) + list(selected_team_boards)
+    for group in team_board_groups:
+        displayed.extend(group.get('boards') or [])
+    manageable_ids = {b.id for b in displayed if can_manage_board(current_user, b)}
 
     active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
 
@@ -166,6 +217,10 @@ def index():
         section_filter=section,
         filter_team_id=filter_team_id,
         active_nav=active_nav,
+        list_has_more=list_has_more,
+        list_page=list_page,
+        private_has_more=private_has_more,
+        public_has_more=public_has_more,
     )
 
 
@@ -220,4 +275,5 @@ def board(board_id):
         onlyoffice_enabled=is_onlyoffice_enabled(),
         share_token='',
         is_share=False,
+        kanban_sse_url=_kanban_sse_url(board_obj.id, is_share=False),
     )

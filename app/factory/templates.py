@@ -3,11 +3,10 @@
 
 from datetime import datetime
 
-from flask import request, session, url_for as flask_url_for
+from flask import request, session, url_for as flask_url_for, g
 from flask_login import current_user
 
 from app.utils import format_datetime, format_time
-from app.utils.i18n import translate
 
 def register_template_helpers(app):
     """Context processors and Jinja filters."""
@@ -18,7 +17,7 @@ def register_template_helpers(app):
 
     def versioned_url_for(endpoint, **values):
         """Jinja url_for with cache-busting query for static assets."""
-        if endpoint == 'static':
+        if endpoint in ('static', 'core_css'):
             values.setdefault('v', _asset_version())
         return flask_url_for(endpoint, **values)
 
@@ -74,41 +73,31 @@ def register_template_helpers(app):
         auth_branding = get_auth_branding_context()
 
         def get_chat_display_name(chat):
-            """Returns the display name for a chat. For private chats, shows only the other person's name."""
-            from flask_login import current_user
-            if chat.is_direct_message and not chat.is_main_chat:
-                from app.models.chat import ChatMember
-                from app.models.user import User
-                from app.utils.chat_visibility import visible_chat_user_filters
-                members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                    *visible_chat_user_filters(),
-                ).all()
-                for member in members:
-                    if member.user_id != current_user.id:
-                        return member.user.full_name
-                return chat.name
-            if chat.is_main_chat:
-                return translate('chat.common.main_chat_name')
-            return chat.name
-        
+            """Display name for a chat. Uses eager-loaded members / request cache."""
+            if not chat:
+                return ''
+            cache = g.setdefault('_chat_display_name', {})
+            cached = cache.get(chat.id)
+            if cached is not None:
+                return cached
+            from app.utils.chat_nav import display_name_for_chat
+            uid = current_user.id if current_user.is_authenticated else None
+            name = display_name_for_chat(chat, uid)
+            cache[chat.id] = name
+            return name
+
         def get_other_chat_user(chat):
-            """Returns the other user in a private chat."""
-            from flask_login import current_user
-            from app.models.chat import ChatMember
-            from app.models.user import User
-            from app.utils.chat_visibility import visible_chat_user_filters
-            
-            if not chat or not chat.is_direct_message or chat.is_main_chat:
+            """Other user in a DM. Uses eager-loaded members / request cache."""
+            if not chat:
                 return None
-            
-            members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                *visible_chat_user_filters(),
-            ).all()
-            
-            for member in members:
-                if member.user_id != current_user.id:
-                    return member.user
-            return None
+            cache = g.setdefault('_other_chat_user', {})
+            if chat.id in cache:
+                return cache[chat.id]
+            from app.utils.chat_nav import other_user_for_chat
+            uid = current_user.id if current_user.is_authenticated else None
+            user = other_user_for_chat(chat, uid)
+            cache[chat.id] = user
+            return user
         
         mobile_nav_slots = None
         mobile_nav_left = None

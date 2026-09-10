@@ -722,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 {% if is_markdown|default(file.name.endswith('.md')) %}
 <script>
-window.MARKDOWN_EDITOR_I18N = {{ current_translations.get('markdown', {}).get('editor', {})|tojson }};
+window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 {% if current_user.is_authenticated %}
 window.MARKDOWN_LINK_PREVIEW_URL = {{ url_for('files.link_preview')|tojson }};
 {% endif %}

@@ -1,8 +1,8 @@
 {# Shared chat nav list item. Expects: item, active_chat_id #}
 {% set chat = item.chat %}
 {% set is_active = active_chat_id is not none and active_chat_id == item.nav_id %}
-{% set other_user = get_other_chat_user(chat) if chat.is_direct_message else none %}
-{% set display_name = get_chat_display_name(chat) %}
+{% set other_user = item.other_user %}
+{% set display_name = item.display_name %}
 {% set pin_chat_id = chat.id %}
 {% set settings_url = url_for('chat.chat_settings', chat_id=chat.id) %}
 {% set view_url = url_for('chat.view_chat', chat_id=item.nav_id) %}

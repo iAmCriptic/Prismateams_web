@@ -316,7 +316,7 @@ print_manual_redis_hint() {
     log_manual "=== Redis manuell einrichten ==="
     log_manual "  1. apt install redis-server && systemctl enable --now redis-server"
     log_manual "  2. In .env: REDIS_ENABLED=True, REDIS_URL=redis://localhost:6379/0"
-    log_manual "  3. Empfohlen bei mehreren Gunicorn-Workern"
+    log_manual "  3. Produktion: Redis für Kanban-SSE, SocketIO und mehrere Worker"
     echo
 }
 
@@ -326,7 +326,7 @@ print_manual_gunicorn_hint() {
     log_manual "  1. cd $INSTALL_DIR && source venv/bin/activate && pip install gunicorn"
     log_manual "  2. FLASK_ENV=production python scripts/init_database.py"
     log_manual "  3. Systemd-Unit /etc/systemd/system/teamportal.service anlegen"
-    log_manual "  4. gunicorn --workers ${GUNICORN_WORKERS:-1} --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
+    log_manual "  4. gunicorn --workers ${GUNICORN_WORKERS:-2} --timeout 180 --max-requests 1000 --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
     log_manual "  5. systemctl enable --now teamportal"
     echo
 }

@@ -94,7 +94,7 @@
     
     <div class="calendar-grid calendar-grid--fill">
         <div class="calendar-header">
-            {% for weekday in current_translations.get('calendar', {}).get('index', {}).get('weekday_short', []) %}
+            {% for weekday in i18n_ns('calendar', 'index', 'weekday_short') %}
             <div class="day-header">{{ weekday }}</div>
             {% endfor %}
         </div>
@@ -210,7 +210,7 @@
 </div>{# calendar-shell #}
 
 <script>
-const CAL_I18N = {{ current_translations.get('calendar', {}).get('index', {})|tojson }};
+const CAL_I18N = {{ i18n_ns('calendar', 'index')|tojson }};
 const CAL_MULTI = {{ calendar_multi_enabled|tojson }};
 const CAL_PERSONAL_ID = {{ (sc.personal.id if sc and sc.personal else (sc.public.id if sc and sc.public else none))|tojson }};
 const CAL_SELECTED_IDS = {{ selected_calendar_ids|tojson }};

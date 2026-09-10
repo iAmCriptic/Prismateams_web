@@ -223,7 +223,7 @@
 <!-- Quill Editor JS -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
-const EMAIL_COMPOSE = {{ current_translations.get('email', {}).get('compose', {})|tojson }};
+const EMAIL_COMPOSE = {{ i18n_ns('email', 'compose')|tojson }};
 const EDITOR_I18N = EMAIL_COMPOSE.editor || {};
 const PREVIEW_I18N = EMAIL_COMPOSE.preview || {};
 const COMPOSE_MESSAGES = EMAIL_COMPOSE.messages || {};

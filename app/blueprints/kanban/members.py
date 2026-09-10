@@ -470,4 +470,5 @@ def public_share(token):
         onlyoffice_enabled=False,
         share_token=token,
         is_share=True,
+        kanban_sse_url='',
     )

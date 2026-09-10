@@ -129,12 +129,12 @@
                         <div class="calendar-form-field" id="recurrence_interval_group">
                             <label for="recurrence_interval" class="form-label">{{ _('calendar.create.form.recurrence.interval_label') }}</label>
                             <input type="number" class="form-control" id="recurrence_interval" name="recurrence_interval" value="{{ event.recurrence_interval or 1 }}" min="1">
-                            <small class="form-text" id="interval_help">{{ current_translations.get('calendar', {}).get('create', {}).get('form', {}).get('recurrence', {}).get('interval_help', {}).get('default', '') }}</small>
+                            <small class="form-text" id="interval_help">{{ _('calendar.create.form.recurrence.interval_help.default') }}</small>
                         </div>
                         <div class="calendar-form-field" id="recurrence_days_group" style="display: {% if event.recurrence_type == 'weekly' %}block{% else %}none{% endif %};">
                             <label class="form-label">{{ _('calendar.create.form.recurrence.days_label') }}</label>
                             {% set recurrence_days_list = event.recurrence_days.split(',') if event.recurrence_days else [] %}
-                            {% set weekday_names = current_translations.get('calendar', {}).get('create', {}).get('form', {}).get('recurrence', {}).get('weekday_names', []) %}
+                            {% set weekday_names = i18n_ns('calendar', 'create', 'form', 'recurrence', 'weekday_names') %}
                             {% for weekday in weekday_names %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="recurrence_days_check" value="{{ loop.index0 }}" id="day_{{ loop.index0 }}" {% if loop.index0|string in recurrence_days_list %}checked{% endif %}>
@@ -185,7 +185,7 @@
 </div>
 
 <script>
-const CAL_FORM_I18N = {{ current_translations.get('calendar', {}).get('create', {})|tojson }};
+const CAL_FORM_I18N = {{ i18n_ns('calendar', 'create')|tojson }};
 document.addEventListener('DOMContentLoaded', function() {
     (function initEventColorPresets() {
         const input = document.getElementById('event_color');

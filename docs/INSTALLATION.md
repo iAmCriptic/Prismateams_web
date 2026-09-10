@@ -433,7 +433,7 @@ REDIS_URL=redis://localhost:6379/0
 - **MIROTALK_ENABLED / MIROTALK_URL:** `True` und `https://meet.IHRE-DOMAIN`, wenn MiroTalk SFU läuft (Schritt 6d). Join-API intern über `MIROTALK_API_URL=http://127.0.0.1:3010`
 - **MIROTALK_API_KEY / MIROTALK_HOST_USER / MIROTALK_HOST_PASSWORD:** Pflicht bei `HOST_PROTECTED` — identisch zu `API_KEY_SECRET` und `HOST_USERS` in `/var/lib/mirotalk-sfu/.env`. Ohne passende Werte: Join scheitert bzw. „Waiting for host…“
 - **HTTPS:** Ohne Secure Context (nur `http://IP`) blockieren Browser Kamera/Mikrofon → Blackscreen. Für produktive Meetings SSL für Portal und `meet.` setzen; dann `SESSION_COOKIE_SECURE=True`
-- **REDIS_ENABLED:** Setzen Sie auf `True`, wenn mehrere Gunicorn-Worker genutzt werden
+- **REDIS_ENABLED:** In Produktion `True` (Kanban-SSE, SocketIO, mehrere Gunicorn-Worker). Lokal `python app.py` darf `False` bleiben — Kanban pollt dann inkrementell.
 - **REDIS_URL:** Standard ist `redis://localhost:6379/0`, nur bei abweichender Redis-Konfiguration ändern
 
 **Wichtig zu den Encryption Keys:**
@@ -455,6 +455,7 @@ REDIS_URL=redis://localhost:6379/0
 - **Dateikonverter:** `FILE_CONVERTER_RETENTION_HOURS`, `FILE_CONVERTER_MAX_CONCURRENT`, `LIBREOFFICE_PATH`
 - **Datei-Papierkorb:** `FILES_TRASH_DAYS` (Standard 30; `0` = kein Auto-Purge; auch in Admin → Datei-Einstellungen)
 - **Zugriffsprotokolle (IP/UA):** `SESSION_RECORD_RETENTION_DAYS` (Standard 30), `SHARE_ACCESS_LOG_RETENTION_DAYS` (Standard 90); `0` = kein Auto-Purge; auch in Admin → System
+- **Gzip in der App:** `ENABLE_APP_GZIP` — in Development standardmäßig an (`python app.py`). In Production/Staging aus, weil Nginx/Apache komprimieren. Nur setzen, wenn Gunicorn ohne Reverse-Proxy erreichbar ist.
 - **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
   - `SESSION_COOKIE_SECURE=True` nur bei HTTPS (z. B. Let's Encrypt). Bei Zugriff über `http://` muss der Wert `False` sein, sonst speichert der Browser die Session nicht und Setup/Login scheitern nach der Account-Erstellung.
   - Der Ubuntu-Installer setzt das Flag automatisch passend zu `--ssl` / SSL-Prompt.
@@ -505,21 +506,27 @@ REDIS_ENABLED=True
 REDIS_URL=redis://localhost:6379/0
 ```
 
-**Hinweis:** Wenn Sie nur einen Worker verwenden (`-w 1`), können Sie Redis deaktiviert lassen (`REDIS_ENABLED=False`). Für Production mit mehreren Workern ist Redis jedoch dringend empfohlen.
+**Produktion:** Redis ist Pflicht für Kanban-Live-Updates (SSE), SocketIO und mehrere Worker. Ohne Redis pollt das Board inkrementell alle 8s (Dev). Wenn Sie nur einen Worker verwenden (`-w 1`) und Redis weglassen, bleiben Chat und Kanban auf Fallbacks beschränkt.
 
 ### Schritt 10: Systemd-Service konfigurieren
+
+Schema vorher anlegen (Installer macht das automatisch; manuell):
+
+```bash
+cd /var/www/teamportal
+sudo -u www-data bash -c "source venv/bin/activate && FLASK_ENV=production PRISMATEAMS_FORCE_SCHEMA_INIT=1 python scripts/init_database.py"
+```
 
 ```bash
 sudo nano /etc/systemd/system/teamportal.service
 ```
 
-**WICHTIG:** Für den ersten Start verwenden wir `--workers 1` (nur 1 Worker), damit die Datenbank automatisch initialisiert wird!
+Produktion: **2 Worker** (mit Redis), Timeout 180s. Ein hängender Request blockiert dann nicht das ganze Portal. Converter/Media-Downloads laufen bereits in Hintergrund-Threads.
 
-Inhalt für den ersten Start:
 ```ini
 [Unit]
 Description=Team Portal Gunicorn Application Server
-After=network.target mysql.service
+After=network.target mysql.service redis-server.service
 
 [Service]
 User=www-data
@@ -528,9 +535,12 @@ WorkingDirectory=/var/www/teamportal
 Environment="PATH=/var/www/teamportal/venv/bin"
 Environment="FLASK_ENV=production"
 ExecStart=/var/www/teamportal/venv/bin/gunicorn \
-    --workers 1 \
+    --workers 2 \
     --bind 127.0.0.1:5000 \
-    --timeout 600 \
+    --timeout 180 \
+    --graceful-timeout 30 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
     --access-logfile - \
     --error-logfile - \
     wsgi:app
@@ -556,54 +566,13 @@ sudo systemctl start teamportal
 sudo systemctl status teamportal
 ```
 
-**Wichtig:** Beim ersten Start wird die Datenbank **automatisch** initialisiert und alle Tabellen werden erstellt. Warten Sie etwa 1 Minute, dann prüfen Sie die Logs:
+**Ohne Redis:** `--workers 1` belassen — SocketIO (Chat, Live-Updates) braucht Redis für mehrere Prozesse.
+
+**Mehr Worker (2–4):** Redis muss laufen (`REDIS_ENABLED=True`). Siehe [WARTUNG.md – Performance](WARTUNG.md#performance-optimierung).
 
 ```bash
-# Prüfen Sie die Logs, ob die Datenbank erfolgreich erstellt wurde
+# Logs
 sudo journalctl -u teamportal -n 50 -f
-```
-
-**Nach dem ersten erfolgreichen Start** (wenn die Datenbank erstellt wurde) können Sie auf mehrere Worker umstellen:
-
-**WICHTIG:** Wenn Sie mehrere Worker verwenden möchten, stellen Sie sicher, dass Redis installiert und konfiguriert ist (siehe Schritt 9)!
-
-```bash
-sudo nano /etc/systemd/system/teamportal.service
-```
-
-Ändern Sie die `--workers 1` Zeile zu `--workers 4` (oder mehr, siehe [WARTUNG.md – Performance](WARTUNG.md#performance-optimierung)):
-
-```ini
-[Unit]
-Description=Team Portal Gunicorn Application Server
-After=network.target mysql.service
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/teamportal
-Environment="PATH=/var/www/teamportal/venv/bin"
-Environment="FLASK_ENV=production"
-ExecStart=/var/www/teamportal/venv/bin/gunicorn \
-    --workers 4 \
-    --bind 127.0.0.1:5000 \
-    --timeout 600 \
-    --access-logfile - \
-    --error-logfile - \
-    wsgi:app
-
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-# Systemd neu laden und Service neu starten
-sudo systemctl daemon-reload
-sudo systemctl restart teamportal
-sudo systemctl status teamportal
 ```
 
 **Hinweis zu Multi-Worker-Setups:**
@@ -639,6 +608,18 @@ http {
 }
 ```
 
+Zusätzlich Gzip für CSS/JS/JSON (Ubuntu komprimiert sonst oft nur HTML). Entweder den Block im `server { }` (siehe unten) oder:
+
+```bash
+sudo cp /var/www/teamportal/scripts/install_ubuntu/nginx-gzip.conf /etc/nginx/conf.d/teamportal-gzip.conf
+```
+
+Optional Brotli, wenn das Nginx-Modul installiert ist (`libnginx-mod-http-brotli`):
+
+```bash
+sudo cp /var/www/teamportal/scripts/install_ubuntu/nginx-brotli.conf /etc/nginx/conf.d/teamportal-brotli.conf
+```
+
 Dann erstellen Sie die Site-Konfiguration:
 
 ```bash
@@ -665,6 +646,15 @@ server {
 
     # File upload limit
     client_max_body_size 100M;
+
+    # Gzip: CSS/JS/JSON (Ubuntu-Default komprimiert oft nur HTML)
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 256;
+    gzip_types text/plain text/css text/xml text/javascript
+               application/javascript application/json application/xml image/svg+xml;
 
     # Document Server Cache (MUSS VOR /onlyoffice und /eurooffice kommen!)
     # Euro-Office / OnlyOffice benötigen diesen Pfad für interne Cache-Dateien
@@ -855,6 +845,7 @@ server {
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
+        gzip off;
         client_max_body_size 100M;
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
@@ -887,6 +878,7 @@ server {
 - Entfernen Sie die Document-Server-Location-Blöcke (`/eurooffice`, `/onlyoffice`, `/cache`), wenn der Document Server NICHT installiert ist
 - Entfernen Sie den Excalidraw-Location-Block (`/excalidraw-room/`), wenn der Room-Server NICHT installiert ist
 - Ersetzen Sie `ihre-domain.de` mit Ihrer tatsächlichen Domain oder IP-Adresse
+- Gzip: `scripts/install_ubuntu/nginx-gzip.conf` nach `/etc/nginx/conf.d/` kopieren (oder den `gzip`-Block im `server` behalten)
 
 ```bash
 # Site aktivieren
@@ -949,7 +941,7 @@ sudo ufw status
 4. Konfiguration (.env-Datei)
 5. Berechtigungen setzen
 6. Redis installieren (erforderlich für Multi-Worker-Setups)
-7. Systemd-Service konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
+7. Systemd-Service konfigurieren und starten (2 Worker, Redis; Schema per `init_database.py`)
 8. Nginx konfigurieren
 9. SSL mit Let's Encrypt (empfohlen)
 10. Firewall konfigurieren
@@ -968,7 +960,7 @@ sudo ufw status
 
 1. **.env-Konfiguration:** `ONLYOFFICE_ENABLED=False` / `EXCALIDRAW_ENABLED=False` / `MIROTALK_ENABLED=False` wenn nicht installiert
 2. **Nginx-Konfiguration:** Document-Server- und Excalidraw-Location-Blöcke entfernen wenn nicht genutzt
-3. **Datenbank:** Nur leere DB anlegen; Tabellen beim ersten Gunicorn-Start; `--workers 1` für ersten Start
+3. **Datenbank:** Leere DB anlegen, dann `scripts/init_database.py` (Installer-Oneshot). Gunicorn mit 2 Workern und Redis; ohne Redis `--workers 1`.
 4. **Redis:** Erforderlich für Multi-Worker mit SocketIO
 
 ## Sicherheits-Checkliste

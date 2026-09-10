@@ -122,7 +122,12 @@
     "required": "Erforderlich",
     "language": "Sprache",
     "select_language": "Sprache auswählen",
-    "unknown_error": "Unbekannter Fehler"
+    "unknown_error": "Unbekannter Fehler",
+    "pagination": {
+      "load_more": "Weitere laden",
+      "load_more_loading": "Laden…",
+      "load_error": "Weitere Einträge konnten nicht geladen werden"
+    }
   },
   "context_menu": {
     "copy_info": "Infos kopieren",

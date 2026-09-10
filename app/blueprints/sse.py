@@ -248,6 +248,9 @@ def kanban_events(board_id):
     ):
         return jsonify({'error': 'Forbidden'}), 403
 
+    if not get_redis_client():
+        return jsonify({'error': 'SSE unavailable'}), 503
+
     channels = [f'kanban:board:{board_id}']
 
     def generate():

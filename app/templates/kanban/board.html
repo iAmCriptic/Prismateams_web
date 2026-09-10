@@ -12,7 +12,7 @@
      data-can-manage="{{ '1' if can_manage else '0' }}"
      data-share-token="{{ share_token or '' }}"
      data-is-share="{{ '1' if is_share else '0' }}"
-     data-sse-url="{% if not is_share %}{{ url_for('sse.kanban_events', board_id=board.id) }}{% endif %}"
+     data-sse-url="{{ kanban_sse_url or '' }}"
      data-bg-image-url="{{ background_image_url or '' }}"
      style="--kanban-bg: {{ background_css }};{% if background_image_url %} --kanban-bg-image: url('{{ background_image_url }}');{% endif %}">
 
@@ -552,7 +552,7 @@
 {% block extra_js %}
 <script>
   window.KANBAN_BOARD = {{ board_json | tojson }};
-  window.COMMENTS_I18N = {{ current_translations.get('comments', {}) | tojson }};
+  window.COMMENTS_I18N = {{ i18n_ns('comments') | tojson }};
   window.KANBAN_I18N = {
     addCard: {{ _('kanban.board.add_card') | tojson }},
     addList: {{ _('kanban.board.add_list') | tojson }},

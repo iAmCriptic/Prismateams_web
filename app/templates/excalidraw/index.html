@@ -75,7 +75,7 @@
 {% endmacro %}
 
 {% macro render_drawing_card(drawing) %}
-<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="dropdown">
+<div class="col-12 col-md-6 col-lg-4" data-lazy-item data-context-zone data-context-menu="dropdown">
     <div class="card h-100 excalidraw-card" onclick="location.href='{{ url_for('excalidraw.edit', drawing_id=drawing.id) }}'" style="cursor: pointer;">
         <div class="excalidraw-card-preview">
             {% if drawing.thumbnail_path %}
@@ -106,7 +106,7 @@
 {% endmacro %}
 
 {% macro render_drawing_row(drawing) %}
-<tr class="mod-list-row" data-context-zone data-context-menu="dropdown">
+<tr class="mod-list-row" data-lazy-item data-context-zone data-context-menu="dropdown">
     <td>
         <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('excalidraw.edit', drawing_id=drawing.id) }}">
             <i class="bi bi-pencil-square flex-shrink-0"></i>
@@ -219,9 +219,17 @@
         <input type="file" name="file" id="excalidrawUploadInput" accept=".excalidraw,application/json">
     </form>
 
+    <div id="excalidrawViewStage" class="mod-view-stage"
+         data-lazy-more
+         data-lazy-silent="1"
+         data-lazy-page="{{ list_page|default(1) }}"
+         data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+         data-lazy-param="page"
+         data-lazy-items="[data-lazy-item]"
+         data-lazy-targets="#excalidrawGridRow,#excalidrawListBody">
     <div id="gridViewContainer" style="display: none;">
         {% if drawings %}
-        <div class="row g-3">
+        <div class="row g-3" id="excalidrawGridRow">
             {% for drawing in drawings %}
                 {{ render_drawing_card(drawing) }}
             {% endfor %}
@@ -243,7 +251,7 @@
                         <th scope="col" class="text-end">{{ _('common.actions') }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="excalidrawListBody">
                     {% for drawing in drawings %}
                         {{ render_drawing_row(drawing) }}
                     {% endfor %}
@@ -253,6 +261,8 @@
         {% else %}
         {{ empty_state() }}
         {% endif %}
+    </div>
+    {% include 'partials/mod_lazy_more.html' %}
     </div>
 </div>
 </div>
@@ -329,6 +339,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script>
 (function () {
     const RENAME_URL = {{ url_for('excalidraw.rename', drawing_id=0)|tojson }}.replace(/0$/, '');

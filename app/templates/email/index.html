@@ -647,7 +647,7 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
 <script>
-const EMAIL_I18N = {{ current_translations.get('email', {}).get('index', {})|tojson }};
+const EMAIL_I18N = {{ i18n_ns('email', 'index')|tojson }};
 const EMAIL_MESSAGES = EMAIL_I18N.messages || {};
 const EMAIL_FOLDER_URLS = {
     messages: "{{ url_for('email.move_email', email_id=0) }}".replace('/0', ''),

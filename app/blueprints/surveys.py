@@ -46,6 +46,7 @@ from app.utils.bot_protection import get_template_context, validate_bot_protecti
 from app.utils.common import is_module_enabled, portal_now_naive
 from app.utils.email_sender import generate_confirmation_code, render_and_send_portal_email
 from app.utils.i18n import translate
+from app.utils.list_pagination import paginate_list
 from app.utils.module_visibility import (
     accessible_query,
     apply_section_filter,
@@ -381,12 +382,14 @@ def index():
         like = f'%{search_query}%'
         query = query.filter(or_(Survey.title.ilike(like), Survey.description.ilike(like)))
 
-    surveys = query.order_by(Survey.updated_at.desc()).all()
+    surveys, pagination = paginate_list(query.order_by(Survey.updated_at.desc()))
     ctx = _sidebar_context()
     return render_template(
         'surveys/index.html',
         surveys=surveys,
         search_query=search_query,
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
         **ctx,
     )
 

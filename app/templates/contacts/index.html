@@ -727,7 +727,7 @@ window.CONTACTS_BULK_I18N = {
 </script>
 <script src="{{ url_for('static', filename='js/contacts-bulk.js') }}"></script>
 <script>
-const CONTACTS_I18N = {{ current_translations.get('contacts', {}).get('index', {})|tojson }};
+const CONTACTS_I18N = {{ i18n_ns('contacts', 'index')|tojson }};
 
 function notifyContacts(message, category) {
     if (typeof window.showAppBanner === 'function') {

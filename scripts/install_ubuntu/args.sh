@@ -18,7 +18,7 @@ Allgemein:
 
 Anwendung / Gunicorn:
   --port PORT                Gunicorn-Port (Standard: 5000)
-  --workers N                Gunicorn-Worker (Standard: 1; bei N>1 One-Shot-DB-Init)
+  --workers N                Gunicorn-Worker (Standard: 2; Redis für SocketIO bei N>1)
   --no-gunicorn              Keinen systemd-Service anlegen
 
 Webserver:

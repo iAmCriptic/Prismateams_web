@@ -111,7 +111,7 @@ print_summary() {
     echo "Branch: ${GIT_BRANCH:-<default>}"
     echo "Gunicorn-Port: ${GUNICORN_PORT:-}"
     if is_yes "${SETUP_GUNICORN:-n}"; then
-        echo "Gunicorn: eingerichtet (${GUNICORN_WORKERS:-1} Worker)"
+        echo "Gunicorn: eingerichtet (${GUNICORN_WORKERS:-2} Worker)"
     else
         echo "Gunicorn: manuell"
     fi

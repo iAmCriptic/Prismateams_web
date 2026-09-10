@@ -1,11 +1,20 @@
 /**
  * Infinite / lazy "load more" via full-page fragment fetch + DOM extract.
  * Containers: [data-lazy-more] with data-lazy-page / data-lazy-has-more / data-lazy-param
+ *
+ * Optional:
+ *   data-lazy-silent="1"     — no visible "load more" chrome; status is screen-reader only
+ *   data-lazy-autochain="1"   — keep fetching the next window in the background
+ *   data-lazy-root-margin      — IntersectionObserver rootMargin (default 240px 0px)
  */
 (function () {
     function csrfHeaders() {
         const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         return token ? { 'X-CSRFToken': token } : {};
+    }
+
+    function isSilent(el) {
+        return el.getAttribute('data-lazy-silent') === '1';
     }
 
     function nextUrl(el) {
@@ -24,17 +33,44 @@
         return { url: url.toString(), next };
     }
 
+    function scheduleAutochain(root) {
+        if (root.getAttribute('data-lazy-autochain') !== '1') return;
+        if (root.getAttribute('data-lazy-has-more') !== '1') return;
+        if (root._lazyAutochainStop) return;
+        if (root._lazyAutochainTimer != null) return;
+        const run = () => {
+            root._lazyAutochainTimer = null;
+            if (root.getAttribute('data-lazy-has-more') !== '1') return;
+            if (root.getAttribute('data-lazy-loading') === '1') {
+                scheduleAutochain(root);
+                return;
+            }
+            const pending = loadMore(root);
+            if (pending && typeof pending.then === 'function') {
+                pending.then(() => scheduleAutochain(root));
+            }
+        };
+        if (window.requestIdleCallback) {
+            root._lazyAutochainTimer = requestIdleCallback(run, { timeout: 250 });
+        } else {
+            root._lazyAutochainTimer = setTimeout(run, 60);
+        }
+    }
+
     async function loadMore(root) {
         if (root.getAttribute('data-lazy-loading') === '1') return;
         if (root.getAttribute('data-lazy-has-more') !== '1') return;
 
         const btn = root.querySelector('[data-lazy-more-btn]');
         const status = root.querySelector('[data-lazy-more-status]');
+        const silent = isSilent(root);
         root.setAttribute('data-lazy-loading', '1');
+        root.setAttribute('aria-busy', 'true');
         if (btn) btn.disabled = true;
-        if (status) status.hidden = false;
+        if (status && !silent) status.hidden = false;
 
         const { url, next } = nextUrl(root);
+        let failed = false;
         try {
             const res = await fetch(url, {
                 headers: Object.assign({ 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
@@ -80,14 +116,35 @@
             }
             root.dispatchEvent(new CustomEvent('lazy-more:loaded', { bubbles: true }));
         } catch (err) {
+            failed = true;
+            root._lazyAutochainStop = true;
             console.warn('lazy-load-more', err);
             if (status) {
                 status.textContent = status.getAttribute('data-error') || 'Fehler beim Laden';
+                status.hidden = false;
             }
         } finally {
             root.setAttribute('data-lazy-loading', '0');
+            root.setAttribute('aria-busy', 'false');
             if (btn) btn.disabled = false;
-            if (status) status.hidden = true;
+            if (status && !failed) status.hidden = true;
+            // Silent lists: keep fetching while the sentinel is still on screen
+            // (first page shorter than the viewport). Autochain handles files.
+            if (
+                !failed
+                && silent
+                && root.getAttribute('data-lazy-autochain') !== '1'
+                && root.getAttribute('data-lazy-has-more') === '1'
+            ) {
+                const sentinel = root.querySelector('[data-lazy-more-sentinel]');
+                if (sentinel) {
+                    const vh = window.innerHeight || 0;
+                    const rect = sentinel.getBoundingClientRect();
+                    if (rect.top <= vh + 240) {
+                        loadMore(root);
+                    }
+                }
+            }
         }
     }
 
@@ -103,13 +160,15 @@
         }
         const sentinel = root.querySelector('[data-lazy-more-sentinel]');
         if (sentinel && 'IntersectionObserver' in window) {
+            const margin = root.getAttribute('data-lazy-root-margin') || '240px 0px';
             const io = new IntersectionObserver((entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) loadMore(root);
                 });
-            }, { rootMargin: '240px 0px' });
+            }, { rootMargin: margin });
             io.observe(sentinel);
         }
+        scheduleAutochain(root);
     }
 
     function initLazyMedia() {

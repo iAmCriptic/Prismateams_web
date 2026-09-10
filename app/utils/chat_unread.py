@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload
 
 from app import db
 from app.models.chat import ChatMember, ChatMessage
@@ -123,3 +124,36 @@ def unread_counts_in_chat_for_users(chat_id: int, user_ids: Iterable[int]) -> di
     for uid, count in rows:
         counts[int(uid)] = int(count or 0)
     return counts
+
+
+def recent_unread_messages_for_user(user_id: int, limit: int = 12) -> list[ChatMessage]:
+    """
+    Newest unread messages across all of the user's chats (one query).
+
+    Same cutoff as the dashboard widget: created_at > last_read_at
+    (NULL last_read_at matches no rows, matching the previous per-chat filter).
+    """
+    if user_id is None or limit <= 0:
+        return []
+    uid = int(user_id)
+    return (
+        ChatMessage.query.options(
+            joinedload(ChatMessage.sender),
+            joinedload(ChatMessage.chat),
+        )
+        .join(
+            ChatMember,
+            and_(
+                ChatMember.chat_id == ChatMessage.chat_id,
+                ChatMember.user_id == uid,
+            ),
+        )
+        .filter(
+            ChatMessage.is_deleted.is_(False),
+            ChatMessage.sender_id != uid,
+            ChatMessage.created_at > ChatMember.last_read_at,
+        )
+        .order_by(ChatMessage.created_at.desc())
+        .limit(limit)
+        .all()
+    )

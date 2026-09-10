@@ -781,6 +781,24 @@ def public_share_folder_file_media(token, file_id):
     return _send_inline_media(file)
 
 
+@files_bp.route('/share/<token>/file/<int:file_id>/thumb', methods=['GET'])
+def public_share_folder_file_thumb(token, file_id):
+    """Grid thumbnail for an image inside a shared folder."""
+    share = get_share_by_token(token) or abort(404)
+    if share.resource_type != 'folder':
+        abort(404)
+    shared_root = resolve_resource(share) or abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
+    if media_kind(_file_extension(file.original_name)) != 'image':
+        abort(404)
+    item, _guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    return _send_image_preview(file)
+
+
 @files_bp.route('/share/<token>/upload', methods=['POST'])
 def public_share_upload(token):
     share = get_share_by_token(token) or abort(404)
