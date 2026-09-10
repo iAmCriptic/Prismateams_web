@@ -46,6 +46,7 @@ Beide Batches nutzen denselben modularen Ablauf (Pakete, MySQL, Redis, Docker/Eu
 
 Frische 26.04-VMs scheitern oft nicht an der App, sondern an Systemunterschieden gegenüber 24.04. Der Installer berücksichtigt das:
 
+- **Swap zuerst:** Vor APT wird eine Swap-Datei `/swapfile.prismateams` mit **8 GiB** angelegt (Minimum 6 GiB). Ohne Swap killt der OOM-Killer auf kleinen VMs `apt-get` (`Killed`).
 - **cloud-init / apt-Sperre:** Wartet auf cloud-init, stoppt `unattended-upgrades` und nutzt `DPkg::Lock::Timeout`. `needrestart` startet Dienste nicht interaktiv (kein hängendes TUI in der VM).
 - **universe/multiverse:** Wird vor den Paketen aktiviert. `mysql-server` 8.4 liegt in universe.
 - **MySQL 8.4:** Kein `mysql_native_password` (Plugin in 8.4 deaktiviert). Root/App-User bekommen das Server-Default (`caching_sha2_password`). PyMySQL kommt damit klar.
@@ -80,6 +81,7 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 | `args.sh` | CLI-Parser / `--help` |
 | `prompts.sh` | Interaktive Abfragen (nur wenn Wert leer) |
 | `steps.sh` | `run_step` + Status-Registry |
+| `step_swap.sh` | Swap-Datei `/swapfile.prismateams` (8 GiB, vor APT) |
 | `step_*.sh` | Einzelne Installationsschritte |
 | `summary.sh` | Abschlussbericht + Credentials |
 

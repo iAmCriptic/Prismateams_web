@@ -30,6 +30,8 @@ fi
 # shellcheck source=/dev/null
 . "${LIB_DIR}/steps.sh"
 # shellcheck source=/dev/null
+. "${LIB_DIR}/step_swap.sh"
+# shellcheck source=/dev/null
 . "${LIB_DIR}/step_system.sh"
 # shellcheck source=/dev/null
 . "${LIB_DIR}/step_mysql.sh"
@@ -90,6 +92,8 @@ main() {
     check_root
     check_ubuntu
     prepare_apt_environment
+    # Swap vor jeder RAM-lastigen Arbeit (apt auf 26.04-VMs sonst OOM-Killed)
+    run_step "swap" "Swap" step_swap critical
     gather_information
 
     run_step "system" "System-Pakete" step_system critical

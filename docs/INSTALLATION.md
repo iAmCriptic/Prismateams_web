@@ -20,7 +20,7 @@
 ---
 
 > **Empfohlen: modularer Ubuntu-Installer**  
-> Produktion auf Ubuntu 24.04 / 26.04 LTS: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
+> Produktion auf Ubuntu 24.04 / 26.04 LTS: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen und 26.04-Besonderheiten (Python 3.14, MySQL 8.4, Docker-Fallback, cloud-init/apt in VMs): [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
 
 ## Hinweis zu VAPID- und Encryption-Keys
 

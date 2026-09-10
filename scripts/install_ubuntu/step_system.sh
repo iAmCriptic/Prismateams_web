@@ -9,10 +9,12 @@ step_system() {
         return 1
     fi
 
-    log_info "Installiere APT-Basis (universe/multiverse für MySQL 8.4 / Schriften)..."
-    if ! apt_install software-properties-common ca-certificates gnupg; then
-        log_error "software-properties-common konnte nicht installiert werden"
-        return 1
+    log_info "Aktiviere universe/multiverse (MySQL 8.4 / Schriften)..."
+    # Kein Upgrade von software-properties-common erzwingen – das wurde auf 26.04-VMs OOM-Killed
+    if ! command -v add-apt-repository >/dev/null 2>&1; then
+        if ! apt_install --no-upgrade software-properties-common ca-certificates gnupg; then
+            log_warning "software-properties-common nicht installierbar – versuche Sources direkt"
+        fi
     fi
     enable_ubuntu_components
     if ! apt_update -qq; then
