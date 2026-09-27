@@ -4,6 +4,9 @@
 gather_information() {
     log_info "=== Konfigurationsabfrage ==="
 
+    maybe_offer_small_profile
+    apply_install_profile
+
     prompt_or_default INSTALL_DIR "Installationspfad" "/var/www/teamportal"
     prompt_or_default REPO_URL "Git-Repository-URL" "$DEFAULT_REPO_URL"
     if [ -z "$GIT_BRANCH" ] && ! is_yes "$NON_INTERACTIVE"; then
@@ -17,7 +20,12 @@ gather_information() {
 
     prompt_yes_no SETUP_GUNICORN "Gunicorn systemd-Service einrichten?" "j"
     if is_yes "$SETUP_GUNICORN"; then
-        prompt_or_default GUNICORN_WORKERS "Anzahl Gunicorn-Worker (2–4 mit Redis empfohlen)" "2"
+        local _workers_default="2"
+        local _workers_hint="Anzahl Gunicorn-Worker (2–4 mit Redis empfohlen)"
+        if is_profile_small; then
+            _workers_hint="Anzahl Gunicorn-Worker (Small-Profil: 2 Worker × ${GUNICORN_THREADS:-4} Threads)"
+        fi
+        prompt_or_default GUNICORN_WORKERS "$_workers_hint" "$_workers_default"
         if ! [[ "$GUNICORN_WORKERS" =~ ^[0-9]+$ ]] || [ "$GUNICORN_WORKERS" -lt 1 ]; then
             error_exit "Ungültige Worker-Anzahl: $GUNICORN_WORKERS"
         fi
@@ -109,11 +117,22 @@ gather_information() {
         fi
     fi
 
-    # Docker-Services
+    # Docker-Services (Small-Profil: Schwerlast standardmäßig aus)
     log_info ""
     log_info "=== Optionale Docker-Services ==="
+    local _docker_default="j"
+    local _oo_default="j"
+    local _excal_default="j"
+    local _miro_default="j"
+    if is_profile_small; then
+        _docker_default="n"
+        _oo_default="n"
+        _excal_default="n"
+        _miro_default="n"
+        log_info "Small-Profil: Euro-Office / MiroTalk / Excalidraw-Room brauchen typisch ≥4 GB RAM — Defaults aus."
+    fi
     if [ -z "$INSTALL_DOCKER" ] && [ -z "$INSTALL_ONLYOFFICE" ]; then
-        prompt_yes_no INSTALL_DOCKER "Docker für Euro-Office / Excalidraw / MiroTalk installieren?" "j"
+        prompt_yes_no INSTALL_DOCKER "Docker für Euro-Office / Excalidraw / MiroTalk installieren?" "$_docker_default"
     fi
     if [ -z "$INSTALL_DOCKER" ]; then
         if is_yes "$INSTALL_ONLYOFFICE"; then
@@ -124,7 +143,7 @@ gather_information() {
     fi
 
     if is_yes "$INSTALL_DOCKER"; then
-        prompt_yes_no INSTALL_ONLYOFFICE "Euro-Office Document Server (Docs) installieren?" "j"
+        prompt_yes_no INSTALL_ONLYOFFICE "Euro-Office Document Server (Docs) installieren?" "$_oo_default"
         if ! is_yes "$INSTALL_ONLYOFFICE"; then
             print_manual_onlyoffice_hint
         fi
@@ -140,7 +159,7 @@ gather_information() {
     fi
 
     if is_yes "$INSTALL_DOCKER"; then
-        prompt_yes_no INSTALL_EXCALIDRAW "Excalidraw-Room (Live-Kollaboration) installieren?" "j"
+        prompt_yes_no INSTALL_EXCALIDRAW "Excalidraw-Room (Live-Kollaboration) installieren?" "$_excal_default"
         if ! is_yes "$INSTALL_EXCALIDRAW"; then
             print_manual_excalidraw_hint
         fi
@@ -155,7 +174,7 @@ gather_information() {
     fi
 
     if is_yes "$INSTALL_DOCKER"; then
-        prompt_yes_no INSTALL_MIROTALK "MiroTalk SFU (Meetings / Videoanrufe) installieren?" "j"
+        prompt_yes_no INSTALL_MIROTALK "MiroTalk SFU (Meetings / Videoanrufe) installieren?" "$_miro_default"
         if ! is_yes "$INSTALL_MIROTALK"; then
             print_manual_mirotalk_hint
         fi
@@ -309,8 +328,9 @@ confirm_plan() {
     echo "  Pfad:           $INSTALL_DIR"
     echo "  Repo:           $REPO_URL"
     echo "  Branch:         ${GIT_BRANCH:-<default>}"
+    echo "  Profil:         ${INSTALL_PROFILE:-default}"
     echo "  Port:           $GUNICORN_PORT"
-    echo "  Gunicorn:       $(is_yes "$SETUP_GUNICORN" && echo "ja ($GUNICORN_WORKERS Worker)" || echo "nein")"
+    echo "  Gunicorn:       $(is_yes "$SETUP_GUNICORN" && echo "ja (${GUNICORN_WORKERS} Worker × ${GUNICORN_THREADS:-8} Threads)" || echo "nein")"
     echo "  Webserver:      $(is_yes "$SETUP_WEBSERVER" && echo "$WEBSERVER_TYPE ($DOMAIN)" || echo "manuell")"
     echo "  SSL:            $(is_yes "$SETUP_SSL" && echo "ja" || echo "nein")"
     echo "  MySQL:          $(is_yes "$SETUP_MYSQL" && echo "ja ($DB_NAME / $DB_USER)" || echo "manuell")"

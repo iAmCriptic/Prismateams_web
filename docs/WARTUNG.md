@@ -247,17 +247,70 @@ sudo systemctl restart teamportal
 
 ## Performance-Optimierung
 
+### Kleine VPS (2 CPU / ~2 GB RAM)
+
+Ziel: 2–4 gleichzeitige Nutzer mit Kernmodulen und File-Converter — **ohne** Euro-Office/MiroTalk auf derselben Box.
+
+**Neue Installation:**
+
+```bash
+sudo bash scripts/install_ubuntu.sh --profile small --webserver nginx --domain example.com
+```
+
+Das Profil setzt u. a. Gunicorn `2` Worker × `4` Threads, `DB_POOL_SIZE=5`, Converter-/Media-**Global**-Caps auf `1`, und Docker-Schwerlast-Defaults auf aus.
+
+**Bestehende Installation anpassen:**
+
+```bash
+# 1) systemd: Threads von 8 auf 4
+sudo nano /etc/systemd/system/teamportal.service
+# --workers 2
+# --threads 4
+sudo systemctl daemon-reload
+sudo systemctl restart teamportal
+
+# 2) .env Caps (OOM-Schutz bei LibreOffice/FFmpeg)
+sudo nano /var/www/teamportal/.env
+```
+
+```env
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=5
+FILE_CONVERTER_MAX_CONCURRENT=1
+FILE_CONVERTER_MAX_GLOBAL=1
+MEDIA_DOWNLOADER_MAX_CONCURRENT=1
+MEDIA_DOWNLOADER_MAX_GLOBAL=1
+REDIS_ENABLED=True
+```
+
+```bash
+sudo systemctl restart teamportal
+```
+
+**Checkliste:**
+
+```bash
+free -h
+systemctl status teamportal redis-server nginx --no-pager
+journalctl -u teamportal -n 40 --no-pager
+```
+
+- Redis muss an sein bei mehreren Workern (SocketIO / Kanban-SSE / Rate-Limit).
+- Euro-Office und MiroTalk **nicht** auf derselben 2-GB-Maschine betreiben.
+- `FILE_CONVERTER_MAX_GLOBAL=1` begrenzt LibreOffice systemweit (nicht nur pro User).
+
 ### Gunicorn-Worker anpassen
 
 ```bash
 # In /etc/systemd/system/teamportal.service
 # Produktion: worker-class gthread, 2–4 Worker × 8 Threads (mit Redis).
+# Small-VPS: 2 Worker × 4 Threads.
 # sync-Worker + SSE (/sse/events/dashboard u. a.) = Worker-Starvation (Seitenladen mehrere Sekunden).
 # Timeout 180s: hängende Requests geben den Slot frei; Converter/Downloads laufen im Thread.
 sudo nano /etc/systemd/system/teamportal.service
 # --worker-class gthread
 # --workers 2  (oder 3–4 bei mehr CPU/RAM)
-# --threads 8
+# --threads 8  (Small-VPS: 4)
 # --timeout 180
 # --max-requests 1000 --max-requests-jitter 100
 sudo systemctl daemon-reload
@@ -268,24 +321,31 @@ Symptom bei falscher Klasse (`sync`): `journalctl -u teamportal` zeigt wiederhol
 
 **Hinweis:** Für mehrere Worker und Kanban-SSE muss Redis installiert und in `.env` konfiguriert sein (`REDIS_ENABLED=True`). Ohne Redis pollt das Kanban-Board inkrementell (kein Full-Redraw).
 
-### Nginx Caching
+### Nginx Caching (Static / Browser — kein HTML-proxy_cache)
 
 Statische Assets werden von Flask mit `SEND_FILE_MAX_AGE_DEFAULT` (Default 1 Jahr)
-ausgeliefert. Zusätzlich sollte Nginx immutable setzen — Pflicht bei Produktion ohne
-direkten Flask-Static-Serve:
+ausgeliefert. Nginx liefert `/static` direkt und setzt `immutable` — **Pflicht** bei Produktion ohne
+direkten Flask-Static-Serve.
+
+**Wichtig:** Ein allgemeiner Nginx-`proxy_cache` für HTML-Seiten ist für diese App **nicht** sinnvoll
+(Session-Cookies, CSRF, personalisierte Inhalte). Caching betrifft nur Static/Uploads und Browser-Expires.
+
+Der Installer setzt bereits `/static` + Gzip + `open_file_cache`. Manuell nachziehen:
 
 ```bash
 sudo nano /etc/nginx/sites-available/teamportal
 ```
 
-Füge hinzu:
+Füge hinzu (falls noch nicht vorhanden):
 
 ```nginx
 # Cache für statische Dateien
 # Sicher nur mit Cache-Busting: App hängt ?v=<ABOUT_BUILD_NUMBER> an Static-URLs.
-location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+location /static {
+    alias /var/www/teamportal/app/static;
     expires 30d;
     add_header Cache-Control "public, immutable";
+    access_log off;
 }
 
 # Service Worker darf nicht long-gecacht werden
@@ -295,6 +355,15 @@ location = /sw.js {
     add_header Cache-Control "no-cache, no-store, must-revalidate";
     expires off;
 }
+```
+
+Optional (http-Kontext, z. B. `/etc/nginx/conf.d/teamportal-open-file-cache.conf`):
+
+```nginx
+open_file_cache max=1000 inactive=60s;
+open_file_cache_valid 30s;
+open_file_cache_min_uses 2;
+open_file_cache_errors on;
 ```
 
 **Wichtig:** `/sw.js` nicht unter die allgemeine Static-/immutable-Regel legen. Die App setzt zusätzlich `Cache-Control: no-cache` beim Ausliefern von `/sw.js`.

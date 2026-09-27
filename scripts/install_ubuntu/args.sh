@@ -19,6 +19,7 @@ Allgemein:
 Anwendung / Gunicorn:
   --port PORT                Gunicorn-Port (Standard: 5000)
   --workers N                Gunicorn-Worker (Standard: 2; Redis für SocketIO bei N>1)
+  --profile PROFILE          Install-Profil: default | small (2-GB-VPS: 2×4 Threads, schlanke Caps)
   --no-gunicorn              Keinen systemd-Service anlegen
 
 Webserver:
@@ -56,6 +57,7 @@ Optionale Dienste:
 Beispiele:
   sudo bash scripts/install_ubuntu.sh
   sudo bash scripts/install_ubuntu.sh --port 8000 --workers 4 --webserver nginx
+  sudo bash scripts/install_ubuntu.sh --profile small --webserver nginx --domain example.com
   sudo bash scripts/install_ubuntu.sh --repo-url https://github.com/ME/fork.git --branch Development
   sudo bash scripts/install_ubuntu.sh --no-webserver --skip-onlyoffice --ffmpeg
   sudo bash scripts/install_ubuntu.sh --non-interactive --install-dir /var/www/tp --domain example.com --webserver nginx
@@ -90,6 +92,11 @@ parse_arguments() {
             --workers)
                 [ -n "${2:-}" ] || error_exit "--workers erfordert eine Zahl"
                 GUNICORN_WORKERS="$2"
+                shift 2
+                ;;
+            --profile)
+                [ -n "${2:-}" ] || error_exit "--profile erfordert default oder small"
+                INSTALL_PROFILE="$2"
                 shift 2
                 ;;
             --no-gunicorn)

@@ -119,9 +119,20 @@ def _active_job_count(user_id):
     ).count()
 
 
+def _active_job_count_global():
+    return ConversionJob.query.filter(
+        ConversionJob.status.in_(ACTIVE_STATUSES),
+    ).count()
+
+
 def _get_max_concurrent(app):
     max_concurrent = app.config.get('FILE_CONVERTER_MAX_CONCURRENT', 2)
     return max(1, int(max_concurrent))
+
+
+def _get_max_global(app):
+    max_global = app.config.get('FILE_CONVERTER_MAX_GLOBAL', 2)
+    return max(1, int(max_global))
 
 
 def _purge_job(job):
@@ -394,6 +405,13 @@ def convert():
     if _active_job_count(current_user.id) >= max_concurrent:
         return jsonify({
             'error': translate('file_converter.flash.too_many_jobs', max=max_concurrent),
+            'error_key': 'too_many_jobs',
+        }), 429
+
+    max_global = _get_max_global(current_app)
+    if _active_job_count_global() >= max_global:
+        return jsonify({
+            'error': translate('file_converter.flash.too_many_jobs', max=max_global),
             'error_key': 'too_many_jobs',
         }), 429
 

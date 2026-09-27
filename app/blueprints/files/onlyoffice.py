@@ -460,6 +460,13 @@ def edit_onlyoffice(file_id):
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
+
+    from app.utils.file_occupancy import webdav_occupancy_for_file
+
+    dav_block = webdav_occupancy_for_file(file.id)
+    editor_mode = 'view' if dav_block else 'edit'
+    if dav_block:
+        flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     
     # Generate unique document key for versioning
     from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
@@ -531,7 +538,7 @@ def edit_onlyoffice(file_id):
         "documentType": document_type,
         "editorConfig": {
             "callbackUrl": callback_url,
-            "mode": "edit",
+            "mode": editor_mode,
             "user": {
                 "id": str(current_user.id),
                 "name": current_user.full_name
@@ -664,6 +671,13 @@ def share_edit_onlyoffice(token):
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
+
+    from app.utils.file_occupancy import webdav_occupancy_for_file
+
+    dav_block = webdav_occupancy_for_file(file.id)
+    editor_mode = 'view' if dav_block else 'edit'
+    if dav_block:
+        flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     
     # Generate unique document key for versioning
     from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
@@ -722,7 +736,7 @@ def share_edit_onlyoffice(token):
         "documentType": document_type,
         "editorConfig": {
             "callbackUrl": callback_url,
-            "mode": "edit",
+            "mode": editor_mode,
             "user": {
                 "id": f"guest_{token}",
                 "name": guest_name

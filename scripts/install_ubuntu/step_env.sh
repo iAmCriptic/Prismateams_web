@@ -218,6 +218,29 @@ step_env() {
         set_env_var "REDIS_ENABLED" "False" .env
     fi
 
+    # DB-Pool / Converter-Caps (Small-Profil oder explizite Installer-Vars)
+    if [ -n "${DB_POOL_SIZE:-}" ]; then
+        set_env_var "DB_POOL_SIZE" "$DB_POOL_SIZE" .env
+    fi
+    if [ -n "${DB_MAX_OVERFLOW:-}" ]; then
+        set_env_var "DB_MAX_OVERFLOW" "$DB_MAX_OVERFLOW" .env
+    fi
+    if [ -n "${FILE_CONVERTER_MAX_CONCURRENT:-}" ]; then
+        set_env_var "FILE_CONVERTER_MAX_CONCURRENT" "$FILE_CONVERTER_MAX_CONCURRENT" .env
+    fi
+    if [ -n "${FILE_CONVERTER_MAX_GLOBAL:-}" ]; then
+        set_env_var "FILE_CONVERTER_MAX_GLOBAL" "$FILE_CONVERTER_MAX_GLOBAL" .env
+    fi
+    if [ -n "${MEDIA_DOWNLOADER_MAX_CONCURRENT:-}" ]; then
+        set_env_var "MEDIA_DOWNLOADER_MAX_CONCURRENT" "$MEDIA_DOWNLOADER_MAX_CONCURRENT" .env
+    fi
+    if [ -n "${MEDIA_DOWNLOADER_MAX_GLOBAL:-}" ]; then
+        set_env_var "MEDIA_DOWNLOADER_MAX_GLOBAL" "$MEDIA_DOWNLOADER_MAX_GLOBAL" .env
+    fi
+    if is_profile_small; then
+        log_info "Small-Profil .env: DB_POOL_SIZE=${DB_POOL_SIZE:-5}, Converter/Media Global-Caps=1"
+    fi
+
     # FFmpeg / Media Downloader
     if is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
         FFMPEG_PATH="${FFMPEG_PATH:-$(command -v ffmpeg 2>/dev/null || echo /usr/bin/ffmpeg)}"

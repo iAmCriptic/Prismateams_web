@@ -18,12 +18,13 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or 'sqlite:///teamportal.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Pool-Größen per .env steuerbar (Small-VPS: DB_POOL_SIZE=5, DB_MAX_OVERFLOW=5)
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
         'pool_pre_ping': True,  # Prüft Verbindungen vor Verwendung, verhindert "Connection lost" Fehler
         'pool_timeout': 10,  # Reduziert von 20 auf 10 Sekunden für schnellere Fehlerbehandlung
-        'pool_size': 15,  # Erhöht von 10 auf 15 für bessere Parallelität (Musiktool + Dashboard + E-Mail-Sync)
-        'max_overflow': 25,  # Erhöht von 20 auf 25 für mehr gleichzeitige Verbindungen
+        'pool_size': int(os.environ.get('DB_POOL_SIZE', '15')),
+        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '25')),
         'connect_args': {
             'connect_timeout': 5,  # Reduziert von 10 auf 5 Sekunden für schnellere Timeouts
             'read_timeout': 30,  # Reduziert von 300 auf 30 Sekunden (ausreichend für normale Abfragen)
@@ -158,6 +159,8 @@ class Config:
 
     MEDIA_DOWNLOADER_RETENTION_HOURS = int(os.environ.get('MEDIA_DOWNLOADER_RETENTION_HOURS', '1'))
     MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
+    # Systemweite Cap (alle Nutzer); schützt kleine VPS vor parallelen FFmpeg-Prozessen
+    MEDIA_DOWNLOADER_MAX_GLOBAL = int(os.environ.get('MEDIA_DOWNLOADER_MAX_GLOBAL', '2'))
     FFMPEG_PATH = os.environ.get('FFMPEG_PATH', '')
 
     MIROTALK_URL = (os.environ.get('MIROTALK_URL') or '').strip().rstrip('/')
@@ -173,6 +176,8 @@ class Config:
 
     FILE_CONVERTER_RETENTION_HOURS = int(os.environ.get('FILE_CONVERTER_RETENTION_HOURS', '24'))
     FILE_CONVERTER_MAX_CONCURRENT = int(os.environ.get('FILE_CONVERTER_MAX_CONCURRENT', '2'))
+    # Systemweite Cap (alle Nutzer); Small-VPS: 1 LibreOffice gleichzeitig
+    FILE_CONVERTER_MAX_GLOBAL = int(os.environ.get('FILE_CONVERTER_MAX_GLOBAL', '2'))
     LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', '')
 
     # Soft-deleted files/folders: hard-purge after N days (0 = disabled). Overridable in Admin → Datei-Einstellungen.

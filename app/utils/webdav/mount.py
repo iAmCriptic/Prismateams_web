@@ -8,8 +8,28 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.wsgi import ClosingIterator
 
 from app.utils.webdav import flags as webdav_flags
+from app.utils.webdav.lock_store import (
+    OccupancyAwareLockStorage,
+    build_lock_storage,
+    set_lock_storage,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _with_ms_author_via(wsgi_app):
+    """Add MS-Author-Via: DAV so Microsoft Office treats the share as DAV-editable."""
+
+    def application(environ, start_response):
+        def custom_start_response(status, headers, exc_info=None):
+            headers = list(headers)
+            if not any(str(k).lower() == 'ms-author-via' for k, _ in headers):
+                headers.append(('MS-Author-Via', 'DAV'))
+            return start_response(status, headers, exc_info)
+
+        return wsgi_app(environ, custom_start_response)
+
+    return application
 
 
 def create_webdav_wsgi_app(flask_app):
@@ -18,6 +38,10 @@ def create_webdav_wsgi_app(flask_app):
 
     from app.utils.webdav.auth import PrismaDomainController
     from app.utils.webdav.provider import PrismaFilesProvider
+
+    inner_storage = build_lock_storage(flask_app)
+    lock_storage = OccupancyAwareLockStorage(inner_storage)
+    set_lock_storage(lock_storage)
 
     config = {
         'provider_mapping': {
@@ -38,7 +62,7 @@ def create_webdav_wsgi_app(flask_app):
         },
         'verbose': 1,
         'property_manager': True,
-        'lock_storage': True,
+        'lock_storage': lock_storage,
         'prisma_flask_app': flask_app,
         'hotfixes': {
             're_encode_path_info': True,
@@ -78,7 +102,7 @@ def create_webdav_wsgi_app(flask_app):
             ctx.pop()
             raise
 
-    return application
+    return _with_ms_author_via(application)
 
 
 def mount_webdav(flask_app):

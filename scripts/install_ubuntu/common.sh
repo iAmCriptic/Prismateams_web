@@ -405,7 +405,7 @@ print_manual_gunicorn_hint() {
     log_manual "  1. cd $INSTALL_DIR && source venv/bin/activate && pip install gunicorn"
     log_manual "  2. FLASK_ENV=production python scripts/init_database.py"
     log_manual "  3. Systemd-Unit /etc/systemd/system/teamportal.service anlegen"
-    log_manual "  4. gunicorn --worker-class gthread --workers ${GUNICORN_WORKERS:-2} --threads 8 --timeout 180 --max-requests 1000 --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
+    log_manual "  4. gunicorn --worker-class gthread --workers ${GUNICORN_WORKERS:-2} --threads ${GUNICORN_THREADS:-8} --timeout 180 --max-requests 1000 --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
     log_manual "  5. systemctl enable --now teamportal"
     echo
 }
@@ -519,10 +519,79 @@ print_manual_mirotalk_hint() {
     echo
 }
 
+is_profile_small() {
+    case "${INSTALL_PROFILE:-}" in
+        small|SMALL) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# RAM in MiB (0 wenn unbekannt)
+host_mem_mib() {
+    local kb
+    kb=$(awk '/MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)
+    if [ -z "$kb" ] || [ "$kb" -le 0 ] 2>/dev/null; then
+        echo 0
+        return
+    fi
+    echo $((kb / 1024))
+}
+
+# Small-VPS-Defaults nur für noch leere Variablen (CLI behält Vorrang)
+apply_install_profile() {
+    case "${INSTALL_PROFILE:-}" in
+        small|SMALL)
+            INSTALL_PROFILE="small"
+            log_info "Install-Profil: small (2 CPU / ~2 GB — schlanke Gunicorn-/DB-/Converter-Defaults)"
+            GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
+            GUNICORN_THREADS="${GUNICORN_THREADS:-4}"
+            INSTALL_DOCKER="${INSTALL_DOCKER:-n}"
+            INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-n}"
+            INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-n}"
+            INSTALL_MIROTALK="${INSTALL_MIROTALK:-n}"
+            DB_POOL_SIZE="${DB_POOL_SIZE:-5}"
+            DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-5}"
+            FILE_CONVERTER_MAX_CONCURRENT="${FILE_CONVERTER_MAX_CONCURRENT:-1}"
+            FILE_CONVERTER_MAX_GLOBAL="${FILE_CONVERTER_MAX_GLOBAL:-1}"
+            MEDIA_DOWNLOADER_MAX_CONCURRENT="${MEDIA_DOWNLOADER_MAX_CONCURRENT:-1}"
+            MEDIA_DOWNLOADER_MAX_GLOBAL="${MEDIA_DOWNLOADER_MAX_GLOBAL:-1}"
+            ;;
+        ""|default|standard)
+            INSTALL_PROFILE="${INSTALL_PROFILE:-default}"
+            GUNICORN_THREADS="${GUNICORN_THREADS:-8}"
+            ;;
+        *)
+            error_exit "Unbekanntes Install-Profil: ${INSTALL_PROFILE} (erlaubt: small, default)"
+            ;;
+    esac
+}
+
+# Bei wenig RAM interaktiv Small-Profil anbieten (nicht non-interactive erzwingen)
+maybe_offer_small_profile() {
+    if [ -n "${INSTALL_PROFILE:-}" ]; then
+        return 0
+    fi
+    local mem_mib
+    mem_mib=$(host_mem_mib)
+    if [ "$mem_mib" -gt 0 ] && [ "$mem_mib" -lt 3072 ]; then
+        log_warning "Wenig RAM erkannt (~${mem_mib} MiB). Für 2-GB-VPS ist das Profil „small“ empfohlen."
+        if is_yes "$NON_INTERACTIVE"; then
+            log_info "Non-Interactive: Profil bleibt default — mit --profile small explizit setzen."
+            return 0
+        fi
+        prompt_yes_no INSTALL_PROFILE_SMALL "Small-VPS-Profil nutzen (2 Worker × 4 Threads, keine Docker-Schwerlast)?" "j"
+        if is_yes "$INSTALL_PROFILE_SMALL"; then
+            INSTALL_PROFILE="small"
+        fi
+    fi
+}
+
 init_defaults() {
     GUNICORN_PORT="${GUNICORN_PORT:-}"
     GUNICORN_WORKERS="${GUNICORN_WORKERS:-}"
+    GUNICORN_THREADS="${GUNICORN_THREADS:-}"
     SETUP_GUNICORN="${SETUP_GUNICORN:-}"
+    INSTALL_PROFILE="${INSTALL_PROFILE:-}"
     GIT_BRANCH="${GIT_BRANCH:-}"
     REPO_URL="${REPO_URL:-}"
     INSTALL_DIR="${INSTALL_DIR:-}"
@@ -544,6 +613,12 @@ init_defaults() {
     DB_USER="${DB_USER:-}"
     DB_PASS="${DB_PASS:-}"
     MYSQL_ROOT_PASS="${MYSQL_ROOT_PASS:-}"
+    DB_POOL_SIZE="${DB_POOL_SIZE:-}"
+    DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-}"
+    FILE_CONVERTER_MAX_CONCURRENT="${FILE_CONVERTER_MAX_CONCURRENT:-}"
+    FILE_CONVERTER_MAX_GLOBAL="${FILE_CONVERTER_MAX_GLOBAL:-}"
+    MEDIA_DOWNLOADER_MAX_CONCURRENT="${MEDIA_DOWNLOADER_MAX_CONCURRENT:-}"
+    MEDIA_DOWNLOADER_MAX_GLOBAL="${MEDIA_DOWNLOADER_MAX_GLOBAL:-}"
     ENV_MODE="${ENV_MODE:-}"
     ENV_FILE="${ENV_FILE:-}"
     TIMEZONE="${TIMEZONE:-}"

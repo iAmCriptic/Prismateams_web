@@ -1300,7 +1300,9 @@
                         <li>{{ _('files.index.webdav_modal.windows_step2') }}</li>
                         <li>{{ _('files.index.webdav_modal.windows_step3') }}</li>
                         <li>{{ _('files.index.webdav_modal.windows_step4') }}</li>
+                        <li>{{ _('files.index.webdav_modal.windows_step5') }}</li>
                     </ol>
+                    <p class="form-text mb-0 mt-2">{{ _('files.index.webdav_modal.windows_display_note') }}</p>
                 </div>
 
                 <div class="files-webdav-os-block mb-3">
@@ -1313,6 +1315,27 @@
                         <li>{{ _('files.index.webdav_modal.mac_step3') }}</li>
                         <li>{{ _('files.index.webdav_modal.mac_step4') }}</li>
                     </ol>
+                </div>
+
+                <div class="files-webdav-os-block mb-3">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-ubuntu me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.linux_title') }}
+                    </h6>
+                    <ol class="files-webdav-steps mb-0">
+                        <li>{{ _('files.index.webdav_modal.linux_step1') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step2') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step3') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step4') }}</li>
+                    </ol>
+                </div>
+
+                <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-0">{{ _('files.index.webdav_modal.lock_note') }}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="alert alert-permanent portal-msg portal-msg--warning mb-0" role="status">

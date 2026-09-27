@@ -73,9 +73,20 @@ def _active_job_count(user_id):
     ).count()
 
 
+def _active_job_count_global():
+    return MediaDownloadJob.query.filter(
+        MediaDownloadJob.status.in_(ACTIVE_STATUSES),
+    ).count()
+
+
 def _get_max_concurrent_for_user(app):
     max_concurrent = app.config.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', 2)
     return max(1, int(max_concurrent))
+
+
+def _get_max_global(app):
+    max_global = app.config.get('MEDIA_DOWNLOADER_MAX_GLOBAL', 2)
+    return max(1, int(max_global))
 
 
 def _mark_job_cancelled(job_id):
@@ -572,6 +583,13 @@ def create_job():
             'error_key': 'too_many_jobs',
         }), 429
 
+    max_global = _get_max_global(current_app)
+    if _active_job_count_global() >= max_global:
+        return jsonify({
+            'error': translate('media_downloader.flash.too_many_jobs', max=max_global),
+            'error_key': 'too_many_jobs',
+        }), 429
+
     job = _create_job(
         current_user.id,
         payload['source_url'],
@@ -755,10 +773,13 @@ def download_batch():
         return jsonify({'error': translate('media_downloader.flash.empty_playlist')}), 400
 
     max_concurrent = _get_max_concurrent_for_user(current_app)
-    slots = max(0, max_concurrent - _active_job_count(current_user.id))
+    max_global = _get_max_global(current_app)
+    user_slots = max(0, max_concurrent - _active_job_count(current_user.id))
+    global_slots = max(0, max_global - _active_job_count_global())
+    slots = min(user_slots, global_slots)
     if len(items) > slots and slots == 0:
         return jsonify({
-            'error': translate('media_downloader.flash.too_many_jobs', max=max_concurrent),
+            'error': translate('media_downloader.flash.too_many_jobs', max=min(max_concurrent, max_global)),
         }), 429
 
     jobs = []
@@ -777,6 +798,8 @@ def download_batch():
             return jsonify({'error': error, 'index': index, 'error_key': error_key}), 400
 
         if _active_job_count(current_user.id) + len(jobs) >= max_concurrent:
+            break
+        if _active_job_count_global() + len(jobs) >= max_global:
             break
 
         job = _create_job(

@@ -34,8 +34,10 @@ write_install_report() {
         echo "Installationspfad: ${INSTALL_DIR:-}"
         echo "Repository: ${REPO_URL:-}"
         echo "Branch: ${GIT_BRANCH:-<default>}"
+        echo "Install-Profil: ${INSTALL_PROFILE:-default}"
         echo "Gunicorn-Port: ${GUNICORN_PORT:-}"
         echo "Gunicorn-Worker: ${GUNICORN_WORKERS:-}"
+        echo "Gunicorn-Threads: ${GUNICORN_THREADS:-}"
         echo "Gunicorn-Service: ${SETUP_GUNICORN:-}"
         echo "Webserver: ${WEBSERVER_TYPE:-manuell} (Setup=${SETUP_WEBSERVER:-})"
         echo "Domain: ${DOMAIN:-}"
@@ -111,9 +113,10 @@ print_summary() {
     echo "Installationspfad: ${INSTALL_DIR:-}"
     echo "Repository: ${REPO_URL:-}"
     echo "Branch: ${GIT_BRANCH:-<default>}"
+    echo "Install-Profil: ${INSTALL_PROFILE:-default}"
     echo "Gunicorn-Port: ${GUNICORN_PORT:-}"
     if is_yes "${SETUP_GUNICORN:-n}"; then
-        echo "Gunicorn: eingerichtet (${GUNICORN_WORKERS:-2} Worker)"
+        echo "Gunicorn: eingerichtet (${GUNICORN_WORKERS:-2} Worker × ${GUNICORN_THREADS:-8} Threads)"
     else
         echo "Gunicorn: manuell"
     fi

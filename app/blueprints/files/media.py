@@ -265,26 +265,41 @@ def edit_file(file_id):
             or 'application/json' in (request.headers.get('Accept') or '')
         )
         # Exclusive lock only for Markdown (OnlyOffice stays collaborative).
-        if is_markdown and not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
-            blocker = file_edit_lock_util.get_active_lock(file.id)
-            locker_name = None
-            if blocker:
-                locker = blocker.locker or User.query.get(blocker.locked_by)
-                locker_name = (locker.full_name if locker else None) or 'einem anderen Nutzer'
-            msg = (
-                f'Die Datei wird gerade von {locker_name} bearbeitet und kann nicht gespeichert werden.'
-                if locker_name
-                else 'Sie halten keinen Bearbeitungs-Lock für diese Datei.'
-            )
-            if wants_json:
-                return jsonify({
-                    'success': False,
-                    'error': msg,
-                    'locked': True,
-                    'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
-                }), 409
-            flash(msg, 'warning')
-            return redirect(url_for('files.edit_file', file_id=file.id))
+        if is_markdown:
+            from app.utils.file_occupancy import webdav_occupancy_for_file
+
+            dav_block = webdav_occupancy_for_file(file.id)
+            if dav_block:
+                msg = dav_block.message
+                if wants_json:
+                    return jsonify({
+                        'success': False,
+                        'error': msg,
+                        'locked': True,
+                        'lock': dav_block.as_dict(),
+                    }), 409
+                flash(msg, 'warning')
+                return redirect(url_for('files.edit_file', file_id=file.id))
+            if not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
+                blocker = file_edit_lock_util.get_active_lock(file.id)
+                locker_name = None
+                if blocker:
+                    locker = blocker.locker or User.query.get(blocker.locked_by)
+                    locker_name = (locker.full_name if locker else None) or 'einem anderen Nutzer'
+                msg = (
+                    f'Die Datei wird gerade von {locker_name} bearbeitet und kann nicht gespeichert werden.'
+                    if locker_name
+                    else 'Sie halten keinen Bearbeitungs-Lock für diese Datei.'
+                )
+                if wants_json:
+                    return jsonify({
+                        'success': False,
+                        'error': msg,
+                        'locked': True,
+                        'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
+                    }), 409
+                flash(msg, 'warning')
+                return redirect(url_for('files.edit_file', file_id=file.id))
 
         content = request.form.get('content', '')
         
@@ -356,14 +371,21 @@ def edit_file(file_id):
     lock_info = None
     edit_session_key = None
     if is_markdown:
-        lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
-        edit_locked = lock is None
-        if lock:
-            lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
-            edit_session_key = lock.session_key
-            db.session.commit()
+        from app.utils.file_occupancy import webdav_occupancy_for_file
+
+        dav_block = webdav_occupancy_for_file(file.id)
+        if dav_block:
+            edit_locked = True
+            lock_info = dav_block.as_dict()
         else:
-            lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
+            lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
+            edit_locked = lock is None
+            if lock:
+                lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+                edit_session_key = lock.session_key
+                db.session.commit()
+            else:
+                lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
     
     return render_template(
         'files/edit.html',

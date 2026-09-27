@@ -59,6 +59,7 @@ Frische 26.04-VMs scheitern oft nicht an der App, sondern an Systemunterschieden
 - Root-Zugriff (`sudo`)
 - Internet-Verbindung
 - Mindestens 4 GB RAM empfohlen (für Euro-Office)
+- Für reine Kernmodule auf 2 GB: `--profile small` (siehe unten; Euro-Office/MiroTalk nicht co-locaten)
 
 ## Schnellstart
 
@@ -69,7 +70,13 @@ chmod +x scripts/install_ubuntu.sh
 sudo bash scripts/install_ubuntu.sh
 ```
 
-Ohne Optionen fragt das Skript interaktiv alle leeren Werte ab und zeigt vor dem Start eine Kurzbestätigung.
+Kleine VPS (~2 GB, ohne Document Server / Meetings):
+
+```bash
+sudo bash scripts/install_ubuntu.sh --profile small --webserver nginx --domain example.com
+```
+
+Ohne Optionen fragt das Skript interaktiv alle leeren Werte ab und zeigt vor dem Start eine Kurzbestätigung. Bei erkanntem RAM &lt; ~3 GB wird das Small-Profil angeboten.
 
 ## Architektur
 
@@ -89,15 +96,15 @@ Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipp
 
 - Installationsverzeichnis
 - Git-Repository-URL und Branch (Fork / Development)
-- Gunicorn-Port, Worker-Anzahl, Service ja/nein
-- Nginx oder Apache (oder manuell) — Nginx setzt Gzip für CSS/JS/JSON; optional Brotli
+- Gunicorn-Port, Worker-Anzahl, Install-Profil (`default` / `small`), Service ja/nein
+- Nginx oder Apache (oder manuell) — Nginx setzt Gzip für CSS/JS/JSON, `open_file_cache`, `/static` immutable; optional Brotli
 - MySQL ja/nein (inkl. DB-Name/User/Passwort)
 - Redis ja/nein
 - Euro-Office inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/eurooffice` + `/onlyoffice` + `/cache`
 - Excalidraw-Room (optional)
 - MiroTalk SFU (Meetings): Docker `mirotalk/sfu`; Hostname → `meet.${DOMAIN}` → `127.0.0.1:3010`; IP/LAN → `http://IP:3010`; UDP `40000–40100`
 - FFmpeg / Media Downloader
-- `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
+- `.env`: Modus `auto` | `manual` | `file` (`--env-file`); Small-Profil schreibt schlanke Pool-/Converter-Caps
 
 ## Media Downloader (Browser-Download + FFmpeg)
 
@@ -122,6 +129,7 @@ sudo bash scripts/install_ubuntu.sh --help
 | `--branch BRANCH` | Git-Branch |
 | `--port PORT` | Gunicorn-Port (Standard 5000) |
 | `--workers N` | Gunicorn-Worker (Standard 2; Redis für SocketIO bei N>1) |
+| `--profile small` | Small-VPS (≈2 GB): 2 Worker × 4 Threads, kleine DB-Pools, Converter-Global=1, Docker-Schwerlast-Defaults aus |
 | `--no-gunicorn` | Keinen systemd-Service anlegen |
 | `--no-webserver` | Kein Nginx/Apache |
 | `--webserver nginx\|apache` | Webserver-Typ |
@@ -222,7 +230,8 @@ Details: [INSTALLATION.md – Schritt 6d](INSTALLATION.md#schritt-6d-optionale-i
 
 ## Gunicorn-Worker
 
-- Default: **2 Worker**, `--timeout 180`, `--max-requests 1000` (hängender Request blockiert nicht das ganze Portal)
+- Default: **2 Worker** × **8 Threads** (`gthread`), `--timeout 180`, `--max-requests 1000` (hängender Request blockiert nicht das ganze Portal)
+- `--profile small`: **2 Worker** × **4 Threads**, plus `.env`-Caps (`DB_POOL_SIZE=5`, `FILE_CONVERTER_MAX_GLOBAL=1`, …) — siehe [WARTUNG.md – Kleine VPS](WARTUNG.md#kleine-vps-2-cpu--2-gb-ram)
 - Schema-Init läuft als One-Shot vor dem Service (`scripts/init_database.py`), unabhängig von der Worker-Zahl
 - Redis in Produktion für Kanban-SSE, SocketIO und mehrere Worker (Warnung, falls `--skip-redis`)
 - Ohne Redis: `--workers 1` (SocketIO sonst nur im jeweiligen Prozess)
