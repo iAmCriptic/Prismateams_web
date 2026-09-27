@@ -126,6 +126,8 @@ def admin_users():
         {
             'user': user,
             'has_full_access': user.has_full_access,
+            'can_access_public': bool(getattr(user, 'can_access_public', True)),
+            'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': role_map[user.id],
         }
         for user in active_users

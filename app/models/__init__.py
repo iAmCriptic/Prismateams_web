@@ -53,7 +53,7 @@ from .assessment import (
 from .media_downloader import MediaDownloadJob
 from .file_converter import ConversionJob
 from .cloud_import import CloudImportConnection, CloudImportJob
-from .team import Team, TeamMember
+from .team import Team, TeamMember, TeamModuleSetting, TeamInviteCode
 from .excalidraw import ExcalidrawDrawing, ExcalidrawDrawingVersion
 from .survey import (
     Survey,
@@ -122,7 +122,7 @@ __all__ = [
     'MediaDownloadJob',
     'ConversionJob',
     'CloudImportConnection', 'CloudImportJob',
-    'Team', 'TeamMember',
+    'Team', 'TeamMember', 'TeamModuleSetting', 'TeamInviteCode',
     'KanbanBoard', 'KanbanBoardMember', 'KanbanList', 'KanbanCard',
     'KanbanLabel', 'KanbanCardLabel', 'KanbanCardAssignee',
     'KanbanChecklist', 'KanbanChecklistItem', 'KanbanAttachment',

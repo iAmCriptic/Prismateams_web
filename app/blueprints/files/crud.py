@@ -130,7 +130,7 @@ def create_folder():
     
     folder_name = request.form.get('folder_name', '').strip()
     parent_id = request.form.get('parent_id')
-    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'), user=current_user)
     team_id = _request_team_id()
     
     folder_name = sanitize_files_item_name(folder_name)
@@ -327,7 +327,8 @@ def move_item():
             }), 404
 
     files_view = normalize_view(
-        payload.get('view') or request.args.get('view') or session.get('files_last_view')
+        payload.get('view') or request.args.get('view') or session.get('files_last_view'),
+        user=current_user
     )
     move_team_id = parse_team_id(payload.get('team_id')) or _request_team_id(target_folder)
     if target_folder_id is None:
@@ -505,7 +506,8 @@ def create_file():
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
     files_view = normalize_view(
-        request.form.get('view') or request.args.get('view') or session.get('files_last_view')
+        request.form.get('view') or request.args.get('view') or session.get('files_last_view'),
+        user=current_user
     )
     team_id = _request_team_id()
     private_enabled = is_private_folders_enabled()
@@ -622,7 +624,8 @@ def create_office_file():
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
     files_view = normalize_view(
-        request.form.get('view') or request.args.get('view') or session.get('files_last_view')
+        request.form.get('view') or request.args.get('view') or session.get('files_last_view'),
+        user=current_user
     )
     team_id = _request_team_id()
     private_enabled = is_private_folders_enabled()

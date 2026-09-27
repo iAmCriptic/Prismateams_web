@@ -341,6 +341,16 @@
       "verify_failed": "Passkey-Bestätigung fehlgeschlagen.",
       "use_localhost": "Passkeys funktionieren lokal nicht über 127.0.0.1. Bitte localhost verwenden.",
       "open_localhost": "Zu localhost wechseln"
+    },
+    "coderegister": {
+      "title": "Team-Registrierung",
+      "subtitle": "Registriere dich mit einem Einladungscode für ein Team.",
+      "subtitle_team": "Registrierung für Team {team}",
+      "code_label": "Einladungscode",
+      "code_team_hint": "Du wirst dem Team „{team}“ beitreten.",
+      "submit": "Mit Code registrieren",
+      "flash_code_required": "Bitte gib einen Einladungscode ein.",
+      "flash_code_invalid": "Dieser Einladungscode ist ungültig, abgelaufen oder aufgebraucht."
     }
   },
   "dashboard": {
@@ -1589,7 +1599,12 @@
         "col_email": "E-Mail",
         "col_login": "Letzter Login",
         "col_status": "Status",
-        "queue_title": "Warteschlange"
+        "queue_title": "Warteschlange",
+        "badge_team_only": "Nur Team",
+        "content_access_title": "Inhaltszugriff",
+        "content_access_help": "Steuert, ob der Nutzer Public- und Private-Bereiche sehen und nutzen darf. Ohne beides hat der Nutzer nur Team-Zugriff.",
+        "can_access_public": "Public-Zugriff",
+        "can_access_private": "Private-Zugriff"
       },
       "create_user": {
         "page_title": "Benutzer erstellen - Administration",
@@ -2407,7 +2422,29 @@
         "col_name": "Team",
         "col_members": "Mitglieder",
         "col_leader": "Leitung",
-        "preview_title": "Vorschau"
+        "preview_title": "Vorschau",
+        "invite": {
+          "title": "Einladungscodes",
+          "help": "Externe Nutzer können sich über /coderegister mit einem Code für dieses Team registrieren. Sie erhalten nur Team-Zugriff (kein Public/Private).",
+          "max_uses": "Max. Nutzungen",
+          "max_uses_placeholder": "Unbegrenzt",
+          "expires_days": "Gültigkeit (Tage)",
+          "expires_days_placeholder": "Kein Ablauf",
+          "create": "Code erstellen",
+          "status_active": "Aktiv",
+          "status_inactive": "Inaktiv",
+          "uses": "{used} / {max} Nutzungen",
+          "unlimited": "∞",
+          "expires_at": "bis {date}",
+          "deactivate": "Deaktivieren",
+          "delete_confirm": "Diesen Einladungscode wirklich löschen?",
+          "empty": "Noch keine Einladungscodes.",
+          "flash_created": "Einladungscode erstellt.",
+          "flash_deactivated": "Einladungscode deaktiviert.",
+          "flash_deleted": "Einladungscode gelöscht.",
+          "flash_invalid_max_uses": "Ungültige maximale Nutzungen.",
+          "flash_invalid_expires": "Ungültige Gültigkeitsdauer."
+        }
       },
       "kanban": {
         "page_title": "Kanban-Einstellungen",

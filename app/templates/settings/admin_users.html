@@ -29,6 +29,9 @@
 {% else %}
 <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_modules') }}</span>
 {% endif %}
+{% if not item.can_access_public|default(true) or not item.can_access_private|default(true) %}
+<span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
+{% endif %}
 {% endmacro %}
 
 {% macro active_user_meta(item) %}
@@ -705,6 +708,25 @@
                         </div>
                     </section>
 
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-spaces-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-spaces-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.content_access_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.content_access_help') }}" aria-label="{{ _('settings.admin.users.content_access_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-roles-switch-stack">
+                            <div class="form-check form-switch settings-admin-roles-switch">
+                                <input class="form-check-input" type="checkbox" id="modalCanAccessPublic" name="can_access_public">
+                                <label class="form-check-label" for="modalCanAccessPublic">{{ _('settings.admin.users.can_access_public') }}</label>
+                            </div>
+                            <div class="form-check form-switch settings-admin-roles-switch">
+                                <input class="form-check-input" type="checkbox" id="modalCanAccessPrivate" name="can_access_private">
+                                <label class="form-check-label" for="modalCanAccessPrivate">{{ _('settings.admin.users.can_access_private') }}</label>
+                            </div>
+                        </div>
+                    </section>
+
                     <section id="moduleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-modules-heading">
                         <div class="settings-admin-roles-card-head">
                             <h2 id="roles-modal-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.module_roles_title') }}</h2>
@@ -1039,6 +1061,8 @@ function loadUserRoles(userId) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('modalHasFullAccess').checked = !!data.has_full_access;
+            document.getElementById('modalCanAccessPublic').checked = data.can_access_public !== false;
+            document.getElementById('modalCanAccessPrivate').checked = data.can_access_private !== false;
             if (data.email_permissions) {
                 document.getElementById('emailCanRead').checked = !!data.email_permissions.can_read;
                 document.getElementById('emailCanSend').checked = !!data.email_permissions.can_send;
@@ -1173,6 +1197,8 @@ function saveRoles() {
     const formData = new FormData();
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
     formData.append('has_full_access', fullAccess ? 'on' : '');
+    formData.append('can_access_public', document.getElementById('modalCanAccessPublic').checked ? 'on' : '');
+    formData.append('can_access_private', document.getElementById('modalCanAccessPrivate').checked ? 'on' : '');
     // Disabled chips mitsenden (FormData liest .checked direkt)
     document.querySelectorAll('.module-checkbox').forEach(cb => { cb.disabled = false; });
     allModules.forEach(module => {

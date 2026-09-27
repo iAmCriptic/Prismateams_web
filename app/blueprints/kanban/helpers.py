@@ -750,7 +750,7 @@ def _share_guest_ok(token: str) -> bool:
 
 def _user_kanban_teams(user):
     """Teams the user may assign boards to / see as sidebar folders."""
-    if VISIBILITY_TEAM not in get_allowed_visibilities():
+    if VISIBILITY_TEAM not in get_allowed_visibilities(user):
         return []
     if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
         return Team.query.order_by(Team.name).all()

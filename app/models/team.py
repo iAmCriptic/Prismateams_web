@@ -63,3 +63,36 @@ class TeamModuleSetting(db.Model):
 
     def __repr__(self):
         return f'<TeamModuleSetting team={self.team_id} module={self.module_key} enabled={self.team_section_enabled}>'
+
+
+class TeamInviteCode(db.Model):
+    """Invite codes for external registration into a specific team (/coderegister)."""
+
+    __tablename__ = 'team_invite_codes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='CASCADE'), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    max_uses = db.Column(db.Integer, nullable=True)  # None = unlimited
+    uses_count = db.Column(db.Integer, default=0, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    team = db.relationship('Team', backref=db.backref('invite_codes', cascade='all, delete-orphan'))
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<TeamInviteCode code={self.code} team={self.team_id}>'
+
+    def is_valid(self, now=None):
+        if not self.is_active:
+            return False
+        if self.expires_at is not None:
+            check = now or datetime.utcnow()
+            if self.expires_at < check:
+                return False
+        if self.max_uses is not None and self.uses_count >= self.max_uses:
+            return False
+        return True

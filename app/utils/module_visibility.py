@@ -65,12 +65,13 @@ def _fallback_visibility(module: str) -> str:
     return VISIBILITY_PRIVATE
 
 
-def get_allowed_visibilities(module: str) -> list[str]:
+def get_allowed_visibilities(module: str, user=None) -> list[str]:
     from app.utils.module_visibility_settings import (
         is_global_private_enabled,
         is_global_public_enabled,
         is_global_team_enabled,
     )
+    from app.utils.user_content_access import filter_visibilities_for_user
 
     allowed = []
     allow_private = module not in NO_PRIVATE_MODULES
@@ -84,15 +85,23 @@ def get_allowed_visibilities(module: str) -> list[str]:
         allowed.append(VISIBILITY_TEAM)
     if is_global_public_enabled() and _setting_bool(setting_key(module, 'public'), True):
         allowed.append(VISIBILITY_PUBLIC)
-    if allowed:
-        return allowed
-    if module in NO_PRIVATE_MODULES:
-        return [VISIBILITY_PUBLIC]
-    return [VISIBILITY_PRIVATE]
+    if not allowed:
+        if module in NO_PRIVATE_MODULES:
+            allowed = [VISIBILITY_PUBLIC]
+        else:
+            allowed = [VISIBILITY_PRIVATE]
+    if user is not None:
+        allowed = filter_visibilities_for_user(allowed, user)
+        if not allowed:
+            # Team-only users with no team section still need a non-empty list for forms
+            if is_global_team_enabled() and _setting_bool(setting_key(module, 'team'), True):
+                return [VISIBILITY_TEAM]
+            return []
+    return allowed
 
 
-def visibility_allowed(module: str, visibility: str) -> bool:
-    return visibility in get_allowed_visibilities(module)
+def visibility_allowed(module: str, visibility: str, user=None) -> bool:
+    return visibility in get_allowed_visibilities(module, user)
 
 
 def user_team_ids(user) -> set[int]:
@@ -105,7 +114,7 @@ def user_visibility_teams(user, module: str):
     """Teams shown as sidebar folders (members; admins see all)."""
     from app.utils.team_module_settings import filter_teams_with_section
 
-    if VISIBILITY_TEAM not in get_allowed_visibilities(module) or not user:
+    if VISIBILITY_TEAM not in get_allowed_visibilities(module, user) or not user:
         return []
     if getattr(user, 'is_guest', False):
         return []
@@ -146,11 +155,14 @@ def can_view_item(user, item, module: str) -> bool:
         return False
     if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
         return True
-    if owner_id(item, module) == getattr(user, 'id', None):
-        return True
 
-    allowed = set(get_allowed_visibilities(module))
+    allowed = set(get_allowed_visibilities(module, user))
     vis = _item_visibility(item)
+
+    if owner_id(item, module) == getattr(user, 'id', None):
+        # Owner bypass only for visibilities the user may access
+        return vis in allowed
+
     if vis == VISIBILITY_PUBLIC and VISIBILITY_PUBLIC in allowed:
         return True
     if (
@@ -174,9 +186,10 @@ def can_edit_item(user, item, module: str) -> bool:
     if module == 'credentials':
         return False
     vis = _item_visibility(item)
+    allowed = set(get_allowed_visibilities(module, user))
     if vis == VISIBILITY_TEAM and getattr(item, 'team_id', None) and item.team_id in user_team_ids(user):
-        return VISIBILITY_TEAM in set(get_allowed_visibilities(module))
-    if vis == VISIBILITY_PUBLIC and VISIBILITY_PUBLIC in set(get_allowed_visibilities(module)):
+        return VISIBILITY_TEAM in allowed
+    if vis == VISIBILITY_PUBLIC and VISIBILITY_PUBLIC in allowed:
         return True
     return False
 
@@ -194,14 +207,25 @@ def accessible_query(user, model, module: str):
     vis_col = model.visibility
     team_col = model.team_id
     team_ids = list(user_team_ids(user))
-    allowed = set(get_allowed_visibilities(module))
+    allowed = set(get_allowed_visibilities(module, user))
 
-    clauses = [owner_col == user.id]
+    clauses = []
+    # Own items only for visibilities the user may access
+    for vis in allowed:
+        if vis == VISIBILITY_PRIVATE:
+            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_PRIVATE))
+        elif vis == VISIBILITY_PUBLIC:
+            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_PUBLIC))
+        elif vis == VISIBILITY_TEAM:
+            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_TEAM))
+
     if VISIBILITY_PUBLIC in allowed:
         clauses.append(vis_col == VISIBILITY_PUBLIC)
     if VISIBILITY_TEAM in allowed and team_ids:
         clauses.append(and_(vis_col == VISIBILITY_TEAM, team_col.in_(team_ids)))
 
+    if not clauses:
+        return q.filter(db.false())
     return q.filter(or_(*clauses))
 
 
@@ -220,21 +244,28 @@ def parse_visibility_value(raw, module: str, user=None):
     elif value in VALID_VISIBILITIES:
         visibility = value
 
-    if not visibility_allowed(module, visibility):
-        visibility = _fallback_visibility(module)
+    if not visibility_allowed(module, visibility, user):
+        visibility = _fallback_visibility_for_user(module, user)
         team_id = None
 
     if visibility == VISIBILITY_TEAM:
         if user is not None and not user_may_use_team(user, module, team_id):
-            visibility = _fallback_visibility(module)
+            visibility = _fallback_visibility_for_user(module, user)
             team_id = None
         elif not team_id:
-            visibility = _fallback_visibility(module)
+            visibility = _fallback_visibility_for_user(module, user)
             team_id = None
     else:
         team_id = None
 
     return visibility, team_id
+
+
+def _fallback_visibility_for_user(module: str, user=None) -> str:
+    allowed = get_allowed_visibilities(module, user)
+    if allowed:
+        return allowed[0]
+    return _fallback_visibility(module)
 
 
 def parse_section_args(module: str, user=None):
@@ -245,7 +276,7 @@ def parse_section_args(module: str, user=None):
     if raw not in VALID_SECTIONS:
         raw = 'all'
 
-    allowed = set(get_allowed_visibilities(module))
+    allowed = set(get_allowed_visibilities(module, user))
     if raw == 'private' and VISIBILITY_PRIVATE not in allowed:
         raw = 'all'
     if raw == 'public' and VISIBILITY_PUBLIC not in allowed:
@@ -279,7 +310,7 @@ def apply_section_filter(query, model, section: str, filter_team_id=None):
 
 
 def visibility_nav_context(module: str, user, section: str = 'all', filter_team_id=None):
-    allowed = get_allowed_visibilities(module)
+    allowed = get_allowed_visibilities(module, user)
     teams = user_visibility_teams(user, module)
     if section == 'team' and filter_team_id:
         active_nav = f'team-{filter_team_id}'
@@ -304,7 +335,7 @@ def apply_visibility_from_form(item, module: str, user, raw=None):
 
 
 def visibility_form_context(module: str, user, item=None, preselect_section=None, preselect_team_id=None):
-    allowed = get_allowed_visibilities(module)
+    allowed = get_allowed_visibilities(module, user)
     teams = user_visibility_teams(user, module)
     selected = None
     if item is not None:

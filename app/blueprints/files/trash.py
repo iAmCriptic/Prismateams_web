@@ -114,7 +114,7 @@ def delete_file(file_id):
     
     file = File.query.get_or_404(file_id)
     folder_id = file.folder_id
-    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'), user=current_user)
     purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
     spaces_on = is_files_spaces_enabled()
 
@@ -174,7 +174,7 @@ def delete_folder(folder_id):
         return redirect(_safe_referrer_or(url_for('files.index')))
 
     parent_id = folder.parent_id
-    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'), user=current_user)
     purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
     spaces_on = is_files_spaces_enabled()
 

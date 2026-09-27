@@ -583,7 +583,7 @@ def _files_view_kwargs(view=None, folder=None, team_id=None):
             raw = 'team'
         else:
             raw = 'public'
-    files_view = normalize_view(raw, private_enabled=private_enabled, team_enabled=team_enabled)
+    files_view = normalize_view(raw, private_enabled=private_enabled, team_enabled=team_enabled, user=current_user)
     kwargs = {'view': files_view} if files_view else {}
     if files_view == 'team':
         tid = parse_team_id(team_id) if team_id is not None else _request_team_id(folder)

@@ -176,6 +176,16 @@
       "invalid_response": "Resposta de passkey inválida.",
       "login_failed": "Falha ao entrar com passkey.",
       "verify_failed": "Falha na verificação do passkey."
+    },
+    "coderegister": {
+      "title": "Registo de equipa",
+      "subtitle": "Registe-se numa equipa com um código de convite.",
+      "subtitle_team": "Registo para a equipa {team}",
+      "code_label": "Código de convite",
+      "code_team_hint": "Vai juntar-se à equipa \"{team}\".",
+      "submit": "Registar com código",
+      "flash_code_required": "Introduza um código de convite.",
+      "flash_code_invalid": "Este código de convite é inválido, expirou ou esgotou."
     }
   },
   "dashboard": {
@@ -786,7 +796,29 @@
         "col_name": "Equipa",
         "col_members": "Membros",
         "col_leader": "Líder",
-        "preview_title": "Pré-visualização"
+        "preview_title": "Pré-visualização",
+        "invite": {
+          "title": "Códigos de convite",
+          "help": "Utilizadores externos podem registar-se nesta equipa via /coderegister com um código. Obtêm apenas acesso de equipa (sem Public/Private).",
+          "max_uses": "Utilizações máx.",
+          "max_uses_placeholder": "Ilimitado",
+          "expires_days": "Validade (dias)",
+          "expires_days_placeholder": "Sem validade",
+          "create": "Criar código",
+          "status_active": "Ativo",
+          "status_inactive": "Inativo",
+          "uses": "{used} / {max} utilizações",
+          "unlimited": "∞",
+          "expires_at": "até {date}",
+          "deactivate": "Desativar",
+          "delete_confirm": "Eliminar mesmo este código de convite?",
+          "empty": "Ainda sem códigos de convite.",
+          "flash_created": "Código de convite criado.",
+          "flash_deactivated": "Código de convite desativado.",
+          "flash_deleted": "Código de convite eliminado.",
+          "flash_invalid_max_uses": "Utilizações máximas inválidas.",
+          "flash_invalid_expires": "Período de validade inválido."
+        }
       },
       "cards": {
         "teams": {
@@ -868,7 +900,12 @@
         "col_email": "E-mail",
         "col_login": "Último login",
         "col_status": "Estado",
-        "queue_title": "Fila"
+        "queue_title": "Fila",
+        "badge_team_only": "Só equipa",
+        "content_access_title": "Acesso ao conteúdo",
+        "content_access_help": "Controla se o utilizador pode ver e usar áreas Public e Private. Sem ambos, só tem acesso de equipa.",
+        "can_access_public": "Acesso Public",
+        "can_access_private": "Acesso Private"
       },
       "whitelist": {
         "lead_short": "E-mails e domínios para ativação automática.",

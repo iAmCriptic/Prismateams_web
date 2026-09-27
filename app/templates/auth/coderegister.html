@@ -1,0 +1,208 @@
+{% set force_light_theme = true %}
+{% extends "base.html" %}
+{% from 'auth/_auth_shell.html' import auth_shell with context %}
+
+{% block title %}{{ _('auth.coderegister.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+{% set team_name = invite_team.name if invite_team else none %}
+{% set subtitle = _('auth.coderegister.subtitle_team', team=team_name) if team_name else _('auth.coderegister.subtitle') %}
+{% call auth_shell(_('auth.coderegister.title'), subtitle, body_class='auth-register', brand_icon='bi-ticket-perforated') %}
+
+<form method="POST" id="registerForm" enctype="multipart/form-data" action="{{ url_for('auth.coderegister', code=invite_code) if invite_code else url_for('auth.coderegister') }}">
+    <div class="mb-3">
+        <label for="invite_code" class="form-label">{{ _('auth.coderegister.code_label') }}</label>
+        <input type="text" class="form-control" id="invite_code" name="invite_code" required
+               value="{{ invite_code or '' }}"
+               autocomplete="off" spellcheck="false"
+               {% if invite_code and invite_valid %}readonly{% endif %}>
+        {% if invite_team and invite_valid %}
+        <div class="form-text">{{ _('auth.coderegister.code_team_hint', team=invite_team.name) }}</div>
+        {% endif %}
+    </div>
+
+    <div class="auth-register-avatar mb-3">
+        <div class="auth-register-avatar-preview" id="registerPicturePreview">
+            <i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>
+        </div>
+        <div class="auth-register-avatar-fields">
+            <label class="form-label mb-1" for="profile_picture">{{ _('auth.register.picture_optional') }}</label>
+            <div class="auth-register-avatar-actions">
+                <label for="profile_picture" class="btn btn-outline-secondary btn-sm mb-0">
+                    <i class="bi bi-upload" aria-hidden="true"></i>
+                    {{ _('auth.register.picture_choose') }}
+                </label>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="registerPictureClear" hidden>
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    {{ _('auth.register.picture_clear') }}
+                </button>
+            </div>
+            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
+            <div class="form-text mb-0">{{ _('auth.register.picture_help') }}</div>
+            <div class="form-text text-danger" id="registerPictureError" hidden></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-md-6 mb-3">
+            <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" required>
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+            <label for="last_name" class="form-label">{{ _('auth.register.last_name') }}</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" required>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">{{ _('auth.register.email') }}</label>
+        <input type="email" class="form-control" id="email" name="email" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="phone" class="form-label">{{ _('auth.register.phone_optional') }}</label>
+        <input type="tel" class="form-control" id="phone" name="phone">
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
+        <div class="password-req-wrap">
+            <input type="password" class="form-control password-req-input" id="password" name="password" required minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
+            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden title="{{ _('auth.register.password_help') }}">
+                <i class="bi bi-exclamation-circle-fill"></i>
+            </span>
+        </div>
+        <div class="form-text password-req-help is-idle" id="passwordHelp">{{ _('auth.register.password_help') }}</div>
+    </div>
+
+    <div class="mb-3">
+        <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
+        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password">
+    </div>
+
+    <div class="mb-3">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
+            <label class="form-check-label" for="dark_mode">
+                <i class="bi bi-moon me-2"></i>
+                {{ _('auth.register.dark_mode_label') }}
+            </label>
+        </div>
+        <div class="form-text">{{ _('auth.register.dark_mode_help') }}</div>
+    </div>
+
+    {% set bot_context = 'register' %}
+    {% include 'auth/_bot_protection.html' %}
+
+    <button type="submit" class="btn btn-accent w-100" id="registerSubmitBtn">{{ _('auth.coderegister.submit') }}</button>
+</form>
+
+<hr class="my-4">
+
+<p class="text-center mb-0">
+    {{ _('auth.register.login_link_prefix') }}
+    <a href="{{ url_for('auth.login') }}" class="auth-page-switch" data-auth-transition="to-login">{{ _('auth.register.login_link_cta') }}</a>
+</p>
+{% endcall %}
+
+<script>
+(function () {
+    var password = document.getElementById('password');
+    var icon = document.getElementById('passwordReqIcon');
+    var help = document.getElementById('passwordHelp');
+
+    function passwordMeetsRequirements(value) {
+        if (!value || value.length < 12) return false;
+        if (!/[A-Z]/.test(value)) return false;
+        if (!/[a-z]/.test(value)) return false;
+        if (!/\d/.test(value)) return false;
+        if (!/[^A-Za-z0-9]/.test(value)) return false;
+        return true;
+    }
+
+    function updatePasswordFeedback() {
+        if (!password || !icon || !help) return;
+        var value = password.value || '';
+        var hasInput = value.length > 0;
+        var ok = passwordMeetsRequirements(value);
+        help.classList.remove('is-idle', 'is-invalid', 'is-valid');
+        icon.classList.remove('is-invalid', 'is-valid');
+        if (!hasInput) {
+            help.classList.add('is-idle');
+            icon.hidden = true;
+            password.removeAttribute('aria-invalid');
+            return;
+        }
+        icon.classList.toggle('is-invalid', !ok);
+        icon.classList.toggle('is-valid', ok);
+        icon.hidden = ok;
+        help.classList.toggle('is-invalid', !ok);
+        help.classList.toggle('is-valid', ok);
+        password.setAttribute('aria-invalid', ok ? 'false' : 'true');
+    }
+
+    if (password) {
+        password.addEventListener('input', updatePasswordFeedback);
+        password.addEventListener('change', updatePasswordFeedback);
+        updatePasswordFeedback();
+    }
+
+    var pictureInput = document.getElementById('profile_picture');
+    var picturePreview = document.getElementById('registerPicturePreview');
+    var pictureClear = document.getElementById('registerPictureClear');
+    var pictureError = document.getElementById('registerPictureError');
+    var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    var maxSize = 5 * 1024 * 1024;
+    var objectUrl = null;
+
+    function showPictureError(message) {
+        if (!pictureError) return;
+        pictureError.textContent = message || '';
+        pictureError.hidden = !message;
+    }
+
+    function resetPicturePreview() {
+        if (!picturePreview) return;
+        if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+        picturePreview.innerHTML = '<i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>';
+        if (pictureClear) pictureClear.hidden = true;
+        showPictureError('');
+    }
+
+    function setPicturePreview(file) {
+        if (!picturePreview || !file) return;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(file);
+        picturePreview.innerHTML = '<img src="' + objectUrl + '" alt="" id="registerPictureImg">';
+        if (pictureClear) pictureClear.hidden = false;
+    }
+
+    if (pictureInput) {
+        pictureInput.addEventListener('change', function () {
+            var file = pictureInput.files && pictureInput.files[0];
+            if (!file) { resetPicturePreview(); return; }
+            if (allowedTypes.indexOf(file.type) === -1) {
+                showPictureError({{ _('auth.flash.picture_invalid_type')|tojson }});
+                pictureInput.value = '';
+                resetPicturePreview();
+                return;
+            }
+            if (file.size > maxSize) {
+                showPictureError({{ _('auth.flash.picture_too_large')|tojson }});
+                pictureInput.value = '';
+                resetPicturePreview();
+                return;
+            }
+            showPictureError('');
+            setPicturePreview(file);
+        });
+    }
+    if (pictureClear) {
+        pictureClear.addEventListener('click', function () {
+            if (pictureInput) pictureInput.value = '';
+            resetPicturePreview();
+        });
+    }
+})();
+</script>
+{% endblock %}

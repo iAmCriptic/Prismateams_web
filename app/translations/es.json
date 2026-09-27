@@ -176,6 +176,16 @@
       "invalid_response": "Respuesta de passkey no válida.",
       "login_failed": "Error al iniciar sesión con passkey.",
       "verify_failed": "Error al verificar el passkey."
+    },
+    "coderegister": {
+      "title": "Registro de equipo",
+      "subtitle": "Regístrate en un equipo con un código de invitación.",
+      "subtitle_team": "Registro para el equipo {team}",
+      "code_label": "Código de invitación",
+      "code_team_hint": "Te unirás al equipo \"{team}\".",
+      "submit": "Registrarse con código",
+      "flash_code_required": "Introduce un código de invitación.",
+      "flash_code_invalid": "Este código de invitación no es válido, ha caducado o se ha agotado."
     }
   },
   "dashboard": {
@@ -786,7 +796,29 @@
         "col_name": "Equipo",
         "col_members": "Miembros",
         "col_leader": "Responsable",
-        "preview_title": "Vista previa"
+        "preview_title": "Vista previa",
+        "invite": {
+          "title": "Códigos de invitación",
+          "help": "Usuarios externos pueden registrarse en este equipo vía /coderegister con un código. Solo obtienen acceso de equipo (sin Public/Private).",
+          "max_uses": "Usos máximos",
+          "max_uses_placeholder": "Ilimitado",
+          "expires_days": "Validez (días)",
+          "expires_days_placeholder": "Sin caducidad",
+          "create": "Crear código",
+          "status_active": "Activo",
+          "status_inactive": "Inactivo",
+          "uses": "{used} / {max} usos",
+          "unlimited": "∞",
+          "expires_at": "hasta {date}",
+          "deactivate": "Desactivar",
+          "delete_confirm": "¿Eliminar realmente este código de invitación?",
+          "empty": "Aún no hay códigos de invitación.",
+          "flash_created": "Código de invitación creado.",
+          "flash_deactivated": "Código de invitación desactivado.",
+          "flash_deleted": "Código de invitación eliminado.",
+          "flash_invalid_max_uses": "Usos máximos no válidos.",
+          "flash_invalid_expires": "Periodo de validez no válido."
+        }
       },
       "cards": {
         "teams": {
@@ -868,7 +900,12 @@
         "col_email": "Correo",
         "col_login": "Último acceso",
         "col_status": "Estado",
-        "queue_title": "Cola"
+        "queue_title": "Cola",
+        "badge_team_only": "Solo equipo",
+        "content_access_title": "Acceso al contenido",
+        "content_access_help": "Controla si el usuario puede ver y usar las áreas Public y Private. Sin ambos, solo tiene acceso de equipo.",
+        "can_access_public": "Acceso Public",
+        "can_access_private": "Acceso Private"
       },
       "whitelist": {
         "lead_short": "Correos y dominios para activación automática.",

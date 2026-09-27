@@ -341,6 +341,16 @@
       "verify_failed": "Passkey verification failed.",
       "use_localhost": "Passkeys do not work locally via 127.0.0.1. Please use localhost.",
       "open_localhost": "Switch to localhost"
+    },
+    "coderegister": {
+      "title": "Team registration",
+      "subtitle": "Register for a team using an invitation code.",
+      "subtitle_team": "Registration for team {team}",
+      "code_label": "Invitation code",
+      "code_team_hint": "You will join the team \"{team}\".",
+      "submit": "Register with code",
+      "flash_code_required": "Please enter an invitation code.",
+      "flash_code_invalid": "This invitation code is invalid, expired, or used up."
     }
   },
   "dashboard": {
@@ -1589,7 +1599,12 @@
         "col_email": "Email",
         "col_login": "Last login",
         "col_status": "Status",
-        "queue_title": "Queue"
+        "queue_title": "Queue",
+        "badge_team_only": "Team only",
+        "content_access_title": "Content access",
+        "content_access_help": "Controls whether the user may see and use Public and Private areas. Without both, the user only has team access.",
+        "can_access_public": "Public access",
+        "can_access_private": "Private access"
       },
       "create_user": {
         "page_title": "Create user - Administration",
@@ -2407,7 +2422,29 @@
         "col_name": "Team",
         "col_members": "Members",
         "col_leader": "Lead",
-        "preview_title": "Preview"
+        "preview_title": "Preview",
+        "invite": {
+          "title": "Invitation codes",
+          "help": "External users can register for this team via /coderegister with a code. They get team-only access (no Public/Private).",
+          "max_uses": "Max uses",
+          "max_uses_placeholder": "Unlimited",
+          "expires_days": "Validity (days)",
+          "expires_days_placeholder": "No expiry",
+          "create": "Create code",
+          "status_active": "Active",
+          "status_inactive": "Inactive",
+          "uses": "{used} / {max} uses",
+          "unlimited": "∞",
+          "expires_at": "until {date}",
+          "deactivate": "Deactivate",
+          "delete_confirm": "Really delete this invitation code?",
+          "empty": "No invitation codes yet.",
+          "flash_created": "Invitation code created.",
+          "flash_deactivated": "Invitation code deactivated.",
+          "flash_deleted": "Invitation code deleted.",
+          "flash_invalid_max_uses": "Invalid maximum uses.",
+          "flash_invalid_expires": "Invalid validity period."
+        }
       },
       "kanban": {
         "page_title": "Kanban settings",

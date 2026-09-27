@@ -424,6 +424,179 @@ def register():
     return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
+def _resolve_invite_code(raw_code):
+    """Return (invite, team, error_key) for a registration invite code."""
+    from app.models.team import TeamInviteCode, Team
+
+    code = (raw_code or '').strip()
+    if not code:
+        return None, None, 'auth.coderegister.flash_code_required'
+    invite = TeamInviteCode.query.filter_by(code=code).first()
+    if not invite or not invite.is_valid():
+        return None, None, 'auth.coderegister.flash_code_invalid'
+    team = Team.query.get(invite.team_id)
+    if not team:
+        return None, None, 'auth.coderegister.flash_code_invalid'
+    return invite, team, None
+
+
+@auth_bp.route('/coderegister', methods=['GET', 'POST'])
+@auth_bp.route('/coderegister/<code>', methods=['GET', 'POST'])
+@limiter.limit("10 per 15 minutes")
+def coderegister(code=None):
+    """Team invite registration — not linked from login/register; optionally indexed."""
+    from app.blueprints.setup import is_setup_needed
+    from app.models.team import TeamMember
+
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+
+    prefill_code = code or request.args.get('code') or ''
+    invite_preview = None
+    team_preview = None
+    if prefill_code:
+        invite_preview, team_preview, _ = _resolve_invite_code(prefill_code)
+
+    def _tpl(**extra):
+        ctx = _auth_template_kwargs(
+            invite_code=prefill_code,
+            invite_team=team_preview,
+            invite_valid=bool(invite_preview and team_preview),
+        )
+        ctx.update(extra)
+        return ctx
+
+    if request.method == 'POST':
+        bot_ok, _ = validate_bot_protection(request, 'register')
+        if not bot_ok:
+            flash(translate('auth.flash.bot_protection_failed'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl())
+
+        form_code = request.form.get('invite_code', '').strip() or prefill_code
+        invite, team, err = _resolve_invite_code(form_code)
+        if err:
+            flash(translate(err), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code))
+
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        dark_mode = request.form.get('dark_mode') == 'on'
+        from app.utils.profile_pictures import (
+            get_uploaded_profile_picture,
+            save_uploaded_profile_picture,
+            validate_profile_picture_file,
+        )
+        profile_file = get_uploaded_profile_picture(request.files)
+
+        if not all([email, password, first_name, last_name]):
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        if password != password_confirm:
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        is_valid, _ = validate_password(password)
+        if not is_valid:
+            flash(translate('auth.flash.password_requirements'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        picture_error = validate_profile_picture_file(profile_file)
+        if picture_error == 'type':
+            flash(translate('auth.flash.picture_invalid_type'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+        if picture_error == 'size':
+            flash(translate('auth.flash.picture_too_large'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return _flash_existing_registration(existing_user)
+
+        default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
+
+        new_user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            is_active=True,
+            is_admin=False,
+            dark_mode=dark_mode,
+            accent_color=default_accent_color,
+            is_email_confirmed=False,
+            can_access_public=False,
+            can_access_private=False,
+        )
+        new_user.set_password(password)
+
+        email_sent = False
+        try:
+            db.session.add(new_user)
+            db.session.flush()
+
+            if profile_file:
+                save_uploaded_profile_picture(new_user, profile_file)
+
+            from app.utils.access_control import apply_default_roles_to_user
+            apply_default_roles_to_user(new_user)
+
+            db.session.add(EmailPermission(user_id=new_user.id, can_read=True, can_send=True))
+            db.session.add(TeamMember(team_id=team.id, user_id=new_user.id))
+
+            invite.uses_count = (invite.uses_count or 0) + 1
+            if invite.max_uses is not None and invite.uses_count >= invite.max_uses:
+                invite.is_active = False
+
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                return _flash_existing_registration(existing_user)
+            flash(translate('auth.flash.email_already_registered'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+        except Exception as e:
+            db.session.rollback()
+            logging.exception('User create failed during code registration for %s: %s', mask_email(email), e)
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        try:
+            from app.utils.email_sender import send_confirmation_email
+            email_sent = send_confirmation_email(new_user)
+
+            if new_user.is_active and not new_user.is_guest:
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                if main_chat:
+                    existing_member = ChatMember.query.filter_by(
+                        chat_id=main_chat.id,
+                        user_id=new_user.id
+                    ).first()
+                    if not existing_member:
+                        db.session.add(ChatMember(chat_id=main_chat.id, user_id=new_user.id))
+                        db.session.commit()
+            from app.utils.team_chat import ensure_team_chat
+            ensure_team_chat(team, created_by=new_user.id)
+            db.session.commit()
+        except Exception as e:
+            logging.exception('Post-create steps failed during code registration for %s: %s', mask_email(email), e)
+
+        return _finish_registration(
+            new_user, email_sent, True, google_verified=False
+        )
+
+    return render_template('auth/coderegister.html', **_tpl())
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per 15 minutes")
 def login():

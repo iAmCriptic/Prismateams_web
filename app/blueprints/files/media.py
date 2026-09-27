@@ -467,6 +467,7 @@ def view_file(file_id):
             view_arg or session.get('files_last_view'),
             private_enabled=private_enabled,
             team_enabled=team_enabled,
+            user=current_user,
         )
         if files_view:
             session['files_last_view'] = files_view

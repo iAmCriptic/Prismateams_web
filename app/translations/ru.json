@@ -176,6 +176,16 @@
       "invalid_response": "Неверный ответ passkey.",
       "login_failed": "Не удалось войти с passkey.",
       "verify_failed": "Не удалось подтвердить passkey."
+    },
+    "coderegister": {
+      "title": "Регистрация в команду",
+      "subtitle": "Зарегистрируйтесь в команде с помощью кода приглашения.",
+      "subtitle_team": "Регистрация в команду {team}",
+      "code_label": "Код приглашения",
+      "code_team_hint": "Вы присоединитесь к команде «{team}».",
+      "submit": "Зарегистрироваться по коду",
+      "flash_code_required": "Введите код приглашения.",
+      "flash_code_invalid": "Этот код приглашения недействителен, истёк или исчерпан."
     }
   },
   "dashboard": {
@@ -786,7 +796,29 @@
         "col_name": "Команда",
         "col_members": "Участники",
         "col_leader": "Руководитель",
-        "preview_title": "Предпросмотр"
+        "preview_title": "Предпросмотр",
+        "invite": {
+          "title": "Коды приглашения",
+          "help": "Внешние пользователи могут зарегистрироваться в эту команду через /coderegister с кодом. Получают только командный доступ (без Public/Private).",
+          "max_uses": "Макс. использований",
+          "max_uses_placeholder": "Без ограничений",
+          "expires_days": "Срок (дни)",
+          "expires_days_placeholder": "Без срока",
+          "create": "Создать код",
+          "status_active": "Активен",
+          "status_inactive": "Неактивен",
+          "uses": "{used} / {max} использ.",
+          "unlimited": "∞",
+          "expires_at": "до {date}",
+          "deactivate": "Отключить",
+          "delete_confirm": "Действительно удалить этот код приглашения?",
+          "empty": "Пока нет кодов приглашения.",
+          "flash_created": "Код приглашения создан.",
+          "flash_deactivated": "Код приглашения отключён.",
+          "flash_deleted": "Код приглашения удалён.",
+          "flash_invalid_max_uses": "Недопустимое макс. число использований.",
+          "flash_invalid_expires": "Недопустимый срок действия."
+        }
       },
       "cards": {
         "teams": {
@@ -868,7 +900,12 @@
         "col_email": "Эл. почта",
         "col_login": "Последний вход",
         "col_status": "Статус",
-        "queue_title": "Очередь"
+        "queue_title": "Очередь",
+        "badge_team_only": "Только команда",
+        "content_access_title": "Доступ к контенту",
+        "content_access_help": "Определяет, может ли пользователь видеть и использовать разделы Public и Private. Без обоих доступен только командный доступ.",
+        "can_access_public": "Доступ Public",
+        "can_access_private": "Доступ Private"
       },
       "whitelist": {
         "lead_short": "Почта и домены для автоактивации.",
