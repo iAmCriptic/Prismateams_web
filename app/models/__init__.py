@@ -3,7 +3,17 @@ from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember, ChatPin
 from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite, FileEditLock, FileStorageException
 from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
-from .email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder, Mailbox, MailboxMembership, MailboxUserPref
+from .email import (
+    EmailMessage,
+    EmailPermission,
+    EmailAttachment,
+    EmailFolder,
+    Mailbox,
+    MailboxMembership,
+    MailboxUserPref,
+    MailboxAutoReply,
+    MailboxAutoReplyLog,
+)
 from .contact import Contact, ContactFavorite
 from .credential import Credential, CredentialFolder, CredentialFavorite
 from .manual import Manual, ManualFolder
@@ -84,6 +94,7 @@ __all__ = [
     'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite', 'FileEditLock', 'FileStorageException',
     'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
     'EmailMessage', 'EmailPermission', 'EmailAttachment', 'EmailFolder', 'Mailbox', 'MailboxMembership', 'MailboxUserPref',
+    'MailboxAutoReply', 'MailboxAutoReplyLog',
     'Contact', 'ContactFavorite',
     'Credential', 'CredentialFolder', 'CredentialFavorite',
     'Manual', 'ManualFolder',

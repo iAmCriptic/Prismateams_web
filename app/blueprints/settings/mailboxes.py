@@ -81,7 +81,8 @@ Gesendet von <user> (<email>)
         get_max_private_mailboxes,
         is_email_html_design_default,
     )
-    
+    ar_vars = _auto_reply_template_vars(None)
+
     now = now_in_portal_timezone()
     return render_template(
         'settings/admin_email_module.html',
@@ -93,6 +94,27 @@ Gesendet von <user> (<email>)
         email_multi_enabled=is_email_multi_enabled(),
         email_max_private_mailboxes=get_max_private_mailboxes(),
         email_compose_html_design_default=is_email_html_design_default(),
+        main_auto_reply=ar_vars['auto_reply'],
+        main_auto_reply_start_at=ar_vars['auto_reply_start_at'],
+        main_auto_reply_end_at=ar_vars['auto_reply_end_at'],
+    )
+
+
+@settings_bp.route('/admin/email-auto-reply', methods=['POST'])
+@login_required
+def admin_email_auto_reply():
+    """Auto-Antwort für das Hauptpostfach (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    _maybe_save_auto_reply(current_user, None, request.form)
+    db.session.commit()
+    redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_module'
+    return _settings_save_response(
+        True,
+        translate('settings.mailboxes.auto_reply.flash_saved'),
+        redirect_ep,
     )
 
 
@@ -516,11 +538,48 @@ def _mailbox_wizard_context(**extra):
         'oauth_result': peek_oauth_result(),
         'show_logo': False,
         'show_owner': False,
+        'show_auto_reply': False,
+        'auto_reply': None,
+        'auto_reply_start_at': '',
+        'auto_reply_end_at': '',
         'team_id': None,
         'users': None,
     }
     ctx.update(extra)
     return ctx
+
+
+def _auto_reply_template_vars(mailbox=None):
+    """Template-Variablen für Auto-Reply-Felder (ohne Rechteprüfung)."""
+    from app.blueprints.email.auto_reply import (
+        datetime_for_input,
+        get_auto_reply_config,
+        DEFAULT_SUBJECT,
+    )
+    cfg = get_auto_reply_config(mailbox)
+    return {
+        'auto_reply': cfg,
+        'auto_reply_start_at': datetime_for_input(cfg.start_at) if cfg else '',
+        'auto_reply_end_at': datetime_for_input(cfg.end_at) if cfg else '',
+        'auto_reply_default_subject': DEFAULT_SUBJECT,
+    }
+
+
+def _maybe_save_auto_reply(user, mailbox, form) -> bool:
+    """Speichert Auto-Reply nur wenn berechtigt. True wenn gespeichert/aktualisiert."""
+    from app.utils.multi_mailboxes import can_configure_mailbox_auto_reply
+    from app.blueprints.email.auto_reply import (
+        apply_auto_reply_from_form,
+        get_or_create_auto_reply_config,
+    )
+    if not can_configure_mailbox_auto_reply(user, mailbox):
+        return False
+    # Felder nur anwenden wenn Formular-Abschnitt mitgeschickt wurde
+    if 'auto_reply_body' not in form and 'auto_reply_enabled' not in form and 'auto_reply_subject' not in form:
+        return False
+    cfg = get_or_create_auto_reply_config(mailbox)
+    apply_auto_reply_from_form(cfg, form)
+    return True
 
 
 @settings_bp.route('/mailboxes/oauth/<provider>/start')
@@ -832,7 +891,11 @@ def my_mailbox_new():
 @login_required
 def my_mailbox_edit(mailbox_id):
     from app.models.email import Mailbox
-    from app.utils.multi_mailboxes import is_email_multi_enabled, apply_mailbox_credentials
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        apply_mailbox_credentials,
+        can_configure_mailbox_auto_reply,
+    )
     from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
 
     if not is_email_multi_enabled():
@@ -849,16 +912,20 @@ def my_mailbox_edit(mailbox_id):
         if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
             apply_oauth_tokens_to_mailbox(mb, oauth)
         mb.is_active = request.form.get('is_active') == 'on'
+        _maybe_save_auto_reply(current_user, mb, request.form)
         db.session.commit()
         flash(translate('settings.mailboxes.flash_saved'), 'success')
         return redirect(url_for('settings.my_mailboxes'))
 
+    ar = _auto_reply_template_vars(mb) if can_configure_mailbox_auto_reply(current_user, mb) else {}
     return render_template(
         'settings/mailbox_wizard.html',
         **_mailbox_wizard_context(
             mailbox=mb,
             mailbox_type='private',
             cancel_url=url_for('settings.my_mailboxes'),
+            show_auto_reply=bool(ar),
+            **ar,
         ),
     )
 
@@ -973,6 +1040,7 @@ def team_mailbox_edit(team_id, mailbox_id):
     from app.models.email import Mailbox
     from app.utils.multi_mailboxes import (
         can_manage_team,
+        can_configure_mailbox_auto_reply,
         is_email_multi_enabled,
         apply_mailbox_credentials,
     )
@@ -987,11 +1055,15 @@ def team_mailbox_edit(team_id, mailbox_id):
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
 
     mb = Mailbox.query.filter_by(id=mailbox_id, team_id=team.id, mailbox_type='team').first_or_404()
+    show_ar = can_configure_mailbox_auto_reply(current_user, mb)
+    ar = _auto_reply_template_vars(mb) if show_ar else {}
     wizard_kw = dict(
         mailbox_type='team',
         team_id=team.id,
         cancel_url=url_for('settings.team_mailboxes', team_id=team.id),
         show_logo=True,
+        show_auto_reply=show_ar,
+        **ar,
     )
 
     if request.method == 'POST':
@@ -1007,6 +1079,7 @@ def team_mailbox_edit(team_id, mailbox_id):
                 'settings/mailbox_wizard.html',
                 **_mailbox_wizard_context(mailbox=mb, **wizard_kw),
             )
+        _maybe_save_auto_reply(current_user, mb, request.form)
         db.session.commit()
         flash(translate('settings.mailboxes.flash_saved'), 'success')
         return redirect(url_for('settings.team_mailboxes', team_id=team.id))

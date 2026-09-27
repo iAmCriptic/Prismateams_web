@@ -1815,7 +1815,7 @@
       "email_module": {
         "page_title": "E-Mail-Moduleinstellungen - Administration",
         "heading": "E-Mail-Moduleinstellungen",
-        "lead_short": "Test, Speicherung, Multi-Postfach und Footer.",
+        "lead_short": "Test, Speicherung, Multi-Postfach, Auto-Antwort und Footer.",
         "subtitle": "Verbindungen testen, Speicherung steuern und Footer festlegen.",
         "save": "Speichern",
         "test": {
@@ -1877,6 +1877,10 @@
           "html_design_label": "HTML-Design standardmäßig an",
           "html_design_help": "Beim Verfassen: Layout mit Logo. Aus = formatierter Text ohne Design-Wrapper.",
           "manage_link": "Postfächer verwalten"
+        },
+        "auto_reply": {
+          "title": "Automatische Antwort (Hauptpostfach)",
+          "hint": "Serverseitige Abwesenheitsantwort für das Hauptpostfach. Unabhängig vom Mail-Anbieter."
         }
       },
       "backup": {
@@ -2483,6 +2487,23 @@
       "smtp_ssl_help": "Optional. SSL (z. B. Port 465) statt STARTTLS. Nicht beides gleichzeitig.",
       "footer": "Footer (optional)",
       "footer_help": "Leer = globaler Footer aus den E-Mail-Einstellungen.",
+      "auto_reply": {
+        "title": "Automatische Antwort",
+        "enabled": "Automatische Antwort aktiv",
+        "help": "Bei neuen eingehenden Mails antwortet der Server einmal pro Absender und Tag. Wirkung erst nach dem nächsten Sync (ca. alle 15 Minuten). Optionaler Zeitraum: leer = solange aktiv.",
+        "start_at": "Start (optional)",
+        "end_at": "Ende (optional)",
+        "start_help": "Leer = sofort gültig, sobald aktiv.",
+        "end_help": "Leer = kein Enddatum.",
+        "subject": "Betreff",
+        "subject_default": "Automatische Antwort: Re: {subject}",
+        "subject_placeholder": "Automatische Antwort: Re: {subject}",
+        "subject_help": "Platzhalter {subject} wird durch den Originalbetreff ersetzt.",
+        "body": "Nachricht",
+        "body_placeholder": "Vielen Dank für Ihre Nachricht. Ich bin derzeit nicht erreichbar…",
+        "body_help": "Text oder einfaches HTML. Pflichtfeld, wenn die Automatik aktiv ist.",
+        "flash_saved": "Automatische Antwort wurde gespeichert."
+      },
       "logo": "Logo (oben links in Mails)",
       "logo_help": "Nur für Team-Postfächer. PNG/JPG/GIF/WebP, max. 2 MB.",
       "logo_prefs_title": "Team-Logo in Mails",

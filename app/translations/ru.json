@@ -842,6 +842,10 @@
           "html_design_label": "HTML design on by default",
           "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
           "manage_link": "Manage mailboxes"
+        },
+        "auto_reply": {
+          "title": "Автоответ (основной ящик)",
+          "hint": "Серверный автоответ об отсутствии для основного ящика. Независимо от почтового провайдера."
         }
       },
       "admin_modules": {
@@ -999,6 +1003,23 @@
       "imap_section": "IMAP (incoming)",
       "footer": "Footer (optional)",
       "footer_help": "Empty = global footer from email settings.",
+      "auto_reply": {
+        "title": "Автоответ",
+        "enabled": "Автоответ включён",
+        "help": "На новые входящие письма сервер отвечает один раз на отправителя в день. Действует после следующей синхронизации (примерно каждые 15 минут). Период необязателен: пусто = пока включено.",
+        "start_at": "Начало (необязательно)",
+        "end_at": "Конец (необязательно)",
+        "start_help": "Пусто = действует сразу после включения.",
+        "end_help": "Пусто = без даты окончания.",
+        "subject": "Тема",
+        "subject_default": "Автоответ: Re: {subject}",
+        "subject_placeholder": "Автоответ: Re: {subject}",
+        "subject_help": "Плейсхолдер {subject} заменяется исходной темой.",
+        "body": "Сообщение",
+        "body_placeholder": "Спасибо за ваше сообщение. Сейчас я недоступен…",
+        "body_help": "Текст или простой HTML. Обязательно, если автоответ включён.",
+        "flash_saved": "Автоответ сохранён."
+      },
       "logo": "Logo (top-left in emails)",
       "logo_help": "Team mailboxes only. PNG/JPG/GIF/WebP, max 2 MB.",
       "flash_logo_pref_saved": "Logo preference saved.",

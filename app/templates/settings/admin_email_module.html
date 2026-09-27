@@ -152,6 +152,23 @@
     </form>
   </div>
 
+  <section class="sp-group" id="email-auto-reply" data-settings-search-id="email-auto-reply" aria-labelledby="email-auto-reply-title">
+    <div class="sp-group-head">
+      <h2 id="email-auto-reply-title" class="sp-group-title"><i class="bi bi-reply-all" aria-hidden="true"></i>{{ _('settings.admin.email_module.auto_reply.title') }}</h2>
+      {{ sp_info(_('settings.admin.email_module.auto_reply.hint')) }}
+    </div>
+    <div class="sp-group-body">
+      <form method="POST" action="{{ url_for('settings.admin_email_auto_reply') }}" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_email_auto_reply') }}">
+        <input type="hidden" name="return_to" value="module">
+        <div class="px-3 py-3">
+          {% with auto_reply=main_auto_reply, auto_reply_start_at=main_auto_reply_start_at, auto_reply_end_at=main_auto_reply_end_at, id_prefix='main_ar' %}
+            {% include 'settings/_auto_reply_fields.html' %}
+          {% endwith %}
+        </div>
+      </form>
+    </div>
+  </section>
+
   <section class="sp-group" id="email-footer" data-settings-search-id="email-footer" aria-labelledby="email-footer-title">
     <div class="sp-group-head">
       <h2 id="email-footer-title" class="sp-group-title"><i class="bi bi-envelope-paper" aria-hidden="true"></i>{{ _('settings.admin.email_module.footer.title') }}</h2>

@@ -40,6 +40,8 @@ CRITICAL_TABLES = (
     "mailboxes",
     "mailbox_memberships",
     "mailbox_user_prefs",
+    "mailbox_auto_replies",
+    "mailbox_auto_reply_logs",
     "teams",
     "team_members",
     "credentials",
@@ -98,7 +100,7 @@ def import_all_models() -> None:
     )
     from app.models.calendar import Calendar  # noqa: F401
     from app.models.contact import Contact, ContactFavorite  # noqa: F401
-    from app.models.email import EmailFolder  # noqa: F401
+    from app.models.email import EmailFolder, MailboxAutoReply, MailboxAutoReplyLog  # noqa: F401
     from app.models.event import (  # noqa: F401
         Event,
         EventAppointment,

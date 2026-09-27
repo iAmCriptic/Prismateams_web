@@ -361,3 +361,42 @@ class MailboxUserPref(db.Model):
     def __repr__(self):
         return f'<MailboxUserPref mailbox={self.mailbox_id} user={self.user_id} use_logo={self.use_logo}>'
 
+
+class MailboxAutoReply(db.Model):
+    """Serverseitige Auto-Antwort / Abwesenheit pro Postfach (NULL mailbox_id = Hauptpostfach)."""
+    __tablename__ = 'mailbox_auto_replies'
+
+    id = db.Column(db.Integer, primary_key=True)
+    # 'main' oder str(mailbox.id) — für Unique auch bei Hauptpostfach
+    mailbox_key = db.Column(db.String(32), nullable=False, unique=True, index=True)
+    mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=True, index=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=False)
+    subject = db.Column(db.String(500), nullable=False, default='')
+    body_html = db.Column(db.Text, nullable=False, default='')
+    start_at = db.Column(db.DateTime, nullable=True)
+    end_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    mailbox = db.relationship('Mailbox', backref=db.backref('auto_reply', uselist=False))
+
+    def __repr__(self):
+        return f'<MailboxAutoReply key={self.mailbox_key} enabled={self.enabled}>'
+
+
+class MailboxAutoReplyLog(db.Model):
+    """Tageslimit: einmal pro Absender und Kalendertag und Postfach."""
+    __tablename__ = 'mailbox_auto_reply_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    mailbox_key = db.Column(db.String(32), nullable=False, index=True)
+    sender_email = db.Column(db.String(255), nullable=False, index=True)
+    replied_on = db.Column(db.Date, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('mailbox_key', 'sender_email', 'replied_on', name='uq_mailbox_auto_reply_log_day'),
+    )
+
+    def __repr__(self):
+        return f'<MailboxAutoReplyLog {self.mailbox_key} {self.sender_email} {self.replied_on}>'
+

@@ -2227,6 +2227,10 @@
           "html_design_label": "HTML design on by default",
           "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
           "manage_link": "Manage mailboxes"
+        },
+        "auto_reply": {
+          "title": "Automatic reply (main mailbox)",
+          "hint": "Server-side out-of-office reply for the main mailbox. Independent of the mail provider."
         }
       },
       "backup": {
@@ -2483,6 +2487,23 @@
       "smtp_ssl_help": "Optional. SSL (e.g. port 465) instead of STARTTLS. Do not enable both.",
       "footer": "Footer (optional)",
       "footer_help": "Empty = global footer from email settings.",
+      "auto_reply": {
+        "title": "Automatic reply",
+        "enabled": "Automatic reply enabled",
+        "help": "For new incoming mail the server replies once per sender per day. Takes effect after the next sync (about every 15 minutes). Optional date range: empty = while enabled.",
+        "start_at": "Start (optional)",
+        "end_at": "End (optional)",
+        "start_help": "Empty = effective immediately when enabled.",
+        "end_help": "Empty = no end date.",
+        "subject": "Subject",
+        "subject_default": "Automatic reply: Re: {subject}",
+        "subject_placeholder": "Automatic reply: Re: {subject}",
+        "subject_help": "Placeholder {subject} is replaced with the original subject.",
+        "body": "Message",
+        "body_placeholder": "Thank you for your message. I am currently unavailable…",
+        "body_help": "Plain text or simple HTML. Required when automatic reply is enabled.",
+        "flash_saved": "Automatic reply has been saved."
+      },
       "logo": "Logo (top-left in emails)",
       "logo_help": "Team mailboxes only. PNG/JPG/GIF/WebP, max 2 MB.",
       "logo_prefs_title": "Team logo in emails",

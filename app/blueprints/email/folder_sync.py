@@ -869,6 +869,16 @@ def upsert_folder_emails(mail_conn, folder_name, mailbox_id, fetched: FolderFetc
             try:
                 db.session.commit()
                 stats['new_emails'] += 1
+                try:
+                    from app.blueprints.email.auto_reply import maybe_send_auto_reply
+                    maybe_send_auto_reply(
+                        email_entry,
+                        email_msg,
+                        folder_name=folder_name,
+                        mailbox_id=mailbox_id,
+                    )
+                except Exception as auto_reply_err:
+                    logging.error(f"Auto-reply hook failed: {auto_reply_err}")
             except Exception as commit_error:
                 if "Duplicate entry" in str(commit_error) or "1062" in str(commit_error):
                     logging.debug(f"Email with message_id '{message_id}' already exists, skipping duplicate")
@@ -902,6 +912,16 @@ def upsert_folder_emails(mail_conn, folder_name, mailbox_id, fetched: FolderFetc
                     db.session.commit()
                     stats['new_emails'] += 1
                     logging.debug("Database reconnection successful")
+                    try:
+                        from app.blueprints.email.auto_reply import maybe_send_auto_reply
+                        maybe_send_auto_reply(
+                            email_entry,
+                            email_msg,
+                            folder_name=folder_name,
+                            mailbox_id=mailbox_id,
+                        )
+                    except Exception as auto_reply_err:
+                        logging.error(f"Auto-reply hook failed: {auto_reply_err}")
                 else:
                     raise commit_error
         except Exception as e:
