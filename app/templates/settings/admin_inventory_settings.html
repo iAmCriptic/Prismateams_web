@@ -112,6 +112,71 @@
         </div>
       </div>
     </section>
+
+    <section class="sp-group" id="inventory-dguv-cert" data-settings-search-id="inventory-dguv-cert" aria-labelledby="inventory-dguv-cert-title">
+      <div class="sp-group-head">
+        <h2 id="inventory-dguv-cert-title" class="sp-group-title"><i class="bi bi-shield-check" aria-hidden="true"></i>{{ _('settings.admin.inventory.dguv_cert_title') }}</h2>
+        {{ sp_info(_('settings.admin.inventory.dguv_cert_help')) }}
+      </div>
+      <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.inventory.dguv_cert_lead') }}</p>
+        {% set cert = dguv_cert_status|default({}) %}
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_status') }}</span>
+          </div>
+          <div class="sp-row-control">
+            {% if cert.configured and cert.valid %}
+              <span class="badge text-bg-success">{{ _('settings.admin.inventory.dguv_cert_ok') }}</span>
+            {% elif cert.configured and cert.expired %}
+              <span class="badge text-bg-warning">{{ _('settings.admin.inventory.dguv_cert_expired') }}</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ _('settings.admin.inventory.dguv_cert_missing') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% if cert.cn %}
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">CN</span></div>
+          <div class="sp-row-control"><span class="text-muted">{{ cert.cn }}</span></div>
+        </div>
+        {% endif %}
+        {% if cert.not_after %}
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_valid_until') }}</span></div>
+          <div class="sp-row-control"><span class="text-muted">{{ cert.not_after }}</span></div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </form>
+
+  <form method="POST" action="{{ url_for('settings.admin_inventory_dguv_cert') }}" class="mt-3">
+    <section class="sp-group" aria-labelledby="inventory-dguv-cert-gen-title">
+      <div class="sp-group-head">
+        <h2 id="inventory-dguv-cert-gen-title" class="sp-group-title">{{ _('settings.admin.inventory.dguv_cert_generate_title') }}</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_cn') }}</span>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" name="cert_cn" value="{{ cert.cn or '' }}"
+                   placeholder="{{ _('settings.admin.inventory.dguv_cert_cn_placeholder') }}" autocomplete="off">
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-row-control">
+            <input type="hidden" name="action" value="generate">
+            <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent"
+                    onclick="return confirm('{{ _('settings.admin.inventory.dguv_cert_confirm') }}');">
+              <i class="bi bi-key"></i> {{ _('settings.admin.inventory.dguv_cert_generate') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </form>
 </div>
 {% endblock %}

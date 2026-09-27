@@ -1310,7 +1310,9 @@ def admin_inventory_settings():
     # Lade aktuelle Einstellungen
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
     ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
-    
+
+    from app.utils.dguv_signing import certificate_status
+
     return render_template(
         'settings/admin_inventory_settings.html',
         ownership_text=ownership_text,
@@ -1320,7 +1322,41 @@ def admin_inventory_settings():
         inventory_owners_enabled=is_inventory_owners_enabled(),
         inventory_accounting_enabled=is_inventory_accounting_enabled(),
         inventory_stocktake_enabled=is_inventory_stocktake_enabled(),
+        dguv_cert_status=certificate_status(),
     )
+
+
+@settings_bp.route('/admin/inventory-settings/dguv-cert', methods=['POST'])
+@login_required
+def admin_inventory_dguv_cert():
+    """Generate organisational DGUV signing certificate (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.dguv_signing import generate_org_certificate
+
+    action = (request.form.get('action') or 'generate').strip()
+    if action != 'generate':
+        flash(translate('settings.admin.inventory.dguv_cert_unknown_action'), 'warning')
+        return redirect(url_for('settings.admin_inventory_settings'))
+
+    try:
+        cn = (request.form.get('cert_cn') or '').strip() or None
+        status = generate_org_certificate(cn=cn)
+        flash(
+            translate(
+                'settings.admin.inventory.dguv_cert_generated',
+                cn=status.get('cn') or '',
+                not_after=status.get('not_after') or '',
+            ),
+            'success',
+        )
+    except Exception as exc:
+        current_app.logger.exception('DGUV cert generate failed: %s', exc)
+        flash(translate('settings.admin.inventory.dguv_cert_error'), 'danger')
+
+    return redirect(url_for('settings.admin_inventory_settings'))
 
 
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])

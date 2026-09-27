@@ -1,0 +1,294 @@
+{% extends "inventory/layout.html" %}
+
+{% block title %}{{ _('inventory.dguv_exam.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-shield-check{% endblock %}
+{% block inventory_heading %}{{ _('inventory.dguv_exam.heading') }}{% endblock %}
+
+{% block inventory_content %}
+<p class="text-muted mb-3">{{ _('inventory.dguv_exam.subtitle') }}</p>
+
+{% if not signing_ready %}
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    {{ _('inventory.dguv_exam.no_certificate_hint') }}
+</div>
+{% endif %}
+
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-5">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    {{ _('inventory.dguv_exam.input_title') }}
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">{{ _('inventory.dguv_exam.camera_label') }}</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn mod-pill-btn mod-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> {{ _('inventory.dguv_exam.camera_label') }}
+                        </button>
+                        <button class="btn mod-pill-btn mod-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i>
+                        </button>
+                    </div>
+                    <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                    <div id="scannerFeedback" class="alert mt-2 d-none"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="manualQrInput" class="form-label">{{ _('inventory.dguv_exam.manual_label') }}</label>
+                    <div class="inventory-manual-input-wrap d-flex gap-2">
+                        <input type="text" class="form-control mod-pill-input" id="manualQrInput" autofocus
+                               placeholder="{{ _('inventory.dguv_exam.manual_placeholder') }}"
+                               autocomplete="off">
+                        <button class="btn btn-accent mod-pill-btn flex-shrink-0" id="lookupBtn" type="button">
+                            <i class="bi bi-search"></i> {{ _('inventory.dguv_exam.lookup_button') }}
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label for="productSearchInput" class="form-label">{{ _('inventory.dguv_exam.search_label') }}</label>
+                    <div class="inventory-manual-input-wrap position-relative">
+                        <input type="text" class="form-control mod-pill-input" id="productSearchInput"
+                               placeholder="{{ _('inventory.dguv_exam.search_placeholder') }}"
+                               autocomplete="off">
+                        <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-clipboard2-check" aria-hidden="true"></i>
+                    {{ _('inventory.dguv_exam.panel_title') }}
+                </h2>
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline d-none" id="nextScanBtn">
+                    <i class="bi bi-arrow-repeat"></i> {{ _('inventory.dguv_exam.next_scan') }}
+                </button>
+            </div>
+            <div class="inventory-panel-body" id="dguvExamWorkArea">
+                <p class="text-muted text-center inventory-empty-hint py-4 mb-0" id="dguvExamEmpty">
+                    {{ _('inventory.dguv_exam.empty') }}
+                </p>
+                <div id="dguvExamFormWrap" class="d-none">
+                    <div id="dguvProductMeta" class="mb-3"></div>
+                    <form id="dguvExamForm" novalidate>
+                        <input type="hidden" id="dguvProductId" name="product_id" value="">
+
+                        <h3 class="h6 text-muted mb-2">{{ _('inventory.dguv_exam.section_examiner') }}</h3>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="examinerName">{{ _('inventory.dguv_exam.examiner_name') }}</label>
+                                <input type="text" class="form-control mod-pill-input" id="examinerName" readonly
+                                       value="{{ examiner_name }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="examinerEmail">{{ _('inventory.dguv_exam.examiner_email') }}</label>
+                                <input type="email" class="form-control mod-pill-input" id="examinerEmail"
+                                       value="{{ examiner_email }}" required>
+                            </div>
+                        </div>
+
+                        <h3 class="h6 text-muted mb-2">{{ _('inventory.dguv_exam.section_device') }}</h3>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <label class="form-label" for="devicePreset">{{ _('inventory.dguv_exam.device_preset') }}</label>
+                                <select class="form-select mod-pill-select" id="devicePreset">
+                                    <option value="">{{ _('inventory.dguv_exam.device_preset_none') }}</option>
+                                    {% for d in recent_devices %}
+                                    <option value="{{ loop.index0 }}"
+                                            data-name="{{ d.name }}"
+                                            data-serial="{{ d.serial }}"
+                                            data-cal="{{ d.calibration_date }}">{{ d.name }}{% if d.serial %} ({{ d.serial }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="deviceName">{{ _('inventory.dguv_exam.device_name') }}</label>
+                                <input type="text" class="form-control mod-pill-input" id="deviceName" required
+                                       placeholder="Fluke 6500-2">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="deviceSerial">{{ _('inventory.dguv_exam.device_serial') }}</label>
+                                <input type="text" class="form-control mod-pill-input" id="deviceSerial">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="deviceCal">{{ _('inventory.dguv_exam.device_cal') }}</label>
+                                <input type="date" class="form-control mod-pill-input" id="deviceCal">
+                            </div>
+                        </div>
+
+                        <h3 class="h6 text-muted mb-2">{{ _('inventory.dguv_exam.section_measures') }}</h3>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="visualOk">{{ _('inventory.dguv_exam.visual') }}</label>
+                                <select class="form-select mod-pill-select" id="visualOk" required>
+                                    <option value="">—</option>
+                                    <option value="true">{{ _('inventory.dguv_exam.pass') }}</option>
+                                    <option value="false">{{ _('inventory.dguv_exam.fail') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="functionOk">{{ _('inventory.dguv_exam.function') }}</label>
+                                <select class="form-select mod-pill-select" id="functionOk" required>
+                                    <option value="">—</option>
+                                    <option value="true">{{ _('inventory.dguv_exam.pass') }}</option>
+                                    <option value="false">{{ _('inventory.dguv_exam.fail') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="rPe">{{ _('inventory.dguv_exam.r_pe') }}</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" min="0" class="form-control mod-pill-input" id="rPe">
+                                    <span class="input-group-text">Ω</span>
+                                </div>
+                                <div class="form-text" id="rPeHint">{{ _('inventory.dguv_exam.r_pe_limit_hint', limit=r_pe_limit) }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="rIso">{{ _('inventory.dguv_exam.r_iso') }}</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="rIso">
+                                    <span class="input-group-text">MΩ</span>
+                                </div>
+                                <div class="form-text" id="rIsoHint">{{ _('inventory.dguv_exam.r_iso_limit_hint', limit=r_iso_limit) }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="iPe">{{ _('inventory.dguv_exam.i_pe') }}</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="iPe">
+                                    <span class="input-group-text">mA</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="iTouch">{{ _('inventory.dguv_exam.i_touch') }}</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control mod-pill-input" id="iTouch">
+                                    <span class="input-group-text">mA</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 class="h6 text-muted mb-2">{{ _('inventory.dguv_exam.section_result') }}</h3>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="overallResult">{{ _('inventory.dguv_exam.overall') }}</label>
+                                <select class="form-select mod-pill-select" id="overallResult" required>
+                                    <option value="">—</option>
+                                    <option value="passed">{{ _('inventory.dguv_exam.result_passed') }}</option>
+                                    <option value="deficient">{{ _('inventory.dguv_exam.result_deficient') }}</option>
+                                    <option value="failed">{{ _('inventory.dguv_exam.result_failed') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="intervalMonths">{{ _('inventory.dguv_exam.interval') }}</label>
+                                <select class="form-select mod-pill-select" id="intervalMonths" required>
+                                    <option value="6">6</option>
+                                    <option value="12" {% if default_interval == 12 %}selected{% endif %}>12</option>
+                                    <option value="24" {% if default_interval == 24 %}selected{% endif %}>24</option>
+                                    <option value="36">36</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="examDate">{{ _('inventory.dguv_exam.exam_date') }}</label>
+                                <input type="date" class="form-control mod-pill-input" id="examDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="nextExamDate">{{ _('inventory.dguv_exam.next_exam') }}</label>
+                                <input type="date" class="form-control mod-pill-input" id="nextExamDate" readonly>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent" id="dguvSubmitBtn"
+                                    {% if not signing_ready %}disabled{% endif %}>
+                                <i class="bi bi-pen"></i> {{ _('inventory.dguv_exam.submit') }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dguvOtpModal" tabindex="-1" aria-labelledby="dguvOtpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="dguvOtpModalLabel">{{ _('inventory.dguv_exam.otp.title') }}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted" id="dguvOtpHint">{{ _('inventory.dguv_exam.otp.hint') }}</p>
+                <label class="form-label" for="dguvOtpInput">{{ _('inventory.dguv_exam.otp.code') }}</label>
+                <input type="text" class="form-control mod-pill-input" id="dguvOtpInput" maxlength="6"
+                       inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
+                <div class="invalid-feedback d-block" id="dguvOtpError" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline" data-bs-dismiss="modal">
+                    {{ _('inventory.dguv_exam.otp.cancel') }}
+                </button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--accent" id="dguvOtpConfirmBtn">
+                    <i class="bi bi-check2"></i> {{ _('inventory.dguv_exam.otp.confirm') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block inventory_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory_scan_lookup.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory-borrow-scanner.js') }}"></script>
+<script>
+window.INVENTORY_DGUV_EXAM = {
+  signingReady: {{ 'true' if signing_ready else 'false' }},
+  rPeLimit: {{ r_pe_limit }},
+  rIsoLimit: {{ r_iso_limit }},
+  lookupUrl: {{ url_for('inventory.api_dguv_exam_product')|tojson }},
+  prepareUrl: {{ url_for('inventory.api_dguv_exam_prepare')|tojson }},
+  completeUrl: {{ url_for('inventory.api_dguv_exam_complete')|tojson }},
+  i18n: {
+    empty: {{ _('inventory.dguv_exam.empty')|tojson }},
+    next_scan: {{ _('inventory.dguv_exam.next_scan')|tojson }},
+    err_set: {{ _('inventory.dguv_exam.errors.scan_set')|tojson }},
+    err_lookup: {{ _('inventory.dguv_exam.errors.lookup_failed')|tojson }},
+    err_prepare: {{ _('inventory.dguv_exam.errors.prepare_failed')|tojson }},
+    err_complete: {{ _('inventory.dguv_exam.errors.complete_failed')|tojson }},
+    success: {{ _('inventory.dguv_exam.success')|tojson }},
+    limit_ok: {{ _('inventory.dguv_exam.limit_ok')|tojson }},
+    limit_fail: {{ _('inventory.dguv_exam.limit_fail')|tojson }},
+    meta_inv: {{ _('inventory.dguv_exam.meta.inventory')|tojson }},
+    meta_serial: {{ _('inventory.dguv_exam.meta.serial')|tojson }},
+    meta_owner: {{ _('inventory.dguv_exam.meta.owner')|tojson }},
+    meta_location: {{ _('inventory.dguv_exam.meta.location')|tojson }},
+    meta_length: {{ _('inventory.dguv_exam.meta.length')|tojson }},
+    meta_folder: {{ _('inventory.dguv_exam.meta.folder')|tojson }},
+    meta_dguv_last: {{ _('inventory.dguv_exam.meta.dguv_last')|tojson }},
+    meta_dguv_next: {{ _('inventory.dguv_exam.meta.dguv_next')|tojson }},
+    meta_dguv_interval: {{ _('inventory.dguv_exam.meta.dguv_interval')|tojson }},
+    open_pdf: {{ _('inventory.dguv_exam.open_pdf')|tojson }}
+  }
+};
+</script>
+<script src="{{ url_for('static', filename='js/inventory_dguv_exam.js') }}"></script>
+{% endblock %}

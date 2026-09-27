@@ -55,13 +55,23 @@
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
         <a href="{{ url_for('inventory.product_scan') }}" class="inv-hub-tile">
-            <span class="inv-hub-tile-icon"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-icon"><i class="bi bi-info-circle" aria-hidden="true"></i></span>
             <span class="inv-hub-tile-body">
                 <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.product_scan') }}</span>
                 <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.product_scan_desc') }}</span>
             </span>
             <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
         </a>
+        {% if inventory_features.dguv %}
+        <a href="{{ url_for('inventory.dguv_exam') }}" class="inv-hub-tile">
+            <span class="inv-hub-tile-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+            <span class="inv-hub-tile-body">
+                <span class="inv-hub-tile-title">{{ _('inventory.shell.nav.dguv_exam') }}</span>
+                <span class="inv-hub-tile-desc">{{ _('inventory.dashboard.hub.dguv_exam_desc') }}</span>
+            </span>
+            <i class="bi bi-chevron-right inv-hub-tile-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
         {% if inventory_features.quick_scan %}
         <a href="{{ url_for('inventory.borrow_scanner') }}" class="inv-hub-tile">
             <span class="inv-hub-tile-icon"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>

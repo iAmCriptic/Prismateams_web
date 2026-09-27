@@ -2876,3 +2876,17 @@ body.inventory-has-selection .inventory-product-preview-check {
         gap: 0.2rem;
     }
 }
+
+/* DGUV V3 exam */
+.dguv-product-meta {
+    padding: 0.85rem 1rem;
+    border-radius: var(--mod-radius-pill, 1rem);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+}
+.dguv-product-meta dl {
+    margin-bottom: 0;
+}
+.dguv-product-meta dd {
+    margin-bottom: 0.25rem;
+}

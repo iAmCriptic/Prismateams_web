@@ -103,3 +103,5 @@ wrapt==2.0.0
 wsproto==1.2.0
 WTForms==3.2.1
 yarl==1.22.0
+pyHanko==0.37.0
+
