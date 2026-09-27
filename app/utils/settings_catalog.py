@@ -171,6 +171,12 @@ def build_settings_catalog(user) -> list[dict]:
         'teams mitglieder teamleitung',
     ))
     catalog.append(_entry(
+        translate('settings.team_settings.title'),
+        'settings.team_settings',
+        'admin',
+        'team module teameinstellungen aktivieren deaktivieren',
+    ))
+    catalog.append(_entry(
         translate('settings.admin.cards.whitelist.title'),
         'settings.admin_whitelist',
         'admin',

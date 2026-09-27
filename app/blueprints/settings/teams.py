@@ -145,7 +145,7 @@ def admin_teams():
 @settings_bp.route('/team-settings', methods=['GET', 'POST'])
 @login_required
 def team_settings():
-    """Team leaders: enable/disable team sections per team."""
+    """Admins and team leaders: enable/disable team sections per team."""
     from app.models.team import Team
     from app.utils.multi_mailboxes import can_manage_team, get_led_teams, user_is_team_leader
     from app.utils.team_module_settings import (
@@ -154,14 +154,14 @@ def team_settings():
         set_team_section_enabled,
     )
 
-    if current_user.is_admin:
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-    if not user_is_team_leader(current_user):
+    is_admin = bool(current_user.is_admin)
+    is_leader = user_is_team_leader(current_user)
+    if not is_admin and not is_leader:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
-    teams = get_led_teams(current_user)
+    # Admins can configure any team; non-admin leaders only their own.
+    teams = Team.query.order_by(Team.name).all() if is_admin else get_led_teams(current_user)
     if not teams:
         flash(translate('settings.team_settings.flash_no_teams'), 'warning')
         return redirect(url_for('settings.index'))
