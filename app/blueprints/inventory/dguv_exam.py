@@ -30,6 +30,7 @@ from app.utils.dguv_pdf import generate_dguv_exam_pdf
 from app.utils.dguv_signing import (
     DEFAULT_R_ISO_LIMIT,
     DEFAULT_R_PE_LIMIT,
+    OTP_VALIDITY_DAYS,
     certificate_status,
     has_signing_certificate,
     sign_pdf_bytes,
@@ -47,6 +48,17 @@ logger = logging.getLogger(__name__)
 SESSION_OTP_KEY = 'dguv_exam_otp'
 OTP_TTL_MINUTES = 10
 OVERALL_RESULTS = frozenset({'passed', 'deficient', 'failed'})
+
+
+def _otp_window_active(user) -> bool:
+    until = getattr(user, 'dguv_signature_confirmed_until', None)
+    if not until:
+        return False
+    return portal_now_naive() < until
+
+
+def _extend_otp_window(user) -> None:
+    user.dguv_signature_confirmed_until = portal_now_naive() + timedelta(days=OTP_VALIDITY_DAYS)
 
 
 def _parse_date(value) -> Optional[date]:
@@ -303,6 +315,8 @@ def dguv_exam():
         examiner_name=getattr(current_user, 'full_name', None) or '',
         examiner_email=getattr(current_user, 'email', None) or '',
         signing_ready=has_signing_certificate(),
+        otp_window_active=_otp_window_active(current_user),
+        otp_window_days=OTP_VALIDITY_DAYS,
         recent_devices=devices,
         default_interval=DEFAULT_DGUV_INTERVAL_MONTHS,
         r_pe_limit=DEFAULT_R_PE_LIMIT,
@@ -348,13 +362,40 @@ def api_dguv_exam_prepare():
     data = request.get_json(silent=True) or {}
     payload, err = _validate_exam_payload(data)
     if err:
+        logger.info(
+            'DGUV prepare validation failed: %s keys=%s',
+            err,
+            sorted(str(k) for k in data.keys()),
+        )
         return jsonify({'ok': False, 'error': err}), 400
+
+    session_payload = _payload_for_session(payload)
+    skip_otp = _otp_window_active(current_user)
+
+    if skip_otp:
+        # Keep a short-lived draft; complete will skip OTP check
+        expires = portal_now_naive() + timedelta(minutes=OTP_TTL_MINUTES)
+        session[SESSION_OTP_KEY] = {
+            'code': None,
+            'otp_required': False,
+            'expires': expires.isoformat(),
+            'payload': session_payload,
+            'payload_hash': hashlib.sha256(json.dumps(session_payload, sort_keys=True).encode()).hexdigest(),
+        }
+        session.modified = True
+        return jsonify({
+            'ok': True,
+            'otp_required': False,
+            'mail_sent': False,
+            'examiner_email': payload['examiner_email'],
+            'hint': translate('inventory.dguv_exam.otp.window_active'),
+        })
 
     code = generate_confirmation_code()
     expires = portal_now_naive() + timedelta(minutes=OTP_TTL_MINUTES)
-    session_payload = _payload_for_session(payload)
     session[SESSION_OTP_KEY] = {
         'code': code,
+        'otp_required': True,
         'expires': expires.isoformat(),
         'payload': session_payload,
         'payload_hash': hashlib.sha256(json.dumps(session_payload, sort_keys=True).encode()).hexdigest(),
@@ -362,10 +403,9 @@ def api_dguv_exam_prepare():
     session.modified = True
 
     mailed = _send_exam_otp(payload['examiner_email'], code)
-    # Dev fallback: if mail not configured, still allow complete (OTP in session);
-    # client is told mail_sent status.
     resp = {
         'ok': True,
+        'otp_required': True,
         'mail_sent': mailed,
         'expires_in_minutes': OTP_TTL_MINUTES,
         'examiner_email': payload['examiner_email'],
@@ -390,7 +430,7 @@ def api_dguv_exam_complete():
     data = request.get_json(silent=True) or {}
     otp = str(data.get('otp') or data.get('code') or '').strip()
     pending = session.get(SESSION_OTP_KEY) or {}
-    if not pending or not pending.get('code') or not pending.get('payload'):
+    if not pending or not pending.get('payload'):
         return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_missing')}), 400
 
     try:
@@ -401,8 +441,15 @@ def api_dguv_exam_complete():
         session.pop(SESSION_OTP_KEY, None)
         return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_expired')}), 400
 
-    if otp != str(pending['code']):
-        return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_invalid')}), 400
+    otp_required = pending.get('otp_required', True)
+    if otp_required:
+        if not pending.get('code'):
+            return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_missing')}), 400
+        if otp != str(pending['code']):
+            return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_invalid')}), 400
+    elif not _otp_window_active(current_user):
+        # Window expired between prepare and complete
+        return jsonify({'ok': False, 'error': translate('inventory.dguv_exam.errors.otp_expired')}), 400
 
     payload = _payload_from_session(pending['payload'])
     if payload.get('examiner_user_id') != current_user.id:
@@ -421,6 +468,8 @@ def api_dguv_exam_complete():
             reason=f"DGUV V3 Prüfung {inventory_number_display(product)}",
             location=_portal_name(),
             contact_info=payload['examiner_email'],
+            examiner_name=payload['examiner_name'],
+            examiner_email=payload['examiner_email'],
         )
     except Exception as exc:
         logger.exception('DGUV PDF/sign failed: %s', exc)
@@ -465,6 +514,9 @@ def api_dguv_exam_complete():
         product.dguv_interval_months = payload['interval_months']
         product.dguv_next_check = payload['next_exam_date']
 
+        if otp_required:
+            _extend_otp_window(current_user)
+
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
@@ -479,6 +531,7 @@ def api_dguv_exam_complete():
         'pdf_url': f"/inventory/dguv-exam/{exam.id}/pdf",
         'next_exam_date': payload['next_exam_date'].isoformat(),
         'sha256': sha,
+        'otp_window_days': OTP_VALIDITY_DAYS,
     })
 
 

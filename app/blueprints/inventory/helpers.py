@@ -482,7 +482,13 @@ def _attach_form_documents_to_products(products, form, files):
 
 
 def _parse_optional_float(value):
-    raw = (value or '').strip()
+    if value is None or value is False:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    raw = str(value).strip()
     if not raw:
         return None
     try:
@@ -492,7 +498,15 @@ def _parse_optional_float(value):
 
 
 def _parse_optional_int(value):
-    raw = (value or '').strip()
+    if value is None or value is False:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    raw = str(value).strip()
     if not raw:
         return None
     try:
@@ -504,11 +518,15 @@ def _parse_optional_int(value):
 def _parse_optional_date(value):
     if isinstance(value, date) and not isinstance(value, datetime):
         return value
-    raw = (value or '').strip() if value is not None else ''
+    if isinstance(value, datetime):
+        return value.date()
+    if value is None:
+        return None
+    raw = str(value).strip()
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, '%Y-%m-%d').date()
+        return datetime.strptime(raw[:10], '%Y-%m-%d').date()
     except ValueError:
         return None
 

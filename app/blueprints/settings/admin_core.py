@@ -1343,6 +1343,7 @@ def admin_inventory_dguv_cert():
 
     try:
         cn = (request.form.get('cert_cn') or '').strip() or None
+        # Empty CN → always use current portal_name
         status = generate_org_certificate(cn=cn)
         flash(
             translate(

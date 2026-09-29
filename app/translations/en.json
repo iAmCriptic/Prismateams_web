@@ -2174,7 +2174,7 @@
         "ownership_help": "This text appears prominently on public product pages.",
         "save": "Save",
         "dguv_cert_title": "DGUV signing certificate (FES)",
-        "dguv_cert_help": "Self-signed organisation certificate for digital inspection protocols.",
+        "dguv_cert_help": "Self-signed organisation certificate for digital inspection protocols. CN = portal name.",
         "dguv_cert_lead": "Without a certificate, DGUV V3 inspections cannot be completed.",
         "dguv_cert_status": "Status",
         "dguv_cert_ok": "Valid",
@@ -2183,12 +2183,17 @@
         "dguv_cert_valid_until": "Valid until",
         "dguv_cert_generate_title": "Generate certificate",
         "dguv_cert_cn": "Common Name (organisation)",
-        "dguv_cert_cn_placeholder": "Portal or company name",
-        "dguv_cert_generate": "Generate self-signed certificate",
+        "dguv_cert_cn_placeholder": "Portal name, e.g. Devportal",
+        "dguv_cert_generate": "Regenerate with portal name",
         "dguv_cert_confirm": "Overwrite existing certificate?",
         "dguv_cert_generated": "Certificate created ({cn}), valid until {not_after}.",
         "dguv_cert_error": "Could not create certificate.",
-        "dguv_cert_unknown_action": "Unknown action."
+        "dguv_cert_unknown_action": "Unknown action.",
+        "dguv_cert_portal": "Current portal name",
+        "dguv_cert_cn_current": "Certificate CN",
+        "dguv_cert_mismatch": "Certificate CN (“{cn}”) differs from portal name (“{portal}”). Please regenerate.",
+        "dguv_cert_generate_lead": "Creates a self-signed CA certificate using the portal name (Issued to/by).",
+        "dguv_cert_cn_help": "Leave empty or enter portal name — used as organisation CA."
       },
       "email_settings": {
         "flash_saved": "Email settings have been saved."
@@ -5860,7 +5865,9 @@
         "email_body": "Your code to confirm the DGUV inspection: {code}\nValid for {minutes} minutes.",
         "email_title": "DGUV signature code",
         "email_intro": "Please confirm the digital signature of the DGUV V3 protocol with the following code.",
-        "mail_not_configured": "Email is not configured. The OTP exists server-side — contact an admin or set up mail."
+        "mail_not_configured": "Email is not configured. The OTP exists server-side — contact an admin or set up mail.",
+        "window_active": "Signature confirmation still valid — no new email code needed.",
+        "window_active_banner": "Your signature confirmation is still valid (up to {days} days). No new OTP required."
       },
       "errors": {
         "product_required": "Product required.",

@@ -79,6 +79,9 @@ class User(UserMixin, db.Model):
     totp_recovery_code = db.Column(db.String(128), nullable=True)
     totp_recovery_code_expires = db.Column(db.DateTime, nullable=True)
 
+    # DGUV FES: monatliche E-Mail-OTP-Bestätigung (rollierend 30 Tage)
+    dguv_signature_confirmed_until = db.Column(db.DateTime, nullable=True)
+
     # Google Login / Registrierung / Verknüpfung
     google_sub = db.Column(db.String(64), unique=True, nullable=True, index=True)
     google_email = db.Column(db.String(120), nullable=True)

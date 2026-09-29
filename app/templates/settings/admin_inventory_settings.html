@@ -135,10 +135,19 @@
             {% endif %}
           </div>
         </div>
+        <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_portal') }}</span></div>
+          <div class="sp-row-control"><span class="text-muted">{{ cert.portal_name or '—' }}</span></div>
+        </div>
         {% if cert.cn %}
         <div class="sp-row">
-          <div class="sp-row-label"><span class="sp-row-label-text">CN</span></div>
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_cn_current') }}</span></div>
           <div class="sp-row-control"><span class="text-muted">{{ cert.cn }}</span></div>
+        </div>
+        {% endif %}
+        {% if cert.cn_mismatch %}
+        <div class="alert alert-warning mx-3 mb-2" role="alert">
+          {{ _('settings.admin.inventory.dguv_cert_mismatch', portal=cert.portal_name, cn=cert.cn) }}
         </div>
         {% endif %}
         {% if cert.not_after %}
@@ -157,13 +166,16 @@
         <h2 id="inventory-dguv-cert-gen-title" class="sp-group-title">{{ _('settings.admin.inventory.dguv_cert_generate_title') }}</h2>
       </div>
       <div class="sp-group-body">
+        <p class="sp-row-meta mb-2 px-3">{{ _('settings.admin.inventory.dguv_cert_generate_lead') }}</p>
         <div class="sp-row sp-row--stack">
           <div class="sp-row-label">
             <span class="sp-row-label-text">{{ _('settings.admin.inventory.dguv_cert_cn') }}</span>
           </div>
           <div class="sp-row-control" style="width:100%">
-            <input type="text" class="form-control" name="cert_cn" value="{{ cert.cn or '' }}"
+            <input type="text" class="form-control" name="cert_cn"
+                   value="{{ cert.portal_name or '' }}"
                    placeholder="{{ _('settings.admin.inventory.dguv_cert_cn_placeholder') }}" autocomplete="off">
+            <div class="form-text">{{ _('settings.admin.inventory.dguv_cert_cn_help') }}</div>
           </div>
         </div>
         <div class="sp-row">

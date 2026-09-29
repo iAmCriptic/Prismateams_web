@@ -2890,3 +2890,8 @@ body.inventory-has-selection .inventory-product-preview-check {
 .dguv-product-meta dd {
     margin-bottom: 0.25rem;
 }
+
+/* OTP-Modal muss über Backdrop liegen (nach Move an body) */
+body > #dguvOtpModal {
+    z-index: 1065;
+}

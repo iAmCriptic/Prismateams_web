@@ -1,4 +1,4 @@
-"""DGUV V3 Prüfprotokoll PDF (ReportLab) + visual FES stamp."""
+"""DGUV V3 Prüfprotokoll PDF (ReportLab) — compact single-page + FES stamp."""
 
 from __future__ import annotations
 
@@ -51,37 +51,43 @@ def _result_label(code: str) -> str:
     }.get(code or '', code or '—')
 
 
-def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
-    """
-    Build unsigned DGUV V3 protocol PDF bytes.
+def _compact_table_style():
+    style = standard_table_style(header=True)
+    # Tighten padding for single-page layout
+    style.add('TOPPADDING', (0, 0), (-1, -1), 3)
+    style.add('BOTTOMPADDING', (0, 0), (-1, -1), 3)
+    style.add('FONTSIZE', (0, 0), (-1, -1), 8)
+    style.add('LEADING', (0, 0), (-1, -1), 10)
+    return style
 
-    Expected keys (subset): product_*, examiner_*, device_*, measurements,
-    overall_result, exam_date, next_exam_date, interval_months, signed_stamp_*.
-    """
+
+def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
+    """Build unsigned DGUV V3 protocol PDF (target: one A4 page)."""
     buffer = BytesIO()
     from reportlab.platypus import SimpleDocTemplate
 
+    # Larger bottom margin reserves space for cryptographic signature appearance
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=2 * cm,
-        rightMargin=2 * cm,
-        topMargin=1.5 * cm,
-        bottomMargin=2 * cm,
+        leftMargin=1.6 * cm,
+        rightMargin=1.6 * cm,
+        topMargin=1.1 * cm,
+        bottomMargin=3.2 * cm,
     )
     ps = pdf_paragraph_styles()
     story = []
-    usable = A4[0] - 4 * cm
+    usable = A4[0] - 3.2 * cm
 
     story.append(build_standard_header(
         'DGUV V3 Prüfprotokoll',
-        subtitle='nach DIN VDE 0701-0702 / EN 50678 & EN 50699',
+        subtitle='DIN VDE 0701-0702 / EN 50678 & EN 50699',
         pagesize=A4,
         content_width=usable,
+        logo_size=1.5 * cm,
     ))
-    story.append(Spacer(1, 0.4 * cm))
+    story.append(Spacer(1, 0.2 * cm))
 
-    # Block 1 – Stammdaten
     story.append(Paragraph('1. Produkt- & Stammdaten', ps['section']))
     product_rows = [
         ['Feld', 'Wert'],
@@ -93,12 +99,11 @@ def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
         ['Länge', data.get('length') or '—'],
         ['Ordner', data.get('folder_name') or '—'],
     ]
-    t1 = Table(product_rows, colWidths=[5 * cm, usable - 5 * cm])
-    t1.setStyle(standard_table_style(header=True))
+    t1 = Table(product_rows, colWidths=[4.2 * cm, usable - 4.2 * cm])
+    t1.setStyle(_compact_table_style())
     story.append(t1)
-    story.append(Spacer(1, 0.35 * cm))
+    story.append(Spacer(1, 0.18 * cm))
 
-    # Block 2 – Prüfgerät
     story.append(Paragraph('2. Prüfer & Prüfgerät', ps['section']))
     device_rows = [
         ['Feld', 'Wert'],
@@ -111,12 +116,11 @@ def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
         ['Intervall', f"{data.get('interval_months') or '—'} Monate"],
         ['Nächste Prüfung', _fmt_date(data.get('next_exam_date'))],
     ]
-    t2 = Table(device_rows, colWidths=[5 * cm, usable - 5 * cm])
-    t2.setStyle(standard_table_style(header=True))
+    t2 = Table(device_rows, colWidths=[4.2 * cm, usable - 4.2 * cm])
+    t2.setStyle(_compact_table_style())
     story.append(t2)
-    story.append(Spacer(1, 0.35 * cm))
+    story.append(Spacer(1, 0.18 * cm))
 
-    # Block 3 – Messwerte
     story.append(Paragraph('3. Messwerte & Beurteilungen', ps['section']))
     r_pe = data.get('r_pe_ohm')
     r_iso = data.get('r_iso_mohm')
@@ -124,12 +128,7 @@ def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
     r_iso_limit = data.get('r_iso_limit', 1.0)
     measure_rows = [
         ['Prüfung', 'Istwert', 'Grenzwert', 'Beurteilung'],
-        [
-            'Sichtprüfung',
-            _fmt_bool(data.get('visual_ok')),
-            '—',
-            _fmt_bool(data.get('visual_ok')),
-        ],
+        ['Sichtprüfung', _fmt_bool(data.get('visual_ok')), '—', _fmt_bool(data.get('visual_ok'))],
         [
             'Schutzleiterwiderstand R_PE',
             _fmt_num(r_pe, 'Ω'),
@@ -142,24 +141,9 @@ def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
             f'≥ {_fmt_num(r_iso_limit, "MΩ")}',
             _fmt_bool(data.get('r_iso_pass')),
         ],
-        [
-            'Schutzleiterstrom I_PE',
-            _fmt_num(data.get('i_pe_ma'), 'mA'),
-            '—',
-            '—',
-        ],
-        [
-            'Berührungsstrom I_A',
-            _fmt_num(data.get('i_touch_ma'), 'mA'),
-            '—',
-            '—',
-        ],
-        [
-            'Funktionsprüfung',
-            _fmt_bool(data.get('function_ok')),
-            '—',
-            _fmt_bool(data.get('function_ok')),
-        ],
+        ['Schutzleiterstrom I_PE', _fmt_num(data.get('i_pe_ma'), 'mA'), '—', '—'],
+        ['Berührungsstrom I_A', _fmt_num(data.get('i_touch_ma'), 'mA'), '—', '—'],
+        ['Funktionsprüfung', _fmt_bool(data.get('function_ok')), '—', _fmt_bool(data.get('function_ok'))],
         [
             'Gesamtergebnis',
             _result_label(data.get('overall_result')),
@@ -167,40 +151,35 @@ def generate_dguv_exam_pdf(data: dict[str, Any]) -> bytes:
             _result_label(data.get('overall_result')),
         ],
     ]
-    t3 = Table(measure_rows, colWidths=[5.2 * cm, 3.2 * cm, 3.5 * cm, usable - 11.9 * cm])
-    t3.setStyle(standard_table_style(header=True))
+    t3 = Table(measure_rows, colWidths=[5.0 * cm, 2.8 * cm, 3.2 * cm, usable - 11.0 * cm])
+    t3.setStyle(_compact_table_style())
     story.append(t3)
-    story.append(Spacer(1, 0.5 * cm))
+    story.append(Spacer(1, 0.22 * cm))
 
-    # Block 4 – Visueller FES-Stempel
     story.append(Paragraph('4. Digitale Signatur (FES/EES)', ps['section']))
+    examiner = data.get('examiner_name') or '—'
     stamp_lines = [
-        f"<b>{data.get('stamp_org') or 'Organisation'}</b>",
-        f"Prüfer: {data.get('examiner_name') or '—'}",
+        f'<b>Signed by "{examiner}"</b>',
         f"E-Mail: {data.get('examiner_email') or '—'}",
         f"Datum/Uhrzeit: {_fmt_date(data.get('signed_at') or data.get('exam_date'))}",
-        'Digital signiert (FES/EES, organisationsbezogen, selbstsigniertes Zertifikat)',
-        'Keine qualifizierte Signatur (QES).',
+        f"Organisation (CA): {data.get('stamp_org') or '—'}",
+        'Digital signiert (FES/EES, selbstsignierte Organisations-CA). Keine QES.',
     ]
     stamp_html = '<br/>'.join(stamp_lines)
     stamp_table = Table(
-        [[Paragraph(stamp_html, ps.get('body', ps['subtitle']))]],
+        [[Paragraph(stamp_html, ps.get('muted', ps['subtitle']))]],
         colWidths=[usable],
     )
     stamp_table.setStyle(TableStyle([
-        ('BOX', (0, 0), (-1, -1), 1.2, PDF_COLORS['text']),
+        ('BOX', (0, 0), (-1, -1), 1.0, PDF_COLORS['text']),
         ('BACKGROUND', (0, 0), (-1, -1), PDF_COLORS['header_bg']),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     story.append(stamp_table)
-    story.append(Spacer(1, 1.2 * cm))
-    story.append(Paragraph(
-        'Unterhalb dieses Bereichs wird die kryptographische PDF-Signatur eingebettet.',
-        ps['subtitle'],
-    ))
+    # No extra spacer below stamp — bottomMargin reserves crypto signature area
 
     doc.build(story)
     return buffer.getvalue()

@@ -1,7 +1,7 @@
 /**
  * DGUV V3 Prüfung — Scan → Stammdaten → Messwerte → OTP → signiertes PDF.
  */
-/* global BorrowScannerManager, InventoryScanLookup, bootstrap */
+/* global BorrowScannerManager, InventoryScanLookup, bootstrap, inventoryNotify */
 
 class DguvExamManager extends BorrowScannerManager {
     constructor() {
@@ -17,6 +17,66 @@ class DguvExamManager extends BorrowScannerManager {
 
     t(key, fallback = '') {
         return this.i18n[key] || fallback || key;
+    }
+
+    ensureModalOnBody(modalElement) {
+        if (!modalElement) return;
+        if (modalElement.parentElement !== document.body) {
+            document.body.appendChild(modalElement);
+        }
+    }
+
+    clearModalArtifacts() {
+        document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    }
+
+    csrfHeaders(extra = {}) {
+        const headers = Object.assign({ Accept: 'application/json' }, extra);
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        const token = (meta && meta.content)
+            || (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function'
+                ? window.PrismateamsCsrf.getToken()
+                : '');
+        if (token) {
+            headers['X-CSRFToken'] = token;
+            headers['X-CSRF-Token'] = token;
+        }
+        return headers;
+    }
+
+    notify(msg, category = 'info') {
+        if (typeof inventoryNotify === 'function') {
+            inventoryNotify(msg, category);
+            return;
+        }
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(String(msg || ''), category === 'error' ? 'danger' : category);
+            return;
+        }
+        window.alert(String(msg || ''));
+    }
+
+    showFormAlert(msg, type = 'danger') {
+        const el = document.getElementById('dguvFormAlert');
+        if (el) {
+            el.className = `alert alert-${type} mb-3`;
+            el.textContent = msg || '';
+            el.classList.remove('d-none');
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        this.showFeedback(msg, type);
+        this.notify(msg, type === 'danger' ? 'danger' : type);
+    }
+
+    clearFormAlert() {
+        const el = document.getElementById('dguvFormAlert');
+        if (el) {
+            el.classList.add('d-none');
+            el.textContent = '';
+        }
     }
 
     escapeHtml(value) {
@@ -38,8 +98,10 @@ class DguvExamManager extends BorrowScannerManager {
         const otpBtn = document.getElementById('dguvOtpConfirmBtn');
         const modalEl = document.getElementById('dguvOtpModal');
 
-        if (modalEl && typeof bootstrap !== 'undefined') {
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            this.ensureModalOnBody(modalEl);
             this.otpModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modalEl.addEventListener('hidden.bs.modal', () => this.clearModalArtifacts());
         }
 
         if (startBtn && !startBtn.dataset.scannerBound) {
@@ -68,6 +130,7 @@ class DguvExamManager extends BorrowScannerManager {
             form.dataset.bound = '1';
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 this.prepareExam();
             });
         }
@@ -179,17 +242,18 @@ class DguvExamManager extends BorrowScannerManager {
             const res = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                headers: this.csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ code }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                this.showFeedback(data.error || this.t('err_lookup'), 'danger');
+                this.showFormAlert(data.error || data.detail || this.t('err_lookup'), 'danger');
                 return;
             }
+            this.clearFormAlert();
             this.showProduct(data.product);
         } catch (err) {
-            this.showFeedback(this.t('err_lookup'), 'danger');
+            this.showFormAlert(this.t('err_lookup'), 'danger');
         }
     }
 
@@ -214,6 +278,7 @@ class DguvExamManager extends BorrowScannerManager {
         const examDate = document.getElementById('examDate');
         if (examDate) examDate.value = new Date().toISOString().slice(0, 10);
         this.recomputeNextExam();
+        this.clearFormAlert();
     }
 
     showProduct(product) {
@@ -272,9 +337,9 @@ class DguvExamManager extends BorrowScannerManager {
         const productId = document.getElementById('dguvProductId')?.value;
         return {
             product_id: productId ? Number(productId) : null,
-            examiner_email: document.getElementById('examinerEmail')?.value || '',
-            device_name: document.getElementById('deviceName')?.value || '',
-            device_serial: document.getElementById('deviceSerial')?.value || '',
+            examiner_email: (document.getElementById('examinerEmail')?.value || '').trim(),
+            device_name: (document.getElementById('deviceName')?.value || '').trim(),
+            device_serial: (document.getElementById('deviceSerial')?.value || '').trim(),
             device_calibration_date: document.getElementById('deviceCal')?.value || null,
             visual_ok: document.getElementById('visualOk')?.value,
             function_ok: document.getElementById('functionOk')?.value,
@@ -290,53 +355,127 @@ class DguvExamManager extends BorrowScannerManager {
         };
     }
 
+    validateClient(payload) {
+        if (!payload.product_id) return this.t('err_lookup', 'Produkt fehlt.');
+        if (!payload.examiner_email) return this.t('err_prepare', 'E-Mail fehlt.');
+        if (!payload.device_name) return this.i18n.err_device || 'Prüfgerät ist Pflicht.';
+        if (payload.visual_ok !== 'true' && payload.visual_ok !== 'false') {
+            return this.i18n.err_visual || 'Sichtprüfung ist Pflicht.';
+        }
+        if (payload.function_ok !== 'true' && payload.function_ok !== 'false') {
+            return this.i18n.err_function || 'Funktionsprüfung ist Pflicht.';
+        }
+        if (!payload.overall_result) return this.i18n.err_result || 'Gesamtergebnis ist Pflicht.';
+        if (!payload.interval_months) return this.i18n.err_interval || 'Intervall ist Pflicht.';
+        return null;
+    }
+
+    /** True when a fresh email OTP must be entered (modal). */
+    otpIsRequired(data) {
+        if (!data || typeof data !== 'object') return true;
+        const v = data.otp_required;
+        if (v === false || v === 0 || v === 'false' || v === '0') return false;
+        // Explicit true / missing → require OTP (safe default)
+        return v !== undefined && v !== null ? !!v : true;
+    }
+
+    hideOtpModal() {
+        if (this.otpModal) {
+            try { this.otpModal.hide(); } catch (_) { /* ignore */ }
+        }
+        this.clearModalArtifacts();
+    }
+
+    openOtpUi(data) {
+        // Never show the modal when no code entry is needed
+        if (!this.otpIsRequired(data)) {
+            this.hideOtpModal();
+            return this.completeExam({ skipOtp: true });
+        }
+
+        const modalEl = document.getElementById('dguvOtpModal');
+        this.ensureModalOnBody(modalEl);
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal && !this.otpModal) {
+            this.otpModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        }
+
+        const hint = document.getElementById('dguvOtpHint');
+        if (hint) {
+            if (data.hint) {
+                hint.textContent = data.hint + (data.dev_otp ? ` (Dev-OTP: ${data.dev_otp})` : '');
+            } else if (data.examiner_email) {
+                hint.textContent = data.examiner_email;
+            }
+        }
+        const otpInput = document.getElementById('dguvOtpInput');
+        const otpErr = document.getElementById('dguvOtpError');
+        if (otpInput) otpInput.value = data.dev_otp || '';
+        if (otpErr) {
+            otpErr.style.display = 'none';
+            otpErr.textContent = '';
+        }
+        if (this.otpModal) {
+            this.otpModal.show();
+            return;
+        }
+        // Fallback without Bootstrap Modal
+        const code = window.prompt(
+            (hint && hint.textContent) || 'OTP-Code eingeben',
+            data.dev_otp || ''
+        );
+        if (code != null) {
+            if (otpInput) otpInput.value = String(code).trim();
+            this.completeExam();
+        }
+    }
+
     async prepareExam() {
+        this.clearFormAlert();
         if (!this.cfg.signingReady) {
-            this.showFeedback(this.t('err_prepare'), 'warning');
+            this.showFormAlert(this.t('err_prepare'), 'warning');
             return;
         }
         const payload = this.collectPayload();
+        const clientErr = this.validateClient(payload);
+        if (clientErr) {
+            this.showFormAlert(clientErr, 'warning');
+            return;
+        }
         const btn = document.getElementById('dguvSubmitBtn');
         if (btn) btn.disabled = true;
         try {
             const res = await fetch(this.cfg.prepareUrl || '/inventory/api/dguv-exam/prepare', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                headers: this.csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                this.showFeedback(data.error || this.t('err_prepare'), 'danger');
+                const msg = data.error || data.detail || this.t('err_prepare');
+                this.showFormAlert(msg, 'danger');
                 return;
             }
-            const hint = document.getElementById('dguvOtpHint');
-            if (hint) {
-                if (data.hint) {
-                    hint.textContent = data.hint + (data.dev_otp ? ` (Dev-OTP: ${data.dev_otp})` : '');
-                } else if (data.examiner_email) {
-                    hint.textContent = data.examiner_email;
-                }
+            this.clearFormAlert();
+            // Skip OTP modal entirely when monthly window is still active
+            if (!this.otpIsRequired(data)) {
+                this.hideOtpModal();
+                if (data.hint) this.notify(data.hint, 'info');
+                await this.completeExam({ skipOtp: true });
+                return;
             }
-            const otpInput = document.getElementById('dguvOtpInput');
-            const otpErr = document.getElementById('dguvOtpError');
-            if (otpInput) {
-                otpInput.value = data.dev_otp || '';
-            }
-            if (otpErr) {
-                otpErr.style.display = 'none';
-                otpErr.textContent = '';
-            }
-            if (this.otpModal) this.otpModal.show();
+            this.openOtpUi(data);
         } catch (err) {
-            this.showFeedback(this.t('err_prepare'), 'danger');
+            console.error(err);
+            this.showFormAlert(this.t('err_prepare'), 'danger');
         } finally {
             if (btn) btn.disabled = !this.cfg.signingReady;
         }
     }
 
-    async completeExam() {
-        const otp = (document.getElementById('dguvOtpInput')?.value || '').trim();
+    async completeExam(opts = {}) {
+        const skipOtp = !!opts.skipOtp;
+        const otp = skipOtp ? '' : (document.getElementById('dguvOtpInput')?.value || '').trim();
         const otpErr = document.getElementById('dguvOtpError');
         const btn = document.getElementById('dguvOtpConfirmBtn');
         if (btn) btn.disabled = true;
@@ -344,32 +483,34 @@ class DguvExamManager extends BorrowScannerManager {
             const res = await fetch(this.cfg.completeUrl || '/inventory/api/dguv-exam/complete', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                headers: this.csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ otp }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                if (otpErr) {
+                const msg = data.error || data.detail || this.t('err_complete');
+                if (otpErr && !skipOtp) {
                     otpErr.style.display = 'block';
-                    otpErr.textContent = data.error || this.t('err_complete');
+                    otpErr.textContent = msg;
                 }
+                this.notify(msg, 'danger');
+                if (skipOtp) this.showFormAlert(msg, 'danger');
                 return;
             }
-            if (this.otpModal) this.otpModal.hide();
-            let msg = this.t('success');
-            if (data.pdf_url) {
-                msg += ` — ${this.t('open_pdf')}: ${data.pdf_url}`;
-            }
-            this.showFeedback(msg, 'success');
+            this.hideOtpModal();
+            this.showFormAlert(this.t('success'), 'success');
             if (data.pdf_url) {
                 window.open(data.pdf_url, '_blank');
             }
             this.clearForm();
         } catch (err) {
-            if (otpErr) {
+            console.error(err);
+            const msg = this.t('err_complete');
+            if (otpErr && !skipOtp) {
                 otpErr.style.display = 'block';
-                otpErr.textContent = this.t('err_complete');
+                otpErr.textContent = msg;
             }
+            this.notify(msg, 'danger');
         } finally {
             if (btn) btn.disabled = false;
         }
