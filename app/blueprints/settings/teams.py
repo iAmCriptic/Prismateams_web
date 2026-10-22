@@ -187,6 +187,9 @@ def team_settings():
         'files': translate('settings.admin.cards.file_settings.title'),
         'email': translate('settings.sidebar.email_module'),
         'chat': translate('settings.team_settings.module_chat'),
+        'surveys': translate('layout.nav.surveys'),
+        'protocols': translate('layout.nav.protocols'),
+        'duty_roster': translate('layout.nav.duty_roster'),
     }
 
     if request.method == 'POST':

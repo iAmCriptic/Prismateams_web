@@ -39,7 +39,8 @@
             ('module_kanban', 'bi-kanban', _('settings.admin.admin_modules.module_kanban'), module_kanban_enabled),
             ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
             ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled),
-            ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled)
+            ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled),
+            ('module_duty_roster', 'bi-calendar3', _('settings.admin.admin_modules.module_duty_roster'), module_duty_roster_enabled)
           ] %}
           {% for key, icon, label, enabled in modules %}
           {% if key != 'module_meetings' or mirotalk_ready %}

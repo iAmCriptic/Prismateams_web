@@ -29,7 +29,8 @@
       "surveys": "Encuestas",
       "file_converter": "File Converter",
       "protocols": "Actas",
-      "meetings": "Reuniones"
+      "meetings": "Reuniones",
+      "duty_roster": "Horario"
     },
     "cookie_consent": {
       "title": "Cookies y privacidad",
@@ -884,7 +885,8 @@
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
         "lead_short": "Activar y desactivar módulos.",
-        "module_meetings": "Reuniones (videollamadas)"
+        "module_meetings": "Reuniones (videollamadas)",
+        "module_duty_roster": "Horario"
       },
       "kanban": {
         "lead_short": "Visibility and import.",

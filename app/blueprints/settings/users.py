@@ -86,6 +86,7 @@ def admin_users():
         ('module_surveys', 'Umfragen'),
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
+        ('module_duty_roster', 'Dienstplan'),
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -525,6 +526,7 @@ def create_user():
                 'module_excalidraw',
                 'module_surveys',
                 'module_meetings',
+                'module_duty_roster',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -850,6 +852,7 @@ def edit_guest_user(user_id):
             'module_excalidraw',
             'module_surveys',
             'module_meetings',
+            'module_duty_roster',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()

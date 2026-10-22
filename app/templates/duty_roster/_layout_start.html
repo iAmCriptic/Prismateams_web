@@ -1,0 +1,33 @@
+{% from 'duty_roster/_sidebar.html' import duty_roster_sidebar with context %}
+<div class="duty-roster-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
+            <span>{{ _('duty_roster.nav.title') }}</span>
+        </div>
+        {{ duty_roster_sidebar() }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="dutyRosterMobileNav" aria-labelledby="dutyRosterMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="dutyRosterMobileNavLabel">
+                <i class="bi bi-calendar3" aria-hidden="true"></i>
+                <span>{{ _('duty_roster.nav.title') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            {{ duty_roster_sidebar(id_suffix='-mobile', dismiss_offcanvas=true) }}
+        </div>
+    </div>
+
+    <div class="mod-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#dutyRosterMobileNav" aria-controls="dutyRosterMobileNav">
+                <i class="bi bi-list"></i>
+            </button>
+            <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                <i class="bi bi-calendar3" aria-hidden="true"></i>
+                <span>{{ heading|default(_('duty_roster.nav.title')) }}</span>
+            </h1>
+        </div>

@@ -39,6 +39,7 @@ MODULE_META = [
     {'key': 'module_excalidraw', 'icon': 'bi-pencil-square', 'label': 'Excalidraw', 'settings_endpoint': None},
     {'key': 'module_surveys', 'icon': 'bi-ui-checks-grid', 'label': 'Umfragen', 'settings_endpoint': None},
     {'key': 'module_meetings', 'icon': 'bi-camera-video', 'label': 'Meetings', 'settings_endpoint': None},
+    {'key': 'module_duty_roster', 'icon': 'bi-calendar3', 'label': 'Dienstplan', 'settings_endpoint': None},
 ]
 
 

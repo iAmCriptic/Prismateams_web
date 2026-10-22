@@ -209,6 +209,7 @@ def admin_roles_user_update(user_id):
             'module_surveys',
             'module_protocols',
             'module_meetings',
+            'module_duty_roster',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -308,6 +309,7 @@ def admin_roles_default():
         ('module_surveys', 'Umfragen'),
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
+        ('module_duty_roster', 'Dienstplan'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

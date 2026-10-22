@@ -67,6 +67,16 @@ from .survey import (
 )
 from .protocol import Protocol, ProtocolAgendaItem
 from .meetings import Meeting, MeetingInvite
+from .duty_roster import (
+    DutyRoster,
+    DutyRosterDay,
+    DutyRosterColumn,
+    DutyRosterEntry,
+    DutyPersonConfig,
+    DutyExternalPerson,
+    DutyRosterPlanner,
+    DutyTimeEntry,
+)
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -133,6 +143,8 @@ __all__ = [
     'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
     'Protocol', 'ProtocolAgendaItem',
     'Meeting', 'MeetingInvite',
+    'DutyRoster', 'DutyRosterDay', 'DutyRosterColumn', 'DutyRosterEntry',
+    'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
 ]
 
 

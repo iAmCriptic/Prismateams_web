@@ -30,6 +30,7 @@ AVAILABLE_MODULES = [
     'module_surveys',
     'module_protocols',
     'module_meetings',
+    'module_duty_roster',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'

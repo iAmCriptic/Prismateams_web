@@ -21,6 +21,7 @@ TEAM_SECTION_MODULES = {
     'files': 'module_files',
     'email': 'module_email',
     'chat': 'module_chat',
+    'duty_roster': 'module_duty_roster',
 }
 
 
