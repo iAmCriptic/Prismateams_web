@@ -136,12 +136,14 @@ def admin_email_settings():
         except ValueError:
             storage_days = 0
         
-        # Synchronisationsintervall in Minuten
+        # Synchronisationsintervall in Minuten (Default 30; Admin kann 15–60 wählen)
         sync_interval = request.form.get('sync_interval', '').strip()
         try:
             sync_interval = int(sync_interval) if sync_interval else 30
             if sync_interval < 15:
                 sync_interval = 15
+            elif sync_interval > 60:
+                sync_interval = 60
         except ValueError:
             sync_interval = 30
         

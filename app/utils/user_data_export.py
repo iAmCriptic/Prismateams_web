@@ -208,6 +208,7 @@ def _export_notifications(user) -> dict[str, Any]:
             "calendar_no_response": settings.calendar_no_response,
             "booking_notifications_enabled": settings.booking_notifications_enabled,
             "booking_message_notifications_enabled": settings.booking_message_notifications_enabled,
+            "inventory_notifications_enabled": getattr(settings, "inventory_notifications_enabled", True),
             "kanban_notifications_enabled": settings.kanban_notifications_enabled,
             "kanban_upload_notifications": settings.kanban_upload_notifications,
             "kanban_change_notifications": settings.kanban_change_notifications,

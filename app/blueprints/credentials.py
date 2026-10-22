@@ -568,6 +568,8 @@ def create_folder():
 def update_folder(folder_id):
     """Rename folder and/or change color."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     folder_name = request.form.get('name', '').strip()
     folder_color = normalize_folder_color(request.form.get('color', folder.color))
 
@@ -589,6 +591,8 @@ def update_folder(folder_id):
 def delete_folder(folder_id):
     """Delete folder; move credentials back to root."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     folder_name = folder.name
     redirect_kwargs = _index_url_kwargs(folder=folder)
 
@@ -606,11 +610,13 @@ def delete_folder(folder_id):
 def move_folder_up(folder_id):
     """Move folder one position up."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     previous_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position < folder.position
     ).order_by(CredentialFolder.position.desc()).first()
 
-    if previous_folder:
+    if previous_folder and can_edit_item(current_user, previous_folder, 'credentials'):
         folder.position, previous_folder.position = previous_folder.position, folder.position
         db.session.commit()
 
@@ -623,11 +629,13 @@ def move_folder_up(folder_id):
 def move_folder_down(folder_id):
     """Move folder one position down."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     next_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position > folder.position
     ).order_by(CredentialFolder.position.asc()).first()
 
-    if next_folder:
+    if next_folder and can_edit_item(current_user, next_folder, 'credentials'):
         folder.position, next_folder.position = next_folder.position, folder.position
         db.session.commit()
 

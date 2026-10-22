@@ -626,25 +626,73 @@ def direct_message(user_id):
     return redirect(url_for('chat.view_chat', chat_id=dm_chat.id))
 
 
+def _chat_media_basename(filename):
+    """Return a single path segment or None if the name is unsafe."""
+    if not filename:
+        return None
+    name = filename.replace('\\', '/').strip('/')
+    if not name or '/' in name or name in ('.', '..'):
+        return None
+    # Reject absolute / drive paths and traversal leftovers
+    if os.path.basename(name) != name:
+        return None
+    return name
+
+
+def _user_can_access_chat_media(user, *, is_avatar, basename):
+    """True if user is a member of a chat that owns this media/avatar file."""
+    if not user or not basename:
+        return False
+    if is_avatar:
+        chat_ids = [
+            row[0]
+            for row in Chat.query.filter_by(group_avatar=basename).with_entities(Chat.id).all()
+        ]
+    else:
+        chat_ids = [
+            row[0]
+            for row in (
+                ChatMessage.query.filter_by(media_url=basename, is_deleted=False)
+                .with_entities(ChatMessage.chat_id)
+                .distinct()
+                .all()
+            )
+        ]
+    if not chat_ids:
+        return False
+    return any(user_is_chat_member(user, chat_id) for chat_id in chat_ids)
+
+
 @chat_bp.route('/media/<path:filename>')
 @login_required
 @check_module_access('module_chat')
 def serve_media(filename):
-    """Serve uploaded chat media files (images, videos, audio)."""
+    """Serve uploaded chat media; only for chats the user is a member of."""
     try:
+        raw = (filename or '').replace('\\', '/').lstrip('/')
+        is_avatar = raw.startswith('avatars/')
+        basename = _chat_media_basename(raw[len('avatars/'):] if is_avatar else raw)
+        if not basename:
+            return jsonify({'error': 'File not found'}), 404
+
+        if not _user_can_access_chat_media(current_user, is_avatar=is_avatar, basename=basename):
+            return jsonify({'error': 'Forbidden'}), 403
+
         project_root = os.path.dirname(current_app.root_path)
-        # Handle avatars in subdirectory
-        if filename.startswith('avatars/'):
-            directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'chat', 'avatars')
-            filename = filename.replace('avatars/', '', 1)
-        else:
-            directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'chat')
-        full_path = os.path.join(directory, filename)
-        
+        upload_root = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'chat')
+        directory = os.path.join(upload_root, 'avatars') if is_avatar else upload_root
+        directory = os.path.realpath(directory)
+        full_path = os.path.realpath(os.path.join(directory, basename))
+        try:
+            if os.path.commonpath([directory, full_path]) != directory:
+                return jsonify({'error': 'File not found'}), 404
+        except ValueError:
+            return jsonify({'error': 'File not found'}), 404
+
         if not os.path.isfile(full_path):
             return jsonify({'error': 'File not found'}), 404
-        
-        return send_from_directory(directory, filename)
+
+        return send_from_directory(directory, basename)
     except FileNotFoundError:
         return jsonify({'error': 'File not found'}), 404
     except Exception as e:

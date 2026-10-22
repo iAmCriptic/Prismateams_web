@@ -112,10 +112,9 @@ gather_information() {
     prompt_yes_no SETUP_REDIS "Redis automatisch einrichten?" "j"
     if ! is_yes "$SETUP_REDIS"; then
         print_manual_redis_hint
-        if is_yes "$SETUP_GUNICORN" && [ "${GUNICORN_WORKERS:-2}" -gt 1 ]; then
-            log_warning "Mehrere Worker ohne Redis: SocketIO/Kanban-SSE/Rate-Limit eingeschränkt"
-        fi
     fi
+    # QA G01: gthread + Redis-Pflicht bei workers>1
+    enforce_gthread_redis_policy
 
     # Docker-Services (Small-Profil: Schwerlast standardmäßig aus)
     log_info ""
@@ -317,6 +316,9 @@ gather_information() {
             fi
         fi
     fi
+
+    # QA F08: Euro-Office/MiroTalk nicht unbemerkt auf 2-GB-/small-Hosts
+    enforce_small_vps_sidecar_policy
 
     confirm_plan
     log_success "Konfiguration gesammelt"

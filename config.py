@@ -18,13 +18,13 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or 'sqlite:///teamportal.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Pool-Größen per .env steuerbar (Small-VPS: DB_POOL_SIZE=5, DB_MAX_OVERFLOW=5)
+    # Pool-Defaults sparsam (Hetzner/Small-VPS). Größere Hosts: DB_POOL_SIZE / DB_MAX_OVERFLOW in .env.
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
         'pool_pre_ping': True,  # Prüft Verbindungen vor Verwendung, verhindert "Connection lost" Fehler
         'pool_timeout': 10,  # Reduziert von 20 auf 10 Sekunden für schnellere Fehlerbehandlung
-        'pool_size': int(os.environ.get('DB_POOL_SIZE', '15')),
-        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '25')),
+        'pool_size': int(os.environ.get('DB_POOL_SIZE', '5')),
+        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '5')),
         'connect_args': {
             'connect_timeout': 5,  # Reduziert von 10 auf 5 Sekunden für schnellere Timeouts
             'read_timeout': 30,  # Reduziert von 300 auf 30 Sekunden (ausreichend für normale Abfragen)

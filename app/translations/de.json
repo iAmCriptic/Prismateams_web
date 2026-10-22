@@ -1353,6 +1353,11 @@
         "toggle_messages": "Bei neuen Nachrichten",
         "help": "Glocke und Push, wenn eine neue Buchungsanfrage eingeht oder der Antragsteller antwortet (je nach Schalter)"
       },
+      "inventory": {
+        "title": "Lager / Ausleihen",
+        "toggle": "Bei neuen Ausleihen",
+        "help": "Glocke und Push bei neuen Ausleihen — ohne Dauer-Polling im Hintergrund"
+      },
       "email": {
         "title": "E-Mail-Benachrichtigungen",
         "toggle": "E-Mail-Benachrichtigungen aktivieren",
@@ -6692,6 +6697,10 @@
       "message_title": "Neue Nachricht zur Buchung",
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "inventory": {
+      "borrow_title": "Neue Ausleihe",
+      "borrow_body": "{event} – {borrower} ({count} Artikel)"
     },
     "kanban": {
       "upload_title": "Neuer Anhang auf {board}",

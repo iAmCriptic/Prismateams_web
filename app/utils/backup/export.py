@@ -332,6 +332,8 @@ def export_notification_settings() -> List[Dict]:
         'calendar_not_participating': s.calendar_not_participating,
         'calendar_no_response': s.calendar_no_response,
         'booking_notifications_enabled': getattr(s, 'booking_notifications_enabled', True),
+        'inventory_notifications_enabled': getattr(s, 'inventory_notifications_enabled', True),
+        'kanban_notifications_enabled': getattr(s, 'kanban_notifications_enabled', True),
         'reminder_times': s.reminder_times
     } for s in settings]
 

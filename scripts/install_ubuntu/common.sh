@@ -526,6 +526,104 @@ is_profile_small() {
     esac
 }
 
+# QA G01: gthread + Redis bei mehreren Workern (SSE/SocketIO sonst inkonsistent)
+enforce_gthread_redis_policy() {
+    GUNICORN_WORKER_CLASS="${GUNICORN_WORKER_CLASS:-gthread}"
+    if [ "${GUNICORN_WORKER_CLASS}" = "sync" ]; then
+        log_warning "worker-class sync blockiert SSE — setze gthread (QA G01)"
+        GUNICORN_WORKER_CLASS="gthread"
+    fi
+
+    local workers="${GUNICORN_WORKERS:-2}"
+    if ! [[ "$workers" =~ ^[0-9]+$ ]]; then
+        workers=2
+        GUNICORN_WORKERS=2
+    fi
+
+    if [ "$workers" -le 1 ]; then
+        return 0
+    fi
+
+    if is_yes "${SETUP_REDIS:-n}"; then
+        return 0
+    fi
+
+    log_warning "Gunicorn workers=${workers} ohne Redis: SocketIO, Kanban-SSE und Rate-Limit sind multi-worker-unsicher."
+    log_warning "Empfehlung (QA G01): Redis aktivieren oder --workers 1."
+
+    if is_yes "${FORCE_MULTI_WORKER_NO_REDIS:-n}"; then
+        log_warning "FORCE_MULTI_WORKER_NO_REDIS gesetzt — fortgesetzt auf eigenes Risiko."
+        return 0
+    fi
+
+    if is_yes "${NON_INTERACTIVE:-n}"; then
+        error_exit "workers>1 erfordert Redis (SETUP_REDIS / ohne --skip-redis), oder --workers 1, oder --force-multi-worker-no-redis."
+    fi
+
+    prompt_yes_no SETUP_REDIS "Redis jetzt einrichten (empfohlen bei ${workers} Workern)?" "j"
+    if is_yes "${SETUP_REDIS:-n}"; then
+        log_info "Redis wird eingerichtet — Multi-Worker OK."
+        return 0
+    fi
+
+    prompt_yes_no _DROP_TO_ONE_WORKER "Stattdessen auf 1 Gunicorn-Worker wechseln?" "j"
+    if is_yes "${_DROP_TO_ONE_WORKER:-n}"; then
+        GUNICORN_WORKERS=1
+        log_info "GUNICORN_WORKERS=1 (ohne Redis)."
+        return 0
+    fi
+
+    error_exit "Abbruch: Multi-Worker ohne Redis nicht empfohlen. Redis aktivieren, --workers 1, oder --force-multi-worker-no-redis."
+}
+
+# Euro-Office / MiroTalk auf derselben Small-/2-GB-Box → OOM (QA F08)
+wants_heavy_sidecars() {
+    is_yes "${INSTALL_ONLYOFFICE:-n}" || is_yes "${INSTALL_MIROTALK:-n}"
+}
+
+enforce_small_vps_sidecar_policy() {
+    if ! wants_heavy_sidecars; then
+        return 0
+    fi
+
+    local mem_mib low_ram=0
+    mem_mib=$(host_mem_mib)
+    if [ "$mem_mib" -gt 0 ] && [ "$mem_mib" -lt 3072 ]; then
+        low_ram=1
+    fi
+
+    if ! is_profile_small && [ "$low_ram" -ne 1 ]; then
+        return 0
+    fi
+
+    log_warning "Schwerlast-Sidecars (Euro-Office / MiroTalk) auf derselben Maschine sprengen typisch 2-GB-Budgets (Idle-RAM + OOM)."
+    log_warning "Empfehlung: Kern-Portal auf dieser VPS; Document Server / Meetings auf zweite Instanz oder managed Service."
+    if [ "$mem_mib" -gt 0 ]; then
+        log_warning "Erkanntes RAM: ~${mem_mib} MiB · Profil: ${INSTALL_PROFILE:-default}"
+    fi
+
+    if is_yes "${FORCE_HEAVY_SIDECARS:-n}"; then
+        log_warning "FORCE_HEAVY_SIDECARS gesetzt — Installation fortgesetzt (auf eigenes Risiko)."
+        return 0
+    fi
+
+    if is_yes "${NON_INTERACTIVE:-n}"; then
+        error_exit "Small-/Low-RAM-Host: --onlyoffice/--mirotalk nur mit --force-heavy-sidecars (oder Sidecars weglassen / --profile small ohne diese Flags)."
+    fi
+
+    prompt_yes_no FORCE_HEAVY_SIDECARS \
+        "Trotzdem Euro-Office/MiroTalk auf dieser Box installieren (nicht empfohlen)?" \
+        "n"
+    if is_yes "${FORCE_HEAVY_SIDECARS:-n}"; then
+        log_warning "Fortgesetzt mit Schwerlast-Sidecars — Monitoring (free -h) empfohlen."
+        return 0
+    fi
+
+    log_info "Schwerlast-Sidecars deaktiviert (Small-VPS-Policy)."
+    INSTALL_ONLYOFFICE="n"
+    INSTALL_MIROTALK="n"
+}
+
 # RAM in MiB (0 wenn unbekannt)
 host_mem_mib() {
     local kb
@@ -603,6 +701,9 @@ init_defaults() {
     INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-}"
     INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-}"
     INSTALL_MIROTALK="${INSTALL_MIROTALK:-}"
+    FORCE_HEAVY_SIDECARS="${FORCE_HEAVY_SIDECARS:-}"
+    FORCE_MULTI_WORKER_NO_REDIS="${FORCE_MULTI_WORKER_NO_REDIS:-}"
+    GUNICORN_WORKER_CLASS="${GUNICORN_WORKER_CLASS:-}"
     INSTALL_MEDIA_DOWNLOADER="${INSTALL_MEDIA_DOWNLOADER:-}"
     MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
     MEDIA_DOWNLOADER_PLAYER_CLIENT="${MEDIA_DOWNLOADER_PLAYER_CLIENT:-}"

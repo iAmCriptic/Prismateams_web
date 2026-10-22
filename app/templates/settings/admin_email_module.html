@@ -92,7 +92,7 @@
               <div class="sp-seg" role="radiogroup" aria-label="{{ _('settings.admin.email_module.system.sync_label') }}">
                 <input type="radio" class="btn-check" name="sync_interval" id="sync_15" value="15" {% if sync_interval == 15 %}checked{% endif %}>
                 <label for="sync_15">{{ _('settings.admin.email_module.system.sync_15') }}</label>
-                <input type="radio" class="btn-check" name="sync_interval" id="sync_30" value="30" {% if sync_interval == 30 %}checked{% endif %}>
+                <input type="radio" class="btn-check" name="sync_interval" id="sync_30" value="30" {% if sync_interval != 15 and sync_interval != 60 %}checked{% endif %}>
                 <label for="sync_30">{{ _('settings.admin.email_module.system.sync_30') }}</label>
                 <input type="radio" class="btn-check" name="sync_interval" id="sync_60" value="60" {% if sync_interval == 60 %}checked{% endif %}>
                 <label for="sync_60">{{ _('settings.admin.email_module.system.sync_60') }}</label>

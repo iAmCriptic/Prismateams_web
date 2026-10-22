@@ -18,7 +18,7 @@ Allgemein:
 
 Anwendung / Gunicorn:
   --port PORT                Gunicorn-Port (Standard: 5000)
-  --workers N                Gunicorn-Worker (Standard: 2; Redis für SocketIO bei N>1)
+  --workers N                Gunicorn-Worker (Standard: 2; bei N>1 ist Redis Pflicht)
   --profile PROFILE          Install-Profil: default | small (2-GB-VPS: 2×4 Threads, schlanke Caps)
   --no-gunicorn              Keinen systemd-Service anlegen
 
@@ -45,6 +45,8 @@ Optionale Dienste:
   --excalidraw               Excalidraw-Room installieren
   --skip-mirotalk            MiroTalk SFU (Meetings) überspringen
   --mirotalk                 MiroTalk SFU installieren
+  --force-heavy-sidecars     Euro-Office/MiroTalk trotz small/Low-RAM erlauben (nicht empfohlen)
+  --force-multi-worker-no-redis  workers>1 ohne Redis erlauben (nicht empfohlen; SSE/SocketIO)
   --skip-media-downloader    FFmpeg/Media Downloader überspringen
   --ffmpeg                   FFmpeg installieren
 
@@ -187,6 +189,14 @@ parse_arguments() {
             --mirotalk)
                 INSTALL_MIROTALK="j"
                 INSTALL_DOCKER="j"
+                shift
+                ;;
+            --force-heavy-sidecars)
+                FORCE_HEAVY_SIDECARS="j"
+                shift
+                ;;
+            --force-multi-worker-no-redis)
+                FORCE_MULTI_WORKER_NO_REDIS="j"
                 shift
                 ;;
             --skip-media-downloader)

@@ -1292,6 +1292,11 @@
         "toggle_messages": "New messages",
         "help": "Bell and push when a new booking request arrives or the applicant replies (per toggle)"
       },
+      "inventory": {
+        "title": "Inventory / borrows",
+        "toggle": "New borrows",
+        "help": "Bell and push for new borrows — without constant background polling"
+      },
       "lead_short": "Push, modules and reminders."
     },
     "security": {
@@ -6499,6 +6504,10 @@
       "message_title": "New booking message",
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "inventory": {
+      "borrow_title": "New borrow",
+      "borrow_body": "{event} – {borrower} ({count} items)"
     },
     "kanban": {
       "upload_title": "New attachment on {board}",

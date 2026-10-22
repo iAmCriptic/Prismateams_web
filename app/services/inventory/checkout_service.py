@@ -285,6 +285,17 @@ def create_checkout(
         db.session.rollback()
         checkout.receipt_email_sent = receipt_email_sent
 
+    try:
+        from app.utils.notifications import send_inventory_borrow_notification
+        send_inventory_borrow_notification(checkout, actor_id=created_by_id)
+    except Exception as notify_err:
+        import logging
+        logging.warning(
+            "Inventory-Borrow-Benachrichtigung fehlgeschlagen für %s: %s",
+            checkout.checkout_number,
+            notify_err,
+        )
+
     return checkout
 
 

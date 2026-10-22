@@ -21,8 +21,24 @@ _redis_url = None  # Wird beim ersten Aufruf gesetzt
 
 # Sync-/gthread-Worker nicht endlos blockieren: Stream nach TTL schließen.
 # EventSource reconnectet automatisch; unter gunicorn --timeout halten.
-SSE_MAX_STREAM_SECONDS = int(os.environ.get('SSE_MAX_STREAM_SECONDS', '45'))
-SSE_HEARTBEAT_SECONDS = 15
+# Clamp: zu kurz = Reconnect-Sturm; zu lang = Thread-Hunger (QA F09).
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def sse_stream_limits():
+    """(max_age_seconds, heartbeat_seconds) — per Env, hart geclampt."""
+    max_age = max(15, min(120, _env_int('SSE_MAX_STREAM_SECONDS', 45)))
+    heartbeat = max(5, min(max(max_age // 3, 5), _env_int('SSE_HEARTBEAT_SECONDS', 15)))
+    return max_age, heartbeat
+
+
+# Rückwärtskompatibel für Imports/Tests
+SSE_MAX_STREAM_SECONDS = sse_stream_limits()[0]
+SSE_HEARTBEAT_SECONDS = sse_stream_limits()[1]
 
 
 def get_redis_client():
@@ -88,7 +104,7 @@ def event_stream(channels, user_id=None):
 
         started = time.time()
         last_heartbeat = started
-        max_age = max(15, SSE_MAX_STREAM_SECONDS)
+        max_age, heartbeat_s = sse_stream_limits()
 
         while True:
             try:
@@ -113,7 +129,7 @@ def event_stream(channels, user_id=None):
                     except json.JSONDecodeError:
                         pass
 
-                if time.time() - last_heartbeat > SSE_HEARTBEAT_SECONDS:
+                if time.time() - last_heartbeat > heartbeat_s:
                     yield f"event: heartbeat\ndata: {json.dumps({'time': time.time()})}\n\n"
                     last_heartbeat = time.time()
 

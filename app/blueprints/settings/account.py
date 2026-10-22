@@ -256,8 +256,13 @@ def notifications():
         settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
         settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
 
-        # Kanban-Benachrichtigungen
         from app.utils.common import is_module_enabled
+
+        # Lager / Ausleihen
+        if is_module_enabled('module_inventory'):
+            settings.inventory_notifications_enabled = 'inventory_notifications_enabled' in request.form
+
+        # Kanban-Benachrichtigungen
         if is_module_enabled('module_kanban'):
             settings.kanban_notifications_enabled = 'kanban_notifications_enabled' in request.form
             settings.kanban_upload_notifications = 'kanban_upload_notifications' in request.form
@@ -315,6 +320,7 @@ def notifications():
         settings=settings,
         user_chats=user_chats,
         chat_notification_settings=chat_notification_settings,
+        inventory_module_enabled=is_module_enabled('module_inventory'),
         kanban_module_enabled=is_module_enabled('module_kanban'),
     )
 

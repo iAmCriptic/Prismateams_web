@@ -109,7 +109,7 @@ from app.blueprints.files.helpers import *  # noqa: F401,F403
 def serve_pdf(file_id):
     """Serve a PDF file for inline viewing (without forcing download)."""
     file = File.query.get_or_404(file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -168,7 +168,7 @@ def serve_thumb(file_id):
 def download_file(file_id):
     """Download a file."""
     file = File.query.get_or_404(file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -201,7 +201,7 @@ def download_version(version_id):
     """Download a specific file version."""
     version = FileVersion.query.get_or_404(version_id)
     file = File.query.get_or_404(version.file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     

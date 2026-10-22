@@ -668,6 +668,10 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "inventory": {
+      "borrow_title": "Nuevo préstamo",
+      "borrow_body": "{event} – {borrower} ({count} artículos)"
+    },
     "kanban": {
       "upload_title": "Nuevo adjunto en {board}",
       "upload_body": "{actor} adjuntó «{filename}» a «{card}»",

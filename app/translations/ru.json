@@ -667,6 +667,10 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "inventory": {
+      "borrow_title": "Новая выдача",
+      "borrow_body": "{event} – {borrower} ({count} позиций)"
+    },
     "kanban": {
       "upload_title": "Новое вложение на {board}",
       "upload_body": "{actor} прикрепил «{filename}» к «{card}»",

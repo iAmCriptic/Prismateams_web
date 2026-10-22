@@ -297,6 +297,9 @@ journalctl -u teamportal -n 40 --no-pager
 
 - Redis muss an sein bei mehreren Workern (SocketIO / Kanban-SSE / Rate-Limit).
 - Euro-Office und MiroTalk **nicht** auf derselben 2-GB-Maschine betreiben.
+  Der Installer blockiert das bei `--profile small` bzw. RAM &lt; ~3 GB (Interaktiv: Abfrage;
+  Non-Interactive: Abbruch). Nur mit `--force-heavy-sidecars` überschreibbar — Document
+  Server / Meetings besser auf eine **zweite VPS** oder managed Service auslagern.
 - `FILE_CONVERTER_MAX_GLOBAL=1` begrenzt LibreOffice systemweit (nicht nur pro User).
 
 ### Gunicorn-Worker anpassen
@@ -318,6 +321,17 @@ sudo systemctl restart teamportal
 ```
 
 Symptom bei falscher Klasse (`sync`): `journalctl -u teamportal` zeigt wiederholt `WORKER TIMEOUT` auf `/sse/events/dashboard`.
+Der Installer erzwingt bei `sync` automatisch `gthread`. Bei **workers &gt; 1** ist Redis Pflicht
+(Installer: Redis aktivieren, auf 1 Worker wechseln, oder bewusst `--force-multi-worker-no-redis`).
+
+**SSE-Idle (Thread-Freigabe):** Streams schließen nach TTL und reconnecten (EventSource). Optional in `.env`:
+
+```env
+SSE_MAX_STREAM_SECONDS=45
+SSE_HEARTBEAT_SECONDS=15
+```
+
+Werte werden auf 15–120 s (TTL) bzw. sinnvoll zum TTL geclampt. Kürzer = schneller freiwerdende Threads; länger = weniger Reconnects.
 
 **Hinweis:** Für mehrere Worker und Kanban-SSE muss Redis installiert und in `.env` konfiguriert sein (`REDIS_ENABLED=True`). Ohne Redis pollt das Kanban-Board inkrementell (kein Full-Redraw).
 
