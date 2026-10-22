@@ -240,7 +240,7 @@ def index():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def register():
     """User registration."""
     # Prüfe ob Setup nötig ist
@@ -442,7 +442,7 @@ def _resolve_invite_code(raw_code):
 
 @auth_bp.route('/coderegister', methods=['GET', 'POST'])
 @auth_bp.route('/coderegister/<code>', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def coderegister(code=None):
     """Team invite registration — not linked from login/register; optionally indexed."""
     from app.blueprints.setup import is_setup_needed
@@ -598,9 +598,9 @@ def coderegister(code=None):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("5 per 15 minutes", methods=["POST"])
 def login():
-    """User login mit Rate Limiting."""
+    """User login mit Rate Limiting (nur POST — GET-/Redirect-Views zählen nicht)."""
     # Prüfe ob Setup nötig ist (ohne bestehenden Admin → Setup; mit Admin → Login erlauben)
     from app.blueprints.setup import is_setup_needed
     from app.models.user import User
@@ -1015,7 +1015,7 @@ def _google_callback_auth(code, state, err):
 
 
 @auth_bp.route('/login/2fa', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def login_2fa():
     """Zweiter Login-Schritt für 2FA."""
     if current_user.is_authenticated:
@@ -1435,7 +1435,7 @@ def change_password():
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("5 per 15 minutes", methods=["POST"])
 def forgot_password():
     """Passwort vergessen - E-Mail eingeben."""
     # Prüfe ob Setup nötig ist
@@ -1466,7 +1466,7 @@ def forgot_password():
 
 
 @auth_bp.route('/reset-password', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def reset_password():
     """Passwort zurücksetzen mit Token."""
     # Prüfe ob Setup nötig ist

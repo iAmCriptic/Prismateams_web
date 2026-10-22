@@ -11,7 +11,7 @@ class CredentialFolder(db.Model):
     name = db.Column(db.String(120), nullable=False)
     color = db.Column(db.String(16), nullable=False, default='#0d6efd')
     position = db.Column(db.Integer, nullable=False, default=0)
-    visibility = db.Column(db.String(20), nullable=False, default='public')
+    visibility = db.Column(db.String(20), nullable=False, default='private')
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -36,7 +36,7 @@ class Credential(db.Model):
     folder_id = db.Column(db.Integer, db.ForeignKey('credential_folders.id'), nullable=True)
     # Legacy global flag — prefer CredentialFavorite for per-user state
     is_favorite = db.Column(db.Boolean, nullable=False, default=False)
-    visibility = db.Column(db.String(20), nullable=False, default='public')
+    visibility = db.Column(db.String(20), nullable=False, default='private')
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

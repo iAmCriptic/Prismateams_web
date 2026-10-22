@@ -143,8 +143,9 @@ def owner_id(item, module: str):
 
 
 def _item_visibility(item) -> str:
-    raw = (getattr(item, 'visibility', None) or VISIBILITY_PUBLIC).strip().lower()
-    return raw if raw in VALID_VISIBILITIES else VISIBILITY_PUBLIC
+    # Fehlende/ungültige Werte → private (sicherer als public; Credentials S15)
+    raw = (getattr(item, 'visibility', None) or '').strip().lower()
+    return raw if raw in VALID_VISIBILITIES else VISIBILITY_PRIVATE
 
 
 def can_view_item(user, item, module: str) -> bool:
@@ -349,16 +350,17 @@ def visibility_form_context(module: str, user, item=None, preselect_section=None
     elif preselect_section in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC):
         selected = preselect_section
     if not selected:
-        if VISIBILITY_PUBLIC in allowed:
-            selected = VISIBILITY_PUBLIC
+        preferred = DEFAULT_VISIBILITY.get(module, VISIBILITY_PRIVATE)
+        if preferred in allowed:
+            selected = preferred
         elif VISIBILITY_PRIVATE in allowed:
             selected = VISIBILITY_PRIVATE
-        elif teams:
+        elif teams and VISIBILITY_TEAM in allowed:
             selected = f'team:{teams[0].id}'
+        elif VISIBILITY_PUBLIC in allowed:
+            selected = VISIBILITY_PUBLIC
         else:
             selected = allowed[0] if allowed else VISIBILITY_PRIVATE
-        if module in ('shortlinks', 'credentials') and VISIBILITY_PRIVATE in allowed:
-            selected = VISIBILITY_PRIVATE
     return {
         'allowed_visibilities': allowed,
         'visibility_teams': teams,

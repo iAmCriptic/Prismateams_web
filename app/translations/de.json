@@ -124,6 +124,10 @@
     "language": "Sprache",
     "select_language": "Sprache auswählen",
     "unknown_error": "Unbekannter Fehler",
+    "flash": {
+      "module_disabled": "Dieses Modul ist deaktiviert.",
+      "module_access_denied": "Sie haben keinen Zugriff auf dieses Modul."
+    },
     "pagination": {
       "load_more": "Weitere laden",
       "load_more_loading": "Laden…",
@@ -1535,6 +1539,7 @@
         "module_surveys": "Umfragen",
         "lead_short": "Module ein- und ausschalten.",
         "module_meetings": "Meetings (Videoanrufe)",
+        "meetings_needs_mirotalk": "Benötigt MIROTALK_URL in der .env. Ohne MiroTalk bleibt das Modul aus.",
         "module_duty_roster": "Dienstplan"
       },
       "users": {
@@ -2532,6 +2537,7 @@
         "allow_private": "Privater Bereich (nur Ersteller)",
         "allow_team": "Team-Bereiche (ein Ordner pro Team)",
         "allow_public": "Öffentlicher Bereich (gesamtes Portal)",
+        "credentials_public_hint": "Bei Zugangsdaten bedeutet Public: alle Modulnutzer können Passwörter anzeigen. Standard für neue Einträge bleibt Privat.",
         "save": "Speichern",
         "flash_saved": "Sichtbarkeitseinstellungen gespeichert."
       }
@@ -3360,7 +3366,11 @@
     "onlyoffice": {
       "back_button_label": "Zurück",
       "saving": "Speichern…",
-      "unsaved_changes": "Wirklich verlassen? Ungespeicherte Änderungen gehen verloren."
+      "unsaved_changes": "Wirklich verlassen? Ungespeicherte Änderungen gehen verloren.",
+      "api_load_failed": "Euro-Office konnte nicht geladen werden",
+      "api_load_failed_hint": "Prüfen Sie, ob der Document Server erreichbar ist und ONLYOFFICE_DOCUMENT_SERVER_URL / JWT in der .env stimmen.",
+      "editor_error": "Euro-Office meldet einen Fehler",
+      "editor_init_error": "Euro-Office-Editor konnte nicht gestartet werden"
     },
     "trash_retention_banner": "Einträge im Papierkorb werden nach {days} Tagen automatisch endgültig gelöscht.",
     "trash_retention_disabled": "Für den Papierkorb ist keine automatische Endlöschung konfiguriert."
@@ -3451,6 +3461,8 @@
       "messages": {
         "sync_failed": "Synchronisation fehlgeschlagen",
         "sync_error": "Fehler bei der Synchronisation. Bitte versuchen Sie es erneut.",
+        "sync_started": "Synchronisation gestartet…",
+        "sync_timeout": "Synchronisation dauert zu lange. Bitte Status prüfen oder erneut versuchen.",
         "move_success": "E-Mail verschoben",
         "move_error": "E-Mail konnte nicht verschoben werden",
         "folder_deleted": "Ordner gelöscht",
@@ -3629,6 +3641,7 @@
       "saved": "Zugangsdaten für \"{website_name}\" wurden gespeichert.",
       "updated": "Zugangsdaten für \"{website_name}\" wurden aktualisiert.",
       "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht.",
+      "public_warning": "Diese Zugangsdaten sind öffentlich: alle Nutzer mit Credentials-Modul können Passwörter einsehen.",
       "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
       "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
       "folder_updated": "Ordner \"{folder_name}\" wurde aktualisiert.",
@@ -3643,6 +3656,7 @@
       "heading": "Zugangsdaten",
       "new_button": "Neu",
       "password_placeholder": "********",
+      "public_space_warning": "Öffentlicher Bereich: Einträge hier sind für alle Nutzer mit Credentials-Modul sichtbar, inklusive Passwort-Anzeige.",
       "nav": {
         "menu": "Ordner-Menü"
       },
@@ -6968,7 +6982,9 @@
     "form": {
       "label": "Bereich",
       "private": "Privat",
-      "public": "Public"
+      "public": "Public",
+      "public_credentials": "Public (alle Modulnutzer)",
+      "credentials_public_warning": "Achtung: Öffentliche Zugangsdaten sind für alle Nutzer mit Credentials-Modul sichtbar — inkl. Passwort-Anzeige. Nur für bewusst geteilte Secrets verwenden."
     },
     "flash": {
       "access_denied": "Kein Zugriff auf diesen Eintrag."
@@ -7482,7 +7498,8 @@
       "day_save_failed": "Tagesnotiz konnte nicht gespeichert werden.",
       "cell_denied": "Keine Berechtigung zum Bearbeiten.",
       "cell_not_found": "Zelle oder Tag nicht gefunden.",
-      "cell_inactive": "Spalte an diesem Tag nicht aktiv."
+      "cell_inactive": "Spalte an diesem Tag nicht aktiv.",
+      "schema_error": "Dienstplan-Datenbankschema konnte nicht aktualisiert werden. Bitte Server-Log prüfen oder Support kontaktieren."
     },
     "index": {
       "empty": "Noch keine Monatspläne.",

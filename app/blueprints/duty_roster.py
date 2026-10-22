@@ -89,6 +89,14 @@ def _denied(redirect_endpoint='duty_roster.index'):
     return redirect(url_for(redirect_endpoint))
 
 
+def _schema_guard(fallback_endpoint='duty_roster.index', **fallback_values):
+    """Ensure duty schema; on failure flash and redirect. Returns response or None."""
+    if ensure_duty_schema():
+        return None
+    flash(translate('duty_roster.flash.schema_error'), 'danger')
+    return redirect(url_for(fallback_endpoint, **fallback_values))
+
+
 def _allowed_sections(user):
     sections = []
     if is_global_private_enabled() and user_may_access_private(user):
@@ -266,6 +274,9 @@ def index():
 def team_index():
     if not _module_on() or not is_global_team_enabled():
         return _denied()
+    blocked = _schema_guard()
+    if blocked:
+        return blocked
 
     teams = get_user_teams(current_user)
     if current_user.is_admin:
@@ -317,6 +328,9 @@ def team_create():
 
     if not team_id or not can_plan_team(current_user, team_id):
         return _denied()
+    blocked = _schema_guard('duty_roster.team_index', team_id=team_id)
+    if blocked:
+        return blocked
     if not (1 <= month <= 12) or year < 2000 or year > 2100:
         flash(translate('duty_roster.flash.invalid_month'), 'danger')
         return redirect(url_for('duty_roster.team_index', team_id=team_id))
@@ -337,7 +351,9 @@ def team_create():
 @login_required
 @check_module_access(MODULE_KEY)
 def team_view(roster_id):
-    ensure_duty_schema()
+    blocked = _schema_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_view_team_roster(current_user, roster.team_id) and not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -627,7 +643,9 @@ def _parse_date_field(raw):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_settings(team_id):
-    ensure_duty_schema()
+    blocked = _schema_guard('duty_roster.team_index', team_id=team_id)
+    if blocked:
+        return blocked
     if not can_plan_team(current_user, team_id):
         return _denied()
     team = Team.query.get_or_404(team_id)

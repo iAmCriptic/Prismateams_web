@@ -124,6 +124,10 @@
     "language": "Language",
     "select_language": "Select language",
     "unknown_error": "Unknown error",
+    "flash": {
+      "module_disabled": "This module is disabled.",
+      "module_access_denied": "You do not have access to this module."
+    },
     "pagination": {
       "load_more": "Load more",
       "load_more_loading": "Loading…",
@@ -1535,6 +1539,7 @@
         "module_surveys": "Surveys",
         "lead_short": "Enable and disable modules.",
         "module_meetings": "Meetings (video calls)",
+        "meetings_needs_mirotalk": "Requires MIROTALK_URL in .env. Without MiroTalk the module stays off.",
         "module_duty_roster": "Duty Roster"
       },
       "users": {
@@ -2532,6 +2537,7 @@
         "allow_private": "Private area (owner only)",
         "allow_team": "Team areas (one folder per team)",
         "allow_public": "Public area (entire portal)",
+        "credentials_public_hint": "For credentials, Public means all module users can reveal passwords. New entries still default to Private.",
         "save": "Save",
         "flash_saved": "Visibility settings saved."
       }
@@ -3357,7 +3363,11 @@
     "onlyoffice": {
       "back_button_label": "Back",
       "saving": "Saving…",
-      "unsaved_changes": "Leave this page? Unsaved changes will be lost."
+      "unsaved_changes": "Leave this page? Unsaved changes will be lost.",
+      "api_load_failed": "Euro-Office could not be loaded",
+      "api_load_failed_hint": "Check that the Document Server is reachable and ONLYOFFICE_DOCUMENT_SERVER_URL / JWT in .env are correct.",
+      "editor_error": "Euro-Office reported an error",
+      "editor_init_error": "Could not start the Euro-Office editor"
     },
     "errors": {
       "file_type_not_supported": "File type not supported"
@@ -4354,6 +4364,8 @@
       "messages": {
         "sync_failed": "Sync failed",
         "sync_error": "Sync failed. Please try again.",
+        "sync_started": "Synchronization started…",
+        "sync_timeout": "Synchronization is taking too long. Check status or try again.",
         "move_success": "Email moved",
         "move_error": "Could not move email",
         "folder_deleted": "Folder deleted",
@@ -4545,6 +4557,7 @@
       "heading": "Credentials",
       "new_button": "New",
       "password_placeholder": "********",
+      "public_space_warning": "Public area: entries here are visible to all users with the Credentials module, including password reveal.",
       "nav": {
         "menu": "Folder menu"
       },
@@ -4661,6 +4674,7 @@
       "saved": "Credentials for \"{website_name}\" have been saved.",
       "updated": "Credentials for \"{website_name}\" have been updated.",
       "deleted": "Credentials for \"{website_name}\" have been deleted.",
+      "public_warning": "These credentials are public: anyone with the Credentials module can view the passwords.",
       "folder_name_required": "Please provide a folder name.",
       "folder_created": "Folder \"{folder_name}\" has been created.",
       "folder_updated": "Folder \"{folder_name}\" was updated.",
@@ -6968,7 +6982,9 @@
     "form": {
       "label": "Area",
       "private": "Private",
-      "public": "Public"
+      "public": "Public",
+      "public_credentials": "Public (all module users)",
+      "credentials_public_warning": "Warning: Public credentials are visible to every user with the Credentials module — including password reveal. Use only for intentionally shared secrets."
     },
     "flash": {
       "access_denied": "You do not have access to this item."
@@ -7482,7 +7498,8 @@
       "day_save_failed": "Could not save day note.",
       "cell_denied": "You do not have permission to edit.",
       "cell_not_found": "Cell or day not found.",
-      "cell_inactive": "Column is not active on this day."
+      "cell_inactive": "Column is not active on this day.",
+      "schema_error": "Could not update the duty roster database schema. Check the server log or contact support."
     },
     "index": {
       "empty": "No monthly plans yet.",

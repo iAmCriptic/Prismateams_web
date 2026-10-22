@@ -975,9 +975,9 @@ def admin_modules():
 
         modules = {key: request.form.get(key) == 'on' for key in AVAILABLE_MODULES}
         from app.utils.mirotalk import mirotalk_configured
-        from app.utils.common import is_module_enabled
+        # Meetings nur mit MiroTalk — ohne URL immer aus (kein „stuck“ True in der DB)
         if not mirotalk_configured():
-            modules['module_meetings'] = is_module_enabled('module_meetings')
+            modules['module_meetings'] = False
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
             if module_setting:

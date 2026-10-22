@@ -51,7 +51,10 @@ def register_blueprints(app):
     app.register_blueprint(api_bp, url_prefix='/api')
     if app.config.get('ENABLE_ERROR_TEST_ROUTES'):
         app.register_blueprint(errors_bp, url_prefix='/test')
-        app.logger.info('Error-Testrouten aktiv unter /test/… (ENABLE_ERROR_TEST_ROUTES)')
+        app.logger.info(
+            'Error-Testrouten aktiv: /test/400|/403|/404|/429|/500|/exception '
+            '(ENABLE_ERROR_TEST_ROUTES)'
+        )
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_bp)
     app.register_blueprint(wiki_bp)

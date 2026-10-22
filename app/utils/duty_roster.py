@@ -6,6 +6,8 @@ from calendar import monthrange
 from datetime import date, datetime, time, timedelta
 from typing import Iterable
 
+import logging
+
 from app import db
 from sqlalchemy import inspect, text
 
@@ -30,6 +32,64 @@ from app.utils.user_content_access import user_may_access_public
 
 # Alternating KW background colors (Excel-Screenshot: Rosa / Hellblau / …)
 KW_COLORS = ('#f4c2c8', '#b8d4f0', '#ffe0b2', '#d4c4f0', '#c8e6c9')
+
+logger = logging.getLogger(__name__)
+_duty_schema_ready = False
+
+
+def ensure_duty_schema() -> bool:
+    """Neue Tabellen/Spalten für bestehende DBs nachziehen.
+
+    Returns True wenn Schema nutzbar ist. Fehler werden geloggt (kein stilles pass).
+    """
+    global _duty_schema_ready
+    if _duty_schema_ready:
+        return True
+
+    try:
+        db.create_all()
+    except Exception:
+        logger.exception('duty_roster: db.create_all() fehlgeschlagen')
+        return False
+
+    try:
+        insp = inspect(db.engine)
+        table_names = set(insp.get_table_names())
+        if 'duty_person_configs' not in table_names:
+            # create_all hätte die Tabelle anlegen sollen — ohne sie kein Dienstplan
+            logger.error(
+                'duty_roster: Tabelle duty_person_configs fehlt nach create_all'
+            )
+            return False
+
+        alters: list[str] = []
+        cols = {c['name'] for c in insp.get_columns('duty_person_configs')}
+        if 'valid_from' not in cols:
+            alters.append('ALTER TABLE duty_person_configs ADD COLUMN valid_from DATE')
+        if 'valid_until' not in cols:
+            alters.append('ALTER TABLE duty_person_configs ADD COLUMN valid_until DATE')
+
+        if 'duty_roster_columns' in table_names:
+            col_cols = {c['name'] for c in insp.get_columns('duty_roster_columns')}
+            if 'external_person_id' not in col_cols:
+                alters.append(
+                    'ALTER TABLE duty_roster_columns ADD COLUMN external_person_id INTEGER'
+                )
+
+        for stmt in alters:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(stmt))
+                logger.info('duty_roster: Schema aktualisiert (%s)', stmt)
+            except Exception:
+                logger.exception('duty_roster: Schema-ALTER fehlgeschlagen: %s', stmt)
+                return False
+
+        _duty_schema_ready = True
+        return True
+    except Exception:
+        logger.exception('duty_roster: Schema-Prüfung fehlgeschlagen')
+        return False
 
 
 def user_team_ids(user) -> list[int]:
@@ -132,36 +192,6 @@ def get_or_create_person_configs(team_id: int) -> list[DutyPersonConfig]:
         configs.append(ensure_person_config(team_id, m.user_id))
     db.session.flush()
     return configs
-
-
-def ensure_duty_schema() -> None:
-    """Neue Tabellen/Spalten für bestehende DBs nachziehen."""
-    try:
-        db.create_all()
-    except Exception:
-        pass
-    try:
-        insp = inspect(db.engine)
-        if 'duty_person_configs' not in insp.get_table_names():
-            return
-        cols = {c['name'] for c in insp.get_columns('duty_person_configs')}
-        alters = []
-        if 'valid_from' not in cols:
-            alters.append('ALTER TABLE duty_person_configs ADD COLUMN valid_from DATE')
-        if 'valid_until' not in cols:
-            alters.append('ALTER TABLE duty_person_configs ADD COLUMN valid_until DATE')
-        if 'duty_roster_columns' in insp.get_table_names():
-            col_cols = {c['name'] for c in insp.get_columns('duty_roster_columns')}
-            if 'external_person_id' not in col_cols:
-                alters.append(
-                    'ALTER TABLE duty_roster_columns ADD COLUMN external_person_id INTEGER'
-                )
-        if alters:
-            with db.engine.begin() as conn:
-                for stmt in alters:
-                    conn.execute(text(stmt))
-    except Exception:
-        pass
 
 
 def available_roster_users(team_id: int, range_start: date | None = None, range_end: date | None = None):

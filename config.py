@@ -228,6 +228,10 @@ class Config:
     RATELIMIT_ALLOW_MEMORY = os.environ.get('RATELIMIT_ALLOW_MEMORY', 'False').lower() in (
         '1', 'true', 'yes', 'on',
     )
+    # Kill-Switch (Flask-Limiter). QA/Dev: RATELIMIT_ENABLED=false
+    RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'True').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
 
 
 class DevelopmentConfig(Config):

@@ -1015,10 +1015,82 @@ document.querySelectorAll('#mobileFolderMenu a[data-email-dismiss-offcanvas]').f
     });
 });
 
-// Sync submit handler (shared)
+function pollEmailSyncJob(statusUrl, attempt) {
+    const n = attempt || 0;
+    const maxAttempts = 90; // ~3 min at 2s
+    return fetch(statusUrl, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((job) => {
+            if (!job || !job.success) {
+                if (n >= maxAttempts) {
+                    throw new Error(EMAIL_MESSAGES.sync_error || EMAIL_MESSAGES.sync_failed);
+                }
+                return new Promise((resolve) => setTimeout(resolve, 2000))
+                    .then(() => pollEmailSyncJob(statusUrl, n + 1));
+            }
+            const status = String(job.status || '');
+            if (status === 'success' || status === 'error' || status === 'warning') {
+                return job;
+            }
+            if (n >= maxAttempts) {
+                throw new Error(EMAIL_MESSAGES.sync_timeout || EMAIL_MESSAGES.sync_error || 'Synchronisation dauert zu lange.');
+            }
+            return new Promise((resolve) => setTimeout(resolve, 2000))
+                .then(() => pollEmailSyncJob(statusUrl, n + 1));
+        });
+}
+
+function bindEmailSyncSse(jobId, onDone) {
+    if (!window.EventSource || !jobId) return null;
+    let es;
+    try {
+        es = new EventSource('/sse/events/email');
+    } catch (_) {
+        return null;
+    }
+    const finish = (job) => {
+        try { es.close(); } catch (_) {}
+        onDone(job);
+    };
+    es.addEventListener('email:sync_status', (e) => {
+        let data = {};
+        try { data = JSON.parse(e.data || '{}'); } catch (_) { data = {}; }
+        if (data.jobId && data.jobId !== jobId) return;
+        const status = String(data.status || '');
+        if (status === 'success' || status === 'error' || status === 'warning') {
+            finish(data);
+        }
+    });
+    es.addEventListener('error', () => {
+        // Redis oft aus — Polling übernimmt; SSE schließen
+        try { es.close(); } catch (_) {}
+    });
+    return es;
+}
+
+// Sync submit handler (shared) — Banner bei Start/Ende, Polling ohne Redis
 function handleSyncSubmit(event, form) {
     event.preventDefault();
     setSyncButtonsState(true);
+    let settled = false;
+    const settle = (job) => {
+        if (settled) return;
+        settled = true;
+        const status = String((job && job.status) || '');
+        const level = (job && job.level) || (status === 'success' ? 'success' : status === 'warning' ? 'warning' : 'danger');
+        const msg = (job && job.message) || EMAIL_MESSAGES.sync_failed;
+        emailAlert(msg, level);
+        if (status === 'success' && job && job.shouldRefresh !== false) {
+            setTimeout(() => window.location.reload(), 800);
+            return;
+        }
+        setSyncButtonsState(false);
+    };
+
     fetch(form.action, {
         method: 'POST',
         headers: {
@@ -1032,12 +1104,32 @@ function handleSyncSubmit(event, form) {
     .then(data => {
         if (!data || !data.success) throw new Error(data?.error || EMAIL_MESSAGES.sync_failed);
         emailAlert(data.message || EMAIL_MESSAGES.sync_started || 'Synchronisation gestartet.', 'info');
-        setTimeout(() => window.location.reload(), 10000);
+        const jobId = data.jobId;
+        const statusUrl = data.statusUrl;
+        let sseDone = false;
+        bindEmailSyncSse(jobId, (job) => {
+            sseDone = true;
+            settle(job);
+        });
+        if (!statusUrl) {
+            setTimeout(() => {
+                if (!settled) {
+                    emailAlert(EMAIL_MESSAGES.sync_error || 'Kein Status-Endpoint.', 'warning');
+                    setSyncButtonsState(false);
+                }
+            }, 15000);
+            return;
+        }
+        return pollEmailSyncJob(statusUrl).then((job) => {
+            if (!sseDone) settle(job);
+        });
     })
     .catch(err => {
         console.error('Sync error', err);
-        emailAlert(err.message || EMAIL_MESSAGES.sync_error, 'danger');
-        setSyncButtonsState(false);
+        if (!settled) {
+            emailAlert(err.message || EMAIL_MESSAGES.sync_error, 'danger');
+            setSyncButtonsState(false);
+        }
     });
     return false;
 }

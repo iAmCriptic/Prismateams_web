@@ -177,6 +177,7 @@ def is_module_enabled(module_key):
         
     Returns:
         True wenn das Modul aktiviert ist, False sonst. Standardmäßig True wenn nicht gesetzt.
+        module_meetings erfordert zusätzlich eine konfigurierte MiroTalk-URL.
     """
     try:
         from app.utils.system_settings_cache import get_setting
@@ -184,8 +185,14 @@ def is_module_enabled(module_key):
         value = get_setting(module_key)
         if value is None:
             # Standardmäßig aktiviert wenn nicht gesetzt (für Rückwärtskompatibilität)
-            return True
-        return str(value).lower() == 'true'
+            enabled = True
+        else:
+            enabled = str(value).lower() == 'true'
+        if enabled and module_key == 'module_meetings':
+            from app.utils.mirotalk import mirotalk_configured
+            if not mirotalk_configured():
+                return False
+        return enabled
     except Exception:
         # Bei Fehlern (z.B. während Setup) standardmäßig aktiviert
         return True

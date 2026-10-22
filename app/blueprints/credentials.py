@@ -156,13 +156,13 @@ def _credentials_denied():
 def _folder_scope(folder):
     """Return (visibility, team_id) for a folder."""
     if not folder:
-        return VISIBILITY_PUBLIC, None
-    vis = (folder.visibility or VISIBILITY_PUBLIC).strip().lower()
+        return VISIBILITY_PRIVATE, None
+    vis = (folder.visibility or VISIBILITY_PRIVATE).strip().lower()
     if vis == VISIBILITY_TEAM and folder.team_id:
         return VISIBILITY_TEAM, folder.team_id
-    if vis == VISIBILITY_PRIVATE:
-        return VISIBILITY_PRIVATE, None
-    return VISIBILITY_PUBLIC, None
+    if vis == VISIBILITY_PUBLIC:
+        return VISIBILITY_PUBLIC, None
+    return VISIBILITY_PRIVATE, None
 
 
 def _group_folders_by_scope(folders):
@@ -240,7 +240,10 @@ def _parse_folder_scope_from_form():
         return VISIBILITY_PRIVATE, None
     if raw_view == VISIBILITY_PRIVATE:
         return VISIBILITY_PRIVATE, None
-    return VISIBILITY_PUBLIC, None
+    if raw_view == VISIBILITY_PUBLIC:
+        return VISIBILITY_PUBLIC, None
+    # Unbekannt / leer → privat (S15: kein versehentliches Public)
+    return VISIBILITY_PRIVATE, None
 
 
 def _credentials_form_kwargs(item=None, folder_id=None):
@@ -407,6 +410,8 @@ def create():
         db.session.commit()
 
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
+        if credential.visibility == VISIBILITY_PUBLIC:
+            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(folder_id) if folder_id else None
         if folder:
             redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=folder_id)
@@ -454,16 +459,19 @@ def edit(credential_id):
         db.session.commit()
         
         flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
+        if credential.visibility == VISIBILITY_PUBLIC:
+            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(credential.folder_id) if credential.folder_id else None
         return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=credential.folder_id)))
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
     logger.info(
-        'credential_password_reveal user_id=%s credential_id=%s owner_id=%s via=edit ip=%s',
+        'credential_password_reveal user_id=%s credential_id=%s owner_id=%s visibility=%s via=edit ip=%s',
         getattr(current_user, 'id', None),
         credential.id,
         getattr(credential, 'created_by', None),
+        getattr(credential, 'visibility', None),
         request.headers.get('X-Forwarded-For', request.remote_addr),
     )
     is_favorite = CredentialFavorite.query.filter_by(
@@ -516,10 +524,11 @@ def view_password(credential_id):
     try:
         password = credential.get_password(key)
         logger.info(
-            'credential_password_reveal user_id=%s credential_id=%s owner_id=%s ip=%s',
+            'credential_password_reveal user_id=%s credential_id=%s owner_id=%s visibility=%s ip=%s',
             getattr(current_user, 'id', None),
             credential.id,
             getattr(credential, 'created_by', None),
+            getattr(credential, 'visibility', None),
             request.headers.get('X-Forwarded-For', request.remote_addr),
         )
         return jsonify({'password': password})
