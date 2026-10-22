@@ -19,32 +19,133 @@ const FILES_DROPBOX_ENABLED = !!window.FILES_DROPBOX_ENABLED;
                 last.style.zIndex = '11040';
             }
             modalEl.style.zIndex = '11050';
+            loadWebdavAppPasswords();
         });
     }
 
-    const copyBtn = document.getElementById('webdavCopyUrlBtn');
-    const urlInput = document.getElementById('webdavConnectUrl');
-    if (!copyBtn || !urlInput) {
-        return;
-    }
-    copyBtn.addEventListener('click', async () => {
-        const value = urlInput.value || '';
+    async function copyField(inputEl, btnEl) {
+        if (!inputEl) return;
+        const value = inputEl.value || '';
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(value);
             } else {
-                urlInput.select();
+                inputEl.select();
                 document.execCommand('copy');
             }
-            const icon = copyBtn.querySelector('i');
+            const icon = btnEl && btnEl.querySelector('i');
             if (icon) {
                 icon.className = 'bi bi-check2';
                 setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
             }
         } catch (err) {
-            urlInput.select();
+            inputEl.select();
         }
-    });
+    }
+
+    const copyBtn = document.getElementById('webdavCopyUrlBtn');
+    const urlInput = document.getElementById('webdavConnectUrl');
+    if (copyBtn && urlInput) {
+        copyBtn.addEventListener('click', () => copyField(urlInput, copyBtn));
+    }
+
+    const block = document.getElementById('webdavAppPasswordBlock');
+    const listEl = document.getElementById('webdavAppPasswordList');
+    const emptyEl = document.getElementById('webdavAppPasswordEmpty');
+    const createBtn = document.getElementById('webdavAppPasswordCreateBtn');
+    const createdPanel = document.getElementById('webdavAppPasswordCreated');
+    const createdValue = document.getElementById('webdavAppPasswordValue');
+    const createdUsername = document.getElementById('webdavAppUsernameValue');
+    const createdCopyBtn = document.getElementById('webdavAppPasswordCopyBtn');
+    const createdUsernameCopyBtn = document.getElementById('webdavAppUsernameCopyBtn');
+    const i18n = (FILES_I18N && FILES_I18N.webdav_modal) || {};
+
+    function renderAppPasswordList(items) {
+        if (!listEl || !emptyEl) return;
+        listEl.innerHTML = '';
+        if (!items || !items.length) {
+            listEl.hidden = true;
+            emptyEl.classList.remove('d-none');
+            return;
+        }
+        emptyEl.classList.add('d-none');
+        listEl.hidden = false;
+        items.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'files-webdav-app-pw-item small text-muted';
+            const uname = item.username || '';
+            const hint = item.hint ? `${item.hint}••••` : '••••';
+            li.textContent = uname
+                ? `${uname} · ${hint}`
+                : `${item.name || 'WebDAV'} · ${hint}`;
+            listEl.appendChild(li);
+        });
+    }
+
+    async function loadWebdavAppPasswords() {
+        if (!block) return;
+        const listUrl = block.getAttribute('data-list-url');
+        if (!listUrl) return;
+        try {
+            const res = await fetch(listUrl, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                renderAppPasswordList(data.items || []);
+            }
+        } catch (err) {
+            /* ignore — modal still usable */
+        }
+    }
+
+    if (createdCopyBtn && createdValue) {
+        createdCopyBtn.addEventListener('click', () => copyField(createdValue, createdCopyBtn));
+    }
+    if (createdUsernameCopyBtn && createdUsername) {
+        createdUsernameCopyBtn.addEventListener('click', () => copyField(createdUsername, createdUsernameCopyBtn));
+    }
+
+    if (createBtn && block) {
+        createBtn.addEventListener('click', async () => {
+            const createUrl = block.getAttribute('data-create-url');
+            if (!createUrl) return;
+            createBtn.disabled = true;
+            try {
+                const res = await fetch(createUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ name: 'WebDAV' }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data || !data.success) {
+                    const err = (data && data.error) || i18n.app_password_error || 'Fehler';
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(err, 'danger');
+                    }
+                    return;
+                }
+                const item = data.item || {};
+                if (createdUsername) createdUsername.value = data.username || item.username || '';
+                if (createdValue) createdValue.value = data.password || '';
+                if (createdPanel) createdPanel.classList.remove('d-none');
+                await loadWebdavAppPasswords();
+            } catch (err) {
+                const msg = i18n.app_password_error || 'Fehler';
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(msg, 'danger');
+                }
+            } finally {
+                createBtn.disabled = false;
+            }
+        });
+    }
 })();
 
 (function () {

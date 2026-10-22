@@ -7,6 +7,7 @@
 {% block content %}
 {% call auth_shell(_('auth.login.2fa_code'), _('auth.login.2fa_code_help'), body_class='auth-2fa', brand_icon='bi-shield-lock') %}
 <form method="POST" id="totpForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <label for="totp_code" class="form-label">{{ _('auth.login.2fa_code') }}</label>
         <input type="text"
@@ -46,6 +47,7 @@
 {% if email_recovery_enabled|default(true) %}
 <div class="text-center mt-3">
     <form method="POST" action="{{ url_for('auth.login_2fa_recovery') }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-link text-muted p-0 auth-2fa-recovery-link">
             {{ _('auth.login.2fa_recovery_request') }}
         </button>

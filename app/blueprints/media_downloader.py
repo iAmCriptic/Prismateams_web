@@ -292,6 +292,9 @@ def _process_convert(app, user_id, job_id):
 
 
 def _start_convert_thread(app, job_id):
+    """Enqueue FFmpeg convert off the HTTP request thread (QA G06)."""
+    from app.utils.heavy_job_pool import submit_media_conversion
+
     with app.app_context():
         job = MediaDownloadJob.query.get(job_id)
         if not job:
@@ -299,13 +302,13 @@ def _start_convert_thread(app, job_id):
         user_id = job.user_id
         with _queue_lock:
             _user_active_converts[user_id] += 1
-        thread = threading.Thread(
-            target=_process_convert,
-            args=(app, user_id, job_id),
-            daemon=True,
-            name=f'media-convert-{job_id}',
+        submit_media_conversion(
+            _process_convert,
+            app,
+            user_id,
+            job_id,
+            max_workers=_get_max_global(app),
         )
-        thread.start()
 
 
 def _create_job(user_id, source_url, output_format, start_parsed, end_parsed, title=None):

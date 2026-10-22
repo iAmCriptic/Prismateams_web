@@ -239,6 +239,8 @@ step_env() {
     fi
     if is_profile_small; then
         log_info "Small-Profil .env: DB_POOL_SIZE=${DB_POOL_SIZE:-5}, Converter/Media Global-Caps=1"
+    elif [ -n "${DB_POOL_SIZE:-}" ]; then
+        log_info "DB-Pool .env: DB_POOL_SIZE=${DB_POOL_SIZE}, DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-4} (pro Worker ≥ Threads)"
     fi
 
     # FFmpeg / Media Downloader

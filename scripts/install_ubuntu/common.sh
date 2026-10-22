@@ -657,6 +657,9 @@ apply_install_profile() {
         ""|default|standard)
             INSTALL_PROFILE="${INSTALL_PROFILE:-default}"
             GUNICORN_THREADS="${GUNICORN_THREADS:-8}"
+            # QA G07: Pool pro Worker ≥ Threads (Default 8+4)
+            DB_POOL_SIZE="${DB_POOL_SIZE:-8}"
+            DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-4}"
             ;;
         *)
             error_exit "Unbekanntes Install-Profil: ${INSTALL_PROFILE} (erlaubt: small, default)"

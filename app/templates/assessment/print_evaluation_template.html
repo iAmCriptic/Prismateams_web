@@ -39,7 +39,7 @@
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ c.name }}</td>
-                <td>{{ c.description|safe if c.description else '' }}</td>
+                <td>{{ c.description or '' }}</td>
                 <td class="text-center">{{ c.max_score }}</td>
                 <td class="text-center">&nbsp;</td>
             </tr>

@@ -1055,7 +1055,10 @@ def login_2fa():
                 **_login_2fa_template_context(user, has_passkeys),
             )
 
-        verified = verify_totp(user.totp_secret, totp_code)
+        # TOTP nur bei 6 Ziffern; sonst E-Mail-Recovery-Code (10 Zeichen)
+        verified = False
+        if totp_code.isdigit() and len(totp_code) == 6:
+            verified = verify_totp(user.totp_secret, totp_code)
         if not verified:
             from app.utils.email_sender import (
                 is_2fa_email_recovery_enabled,

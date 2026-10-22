@@ -310,6 +310,7 @@ journalctl -u teamportal -n 40 --no-pager
 # Small-VPS: 2 Worker × 4 Threads.
 # sync-Worker + SSE (/sse/events/dashboard u. a.) = Worker-Starvation (Seitenladen mehrere Sekunden).
 # Timeout 180s: hängende Requests geben den Slot frei; Converter/Downloads laufen im Thread.
+# DB-Pool ist pro Worker: DB_POOL_SIZE + DB_MAX_OVERFLOW ≥ --threads (Default 8+4).
 sudo nano /etc/systemd/system/teamportal.service
 # --worker-class gthread
 # --workers 2  (oder 3–4 bei mehr CPU/RAM)
@@ -319,6 +320,8 @@ sudo nano /etc/systemd/system/teamportal.service
 sudo systemctl daemon-reload
 sudo systemctl restart teamportal
 ```
+
+Bei Threads erhöhen auch `.env` anpassen, z. B. `--threads 12` → `DB_POOL_SIZE=12` / `DB_MAX_OVERFLOW=4`.
 
 Symptom bei falscher Klasse (`sync`): `journalctl -u teamportal` zeigt wiederholt `WORKER TIMEOUT` auf `/sse/events/dashboard`.
 Der Installer erzwingt bei `sync` automatisch `gthread`. Bei **workers &gt; 1** ist Redis Pflicht

@@ -247,8 +247,9 @@
                         {% endif %}
                     </div>
                     <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                    {% if email.body_text %}
-                    <small class="text-muted email-preview">{{ email.body_text[:110] }}</small>
+                    {% set preview = email.body_preview if email.body_preview is defined else (email.body_text[:110] if email.body_text else '') %}
+                    {% if preview %}
+                    <small class="text-muted email-preview">{{ preview }}</small>
                     {% endif %}
                 </div>
             </div>
@@ -454,32 +455,15 @@
     </div>
 </div>
 
-<!-- Mobile Email List -->
-<div data-lazy-more
+<!-- Eine Shell + eine Liste (wie Dateien): scrollt in .email-main-content, kein Dreifach-DOM -->
+<div class="email-layout-desktop mod-shell--nav"
+     data-lazy-more
      data-lazy-page="{{ pagination.page if pagination is defined else 1 }}"
      data-lazy-has-more="{{ '1' if email_has_more|default(false) else '0' }}"
      data-lazy-param="page"
      data-lazy-items=".email-item"
-     data-lazy-targets=".email-list-mobile,.email-list-desktop,.email-list-mid">
-<div class="d-lg-none">
-    <div class="card">
-        <div class="card-body p-0">
-            {% if emails %}
-            <div class="list-group list-group-flush email-list email-list-mobile" data-folder="{{ current_folder }}">
-                {% for email in emails %}
-                    {{ email_list_item(email, 'mobile', folder_tree, current_folder) }}
-                {% endfor %}
-            </div>
-            {% else %}
-            {{ email_empty_state() }}
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Desktop Layout with Sidebar (from xl up) -->
-<div class="d-none d-xl-flex email-layout-desktop mod-shell--nav">
-    <div class="mod-sidebar email-folder-sidebar">
+     data-lazy-targets=".email-list">
+    <div class="mod-sidebar email-folder-sidebar d-none d-xl-flex">
         <div class="mod-sidebar-brand">
             <i class="bi bi-envelope" aria-hidden="true"></i>
             <span>{{ _('email.index.heading') }}</span>
@@ -565,82 +549,63 @@
     </div>
 
     <div class="mod-main email-main-content">
-        <div class="mod-toolbar email-list-toolbar mb-3">
+        <!-- Mid-desktop Header (lg to xl) -->
+        <div class="d-none d-lg-flex d-xl-none email-mid-toolbar row mb-3">
+            <div class="col">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <h1 class="mb-0 me-2"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button type="button" class="dropdown-item" data-action="open-folder-create" data-folder-inline="emailFolderCreateMid">
+                                    <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {{ email_folder_create_inline('emailFolderCreateMid') }}
+            </div>
+            <div class="col-auto">
+                <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
+                    {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
+                    {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline sync-btn">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
+                        <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
+                    </button>
+                </form>
+                <a href="{{ url_for('email.compose') }}" class="btn btn-accent mod-pill-btn">
+                    <i class="bi bi-pencil-square"></i> {{ _('email.index.buttons.compose') }}
+                </a>
+            </div>
+        </div>
+
+        <div class="d-none d-xl-block mod-toolbar email-list-toolbar mb-3">
             <h4 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
         </div>
-        <div class="card">
+
+        <div class="card email-list-card">
             <div class="card-body p-0">
                 {% if emails %}
-                <div class="list-group list-group-flush email-list email-list-desktop" data-folder="{{ current_folder }}">
+                <div class="list-group list-group-flush email-list" data-folder="{{ current_folder }}">
                     {% for email in emails %}
                         {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                     {% endfor %}
                 </div>
-                    {% else %}
+                {% else %}
                 {{ email_empty_state() }}
                 {% endif %}
             </div>
         </div>
+        {{ email_list_load_more() }}
     </div>
 </div>
-
-<!-- Mid-desktop Header (lg to xl) -->
-<div class="d-none d-lg-flex d-xl-none row mb-3">
-    <div class="col">
-        <div class="d-flex align-items-center">
-            <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
-                </button>
-                <ul class="dropdown-menu">
-                    {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <button type="button" class="dropdown-item" data-action="open-folder-create" data-folder-inline="emailFolderCreateMid">
-                            <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
-                        </button>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        {{ email_folder_create_inline('emailFolderCreateMid') }}
-    </div>
-    <div class="col-auto">
-        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
-            {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
-            {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
-            <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline sync-btn">
-                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
-                <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
-            </button>
-        </form>
-        <a href="{{ url_for('email.compose') }}" class="btn btn-accent mod-pill-btn">
-            <i class="bi bi-pencil-square"></i> {{ _('email.index.buttons.compose') }}
-        </a>
-    </div>
-</div>
-
-<!-- Mid-desktop email list (md to xl) -->
-<div class="d-none d-lg-block d-xl-none">
-    <div class="card">
-        <div class="card-header mod-toolbar email-list-toolbar">
-            <h5 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
-        </div>
-        <div class="card-body p-0">
-            {% if emails %}
-            <div class="list-group list-group-flush email-list email-list-mid" data-folder="{{ current_folder }}">
-                {% for email in emails %}
-                    {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
-                {% endfor %}
-            </div>
-            {% else %}
-            {{ email_empty_state() }}
-            {% endif %}
-        </div>
-    </div>
-</div>
-{{ email_list_load_more() }}
 </div>
 {% endblock %}
 
@@ -829,18 +794,10 @@ function refreshFolderUnreadCounts() {
             refreshFolderUnreadCounts();
         }
     });
-    try {
-        const url = window.PT_DASHBOARD_SSE_URL;
-        if (url && window.EventSource) {
-            const es = window.ptDashboardSSE || new EventSource(url);
-            window.ptDashboardSSE = es;
-            es.addEventListener('dashboard:email_update', (evt) => {
-                try {
-                    applyUnreadUpdate(JSON.parse(evt.data || '{}'));
-                } catch (_) { /* ignore */ }
-            });
-        }
-    } catch (_) { /* ignore */ }
+    // QA G08: Fan-out aus notification-center (kein zweiter Dashboard-EventSource)
+    window.addEventListener('pt:dashboard:email_update', (e) => {
+        applyUnreadUpdate((e && e.detail) || {});
+    });
     setInterval(() => {
         if (document.hidden) return;
         refreshFolderUnreadCounts();
@@ -1091,6 +1048,11 @@ function handleSyncSubmit(event, form) {
 (function initDragAndDrop() {
     let currentDragId = null;
     function onDragStart(e) {
+        // Touch/coarse pointer: kein HTML5-Drag — sonst blockiert Scrollen
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            e.preventDefault();
+            return;
+        }
         const item = e.target.closest('.email-draggable');
         if (!item) return;
         currentDragId = item.dataset.emailId;

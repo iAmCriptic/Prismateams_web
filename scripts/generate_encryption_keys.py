@@ -20,6 +20,7 @@ def main():
     credential_key = generate_encryption_key()
     mailbox_key = generate_encryption_key()
     music_key = generate_encryption_key()
+    totp_key = generate_encryption_key()
 
     print("\nGenerierte Verschlüsselungsschlüssel:")
     print("-" * 40)
@@ -29,6 +30,8 @@ def main():
     print(f"   MAILBOX_ENCRYPTION_KEY={mailbox_key}")
     print(f"\n3. Music Token Encryption Key:")
     print(f"   MUSIC_ENCRYPTION_KEY={music_key}")
+    print(f"\n4. TOTP Encryption Key (2FA at-rest):")
+    print(f"   TOTP_ENCRYPTION_KEY={totp_key}")
 
     print("\nKonfiguration:")
     print("-" * 20)
@@ -36,6 +39,7 @@ def main():
     print(f"\n   CREDENTIAL_ENCRYPTION_KEY={credential_key}")
     print(f"   MAILBOX_ENCRYPTION_KEY={mailbox_key}")
     print(f"   MUSIC_ENCRYPTION_KEY={music_key}")
+    print(f"   TOTP_ENCRYPTION_KEY={totp_key}")
 
     print("\nHinweise:")
     print("- Wenn bereits Postfach-Passwörter mit dem alten DB-Key (email_enc_key)")
@@ -44,6 +48,9 @@ def main():
     print("  Hinweis ausgeben und führen Sie sie danach erneut aus.")
     print("- Keys ändern macht bestehende Ciphertexte unlesbar, sofern nicht")
     print("  vorher umgeschlüsselt wurde.")
+    print("- Production/Staging verlangen TOTP_ENCRYPTION_KEY (kein SECRET_KEY-Fallback).")
+    print("  Wer bisher den SECRET_KEY-Fallback genutzt hat: alten Ableitungswert")
+    print("  behalten oder 2FA neu einrichten.")
 
 
 if __name__ == '__main__':

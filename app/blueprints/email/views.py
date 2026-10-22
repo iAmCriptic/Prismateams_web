@@ -115,6 +115,12 @@ def index():
         mailbox_folder_trees, mailbox_unread_counts = _multi_mailbox_sidebar_trees(
             current_user, accessible
         )
+        unread_key = mailbox_id if mailbox_id is not None else 'main'
+        folder_unread_counts = mailbox_unread_counts.get(unread_key, {})
+    else:
+        folder_unread_counts = count_unread_emails_by_folder(
+            user=current_user, mailbox_id=mailbox_id
+        )
 
     return render_template(
         'email/index.html',
@@ -123,9 +129,7 @@ def index():
         email_has_more=pagination.has_next,
         folders=folders,
         folder_tree=folder_tree,
-        folder_unread_counts=count_unread_emails_by_folder(
-            user=current_user, mailbox_id=mailbox_id
-        ),
+        folder_unread_counts=folder_unread_counts,
         current_folder=current_folder,
         folder_display_name=folder_display_name,
         search_query=search_query,
@@ -195,6 +199,12 @@ def folder_view(folder_name):
         mailbox_folder_trees, mailbox_unread_counts = _multi_mailbox_sidebar_trees(
             current_user, accessible
         )
+        unread_key = mailbox_id if mailbox_id is not None else 'main'
+        folder_unread_counts = mailbox_unread_counts.get(unread_key, {})
+    else:
+        folder_unread_counts = count_unread_emails_by_folder(
+            user=current_user, mailbox_id=mailbox_id
+        )
 
     return render_template(
         'email/index.html',
@@ -203,9 +213,7 @@ def folder_view(folder_name):
         email_has_more=pagination.has_next,
         folders=folders,
         folder_tree=folder_tree,
-        folder_unread_counts=count_unread_emails_by_folder(
-            user=current_user, mailbox_id=mailbox_id
-        ),
+        folder_unread_counts=folder_unread_counts,
         current_folder=folder_name,
         folder_display_name=folder_display_name,
         search_query=search_query,

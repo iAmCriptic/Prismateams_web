@@ -213,6 +213,9 @@ def _process_conversion(app, user_id, job_id):
 
 
 def _start_conversion_thread(app, job_id):
+    """Enqueue conversion off the HTTP request thread (QA G06)."""
+    from app.utils.heavy_job_pool import submit_file_conversion
+
     with app.app_context():
         job = ConversionJob.query.get(job_id)
         if not job:
@@ -220,13 +223,13 @@ def _start_conversion_thread(app, job_id):
         user_id = job.user_id
         with _queue_lock:
             _user_active_jobs[user_id] += 1
-        thread = threading.Thread(
-            target=_process_conversion,
-            args=(app, user_id, job_id),
-            daemon=True,
-            name=f'file-convert-{job_id}',
+        submit_file_conversion(
+            _process_conversion,
+            app,
+            user_id,
+            job_id,
+            max_workers=_get_max_global(app),
         )
-        thread.start()
 
 
 def _save_upload(file_storage):

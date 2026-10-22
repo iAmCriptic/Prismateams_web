@@ -101,8 +101,17 @@ def normalize_folder_color(raw_color):
     return value.lower()
 
 
+def _accessible_folders_query(user=None):
+    """Folders the user may see (same visibility rules as credentials)."""
+    user = user or current_user
+    return accessible_query(user, CredentialFolder, 'credentials').order_by(
+        CredentialFolder.position.asc(),
+        CredentialFolder.name.asc(),
+    )
+
+
 def parse_folder_id(raw_folder_id):
-    """Parse and validate folder id from form/json value."""
+    """Parse folder id; only return IDs the current user can view."""
     if raw_folder_id in (None, '', 'null'):
         return None
 
@@ -112,7 +121,11 @@ def parse_folder_id(raw_folder_id):
         return None
 
     folder = CredentialFolder.query.get(folder_id)
-    return folder.id if folder else None
+    if not folder:
+        return None
+    if not can_view_item(current_user, folder, 'credentials'):
+        return None
+    return folder.id
 
 
 def get_user_favorite_ids(user_id):
@@ -238,15 +251,13 @@ def _credentials_form_kwargs(item=None, folder_id=None):
     if item is None:
         if folder_id:
             folder = CredentialFolder.query.get(folder_id)
-            if folder:
+            if folder and can_view_item(current_user, folder, 'credentials'):
                 pre_section, pre_team_id = _folder_scope(folder)
         elif section in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM):
             pre_section = section
             pre_team_id = filter_team_id
 
-    all_folders = CredentialFolder.query.order_by(
-        CredentialFolder.position.asc(), CredentialFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
 
     ctx = visibility_form_context(
         'credentials',
@@ -276,9 +287,7 @@ def _render_create_form(folder_id=None, is_favorite=False, **extra):
 @check_module_access('module_credentials')
 def index():
     """List credentials for root, folder, space, or personal favorites view."""
-    all_folders = CredentialFolder.query.order_by(
-        CredentialFolder.position.asc(), CredentialFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
     folders_by_scope = _group_folders_by_scope(all_folders)
     section, filter_team_id = parse_section_args('credentials', current_user)
     active_favorites = section == 'favorites'
@@ -289,9 +298,10 @@ def index():
     active_folder_id = None
     active_folder = None
     if raw_folder_id and not active_favorites:
+        # parse_folder_id already enforces can_view_item
         active_folder = CredentialFolder.query.get(raw_folder_id)
         if active_folder:
-            active_folder_id = raw_folder_id
+            active_folder_id = active_folder.id
             folder_vis, folder_team_id = _folder_scope(active_folder)
             if not space_view:
                 section = folder_vis

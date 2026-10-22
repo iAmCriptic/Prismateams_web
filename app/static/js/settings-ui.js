@@ -473,8 +473,11 @@
       var text = script.textContent || '';
       if (text.indexOf('SETTINGS_UI_I18N') === -1 && text.indexOf('SETTINGS_SEARCH_CATALOG') === -1) return;
       try {
-        // eslint-disable-next-line no-new-func
-        (new Function(text))();
+        // Ohne eval/new Function (CSP ohne unsafe-eval): Inline-Script per DOM ausführen
+        var s = document.createElement('script');
+        s.textContent = text;
+        (document.head || document.documentElement).appendChild(s);
+        s.remove();
       } catch (e) { /* ignore */ }
     });
     i18n = (window.SETTINGS_UI_I18N) || {};

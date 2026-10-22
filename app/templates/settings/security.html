@@ -313,6 +313,102 @@
         {% endif %}
         </div>
         </section>
+
+        {# —— App-Passwörter (WebDAV) —— #}
+        <section class="sp-group settings-security-card" aria-labelledby="security-app-passwords-heading" id="security-app-passwords" data-settings-search-id="security-app-passwords">
+            <div class="sp-group-head">
+                <h2 id="security-app-passwords-heading" class="sp-group-title"><i class="bi bi-key-fill" aria-hidden="true"></i>{{ _('settings.security.app_passwords.heading') }}</h2>
+                <button type="button" class="sp-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.security.app_passwords.help') }}" aria-label="{{ _('settings.security.app_passwords.help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="sp-group-body">
+                <p class="settings-security-hint">{{ _('settings.security.app_passwords.intro') }}</p>
+
+                <div id="app-password-created-panel" class="alert alert-permanent portal-msg portal-msg--success mb-3 d-none" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-2">{{ _('settings.security.app_passwords.created_once_hint') }}</p>
+                            <label class="form-label small mb-1" for="app-password-created-username">{{ _('settings.security.app_passwords.username_label') }}</label>
+                            <div class="files-webdav-url-row mb-2">
+                                <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="app-password-created-username" readonly value="">
+                                <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="app-password-copy-username-btn" title="{{ _('settings.security.app_passwords.copy_username') }}">
+                                    <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{ _('settings.security.app_passwords.copy_username') }}</span>
+                                </button>
+                            </div>
+                            <label class="form-label small mb-1" for="app-password-created-value">{{ _('settings.security.app_passwords.password_label') }}</label>
+                            <div class="files-webdav-url-row">
+                                <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="app-password-created-value" readonly value="">
+                                <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="app-password-copy-btn" title="{{ _('settings.security.app_passwords.copy') }}">
+                                    <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{ _('settings.security.app_passwords.copy') }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if app_passwords %}
+                <div class="settings-security-passkey-list mb-3" id="app-password-list">
+                    {% for ap in app_passwords %}
+                    <div class="settings-security-device-row" data-app-password-id="{{ ap.id }}">
+                        <div class="settings-security-device-main">
+                            <div class="settings-security-device-name">
+                                <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                                {{ ap.name }}
+                                {% if ap.username %}
+                                <span class="text-muted small ms-1 font-monospace">{{ ap.username }}</span>
+                                {% endif %}
+                                <span class="text-muted small ms-1 font-monospace">{{ ap.hint }}••••</span>
+                            </div>
+                            <div class="settings-security-device-meta">
+                                <span>{{ ap.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                                {% if ap.last_used_at %}
+                                <span aria-hidden="true">·</span>
+                                <span>{{ _('settings.security.app_passwords.last_used', date=ap.last_used_at|localdatetime('%d.%m.%Y %H:%M')) }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="settings-security-device-actions">
+                            <form method="POST"
+                                  action="{{ url_for('settings.app_passwords_delete', password_id=ap.id) }}"
+                                  data-sp-no-autosave
+                                  data-pt-confirm="{{ _('settings.security.app_passwords.delete_confirm') }}"
+                                  data-pt-confirm-danger="true"
+                                  data-pt-confirm-ok="{{ _('settings.security.app_passwords.delete_button') }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn">
+                                    {{ _('settings.security.app_passwords.delete_button') }}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="settings-security-status-row mb-2" id="app-password-empty">
+                    <span class="badge rounded-pill text-bg-secondary">{{ _('settings.security.app_passwords.status_none') }}</span>
+                </div>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2 align-items-end">
+                    <div class="settings-security-field mb-0 flex-grow-1" style="min-width:12rem;max-width:18rem">
+                        <label for="app-password-name" class="form-label">{{ _('settings.security.app_passwords.name_label') }}</label>
+                        <input type="text" class="form-control settings-security-input" id="app-password-name" maxlength="100" placeholder="WebDAV" autocomplete="off">
+                    </div>
+                    <button type="button"
+                            class="btn btn-accent rounded-pill mod-pill-btn"
+                            id="app-password-create-btn"
+                            data-create-url="{{ url_for('settings.app_passwords_create') }}"
+                            data-error-generic="{{ _('settings.security.app_passwords.create_failed') }}">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        {{ _('settings.security.app_passwords.create_button') }}
+                    </button>
+                </div>
+                <p class="form-text mb-0 mt-2">{{ _('settings.security.app_passwords.generate_hint') }}</p>
+            </div>
+        </section>
         {% endif %}
 
     {# —— Geräte (volle Breite) —— #}
@@ -423,6 +519,105 @@ document.addEventListener('DOMContentLoaded', function () {
         devices.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     {% endif %}
+
+    var createBtn = document.getElementById('app-password-create-btn');
+    var createdPanel = document.getElementById('app-password-created-panel');
+    var createdValue = document.getElementById('app-password-created-value');
+    var createdUsername = document.getElementById('app-password-created-username');
+    var copyCreatedBtn = document.getElementById('app-password-copy-btn');
+    var copyUsernameBtn = document.getElementById('app-password-copy-username-btn');
+    var nameInput = document.getElementById('app-password-name');
+
+    async function copyInput(inputEl, btnEl) {
+        if (!inputEl) return;
+        var value = inputEl.value || '';
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                inputEl.select();
+                document.execCommand('copy');
+            }
+            var icon = btnEl && btnEl.querySelector('i');
+            if (icon) {
+                icon.className = 'bi bi-check2';
+                setTimeout(function () { icon.className = 'bi bi-clipboard'; }, 1500);
+            }
+        } catch (err) {
+            inputEl.select();
+        }
+    }
+
+    if (createBtn) {
+        createBtn.addEventListener('click', function () {
+            var url = createBtn.getAttribute('data-create-url');
+            if (!url) return;
+            createBtn.disabled = true;
+            fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ name: nameInput ? nameInput.value : '' }),
+            })
+                .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                .then(function (res) {
+                    createBtn.disabled = false;
+                    if (!res.ok || !res.data || !res.data.success) {
+                        var err = (res.data && res.data.error) || createBtn.getAttribute('data-error-generic') || '';
+                        if (err && typeof window.showAppBanner === 'function') {
+                            window.showAppBanner(err, 'danger');
+                        }
+                        return;
+                    }
+                    var item = res.data.item || {};
+                    if (createdUsername) createdUsername.value = res.data.username || item.username || '';
+                    if (createdValue) createdValue.value = res.data.password || '';
+                    if (createdPanel) createdPanel.classList.remove('d-none');
+                    if (nameInput) nameInput.value = '';
+                    var empty = document.getElementById('app-password-empty');
+                    if (empty) empty.classList.add('d-none');
+                    var list = document.getElementById('app-password-list');
+                    if (!list) {
+                        list = document.createElement('div');
+                        list.id = 'app-password-list';
+                        list.className = 'settings-security-passkey-list mb-3';
+                        if (createdPanel && createdPanel.parentNode) {
+                            createdPanel.parentNode.insertBefore(list, createdPanel.nextSibling);
+                        }
+                    }
+                    var row = document.createElement('div');
+                    row.className = 'settings-security-device-row';
+                    row.setAttribute('data-app-password-id', item.id || '');
+                    var uname = item.username ? (' <span class="text-muted small ms-1 font-monospace">' + item.username + '</span>') : '';
+                    row.innerHTML =
+                        '<div class="settings-security-device-main">' +
+                        '<div class="settings-security-device-name">' +
+                        '<i class="bi bi-hdd-network" aria-hidden="true"></i> ' +
+                        (item.name || 'WebDAV') + uname +
+                        ' <span class="text-muted small ms-1 font-monospace">' +
+                        (item.hint || '') + '••••</span></div></div>';
+                    list.insertBefore(row, list.firstChild);
+                    if (createdPanel) createdPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                })
+                .catch(function () {
+                    createBtn.disabled = false;
+                    var err = createBtn.getAttribute('data-error-generic') || '';
+                    if (err && typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(err, 'danger');
+                    }
+                });
+        });
+    }
+    if (copyCreatedBtn && createdValue) {
+        copyCreatedBtn.addEventListener('click', function () { copyInput(createdValue, copyCreatedBtn); });
+    }
+    if (copyUsernameBtn && createdUsername) {
+        copyUsernameBtn.addEventListener('click', function () { copyInput(createdUsername, copyUsernameBtn); });
+    }
 });
 </script>
 <script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>

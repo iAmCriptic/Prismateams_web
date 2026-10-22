@@ -420,7 +420,11 @@ def team_delete(roster_id):
 def team_update_day(roster_id, day_id):
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
-        return jsonify({'ok': False, 'error': 'denied'}), 403
+        return jsonify({
+            'ok': False,
+            'error': 'denied',
+            'message': translate('duty_roster.flash.cell_denied'),
+        }), 403
     day = DutyRosterDay.query.filter_by(id=day_id, roster_id=roster.id).first_or_404()
     if 'whats_happening' in request.form:
         day.whats_happening = (request.form.get('whats_happening') or '').strip()[:500] or None
@@ -442,7 +446,11 @@ def team_update_day(roster_id, day_id):
 def team_update_cell(roster_id):
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
-        return jsonify({'ok': False, 'error': 'denied'}), 403
+        return jsonify({
+            'ok': False,
+            'error': 'denied',
+            'message': translate('duty_roster.flash.cell_denied'),
+        }), 403
 
     day_id = _parse_int(request.form.get('day_id'))
     column_id = _parse_int(request.form.get('column_id'))
@@ -451,9 +459,17 @@ def team_update_cell(roster_id):
     day = DutyRosterDay.query.filter_by(id=day_id, roster_id=roster.id).first()
     col = DutyRosterColumn.query.filter_by(id=column_id, roster_id=roster.id).first()
     if not day or not col:
-        return jsonify({'ok': False, 'error': 'not_found'}), 404
+        return jsonify({
+            'ok': False,
+            'error': 'not_found',
+            'message': translate('duty_roster.flash.cell_not_found'),
+        }), 404
     if not column_active_on(col, day.date):
-        return jsonify({'ok': False, 'error': 'inactive'}), 400
+        return jsonify({
+            'ok': False,
+            'error': 'inactive',
+            'message': translate('duty_roster.flash.cell_inactive'),
+        }), 400
 
     parsed = parse_cell_value(raw)
     entry = DutyRosterEntry.query.filter_by(day_id=day.id, column_id=col.id).first()

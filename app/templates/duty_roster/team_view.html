@@ -112,7 +112,14 @@ window.DUTY_ROSTER = {
     rosterId: {{ roster.id }},
     cellUrl: {{ url_for('duty_roster.team_update_cell', roster_id=roster.id)|tojson }},
     dayUrlBase: {{ url_for('duty_roster.team_update_day', roster_id=roster.id, day_id=0)|tojson }},
-    csrfToken: {{ csrf_token()|tojson }}
+    csrfToken: {{ csrf_token()|tojson }},
+    i18n: {
+        cellSaveFailed: {{ _('duty_roster.flash.cell_save_failed')|tojson }},
+        daySaveFailed: {{ _('duty_roster.flash.day_save_failed')|tojson }},
+        cellDenied: {{ _('duty_roster.flash.cell_denied')|tojson }},
+        cellNotFound: {{ _('duty_roster.flash.cell_not_found')|tojson }},
+        cellInactive: {{ _('duty_roster.flash.cell_inactive')|tojson }}
+    }
 };
 </script>
 <script src="{{ url_for('static', filename='js/duty_roster.js') }}"></script>

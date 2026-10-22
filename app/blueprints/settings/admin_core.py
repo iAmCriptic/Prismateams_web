@@ -476,6 +476,11 @@ def admin_system():
     session_cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
     remember_cookie_secure = bool(current_app.config.get('REMEMBER_COOKIE_SECURE'))
     flask_env = (os.environ.get('FLASK_ENV') or ('development' if current_app.debug else 'production')).strip()
+    redis_runtime_status = (current_app.config.get('REDIS_RUNTIME_STATUS') or 'disabled').strip()
+    redis_runtime_detail = current_app.config.get('REDIS_RUNTIME_DETAIL') or ''
+    redis_runtime_url = current_app.config.get('REDIS_RUNTIME_URL') or current_app.config.get('REDIS_URL') or ''
+    session_backend = current_app.config.get('SESSION_BACKEND') or ''
+    rate_limit_storage = current_app.config.get('RATELIMIT_STORAGE_URI') or ''
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
@@ -495,6 +500,11 @@ def admin_system():
                          session_cookie_secure=session_cookie_secure,
                          remember_cookie_secure=remember_cookie_secure,
                          flask_env=flask_env,
+                         redis_runtime_status=redis_runtime_status,
+                         redis_runtime_detail=redis_runtime_detail,
+                         redis_runtime_url=redis_runtime_url,
+                         session_backend=session_backend,
+                         rate_limit_storage=rate_limit_storage,
                          timezone_choices=get_timezone_choices())
 
 

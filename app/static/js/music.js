@@ -1,6 +1,19 @@
 // Server-Sent Events (SSE) für Live-Updates
 // SSE funktioniert perfekt mit mehreren Gunicorn-Workern - KEINE Session-Probleme!
 let eventSource = null;
+let pageSseHeld = false;
+
+function holdPageSse() {
+    if (pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.acquire();
+    pageSseHeld = true;
+}
+
+function releasePageSse() {
+    if (!pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.release();
+    pageSseHeld = false;
+}
 
 // Debouncing für Updates
 let updateQueueTimeout = null;
@@ -77,22 +90,40 @@ function invalidateCache(pattern) {
     });
 }
 
+function disconnectSSE() {
+    if (eventSource) {
+        try { eventSource.close(); } catch (_) { /* ignore */ }
+        eventSource = null;
+    }
+    releasePageSse();
+}
+
 // SSE-Verbindung initialisieren
 function initSSE() {
-    if (eventSource) {
-        eventSource.close();
+    if (document.hidden) return;
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+        return;
     }
-    
+    disconnectSSE();
+
     try {
-        eventSource = new EventSource('/sse/events/music');
-        
-        eventSource.onerror = function(error) {
-            console.warn('SSE Fehler - versuche Reconnect...');
-            // EventSource reconnected automatisch
+        const es = new EventSource('/sse/events/music');
+        eventSource = es;
+        holdPageSse();
+
+        es.onerror = function() {
+            if (es.readyState === EventSource.CLOSED) {
+                if (eventSource === es) eventSource = null;
+                releasePageSse();
+                // Sichtbarer Tab: Browser reconnectet; bei hidden nicht neu öffnen.
+                if (!document.hidden) {
+                    console.warn('SSE Fehler - EventSource reconnectet automatisch…');
+                }
+            }
         };
         
         // Event-Handler für Musik-Updates
-        eventSource.addEventListener('music:wish_added', function(e) {
+        es.addEventListener('music:wish_added', function(e) {
             const data = JSON.parse(e.data);
             invalidateCache('wishlist');
             if (data.wish) {
@@ -107,7 +138,7 @@ function initSSE() {
             }
         });
         
-        eventSource.addEventListener('music:wish_updated', function(e) {
+        es.addEventListener('music:wish_updated', function(e) {
             const data = JSON.parse(e.data);
             invalidateCache('wishlist');
             if (data.wish) {
@@ -122,7 +153,7 @@ function initSSE() {
             }
         });
         
-        eventSource.addEventListener('music:queue_updated', function(e) {
+        es.addEventListener('music:queue_updated', function(e) {
             const data = JSON.parse(e.data);
             invalidateCache('queue');
             if (data.queue !== undefined) {
@@ -130,7 +161,7 @@ function initSSE() {
             }
         });
         
-        eventSource.addEventListener('music:played_updated', function(e) {
+        es.addEventListener('music:played_updated', function(e) {
             const data = JSON.parse(e.data);
             invalidateCache('played');
             if (data.count !== undefined) {
@@ -141,7 +172,7 @@ function initSSE() {
             }
         });
         
-        eventSource.addEventListener('music:wishlist_cleared', function(e) {
+        es.addEventListener('music:wishlist_cleared', function(e) {
             const data = JSON.parse(e.data);
             invalidateCache('wishlist');
             // Leere Wishlist-Anzeige
@@ -154,11 +185,13 @@ function initSSE() {
             cachedCounts.wishlist = 0;
         });
         
-        eventSource.addEventListener('heartbeat', function(e) {
+        es.addEventListener('heartbeat', function() {
             // Heartbeat empfangen - Verbindung ist aktiv
         });
         
     } catch (e) {
+        eventSource = null;
+        releasePageSse();
         console.warn('SSE Initialisierung fehlgeschlagen:', e.message);
     }
 }
@@ -168,11 +201,18 @@ document.addEventListener('DOMContentLoaded', function() {
     initSSE();
 });
 
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Freigabe von Gunicorn-Threads: Hintergrund-Tabs brauchen kein Live-SSE.
+        disconnectSSE();
+        return;
+    }
+    initSSE();
+});
+
 // SSE beim Verlassen der Seite schließen
 window.addEventListener('beforeunload', function() {
-    if (eventSource) {
-        eventSource.close();
-    }
+    disconnectSSE();
 });
 
 // Direktes DOM-Update für Queue ohne Fetch-Request

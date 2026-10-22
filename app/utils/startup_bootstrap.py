@@ -64,6 +64,7 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
                 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
+                from app.models.app_password import AppPassword
                 from app.models.passkey import UserPasskey
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention

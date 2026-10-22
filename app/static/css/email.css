@@ -835,6 +835,19 @@ body {
     background-color: var(--portal-bg, #f0f2f5) !important;
 }
 
+/* Shell füllt Restfläche; Liste scrollt in .email-main-content (wie files-shell) */
+.email-content[data-module="email"] > .email-layout-desktop {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+}
+
 [data-bs-theme="dark"] .email-content[data-module="email"] {
     background-color: #1a1a1a !important;
 }
@@ -883,8 +896,17 @@ body:has(.email-content[data-module="email"]) {
         padding-bottom: var(--portal-mobile-nav-clearance) !important;
     }
 
-    /* Unter xl: Desktop-Shell ausgeblendet — Modul-Inhalt scrollt in der Shell */
-    .email-content[data-module="email"] {
+    /* Unter xl: Sidebar weg — Main füllt Breite und scrollt die Liste */
+    .email-content[data-module="email"] > .email-layout-desktop {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .email-content[data-module="email"] .email-main-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+        max-height: none;
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -923,11 +945,18 @@ body:has(.email-content[data-module="email"]) {
     min-width: 0;
     min-height: 0;
     height: 100%;
+    max-height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     background: transparent;
+}
+
+.email-content[data-module="email"] .email-mobile-topbar,
+.email-content[data-module="email"] .email-mid-toolbar,
+.email-content[data-module="email"] .email-list-toolbar {
+    flex-shrink: 0;
 }
 
 /* Mail-Liste ohne weiße Card-Fläche — wie Dateien-Liste auf Body-Grau */
@@ -1730,6 +1759,8 @@ body:has(.email-content[data-module="email"]) {
 
 .email-draggable {
     cursor: grab;
+    /* Touch: Scrollen statt Drag-Konflikt */
+    touch-action: pan-y;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 

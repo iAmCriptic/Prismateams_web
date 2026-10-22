@@ -26,6 +26,19 @@
   let pollTimer = null;
   let sseLive = false;
   let eventSource = null;
+  let pageSseHeld = false;
+
+  function holdPageSse() {
+    if (pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.acquire();
+    pageSseHeld = true;
+  }
+
+  function releasePageSse() {
+    if (!pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.release();
+    pageSseHeld = false;
+  }
 
   board.custom_field_categories = board.custom_field_categories || [];
 
@@ -2372,6 +2385,7 @@
       eventSource = null;
     }
     sseLive = false;
+    releasePageSse();
   }
 
   function connectSSE() {
@@ -2387,6 +2401,7 @@
     try {
       const es = new EventSource(url);
       eventSource = es;
+      holdPageSse();
       es.addEventListener('connected', () => {
         sseLive = true;
         stopPolling();
@@ -2395,6 +2410,7 @@
         if (es.readyState === EventSource.CLOSED) {
           if (eventSource === es) eventSource = null;
           sseLive = false;
+          releasePageSse();
           if (!document.hidden) startPolling();
         }
       };
@@ -2415,6 +2431,7 @@
       });
     } catch (_) {
       eventSource = null;
+      releasePageSse();
       startPolling();
     }
   }

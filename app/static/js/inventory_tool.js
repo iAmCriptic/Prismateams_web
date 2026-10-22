@@ -931,6 +931,7 @@ class InventoryToolManager {
             const es = new EventSource(`/sse/events/inventory/${this.inventoryId}`);
             this.eventSource = es;
             this._sseConnected = false;
+            this._holdPageSse();
 
             es.addEventListener('connected', () => {
                 this._sseConnected = true;
@@ -971,6 +972,7 @@ class InventoryToolManager {
                 }
             }, 4000);
         } catch (_) {
+            this._releasePageSse();
             this.startPollingFallback();
         }
     }
@@ -990,6 +992,18 @@ class InventoryToolManager {
         }
     }
 
+    _holdPageSse() {
+        if (this._pageSseHeld || !window.ptPageSse) return;
+        window.ptPageSse.acquire();
+        this._pageSseHeld = true;
+    }
+
+    _releasePageSse() {
+        if (!this._pageSseHeld || !window.ptPageSse) return;
+        window.ptPageSse.release();
+        this._pageSseHeld = false;
+    }
+
     _closeEventSource() {
         if (this._sseFallbackTimer) {
             clearTimeout(this._sseFallbackTimer);
@@ -1000,6 +1014,7 @@ class InventoryToolManager {
             this.eventSource = null;
         }
         this._sseConnected = false;
+        this._releasePageSse();
     }
 
     stopLiveUpdates() {
@@ -1014,12 +1029,11 @@ class InventoryToolManager {
             if (this.readOnly) return;
             if (document.hidden) {
                 this.stopPolling();
+                this._closeEventSource();
                 return;
             }
             this.loadItems();
-            if (!this.eventSource || !this._sseConnected) {
-                this.startPollingFallback();
-            }
+            this.startLiveUpdates();
         });
     }
 

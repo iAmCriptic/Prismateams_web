@@ -1295,6 +1295,53 @@
                     <div class="form-text">{{ _('files.index.webdav_modal.auth_hint') }}</div>
                 </div>
 
+                <div class="files-webdav-os-block mb-3" id="webdavAppPasswordBlock"
+                     data-list-url="{{ url_for('settings.app_passwords_list') }}"
+                     data-create-url="{{ url_for('settings.app_passwords_create') }}"
+                     data-security-url="{{ url_for('settings.security') }}#security-app-passwords">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-key-fill me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.app_password_title') }}
+                    </h6>
+                    <p class="form-text mb-2">{{ _('files.index.webdav_modal.app_password_intro') }}</p>
+
+                    <div id="webdavAppPasswordCreated" class="alert alert-permanent portal-msg portal-msg--success mb-2 d-none" role="status">
+                        <div class="portal-msg__body">
+                            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></div>
+                            <div class="portal-msg__content">
+                                <p class="portal-msg__text mb-2">{{ _('files.index.webdav_modal.app_password_once') }}</p>
+                                <label class="form-label small mb-1" for="webdavAppUsernameValue">{{ _('files.index.webdav_modal.username_label') }}</label>
+                                <div class="files-webdav-url-row mb-2">
+                                    <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="webdavAppUsernameValue" readonly value="">
+                                    <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavAppUsernameCopyBtn" title="{{ _('files.index.webdav_modal.copy_username') }}">
+                                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                        <span class="visually-hidden">{{ _('files.index.webdav_modal.copy_username') }}</span>
+                                    </button>
+                                </div>
+                                <label class="form-label small mb-1" for="webdavAppPasswordValue">{{ _('files.index.webdav_modal.password_label') }}</label>
+                                <div class="files-webdav-url-row">
+                                    <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="webdavAppPasswordValue" readonly value="">
+                                    <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavAppPasswordCopyBtn" title="{{ _('files.index.webdav_modal.copy_password') }}">
+                                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                        <span class="visually-hidden">{{ _('files.index.webdav_modal.copy_password') }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="files-webdav-app-pw-list list-unstyled mb-2" id="webdavAppPasswordList" hidden></ul>
+                    <p class="form-text mb-2 d-none" id="webdavAppPasswordEmpty">{{ _('files.index.webdav_modal.app_password_none') }}</p>
+
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button type="button" class="btn btn-accent rounded-pill px-3" id="webdavAppPasswordCreateBtn">
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.app_password_create') }}
+                        </button>
+                        <a class="btn btn-outline-secondary rounded-pill px-3" href="{{ url_for('settings.security') }}#security-app-passwords">
+                            {{ _('files.index.webdav_modal.app_password_manage') }}
+                        </a>
+                    </div>
+                </div>
+
                 <div class="files-webdav-os-block mb-3">
                     <h6 class="files-webdav-os-title">
                         <i class="bi bi-windows me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.windows_title') }}

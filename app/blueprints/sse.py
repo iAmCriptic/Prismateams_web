@@ -84,6 +84,47 @@ def publish_event(channel, event_type, data):
     return False
 
 
+def _sse_stream_headers():
+    """
+    SSE-Response-Header ohne Access-Control-Allow-Origin: *.
+
+    EventSource läuft same-origin (relative URLs). Cross-Origin nur, wenn
+    Origin zum Request-Host passt oder in SOCKETIO_CORS_ORIGINS / PUBLIC_BASE_URL liegt.
+    """
+    headers = {
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+    }
+    origin = (request.headers.get('Origin') or '').strip().rstrip('/')
+    if not origin:
+        return headers
+
+    try:
+        from urllib.parse import urlparse
+        from app.factory._util import resolve_socketio_cors_origins
+
+        allowed = resolve_socketio_cors_origins(current_app)
+        parsed = urlparse(origin)
+        origin_host = (parsed.netloc or '').lower()
+        req_host = (request.host or '').lower()
+
+        ok = False
+        if allowed is None:
+            ok = bool(origin_host) and origin_host == req_host
+        elif isinstance(allowed, (list, tuple)):
+            normalized = {o.rstrip('/') for o in allowed if o}
+            ok = origin in normalized
+        # allowed == '*': bewusst nicht spiegeln — SSE bleibt same-origin / Allowlist
+
+        if ok:
+            headers['Access-Control-Allow-Origin'] = origin
+            headers['Vary'] = 'Origin'
+    except Exception:
+        pass
+    return headers
+
+
 def event_stream(channels, user_id=None):
     """Generator für SSE-Stream mit Redis Pub/Sub."""
     client = get_redis_client()
@@ -161,17 +202,11 @@ def dashboard_events():
     def generate():
         yield from event_stream(channels, user_id)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',  # Nginx: Buffering deaktivieren
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/music')
@@ -182,17 +217,11 @@ def music_events():
     def generate():
         yield from event_stream(channels)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/email')
@@ -205,17 +234,11 @@ def email_events():
     def generate():
         yield from event_stream(channels, user_id)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 # Helper-Funktionen zum Senden von Events
@@ -291,12 +314,7 @@ def chat_events(chat_id):
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )
 
 
@@ -321,17 +339,11 @@ def kanban_events(board_id):
     def generate():
         yield from event_stream(channels, current_user.id)
 
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/inventory/<int:inventory_id>')
@@ -356,10 +368,5 @@ def inventory_events(inventory_id):
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )

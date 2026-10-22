@@ -14,17 +14,20 @@ class Config:
     ABOUT_RELEASE_VERSION = ABOUT_RELEASE_VERSION
     ABOUT_BUILD_NUMBER = ABOUT_BUILD_NUMBER
 
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    # Kein Dev-Fallback hier (S14) — nur DevelopmentConfig/TestingConfig setzen Default.
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or 'sqlite:///teamportal.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Pool-Defaults sparsam (Hetzner/Small-VPS). Größere Hosts: DB_POOL_SIZE / DB_MAX_OVERFLOW in .env.
+    # Pool pro Gunicorn-Worker (eigener Prozess). Default ≥ GUNICORN_THREADS (8):
+    # pool_size+overflow ≥ Threads/Worker, sonst warten Request-Slots auf Connections (QA G07).
+    # Small-VPS: DB_POOL_SIZE=5 bei --threads 4 (Installer --profile small).
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
         'pool_pre_ping': True,  # Prüft Verbindungen vor Verwendung, verhindert "Connection lost" Fehler
         'pool_timeout': 10,  # Reduziert von 20 auf 10 Sekunden für schnellere Fehlerbehandlung
-        'pool_size': int(os.environ.get('DB_POOL_SIZE', '5')),
-        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '5')),
+        'pool_size': int(os.environ.get('DB_POOL_SIZE', '8')),
+        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '4')),
         'connect_args': {
             'connect_timeout': 5,  # Reduziert von 10 auf 5 Sekunden für schnellere Timeouts
             'read_timeout': 30,  # Reduziert von 300 auf 30 Sekunden (ausreichend für normale Abfragen)
@@ -32,7 +35,21 @@ class Config:
         }
     }
     
-    PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+    # Session-Timeouts (S09): Idle + Absolut getrennt von Remember-Me
+    # Ohne „Angemeldet bleiben“: Idle 12h, Absolut 7 Tage
+    SESSION_INACTIVITY_HOURS = float(os.environ.get('SESSION_INACTIVITY_HOURS', '12'))
+    SESSION_ABSOLUTE_DAYS = float(os.environ.get('SESSION_ABSOLUTE_DAYS', '7'))
+    # Mit „Angemeldet bleiben“: längere Idle/Absolut-Fenster + Remember-Cookie
+    REMEMBER_COOKIE_DAYS = int(os.environ.get('REMEMBER_COOKIE_DAYS', '30'))
+    REMEMBER_SESSION_INACTIVITY_DAYS = float(
+        os.environ.get('REMEMBER_SESSION_INACTIVITY_DAYS', '14')
+    )
+    REMEMBER_SESSION_ABSOLUTE_DAYS = float(
+        os.environ.get('REMEMBER_SESSION_ABSOLUTE_DAYS', '30')
+    )
+    REMEMBER_COOKIE_DURATION = timedelta(days=REMEMBER_COOKIE_DAYS)
+    # Flask permanent-Session-Cookie = Remember-Fenster (nicht-permanent = Browser-Session)
+    PERMANENT_SESSION_LIFETIME = REMEMBER_COOKIE_DURATION
     # Default False für lokales HTTP; Staging/Prod überschreiben (siehe ProductionConfig).
     # Überall per .env überschreibbar: SESSION_COOKIE_SECURE=True
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
@@ -68,7 +85,8 @@ class Config:
         'PASSWORD_REQUIRE_COMPLEXITY', 'True'
     ).lower() in ('1', 'true', 'yes', 'on')
 
-    # 2FA-E-Mail-Recovery (schwächt TOTP bei Postfach-Kompromittierung ab)
+    # 2FA-E-Mail-Recovery: bewusst an (Produktfeature). Bei Postfach-Risiko abschalten.
+    # Voraussetzung: MAIL_* konfiguriert — sonst Startup-Warnung und Recovery-UI meldet Fehler.
     TWO_FACTOR_EMAIL_RECOVERY_ENABLED = os.environ.get(
         'TWO_FACTOR_EMAIL_RECOVERY_ENABLED', 'True'
     ).lower() in ('1', 'true', 'yes', 'on')
@@ -151,6 +169,8 @@ class Config:
 
     CREDENTIAL_ENCRYPTION_KEY = (os.environ.get('CREDENTIAL_ENCRYPTION_KEY') or '').strip()
     MAILBOX_ENCRYPTION_KEY = (os.environ.get('MAILBOX_ENCRYPTION_KEY') or '').strip()
+    # Eigenständiger Fernet-Key für TOTP-at-rest (Production fail-closed, kein SECRET_KEY-Fallback)
+    TOTP_ENCRYPTION_KEY = (os.environ.get('TOTP_ENCRYPTION_KEY') or '').strip()
     
     EXCALIDRAW_ENABLED = os.environ.get('EXCALIDRAW_ENABLED', 'False').lower() == 'true'
     EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')
@@ -197,6 +217,11 @@ class Config:
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
+    # Nur wenn True: bei REDIS_ENABLED=False trotzdem Redis anpingen und ggf. aktivieren.
+    # Default False — vermeidet Startup-Timeouts und Alarm-Logs im Single-Worker-Dev.
+    REDIS_AUTO_DETECT = os.environ.get('REDIS_AUTO_DETECT', 'False').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
     # Optional: explizites Limiter-Backend (sonst Redis wenn REDIS_ENABLED, sonst Memory)
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', '').strip() or None
     # Production/Staging: Memory-Limiter nur mit explizitem Opt-in
@@ -209,6 +234,8 @@ class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
     TESTING = False
+    # Nur lokal: fester Fallback, wenn SECRET_KEY in .env fehlt (S14)
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     # Error-Testrouten (/test/404 …) standardmäßig an; abschalten: ENABLE_ERROR_TEST_ROUTES=False
     ENABLE_ERROR_TEST_ROUTES = os.environ.get('ENABLE_ERROR_TEST_ROUTES', 'True').lower() == 'true'
     # python app.py ohne Nginx: Antworten komprimieren (P05)
@@ -221,7 +248,7 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = os.environ.get('SECRET_KEY')  # Pflicht — Startup abortiert sonst
     # Default True (HTTPS). Ohne SSL muss .env SESSION_COOKIE_SECURE=False setzen,
     # sonst speichert der Browser Session-Cookies nicht und Login/Setup brechen.
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
@@ -248,6 +275,7 @@ class StagingConfig(ProductionConfig):
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'test-secret-key-not-for-production'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
     ENABLE_ERROR_TEST_ROUTES = False
     ENABLE_APP_GZIP = False
