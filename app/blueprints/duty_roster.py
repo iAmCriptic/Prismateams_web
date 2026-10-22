@@ -89,6 +89,29 @@ def _denied(redirect_endpoint='duty_roster.index'):
     return redirect(url_for(redirect_endpoint))
 
 
+def _team_surface_guard(*, as_json=False):
+    """Modul + globale Team-Sektion — gleiche Guards für Index, View und Mutationen."""
+    if not _module_on():
+        if as_json:
+            return jsonify({
+                'ok': False,
+                'error': 'module_disabled',
+                'message': translate('duty_roster.flash.module_disabled'),
+            }), 403
+        flash(translate('duty_roster.flash.module_disabled'), 'warning')
+        return redirect(url_for('dashboard.index'))
+    if not is_global_team_enabled():
+        if as_json:
+            return jsonify({
+                'ok': False,
+                'error': 'no_section',
+                'message': translate('duty_roster.flash.no_section'),
+            }), 403
+        flash(translate('duty_roster.flash.no_section'), 'warning')
+        return redirect(url_for('duty_roster.index'))
+    return None
+
+
 def _schema_guard(fallback_endpoint='duty_roster.index', **fallback_values):
     """Ensure duty schema; on failure flash and redirect. Returns response or None."""
     if ensure_duty_schema():
@@ -272,8 +295,9 @@ def index():
 @login_required
 @check_module_access(MODULE_KEY)
 def team_index():
-    if not _module_on() or not is_global_team_enabled():
-        return _denied()
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     blocked = _schema_guard()
     if blocked:
         return blocked
@@ -322,6 +346,9 @@ def team_index():
 @login_required
 @check_module_access(MODULE_KEY)
 def team_create():
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     team_id = _parse_int(request.form.get('team_id'))
     year = _parse_int(request.form.get('year'), date.today().year)
     month = _parse_int(request.form.get('month'), date.today().month)
@@ -351,6 +378,9 @@ def team_create():
 @login_required
 @check_module_access(MODULE_KEY)
 def team_view(roster_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     blocked = _schema_guard()
     if blocked:
         return blocked
@@ -402,6 +432,9 @@ def team_view(roster_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_publish(roster_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -420,6 +453,9 @@ def team_publish(roster_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_delete(roster_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -434,6 +470,9 @@ def team_delete(roster_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_update_day(roster_id, day_id):
+    blocked = _team_surface_guard(as_json=True)
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return jsonify({
@@ -460,6 +499,9 @@ def team_update_day(roster_id, day_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_update_cell(roster_id):
+    blocked = _team_surface_guard(as_json=True)
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return jsonify({
@@ -549,6 +591,9 @@ def _column_redirect(roster: DutyRoster):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_add_column(roster_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -591,6 +636,9 @@ def team_add_column(roster_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_toggle_column(roster_id, column_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -604,6 +652,9 @@ def team_toggle_column(roster_id, column_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_delete_column(roster_id, column_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -617,6 +668,9 @@ def team_delete_column(roster_id, column_id):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_pdf(roster_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     roster = _get_roster_or_404(roster_id)
     if not can_view_team_roster(current_user, roster.team_id) and not can_plan_team(current_user, roster.team_id):
         return _denied()
@@ -643,6 +697,9 @@ def _parse_date_field(raw):
 @login_required
 @check_module_access(MODULE_KEY)
 def team_settings(team_id):
+    blocked = _team_surface_guard()
+    if blocked:
+        return blocked
     blocked = _schema_guard('duty_roster.team_index', team_id=team_id)
     if blocked:
         return blocked

@@ -104,14 +104,28 @@ LANGUAGE_FALLBACK_NAMES = {
     'ru': 'Русский'
 }
 
-# Übersetzungabdeckung relativ zu Deutsch (alle Keys vorhanden = 100)
-LANGUAGE_COMPLETENESS = {
-    'de': 100,
-    'en': 100,
-    'es': 11,
-    'pt': 11,
-    'ru': 11,
-}
+
+class _LanguageCompletenessMap:
+    """Lazy Mapping: Abdeckung aus den JSON-Dateien (mtime-Cache in i18n)."""
+
+    def get(self, code, default=None):
+        if not code:
+            return default
+        try:
+            from app.utils.i18n import get_language_completeness
+            return get_language_completeness(code)
+        except Exception:
+            return default
+
+    def __getitem__(self, code):
+        value = self.get(code)
+        if value is None:
+            raise KeyError(code)
+        return value
+
+
+# Rückwärtskompatibel für bestehende Imports (.get(code))
+LANGUAGE_COMPLETENESS = _LanguageCompletenessMap()
 
 
 def _language_badge_grade(percent):

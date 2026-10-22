@@ -555,6 +555,7 @@
       initAutosave(document);
       initSearch();
       initSettingsChrome(document);
+      initPillSelects(document);
       window.dispatchEvent(new CustomEvent('sp:settings-soft-reload'));
 
       window.scrollTo(0, scrollY);
@@ -565,12 +566,22 @@
     });
   }
 
+  function initPillSelects(root) {
+    if (!window.InventoryPillSelect) return;
+    if (typeof InventoryPillSelect.enhanceMarked === 'function') {
+      InventoryPillSelect.enhanceMarked(root || document);
+    } else if (typeof InventoryPillSelect.enhanceAll === 'function') {
+      InventoryPillSelect.enhanceAll(root || document);
+    }
+  }
+
   function init() {
     initCollapses(document);
     initTooltips(document);
     initAutosave(document);
     initSearch();
     initSettingsChrome(document);
+    initPillSelects(document);
     runHashFlash();
     if (!hashFlashBound) {
       hashFlashBound = true;

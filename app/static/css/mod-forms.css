@@ -62,6 +62,9 @@
 .mod-pill-select__label {
     flex: 1 1 auto;
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -69,6 +72,39 @@
 
 .mod-pill-select__label.is-placeholder {
     color: var(--bs-secondary-color, #6c757d);
+}
+
+.mod-pill-select__option-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mod-pill-select__badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    color: #fff;
+    background: hsl(var(--pill-badge-hue, 0), 68%, 42%);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.mod-pill-select__badge[data-grade="full"] { --pill-badge-hue: 120; }
+.mod-pill-select__badge[data-grade="high"] { --pill-badge-hue: 95; }
+.mod-pill-select__badge[data-grade="mid"] { --pill-badge-hue: 48; }
+.mod-pill-select__badge[data-grade="low"] { --pill-badge-hue: 8; }
+
+.mod-pill-select__option.is-selected .mod-pill-select__badge {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .mod-pill-select__chevron {
@@ -99,7 +135,10 @@
 }
 
 .mod-pill-select__option {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
     width: 100%;
     border: none;
     background: transparent;

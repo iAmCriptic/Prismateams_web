@@ -433,6 +433,13 @@
   animation: sp-fade-up var(--sp-dur) var(--sp-ease) both;
 }
 
+/* Pill-Select-Dropdowns dürfen nicht am Kartenrand abgeschnitten werden */
+.sp-group:has(.mod-pill-select),
+.sp-group:has(.mod-pill-select.is-open),
+.sp-row-control:has(.mod-pill-select) {
+  overflow: visible;
+}
+
 .sp-group:nth-child(2) { animation-delay: 0.04s; }
 
 .sp-group:nth-child(3) { animation-delay: 0.08s; }
@@ -561,6 +568,11 @@
 /* Avoid 0-width selects in grid `auto` columns (width:100% circular sizing). */
 
 .sp-row:not(.sp-row--stack) .sp-row-control .form-select {
+  width: auto;
+  min-width: 12rem;
+}
+
+.sp-row:not(.sp-row--stack) .sp-row-control .mod-pill-select {
   width: auto;
   min-width: 12rem;
 }

@@ -398,13 +398,15 @@ def appearance():
         if label == key:
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
         completeness = LANGUAGE_COMPLETENESS.get(code)
-        badge = f'{completeness}%' if completeness is not None else None
+        if completeness is None:
+            completeness = 0
+        badge = f'{completeness}%'
         language_options.append({
             'code': code,
             'label': label,
             'completeness': completeness,
             'badge': badge,
-            'badge_grade': _language_badge_grade(completeness) if completeness is not None else None,
+            'badge_grade': _language_badge_grade(completeness),
         })
 
     return render_template(
