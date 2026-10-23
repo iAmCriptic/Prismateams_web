@@ -1,0 +1,154 @@
+# Prismateams – Docker Compose
+#
+# Kern:  docker compose up -d
+# Plus:  docker compose --profile onlyoffice --profile excalidraw --profile mirotalk up -d
+#
+# Voraussetzung: .env im Projektroot (siehe docs/env.docker.example)
+
+name: prismateams
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-teamportal}
+      MYSQL_USER: ${MYSQL_USER:-teamportal}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD in .env setzen}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD in .env setzen}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - portal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - portal
+
+  app:
+    # Standard: Image von Docker Hub. Lokal neu bauen: docker compose build app
+    image: ${APP_IMAGE:-iamcriptic/prismateams:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      FLASK_ENV: production
+      DATABASE_URI: mysql+pymysql://${MYSQL_USER:-teamportal}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-teamportal}
+      REDIS_ENABLED: "True"
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_FOLDER: uploads
+      # Server→Sidecar (Compose-DNS); Browser nutzt Proxy-Pfade aus .env
+      MIROTALK_API_URL: ${MIROTALK_API_URL:-http://mirotalk:3010}
+    volumes:
+      - app_uploads:/app/uploads
+      - app_instance:/app/instance
+    ports:
+      - "${APP_HOST_BIND:-127.0.0.1}:${APP_HOST_PORT:-5000}:5000"
+    networks:
+      - portal
+
+  # Euro-Office Document Server (optional)
+  eurooffice:
+    profiles: ["onlyoffice"]
+    image: ${ONLYOFFICE_IMAGE:-ghcr.io/euro-office/documentserver:latest}
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_SECRET_KEY:-changeme-onlyoffice-jwt}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+    volumes:
+      - eurooffice_data:/var/lib/euro-office/documentserver
+      - eurooffice_logs:/var/log/euro-office/documentserver
+      - eurooffice_fonts:/usr/share/fonts/truetype/custom
+    ports:
+      - "${EUROOFFICE_HOST_BIND:-127.0.0.1}:${EUROOFFICE_HOST_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/healthcheck | grep -qi true"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - portal
+
+  # Excalidraw Room – Live-Kollaboration (optional)
+  excalidraw-room:
+    profiles: ["excalidraw"]
+    image: ${EXCALIDRAW_ROOM_IMAGE:-excalidraw/excalidraw-room:latest}
+    restart: unless-stopped
+    environment:
+      PORT: "80"
+    ports:
+      - "${EXCALIDRAW_HOST_BIND:-127.0.0.1}:${EXCALIDRAW_HOST_PORT:-8082}:80"
+    networks:
+      - portal
+
+  # MiroTalk SFU – Meetings (optional; WebRTC braucht öffentliche IP + UDP-Ports)
+  mirotalk:
+    profiles: ["mirotalk"]
+    image: ${MIROTALK_IMAGE:-mirotalk/sfu:latest}
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      NODE_ENV: production
+      SFU_ANNOUNCED_IP: ${SFU_ANNOUNCED_IP:-}
+      SFU_LISTEN_IP: "0.0.0.0"
+      SFU_MIN_PORT: ${MIROTALK_UDP_MIN:-40000}
+      SFU_MAX_PORT: ${MIROTALK_UDP_MAX:-40100}
+      SERVER_HOST_URL: ${MIROTALK_URL:-http://localhost:3010}
+      SERVER_LISTEN_IP: "0.0.0.0"
+      SERVER_LISTEN_PORT: "3010"
+      TRUST_PROXY: "true"
+      CORS_ORIGIN: ${MIROTALK_CORS_ORIGIN:-*}
+      ALLOWED_EMBED_ORIGINS: ${MIROTALK_EMBED_ORIGINS:-*}
+      HOST_PROTECTED: "true"
+      HOST_USER_AUTH: "false"
+      HOST_USERS: "${MIROTALK_HOST_USER:-portal}:${MIROTALK_HOST_PASSWORD:-changeme-mirotalk-pass}:Portal:*"
+      API_KEY_SECRET: ${MIROTALK_API_KEY:-changeme-mirotalk-api}
+      JWT_SECRET: ${MIROTALK_JWT_SECRET:-change-me-mirotalk-jwt}
+      JWT_EXPIRATION: 8h
+      RECORDING_ENABLED: "false"
+    ports:
+      - "${MIROTALK_HOST_PORT:-3010}:3010"
+      - "${MIROTALK_UDP_MIN:-40000}-${MIROTALK_UDP_MAX:-40100}:${MIROTALK_UDP_MIN:-40000}-${MIROTALK_UDP_MAX:-40100}/udp"
+      - "${MIROTALK_UDP_MIN:-40000}-${MIROTALK_UDP_MAX:-40100}:${MIROTALK_UDP_MIN:-40000}-${MIROTALK_UDP_MAX:-40100}/tcp"
+    networks:
+      - portal
+
+networks:
+  portal:
+    driver: bridge
+
+volumes:
+  db_data:
+  redis_data:
+  app_uploads:
+  app_instance:
+  eurooffice_data:
+  eurooffice_logs:
+  eurooffice_fonts:

@@ -157,6 +157,25 @@ def can_manage_team(user, team_id: int) -> bool:
     return bool(team and team.leader_id == user.id)
 
 
+def can_configure_mailbox_auto_reply(user, mailbox=None) -> bool:
+    """Wer darf Auto-Antworten setzen — ohne Admin-Override für fremde Postfächer.
+
+    mailbox is None → Hauptpostfach (nur Admin).
+    private → nur Owner; team → nur Teamleitung.
+    """
+    if not user:
+        return False
+    if mailbox is None:
+        return bool(getattr(user, 'is_admin', False))
+    mtype = getattr(mailbox, 'mailbox_type', None)
+    if mtype == 'private':
+        return bool(mailbox.owner_id == user.id)
+    if mtype == 'team' and getattr(mailbox, 'team_id', None):
+        team = Team.query.get(mailbox.team_id)
+        return bool(team and team.leader_id == user.id)
+    return False
+
+
 def _valid_fernet_key(raw) -> Optional[bytes]:
     if raw is None:
         return None

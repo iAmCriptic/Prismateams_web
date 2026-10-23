@@ -161,8 +161,11 @@
     <a href="{{ url_for('settings.admin_users') }}" class="nav-link mod-nav-link{% if users_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>{{ _('settings.admin.cards.user_management.title') }}
     </a>
-    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active and not team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
+    </a>
+    <a href="{{ url_for('settings.team_settings') }}" class="nav-link mod-nav-link{% if team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-sliders me-2"></i>{{ _('settings.team_settings.title') }}
     </a>
     <a href="{{ url_for('settings.admin_whitelist') }}" class="nav-link mod-nav-link{% if whitelist_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-check me-2"></i>{{ _('settings.admin.cards.whitelist.title') }}

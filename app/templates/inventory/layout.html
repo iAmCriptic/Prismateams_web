@@ -14,6 +14,7 @@
     'inventory.folders', 'inventory.product_borrow', 'inventory.borrow_multiple'
   ),
   'product_scan': ep == 'inventory.product_scan',
+  'dguv_exam': ep == 'inventory.dguv_exam' or (ep or '').startswith('inventory.api_dguv_exam') or ep == 'inventory.dguv_exam_pdf',
   'quick_scan': ep == 'inventory.borrow_scanner',
   'checkout': ep in ('inventory.inventory_checkout', 'inventory.inventory_checkout_confirm'),
   'borrows': ep == 'inventory.borrows',
@@ -67,8 +68,15 @@
     <a class="nav-link mod-nav-link {% if inv_nav.product_scan %}active{% endif %}"
        href="{{ url_for('inventory.product_scan') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-clipboard2-pulse me-2"></i>{{ _('inventory.shell.nav.product_scan') }}
+        <i class="bi bi-info-circle me-2"></i>{{ _('inventory.shell.nav.product_scan') }}
     </a>
+    {% if inv_features.dguv %}
+    <a class="nav-link mod-nav-link {% if inv_nav.dguv_exam %}active{% endif %}"
+       href="{{ url_for('inventory.dguv_exam') }}"
+       {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-shield-check me-2"></i>{{ _('inventory.shell.nav.dguv_exam') }}
+    </a>
+    {% endif %}
     {% if inv_features.quick_scan %}
     <a class="nav-link mod-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
        href="{{ url_for('inventory.borrow_scanner') }}"

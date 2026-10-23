@@ -55,8 +55,12 @@ step_gunicorn() {
     fi
 
     GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
-    # gthread: SSE/lange Streams blockieren nicht den ganzen Worker-Prozess
+    # gthread: SSE/lange Streams blockieren nicht den ganzen Worker-Prozess (QA F09)
     GUNICORN_WORKER_CLASS="${GUNICORN_WORKER_CLASS:-gthread}"
+    if [ "${GUNICORN_WORKER_CLASS}" = "sync" ]; then
+        log_warning "GUNICORN_WORKER_CLASS=sync blockiert SSE (/sse/events/*) — erzwinge gthread"
+        GUNICORN_WORKER_CLASS="gthread"
+    fi
     GUNICORN_THREADS="${GUNICORN_THREADS:-8}"
     GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-180}"
     GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-1000}"

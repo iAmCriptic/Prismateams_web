@@ -66,7 +66,7 @@
           <div class="sp-row-control">
             <select class="form-select mod-pill-input" id="sync_interval" name="sync_interval" style="min-width:12rem;max-width:14rem">
               <option value="15" {% if sync_interval == 15 %}selected{% endif %}>15 Minuten</option>
-              <option value="30" {% if sync_interval == 30 %}selected{% endif %}>30 Minuten</option>
+              <option value="30" {% if sync_interval != 15 and sync_interval != 60 %}selected{% endif %}>30 Minuten (Standard)</option>
               <option value="60" {% if sync_interval == 60 %}selected{% endif %}>60 Minuten (1 Stunde)</option>
             </select>
           </div>

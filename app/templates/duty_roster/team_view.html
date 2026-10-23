@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ roster.display_title }} – {{ _('duty_roster.nav.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/duty_roster.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set heading = roster.display_title %}
+{% include 'duty_roster/_layout_start.html' %}
+
+        <div class="duty-plan-chrome">
+            <div class="duty-toolbar">
+                <div class="duty-toolbar__title">
+                    <h1>
+                        {{ roster.display_title }}
+                        {% if roster.is_published %}
+                        <span class="duty-badge duty-badge--published">{{ _('duty_roster.index.published_badge') }}</span>
+                        {% else %}
+                        <span class="duty-badge duty-badge--draft">{{ _('duty_roster.index.draft_badge') }}</span>
+                        {% endif %}
+                    </h1>
+                    <div class="duty-toolbar__meta">
+                        {{ roster.team.name if roster.team else '' }} · {{ '%02d'|format(roster.month) }}/{{ roster.year }}
+                    </div>
+                </div>
+                <div class="duty-toolbar__actions">
+                    <a href="{{ url_for('duty_roster.team_index', team_id=roster.team_id) }}" class="btn mod-pill-btn mod-pill-btn--ghost mod-pill-btn--icon" title="{{ _('layout.nav.back') }}">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <a href="{{ url_for('duty_roster.team_pdf', roster_id=roster.id) }}" class="btn mod-pill-btn">
+                        <i class="bi bi-filetype-pdf"></i> {{ _('duty_roster.nav.pdf') }}
+                    </a>
+                    {% if can_plan %}
+                    <a href="{{ url_for('duty_roster.team_settings', team_id=roster.team_id) }}" class="btn mod-pill-btn mod-pill-btn--icon" title="{{ _('duty_roster.nav.settings') }}">
+                        <i class="bi bi-gear"></i>
+                    </a>
+                    <form method="post" action="{{ url_for('duty_roster.team_publish', roster_id=roster.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if roster.is_published %}
+                        <input type="hidden" name="action" value="unpublish">
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline-warning">{{ _('duty_roster.nav.unpublish') }}</button>
+                        {% else %}
+                        <input type="hidden" name="action" value="publish">
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--success">{{ _('duty_roster.nav.publish') }}</button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="duty-controls">
+                <div class="duty-seg" role="group" aria-label="{{ _('duty_roster.table.view_month') }}">
+                    <a href="{{ url_for('duty_roster.team_view', roster_id=roster.id, view='day', mode=editor_mode, focus=focus_date.isoformat() if focus_date else none) }}"
+                       class="duty-seg__btn {% if view_mode == 'day' %}is-active{% endif %}">{{ _('duty_roster.table.view_day') }}</a>
+                    <a href="{{ url_for('duty_roster.team_view', roster_id=roster.id, view='week', mode=editor_mode, focus=focus_date.isoformat() if focus_date else none) }}"
+                       class="duty-seg__btn {% if view_mode == 'week' %}is-active{% endif %}">{{ _('duty_roster.table.view_week') }}</a>
+                    <a href="{{ url_for('duty_roster.team_view', roster_id=roster.id, view='month', mode=editor_mode, focus=focus_date.isoformat() if focus_date else none) }}"
+                       class="duty-seg__btn {% if view_mode == 'month' %}is-active{% endif %}">{{ _('duty_roster.table.view_month') }}</a>
+                </div>
+                {% if can_plan %}
+                <div class="duty-seg" role="group" aria-label="{{ _('duty_roster.table.editor_mode') }}">
+                    <a href="{{ url_for('duty_roster.team_view', roster_id=roster.id, view=view_mode, mode='view', focus=focus_date.isoformat() if focus_date else none) }}"
+                       class="duty-seg__btn {% if editor_mode == 'view' %}is-active{% endif %}">{{ _('duty_roster.table.mode_view') }}</a>
+                    <a href="{{ url_for('duty_roster.team_view', roster_id=roster.id, view=view_mode, mode='edit', focus=focus_date.isoformat() if focus_date else none) }}"
+                       class="duty-seg__btn {% if editor_mode == 'edit' %}is-active{% endif %}">{{ _('duty_roster.table.mode_edit') }}</a>
+                </div>
+                {% endif %}
+                <div class="duty-pager" role="group" aria-label="{{ _('duty_roster.table.pager') }}">
+                    {% if nav_prev_url %}
+                    <a href="{{ nav_prev_url }}" class="btn mod-pill-btn mod-pill-btn--icon duty-pager__btn" title="{{ _('duty_roster.table.prev') }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    {% else %}
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--icon duty-pager__btn" disabled title="{{ _('duty_roster.table.pager_unavailable') }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    {% endif %}
+                    <div class="duty-focus-field duty-focus-field--inline">
+                        <label for="dutyFocus" class="visually-hidden">{{ _('duty_roster.table.focus') }}</label>
+                        <input type="date" id="dutyFocus" name="focus"
+                               value="{{ focus_date.isoformat() if focus_date else '' }}"
+                               title="{{ _('duty_roster.table.focus') }}"
+                               onchange="location.href='{{ url_for('duty_roster.team_view', roster_id=roster.id, view=view_mode, mode=editor_mode) }}&focus='+this.value;">
+                    </div>
+                    {% if nav_next_url %}
+                    <a href="{{ nav_next_url }}" class="btn mod-pill-btn mod-pill-btn--icon duty-pager__btn" title="{{ _('duty_roster.table.next') }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--icon duty-pager__btn" disabled title="{{ _('duty_roster.table.pager_unavailable') }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="duty-plan-scroll">
+            {% include 'duty_roster/_table.html' %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if editable %}
+<script>
+window.DUTY_ROSTER = {
+    rosterId: {{ roster.id }},
+    cellUrl: {{ url_for('duty_roster.team_update_cell', roster_id=roster.id)|tojson }},
+    dayUrlBase: {{ url_for('duty_roster.team_update_day', roster_id=roster.id, day_id=0)|tojson }},
+    csrfToken: {{ csrf_token()|tojson }},
+    i18n: {
+        cellSaveFailed: {{ _('duty_roster.flash.cell_save_failed')|tojson }},
+        daySaveFailed: {{ _('duty_roster.flash.day_save_failed')|tojson }},
+        cellDenied: {{ _('duty_roster.flash.cell_denied')|tojson }},
+        cellNotFound: {{ _('duty_roster.flash.cell_not_found')|tojson }},
+        cellInactive: {{ _('duty_roster.flash.cell_inactive')|tojson }}
+    }
+};
+</script>
+<script src="{{ url_for('static', filename='js/duty_roster.js') }}"></script>
+{% endif %}
+{% endblock %}

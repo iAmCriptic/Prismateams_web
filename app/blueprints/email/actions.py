@@ -116,7 +116,9 @@ def sync_emails():
         }
         if extras:
             payload.update(extras)
-        # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+        # In-process Status (Single-Worker / ohne Redis) + SSE (Multi-Worker mit Redis)
+        from app.utils.email_sync_jobs import set_email_sync_job
+        set_email_sync_job(job_id, payload)
         emit_email_sync_status(user_id, 'sync_status', payload)
     
     def sync_in_background():
@@ -172,6 +174,16 @@ def sync_emails():
                 app_instance.logger.error(f"E-Mail-Synchronisation Fehler: {exc}", exc_info=True)
                 emit_status('error', str(exc), 'danger', shouldRefresh=False)
     
+    from app.utils.email_sync_jobs import set_email_sync_job
+    set_email_sync_job(job_id, {
+        'status': 'queued',
+        'message': 'Synchronisation wird gestartet…',
+        'level': 'info',
+        'folder': current_folder,
+        'folderLabel': folder_label,
+        'mailboxId': sync_mailbox_id,
+    })
+
     thread = threading.Thread(target=sync_in_background, name=f"email-sync-{job_id}")
     thread.daemon = True
     thread.start()
@@ -197,7 +209,25 @@ def sync_emails():
         'folder': current_folder,
         'folderLabel': folder_label,
         'mailboxId': sync_mailbox_id,
+        'statusUrl': url_for('email.sync_job_status', job_id=job_id),
     }), 202
+
+
+@email_bp.route('/sync/status/<job_id>', methods=['GET'])
+@login_required
+@check_module_access('module_email')
+def sync_job_status(job_id):
+    """Poll sync job status when Redis/SSE is unavailable."""
+    if not check_email_permission('read'):
+        return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
+    from app.utils.email_sync_jobs import get_email_sync_job
+    job = get_email_sync_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'not_found', 'status': 'unknown'}), 404
+    # Jobs are user-scoped via job_id prefix "{user_id}-…"
+    if not str(job_id).startswith(f'{current_user.id}-'):
+        return jsonify({'success': False, 'error': 'forbidden'}), 403
+    return jsonify({'success': True, **job})
 
 
 def _wants_json_response():

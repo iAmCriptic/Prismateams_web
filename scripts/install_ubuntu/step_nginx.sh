@@ -58,6 +58,16 @@ else
     log_warning "nginx-gzip.conf nicht gefunden unter ${LIB_DIR}"
 fi
 
+# Open-file-Cache (Static-Aliases unter Last)
+_ofc_src="${LIB_DIR}/nginx-open-file-cache.conf"
+_ofc_dst="/etc/nginx/conf.d/teamportal-open-file-cache.conf"
+if [ -f "$_ofc_src" ]; then
+    cp "$_ofc_src" "$_ofc_dst"
+    log_success "Open-file-Cache: ${_ofc_dst}"
+else
+    log_warning "nginx-open-file-cache.conf nicht gefunden unter ${LIB_DIR}"
+fi
+
 # Nginx Site-Konfiguration erstellen
 cat > /etc/nginx/sites-available/teamportal <<EOF
 # Upstream-Block für Session-Stickiness (MUSS VOR server-Block sein!)
@@ -186,20 +196,34 @@ location /eurooffice {
 }
 
 # Statische Dateien (MUSS VOR / kommen!)
+# Browser-Cache + immutable — kein Nginx proxy_cache für HTML (Session/CSRF).
 location /static {
     alias ${INSTALL_DIR}/app/static;
     expires 30d;
     add_header Cache-Control "public, immutable";
+    access_log off;
     include /etc/nginx/mime.types;
     types {
         text/javascript mjs;
     }
 }
 
+# Service Worker: nie long-cachen (App setzt zusätzlich no-cache)
+location = /sw.js {
+    proxy_pass http://teamportal_backend;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    expires off;
+}
+
 # Uploads (MUSS VOR / kommen!)
 location /uploads {
     alias ${INSTALL_DIR}/uploads;
     expires 7d;
+    access_log off;
 }
 
 # Socket.IO spezifische Konfiguration (MUSS VOR / kommen!)

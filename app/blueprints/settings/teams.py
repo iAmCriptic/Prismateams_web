@@ -145,7 +145,7 @@ def admin_teams():
 @settings_bp.route('/team-settings', methods=['GET', 'POST'])
 @login_required
 def team_settings():
-    """Team leaders: enable/disable team sections per team."""
+    """Admins and team leaders: enable/disable team sections per team."""
     from app.models.team import Team
     from app.utils.multi_mailboxes import can_manage_team, get_led_teams, user_is_team_leader
     from app.utils.team_module_settings import (
@@ -154,14 +154,14 @@ def team_settings():
         set_team_section_enabled,
     )
 
-    if current_user.is_admin:
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.index'))
-    if not user_is_team_leader(current_user):
+    is_admin = bool(current_user.is_admin)
+    is_leader = user_is_team_leader(current_user)
+    if not is_admin and not is_leader:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
-    teams = get_led_teams(current_user)
+    # Admins can configure any team; non-admin leaders only their own.
+    teams = Team.query.order_by(Team.name).all() if is_admin else get_led_teams(current_user)
     if not teams:
         flash(translate('settings.team_settings.flash_no_teams'), 'warning')
         return redirect(url_for('settings.index'))
@@ -187,6 +187,9 @@ def team_settings():
         'files': translate('settings.admin.cards.file_settings.title'),
         'email': translate('settings.sidebar.email_module'),
         'chat': translate('settings.team_settings.module_chat'),
+        'surveys': translate('layout.nav.surveys'),
+        'protocols': translate('layout.nav.protocols'),
+        'duty_roster': translate('layout.nav.duty_roster'),
     }
 
     if request.method == 'POST':
@@ -334,6 +337,67 @@ def admin_team_detail(team_id):
                 flash(translate('settings.admin.teams.flash_member_removed'), 'success')
             return redirect(url_for('settings.admin_team_detail', team_id=team.id))
 
+        if action == 'create_invite_code':
+            from app.models.team import TeamInviteCode
+            import secrets
+            from datetime import timedelta
+
+            max_uses_raw = (request.form.get('max_uses') or '').strip()
+            max_uses = None
+            if max_uses_raw:
+                if not max_uses_raw.isdigit() or int(max_uses_raw) < 1:
+                    flash(translate('settings.admin.teams.invite.flash_invalid_max_uses'), 'danger')
+                    return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+                max_uses = int(max_uses_raw)
+
+            expires_at = None
+            expires_days_raw = (request.form.get('expires_days') or '').strip()
+            if expires_days_raw:
+                if not expires_days_raw.isdigit() or int(expires_days_raw) < 1:
+                    flash(translate('settings.admin.teams.invite.flash_invalid_expires'), 'danger')
+                    return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+                expires_at = datetime.utcnow() + timedelta(days=int(expires_days_raw))
+
+            code = secrets.token_urlsafe(8)
+            while TeamInviteCode.query.filter_by(code=code).first():
+                code = secrets.token_urlsafe(8)
+
+            invite = TeamInviteCode(
+                code=code,
+                team_id=team.id,
+                created_by_id=current_user.id,
+                max_uses=max_uses,
+                uses_count=0,
+                expires_at=expires_at,
+                is_active=True,
+            )
+            db.session.add(invite)
+            db.session.commit()
+            flash(translate('settings.admin.teams.invite.flash_created'), 'success')
+            return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+        if action == 'deactivate_invite_code':
+            from app.models.team import TeamInviteCode
+            raw_id = request.form.get('invite_id', '').strip()
+            if raw_id.isdigit():
+                invite = TeamInviteCode.query.filter_by(id=int(raw_id), team_id=team.id).first()
+                if invite:
+                    invite.is_active = False
+                    db.session.commit()
+                    flash(translate('settings.admin.teams.invite.flash_deactivated'), 'success')
+            return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
+        if action == 'delete_invite_code':
+            from app.models.team import TeamInviteCode
+            raw_id = request.form.get('invite_id', '').strip()
+            if raw_id.isdigit():
+                invite = TeamInviteCode.query.filter_by(id=int(raw_id), team_id=team.id).first()
+                if invite:
+                    db.session.delete(invite)
+                    db.session.commit()
+                    flash(translate('settings.admin.teams.invite.flash_deleted'), 'success')
+            return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+
     member_user_ids = {m.user_id for m in team.members}
     members = sorted(
         [m for m in team.members if m.user],
@@ -350,11 +414,19 @@ def admin_team_detail(team_id):
         User.first_name,
     ).all()
 
+    from app.models.team import TeamInviteCode
+    invite_codes = (
+        TeamInviteCode.query.filter_by(team_id=team.id)
+        .order_by(TeamInviteCode.created_at.desc())
+        .all()
+    )
+
     return render_template(
         'settings/admin_team_detail.html',
         team=team,
         members=members,
         available_users=available_users,
+        invite_codes=invite_codes,
         email_multi_enabled=is_email_multi_enabled(),
         can_edit_team_meta=current_user.is_admin,
     )

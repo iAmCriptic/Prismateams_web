@@ -12,10 +12,39 @@ import re
 _PORTAL_SESS_OK_AT = '_portal_sess_ok_at'
 _PORTAL_SESS_OK_SID = '_portal_sess_ok_sid'
 _PORTAL_SESS_LAST_ACTIVITY = '_portal_sess_last_activity'
+_PORTAL_SESS_CREATED = '_portal_sess_created'
 _PORTAL_SESS_DIRTY = '_portal_sess_dirty_activity'
 PORTAL_SESSION_CACHE_TTL = timedelta(seconds=60)
 PORTAL_SESSION_ACTIVITY_INTERVAL = timedelta(minutes=1)
-PORTAL_SESSION_INACTIVITY_LIMIT = timedelta(days=30)
+
+
+def _portal_session_timeouts():
+    """
+    Idle- und Absolut-Timeout aus Config.
+    Remember-Me (session.permanent) nutzt längere Fenster.
+    """
+    from flask import current_app
+
+    remember = bool(getattr(session, 'permanent', False))
+    try:
+        if remember:
+            idle = timedelta(
+                days=float(current_app.config.get('REMEMBER_SESSION_INACTIVITY_DAYS', 14) or 14)
+            )
+            absolute = timedelta(
+                days=float(current_app.config.get('REMEMBER_SESSION_ABSOLUTE_DAYS', 30) or 30)
+            )
+        else:
+            idle = timedelta(
+                hours=float(current_app.config.get('SESSION_INACTIVITY_HOURS', 12) or 12)
+            )
+            absolute = timedelta(
+                days=float(current_app.config.get('SESSION_ABSOLUTE_DAYS', 7) or 7)
+            )
+    except (TypeError, ValueError):
+        idle = timedelta(hours=12)
+        absolute = timedelta(days=7)
+    return idle, absolute
 
 
 def generate_session_id():
@@ -233,16 +262,25 @@ def clear_portal_session_cache():
         _PORTAL_SESS_OK_AT,
         _PORTAL_SESS_OK_SID,
         _PORTAL_SESS_LAST_ACTIVITY,
+        _PORTAL_SESS_CREATED,
         _PORTAL_SESS_DIRTY,
     ):
         session.pop(key, None)
 
 
-def _store_portal_session_cache(session_id: str, last_activity: datetime | None):
+def _store_portal_session_cache(
+    session_id: str,
+    last_activity: datetime | None,
+    created_at: datetime | None = None,
+):
     now = datetime.utcnow()
     session[_PORTAL_SESS_OK_AT] = now.isoformat()
     session[_PORTAL_SESS_OK_SID] = session_id
     session[_PORTAL_SESS_LAST_ACTIVITY] = (last_activity or now).isoformat()
+    if created_at is not None:
+        session[_PORTAL_SESS_CREATED] = created_at.isoformat()
+    elif _PORTAL_SESS_CREATED not in session:
+        session[_PORTAL_SESS_CREATED] = (last_activity or now).isoformat()
     session.pop(_PORTAL_SESS_DIRTY, None)
 
 
@@ -252,7 +290,7 @@ def touch_portal_session_cached(user_id):
 
     Returns:
         ('ok', None) — session valid (DB skipped or refreshed)
-        ('invalid', error_code) — logout caller
+        ('invalid', error_code) — logout caller ('inactivity' | 'absolute' | …)
         ('error', None) — unexpected failure; caller may log and continue
     """
     current_session_id = session.get('session_id')
@@ -261,9 +299,11 @@ def touch_portal_session_cached(user_id):
         return 'invalid', 'missing_session_id'
 
     now = datetime.utcnow()
+    idle_limit, absolute_limit = _portal_session_timeouts()
     cache_sid = session.get(_PORTAL_SESS_OK_SID)
     cache_ok_at = _parse_session_iso(session.get(_PORTAL_SESS_OK_AT))
     cache_last = _parse_session_iso(session.get(_PORTAL_SESS_LAST_ACTIVITY))
+    cache_created = _parse_session_iso(session.get(_PORTAL_SESS_CREATED))
     cache_fresh = (
         cache_sid == current_session_id
         and cache_ok_at is not None
@@ -272,7 +312,10 @@ def touch_portal_session_cached(user_id):
     )
 
     if cache_fresh:
-        if (now - cache_last) >= PORTAL_SESSION_INACTIVITY_LIMIT:
+        if cache_created and absolute_limit.total_seconds() > 0 and (now - cache_created) >= absolute_limit:
+            clear_portal_session_cache()
+            return 'invalid', 'absolute'
+        if idle_limit.total_seconds() > 0 and (now - cache_last) >= idle_limit:
             clear_portal_session_cache()
             return 'invalid', 'inactivity'
         # Mark activity dirty in cookie; flush to DB on next cache miss / TTL expiry
@@ -287,8 +330,15 @@ def touch_portal_session_cached(user_id):
             clear_portal_session_cache()
             return 'invalid', 'revoked'
 
+        created = current_session.created_at
+        if created and absolute_limit.total_seconds() > 0 and (now - created) >= absolute_limit:
+            revoke_session(user_id, current_session_id)
+            db.session.commit()
+            clear_portal_session_cache()
+            return 'invalid', 'absolute'
+
         last_seen = current_session.last_activity or current_session.created_at
-        if last_seen and (now - last_seen) >= PORTAL_SESSION_INACTIVITY_LIMIT:
+        if last_seen and idle_limit.total_seconds() > 0 and (now - last_seen) >= idle_limit:
             revoke_session(user_id, current_session_id)
             db.session.commit()
             clear_portal_session_cache()
@@ -304,7 +354,7 @@ def touch_portal_session_cached(user_id):
             db.session.commit()
             last_seen = now
 
-        _store_portal_session_cache(current_session_id, last_seen)
+        _store_portal_session_cache(current_session_id, last_seen, created)
         return 'ok', None
     except Exception:
         clear_portal_session_cache()

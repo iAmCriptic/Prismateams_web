@@ -153,6 +153,72 @@
         </div>
       </section>
 
+      <section class="sp-group" id="system-redis" data-settings-search-id="system-redis">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-hdd-network" aria-hidden="true"></i>{{ _('settings.admin.system.section_redis') }}</h2>
+          {{ sp_info(_('settings.admin.system.redis_help')) }}
+        </div>
+        <div class="sp-group-body">
+          {% if redis_runtime_status == 'unavailable' %}
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0 text-danger">
+              <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+              {{ _('settings.admin.system.redis_warn_unavailable') }}
+              {% if redis_runtime_detail %}<span class="text-muted"> ({{ redis_runtime_detail }})</span>{% endif %}
+            </p>
+          </div>
+          {% elif redis_runtime_status == 'disabled' and flask_env not in ('development', 'testing') %}
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0 text-warning">
+              <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+              {{ _('settings.admin.system.redis_warn_disabled_prod') }}
+            </p>
+          </div>
+          {% endif %}
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.redis_status_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              {% if redis_runtime_status == 'connected' %}
+              <span class="badge text-bg-success rounded-pill">{{ _('settings.admin.system.redis_status_connected') }}</span>
+              {% elif redis_runtime_status == 'unavailable' %}
+              <span class="badge text-bg-danger rounded-pill">{{ _('settings.admin.system.redis_status_unavailable') }}</span>
+              {% else %}
+              <span class="badge text-bg-secondary rounded-pill">{{ _('settings.admin.system.redis_status_disabled') }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">REDIS_URL</span>
+            </div>
+            <div class="sp-row-control">
+              <code class="small">{{ redis_runtime_url or '—' }}</code>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.session_backend_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <code class="small">{{ session_backend or '—' }}</code>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.rate_limit_storage_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <code class="small">{{ rate_limit_storage or '—' }}</code>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0">{{ _('settings.admin.system.redis_note') }}</p>
+          </div>
+        </div>
+      </section>
+
       <section class="sp-group" id="system-cookie-security" data-settings-search-id="system-cookie-security">
         <div class="sp-group-head">
           <h2 class="sp-group-title"><i class="bi bi-shield-lock" aria-hidden="true"></i>{{ _('settings.admin.system.section_cookie_security') }}</h2>

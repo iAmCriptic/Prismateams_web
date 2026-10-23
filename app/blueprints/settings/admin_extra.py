@@ -150,6 +150,8 @@ def admin_roles_user(user_id):
         
         return jsonify({
             'has_full_access': user.has_full_access,
+            'can_access_public': bool(getattr(user, 'can_access_public', True)),
+            'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': module_roles,
             'booking_roles': booking_roles,
             'email_permissions': email_permissions,
@@ -181,6 +183,8 @@ def admin_roles_user_update(user_id):
     try:
         # Aktualisiere Vollzugriff
         user.has_full_access = request.form.get('has_full_access') == 'on'
+        user.can_access_public = request.form.get('can_access_public') == 'on'
+        user.can_access_private = request.form.get('can_access_private') == 'on'
         
         # Liste aller Module
         all_modules = [
@@ -205,6 +209,7 @@ def admin_roles_user_update(user_id):
             'module_surveys',
             'module_protocols',
             'module_meetings',
+            'module_duty_roster',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -304,6 +309,7 @@ def admin_roles_default():
         ('module_surveys', 'Umfragen'),
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
+        ('module_duty_roster', 'Dienstplan'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

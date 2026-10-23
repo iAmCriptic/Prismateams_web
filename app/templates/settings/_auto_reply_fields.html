@@ -1,0 +1,47 @@
+{# Shared Auto-Reply fields. Expects: auto_reply (MailboxAutoReply|None), prefix optional for ids #}
+{% set ar = auto_reply %}
+{% set id_prefix = id_prefix|default('ar') %}
+<div class="settings-auto-reply-fields">
+  <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" role="switch"
+           id="{{ id_prefix }}_enabled" name="auto_reply_enabled"
+           {% if ar and ar.enabled %}checked{% endif %}>
+    <label class="form-check-label" for="{{ id_prefix }}_enabled">
+      {{ _('settings.mailboxes.auto_reply.enabled') }}
+    </label>
+  </div>
+  <p class="form-text mb-3">{{ _('settings.mailboxes.auto_reply.help') }}</p>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-6">
+      <label class="form-label" for="{{ id_prefix }}_start">{{ _('settings.mailboxes.auto_reply.start_at') }}</label>
+      <input type="datetime-local" class="form-control" id="{{ id_prefix }}_start"
+             name="auto_reply_start_at"
+             value="{{ auto_reply_start_at|default('') }}">
+      <div class="form-text">{{ _('settings.mailboxes.auto_reply.start_help') }}</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="{{ id_prefix }}_end">{{ _('settings.mailboxes.auto_reply.end_at') }}</label>
+      <input type="datetime-local" class="form-control" id="{{ id_prefix }}_end"
+             name="auto_reply_end_at"
+             value="{{ auto_reply_end_at|default('') }}">
+      <div class="form-text">{{ _('settings.mailboxes.auto_reply.end_help') }}</div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label" for="{{ id_prefix }}_subject">{{ _('settings.mailboxes.auto_reply.subject') }}</label>
+    <input type="text" class="form-control" id="{{ id_prefix }}_subject" name="auto_reply_subject"
+           maxlength="500"
+           value="{{ ar.subject if ar and ar.subject else _('settings.mailboxes.auto_reply.subject_default') }}"
+           placeholder="{{ _('settings.mailboxes.auto_reply.subject_placeholder') }}">
+    <div class="form-text">{{ _('settings.mailboxes.auto_reply.subject_help') }}</div>
+  </div>
+
+  <div class="mb-0">
+    <label class="form-label" for="{{ id_prefix }}_body">{{ _('settings.mailboxes.auto_reply.body') }}</label>
+    <textarea class="form-control" id="{{ id_prefix }}_body" name="auto_reply_body" rows="6"
+              placeholder="{{ _('settings.mailboxes.auto_reply.body_placeholder') }}">{{ ar.body_html if ar and ar.body_html else '' }}</textarea>
+    <div class="form-text">{{ _('settings.mailboxes.auto_reply.body_help') }}</div>
+  </div>
+</div>

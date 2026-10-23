@@ -47,6 +47,7 @@ def register_browse_routes(files_bp):
                 request.args.get('view'),
                 private_enabled=private_enabled,
                 team_enabled=team_enabled,
+                user=current_user,
             )
 
         # Öffentliche / Team-Ordner landen ohne ?view= default in Ablage → kein Zugriff.

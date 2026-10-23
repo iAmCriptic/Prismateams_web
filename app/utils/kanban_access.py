@@ -25,13 +25,14 @@ def is_kanban_module_enabled() -> bool:
     return is_module_enabled('module_kanban')
 
 
-def get_allowed_visibilities() -> list[str]:
+def get_allowed_visibilities(user=None) -> list[str]:
     """Board types that may be created / openly discovered."""
     from app.utils.module_visibility_settings import (
         is_global_private_enabled,
         is_global_public_enabled,
         is_global_team_enabled,
     )
+    from app.utils.user_content_access import filter_visibilities_for_user
 
     allowed = []
     if is_global_private_enabled() and _setting_bool(SETTING_ALLOW_PRIVATE, True):
@@ -40,11 +41,19 @@ def get_allowed_visibilities() -> list[str]:
         allowed.append(VISIBILITY_TEAM)
     if is_global_public_enabled() and _setting_bool(SETTING_ALLOW_PUBLIC, True):
         allowed.append(VISIBILITY_PUBLIC)
-    return allowed or [VISIBILITY_PRIVATE]
+    if not allowed:
+        allowed = [VISIBILITY_PRIVATE]
+    if user is not None:
+        allowed = filter_visibilities_for_user(allowed, user)
+        if not allowed:
+            return [VISIBILITY_TEAM] if (
+                is_global_team_enabled() and _setting_bool(SETTING_ALLOW_TEAM, True)
+            ) else []
+    return allowed
 
 
-def visibility_allowed(visibility: str) -> bool:
-    return visibility in get_allowed_visibilities()
+def visibility_allowed(visibility: str, user=None) -> bool:
+    return visibility in get_allowed_visibilities(user)
 
 
 class KanbanImportPermissionError(PermissionError):
@@ -59,7 +68,7 @@ def assert_can_import_board_visibility(user, visibility: str, team_id: int | Non
     visibility = (visibility or '').strip().lower()
     if visibility not in VALID_VISIBILITIES:
         raise KanbanImportPermissionError('invalid_visibility')
-    if not visibility_allowed(visibility):
+    if not visibility_allowed(visibility, user):
         raise KanbanImportPermissionError('visibility_not_allowed')
 
     if visibility == VISIBILITY_PRIVATE:
@@ -85,7 +94,7 @@ def allowed_import_board_targets(user) -> list[dict]:
     if not user or not getattr(user, 'id', None):
         return options
 
-    allowed = set(get_allowed_visibilities())
+    allowed = set(get_allowed_visibilities(user))
 
     if VISIBILITY_PRIVATE in allowed:
         options.append({
@@ -203,14 +212,18 @@ def can_view_board(user, board: KanbanBoard, *, allow_closed: bool = False) -> b
     if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
         return True
 
+    allowed = set(get_allowed_visibilities(user))
+
     if board.created_by and board.created_by == getattr(user, 'id', None):
-        return True
+        return board.visibility in allowed
 
     membership = get_board_membership(board, user)
     if membership:
+        if board.visibility == VISIBILITY_PRIVATE and VISIBILITY_PRIVATE not in allowed:
+            return False
+        if board.visibility == VISIBILITY_PUBLIC and VISIBILITY_PUBLIC not in allowed:
+            return False
         return True
-
-    allowed = set(get_allowed_visibilities())
 
     # Open discovery only when the admin enabled that visibility type
     if board.visibility == VISIBILITY_PUBLIC and VISIBILITY_PUBLIC in allowed:
@@ -242,7 +255,7 @@ def can_edit_board(user, board: KanbanBoard) -> bool:
         return True
     if board.visibility == VISIBILITY_TEAM and board.team_id and board.team_id in user_team_ids(user):
         # Team members can edit team boards only when team boards are enabled
-        return VISIBILITY_TEAM in set(get_allowed_visibilities())
+        return VISIBILITY_TEAM in set(get_allowed_visibilities(user))
     return False
 
 
@@ -275,18 +288,35 @@ def accessible_boards_query(user, *, include_closed: bool = False):
         m.board_id
         for m in KanbanBoardMember.query.filter_by(user_id=user.id).all()
     ]
-    allowed = set(get_allowed_visibilities())
+    allowed = set(get_allowed_visibilities(user))
     if VISIBILITY_TEAM in allowed and team_ids:
         from app.utils.team_module_settings import is_team_section_enabled
         team_ids = [tid for tid in team_ids if is_team_section_enabled(tid, 'kanban')]
 
     clauses = []
-    if member_board_ids:
-        clauses.append(KanbanBoard.id.in_(member_board_ids))
-    clauses.append(KanbanBoard.created_by == user.id)
+    member_vis_ok = [v for v in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM) if v in allowed]
+    if member_board_ids and member_vis_ok:
+        clauses.append(
+            and_(
+                KanbanBoard.id.in_(member_board_ids),
+                KanbanBoard.visibility.in_(member_vis_ok),
+            )
+        )
 
+    if VISIBILITY_PRIVATE in allowed:
+        clauses.append(
+            and_(KanbanBoard.created_by == user.id, KanbanBoard.visibility == VISIBILITY_PRIVATE)
+        )
+    if VISIBILITY_TEAM in allowed:
+        clauses.append(
+            and_(KanbanBoard.created_by == user.id, KanbanBoard.visibility == VISIBILITY_TEAM)
+        )
     if VISIBILITY_PUBLIC in allowed:
+        clauses.append(
+            and_(KanbanBoard.created_by == user.id, KanbanBoard.visibility == VISIBILITY_PUBLIC)
+        )
         clauses.append(KanbanBoard.visibility == VISIBILITY_PUBLIC)
+
     if VISIBILITY_TEAM in allowed and team_ids:
         clauses.append(
             and_(

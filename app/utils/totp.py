@@ -1,19 +1,41 @@
-"""
+﻿"""
 TOTP (Time-based One-Time Password) Utility für 2FA.
 """
 import pyotp
 import qrcode
 import io
 import base64
-from flask import current_app
+from flask import current_app, has_app_context
 from cryptography.fernet import Fernet
 import os
 import base64 as std_base64
 import hashlib
 
 
+class TotpEncryptionError(RuntimeError):
+    """Raised when TOTP_ENCRYPTION_KEY is missing or unusable in fail-closed mode."""
+
+
+def _allow_secret_key_fallback() -> bool:
+    """SECRET_KEY-Ableitung nur in Dev/Test — nie in Production/Staging."""
+    if not has_app_context():
+        env = (os.environ.get('FLASK_ENV') or 'development').strip().lower()
+        return env not in ('production', 'staging')
+    if current_app.config.get('TESTING'):
+        return True
+    if current_app.debug:
+        return True
+    env = (os.environ.get('FLASK_ENV') or '').strip().lower()
+    return env in ('development', 'testing', 'default', '')
+
+
 def get_encryption_key():
-    """Holt oder erstellt den Verschlüsselungsschlüssel für TOTP-Secrets."""
+    """
+    Fernet-Key für TOTP-Secrets at-rest.
+
+    Production/Staging: fail-closed — nur TOTP_ENCRYPTION_KEY (wie Credentials).
+    Development/Testing: Fallback aus SECRET_KEY (Warning), lokale Setups bleiben nutzbar.
+    """
     from app.utils.encryption import read_encryption_key
 
     key_bytes = read_encryption_key('TOTP_ENCRYPTION_KEY')
@@ -23,14 +45,26 @@ def get_encryption_key():
             return key_bytes
         except Exception:
             try:
-                current_app.logger.warning(
-                    "TOTP_ENCRYPTION_KEY ist ungültig, verwende deterministischen Fallback-Key."
+                current_app.logger.error(
+                    "TOTP_ENCRYPTION_KEY ist ungültig (kein gültiger Fernet-Key). "
+                    "Erzeugen: python scripts/generate_encryption_keys.py"
                 )
             except Exception:
                 pass
+            if not _allow_secret_key_fallback():
+                raise TotpEncryptionError(
+                    "TOTP_ENCRYPTION_KEY ist ungültig. "
+                    "Erzeugen mit: python scripts/generate_encryption_keys.py"
+                )
 
-    # Stabiler Fallback: aus SECRET_KEY ableiten (statt Zufalls-Key pro Aufruf).
-    # So bleiben gespeicherte Secrets zwischen Requests/Neustarts entschlüsselbar.
+    if not _allow_secret_key_fallback():
+        raise TotpEncryptionError(
+            "TOTP_ENCRYPTION_KEY fehlt in der .env. "
+            "Erzeugen mit: python scripts/generate_encryption_keys.py "
+            "(kein SECRET_KEY-Fallback in Production/Staging)."
+        )
+
+    # Stabiler Dev-Fallback: aus SECRET_KEY ableiten
     secret_seed = os.environ.get('SECRET_KEY')
     if not secret_seed:
         try:
@@ -45,9 +79,19 @@ def get_encryption_key():
             )
         except Exception:
             pass
-        raise RuntimeError("Missing TOTP_ENCRYPTION_KEY or SECRET_KEY for TOTP encryption.")
+        raise TotpEncryptionError(
+            "Missing TOTP_ENCRYPTION_KEY or SECRET_KEY for TOTP encryption."
+        )
 
-    digest = hashlib.sha256(secret_seed.encode('utf-8')).digest()
+    try:
+        current_app.logger.warning(
+            "TOTP_ENCRYPTION_KEY fehlt — verwende SECRET_KEY-Ableitung (nur Dev/Test). "
+            "Für Production eigenen TOTP_ENCRYPTION_KEY setzen."
+        )
+    except Exception:
+        pass
+
+    digest = hashlib.sha256(str(secret_seed).encode('utf-8')).digest()
     return std_base64.urlsafe_b64encode(digest)
 
 

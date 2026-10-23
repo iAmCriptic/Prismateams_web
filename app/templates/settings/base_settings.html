@@ -126,5 +126,6 @@ window.SETTINGS_SEARCH_CATALOG = {{ settings_search_catalog_json | safe }};
 window.SETTINGS_SEARCH_CATALOG = [];
 {% endif %}
 </script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-ui.js') }}"></script>
 {% endblock %}

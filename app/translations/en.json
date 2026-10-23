@@ -35,7 +35,8 @@
       "surveys": "Surveys",
       "file_converter": "File Converter",
       "protocols": "Meeting Minutes",
-      "meetings": "Meetings"
+      "meetings": "Meetings",
+      "duty_roster": "Duty Roster"
     },
     "brand": {
       "separator": "–",
@@ -123,6 +124,10 @@
     "language": "Language",
     "select_language": "Select language",
     "unknown_error": "Unknown error",
+    "flash": {
+      "module_disabled": "This module is disabled.",
+      "module_access_denied": "You do not have access to this module."
+    },
     "pagination": {
       "load_more": "Load more",
       "load_more_loading": "Loading…",
@@ -341,6 +346,16 @@
       "verify_failed": "Passkey verification failed.",
       "use_localhost": "Passkeys do not work locally via 127.0.0.1. Please use localhost.",
       "open_localhost": "Switch to localhost"
+    },
+    "coderegister": {
+      "title": "Team registration",
+      "subtitle": "Register for a team using an invitation code.",
+      "subtitle_team": "Registration for team {team}",
+      "code_label": "Invitation code",
+      "code_team_hint": "You will join the team \"{team}\".",
+      "submit": "Register with code",
+      "flash_code_required": "Please enter an invitation code.",
+      "flash_code_invalid": "This invitation code is invalid, expired, or used up."
     }
   },
   "dashboard": {
@@ -1281,6 +1296,11 @@
         "toggle_messages": "New messages",
         "help": "Bell and push when a new booking request arrives or the applicant replies (per toggle)"
       },
+      "inventory": {
+        "title": "Inventory / borrows",
+        "toggle": "New borrows",
+        "help": "Bell and push for new borrows — without constant background polling"
+      },
       "lead_short": "Push, modules and reminders."
     },
     "security": {
@@ -1367,6 +1387,28 @@
         "already_registered": "This passkey is already registered.",
         "register_failed": "Could not register passkey.",
         "device_label_prompt": "Device name (optional):"
+      },
+      "app_passwords": {
+        "heading": "App passwords",
+        "help": "Generated username (firstname+lastname.ID) and password for WebDAV — without login password or 2FA.",
+        "intro": "WebDAV needs an app username (e.g. enricomatzke.12) and an app password. The password is shown only once (8–15 characters with upper/lower case, digits and special characters).",
+        "status_none": "No app credentials",
+        "name_label": "Label",
+        "username_label": "App username",
+        "password_label": "App password",
+        "create_button": "Generate app credentials",
+        "generate_hint": "Username and password are generated for you — you cannot choose them. Maximum 10.",
+        "created_once_hint": "New app credentials — password shown only once. Copy username and password and store them safely.",
+        "copy": "Copy password",
+        "copy_username": "Copy username",
+        "last_used": "Last used: {date}",
+        "delete_button": "Revoke",
+        "delete_confirm": "Really revoke these app credentials? Existing WebDAV connections will stop working.",
+        "deleted_success": "App credentials revoked.",
+        "not_found": "App credentials not found.",
+        "guest_not_allowed": "App credentials are not available for guest accounts.",
+        "max_reached": "Maximum of {max} app credentials allowed. Revoke one first.",
+        "create_failed": "Could not create app credentials."
       },
       "devices": {
         "heading": "Signed-in devices",
@@ -1496,7 +1538,9 @@
         "module_file_converter": "File Converter",
         "module_surveys": "Surveys",
         "lead_short": "Enable and disable modules.",
-        "module_meetings": "Meetings (video calls)"
+        "module_meetings": "Meetings (video calls)",
+        "meetings_needs_mirotalk": "Requires MIROTALK_URL in .env. Without MiroTalk the module stays off.",
+        "module_duty_roster": "Duty Roster"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -1589,7 +1633,12 @@
         "col_email": "Email",
         "col_login": "Last login",
         "col_status": "Status",
-        "queue_title": "Queue"
+        "queue_title": "Queue",
+        "badge_team_only": "Team only",
+        "content_access_title": "Content access",
+        "content_access_help": "Controls whether the user may see and use Public and Private areas. Without both, the user only has team access.",
+        "can_access_public": "Public access",
+        "can_access_private": "Private access"
       },
       "create_user": {
         "page_title": "Create user - Administration",
@@ -1823,10 +1872,10 @@
         "sharing_label": "Enable Shares",
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
         "webdav_label": "WebDAV / Explorer access",
-        "webdav_help": "Allows accessing files via Windows Explorer as a network drive (WebDAV at /webdav).",
+        "webdav_help": "Allows accessing files via Windows Explorer, macOS Finder, and Linux as a network drive (WebDAV at /webdav).",
         "webdav_url_label": "Connection URL",
-        "webdav_connect_help": "On Windows: This PC → Map network drive → Folder: the URL above. Sign in with email and password.",
-        "webdav_2fa_warning": "Note: WebDAV does not require two-factor authentication (2FA) — only email and password.",
+        "webdav_connect_help": "Recommended: Map network drive with the URL above and a short label (e.g. your domain). Windows may still show host@SSL\\DavWWWRoot internally — that is normal. macOS: Go → Connect to Server. Linux: davs://host/webdav.",
+        "webdav_2fa_warning": "Note: WebDAV uses email + app password (not login password/2FA). Create app passwords under Security or in the WebDAV dialog. Files open in Euro-Office are locked for WebDAV (and vice versa).",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
         "team_folders_label": "Enable team folders",
@@ -1916,6 +1965,17 @@
         "share_access_log_retention_label": "Share access logs (days)",
         "share_access_log_retention_help": "ShareAccessLog entries older than N days are deleted. 0 = no auto-purge.",
         "log_retention_note": "Defaults: sessions 30 days, share logs 90 days. Overrides SESSION_RECORD_RETENTION_DAYS / SHARE_ACCESS_LOG_RETENTION_DAYS from the environment once saved. State the periods in your privacy policy.",
+        "section_redis": "Realtime / Redis",
+        "redis_help": "Redis status for SocketIO queue, shared rate limits and server sessions. Controlled via .env only (REDIS_ENABLED, REDIS_URL).",
+        "redis_status_label": "Redis status",
+        "redis_status_connected": "Connected",
+        "redis_status_disabled": "Disabled (single-worker)",
+        "redis_status_unavailable": "Unavailable",
+        "redis_warn_unavailable": "REDIS_ENABLED is on, but Redis does not respond. Chat/SSE and multi-worker setups are degraded — start Redis or check the flag.",
+        "redis_warn_disabled_prod": "Redis is off. For multiple Gunicorn workers set REDIS_ENABLED=True and provide Redis.",
+        "redis_note": "Local single-worker setups can omit Redis. Production with multiple workers requires Redis. Optional REDIS_AUTO_DETECT=true to auto-enable when reachable.",
+        "session_backend_label": "Session backend",
+        "rate_limit_storage_label": "Rate-limit storage",
         "section_cookie_security": "Session cookies",
         "cookie_security_help": "Secure flags for session and remember-me cookies (controlled via .env only). With HTTPS in production both must be True.",
         "cookie_security_warn_insecure": "SESSION_COOKIE_SECURE is False: cookies can be read over HTTP. For production HTTPS set True in .env and restart the service.",
@@ -1981,8 +2041,9 @@
         "flash_logo_too_large": "Logo too large ({size:.1f} MB). Maximum 5 MB allowed.",
         "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG.",
         "section_security": "Security & sessions",
-        "inactivity_logout_hint": "Users are automatically logged out after 30 days without portal activity. Manage devices under Security.",
-        "flash_inactivity_logout": "You were logged out after 30 days of inactivity. Please sign in again.",
+        "inactivity_logout_hint": "Without “Remember me”: logout after 12 hours idle or at most 7 days. With “Remember me”: up to 14 days idle / 30 days absolute (configurable via .env).",
+        "flash_inactivity_logout": "You were logged out due to inactivity. Please sign in again.",
+        "flash_absolute_logout": "Your session has expired. Please sign in again.",
         "lead_short": "Portal name, logo, timezone and branding."
       },
       "legal": {
@@ -2145,7 +2206,7 @@
         "feature_quick_scan": "Quick Scan",
         "feature_quick_scan_help": "Fast scanner checkout without required header data.",
         "feature_dguv": "DGUV",
-        "feature_dguv_help": "Inspection fields, filters and display in the stock overview.",
+        "feature_dguv_help": "Inspection fields, filters, DGUV V3 exam and stock overview.",
         "feature_owners": "Owner",
         "feature_owners_help": "Owner field and filter per item.",
         "feature_accounting": "Accounting",
@@ -2157,7 +2218,28 @@
         "ownership_label": "Ownership text",
         "ownership_placeholder": "e.g. Property of Technical Department",
         "ownership_help": "This text appears prominently on public product pages.",
-        "save": "Save"
+        "save": "Save",
+        "dguv_cert_title": "DGUV signing certificate (FES)",
+        "dguv_cert_help": "Self-signed organisation certificate for digital inspection protocols. CN = portal name.",
+        "dguv_cert_lead": "Without a certificate, DGUV V3 inspections cannot be completed.",
+        "dguv_cert_status": "Status",
+        "dguv_cert_ok": "Valid",
+        "dguv_cert_expired": "Expired",
+        "dguv_cert_missing": "Missing",
+        "dguv_cert_valid_until": "Valid until",
+        "dguv_cert_generate_title": "Generate certificate",
+        "dguv_cert_cn": "Common Name (organisation)",
+        "dguv_cert_cn_placeholder": "Portal name, e.g. Devportal",
+        "dguv_cert_generate": "Regenerate with portal name",
+        "dguv_cert_confirm": "Overwrite existing certificate?",
+        "dguv_cert_generated": "Certificate created ({cn}), valid until {not_after}.",
+        "dguv_cert_error": "Could not create certificate.",
+        "dguv_cert_unknown_action": "Unknown action.",
+        "dguv_cert_portal": "Current portal name",
+        "dguv_cert_cn_current": "Certificate CN",
+        "dguv_cert_mismatch": "Certificate CN (“{cn}”) differs from portal name (“{portal}”). Please regenerate.",
+        "dguv_cert_generate_lead": "Creates a self-signed CA certificate using the portal name (Issued to/by).",
+        "dguv_cert_cn_help": "Leave empty or enter portal name — used as organisation CA."
       },
       "email_settings": {
         "flash_saved": "Email settings have been saved."
@@ -2227,6 +2309,10 @@
           "html_design_label": "HTML design on by default",
           "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
           "manage_link": "Manage mailboxes"
+        },
+        "auto_reply": {
+          "title": "Automatic reply (main mailbox)",
+          "hint": "Server-side out-of-office reply for the main mailbox. Independent of the mail provider."
         }
       },
       "backup": {
@@ -2403,7 +2489,29 @@
         "col_name": "Team",
         "col_members": "Members",
         "col_leader": "Lead",
-        "preview_title": "Preview"
+        "preview_title": "Preview",
+        "invite": {
+          "title": "Invitation codes",
+          "help": "External users can register for this team via /coderegister with a code. They get team-only access (no Public/Private).",
+          "max_uses": "Max uses",
+          "max_uses_placeholder": "Unlimited",
+          "expires_days": "Validity (days)",
+          "expires_days_placeholder": "No expiry",
+          "create": "Create code",
+          "status_active": "Active",
+          "status_inactive": "Inactive",
+          "uses": "{used} / {max} uses",
+          "unlimited": "∞",
+          "expires_at": "until {date}",
+          "deactivate": "Deactivate",
+          "delete_confirm": "Really delete this invitation code?",
+          "empty": "No invitation codes yet.",
+          "flash_created": "Invitation code created.",
+          "flash_deactivated": "Invitation code deactivated.",
+          "flash_deleted": "Invitation code deleted.",
+          "flash_invalid_max_uses": "Invalid maximum uses.",
+          "flash_invalid_expires": "Invalid validity period."
+        }
       },
       "kanban": {
         "page_title": "Kanban settings",
@@ -2429,6 +2537,7 @@
         "allow_private": "Private area (owner only)",
         "allow_team": "Team areas (one folder per team)",
         "allow_public": "Public area (entire portal)",
+        "credentials_public_hint": "For credentials, Public means all module users can reveal passwords. New entries still default to Private.",
         "save": "Save",
         "flash_saved": "Visibility settings saved."
       }
@@ -2483,6 +2592,23 @@
       "smtp_ssl_help": "Optional. SSL (e.g. port 465) instead of STARTTLS. Do not enable both.",
       "footer": "Footer (optional)",
       "footer_help": "Empty = global footer from email settings.",
+      "auto_reply": {
+        "title": "Automatic reply",
+        "enabled": "Automatic reply enabled",
+        "help": "For new incoming mail the server replies once per sender per day. Takes effect after the next sync (about every 15 minutes). Optional date range: empty = while enabled.",
+        "start_at": "Start (optional)",
+        "end_at": "End (optional)",
+        "start_help": "Empty = effective immediately when enabled.",
+        "end_help": "Empty = no end date.",
+        "subject": "Subject",
+        "subject_default": "Automatic reply: Re: {subject}",
+        "subject_placeholder": "Automatic reply: Re: {subject}",
+        "subject_help": "Placeholder {subject} is replaced with the original subject.",
+        "body": "Message",
+        "body_placeholder": "Thank you for your message. I am currently unavailable…",
+        "body_help": "Plain text or simple HTML. Required when automatic reply is enabled.",
+        "flash_saved": "Automatic reply has been saved."
+      },
       "logo": "Logo (top-left in emails)",
       "logo_help": "Team mailboxes only. PNG/JPG/GIF/WebP, max 2 MB.",
       "logo_prefs_title": "Team logo in emails",
@@ -2925,19 +3051,38 @@
         "intro": "Map the file storage as a network drive. Private, Public and Teams then appear as normal folders in your file manager.",
         "url_label": "Connection URL",
         "copy": "Copy URL",
-        "auth_hint": "Username = your portal email only (no MicrosoftAccount\\). Password = portal password, not your Microsoft account password.",
+        "auth_hint": "Username = app username (e.g. enricomatzke.12, create below). Password = app password — not your login or Microsoft password. Windows: remove MicrosoftAccount\\.",
+        "app_password_title": "App credentials",
+        "app_password_intro": "WebDAV uses a generated app username (firstname+lastname.ID) and a generated app password. Your login password will not work here.",
+        "app_password_once": "New app credentials — password shown only once. Copy username and password and store them safely.",
+        "app_password_none": "No app credentials yet.",
+        "app_password_create": "Generate app credentials",
+        "app_password_manage": "Manage in Security",
+        "app_password_error": "Could not create app credentials.",
+        "username_label": "App username",
+        "password_label": "App password",
+        "copy_username": "Copy username",
+        "copy_password": "Copy password",
         "disabled_hint": "WebDAV is still disabled. An administrator can enable it under Settings → File settings. After that, the URL below will work.",
         "windows_title": "Windows (Explorer)",
         "windows_step1": "Start the \"WebClient\" service (services.msc → WebClient → Start, Startup type Automatic).",
         "windows_step2": "For HTTP/localhost: registry HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters → DWORD BasicAuthLevel = 2, then restart WebClient. Otherwise Windows will not send credentials.",
-        "windows_step3": "Add network location / map drive using the URL above. In the login dialog choose More options → Use a different account and enter only the email (remove MicrosoftAccount\\).",
-        "windows_step4": "Enter your portal password. If the dialog keeps returning: check BasicAuthLevel or use Cyberduck/WinSCP.",
+        "windows_step3": "This PC → Map network drive → Folder: the URL above. In the login dialog choose More options → Use a different account and enter only the email (remove MicrosoftAccount\\).",
+        "windows_step4": "Set a friendly drive name such as your domain (ulbr.de) or “Prismateams” — prefer Map network drive over “Add a network location”.",
+        "windows_step5": "Enter the app username and app password (generated above). If the dialog keeps returning: check BasicAuthLevel or use Cyberduck/WinSCP.",
+        "windows_display_note": "Note: Windows often shows “host@SSL\\DavWWWRoot” internally — that is fixed client syntax and cannot be removed server-side. Your chosen drive label still appears (e.g. Ulbr.de (U:)).",
         "mac_title": "Apple (macOS Finder)",
         "mac_step1": "Open Finder → “Go” menu → “Connect to Server…” (⌘K).",
-        "mac_step2": "Paste the connection URL above and choose “Connect”.",
+        "mac_step2": "Paste the connection URL above (https://…/webdav) and choose “Connect”.",
         "mac_step3": "Sign in as a registered user.",
-        "mac_step4": "Enter your email and password. The share appears in the Finder sidebar.",
-        "security_note": "Note: WebDAV skips 2FA. Windows often prepends \"MicrosoftAccount\\\" to the email — remove it. HTTPS is more reliable than HTTP/localhost on Windows."
+        "mac_step4": "Enter the app username and app password. The share appears in the Finder sidebar.",
+        "linux_title": "Linux (Files / GNOME / KDE)",
+        "linux_step1": "Open your file manager (Nautilus, Dolphin, …).",
+        "linux_step2": "Use “Connect to Server” / “Network Folder” and enter davs://your-domain.tld/webdav (or the HTTPS URL above).",
+        "linux_step3": "Enter the app username and app password.",
+        "linux_step4": "Bookmark the share so Private / Public / Teams stay available.",
+        "lock_note": "Editing: Euro-Office in the browser stays collaborative. While a file is open in Euro-Office, WebDAV/Explorer locks it (and vice versa) to avoid desktop vs browser conflicts.",
+        "security_note": "Note: WebDAV requires an app password — login password and 2FA do not apply here. Windows often prepends \"MicrosoftAccount\\\" to the email — remove it. HTTPS is more reliable than HTTP/localhost on Windows."
       },
       "storage": {
         "title": "Storage",
@@ -3218,7 +3363,11 @@
     "onlyoffice": {
       "back_button_label": "Back",
       "saving": "Saving…",
-      "unsaved_changes": "Leave this page? Unsaved changes will be lost."
+      "unsaved_changes": "Leave this page? Unsaved changes will be lost.",
+      "api_load_failed": "Euro-Office could not be loaded",
+      "api_load_failed_hint": "Check that the Document Server is reachable and ONLYOFFICE_DOCUMENT_SERVER_URL / JWT in .env are correct.",
+      "editor_error": "Euro-Office reported an error",
+      "editor_init_error": "Could not start the Euro-Office editor"
     },
     "errors": {
       "file_type_not_supported": "File type not supported"
@@ -4215,6 +4364,8 @@
       "messages": {
         "sync_failed": "Sync failed",
         "sync_error": "Sync failed. Please try again.",
+        "sync_started": "Synchronization started…",
+        "sync_timeout": "Synchronization is taking too long. Check status or try again.",
         "move_success": "Email moved",
         "move_error": "Could not move email",
         "folder_deleted": "Folder deleted",
@@ -4406,6 +4557,7 @@
       "heading": "Credentials",
       "new_button": "New",
       "password_placeholder": "********",
+      "public_space_warning": "Public area: entries here are visible to all users with the Credentials module, including password reveal.",
       "nav": {
         "menu": "Folder menu"
       },
@@ -4522,6 +4674,7 @@
       "saved": "Credentials for \"{website_name}\" have been saved.",
       "updated": "Credentials for \"{website_name}\" have been updated.",
       "deleted": "Credentials for \"{website_name}\" have been deleted.",
+      "public_warning": "These credentials are public: anyone with the Credentials module can view the passwords.",
       "folder_name_required": "Please provide a folder name.",
       "folder_created": "Folder \"{folder_name}\" has been created.",
       "folder_updated": "Folder \"{folder_name}\" was updated.",
@@ -4826,7 +4979,7 @@
         "menu": "Menu",
         "overview": "Overview",
         "stock": "Stock & equipment",
-        "product_scan": "Scan & inspect",
+        "product_scan": "Scan & Info",
         "quick_scan": "Quick Scan",
         "checkout": "Borrow / Return",
         "borrows": "Loan history",
@@ -4834,7 +4987,8 @@
         "sets": "Product sets",
         "inventory_tool": "Inventory count",
         "print_qr": "QR / Labels",
-        "statistics": "Statistics"
+        "statistics": "Statistics",
+        "dguv_exam": "DGUV Inspection"
       },
       "view_toggle": {
         "label": "Toggle view",
@@ -4864,14 +5018,15 @@
       "hub": {
         "title": "Areas",
         "stock_desc": "Manage devices and items",
-        "product_scan_desc": "Scan and update DGUV checks",
+        "product_scan_desc": "Scan and update master data/docs",
         "quick_scan_desc": "Borrow quickly via QR",
         "checkout_desc": "Checkout and returns",
         "borrows_desc": "Past loans",
         "sets_desc": "Build product sets",
         "inventory_tool_desc": "Run inventory counts",
         "print_qr_desc": "Print labels",
-        "statistics_desc": "Reports and trends"
+        "statistics_desc": "Reports and trends",
+        "dguv_exam_desc": "DGUV V3 inspection with digital signature"
       },
       "my_borrows": {
         "title": "My current loans",
@@ -4892,8 +5047,8 @@
       }
     },
     "product_scan": {
-      "page_title": "Scan & inspect - Team Portal",
-      "heading": "Scan & inspect",
+      "page_title": "Scan & Info - Team Portal",
+      "heading": "Scan & Info",
       "subtitle": "Scan or search an item, then edit fields and documents immediately.",
       "input_title": "Find item",
       "camera_label": "Scan with camera",
@@ -5706,6 +5861,101 @@
         "dguv": "DGUV inspection report",
         "other": "Other"
       }
+    },
+    "dguv_exam": {
+      "page_title": "DGUV Inspection - Team Portal",
+      "heading": "DGUV Inspection",
+      "subtitle": "Inspect portable electrical equipment (DIN VDE 0701-0702) and sign digitally.",
+      "input_title": "Find item",
+      "camera_label": "Scan with camera",
+      "manual_label": "ID / inventory no.",
+      "manual_placeholder": "PROD or inventory no.",
+      "search_label": "Search product",
+      "search_placeholder": "Name, serial, category…",
+      "lookup_button": "Open",
+      "panel_title": "Inspection data",
+      "empty": "Scan or search an item to start the inspection.",
+      "next_scan": "Next item",
+      "no_certificate_hint": "No organisation certificate configured. Generate an FES certificate under Settings → Inventory.",
+      "section_examiner": "Examiner",
+      "examiner_name": "Name",
+      "examiner_email": "Email (for signature OTP)",
+      "section_device": "Test instrument",
+      "device_preset": "Recently used instruments",
+      "device_preset_none": "Enter new instrument…",
+      "device_name": "Instrument",
+      "device_serial": "Serial number",
+      "device_cal": "Last calibration",
+      "section_measures": "Measurements & visual check",
+      "visual": "Visual inspection",
+      "function": "Functional test",
+      "pass": "Passed",
+      "fail": "Failed",
+      "r_pe": "Protective earth resistance R_PE",
+      "r_iso": "Insulation resistance R_ISO",
+      "i_pe": "Protective conductor current I_PE",
+      "i_touch": "Touch current I_A",
+      "r_pe_limit_hint": "Limit ≤ {limit} Ω",
+      "r_iso_limit_hint": "Limit ≥ {limit} MΩ",
+      "section_result": "Overall result & interval",
+      "overall": "Overall result",
+      "result_passed": "Passed",
+      "result_deficient": "Deficient",
+      "result_failed": "Failed / Out of service",
+      "interval": "Interval (months)",
+      "exam_date": "Inspection date",
+      "next_exam": "Next inspection",
+      "submit": "Complete inspection",
+      "success": "Inspection saved and digitally signed.",
+      "open_pdf": "Open PDF",
+      "limit_ok": "Within limit",
+      "limit_fail": "Limit exceeded / not met",
+      "meta": {
+        "inventory": "Inventory no.",
+        "serial": "Serial number",
+        "owner": "Owner",
+        "location": "Location",
+        "length": "Length",
+        "folder": "Folder",
+        "dguv_last": "Last inspection",
+        "dguv_next": "Next inspection",
+        "dguv_interval": "Interval (months)"
+      },
+      "otp": {
+        "title": "Confirm signature",
+        "hint": "A 6-digit code was sent to your email.",
+        "code": "Confirmation code",
+        "cancel": "Cancel",
+        "confirm": "Sign",
+        "email_subject": "DGUV signature code – {portal}",
+        "email_body": "Your code to confirm the DGUV inspection: {code}\nValid for {minutes} minutes.",
+        "email_title": "DGUV signature code",
+        "email_intro": "Please confirm the digital signature of the DGUV V3 protocol with the following code.",
+        "mail_not_configured": "Email is not configured. The OTP exists server-side — contact an admin or set up mail.",
+        "window_active": "Signature confirmation still valid — no new email code needed.",
+        "window_active_banner": "Your signature confirmation is still valid (up to {days} days). No new OTP required."
+      },
+      "errors": {
+        "product_required": "Product required.",
+        "product_not_found": "Product not found.",
+        "scan_set": "Sets cannot be inspected here. Please scan a single item.",
+        "device_required": "Test instrument is required.",
+        "visual_required": "Visual inspection is required.",
+        "function_required": "Functional test is required.",
+        "result_required": "Overall result is required.",
+        "interval_invalid": "Invalid inspection interval.",
+        "email_required": "Examiner email is required.",
+        "no_certificate": "No signing certificate configured.",
+        "otp_missing": "No pending signature. Please start again.",
+        "otp_expired": "Code expired. Please start again.",
+        "otp_invalid": "Invalid code.",
+        "sign_failed": "PDF signing failed.",
+        "save_failed": "Save failed.",
+        "pdf_missing": "PDF not found.",
+        "lookup_failed": "Lookup failed.",
+        "prepare_failed": "Preparation failed.",
+        "complete_failed": "Completion failed."
+      }
     }
   },
   "music": {
@@ -5905,6 +6155,7 @@
       "missing_data": "Missing data",
       "wish_count_increased": "Wish count increased ({count}x requested)",
       "wish_added": "Song added to wishlist",
+      "wish_limit": "Too many wishes: max {limit} in {minutes} minutes. Please try again in about {retry_minutes} min.",
       "query_required": "Search term required",
       "search_error": "Search error: {error}",
       "already_processed": "Song is already processed",
@@ -6313,6 +6564,10 @@
       "message_title": "New booking message",
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
+    },
+    "inventory": {
+      "borrow_title": "New borrow",
+      "borrow_body": "{event} – {borrower} ({count} items)"
     },
     "kanban": {
       "upload_title": "New attachment on {board}",
@@ -6727,7 +6982,9 @@
     "form": {
       "label": "Area",
       "private": "Private",
-      "public": "Public"
+      "public": "Public",
+      "public_credentials": "Public (all module users)",
+      "credentials_public_warning": "Warning: Public credentials are visible to every user with the Credentials module — including password reveal. Use only for intentionally shared secrets."
     },
     "flash": {
       "access_denied": "You do not have access to this item."
@@ -7200,6 +7457,153 @@
       "chat_missing": "Chat not found.",
       "not_chat_member": "You are not a member of this chat.",
       "chat_start_error": "Could not start the meeting."
+    }
+  },
+  "duty_roster": {
+    "nav": {
+      "title": "Duty Roster",
+      "private": "Private",
+      "team": "Team",
+      "public": "Public",
+      "settings": "Master data",
+      "new": "New monthly plan",
+      "pdf": "PDF",
+      "publish": "Publish",
+      "unpublish": "Unpublish"
+    },
+    "flash": {
+      "access_denied": "Access denied.",
+      "module_disabled": "The Duty Roster module is disabled.",
+      "no_section": "No section available.",
+      "no_team": "No team available.",
+      "invalid_month": "Invalid month.",
+      "roster_exists": "A plan for this month already exists.",
+      "roster_created": "Monthly plan created.",
+      "roster_deleted": "Monthly plan deleted.",
+      "published": "Roster published (Public).",
+      "unpublished": "Publication withdrawn.",
+      "column_exists": "Person is already on the roster.",
+      "not_member": "Not a team member.",
+      "column_required": "Person or name required.",
+      "column_added": "Column added.",
+      "column_deleted": "Column removed.",
+      "settings_saved": "Settings saved.",
+      "planner_added": "Planner rights granted.",
+      "planner_removed": "Planner rights removed.",
+      "invalid_date": "Invalid date.",
+      "times_required": "Start and end time required.",
+      "time_saved": "Time entry saved.",
+      "time_deleted": "Entry deleted.",
+      "cell_save_failed": "Could not save cell.",
+      "day_save_failed": "Could not save day note.",
+      "cell_denied": "You do not have permission to edit.",
+      "cell_not_found": "Cell or day not found.",
+      "cell_inactive": "Column is not active on this day.",
+      "schema_error": "Could not update the duty roster database schema. Check the server log or contact support."
+    },
+    "index": {
+      "empty": "No monthly plans yet.",
+      "create_title": "Create monthly plan",
+      "create_btn": "Create duty roster",
+      "not_created": "Not created yet",
+      "create_past": "Create past months retroactively",
+      "year": "Year",
+      "month": "Month",
+      "title_label": "Title (optional)",
+      "published_badge": "Published",
+      "draft_badge": "Draft",
+      "open": "Open",
+      "delete": "Delete",
+      "delete_confirm": "Really delete this monthly plan?",
+      "section_current": "Current month",
+      "section_future": "Upcoming months",
+      "section_past": "Past months"
+    },
+    "table": {
+      "weekday": "Weekday",
+      "date": "Date",
+      "whats_happening": "WHAT'S ON?",
+      "kw": "CW {week}",
+      "week_hours": "Week hours",
+      "month_hours": "Month hours",
+      "vacation_remaining": "Leave remaining",
+      "overtime": "Overtime",
+      "soll": "Target/week",
+      "view_day": "Day",
+      "view_week": "Week",
+      "view_month": "Month",
+      "focus": "Focus date",
+      "pager": "Browse period",
+      "prev": "Previous",
+      "next": "Next",
+      "pager_unavailable": "No adjacent monthly plan",
+      "cell_hint": "e.g. 09:00-17:30, URLAUB or free text",
+      "add_column": "Add person",
+      "external_name": "External person",
+      "team_member": "Team member",
+      "hide_column": "Hide",
+      "show_column": "Show",
+      "remove_column": "Remove",
+      "editor_mode": "Editor mode",
+      "mode_view": "View",
+      "mode_edit": "Edit",
+      "outside_validity": "Outside start/end date"
+    },
+    "settings": {
+      "heading": "Master data & rights",
+      "person": "Person",
+      "weekly_soll": "Weekly target (h)",
+      "vac_total": "Leave days total",
+      "vac_used": "Leave days used",
+      "vac_remaining": "Remaining",
+      "available": "Available on roster",
+      "planners": "Planners",
+      "planners_help": "In addition to the team leader, others can edit plans.",
+      "add_planner": "Add",
+      "remove": "Remove",
+      "save": "Save",
+      "leader": "Team leader",
+      "people": "People",
+      "people_help": "Who appears on the roster — indefinite or with start/end dates (e.g. temps). Empty = indefinite.",
+      "valid_from": "From",
+      "valid_until": "Until",
+      "indefinite": "indefinite",
+      "add_external": "Add external person"
+    },
+    "private": {
+      "heading": "My times",
+      "planned": "Planned shifts",
+      "actual": "Actual time",
+      "timeline": "Shifts",
+      "planned_short": "Planned",
+      "actual_short": "Actual",
+      "section_today": "Today",
+      "section_future": "Upcoming",
+      "section_past": "Past",
+      "show_more_future": "Show {count} more upcoming",
+      "show_more_past": "Show {count} more past",
+      "add_entry": "Log time",
+      "date": "Date",
+      "start": "From",
+      "end": "To",
+      "type": "Type",
+      "type_work": "Worked",
+      "type_sick": "Sick",
+      "type_vacation": "Leave",
+      "type_other": "Other",
+      "note": "Note",
+      "team": "Team",
+      "ends_next": "Ends next day",
+      "overtime": "Overtime (YTD)",
+      "no_planned": "No shifts or time entries yet.",
+      "no_entries": "No entries yet.",
+      "sick_hint": "Overtime only on days with a work entry (actual vs daily target). No entry, sick or leave: ±0."
+    },
+    "public": {
+      "heading": "Published rosters",
+      "empty": "No published plans.",
+      "filter_team": "Filter team",
+      "all_teams": "All teams"
     }
   }
 }

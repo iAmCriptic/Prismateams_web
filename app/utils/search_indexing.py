@@ -15,6 +15,7 @@ INDEXABLE_ENDPOINTS = frozenset({
     'auth.index',
     'auth.login',
     'auth.register',
+    'auth.coderegister',
     'auth.privacy',
     'auth.imprint',
     'auth.terms',
@@ -23,6 +24,7 @@ INDEXABLE_ENDPOINTS = frozenset({
 SITEMAP_ENDPOINTS = (
     'auth.login',
     'auth.register',
+    'auth.coderegister',
     'auth.privacy',
     'auth.imprint',
     'auth.terms',
@@ -32,6 +34,7 @@ ROBOTS_ALLOW_PATHS = (
     '/',
     '/login',
     '/register',
+    '/coderegister',
     '/datenschutz',
     '/impressum',
     '/nutzungsbedingungen',
@@ -70,7 +73,12 @@ def is_indexable_request() -> bool:
     if not is_search_indexing_enabled():
         return False
     endpoint = getattr(request, 'endpoint', None) if request else None
-    return endpoint in INDEXABLE_ENDPOINTS
+    if endpoint not in INDEXABLE_ENDPOINTS:
+        return False
+    # Nur die Basis-URL /coderegister indexieren, nicht /coderegister/<code>
+    if endpoint == 'auth.coderegister':
+        return not (getattr(request, 'view_args', None) or {}).get('code')
+    return True
 
 
 def robots_meta_content() -> str:

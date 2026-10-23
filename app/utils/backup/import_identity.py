@@ -383,6 +383,10 @@ def import_notification_settings(settings_data: List[Dict], user_map: Dict[str, 
             existing.calendar_not_participating = s_data.get('calendar_not_participating', False)
             existing.calendar_no_response = s_data.get('calendar_no_response', False)
             existing.booking_notifications_enabled = s_data.get('booking_notifications_enabled', True)
+            if hasattr(existing, 'inventory_notifications_enabled'):
+                existing.inventory_notifications_enabled = s_data.get('inventory_notifications_enabled', True)
+            if hasattr(existing, 'kanban_notifications_enabled'):
+                existing.kanban_notifications_enabled = s_data.get('kanban_notifications_enabled', True)
             existing.reminder_times = s_data.get('reminder_times')
         else:
             setting = NotificationSettings(
@@ -398,6 +402,8 @@ def import_notification_settings(settings_data: List[Dict], user_map: Dict[str, 
                 calendar_not_participating=s_data.get('calendar_not_participating', False),
                 calendar_no_response=s_data.get('calendar_no_response', False),
                 booking_notifications_enabled=s_data.get('booking_notifications_enabled', True),
+                inventory_notifications_enabled=s_data.get('inventory_notifications_enabled', True),
+                kanban_notifications_enabled=s_data.get('kanban_notifications_enabled', True),
                 reminder_times=s_data.get('reminder_times')
             )
             db.session.add(setting)

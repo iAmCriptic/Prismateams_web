@@ -176,6 +176,16 @@
       "invalid_response": "Resposta de passkey inválida.",
       "login_failed": "Falha ao entrar com passkey.",
       "verify_failed": "Falha na verificação do passkey."
+    },
+    "coderegister": {
+      "title": "Registo de equipa",
+      "subtitle": "Registe-se numa equipa com um código de convite.",
+      "subtitle_team": "Registo para a equipa {team}",
+      "code_label": "Código de convite",
+      "code_team_hint": "Vai juntar-se à equipa \"{team}\".",
+      "submit": "Registar com código",
+      "flash_code_required": "Introduza um código de convite.",
+      "flash_code_invalid": "Este código de convite é inválido, expirou ou esgotou."
     }
   },
   "dashboard": {
@@ -657,6 +667,10 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "inventory": {
+      "borrow_title": "Novo empréstimo",
+      "borrow_body": "{event} – {borrower} ({count} artigos)"
+    },
     "kanban": {
       "upload_title": "Novo anexo em {board}",
       "upload_body": "{actor} anexou «{filename}» a «{card}»",
@@ -786,7 +800,29 @@
         "col_name": "Equipa",
         "col_members": "Membros",
         "col_leader": "Líder",
-        "preview_title": "Pré-visualização"
+        "preview_title": "Pré-visualização",
+        "invite": {
+          "title": "Códigos de convite",
+          "help": "Utilizadores externos podem registar-se nesta equipa via /coderegister com um código. Obtêm apenas acesso de equipa (sem Public/Private).",
+          "max_uses": "Utilizações máx.",
+          "max_uses_placeholder": "Ilimitado",
+          "expires_days": "Validade (dias)",
+          "expires_days_placeholder": "Sem validade",
+          "create": "Criar código",
+          "status_active": "Ativo",
+          "status_inactive": "Inativo",
+          "uses": "{used} / {max} utilizações",
+          "unlimited": "∞",
+          "expires_at": "até {date}",
+          "deactivate": "Desativar",
+          "delete_confirm": "Eliminar mesmo este código de convite?",
+          "empty": "Ainda sem códigos de convite.",
+          "flash_created": "Código de convite criado.",
+          "flash_deactivated": "Código de convite desativado.",
+          "flash_deleted": "Código de convite eliminado.",
+          "flash_invalid_max_uses": "Utilizações máximas inválidas.",
+          "flash_invalid_expires": "Período de validade inválido."
+        }
       },
       "cards": {
         "teams": {
@@ -842,6 +878,10 @@
           "html_design_label": "HTML design on by default",
           "html_design_help": "Compose: layout with logo. Off = formatted text without design wrapper.",
           "manage_link": "Manage mailboxes"
+        },
+        "auto_reply": {
+          "title": "Resposta automática (caixa principal)",
+          "hint": "Resposta de ausência do servidor para a caixa principal. Independente do fornecedor de e-mail."
         }
       },
       "admin_modules": {
@@ -864,7 +904,12 @@
         "col_email": "E-mail",
         "col_login": "Último login",
         "col_status": "Estado",
-        "queue_title": "Fila"
+        "queue_title": "Fila",
+        "badge_team_only": "Só equipa",
+        "content_access_title": "Acesso ao conteúdo",
+        "content_access_help": "Controla se o utilizador pode ver e usar áreas Public e Private. Sem ambos, só tem acesso de equipa.",
+        "can_access_public": "Acesso Public",
+        "can_access_private": "Acesso Private"
       },
       "whitelist": {
         "lead_short": "E-mails e domínios para ativação automática.",
@@ -893,6 +938,30 @@
         "trash_retention_help": "Ficheiros e pastas eliminados são removidos definitivamente após este período. 0 desativa a limpeza automática.",
         "trash_retention_unit": "dias",
         "trash_retention_note": "Predefinição: 30 dias. Substitui FILES_TRASH_DAYS do ambiente após guardar."
+      },
+      "inventory": {
+        "dguv_cert_title": "DGUV signing certificate (FES)",
+        "dguv_cert_help": "Self-signed organisation certificate for digital inspection protocols. CN = portal name.",
+        "dguv_cert_lead": "Without a certificate, DGUV V3 inspections cannot be completed.",
+        "dguv_cert_status": "Status",
+        "dguv_cert_ok": "Valid",
+        "dguv_cert_expired": "Expired",
+        "dguv_cert_missing": "Missing",
+        "dguv_cert_valid_until": "Valid until",
+        "dguv_cert_generate_title": "Generate certificate",
+        "dguv_cert_cn": "Common Name (organisation)",
+        "dguv_cert_cn_placeholder": "Portal name, e.g. Devportal",
+        "dguv_cert_generate": "Regenerate with portal name",
+        "dguv_cert_confirm": "Overwrite existing certificate?",
+        "dguv_cert_generated": "Certificate created ({cn}), valid until {not_after}.",
+        "dguv_cert_error": "Could not create certificate.",
+        "dguv_cert_unknown_action": "Unknown action.",
+        "feature_dguv_help": "Inspection fields, filters, DGUV V3 exam and stock overview.",
+        "dguv_cert_portal": "Current portal name",
+        "dguv_cert_cn_current": "Certificate CN",
+        "dguv_cert_mismatch": "Certificate CN (“{cn}”) differs from portal name (“{portal}”). Please regenerate.",
+        "dguv_cert_generate_lead": "Creates a self-signed CA certificate using the portal name (Issued to/by).",
+        "dguv_cert_cn_help": "Leave empty or enter portal name — used as organisation CA."
       }
     },
     "notifications": {
@@ -999,6 +1068,23 @@
       "imap_section": "IMAP (incoming)",
       "footer": "Footer (optional)",
       "footer_help": "Empty = global footer from email settings.",
+      "auto_reply": {
+        "title": "Resposta automática",
+        "enabled": "Resposta automática ativa",
+        "help": "Para novos e-mails recebidos o servidor responde uma vez por remetente e dia. Tem efeito após a próxima sincronização (cerca de 15 minutos). Intervalo opcional: vazio = enquanto estiver ativa.",
+        "start_at": "Início (opcional)",
+        "end_at": "Fim (opcional)",
+        "start_help": "Vazio = válido imediatamente ao ativar.",
+        "end_help": "Vazio = sem data de fim.",
+        "subject": "Assunto",
+        "subject_default": "Resposta automática: Re: {subject}",
+        "subject_placeholder": "Resposta automática: Re: {subject}",
+        "subject_help": "O marcador {subject} é substituído pelo assunto original.",
+        "body": "Mensagem",
+        "body_placeholder": "Obrigado pela sua mensagem. De momento não estou disponível…",
+        "body_help": "Texto ou HTML simples. Obrigatório quando a resposta automática está ativa.",
+        "flash_saved": "A resposta automática foi guardada."
+      },
       "logo": "Logo (top-left in emails)",
       "logo_help": "Team mailboxes only. PNG/JPG/GIF/WebP, max 2 MB.",
       "flash_logo_pref_saved": "Logo preference saved.",
@@ -1481,6 +1567,117 @@
         "load_more": "Carregar mais produtos",
         "load_more_loading": "A carregar…"
       }
+    },
+    "dguv_exam": {
+      "page_title": "DGUV Inspection - Team Portal",
+      "heading": "DGUV Inspection",
+      "subtitle": "Inspect portable electrical equipment (DIN VDE 0701-0702) and sign digitally.",
+      "input_title": "Find item",
+      "camera_label": "Scan with camera",
+      "manual_label": "ID / inventory no.",
+      "manual_placeholder": "PROD or inventory no.",
+      "search_label": "Search product",
+      "search_placeholder": "Name, serial, category…",
+      "lookup_button": "Open",
+      "panel_title": "Inspection data",
+      "empty": "Scan or search an item to start the inspection.",
+      "next_scan": "Next item",
+      "no_certificate_hint": "No organisation certificate configured. Generate an FES certificate under Settings → Inventory.",
+      "section_examiner": "Examiner",
+      "examiner_name": "Name",
+      "examiner_email": "Email (for signature OTP)",
+      "section_device": "Test instrument",
+      "device_preset": "Recently used instruments",
+      "device_preset_none": "Enter new instrument…",
+      "device_name": "Instrument",
+      "device_serial": "Serial number",
+      "device_cal": "Last calibration",
+      "section_measures": "Measurements & visual check",
+      "visual": "Visual inspection",
+      "function": "Functional test",
+      "pass": "Passed",
+      "fail": "Failed",
+      "r_pe": "Protective earth resistance R_PE",
+      "r_iso": "Insulation resistance R_ISO",
+      "i_pe": "Protective conductor current I_PE",
+      "i_touch": "Touch current I_A",
+      "r_pe_limit_hint": "Limit ≤ {limit} Ω",
+      "r_iso_limit_hint": "Limit ≥ {limit} MΩ",
+      "section_result": "Overall result & interval",
+      "overall": "Overall result",
+      "result_passed": "Passed",
+      "result_deficient": "Deficient",
+      "result_failed": "Failed / Out of service",
+      "interval": "Interval (months)",
+      "exam_date": "Inspection date",
+      "next_exam": "Next inspection",
+      "submit": "Complete inspection",
+      "success": "Inspection saved and digitally signed.",
+      "open_pdf": "Open PDF",
+      "limit_ok": "Within limit",
+      "limit_fail": "Limit exceeded / not met",
+      "meta": {
+        "inventory": "Inventory no.",
+        "serial": "Serial number",
+        "owner": "Owner",
+        "location": "Location",
+        "length": "Length",
+        "folder": "Folder",
+        "dguv_last": "Last inspection",
+        "dguv_next": "Next inspection",
+        "dguv_interval": "Interval (months)"
+      },
+      "otp": {
+        "title": "Confirm signature",
+        "hint": "A 6-digit code was sent to your email.",
+        "code": "Confirmation code",
+        "cancel": "Cancel",
+        "confirm": "Sign",
+        "email_subject": "DGUV signature code – {portal}",
+        "email_body": "Your code to confirm the DGUV inspection: {code}\nValid for {minutes} minutes.",
+        "email_title": "DGUV signature code",
+        "email_intro": "Please confirm the digital signature of the DGUV V3 protocol with the following code.",
+        "mail_not_configured": "Email is not configured. The OTP exists server-side — contact an admin or set up mail.",
+        "window_active": "Signature confirmation still valid — no new email code needed.",
+        "window_active_banner": "Your signature confirmation is still valid (up to {days} days). No new OTP required."
+      },
+      "errors": {
+        "product_required": "Product required.",
+        "product_not_found": "Product not found.",
+        "scan_set": "Sets cannot be inspected here. Please scan a single item.",
+        "device_required": "Test instrument is required.",
+        "visual_required": "Visual inspection is required.",
+        "function_required": "Functional test is required.",
+        "result_required": "Overall result is required.",
+        "interval_invalid": "Invalid inspection interval.",
+        "email_required": "Examiner email is required.",
+        "no_certificate": "No signing certificate configured.",
+        "otp_missing": "No pending signature. Please start again.",
+        "otp_expired": "Code expired. Please start again.",
+        "otp_invalid": "Invalid code.",
+        "sign_failed": "PDF signing failed.",
+        "save_failed": "Save failed.",
+        "pdf_missing": "PDF not found.",
+        "lookup_failed": "Lookup failed.",
+        "prepare_failed": "Preparation failed.",
+        "complete_failed": "Completion failed."
+      }
+    },
+    "shell": {
+      "nav": {
+        "product_scan": "Scan & Info",
+        "dguv_exam": "Inspeção DGUV"
+      }
+    },
+    "dashboard": {
+      "hub": {
+        "product_scan_desc": "Digitalizar e atualizar dados/docs",
+        "dguv_exam_desc": "Inspeção DGUV V3 com assinatura digital"
+      }
+    },
+    "product_scan": {
+      "page_title": "Scan & Info - Team Portal",
+      "heading": "Scan & Info"
     }
   },
   "kanban": {

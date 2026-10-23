@@ -293,14 +293,17 @@ def register_request_hooks(app):
                 logout_user()
                 session.clear()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-                    err = (
-                        'Session expired due to inactivity'
-                        if reason == 'inactivity'
-                        else 'Session invalidated'
-                    )
+                    if reason == 'inactivity':
+                        err = 'Session expired due to inactivity'
+                    elif reason == 'absolute':
+                        err = 'Session expired'
+                    else:
+                        err = 'Session invalidated'
                     return jsonify({'error': err}), 401
                 if reason == 'inactivity':
                     flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                elif reason == 'absolute':
+                    flash(translate('settings.admin.system.flash_absolute_logout'), 'info')
                 return redirect(url_for('auth.login'))
         except Exception as exc:
             app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
@@ -344,9 +347,30 @@ def register_request_hooks(app):
                 'max-age=31536000; includeSubDomains',
             )
 
-        # CSP: schrittweise — blockiert object/base, erlaubt bestehende Inline-/CDN-Nutzung.
-        # MiroTalk-Join läuft oft als http://HOST:3010 (anderes Origin) → frame-src ergänzen.
+        # CSP: kein globales unsafe-eval; Scripts nur self + bekannte CDNs.
+        # unsafe-inline bleibt bis Nonce-Migration (viele Template-Inline-Scripts).
+        # MiroTalk-Join oft http://HOST:3010 → frame-src ergänzen.
+        # Euro-Office / Excalidraw / Media-Downloader brauchen lokal noch unsafe-eval.
         frame_src = ["'self'", 'https:', 'blob:'] + _csp_frame_src_extra(app)
+        script_cdn = (
+            "https://cdn.jsdelivr.net "
+            "https://cdn.quilljs.com "
+            "https://cdn.socket.io "
+            "https://www.google.com "
+            "https://www.gstatic.com "
+            "https://challenges.cloudflare.com"
+        )
+        path = request.path or ''
+        needs_eval = (
+            path.startswith('/eurooffice')
+            or 'onlyoffice' in path
+            or path.startswith('/excalidraw')
+            or path.startswith('/media-downloader')
+            or path.startswith('/files/media-downloader')
+        )
+        script_src = f"script-src 'self' 'unsafe-inline' blob: {script_cdn}"
+        if needs_eval:
+            script_src += " 'unsafe-eval'"
         response.headers.setdefault(
             'Content-Security-Policy',
             "; ".join([
@@ -354,10 +378,10 @@ def register_request_hooks(app):
                 "base-uri 'self'",
                 "object-src 'none'",
                 "frame-ancestors 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:",
-                "style-src 'self' 'unsafe-inline' https:",
+                script_src,
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com",
                 "img-src 'self' data: blob: https:",
-                "font-src 'self' data: https:",
+                "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
                 "connect-src 'self' https: wss: ws: blob:",
                 "frame-src " + " ".join(frame_src),
                 "media-src 'self' https: blob:",

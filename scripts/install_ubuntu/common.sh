@@ -405,7 +405,7 @@ print_manual_gunicorn_hint() {
     log_manual "  1. cd $INSTALL_DIR && source venv/bin/activate && pip install gunicorn"
     log_manual "  2. FLASK_ENV=production python scripts/init_database.py"
     log_manual "  3. Systemd-Unit /etc/systemd/system/teamportal.service anlegen"
-    log_manual "  4. gunicorn --worker-class gthread --workers ${GUNICORN_WORKERS:-2} --threads 8 --timeout 180 --max-requests 1000 --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
+    log_manual "  4. gunicorn --worker-class gthread --workers ${GUNICORN_WORKERS:-2} --threads ${GUNICORN_THREADS:-8} --timeout 180 --max-requests 1000 --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
     log_manual "  5. systemctl enable --now teamportal"
     echo
 }
@@ -519,10 +519,180 @@ print_manual_mirotalk_hint() {
     echo
 }
 
+is_profile_small() {
+    case "${INSTALL_PROFILE:-}" in
+        small|SMALL) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# QA G01: gthread + Redis bei mehreren Workern (SSE/SocketIO sonst inkonsistent)
+enforce_gthread_redis_policy() {
+    GUNICORN_WORKER_CLASS="${GUNICORN_WORKER_CLASS:-gthread}"
+    if [ "${GUNICORN_WORKER_CLASS}" = "sync" ]; then
+        log_warning "worker-class sync blockiert SSE — setze gthread (QA G01)"
+        GUNICORN_WORKER_CLASS="gthread"
+    fi
+
+    local workers="${GUNICORN_WORKERS:-2}"
+    if ! [[ "$workers" =~ ^[0-9]+$ ]]; then
+        workers=2
+        GUNICORN_WORKERS=2
+    fi
+
+    if [ "$workers" -le 1 ]; then
+        return 0
+    fi
+
+    if is_yes "${SETUP_REDIS:-n}"; then
+        return 0
+    fi
+
+    log_warning "Gunicorn workers=${workers} ohne Redis: SocketIO, Kanban-SSE und Rate-Limit sind multi-worker-unsicher."
+    log_warning "Empfehlung (QA G01): Redis aktivieren oder --workers 1."
+
+    if is_yes "${FORCE_MULTI_WORKER_NO_REDIS:-n}"; then
+        log_warning "FORCE_MULTI_WORKER_NO_REDIS gesetzt — fortgesetzt auf eigenes Risiko."
+        return 0
+    fi
+
+    if is_yes "${NON_INTERACTIVE:-n}"; then
+        error_exit "workers>1 erfordert Redis (SETUP_REDIS / ohne --skip-redis), oder --workers 1, oder --force-multi-worker-no-redis."
+    fi
+
+    prompt_yes_no SETUP_REDIS "Redis jetzt einrichten (empfohlen bei ${workers} Workern)?" "j"
+    if is_yes "${SETUP_REDIS:-n}"; then
+        log_info "Redis wird eingerichtet — Multi-Worker OK."
+        return 0
+    fi
+
+    prompt_yes_no _DROP_TO_ONE_WORKER "Stattdessen auf 1 Gunicorn-Worker wechseln?" "j"
+    if is_yes "${_DROP_TO_ONE_WORKER:-n}"; then
+        GUNICORN_WORKERS=1
+        log_info "GUNICORN_WORKERS=1 (ohne Redis)."
+        return 0
+    fi
+
+    error_exit "Abbruch: Multi-Worker ohne Redis nicht empfohlen. Redis aktivieren, --workers 1, oder --force-multi-worker-no-redis."
+}
+
+# Euro-Office / MiroTalk auf derselben Small-/2-GB-Box → OOM (QA F08)
+wants_heavy_sidecars() {
+    is_yes "${INSTALL_ONLYOFFICE:-n}" || is_yes "${INSTALL_MIROTALK:-n}"
+}
+
+enforce_small_vps_sidecar_policy() {
+    if ! wants_heavy_sidecars; then
+        return 0
+    fi
+
+    local mem_mib low_ram=0
+    mem_mib=$(host_mem_mib)
+    if [ "$mem_mib" -gt 0 ] && [ "$mem_mib" -lt 3072 ]; then
+        low_ram=1
+    fi
+
+    if ! is_profile_small && [ "$low_ram" -ne 1 ]; then
+        return 0
+    fi
+
+    log_warning "Schwerlast-Sidecars (Euro-Office / MiroTalk) auf derselben Maschine sprengen typisch 2-GB-Budgets (Idle-RAM + OOM)."
+    log_warning "Empfehlung: Kern-Portal auf dieser VPS; Document Server / Meetings auf zweite Instanz oder managed Service."
+    if [ "$mem_mib" -gt 0 ]; then
+        log_warning "Erkanntes RAM: ~${mem_mib} MiB · Profil: ${INSTALL_PROFILE:-default}"
+    fi
+
+    if is_yes "${FORCE_HEAVY_SIDECARS:-n}"; then
+        log_warning "FORCE_HEAVY_SIDECARS gesetzt — Installation fortgesetzt (auf eigenes Risiko)."
+        return 0
+    fi
+
+    if is_yes "${NON_INTERACTIVE:-n}"; then
+        error_exit "Small-/Low-RAM-Host: --onlyoffice/--mirotalk nur mit --force-heavy-sidecars (oder Sidecars weglassen / --profile small ohne diese Flags)."
+    fi
+
+    prompt_yes_no FORCE_HEAVY_SIDECARS \
+        "Trotzdem Euro-Office/MiroTalk auf dieser Box installieren (nicht empfohlen)?" \
+        "n"
+    if is_yes "${FORCE_HEAVY_SIDECARS:-n}"; then
+        log_warning "Fortgesetzt mit Schwerlast-Sidecars — Monitoring (free -h) empfohlen."
+        return 0
+    fi
+
+    log_info "Schwerlast-Sidecars deaktiviert (Small-VPS-Policy)."
+    INSTALL_ONLYOFFICE="n"
+    INSTALL_MIROTALK="n"
+}
+
+# RAM in MiB (0 wenn unbekannt)
+host_mem_mib() {
+    local kb
+    kb=$(awk '/MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)
+    if [ -z "$kb" ] || [ "$kb" -le 0 ] 2>/dev/null; then
+        echo 0
+        return
+    fi
+    echo $((kb / 1024))
+}
+
+# Small-VPS-Defaults nur für noch leere Variablen (CLI behält Vorrang)
+apply_install_profile() {
+    case "${INSTALL_PROFILE:-}" in
+        small|SMALL)
+            INSTALL_PROFILE="small"
+            log_info "Install-Profil: small (2 CPU / ~2 GB — schlanke Gunicorn-/DB-/Converter-Defaults)"
+            GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
+            GUNICORN_THREADS="${GUNICORN_THREADS:-4}"
+            INSTALL_DOCKER="${INSTALL_DOCKER:-n}"
+            INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-n}"
+            INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-n}"
+            INSTALL_MIROTALK="${INSTALL_MIROTALK:-n}"
+            DB_POOL_SIZE="${DB_POOL_SIZE:-5}"
+            DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-5}"
+            FILE_CONVERTER_MAX_CONCURRENT="${FILE_CONVERTER_MAX_CONCURRENT:-1}"
+            FILE_CONVERTER_MAX_GLOBAL="${FILE_CONVERTER_MAX_GLOBAL:-1}"
+            MEDIA_DOWNLOADER_MAX_CONCURRENT="${MEDIA_DOWNLOADER_MAX_CONCURRENT:-1}"
+            MEDIA_DOWNLOADER_MAX_GLOBAL="${MEDIA_DOWNLOADER_MAX_GLOBAL:-1}"
+            ;;
+        ""|default|standard)
+            INSTALL_PROFILE="${INSTALL_PROFILE:-default}"
+            GUNICORN_THREADS="${GUNICORN_THREADS:-8}"
+            # QA G07: Pool pro Worker ≥ Threads (Default 8+4)
+            DB_POOL_SIZE="${DB_POOL_SIZE:-8}"
+            DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-4}"
+            ;;
+        *)
+            error_exit "Unbekanntes Install-Profil: ${INSTALL_PROFILE} (erlaubt: small, default)"
+            ;;
+    esac
+}
+
+# Bei wenig RAM interaktiv Small-Profil anbieten (nicht non-interactive erzwingen)
+maybe_offer_small_profile() {
+    if [ -n "${INSTALL_PROFILE:-}" ]; then
+        return 0
+    fi
+    local mem_mib
+    mem_mib=$(host_mem_mib)
+    if [ "$mem_mib" -gt 0 ] && [ "$mem_mib" -lt 3072 ]; then
+        log_warning "Wenig RAM erkannt (~${mem_mib} MiB). Für 2-GB-VPS ist das Profil „small“ empfohlen."
+        if is_yes "$NON_INTERACTIVE"; then
+            log_info "Non-Interactive: Profil bleibt default — mit --profile small explizit setzen."
+            return 0
+        fi
+        prompt_yes_no INSTALL_PROFILE_SMALL "Small-VPS-Profil nutzen (2 Worker × 4 Threads, keine Docker-Schwerlast)?" "j"
+        if is_yes "$INSTALL_PROFILE_SMALL"; then
+            INSTALL_PROFILE="small"
+        fi
+    fi
+}
+
 init_defaults() {
     GUNICORN_PORT="${GUNICORN_PORT:-}"
     GUNICORN_WORKERS="${GUNICORN_WORKERS:-}"
+    GUNICORN_THREADS="${GUNICORN_THREADS:-}"
     SETUP_GUNICORN="${SETUP_GUNICORN:-}"
+    INSTALL_PROFILE="${INSTALL_PROFILE:-}"
     GIT_BRANCH="${GIT_BRANCH:-}"
     REPO_URL="${REPO_URL:-}"
     INSTALL_DIR="${INSTALL_DIR:-}"
@@ -534,6 +704,9 @@ init_defaults() {
     INSTALL_ONLYOFFICE="${INSTALL_ONLYOFFICE:-}"
     INSTALL_EXCALIDRAW="${INSTALL_EXCALIDRAW:-}"
     INSTALL_MIROTALK="${INSTALL_MIROTALK:-}"
+    FORCE_HEAVY_SIDECARS="${FORCE_HEAVY_SIDECARS:-}"
+    FORCE_MULTI_WORKER_NO_REDIS="${FORCE_MULTI_WORKER_NO_REDIS:-}"
+    GUNICORN_WORKER_CLASS="${GUNICORN_WORKER_CLASS:-}"
     INSTALL_MEDIA_DOWNLOADER="${INSTALL_MEDIA_DOWNLOADER:-}"
     MEDIA_DOWNLOADER_COOKIES_FILE="${MEDIA_DOWNLOADER_COOKIES_FILE:-}"
     MEDIA_DOWNLOADER_PLAYER_CLIENT="${MEDIA_DOWNLOADER_PLAYER_CLIENT:-}"
@@ -544,6 +717,12 @@ init_defaults() {
     DB_USER="${DB_USER:-}"
     DB_PASS="${DB_PASS:-}"
     MYSQL_ROOT_PASS="${MYSQL_ROOT_PASS:-}"
+    DB_POOL_SIZE="${DB_POOL_SIZE:-}"
+    DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-}"
+    FILE_CONVERTER_MAX_CONCURRENT="${FILE_CONVERTER_MAX_CONCURRENT:-}"
+    FILE_CONVERTER_MAX_GLOBAL="${FILE_CONVERTER_MAX_GLOBAL:-}"
+    MEDIA_DOWNLOADER_MAX_CONCURRENT="${MEDIA_DOWNLOADER_MAX_CONCURRENT:-}"
+    MEDIA_DOWNLOADER_MAX_GLOBAL="${MEDIA_DOWNLOADER_MAX_GLOBAL:-}"
     ENV_MODE="${ENV_MODE:-}"
     ENV_FILE="${ENV_FILE:-}"
     TIMEZONE="${TIMEZONE:-}"

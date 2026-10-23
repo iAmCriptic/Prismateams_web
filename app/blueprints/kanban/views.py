@@ -103,7 +103,7 @@ def index():
         filter_team_id = None
         section = 'all'
 
-    allowed = set(get_allowed_visibilities())
+    allowed = set(get_allowed_visibilities(current_user))
     base = (
         accessible_boards_query(current_user, include_closed=False)
         .options(joinedload(KanbanBoard.team))
@@ -208,7 +208,7 @@ def index():
         team_boards=selected_team_boards,
         team_board_groups=team_board_groups,
         public_boards=public_boards,
-        allowed_visibilities=get_allowed_visibilities(),
+        allowed_visibilities=get_allowed_visibilities(current_user),
         teams=teams,
         templates=templates,
         backgrounds=BOARD_BACKGROUNDS,
@@ -239,7 +239,7 @@ def closed_boards():
     return render_template(
         'kanban/closed.html',
         boards=boards,
-        allowed_visibilities=get_allowed_visibilities(),
+        allowed_visibilities=get_allowed_visibilities(current_user),
         teams=_user_kanban_teams(current_user),
         active_nav='closed',
         create_modal=False,

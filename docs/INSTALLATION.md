@@ -13,6 +13,7 @@
 <p align="center">
   <a href="README.md">Übersicht</a> ·
   <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="INSTALLATION_DOCKER.md">Docker</a> ·
   <a href="WARTUNG.md">Wartung</a> ·
   <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
 </p>
@@ -20,7 +21,9 @@
 ---
 
 > **Empfohlen: modularer Ubuntu-Installer**  
-> Produktion auf Ubuntu 24.04 / 26.04 LTS: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen und 26.04-Besonderheiten (Python 3.14, MySQL 8.4, Docker-Fallback, cloud-init/apt in VMs): [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
+> Produktion auf Ubuntu 24.04 / 26.04 LTS: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen und 26.04-Besonderheiten (Python 3.14, MySQL 8.4, Docker-Fallback, cloud-init/apt in VMs): [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md).  
+> **Alternative Docker:** Compose-Stack oder `sudo bash scripts/install_ubuntu_docker.sh` — [INSTALLATION_DOCKER.md](INSTALLATION_DOCKER.md).  
+> Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
 
 ## Hinweis zu VAPID- und Encryption-Keys
 

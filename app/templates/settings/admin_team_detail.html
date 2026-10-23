@@ -98,6 +98,82 @@
         {% endif %}
     </section>
 
+    <section class="settings-admin-teams-panel mb-3" aria-labelledby="invite-codes-heading">
+        <h2 id="invite-codes-heading" class="settings-admin-teams-section-title">{{ _('settings.admin.teams.invite.title') }}</h2>
+        <p class="settings-admin-teams-subtitle mb-3">{{ _('settings.admin.teams.invite.help') }}</p>
+
+        <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="mb-3">
+            <input type="hidden" name="action" value="create_invite_code">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-4">
+                    <label class="form-label" for="inviteMaxUses">{{ _('settings.admin.teams.invite.max_uses') }}</label>
+                    <input type="number" min="1" class="form-control settings-admin-teams-input" id="inviteMaxUses" name="max_uses" placeholder="{{ _('settings.admin.teams.invite.max_uses_placeholder') }}">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label" for="inviteExpiresDays">{{ _('settings.admin.teams.invite.expires_days') }}</label>
+                    <input type="number" min="1" class="form-control settings-admin-teams-input" id="inviteExpiresDays" name="expires_days" placeholder="{{ _('settings.admin.teams.invite.expires_days_placeholder') }}">
+                </div>
+                <div class="col-sm-4">
+                    <button type="submit" class="btn btn-accent settings-admin-teams-btn w-100">
+                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                        {{ _('settings.admin.teams.invite.create') }}
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        {% if invite_codes %}
+        <div class="settings-admin-teams-member-list">
+            {% for invite in invite_codes %}
+            <div class="settings-admin-teams-member-row">
+                <div class="settings-admin-teams-member-main">
+                    <div class="settings-admin-teams-member-name">
+                        <code>{{ invite.code }}</code>
+                        {% if invite.is_active and invite.is_valid() %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.teams.invite.status_active') }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.teams.invite.status_inactive') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="settings-admin-teams-card-meta">
+                        <span>{{ _('settings.admin.teams.invite.uses', used=invite.uses_count, max=(invite.max_uses if invite.max_uses is not none else _('settings.admin.teams.invite.unlimited'))) }}</span>
+                        {% if invite.expires_at %}
+                        <span aria-hidden="true">·</span>
+                        <span>{{ _('settings.admin.teams.invite.expires_at', date=invite.expires_at|localdatetime('%d.%m.%Y')) }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-1">
+                        <a href="{{ url_for('auth.coderegister', code=invite.code, _external=True) }}" class="small" target="_blank" rel="noopener">
+                            {{ url_for('auth.coderegister', code=invite.code, _external=True) }}
+                        </a>
+                    </div>
+                </div>
+                <div class="d-flex gap-1 flex-wrap justify-content-end">
+                    {% if invite.is_active %}
+                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
+                        <input type="hidden" name="action" value="deactivate_invite_code">
+                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary settings-admin-teams-btn">
+                            {{ _('settings.admin.teams.invite.deactivate') }}
+                        </button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
+                        <input type="hidden" name="action" value="delete_invite_code">
+                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.invite.delete_confirm') }}">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.invite.empty') }}</p>
+        {% endif %}
+    </section>
+
     <section class="settings-admin-teams-panel" aria-labelledby="add-members-heading">
         <h2 id="add-members-heading" class="settings-admin-teams-section-title">{{ _('settings.admin.teams.add_members') }}</h2>
         <p class="settings-admin-teams-subtitle mb-3">{{ _('settings.admin.teams.add_members_help') }}</p>

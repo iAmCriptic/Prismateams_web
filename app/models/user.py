@@ -64,6 +64,10 @@ class User(UserMixin, db.Model):
     
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
+
+    # Content space access (Public / Private sections); Team bleibt über TeamMember
+    can_access_public = db.Column(db.Boolean, default=True, nullable=False)
+    can_access_private = db.Column(db.Boolean, default=True, nullable=False)
     
     # Password change requirement
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)  # Muss Passwort beim ersten Login ändern
@@ -74,6 +78,9 @@ class User(UserMixin, db.Model):
     # SHA-256-Hex des Klartext-Recovery-Codes (früher 6-stellig Klartext)
     totp_recovery_code = db.Column(db.String(128), nullable=True)
     totp_recovery_code_expires = db.Column(db.DateTime, nullable=True)
+
+    # DGUV FES: monatliche E-Mail-OTP-Bestätigung (rollierend 30 Tage)
+    dguv_signature_confirmed_until = db.Column(db.DateTime, nullable=True)
 
     # Google Login / Registrierung / Verknüpfung
     google_sub = db.Column(db.String(64), unique=True, nullable=True, index=True)

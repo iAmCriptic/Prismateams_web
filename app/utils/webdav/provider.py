@@ -209,6 +209,11 @@ class _BaseCollection(DAVCollection):
 
 
 class RootCollection(_BaseCollection):
+    def get_display_name(self):
+        """Friendly root label for clients that honour displayname (not Windows UNC)."""
+        host = (self.environ.get('HTTP_HOST') or '').split(':')[0].strip()
+        return host or 'Prismateams'
+
     def get_member_names(self):
         names = [PUBLIC]
         if is_private_folders_enabled():
@@ -488,6 +493,7 @@ class PendingFileResource(_FileWriteMixin, DAVNonCollection):
             self._cleanup_temp()
             return
         try:
+            # New uploads: no existing file_id yet — occupancy N/A for create.
             self._file_obj = ops.create_or_version_file(
                 name=self.name,
                 parent_folder=self.parent_folder,
@@ -555,6 +561,9 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
         user = _user_from_environ(self.environ)
         if not user or not can_edit_file(self.file_obj, user):
             raise DAVError(HTTP_FORBIDDEN, 'No edit permission')
+        from app.utils.file_occupancy import raise_if_browser_blocks_webdav
+
+        raise_if_browser_blocks_webdav(self.file_obj, user_id=user.id)
         return super().begin_write(content_type=content_type)
 
     def end_write(self, *, with_errors):
@@ -564,6 +573,9 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
             return
         parent = Folder.query.get(self.file_obj.folder_id) if self.file_obj.folder_id else None
         try:
+            from app.utils.file_occupancy import raise_if_browser_blocks_webdav
+
+            raise_if_browser_blocks_webdav(self.file_obj, user_id=user.id)
             ops.create_or_version_file(
                 name=self.file_obj.name,
                 parent_folder=parent,
@@ -574,6 +586,8 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
                 content_type=getattr(self, '_write_content_type', None) or self.file_obj.mime_type,
             )
             self.file_obj = File.query.get(self.file_obj.id)
+        except DAVError:
+            raise
         except (PermissionError, ValueError, FileExistsError, FileNotFoundError) as exc:
             self._cleanup_temp()
             raise DAVError(HTTP_FORBIDDEN, str(exc)) from exc

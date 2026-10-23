@@ -59,8 +59,10 @@
 {%- endmacro %}
 
 {% macro files_nav_links(dismiss_offcanvas=false) %}
+{% set allow_private = (current_user.is_admin or current_user.has_full_access or current_user.can_access_private|default(true)) %}
+{% set allow_public = (current_user.is_admin or current_user.has_full_access or current_user.can_access_public|default(true)) %}
 <nav class="mod-sidebar-nav nav flex-column gap-1">
-    {% if files_private_folders_enabled %}
+    {% if files_private_folders_enabled and allow_private %}
     <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}" data-drop-target="space" data-drop-view="ablage"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
     {% endif %}
     {% if files_team_folders_enabled %}
@@ -71,8 +73,10 @@
     </a>
     {% endfor %}
     {% endif %}
+    {% if allow_public %}
     <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}" data-drop-target="space" data-drop-view="public"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
-    {% if files_private_folders_enabled or files_team_folders_enabled %}
+    {% endif %}
+    {% if (files_private_folders_enabled and allow_private) or files_team_folders_enabled %}
     <a class="nav-link mod-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
     {% endif %}
     <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash3-fill me-2"></i>{{ _('files.index.nav.trash') }}</a>
@@ -1291,6 +1295,53 @@
                     <div class="form-text">{{ _('files.index.webdav_modal.auth_hint') }}</div>
                 </div>
 
+                <div class="files-webdav-os-block mb-3" id="webdavAppPasswordBlock"
+                     data-list-url="{{ url_for('settings.app_passwords_list') }}"
+                     data-create-url="{{ url_for('settings.app_passwords_create') }}"
+                     data-security-url="{{ url_for('settings.security') }}#security-app-passwords">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-key-fill me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.app_password_title') }}
+                    </h6>
+                    <p class="form-text mb-2">{{ _('files.index.webdav_modal.app_password_intro') }}</p>
+
+                    <div id="webdavAppPasswordCreated" class="alert alert-permanent portal-msg portal-msg--success mb-2 d-none" role="status">
+                        <div class="portal-msg__body">
+                            <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></div>
+                            <div class="portal-msg__content">
+                                <p class="portal-msg__text mb-2">{{ _('files.index.webdav_modal.app_password_once') }}</p>
+                                <label class="form-label small mb-1" for="webdavAppUsernameValue">{{ _('files.index.webdav_modal.username_label') }}</label>
+                                <div class="files-webdav-url-row mb-2">
+                                    <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="webdavAppUsernameValue" readonly value="">
+                                    <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavAppUsernameCopyBtn" title="{{ _('files.index.webdav_modal.copy_username') }}">
+                                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                        <span class="visually-hidden">{{ _('files.index.webdav_modal.copy_username') }}</span>
+                                    </button>
+                                </div>
+                                <label class="form-label small mb-1" for="webdavAppPasswordValue">{{ _('files.index.webdav_modal.password_label') }}</label>
+                                <div class="files-webdav-url-row">
+                                    <input type="text" class="form-control mod-pill-input user-select-all font-monospace" id="webdavAppPasswordValue" readonly value="">
+                                    <button type="button" class="btn btn-accent rounded-pill files-webdav-copy-btn" id="webdavAppPasswordCopyBtn" title="{{ _('files.index.webdav_modal.copy_password') }}">
+                                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                        <span class="visually-hidden">{{ _('files.index.webdav_modal.copy_password') }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="files-webdav-app-pw-list list-unstyled mb-2" id="webdavAppPasswordList" hidden></ul>
+                    <p class="form-text mb-2 d-none" id="webdavAppPasswordEmpty">{{ _('files.index.webdav_modal.app_password_none') }}</p>
+
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button type="button" class="btn btn-accent rounded-pill px-3" id="webdavAppPasswordCreateBtn">
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.app_password_create') }}
+                        </button>
+                        <a class="btn btn-outline-secondary rounded-pill px-3" href="{{ url_for('settings.security') }}#security-app-passwords">
+                            {{ _('files.index.webdav_modal.app_password_manage') }}
+                        </a>
+                    </div>
+                </div>
+
                 <div class="files-webdav-os-block mb-3">
                     <h6 class="files-webdav-os-title">
                         <i class="bi bi-windows me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.windows_title') }}
@@ -1300,7 +1351,9 @@
                         <li>{{ _('files.index.webdav_modal.windows_step2') }}</li>
                         <li>{{ _('files.index.webdav_modal.windows_step3') }}</li>
                         <li>{{ _('files.index.webdav_modal.windows_step4') }}</li>
+                        <li>{{ _('files.index.webdav_modal.windows_step5') }}</li>
                     </ol>
+                    <p class="form-text mb-0 mt-2">{{ _('files.index.webdav_modal.windows_display_note') }}</p>
                 </div>
 
                 <div class="files-webdav-os-block mb-3">
@@ -1313,6 +1366,27 @@
                         <li>{{ _('files.index.webdav_modal.mac_step3') }}</li>
                         <li>{{ _('files.index.webdav_modal.mac_step4') }}</li>
                     </ol>
+                </div>
+
+                <div class="files-webdav-os-block mb-3">
+                    <h6 class="files-webdav-os-title">
+                        <i class="bi bi-ubuntu me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.linux_title') }}
+                    </h6>
+                    <ol class="files-webdav-steps mb-0">
+                        <li>{{ _('files.index.webdav_modal.linux_step1') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step2') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step3') }}</li>
+                        <li>{{ _('files.index.webdav_modal.linux_step4') }}</li>
+                    </ol>
+                </div>
+
+                <div class="alert alert-permanent portal-msg portal-msg--info mb-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text mb-0">{{ _('files.index.webdav_modal.lock_note') }}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="alert alert-permanent portal-msg portal-msg--warning mb-0" role="status">

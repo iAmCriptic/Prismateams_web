@@ -473,8 +473,11 @@
       var text = script.textContent || '';
       if (text.indexOf('SETTINGS_UI_I18N') === -1 && text.indexOf('SETTINGS_SEARCH_CATALOG') === -1) return;
       try {
-        // eslint-disable-next-line no-new-func
-        (new Function(text))();
+        // Ohne eval/new Function (CSP ohne unsafe-eval): Inline-Script per DOM ausführen
+        var s = document.createElement('script');
+        s.textContent = text;
+        (document.head || document.documentElement).appendChild(s);
+        s.remove();
       } catch (e) { /* ignore */ }
     });
     i18n = (window.SETTINGS_UI_I18N) || {};
@@ -552,6 +555,7 @@
       initAutosave(document);
       initSearch();
       initSettingsChrome(document);
+      initPillSelects(document);
       window.dispatchEvent(new CustomEvent('sp:settings-soft-reload'));
 
       window.scrollTo(0, scrollY);
@@ -562,12 +566,22 @@
     });
   }
 
+  function initPillSelects(root) {
+    if (!window.InventoryPillSelect) return;
+    if (typeof InventoryPillSelect.enhanceMarked === 'function') {
+      InventoryPillSelect.enhanceMarked(root || document);
+    } else if (typeof InventoryPillSelect.enhanceAll === 'function') {
+      InventoryPillSelect.enhanceAll(root || document);
+    }
+  }
+
   function init() {
     initCollapses(document);
     initTooltips(document);
     initAutosave(document);
     initSearch();
     initSettingsChrome(document);
+    initPillSelects(document);
     runHashFlash();
     if (!hashFlashBound) {
       hashFlashBound = true;

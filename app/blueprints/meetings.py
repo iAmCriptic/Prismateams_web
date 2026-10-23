@@ -52,8 +52,17 @@ GUEST_SESSION_KEY = 'meetings_guest_name'
 
 
 def _module_guard():
-    if not meetings_runtime_ready():
-        abort(404)
+    """Redirect with flash when Meetings/MiroTalk is unavailable. Returns a response or None."""
+    if meetings_runtime_ready():
+        return None
+    from app.utils.mirotalk import mirotalk_configured
+    if not mirotalk_configured():
+        flash(translate('meetings.flash.not_configured'), 'warning')
+    else:
+        flash(translate('meetings.flash.no_module'), 'warning')
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    return redirect(url_for('auth.login'))
 
 
 def _sidebar_counts():
@@ -120,7 +129,9 @@ def _avatar_url_for(user: User):
 @login_required
 @check_module_access('module_meetings')
 def index():
-    _module_guard()
+    blocked = _module_guard()
+    if blocked:
+        return blocked
     purge_ended_meetings()
     meetings = visible_meetings_query(current_user, MEETING_STATUS_ACTIVE).options(
         joinedload(Meeting.creator),
@@ -138,7 +149,9 @@ def index():
 @login_required
 @check_module_access('module_meetings')
 def create():
-    _module_guard()
+    blocked = _module_guard()
+    if blocked:
+        return blocked
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip()
         access_mode = (request.form.get('access_mode') or 'public').strip().lower()
@@ -157,8 +170,9 @@ def create():
 @meetings_bp.route('/<int:meeting_id>/join')
 @login_required
 def join(meeting_id):
-    if not meetings_runtime_ready():
-        abort(404)
+    blocked = _module_guard()
+    if blocked:
+        return blocked
     meeting = Meeting.query.get_or_404(meeting_id)
     guest_token = (request.args.get('g') or '').strip() or None
     if not meeting.is_active:
@@ -201,8 +215,9 @@ def join(meeting_id):
 @meetings_bp.route('/<int:meeting_id>/end', methods=['POST'])
 @login_required
 def end(meeting_id):
-    if not meetings_runtime_ready():
-        abort(404)
+    blocked = _module_guard()
+    if blocked:
+        return blocked
     meeting = Meeting.query.get_or_404(meeting_id)
     if not user_can_end_meeting(current_user, meeting):
         abort(403)
@@ -242,7 +257,10 @@ def from_chat(chat_id):
 @meetings_bp.route('/g/<token>', methods=['GET', 'POST'])
 def guest_join(token):
     if not meetings_runtime_ready():
-        abort(404)
+        flash(translate('meetings.flash.not_configured'), 'warning')
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard.index'))
+        return redirect(url_for('auth.login'))
     meeting = Meeting.query.filter_by(guest_join_token=token).first_or_404()
     if not meeting.is_active:
         return render_template(

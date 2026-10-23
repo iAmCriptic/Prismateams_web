@@ -482,7 +482,13 @@ def _attach_form_documents_to_products(products, form, files):
 
 
 def _parse_optional_float(value):
-    raw = (value or '').strip()
+    if value is None or value is False:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    raw = str(value).strip()
     if not raw:
         return None
     try:
@@ -492,7 +498,15 @@ def _parse_optional_float(value):
 
 
 def _parse_optional_int(value):
-    raw = (value or '').strip()
+    if value is None or value is False:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    raw = str(value).strip()
     if not raw:
         return None
     try:
@@ -504,11 +518,15 @@ def _parse_optional_int(value):
 def _parse_optional_date(value):
     if isinstance(value, date) and not isinstance(value, datetime):
         return value
-    raw = (value or '').strip() if value is not None else ''
+    if isinstance(value, datetime):
+        return value.date()
+    if value is None:
+        return None
+    raw = str(value).strip()
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, '%Y-%m-%d').date()
+        return datetime.strptime(raw[:10], '%Y-%m-%d').date()
     except ValueError:
         return None
 
@@ -834,10 +852,14 @@ __all__ = [
     "get_product_folders",
     "inject_inventory_trash_folder",
     "inventory_number_display",
+    "owner_suggestion_payload",
+    "product_owner_display",
     "save_inventory_categories",
     "_accessible_manuals",
     "_apply_dguv_fields",
     "_apply_dguv_from_form",
+    "_apply_owner_from_data",
+    "_apply_owner_from_form",
     "_apply_retired_folder_assignment",
     "_attach_form_documents_to_products",
     "_can_use_as_numeric_product_id",

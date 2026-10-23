@@ -347,6 +347,53 @@ class ProductDocument(db.Model):
         return f'<ProductDocument {self.display_name} for Product {self.product_id}>'
 
 
+class DguvExamination(db.Model):
+    """Unveränderlicher DGUV-V3-Prüfeintrag (append-only)."""
+    __tablename__ = 'dguv_examinations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    examiner_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    examiner_name = db.Column(db.String(255), nullable=False)
+    examiner_email = db.Column(db.String(255), nullable=False)
+
+    device_name = db.Column(db.String(255), nullable=False)
+    device_serial = db.Column(db.String(100), nullable=True)
+    device_calibration_date = db.Column(db.Date, nullable=True)
+
+    visual_ok = db.Column(db.Boolean, nullable=False)
+    r_pe_ohm = db.Column(db.Float, nullable=True)
+    r_iso_mohm = db.Column(db.Float, nullable=True)
+    i_pe_ma = db.Column(db.Float, nullable=True)
+    i_touch_ma = db.Column(db.Float, nullable=True)
+    function_ok = db.Column(db.Boolean, nullable=False)
+
+    r_pe_limit = db.Column(db.Float, nullable=False, default=0.3)
+    r_iso_limit = db.Column(db.Float, nullable=False, default=1.0)
+    r_pe_pass = db.Column(db.Boolean, nullable=True)
+    r_iso_pass = db.Column(db.Boolean, nullable=True)
+
+    # passed | deficient | failed
+    overall_result = db.Column(db.String(20), nullable=False, index=True)
+    interval_months = db.Column(db.Integer, nullable=False)
+    exam_date = db.Column(db.Date, nullable=False, index=True)
+    next_exam_date = db.Column(db.Date, nullable=False)
+
+    pdf_sha256 = db.Column(db.String(64), nullable=False)
+    pdf_document_id = db.Column(db.Integer, db.ForeignKey('product_documents.id'), nullable=True)
+    signature_serial = db.Column(db.String(64), nullable=True)
+    signed_at = db.Column(db.DateTime, nullable=False)
+    otp_verified_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    product = db.relationship('Product', backref=db.backref('dguv_examinations', lazy='dynamic'))
+    examiner = db.relationship('User', foreign_keys=[examiner_user_id])
+    pdf_document = db.relationship('ProductDocument', foreign_keys=[pdf_document_id])
+
+    def __repr__(self):
+        return f'<DguvExamination {self.id} product={self.product_id} result={self.overall_result}>'
+
+
 class SavedFilter(db.Model):
     """Gespeicherte Filter für Produktsuche."""
     __tablename__ = 'saved_filters'

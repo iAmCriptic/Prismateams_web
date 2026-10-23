@@ -19,6 +19,7 @@ TRANSLATION_DIR = os.path.abspath(
 TRANSLATIONS_DIR = TRANSLATION_DIR
 
 _TRANSLATION_FILE_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_COMPLETENESS_CACHE: Dict[str, Tuple[Tuple[float, ...], int]] = {}
 
 
 def ensure_translation_dir() -> None:
@@ -74,12 +75,92 @@ def _load_language(language: str) -> Dict[str, Any]:
 def clear_translation_cache(language: Optional[str] = None) -> None:
     if language:
         _TRANSLATION_FILE_CACHE.pop(language, None)
+        _COMPLETENESS_CACHE.pop(language, None)
     else:
         _TRANSLATION_FILE_CACHE.clear()
+        _COMPLETENESS_CACHE.clear()
 
 
 def clear_cache() -> None:
     clear_translation_cache()
+
+
+def _flatten_string_leaves(data: Any, prefix: str = "") -> Dict[str, str]:
+    """Flacht nested JSON auf leaf-Strings ab (Keys wie 'settings.foo.bar')."""
+    out: Dict[str, str] = {}
+    if isinstance(data, dict):
+        for key, value in data.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            out.update(_flatten_string_leaves(value, path))
+    elif isinstance(data, str) and prefix:
+        out[prefix] = data
+    return out
+
+
+def _translation_mtime(language: str) -> float:
+    try:
+        return os.path.getmtime(_translation_path(language))
+    except OSError:
+        return 0.0
+
+
+def get_language_completeness(language: str) -> int:
+    """
+    Übersetzungsabdeckung relativ zu Deutsch (0–100).
+
+    Ein Key zählt als erledigt, wenn er vorhanden und nicht leer ist.
+    Für Nicht-Englisch: identische EN-Platzhalter (während DE ≠ EN) zählen
+    nicht mit — so bleibt der Fortschritt bei WIP-Sprachen realistisch.
+    """
+    lang = (language or "").strip().lower()
+    if not lang:
+        return 0
+    if lang == DEFAULT_LANGUAGE:
+        return 100
+
+    stamp = (
+        _translation_mtime(DEFAULT_LANGUAGE),
+        _translation_mtime(FALLBACK_LANGUAGE),
+        _translation_mtime(lang),
+    )
+    cached = _COMPLETENESS_CACHE.get(lang)
+    if cached and cached[0] == stamp:
+        return cached[1]
+
+    base = _flatten_string_leaves(_load_translations(DEFAULT_LANGUAGE))
+    if not base:
+        _COMPLETENESS_CACHE[lang] = (stamp, 0)
+        return 0
+
+    target = _flatten_string_leaves(_load_translations(lang))
+    en_map = (
+        {}
+        if lang == FALLBACK_LANGUAGE
+        else _flatten_string_leaves(_load_translations(FALLBACK_LANGUAGE))
+    )
+
+    done = 0
+    for key, de_val in base.items():
+        value = target.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if lang == FALLBACK_LANGUAGE:
+            done += 1
+            continue
+        en_val = en_map.get(key)
+        # Noch EN-Platzhalter, obwohl DE anders lautet → unübersetzt
+        if (
+            isinstance(en_val, str)
+            and value == en_val
+            and en_val != de_val
+        ):
+            continue
+        done += 1
+
+    percent = int(round(100.0 * done / len(base)))
+    percent = max(0, min(100, percent))
+    _COMPLETENESS_CACHE[lang] = (stamp, percent)
+    return percent
 
 
 def _portal_display_name() -> str:
@@ -321,6 +402,7 @@ __all__ = [
     "get_available_languages",
     "get_current_language",
     "get_translations",
+    "get_language_completeness",
     "clear_cache",
     "clear_translation_cache",
 ]

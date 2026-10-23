@@ -39,21 +39,25 @@
             ('module_kanban', 'bi-kanban', _('settings.admin.admin_modules.module_kanban'), module_kanban_enabled),
             ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
             ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled),
-            ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled)
+            ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled),
+            ('module_duty_roster', 'bi-calendar3', _('settings.admin.admin_modules.module_duty_roster'), module_duty_roster_enabled)
           ] %}
           {% for key, icon, label, enabled in modules %}
-          {% if key != 'module_meetings' or mirotalk_ready %}
-          <div class="sp-row settings-admin-modules-switch">
+          <div class="sp-row settings-admin-modules-switch{% if key == 'module_meetings' and not mirotalk_ready %} settings-admin-modules-switch--disabled{% endif %}">
             <div class="sp-row-label">
               <span class="sp-row-label-text"><i class="bi {{ icon }}" aria-hidden="true"></i> {{ label }}</span>
+              {% if key == 'module_meetings' and not mirotalk_ready %}
+              <p class="sp-row-meta mb-0 mt-1">{{ _('settings.admin.admin_modules.meetings_needs_mirotalk') }}</p>
+              {% endif %}
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="{{ key }}" name="{{ key }}" {% if enabled %}checked{% endif %}>
+                <input class="form-check-input" type="checkbox" role="switch" id="{{ key }}" name="{{ key }}"
+                       {% if enabled and (key != 'module_meetings' or mirotalk_ready) %}checked{% endif %}
+                       {% if key == 'module_meetings' and not mirotalk_ready %}disabled{% endif %}>
               </div>
             </div>
           </div>
-          {% endif %}
           {% endfor %}
         </div>
       </div>
@@ -98,6 +102,10 @@
             </div>
           </div>
         </div>
+        <p class="sp-row-meta text-warning mb-0 mt-2 px-0">
+          <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+          {{ _('settings.admin.visibility.credentials_public_hint') }}
+        </p>
       </div>
     </section>
   </form>

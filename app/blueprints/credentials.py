@@ -101,8 +101,17 @@ def normalize_folder_color(raw_color):
     return value.lower()
 
 
+def _accessible_folders_query(user=None):
+    """Folders the user may see (same visibility rules as credentials)."""
+    user = user or current_user
+    return accessible_query(user, CredentialFolder, 'credentials').order_by(
+        CredentialFolder.position.asc(),
+        CredentialFolder.name.asc(),
+    )
+
+
 def parse_folder_id(raw_folder_id):
-    """Parse and validate folder id from form/json value."""
+    """Parse folder id; only return IDs the current user can view."""
     if raw_folder_id in (None, '', 'null'):
         return None
 
@@ -112,7 +121,11 @@ def parse_folder_id(raw_folder_id):
         return None
 
     folder = CredentialFolder.query.get(folder_id)
-    return folder.id if folder else None
+    if not folder:
+        return None
+    if not can_view_item(current_user, folder, 'credentials'):
+        return None
+    return folder.id
 
 
 def get_user_favorite_ids(user_id):
@@ -143,13 +156,13 @@ def _credentials_denied():
 def _folder_scope(folder):
     """Return (visibility, team_id) for a folder."""
     if not folder:
-        return VISIBILITY_PUBLIC, None
-    vis = (folder.visibility or VISIBILITY_PUBLIC).strip().lower()
+        return VISIBILITY_PRIVATE, None
+    vis = (folder.visibility or VISIBILITY_PRIVATE).strip().lower()
     if vis == VISIBILITY_TEAM and folder.team_id:
         return VISIBILITY_TEAM, folder.team_id
-    if vis == VISIBILITY_PRIVATE:
-        return VISIBILITY_PRIVATE, None
-    return VISIBILITY_PUBLIC, None
+    if vis == VISIBILITY_PUBLIC:
+        return VISIBILITY_PUBLIC, None
+    return VISIBILITY_PRIVATE, None
 
 
 def _group_folders_by_scope(folders):
@@ -227,7 +240,10 @@ def _parse_folder_scope_from_form():
         return VISIBILITY_PRIVATE, None
     if raw_view == VISIBILITY_PRIVATE:
         return VISIBILITY_PRIVATE, None
-    return VISIBILITY_PUBLIC, None
+    if raw_view == VISIBILITY_PUBLIC:
+        return VISIBILITY_PUBLIC, None
+    # Unbekannt / leer → privat (S15: kein versehentliches Public)
+    return VISIBILITY_PRIVATE, None
 
 
 def _credentials_form_kwargs(item=None, folder_id=None):
@@ -238,15 +254,13 @@ def _credentials_form_kwargs(item=None, folder_id=None):
     if item is None:
         if folder_id:
             folder = CredentialFolder.query.get(folder_id)
-            if folder:
+            if folder and can_view_item(current_user, folder, 'credentials'):
                 pre_section, pre_team_id = _folder_scope(folder)
         elif section in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM):
             pre_section = section
             pre_team_id = filter_team_id
 
-    all_folders = CredentialFolder.query.order_by(
-        CredentialFolder.position.asc(), CredentialFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
 
     ctx = visibility_form_context(
         'credentials',
@@ -276,9 +290,7 @@ def _render_create_form(folder_id=None, is_favorite=False, **extra):
 @check_module_access('module_credentials')
 def index():
     """List credentials for root, folder, space, or personal favorites view."""
-    all_folders = CredentialFolder.query.order_by(
-        CredentialFolder.position.asc(), CredentialFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
     folders_by_scope = _group_folders_by_scope(all_folders)
     section, filter_team_id = parse_section_args('credentials', current_user)
     active_favorites = section == 'favorites'
@@ -289,9 +301,10 @@ def index():
     active_folder_id = None
     active_folder = None
     if raw_folder_id and not active_favorites:
+        # parse_folder_id already enforces can_view_item
         active_folder = CredentialFolder.query.get(raw_folder_id)
         if active_folder:
-            active_folder_id = raw_folder_id
+            active_folder_id = active_folder.id
             folder_vis, folder_team_id = _folder_scope(active_folder)
             if not space_view:
                 section = folder_vis
@@ -397,6 +410,8 @@ def create():
         db.session.commit()
 
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
+        if credential.visibility == VISIBILITY_PUBLIC:
+            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(folder_id) if folder_id else None
         if folder:
             redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=folder_id)
@@ -444,16 +459,19 @@ def edit(credential_id):
         db.session.commit()
         
         flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
+        if credential.visibility == VISIBILITY_PUBLIC:
+            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(credential.folder_id) if credential.folder_id else None
         return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=credential.folder_id)))
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
     logger.info(
-        'credential_password_reveal user_id=%s credential_id=%s owner_id=%s via=edit ip=%s',
+        'credential_password_reveal user_id=%s credential_id=%s owner_id=%s visibility=%s via=edit ip=%s',
         getattr(current_user, 'id', None),
         credential.id,
         getattr(credential, 'created_by', None),
+        getattr(credential, 'visibility', None),
         request.headers.get('X-Forwarded-For', request.remote_addr),
     )
     is_favorite = CredentialFavorite.query.filter_by(
@@ -506,10 +524,11 @@ def view_password(credential_id):
     try:
         password = credential.get_password(key)
         logger.info(
-            'credential_password_reveal user_id=%s credential_id=%s owner_id=%s ip=%s',
+            'credential_password_reveal user_id=%s credential_id=%s owner_id=%s visibility=%s ip=%s',
             getattr(current_user, 'id', None),
             credential.id,
             getattr(credential, 'created_by', None),
+            getattr(credential, 'visibility', None),
             request.headers.get('X-Forwarded-For', request.remote_addr),
         )
         return jsonify({'password': password})
@@ -568,6 +587,8 @@ def create_folder():
 def update_folder(folder_id):
     """Rename folder and/or change color."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     folder_name = request.form.get('name', '').strip()
     folder_color = normalize_folder_color(request.form.get('color', folder.color))
 
@@ -589,6 +610,8 @@ def update_folder(folder_id):
 def delete_folder(folder_id):
     """Delete folder; move credentials back to root."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     folder_name = folder.name
     redirect_kwargs = _index_url_kwargs(folder=folder)
 
@@ -606,11 +629,13 @@ def delete_folder(folder_id):
 def move_folder_up(folder_id):
     """Move folder one position up."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     previous_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position < folder.position
     ).order_by(CredentialFolder.position.desc()).first()
 
-    if previous_folder:
+    if previous_folder and can_edit_item(current_user, previous_folder, 'credentials'):
         folder.position, previous_folder.position = previous_folder.position, folder.position
         db.session.commit()
 
@@ -623,11 +648,13 @@ def move_folder_up(folder_id):
 def move_folder_down(folder_id):
     """Move folder one position down."""
     folder = CredentialFolder.query.get_or_404(folder_id)
+    if not can_edit_item(current_user, folder, 'credentials'):
+        return _credentials_denied()
     next_folder = _scope_folder_query(folder).filter(
         CredentialFolder.position > folder.position
     ).order_by(CredentialFolder.position.asc()).first()
 
-    if next_folder:
+    if next_folder and can_edit_item(current_user, next_folder, 'credentials'):
         folder.position, next_folder.position = next_folder.position, folder.position
         db.session.commit()
 

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duty_roster.nav.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/duty_roster.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set heading = selected_team.name if selected_team else _('duty_roster.nav.team') %}
+{% include 'duty_roster/_layout_start.html' %}
+
+        <div class="duty-toolbar">
+            <div class="duty-toolbar__title">
+                <h1>
+                    <i class="bi bi-people"></i>
+                    {{ selected_team.name if selected_team else _('duty_roster.nav.team') }}
+                </h1>
+            </div>
+            <div class="duty-toolbar__actions">
+                {% if selected_team and can_plan %}
+                <a href="{{ url_for('duty_roster.team_settings', team_id=selected_team.id) }}" class="btn mod-pill-btn">
+                    <i class="bi bi-gear"></i> {{ _('duty_roster.nav.settings') }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if not selected_team %}
+        <div class="alert alert-info">{{ _('duty_roster.flash.no_team') }}</div>
+        {% else %}
+
+        {% macro roster_actions(r) %}
+        <div class="d-flex gap-1 flex-wrap">
+            <a href="{{ url_for('duty_roster.team_view', roster_id=r.id) }}" class="btn mod-pill-btn btn-sm">{{ _('duty_roster.index.open') }}</a>
+            {% if can_plan %}
+            <form method="post" action="{{ url_for('duty_roster.team_delete', roster_id=r.id) }}" onsubmit="return confirm({{ _('duty_roster.index.delete_confirm')|tojson }});">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn mod-pill-btn mod-pill-btn--ghost btn-sm text-danger">{{ _('duty_roster.index.delete') }}</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endmacro %}
+
+        {% macro create_month_form(slot) %}
+        <form method="post" action="{{ url_for('duty_roster.team_create') }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="team_id" value="{{ selected_team.id }}">
+            <input type="hidden" name="year" value="{{ slot.year }}">
+            <input type="hidden" name="month" value="{{ slot.month }}">
+            <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent btn-sm">
+                <i class="bi bi-plus-lg"></i> {{ _('duty_roster.index.create_btn') }}
+            </button>
+        </form>
+        {% endmacro %}
+
+        {% macro month_slot_row(slot, muted=false) %}
+        <div class="list-group-item duty-month-slot {% if muted and not slot.roster %}duty-month-slot--placeholder{% endif %} d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <div>
+                {% if slot.roster %}
+                <a href="{{ url_for('duty_roster.team_view', roster_id=slot.roster.id) }}" class="fw-semibold text-decoration-none">
+                    {{ slot.label }}
+                </a>
+                {% if slot.roster.is_published %}
+                <span class="duty-badge duty-badge--published ms-1">{{ _('duty_roster.index.published_badge') }}</span>
+                {% else %}
+                <span class="duty-badge duty-badge--draft ms-1">{{ _('duty_roster.index.draft_badge') }}</span>
+                {% endif %}
+                {% else %}
+                <span class="fw-semibold duty-month-slot__label">{{ slot.label }}</span>
+                <div class="small text-muted">{{ _('duty_roster.index.not_created') }}</div>
+                {% endif %}
+            </div>
+            {% if slot.roster %}
+            {{ roster_actions(slot.roster) }}
+            {% elif can_plan %}
+            {{ create_month_form(slot) }}
+            {% endif %}
+        </div>
+        {% endmacro %}
+
+        {% if can_plan and month_slots %}
+            {# Aktueller Monat + nächste Monate (Platzhalter ausgegraut) #}
+            <div class="list-group duty-roster-list mb-3">
+                {% for slot in month_slots.forward %}
+                {{ month_slot_row(slot, muted=(slot.kind != 'current')) }}
+                {% endfor %}
+                {% for slot in month_slots.extra_future %}
+                {{ month_slot_row(slot) }}
+                {% endfor %}
+            </div>
+
+            {% if month_slots.past_existing %}
+            <h2 class="duty-roster-section-title">{{ _('duty_roster.index.section_past') }}</h2>
+            <div class="list-group duty-roster-list mb-3">
+                {% for slot in month_slots.past_existing %}
+                {{ month_slot_row(slot) }}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if month_slots.past_create %}
+            <details class="duty-private-more duty-month-retro">
+                <summary>{{ _('duty_roster.index.create_past') }}</summary>
+                <div class="list-group duty-roster-list mt-2">
+                    {% for slot in month_slots.past_create %}
+                    {{ month_slot_row(slot, muted=true) }}
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+        {% else %}
+            {# Nur Leserechte: vorhandene Pläne #}
+            {% macro roster_list(items) %}
+            <div class="list-group duty-roster-list">
+                {% for r in items %}
+                <div class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <div>
+                        <a href="{{ url_for('duty_roster.team_view', roster_id=r.id) }}" class="fw-semibold text-decoration-none">
+                            {{ r.display_title }}
+                        </a>
+                        {% if r.is_published %}
+                        <span class="duty-badge duty-badge--published ms-1">{{ _('duty_roster.index.published_badge') }}</span>
+                        {% else %}
+                        <span class="duty-badge duty-badge--draft ms-1">{{ _('duty_roster.index.draft_badge') }}</span>
+                        {% endif %}
+                    </div>
+                    {{ roster_actions(r) }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endmacro %}
+
+            {% set groups = roster_groups or {'current': [], 'future': [], 'past': []} %}
+            {% if groups.current or groups.future or groups.past %}
+                {% if groups.current %}
+                <h2 class="duty-roster-section-title">{{ _('duty_roster.index.section_current') }}</h2>
+                {{ roster_list(groups.current) }}
+                {% endif %}
+                {% if groups.future %}
+                <h2 class="duty-roster-section-title">{{ _('duty_roster.index.section_future') }}</h2>
+                {{ roster_list(groups.future) }}
+                {% endif %}
+                {% if groups.past %}
+                <h2 class="duty-roster-section-title">{{ _('duty_roster.index.section_past') }}</h2>
+                {{ roster_list(groups.past) }}
+                {% endif %}
+            {% else %}
+            <p class="text-muted">{{ _('duty_roster.index.empty') }}</p>
+            {% endif %}
+        {% endif %}
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}{{ subject_title or 'DGUV Prüfung' }} - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block content %}
+<h2>{{ subject_title or 'DGUV V3 Prüfung' }}</h2>
+<p>{{ intro or 'Bitte bestätigen Sie die digitale Signatur mit dem folgenden Code.' }}</p>
+
+<div class="email-code-box">
+    <div class="email-code-label">Ihr 6-stelliger Signatur-Code</div>
+    <span class="email-code">{{ confirmation_code }}</span>
+</div>
+
+<div class="email-security">
+    <strong>Sicherheitshinweis:</strong> Dieser Code ist {{ minutes or 10 }} Minuten gültig und darf nicht an Dritte weitergegeben werden.
+</div>
+
+<p style="margin-bottom: 0;">Mit freundlichen Grüßen,<br>Ihr {{ app_name or 'Prismateams' }} Team</p>
+{% endblock %}

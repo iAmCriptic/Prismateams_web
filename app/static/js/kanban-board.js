@@ -25,6 +25,20 @@
   let lastBoardSig = '';
   let pollTimer = null;
   let sseLive = false;
+  let eventSource = null;
+  let pageSseHeld = false;
+
+  function holdPageSse() {
+    if (pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.acquire();
+    pageSseHeld = true;
+  }
+
+  function releasePageSse() {
+    if (!pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.release();
+    pageSseHeld = false;
+  }
 
   board.custom_field_categories = board.custom_field_categories || [];
 
@@ -2357,29 +2371,47 @@
   }
 
   function startPolling() {
-    if (pollTimer || sseLive) return;
+    if (pollTimer || sseLive || document.hidden) return;
     pollTimer = setInterval(() => {
-      if (isBoardBusy() || sseLive) return;
+      if (document.hidden || isBoardBusy() || sseLive) return;
       refreshBoard();
     }, 8000);
   }
 
+  function disconnectSSE() {
+    stopPolling();
+    if (eventSource) {
+      try { eventSource.close(); } catch (_) { /* ignore */ }
+      eventSource = null;
+    }
+    sseLive = false;
+    releasePageSse();
+  }
+
   function connectSSE() {
+    if (document.hidden) return;
     const url = app.dataset.sseUrl;
     if (!url || !window.EventSource) {
       startPolling();
       return;
     }
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+      return;
+    }
     try {
       const es = new EventSource(url);
+      eventSource = es;
+      holdPageSse();
       es.addEventListener('connected', () => {
         sseLive = true;
         stopPolling();
       });
       es.onerror = () => {
         if (es.readyState === EventSource.CLOSED) {
+          if (eventSource === es) eventSource = null;
           sseLive = false;
-          startPolling();
+          releasePageSse();
+          if (!document.hidden) startPolling();
         }
       };
       es.onmessage = (ev) => {
@@ -2398,6 +2430,8 @@
         });
       });
     } catch (_) {
+      eventSource = null;
+      releasePageSse();
       startPolling();
     }
   }
@@ -2450,9 +2484,15 @@
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !sseLive && !ignoreSSE) {
-      refreshBoard();
+    if (document.hidden) {
+      // Freigabe von Gunicorn-Threads: Hintergrund-Tabs brauchen kein Live-SSE/Polling.
+      disconnectSSE();
+      return;
     }
+    if (ignoreSSE) return;
+    refreshBoard();
+    connectSSE();
+    if (!sseLive) startPolling();
   });
 
   if (new URLSearchParams(window.location.search).get('share') === '1' && canManage) {

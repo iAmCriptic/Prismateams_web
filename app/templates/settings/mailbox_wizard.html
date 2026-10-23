@@ -307,6 +307,12 @@
                     </div>
                 </div>
                 {% endif %}
+                {% if show_auto_reply and is_edit %}
+                <div class="settings-admin-email-field mailbox-wizard-field--full mt-3">
+                    <h3 class="h6 mb-2">{{ _('settings.mailboxes.auto_reply.title') }}</h3>
+                    {% include 'settings/_auto_reply_fields.html' %}
+                </div>
+                {% endif %}
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">

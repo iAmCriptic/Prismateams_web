@@ -31,8 +31,10 @@ def current_release_marker(app):
 
 def should_run_migrations_after_update(app):
     """
-    Auto-Migration nur nach Update:
-    Läuft, wenn der gespeicherte Release-Marker vom aktuellen Marker abweicht.
+    True nach Release-/Build-Wechsel (oder wenn noch kein Marker gesetzt ist).
+
+    Steuert schwerere Startup-Nacharbeiten (z. B. Assessment-Seeds).
+    Pending migrate_*.py laufen unabhängig davon immer über auto_migrate.
     """
     try:
         from app.models.settings import SystemSettings
@@ -64,6 +66,7 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
                 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
+                from app.models.app_password import AppPassword
                 from app.models.passkey import UserPasskey
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -107,11 +110,12 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                     log_startup(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
 
                 auto_migrate_after_update, release_marker = should_run_migrations_after_update(app)
+                # Assessment-/Seed-Nacharbeiten nur nach Release-Wechsel oder explizit per Env.
                 should_run_startup_migrations = run_startup_migrations or auto_migrate_after_update
 
-                # Migrationen laufen automatisch nach Update (Release-Marker-Wechsel)
-                # oder explizit via PRISMATEAMS_STARTUP_MIGRATIONS=true.
-                if should_run_startup_migrations and not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
+                # Pending migrate_*.py immer anwenden (schema_migrations verhindert Doppel-Läufe).
+                # Früher nur bei Release-Marker-Wechsel → neue Skripte ohne Version-Bump wurden übersprungen.
+                if not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
                     try:
                         from app.utils.auto_migrate import run_pending_migrations
                         run_pending_migrations(db)
@@ -122,8 +126,6 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                         ensure_all_tables(db)
                     except Exception as schema_again_err:
                         log_startup(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
-                else:
-                    log_startup("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
                 
                 try:
                     from sqlalchemy import inspect

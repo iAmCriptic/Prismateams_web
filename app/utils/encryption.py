@@ -10,8 +10,8 @@ def read_encryption_key(*names: str) -> Optional[bytes]:
     """Return the first non-empty key from Flask config, then os.environ, as bytes.
 
     Quote-strips .env values. Does not generate keys or fall back to files —
-    callers keep those policies locally (credentials fail-closed, TOTP/music
-    have their own fallbacks).
+    callers keep those policies locally (credentials/TOTP fail-closed in
+    production; music may have its own fallbacks).
     """
     seen: list[str] = []
     for name in names:
