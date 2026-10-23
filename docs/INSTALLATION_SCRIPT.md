@@ -15,6 +15,7 @@
 <p align="center">
   <a href="README.md">Übersicht</a> ·
   <a href="INSTALLATION.md">Manuelle Installation</a> ·
+  <a href="INSTALLATION_DOCKER.md">Docker</a> ·
   <a href="WARTUNG.md">Wartung</a> ·
   <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
 </p>
@@ -22,7 +23,8 @@
 ---
 
 > **Einsatzbereit**  
-> Der modulare Ubuntu-Installer (`scripts/install_ubuntu.sh` + `scripts/install_ubuntu/*.sh`) ist für **Produktion freigegeben**. Empfohlener Weg auf Ubuntu Server **24.04** und **26.04** LTS. Manuelle Schritte nur bei Sonderfällen: [INSTALLATION.md](INSTALLATION.md).
+> Der modulare Ubuntu-Installer (`scripts/install_ubuntu.sh` + `scripts/install_ubuntu/*.sh`) ist für **Produktion freigegeben** (native: venv + systemd + Host-MySQL/Redis). Empfohlener Weg auf Ubuntu Server **24.04** und **26.04** LTS. Manuelle Schritte nur bei Sonderfällen: [INSTALLATION.md](INSTALLATION.md).  
+> **Reine Docker-Variante** (kein natives MySQL/venv): [`scripts/install_ubuntu_docker.sh`](../scripts/install_ubuntu_docker.sh) — siehe [INSTALLATION_DOCKER.md](INSTALLATION_DOCKER.md).
 
 Skript-Pfad (beide Batches gleich):
 
