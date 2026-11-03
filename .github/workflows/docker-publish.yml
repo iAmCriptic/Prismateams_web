@@ -1,8 +1,8 @@
 # Baut das App-Image und pusht nach Docker Hub: iamcriptic/prismateams
 #
 # Secrets (Repo → Settings → Secrets → Actions):
-#   DOCKERHUB_USERNAME  z. B. iamcriptic
-#   DOCKERHUB_TOKEN     Personal Access Token (Read/Write)
+#   DOCKERHUB_USERNAME  z. B. iamcriptic  (Hub-Username, keine E-Mail)
+#   DOCKERHUB_TOKEN     Personal Access Token (dckr_pat_…), Read/Write/Delete
 
 name: Docker Hub publish
 
@@ -42,17 +42,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # "malformed HTTP Authorization header" = oft Whitespace/Quotes im Secret
+      # oder Account-Passwort statt Personal Access Token (dckr_pat_…).
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          RAW_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          RAW_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          USER="$(printf '%s' "$RAW_USER" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//')"
+          TOKEN="$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//')"
+          if [ -z "$USER" ] || [ -z "$TOKEN" ]; then
+            echo "::error::DOCKERHUB_USERNAME oder DOCKERHUB_TOKEN fehlt/leer."
+            exit 1
+          fi
+          echo "Login als '${USER}' (Token-Länge ${#TOKEN}, Prefix '${TOKEN:0:9}')"
+          if [[ "$TOKEN" != dckr_pat_* ]]; then
+            echo "::warning::Erwartet Docker Hub PAT beginnend mit dckr_pat_ — nicht das Login-Passwort."
+          fi
+          printf '%s' "$TOKEN" | docker login -u "$USER" --password-stdin
 
       - name: Docker meta (Tags)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/prismateams
+          images: iamcriptic/prismateams
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Development' || github.event_name == 'workflow_dispatch' }}
             type=semver,pattern={{version}}

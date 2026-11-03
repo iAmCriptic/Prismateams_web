@@ -6,22 +6,25 @@
 
 {% block settings_content %}
 <div class="sp-page sp-page--fluid settings-admin-email"
-     data-test-smtp-url="{{ url_for('settings.admin_email_test_smtp') }}"
-     data-test-imap-url="{{ url_for('settings.admin_email_test_imap') }}"
-     data-i18n-idle="{{ _('settings.admin.email_module.test.status_idle') }}"
-     data-i18n-running="{{ _('settings.admin.email_module.test.status_running') }}"
-     data-i18n-ok="{{ _('settings.admin.email_module.test.status_ok') }}"
-     data-i18n-fail="{{ _('settings.admin.email_module.test.status_fail') }}"
-     data-i18n-error="{{ _('settings.admin.email_module.test.error_generic') }}">
+  data-test-smtp-url="{{ url_for('settings.admin_email_test_smtp') }}"
+  data-test-imap-url="{{ url_for('settings.admin_email_test_imap') }}"
+  data-test-company-mail-url="{{ url_for('settings.admin_email_test_company_mail') }}"
+  data-i18n-idle="{{ _('settings.admin.email_module.test.status_idle') }}"
+  data-i18n-running="{{ _('settings.admin.email_module.test.status_running') }}"
+  data-i18n-ok="{{ _('settings.admin.email_module.test.status_ok') }}"
+  data-i18n-fail="{{ _('settings.admin.email_module.test.status_fail') }}"
+  data-i18n-error="{{ _('settings.admin.email_module.test.error_generic') }}">
   <header class="sp-page-header">
-    <h1 class="sp-page-title"><i class="bi bi-envelope" aria-hidden="true"></i><span>{{ _('settings.admin.email_module.heading') }}</span></h1>
+    <h1 class="sp-page-title"><i class="bi bi-envelope" aria-hidden="true"></i><span>{{
+        _('settings.admin.email_module.heading') }}</span></h1>
     <p class="sp-page-lead">{{ _('settings.admin.email_module.lead_short') }}</p>
   </header>
 
   <div class="sp-card-grid">
     <section class="sp-group" id="email-test" data-settings-search-id="email-test" aria-labelledby="email-test-title">
       <div class="sp-group-head">
-        <h2 id="email-test-title" class="sp-group-title"><i class="bi bi-plug" aria-hidden="true"></i>{{ _('settings.admin.email_module.test.title') }}</h2>
+        <h2 id="email-test-title" class="sp-group-title"><i class="bi bi-plug" aria-hidden="true"></i>{{
+          _('settings.admin.email_module.test.title') }}</h2>
         {{ sp_info(_('settings.admin.email_module.test.hint')) }}
       </div>
       <div class="sp-group-body">
@@ -29,11 +32,13 @@
         <div class="settings-admin-email-test-list">
           <div class="settings-admin-email-test-row" data-test="smtp">
             <div class="settings-admin-email-test-main">
-              <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite" title="{{ _('settings.admin.email_module.test.status_idle') }}">
+              <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite"
+                title="{{ _('settings.admin.email_module.test.status_idle') }}">
                 <i class="bi bi-circle" aria-hidden="true"></i>
               </span>
               <div>
-                <div class="sp-row-label-text"><i class="bi bi-send" aria-hidden="true"></i> {{ _('settings.admin.email_module.test.smtp_label') }}</div>
+                <div class="sp-row-label-text"><i class="bi bi-send" aria-hidden="true"></i> {{
+                  _('settings.admin.email_module.test.smtp_label') }}</div>
                 <div class="sp-row-meta" data-test-meta>{{ _('settings.admin.email_module.test.smtp_help') }}</div>
               </div>
             </div>
@@ -43,15 +48,34 @@
           </div>
           <div class="settings-admin-email-test-row" data-test="imap">
             <div class="settings-admin-email-test-main">
-              <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite" title="{{ _('settings.admin.email_module.test.status_idle') }}">
+              <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite"
+                title="{{ _('settings.admin.email_module.test.status_idle') }}">
                 <i class="bi bi-circle" aria-hidden="true"></i>
               </span>
               <div>
-                <div class="sp-row-label-text"><i class="bi bi-inbox" aria-hidden="true"></i> {{ _('settings.admin.email_module.test.imap_label') }}</div>
+                <div class="sp-row-label-text"><i class="bi bi-inbox" aria-hidden="true"></i> {{
+                  _('settings.admin.email_module.test.imap_label') }}</div>
                 <div class="sp-row-meta" data-test-meta>{{ _('settings.admin.email_module.test.imap_help') }}</div>
               </div>
             </div>
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-test-run="imap">
+              <i class="bi bi-play-fill" aria-hidden="true"></i> {{ _('settings.admin.email_module.test.run') }}
+            </button>
+          </div>
+          <div class="settings-admin-email-test-row" data-test="company-mail">
+            <div class="settings-admin-email-test-main">
+              <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite"
+                title="{{ _('settings.admin.email_module.test.status_idle') }}">
+                <i class="bi bi-circle" aria-hidden="true"></i>
+              </span>
+              <div>
+                <div class="sp-row-label-text"><i class="bi bi-building-check" aria-hidden="true"></i> {{
+                  _('settings.admin.email_module.company_auth.test_label') }}</div>
+                <div class="sp-row-meta" data-test-meta>{{ _('settings.admin.email_module.company_auth.test_help') }}
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-test-run="company-mail">
               <i class="bi bi-play-fill" aria-hidden="true"></i> {{ _('settings.admin.email_module.test.run') }}
             </button>
           </div>
@@ -65,13 +89,16 @@
       </div>
     </section>
 
-    <form method="POST" action="{{ url_for('settings.admin_email_settings') }}" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_email_settings') }}">
+    <form method="POST" action="{{ url_for('settings.admin_email_settings') }}" data-sp-autosave
+      data-sp-save-url="{{ url_for('settings.admin_email_settings') }}">
       <input type="hidden" name="return_to" value="module">
       <input type="hidden" name="save_multi" value="1">
 
-      <section class="sp-group" id="email-system" data-settings-search-id="email-system" aria-labelledby="email-system-title">
+      <section class="sp-group" id="email-system" data-settings-search-id="email-system"
+        aria-labelledby="email-system-title">
         <div class="sp-group-head">
-          <h2 id="email-system-title" class="sp-group-title"><i class="bi bi-gear" aria-hidden="true"></i>{{ _('settings.admin.email_module.system.title') }}</h2>
+          <h2 id="email-system-title" class="sp-group-title"><i class="bi bi-gear" aria-hidden="true"></i>{{
+            _('settings.admin.email_module.system.title') }}</h2>
         </div>
         <div class="sp-group-body">
           <div class="sp-row">
@@ -80,7 +107,8 @@
               {{ sp_info(_('settings.admin.email_module.system.storage_help')) }}
             </div>
             <div class="sp-row-control">
-              <input type="number" class="form-control" id="storage_days" name="storage_days" value="{{ storage_days }}" min="0" step="1" placeholder="0" style="min-width:8rem;max-width:10rem">
+              <input type="number" class="form-control" id="storage_days" name="storage_days" value="{{ storage_days }}"
+                min="0" step="1" placeholder="0" style="min-width:8rem;max-width:10rem">
             </div>
           </div>
           <div class="sp-row sp-row--stack">
@@ -89,12 +117,16 @@
               {{ sp_info(_('settings.admin.email_module.system.sync_help')) }}
             </div>
             <div class="sp-row-control" style="width:100%;justify-content:flex-start">
-              <div class="sp-seg" role="radiogroup" aria-label="{{ _('settings.admin.email_module.system.sync_label') }}">
-                <input type="radio" class="btn-check" name="sync_interval" id="sync_15" value="15" {% if sync_interval == 15 %}checked{% endif %}>
+              <div class="sp-seg" role="radiogroup"
+                aria-label="{{ _('settings.admin.email_module.system.sync_label') }}">
+                <input type="radio" class="btn-check" name="sync_interval" id="sync_15" value="15" {% if
+                  sync_interval==15 %}checked{% endif %}>
                 <label for="sync_15">{{ _('settings.admin.email_module.system.sync_15') }}</label>
-                <input type="radio" class="btn-check" name="sync_interval" id="sync_30" value="30" {% if sync_interval != 15 and sync_interval != 60 %}checked{% endif %}>
+                <input type="radio" class="btn-check" name="sync_interval" id="sync_30" value="30" {% if sync_interval
+                  !=15 and sync_interval !=60 %}checked{% endif %}>
                 <label for="sync_30">{{ _('settings.admin.email_module.system.sync_30') }}</label>
-                <input type="radio" class="btn-check" name="sync_interval" id="sync_60" value="60" {% if sync_interval == 60 %}checked{% endif %}>
+                <input type="radio" class="btn-check" name="sync_interval" id="sync_60" value="60" {% if
+                  sync_interval==60 %}checked{% endif %}>
                 <label for="sync_60">{{ _('settings.admin.email_module.system.sync_60') }}</label>
               </div>
             </div>
@@ -102,9 +134,11 @@
         </div>
       </section>
 
-      <section class="sp-group" id="email-multi" data-settings-search-id="email-multi" aria-labelledby="email-multi-title">
+      <section class="sp-group" id="email-multi" data-settings-search-id="email-multi"
+        aria-labelledby="email-multi-title">
         <div class="sp-group-head">
-          <h2 id="email-multi-title" class="sp-group-title"><i class="bi bi-inbox-fill" aria-hidden="true"></i>{{ _('settings.admin.email_module.multi.title') }}</h2>
+          <h2 id="email-multi-title" class="sp-group-title"><i class="bi bi-inbox-fill" aria-hidden="true"></i>{{
+            _('settings.admin.email_module.multi.title') }}</h2>
           {{ sp_info(_('settings.admin.email_module.multi.lead')) }}
         </div>
         <div class="sp-group-body">
@@ -115,7 +149,8 @@
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" id="email_multi_enabled" name="email_multi_enabled" {% if email_multi_enabled %}checked{% endif %}>
+                <input class="form-check-input" type="checkbox" id="email_multi_enabled" name="email_multi_enabled" {%
+                  if email_multi_enabled %}checked{% endif %}>
               </div>
             </div>
           </div>
@@ -125,7 +160,9 @@
               {{ sp_info(_('settings.admin.email_module.multi.max_private_help')) }}
             </div>
             <div class="sp-row-control">
-              <input type="number" class="form-control" id="email_max_private_mailboxes" name="email_max_private_mailboxes" value="{{ email_max_private_mailboxes }}" min="0" step="1" style="min-width:8rem;max-width:10rem">
+              <input type="number" class="form-control" id="email_max_private_mailboxes"
+                name="email_max_private_mailboxes" value="{{ email_max_private_mailboxes }}" min="0" step="1"
+                style="min-width:8rem;max-width:10rem">
             </div>
           </div>
           <div class="sp-row">
@@ -135,13 +172,15 @@
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" id="email_compose_html_design_default" name="email_compose_html_design_default" {% if email_compose_html_design_default %}checked{% endif %}>
+                <input class="form-check-input" type="checkbox" id="email_compose_html_design_default"
+                  name="email_compose_html_design_default" {% if email_compose_html_design_default %}checked{% endif %}>
               </div>
             </div>
           </div>
           <div class="sp-row" id="email-manage-mailboxes-row" {% if not email_multi_enabled %}hidden{% endif %}>
             <div class="sp-row-control" style="justify-content:flex-start;width:100%">
-              <a href="{{ url_for('settings.admin_mailboxes') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
+              <a href="{{ url_for('settings.admin_mailboxes') }}"
+                class="btn btn-outline-secondary rounded-pill mod-pill-btn">
                 <i class="bi bi-envelope-plus" aria-hidden="true"></i>
                 {{ _('settings.admin.email_module.multi.manage_link') }}
               </a>
@@ -149,47 +188,162 @@
           </div>
         </div>
       </section>
+      <section class="sp-group" id="email-company-auth" data-settings-search-id="email-company-auth"
+        aria-labelledby="email-company-auth-title">
+        <div class="sp-group-head">
+          <h2 id="email-company-auth-title" class="sp-group-title"><i class="bi bi-building-check"
+              aria-hidden="true"></i>{{ _('settings.admin.email_module.company_auth.title') }}</h2>
+          {{ sp_info(_('settings.admin.email_module.company_auth.lead')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.email_module.company_auth.auth_toggle_label')
+                }}</span>
+              {{ sp_info(_('settings.admin.email_module.company_auth.auth_toggle_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="company_email_auth_enabled"
+                  name="company_email_auth_enabled" {% if company_email_auth_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.email_module.company_auth.register_only_label')
+                }}</span>
+              {{ sp_info(_('settings.admin.email_module.company_auth.register_only_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="company_email_register_only"
+                  name="company_email_register_only" {% if company_email_register_only %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.email_module.company_auth.allow_offline_label')
+                }}</span>
+              {{ sp_info(_('settings.admin.email_module.company_auth.allow_offline_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="company_email_allow_user_offline_login"
+                  name="company_email_allow_user_offline_login" {% if company_email_allow_user_offline_login %}checked{%
+                  endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.email_module.company_auth.domains_label') }}</span>
+              {{ sp_info(_('settings.admin.email_module.company_auth.domains_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%">
+              <input type="text" class="form-control" id="company_email_domains" name="company_email_domains"
+                value="{{ company_email_domains }}" placeholder="@firma.de, @tochter.com">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.email_module.company_auth.server_overrides_label')
+                }}</span>
+              {{ sp_info(_('settings.admin.email_module.company_auth.server_overrides_help')) }}
+            </div>
+            <div class="sp-row-control" style="width:100%;flex-direction:column;gap:0.75rem">
+              <div class="row g-2 w-100">
+                <div class="col-12 col-md-8">
+                  <label class="form-label small text-muted mb-1">{{
+                    _('settings.admin.email_module.company_auth.imap_server') }}</label>
+                  <input type="text" class="form-control form-control-sm" id="company_mail_imap_server"
+                    name="company_mail_imap_server" value="{{ company_mail_imap_server }}"
+                    placeholder="{{ company_mail_resolved_cfg.imap_server or 'imap.firma.de' }}">
+                </div>
+                <div class="col-6 col-md-4">
+                  <label class="form-label small text-muted mb-1">{{
+                    _('settings.admin.email_module.company_auth.imap_port') }}</label>
+                  <input type="number" class="form-control form-control-sm" id="company_mail_imap_port"
+                    name="company_mail_imap_port" value="{{ company_mail_imap_port }}"
+                    placeholder="{{ company_mail_resolved_cfg.imap_port or 993 }}">
+                </div>
+              </div>
+              <div class="row g-2 w-100">
+                <div class="col-12 col-md-8">
+                  <label class="form-label small text-muted mb-1">{{
+                    _('settings.admin.email_module.company_auth.smtp_server') }}</label>
+                  <input type="text" class="form-control form-control-sm" id="company_mail_smtp_server"
+                    name="company_mail_smtp_server" value="{{ company_mail_smtp_server }}"
+                    placeholder="{{ company_mail_resolved_cfg.smtp_server or 'smtp.firma.de' }}">
+                </div>
+                <div class="col-6 col-md-4">
+                  <label class="form-label small text-muted mb-1">{{
+                    _('settings.admin.email_module.company_auth.smtp_port') }}</label>
+                  <input type="number" class="form-control form-control-sm" id="company_mail_smtp_port"
+                    name="company_mail_smtp_port" value="{{ company_mail_smtp_port }}"
+                    placeholder="{{ company_mail_resolved_cfg.smtp_port or 587 }}">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </form>
   </div>
 
-  <section class="sp-group" id="email-auto-reply" data-settings-search-id="email-auto-reply" aria-labelledby="email-auto-reply-title">
+  <section class="sp-group" id="email-auto-reply" data-settings-search-id="email-auto-reply"
+    aria-labelledby="email-auto-reply-title">
     <div class="sp-group-head">
-      <h2 id="email-auto-reply-title" class="sp-group-title"><i class="bi bi-reply-all" aria-hidden="true"></i>{{ _('settings.admin.email_module.auto_reply.title') }}</h2>
+      <h2 id="email-auto-reply-title" class="sp-group-title"><i class="bi bi-reply-all" aria-hidden="true"></i>{{
+        _('settings.admin.email_module.auto_reply.title') }}</h2>
       {{ sp_info(_('settings.admin.email_module.auto_reply.hint')) }}
     </div>
     <div class="sp-group-body">
-      <form method="POST" action="{{ url_for('settings.admin_email_auto_reply') }}" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_email_auto_reply') }}">
+      <form method="POST" action="{{ url_for('settings.admin_email_auto_reply') }}" data-sp-autosave
+        data-sp-save-url="{{ url_for('settings.admin_email_auto_reply') }}">
         <input type="hidden" name="return_to" value="module">
         <div class="px-3 py-3">
-          {% with auto_reply=main_auto_reply, auto_reply_start_at=main_auto_reply_start_at, auto_reply_end_at=main_auto_reply_end_at, id_prefix='main_ar' %}
-            {% include 'settings/_auto_reply_fields.html' %}
+          {% with auto_reply=main_auto_reply, auto_reply_start_at=main_auto_reply_start_at,
+          auto_reply_end_at=main_auto_reply_end_at, id_prefix='main_ar' %}
+          {% include 'settings/_auto_reply_fields.html' %}
           {% endwith %}
         </div>
       </form>
     </div>
   </section>
 
-  <section class="sp-group" id="email-footer" data-settings-search-id="email-footer" aria-labelledby="email-footer-title">
+  <section class="sp-group" id="email-footer" data-settings-search-id="email-footer"
+    aria-labelledby="email-footer-title">
     <div class="sp-group-head">
-      <h2 id="email-footer-title" class="sp-group-title"><i class="bi bi-envelope-paper" aria-hidden="true"></i>{{ _('settings.admin.email_module.footer.title') }}</h2>
+      <h2 id="email-footer-title" class="sp-group-title"><i class="bi bi-envelope-paper" aria-hidden="true"></i>{{
+        _('settings.admin.email_module.footer.title') }}</h2>
       {{ sp_info(_('settings.admin.email_module.footer.vars_help')) }}
     </div>
     <div class="sp-group-body">
-      <form method="POST" action="{{ url_for('settings.admin_email_footer') }}" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_email_footer') }}">
+      <form method="POST" action="{{ url_for('settings.admin_email_footer') }}" data-sp-autosave
+        data-sp-save-url="{{ url_for('settings.admin_email_footer') }}">
         <input type="hidden" name="return_to" value="module">
         <div class="sp-row sp-row--stack">
           <div class="sp-row-label">
             <span class="sp-row-label-text">{{ _('settings.admin.email_module.footer.template_label') }}</span>
           </div>
           <div class="sp-row-control" style="width:100%;flex-direction:column;align-items:stretch;gap:0.55rem">
-            <div class="sp-chip-grid" role="group" aria-label="{{ _('settings.admin.email_module.footer.vars_label') }}">
-              <button type="button" class="settings-admin-email-chip" data-ph="&lt;user&gt;">{{ _('settings.admin.email_module.footer.ph_user') }}</button>
-              <button type="button" class="settings-admin-email-chip" data-ph="&lt;email&gt;">{{ _('settings.admin.email_module.footer.ph_email') }}</button>
-              <button type="button" class="settings-admin-email-chip" data-ph="&lt;app_name&gt;">{{ _('settings.admin.email_module.footer.ph_app_name') }}</button>
-              <button type="button" class="settings-admin-email-chip" data-ph="&lt;date&gt;">{{ _('settings.admin.email_module.footer.ph_date') }}</button>
-              <button type="button" class="settings-admin-email-chip" data-ph="&lt;time&gt;">{{ _('settings.admin.email_module.footer.ph_time') }}</button>
+            <div class="sp-chip-grid" role="group"
+              aria-label="{{ _('settings.admin.email_module.footer.vars_label') }}">
+              <button type="button" class="settings-admin-email-chip" data-ph="&lt;user&gt;">{{
+                _('settings.admin.email_module.footer.ph_user') }}</button>
+              <button type="button" class="settings-admin-email-chip" data-ph="&lt;email&gt;">{{
+                _('settings.admin.email_module.footer.ph_email') }}</button>
+              <button type="button" class="settings-admin-email-chip" data-ph="&lt;app_name&gt;">{{
+                _('settings.admin.email_module.footer.ph_app_name') }}</button>
+              <button type="button" class="settings-admin-email-chip" data-ph="&lt;date&gt;">{{
+                _('settings.admin.email_module.footer.ph_date') }}</button>
+              <button type="button" class="settings-admin-email-chip" data-ph="&lt;time&gt;">{{
+                _('settings.admin.email_module.footer.ph_time') }}</button>
             </div>
-            <textarea class="form-control" id="footer_template" name="footer_template" rows="7" placeholder="{{ _('settings.admin.email_module.footer.template_placeholder') }}">{{ footer_template }}</textarea>
+            <textarea class="form-control" id="footer_template" name="footer_template" rows="7"
+              placeholder="{{ _('settings.admin.email_module.footer.template_placeholder') }}">{{ footer_template }}</textarea>
           </div>
         </div>
         <div class="sp-row sp-row--stack">
@@ -197,7 +351,8 @@
             <span class="sp-row-label-text">{{ _('settings.admin.email_module.footer.preview_label') }}</span>
           </div>
           <div class="sp-row-control" style="width:100%">
-            <div class="settings-admin-email-preview" id="footerPreview" data-preview-date="{{ footer_preview_date }}" data-preview-time="{{ footer_preview_time }}"></div>
+            <div class="settings-admin-email-preview" id="footerPreview" data-preview-date="{{ footer_preview_date }}"
+              data-preview-time="{{ footer_preview_time }}"></div>
           </div>
         </div>
       </form>
@@ -206,122 +361,122 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', function () {
     var root = document.querySelector('.settings-admin-email');
     if (!root) return;
 
     var multiToggle = document.getElementById('email_multi_enabled');
     var manageRow = document.getElementById('email-manage-mailboxes-row');
     if (multiToggle && manageRow) {
-        multiToggle.addEventListener('change', function () {
-            manageRow.hidden = !multiToggle.checked;
-        });
+      multiToggle.addEventListener('change', function () {
+        manageRow.hidden = !multiToggle.checked;
+      });
     }
 
     var footerTextarea = document.getElementById('footer_template');
     var footerPreview = document.getElementById('footerPreview');
     var updateFooterPreview = null;
     if (footerTextarea && footerPreview) {
-        var previewDate = footerPreview.dataset.previewDate || '';
-        var previewTime = footerPreview.dataset.previewTime || '';
-        updateFooterPreview = function () {
-            var content = footerTextarea.value || '';
-            content = content.replace(/<user>/g, 'Max Mustermann');
-            content = content.replace(/<email>/g, 'max@example.com');
-            content = content.replace(/<app_name>/g, 'Prismateams');
-            content = content.replace(/<date>/g, previewDate);
-            content = content.replace(/<time>/g, previewTime);
-            footerPreview.textContent = content;
-        };
-        footerTextarea.addEventListener('input', updateFooterPreview);
-        updateFooterPreview();
+      var previewDate = footerPreview.dataset.previewDate || '';
+      var previewTime = footerPreview.dataset.previewTime || '';
+      updateFooterPreview = function () {
+        var content = footerTextarea.value || '';
+        content = content.replace(/<user>/g, 'Max Mustermann');
+        content = content.replace(/<email>/g, 'max@example.com');
+        content = content.replace(/<app_name>/g, 'Prismateams');
+        content = content.replace(/<date>/g, previewDate);
+        content = content.replace(/<time>/g, previewTime);
+        footerPreview.textContent = content;
+      };
+      footerTextarea.addEventListener('input', updateFooterPreview);
+      updateFooterPreview();
     }
 
     root.querySelectorAll('.settings-admin-email-chip[data-ph]').forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            if (!footerTextarea) return;
-            var ph = chip.getAttribute('data-ph') || '';
-            var start = footerTextarea.selectionStart || 0;
-            var end = footerTextarea.selectionEnd || 0;
-            var val = footerTextarea.value || '';
-            footerTextarea.value = val.slice(0, start) + ph + val.slice(end);
-            footerTextarea.focus();
-            var pos = start + ph.length;
-            footerTextarea.setSelectionRange(pos, pos);
-            if (updateFooterPreview) updateFooterPreview();
-            footerTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-        });
+      chip.addEventListener('click', function () {
+        if (!footerTextarea) return;
+        var ph = chip.getAttribute('data-ph') || '';
+        var start = footerTextarea.selectionStart || 0;
+        var end = footerTextarea.selectionEnd || 0;
+        var val = footerTextarea.value || '';
+        footerTextarea.value = val.slice(0, start) + ph + val.slice(end);
+        footerTextarea.focus();
+        var pos = start + ph.length;
+        footerTextarea.setSelectionRange(pos, pos);
+        if (updateFooterPreview) updateFooterPreview();
+        footerTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+      });
     });
 
     var i18n = {
-        idle: root.dataset.i18nIdle || '',
-        running: root.dataset.i18nRunning || '',
-        ok: root.dataset.i18nOk || '',
-        fail: root.dataset.i18nFail || '',
-        error: root.dataset.i18nError || ''
+      idle: root.dataset.i18nIdle || '',
+      running: root.dataset.i18nRunning || '',
+      ok: root.dataset.i18nOk || '',
+      fail: root.dataset.i18nFail || '',
+      error: root.dataset.i18nError || ''
     };
-    var urls = { smtp: root.dataset.testSmtpUrl, imap: root.dataset.testImapUrl };
+    var urls = { smtp: root.dataset.testSmtpUrl, imap: root.dataset.testImapUrl, 'company-mail': root.dataset.testCompanyMailUrl };
 
     function setStatus(kind, state, message) {
-        var row = root.querySelector('[data-test="' + kind + '"]');
-        if (!row) return;
-        var badge = row.querySelector('[data-test-status]');
-        var meta = row.querySelector('[data-test-meta]');
-        var btn = row.querySelector('[data-test-run]');
-        if (!badge) return;
-        badge.classList.remove('is-idle', 'is-running', 'is-ok', 'is-fail');
-        badge.classList.add('is-' + state);
-        var icon = 'bi-circle';
-        var title = i18n.idle;
-        if (state === 'running') { icon = 'bi-arrow-repeat'; title = i18n.running; }
-        else if (state === 'ok') { icon = 'bi-check-lg'; title = i18n.ok; }
-        else if (state === 'fail') { icon = 'bi-x-lg'; title = i18n.fail; }
-        badge.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
-        badge.setAttribute('title', title);
-        badge.setAttribute('aria-label', title);
-        if (meta && message) meta.textContent = message;
-        if (btn) btn.disabled = state === 'running';
+      var row = root.querySelector('[data-test="' + kind + '"]');
+      if (!row) return;
+      var badge = row.querySelector('[data-test-status]');
+      var meta = row.querySelector('[data-test-meta]');
+      var btn = row.querySelector('[data-test-run]');
+      if (!badge) return;
+      badge.classList.remove('is-idle', 'is-running', 'is-ok', 'is-fail');
+      badge.classList.add('is-' + state);
+      var icon = 'bi-circle';
+      var title = i18n.idle;
+      if (state === 'running') { icon = 'bi-arrow-repeat'; title = i18n.running; }
+      else if (state === 'ok') { icon = 'bi-check-lg'; title = i18n.ok; }
+      else if (state === 'fail') { icon = 'bi-x-lg'; title = i18n.fail; }
+      badge.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
+      badge.setAttribute('title', title);
+      badge.setAttribute('aria-label', title);
+      if (meta && message) meta.textContent = message;
+      if (btn) btn.disabled = state === 'running';
     }
 
     function runTest(kind) {
-        var url = urls[kind];
-        if (!url) return Promise.resolve();
-        setStatus(kind, 'running', i18n.running);
-        return fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            body: '{}'
-        }).then(function (res) {
-            return res.text().then(function (text) {
-                var data = {};
-                try { data = text ? JSON.parse(text) : {}; }
-                catch (e) { data = { success: false, message: (i18n.error || 'Fehler') + ' (HTTP ' + res.status + ')' }; }
-                return { data: data };
-            });
-        }).then(function (result) {
-            var data = result.data || {};
-            if (data.success) setStatus(kind, 'ok', data.message || i18n.ok);
-            else setStatus(kind, 'fail', data.message || data.error || i18n.fail);
-        }).catch(function (err) {
-            setStatus(kind, 'fail', (i18n.error || 'Fehler') + ': ' + (err && err.message ? err.message : ''));
+      var url = urls[kind];
+      if (!url) return Promise.resolve();
+      setStatus(kind, 'running', i18n.running);
+      return fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        },
+        body: '{}'
+      }).then(function (res) {
+        return res.text().then(function (text) {
+          var data = {};
+          try { data = text ? JSON.parse(text) : {}; }
+          catch (e) { data = { success: false, message: (i18n.error || 'Fehler') + ' (HTTP ' + res.status + ')' }; }
+          return { data: data };
         });
+      }).then(function (result) {
+        var data = result.data || {};
+        if (data.success) setStatus(kind, 'ok', data.message || i18n.ok);
+        else setStatus(kind, 'fail', data.message || data.error || i18n.fail);
+      }).catch(function (err) {
+        setStatus(kind, 'fail', (i18n.error || 'Fehler') + ': ' + (err && err.message ? err.message : ''));
+      });
     }
 
     root.querySelectorAll('[data-test-run]').forEach(function (btn) {
-        btn.addEventListener('click', function () { runTest(btn.getAttribute('data-test-run')); });
+      btn.addEventListener('click', function () { runTest(btn.getAttribute('data-test-run')); });
     });
     var runAll = root.querySelector('[data-test-run-all]');
     if (runAll) {
-        runAll.addEventListener('click', function () {
-            runAll.disabled = true;
-            runTest('smtp').then(function () { return runTest('imap'); }).finally(function () { runAll.disabled = false; });
-        });
+      runAll.addEventListener('click', function () {
+        runAll.disabled = true;
+        runTest('smtp').then(function () { return runTest('imap'); }).finally(function () { runAll.disabled = false; });
+      });
     }
-});
+  });
 </script>
 {% endblock %}

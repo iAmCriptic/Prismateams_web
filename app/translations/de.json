@@ -169,7 +169,9 @@
       "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
       "2fa_recovery_request": "Keinen Zugang zur Authenticator-App? Code per E-Mail senden",
       "2fa_recovery_pending": "Ein Wiederherstellungscode wurde an Ihre E-Mail gesendet (10 Zeichen, 5 Min. gültig). Sie können ihn hier eingeben.",
-      "2fa_code_or_recovery_hint": "Authenticator-Code (6 Ziffern) oder E-Mail-Wiederherstellungscode."
+      "2fa_code_or_recovery_hint": "Authenticator-Code (6 Ziffern) oder E-Mail-Wiederherstellungscode.",
+      "flash_company_mail_unreachable": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Bitte wenden Sie sich an einen Administrator.",
+      "flash_company_mail_rejected": "Anmeldung am Firmenpostfach fehlgeschlagen oder Konto gesperrt."
     },
     "legal": {
       "nav_label": "Rechtliche Hinweise",
@@ -213,7 +215,11 @@
       "login_link_cta": "Hier anmelden",
       "switch_title": "Schon dabei?",
       "switch_text": "Du hast bereits ein Konto? Melde dich an und weiter geht’s.",
-      "switch_cta": "Anmelden"
+      "switch_cta": "Anmelden",
+      "flash_company_email_only": "Die Registrierung ist nur mit einer Unternehmens-E-Mail-Adresse erlaubt ({domains}).",
+      "flash_company_mail_failed": "Anmeldung am Unternehmens-Mailserver fehlgeschlagen ({error}). Bitte prüfen Sie E-Mail und Passwort.",
+      "flash_company_mail_success": "Registrierung erfolgreich! Ihr Konto und Firmenpostfach wurden aktiviert. Sie können sich nun anmelden.",
+      "company_email_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich ({domains})."
     },
     "confirm_email": {
       "title": "E-Mail bestätigen",
@@ -1963,6 +1969,26 @@
         "auto_reply": {
           "title": "Automatische Antwort (Hauptpostfach)",
           "hint": "Serverseitige Abwesenheitsantwort für das Hauptpostfach. Unabhängig vom Mail-Anbieter."
+        },
+        "company_auth": {
+          "title": "Unternehmens-Login & Postfach-Kopplung",
+          "lead": "Koppelt die Benutzerkonten und die Registrierung direkt an die Firmenpostfächer auf Ihrem Mailserver.",
+          "auth_toggle_label": "Live-Abgleich beim Login aktivieren",
+          "auth_toggle_help": "Gleicht bei jedem Login die Zugangsdaten live mit dem Mailserver ab. Bei gesperrtem Postfach wird der Portalzugang verweigert.",
+          "register_only_label": "Nur Unternehmens-E-Mails zulassen",
+          "register_only_help": "Beschränkt die Registrierung ausschließlich auf die hinterlegten Firmen-Domains und prüft das Postfach live vor der Kontoerstellung.",
+          "allow_offline_label": "Offline-Login bei Serverausfall gestatten",
+          "allow_offline_help": "Erlaubt bei Nichterreichbarkeit des Mailservers auch regulären Nutzern den Login mit dem zuletzt bekannten Passwort (Admins dürfen sich immer einloggen).",
+          "domains_label": "Erlaubte Unternehmens-Domains",
+          "domains_help": "Kommagetrennte Liste (z. B. @firma.de, @tochter.com).",
+          "server_overrides_label": "Server-Einstellungen für Mitarbeiter-Postfächer",
+          "server_overrides_help": "Optional: Nur ausfüllen, wenn die Mitarbeiterpostfächer über abweichende Server/Ports als das Hauptpostfach laufen.",
+          "imap_server": "IMAP-Server (Posteingang)",
+          "imap_port": "IMAP-Port",
+          "smtp_server": "SMTP-Server (Postausgang)",
+          "smtp_port": "SMTP-Port",
+          "test_label": "Unternehmens-Mailserver (IMAP) Verbindungstest",
+          "test_help": "Prüft die Erreichbarkeit und den SSL-Handshake des konfigurierten Unternehmens-Mailservers."
         }
       },
       "backup": {

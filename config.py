@@ -280,7 +280,8 @@ class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'test-secret-key-not-for-production'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     ENABLE_ERROR_TEST_ROUTES = False
     ENABLE_APP_GZIP = False
 

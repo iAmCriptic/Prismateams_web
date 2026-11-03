@@ -81,7 +81,16 @@ Gesendet von <user> (<email>)
         get_max_private_mailboxes,
         is_email_html_design_default,
     )
+    from app.services.company_mail_auth import (
+        is_company_email_auth_enabled,
+        is_company_email_register_only,
+        is_user_offline_login_allowed,
+        get_company_mail_server_config,
+        _setting_str,
+        _setting_bool,
+    )
     ar_vars = _auto_reply_template_vars(None)
+    company_server_cfg = get_company_mail_server_config()
 
     now = now_in_portal_timezone()
     return render_template(
@@ -97,6 +106,17 @@ Gesendet von <user> (<email>)
         main_auto_reply=ar_vars['auto_reply'],
         main_auto_reply_start_at=ar_vars['auto_reply_start_at'],
         main_auto_reply_end_at=ar_vars['auto_reply_end_at'],
+        company_email_auth_enabled=is_company_email_auth_enabled(),
+        company_email_register_only=is_company_email_register_only(),
+        company_email_domains=_setting_str('company_email_domains', ''),
+        company_email_allow_user_offline_login=is_user_offline_login_allowed(),
+        company_mail_imap_server=_setting_str('company_mail_imap_server', ''),
+        company_mail_imap_port=_setting_str('company_mail_imap_port', ''),
+        company_mail_imap_ssl=_setting_bool('company_mail_imap_ssl', True),
+        company_mail_smtp_server=_setting_str('company_mail_smtp_server', ''),
+        company_mail_smtp_port=_setting_str('company_mail_smtp_port', ''),
+        company_mail_smtp_tls=_setting_bool('company_mail_smtp_tls', True),
+        company_mail_resolved_cfg=company_server_cfg,
     )
 
 
@@ -194,6 +214,26 @@ def admin_email_settings():
                 'True' if html_design_default else 'False',
                 'Standard: HTML-Design beim Verfassen',
             )
+
+        # Unternehmens-E-Mail & Postfach-Kopplung
+        if 'company_email_settings' in request.form or request.form.get('save_company_auth') == '1' or request.form.get('save_multi') == '1':
+            def _upsert_comp_setting(key, value, description):
+                row = SystemSettings.query.filter_by(key=key).first()
+                if row:
+                    row.value = str(value)
+                else:
+                    db.session.add(SystemSettings(key=key, value=str(value), description=description))
+
+            _upsert_comp_setting('company_email_auth_enabled', 'True' if request.form.get('company_email_auth_enabled') == 'on' else 'False', 'Live-Login-Prüfung gegen Firmen-Mailserver')
+            _upsert_comp_setting('company_email_register_only', 'True' if request.form.get('company_email_register_only') == 'on' else 'False', 'Registrierung nur mit Firmen-E-Mails')
+            _upsert_comp_setting('company_email_domains', request.form.get('company_email_domains', '').strip(), 'Erlaubte Unternehmens-Domains für Registrierung')
+            _upsert_comp_setting('company_email_allow_user_offline_login', 'True' if request.form.get('company_email_allow_user_offline_login') == 'on' else 'False', 'Offline-Login regulärer Benutzer bei Serverausfall gestatten')
+            _upsert_comp_setting('company_mail_imap_server', request.form.get('company_mail_imap_server', '').strip(), 'IMAP-Server für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_imap_port', request.form.get('company_mail_imap_port', '').strip(), 'IMAP-Port für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_imap_ssl', 'True' if request.form.get('company_mail_imap_ssl') == 'on' else 'False', 'IMAP SSL für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_server', request.form.get('company_mail_smtp_server', '').strip(), 'SMTP-Server für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_port', request.form.get('company_mail_smtp_port', '').strip(), 'SMTP-Port für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_tls', 'True' if request.form.get('company_mail_smtp_tls') == 'on' else 'False', 'SMTP TLS für Mitarbeiterpostfächer')
         
         db.session.commit()
         redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_settings'
@@ -316,6 +356,47 @@ def admin_email_test_imap():
             'success': False,
             'message': translate('settings.admin.email_module.test.imap_fail', error=str(e)),
         })
+
+
+@settings_bp.route('/admin/email-module/test-company-mail', methods=['POST'])
+@login_required
+def admin_email_test_company_mail():
+    """Prüft die IMAP-Verbindung zum Unternehmens-Mailserver."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    from app.services.company_mail_auth import get_company_mail_server_config
+    import ssl
+    import imaplib
+
+    cfg = get_company_mail_server_config()
+    server = cfg.get('imap_server')
+    port = cfg.get('imap_port', 993)
+    use_ssl = cfg.get('imap_use_ssl', True)
+
+    if not server:
+        return jsonify({'success': False, 'message': 'Kein Unternehmens-IMAP-Server konfiguriert.'}), 400
+
+    conn = None
+    try:
+        if use_ssl:
+            ctx = ssl.create_default_context()
+            conn = imaplib.IMAP4_SSL(server, port, ssl_context=ctx, timeout=10)
+        else:
+            conn = imaplib.IMAP4(server, port, timeout=10)
+        welcome_banner = getattr(conn, 'welcome', b'').decode('latin1', 'ignore').strip()
+        return jsonify({
+            'success': True,
+            'message': f"Erfolgreich mit Unternehmens-Mailserver {server}:{port} verbunden ({welcome_banner or 'Bereit'}).",
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f"Verbindungsfehler zu {server}:{port}: {e}"}), 500
+    finally:
+        if conn:
+            try:
+                conn.logout()
+            except Exception:
+                pass
 
 
 def _require_email_multi_or_redirect():
