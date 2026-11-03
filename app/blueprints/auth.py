@@ -53,8 +53,14 @@ def get_color_gradient():
 def _google_register_template_kwargs(**extra):
     """Auth-Template-Kontext inkl. optionalem Google-Registrierungs-Prefill."""
     from app.utils.google_login import get_google_register_prefill
+    from app.services.company_mail_auth import (
+        is_company_email_register_only,
+        get_configured_company_domains,
+    )
     kwargs = _auth_template_kwargs(**extra)
     kwargs['google_prefill'] = get_google_register_prefill()
+    kwargs['company_email_register_only'] = is_company_email_register_only()
+    kwargs['company_email_domains'] = get_configured_company_domains()
     return kwargs
 
 
@@ -67,8 +73,12 @@ def _flash_existing_registration(existing_user):
     return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
-def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verified=False):
+def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verified=False, mailbox_verified=False):
     """Erfolgsmeldung + Redirect nach erfolgreicher Registrierung."""
+    if mailbox_verified:
+        flash(translate('auth.flash.register_success_company_mailbox'), 'success')
+        return _finalize_portal_login(new_user, remember=False)
+
     if is_whitelisted:
         if google_verified:
             flash(translate('auth.flash.register_success_google_whitelisted'), 'success')
@@ -325,8 +335,38 @@ def register():
                 flash(translate('auth.google.already_registered'), 'info')
                 return redirect(url_for('auth.login'))
         
+        # Check company email restriction & mailbox validation
+        from app.services.company_mail_auth import (
+            is_company_email,
+            is_company_email_register_only,
+            get_configured_company_domains,
+            verify_mailbox_credentials,
+            provision_user_company_mailbox,
+        )
+
+        is_comp_mail = is_company_email(email)
+        if is_company_email_register_only() and not is_comp_mail:
+            domains_str = ", ".join(get_configured_company_domains())
+            flash(translate('auth.flash.only_company_email_allowed', domains=domains_str), 'danger')
+            return render_template('auth/register.html', **_google_register_template_kwargs())
+
+        mailbox_verified = False
+        if is_comp_mail:
+            mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
+            if not mail_ok:
+                if err_code == 'AUTH_FAILED':
+                    flash(translate('auth.flash.mailbox_login_failed'), 'danger')
+                elif err_code == 'CONNECTION_ERROR':
+                    flash(translate('auth.flash.mailbox_server_unreachable'), 'danger')
+                elif err_code == 'CONFIG_MISSING':
+                    flash(translate('auth.flash.mailbox_config_missing'), 'danger')
+                else:
+                    flash(translate('auth.flash.mailbox_verification_failed'), 'danger')
+                return render_template('auth/register.html', **_google_register_template_kwargs())
+            mailbox_verified = True
+
         # Check if email is whitelisted
-        is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
+        is_whitelisted = WhitelistEntry.is_email_whitelisted(email) or mailbox_verified
         google_verified = bool(google_sub)
         
         # Get default accent color from system settings
@@ -334,17 +374,17 @@ def register():
         default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
         default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
         
-        # Create new user (active if whitelisted, inactive otherwise)
+        # Create new user (active if whitelisted/mailbox_verified, inactive otherwise)
         new_user = User(
             email=email,
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            is_active=is_whitelisted,
+            is_active=is_whitelisted or mailbox_verified,
             is_admin=False,
             dark_mode=dark_mode,
             accent_color=default_accent_color,
-            is_email_confirmed=google_verified,
+            is_email_confirmed=google_verified or mailbox_verified,
         )
         if google_verified:
             new_user.google_sub = google_sub
@@ -372,6 +412,10 @@ def register():
                 can_send=True
             )
             db.session.add(email_perm)
+
+            if mailbox_verified:
+                provision_user_company_mailbox(new_user, password)
+
             db.session.commit()
         except IntegrityError:
             # Doppel-Submit / Race: User wurde parallel angelegt
@@ -392,8 +436,8 @@ def register():
         try:
             # Bestätigungscode erst nach Freischaltung:
             # Whitelist = sofort aktiv → Code jetzt; sonst erst bei Admin-Freischaltung.
-            # Google-verifiziert: kein Bestätigungscode.
-            if is_whitelisted and not google_verified:
+            # Google- oder Postfach-verifiziert: kein Bestätigungscode erforderlich.
+            if is_whitelisted and not google_verified and not mailbox_verified:
                 from app.utils.email_sender import send_confirmation_email
                 email_sent = send_confirmation_email(new_user)
 
@@ -418,7 +462,7 @@ def register():
             logging.exception('Post-create steps failed during registration for %s: %s', mask_email(email), e)
         
         return _finish_registration(
-            new_user, email_sent, is_whitelisted, google_verified=google_verified
+            new_user, email_sent, is_whitelisted, google_verified=google_verified, mailbox_verified=mailbox_verified
         )
     
     return render_template('auth/register.html', **_google_register_template_kwargs())
@@ -694,16 +738,63 @@ def login():
             return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Prüfe Credentials
-        if not user or not user.check_password(password):
-            # Erhöhe fehlgeschlagene Versuche
-            if user:
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= 5:
-                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
-                    user.failed_login_attempts = 0
-                db.session.commit()
-            flash(translate('auth.flash.invalid_credentials'), 'danger')
-            return render_template('auth/login.html', **_auth_template_kwargs())
+        from app.services.company_mail_auth import (
+            is_company_email,
+            is_company_email_auth_enabled,
+            is_user_offline_login_allowed,
+            verify_mailbox_credentials,
+            sync_credentials_if_needed,
+        )
+
+        is_comp = is_company_email_auth_enabled() and is_company_email(email)
+
+        if is_comp:
+            mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
+            if mail_ok:
+                if not user:
+                    flash(translate('auth.flash.invalid_credentials'), 'danger')
+                    return render_template('auth/login.html', **_auth_template_kwargs())
+                # Synchronisiere Kennwortänderungen (Hash und verschlüsseltes Mailbox-Passwort)
+                sync_credentials_if_needed(user, password)
+            else:
+                if err_code == 'CONNECTION_ERROR':
+                    # Mailserver nicht erreichbar: Admin darf immer rein, normale User je nach Toggle
+                    allow_offline = user and (user.is_admin or is_user_offline_login_allowed())
+                    if allow_offline and user and user.check_password(password):
+                        if user.is_admin:
+                            flash(translate('auth.flash.admin_mailserver_down_login_notice'), 'warning')
+                        else:
+                            flash(translate('auth.flash.user_mailserver_down_login_notice'), 'warning')
+                    else:
+                        if user:
+                            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                            if user.failed_login_attempts >= 5:
+                                user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                                user.failed_login_attempts = 0
+                            db.session.commit()
+                        flash(translate('auth.flash.mailserver_unreachable_login_blocked'), 'danger')
+                        return render_template('auth/login.html', **_auth_template_kwargs())
+                else:
+                    # AUTH_FAILED / Mailbox gesperrt / Kennwort ungültig
+                    if user:
+                        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                        if user.failed_login_attempts >= 5:
+                            user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                            user.failed_login_attempts = 0
+                        db.session.commit()
+                    flash(translate('auth.flash.company_mailbox_blocked_or_invalid'), 'danger')
+                    return render_template('auth/login.html', **_auth_template_kwargs())
+        else:
+            if not user or not user.check_password(password):
+                # Erhöhe fehlgeschlagene Versuche
+                if user:
+                    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                    if user.failed_login_attempts >= 5:
+                        user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                        user.failed_login_attempts = 0
+                    db.session.commit()
+                flash(translate('auth.flash.invalid_credentials'), 'danger')
+                return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Reset fehlgeschlagene Versuche bei erfolgreichem Passwort-Check
         user.failed_login_attempts = 0

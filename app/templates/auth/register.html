@@ -7,18 +7,22 @@
 {% block content %}
 {% set gp = google_prefill or none %}
 {% set register_subtitle = _('auth.register.subtitle_google') if gp else _('auth.register.subtitle') %}
-{% call auth_shell(_('auth.register.title'), register_subtitle, body_class='auth-register', brand_icon='bi-person-plus') %}
+{% call auth_shell(_('auth.register.title'), register_subtitle, body_class='auth-register', brand_icon='bi-person-plus')
+%}
 {% if google_login_ready|default(false) and not gp %}
-<a href="{{ url_for('auth.google_register_start') }}"
-   class="btn btn-outline-primary auth-google-btn w-100 mb-2"
-   aria-label="{{ _('auth.google.register_with_aria') }}">
+<a href="{{ url_for('auth.google_register_start') }}" class="btn btn-outline-primary auth-google-btn w-100 mb-2"
+    aria-label="{{ _('auth.google.register_with_aria') }}">
     <span>{{ _('auth.google.login_with') }}</span>
     <span class="auth-google-logo" aria-hidden="true">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
-            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
-            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
-            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z"/>
-            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
+            <path fill="#FFC107"
+                d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" />
+            <path fill="#FF3D00"
+                d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z" />
+            <path fill="#4CAF50"
+                d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.1 39.5 16 44 24 44z" />
+            <path fill="#1976D2"
+                d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l.1.1 6.2 5.2C39.2 37 44 32.5 44 24c0-1.3-.1-2.5-.4-3.5z" />
         </svg>
     </span>
 </a>
@@ -30,12 +34,14 @@
 {% if gp %}
 <div class="auth-google-prefill mb-3">
     {% if gp.picture %}
-    <img src="{{ gp.picture }}" alt="" class="auth-google-prefill-avatar" width="56" height="56" referrerpolicy="no-referrer">
+    <img src="{{ gp.picture }}" alt="" class="auth-google-prefill-avatar" width="56" height="56"
+        referrerpolicy="no-referrer">
     {% endif %}
     <div class="auth-google-prefill-meta">
         <div class="fw-semibold">{{ _('auth.register.google_connected') }}</div>
         <div class="text-muted small">{{ gp.email }}</div>
-        <a href="{{ url_for('auth.register', clear_google=1) }}" class="small">{{ _('auth.register.google_disconnect') }}</a>
+        <a href="{{ url_for('auth.register', clear_google=1) }}" class="small">{{ _('auth.register.google_disconnect')
+            }}</a>
     </div>
 </div>
 {% endif %}
@@ -44,7 +50,8 @@
     <div class="auth-register-avatar mb-3">
         <div class="auth-register-avatar-preview" id="registerPicturePreview">
             {% if gp and gp.picture %}
-            <img src="{{ gp.picture }}" alt="{{ _('auth.register.picture_alt') }}" id="registerPictureImg" referrerpolicy="no-referrer">
+            <img src="{{ gp.picture }}" alt="{{ _('auth.register.picture_alt') }}" id="registerPictureImg"
+                referrerpolicy="no-referrer">
             {% else %}
             <i class="bi bi-person-fill" id="registerPictureIcon" aria-hidden="true"></i>
             {% endif %}
@@ -61,7 +68,8 @@
                     {{ _('auth.register.picture_clear') }}
                 </button>
             </div>
-            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
+            <input type="file" id="profile_picture" name="profile_picture" class="d-none"
+                accept="image/png,image/jpeg,image/gif,.png,.jpg,.jpeg,.gif">
             <div class="form-text mb-0">{{ _('auth.register.picture_help') }}</div>
             <div class="form-text text-danger" id="registerPictureError" hidden></div>
         </div>
@@ -71,21 +79,27 @@
         <div class="col-12 col-md-6 mb-3">
             <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
             <input type="text" class="form-control" id="first_name" name="first_name" required
-                   value="{{ gp.first_name if gp else '' }}">
+                value="{{ gp.first_name if gp else '' }}">
         </div>
         <div class="col-12 col-md-6 mb-3">
             <label for="last_name" class="form-label">{{ _('auth.register.last_name') }}</label>
             <input type="text" class="form-control" id="last_name" name="last_name" required
-                   value="{{ gp.last_name if gp else '' }}">
+                value="{{ gp.last_name if gp else '' }}">
         </div>
     </div>
 
     <div class="mb-3">
         <label for="email" class="form-label">{{ _('auth.register.email') }}</label>
-        <input type="email" class="form-control" id="email" name="email" required
-               value="{{ gp.email if gp else '' }}"
-               {% if gp %}readonly tabindex="-1"{% endif %}>
-        {% if gp %}
+        <input type="email" class="form-control" id="email" name="email" required value="{{ gp.email if gp else '' }}"
+            {% if gp %}readonly tabindex="-1" {% endif %}>
+        {% if company_email_register_only and company_email_domains %}
+        <div class="form-text text-primary mt-1">
+            <i class="bi bi-building me-1"></i>
+            {{ _('auth.register.company_email_only_hint') }}:
+            <strong>{{ company_email_domains|join(', ') }}</strong>.
+            {{ _('auth.register.company_mailbox_login_note') }}
+        </div>
+        {% elif gp %}
         <div class="form-text">{{ _('auth.register.email_google_locked') }}</div>
         {% endif %}
     </div>
@@ -98,8 +112,10 @@
     <div class="mb-3">
         <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
         <div class="password-req-wrap">
-            <input type="password" class="form-control password-req-input" id="password" name="password" required minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
-            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden title="{{ _('auth.register.password_help') }}">
+            <input type="password" class="form-control password-req-input" id="password" name="password" required
+                minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
+            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden
+                title="{{ _('auth.register.password_help') }}">
                 <i class="bi bi-exclamation-circle-fill"></i>
             </span>
         </div>
@@ -108,7 +124,8 @@
 
     <div class="mb-3">
         <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
-        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password">
+        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required
+            minlength="12" autocomplete="new-password">
     </div>
 
     <div class="mb-3">
@@ -132,62 +149,64 @@
 
 <p class="text-center mb-0">
     {{ _('auth.register.login_link_prefix') }}
-    <a href="{{ url_for('auth.login') }}" class="auth-page-switch" data-auth-transition="to-login">{{ _('auth.register.login_link_cta') }}</a>
+    <a href="{{ url_for('auth.login') }}" class="auth-page-switch" data-auth-transition="to-login">{{
+        _('auth.register.login_link_cta') }}</a>
 </p>
 {% endcall %}
 
 <script>
-(function () {
-    var form = document.getElementById('registerForm');
-    var btn = document.getElementById('registerSubmitBtn');
-    var password = document.getElementById('password');
-    var icon = document.getElementById('passwordReqIcon');
-    var help = document.getElementById('passwordHelp');
+    (function () {
+        var form = document.getElementById('registerForm');
+        var btn = document.getElementById('registerSubmitBtn');
+        var password = document.getElementById('password');
+        var icon = document.getElementById('passwordReqIcon');
+        var help = document.getElementById('passwordHelp');
 
-    function passwordMeetsRequirements(value) {
-        if (!value || value.length < 12) return false;
-        if (!/[A-Z]/.test(value)) return false;
-        if (!/[a-z]/.test(value)) return false;
-        if (!/\d/.test(value)) return false;
-        if (!/[^A-Za-z0-9]/.test(value)) return false;
-        return true;
-    }
-
-    function updatePasswordFeedback() {
-        if (!password || !icon || !help) return;
-        var value = password.value || '';
-        var hasInput = value.length > 0;
-        var ok = passwordMeetsRequirements(value);
-
-        help.classList.remove('is-idle', 'is-invalid', 'is-valid');
-        icon.classList.remove('is-invalid', 'is-valid');
-
-        if (!hasInput) {
-            help.classList.add('is-idle');
-            icon.hidden = true;
-            password.removeAttribute('aria-invalid');
-            return;
+        function passwordMeetsRequirements(value) {
+            if (!value || value.length < 12) return false;
+            if (!/[A-Z]/.test(value)) return false;
+            if (!/[a-z]/.test(value)) return false;
+            if (!/\d/.test(value)) return false;
+            if (!/[^A-Za-z0-9]/.test(value)) return false;
+            return true;
         }
 
-        icon.classList.toggle('is-invalid', !ok);
-        icon.classList.toggle('is-valid', ok);
-        icon.hidden = ok;
-        help.classList.toggle('is-invalid', !ok);
-        help.classList.toggle('is-valid', ok);
-        password.setAttribute('aria-invalid', ok ? 'false' : 'true');
-    }
+        function updatePasswordFeedback() {
+            if (!password || !icon || !help) return;
+            var value = password.value || '';
+            var hasInput = value.length > 0;
+            var ok = passwordMeetsRequirements(value);
 
-    if (password) {
-        password.addEventListener('input', updatePasswordFeedback);
-        password.addEventListener('change', updatePasswordFeedback);
-        updatePasswordFeedback();
-    }
+            help.classList.remove('is-idle', 'is-invalid', 'is-valid');
+            icon.classList.remove('is-invalid', 'is-valid');
 
-    var pictureInput = document.getElementById('profile_picture');
-    var picturePreview = document.getElementById('registerPicturePreview');
-    var pictureClear = document.getElementById('registerPictureClear');
-    var pictureError = document.getElementById('registerPictureError');
-    var googlePictureSrc = {{ (gp.picture if gp and gp.picture else '') | tojson }};
+            if (!hasInput) {
+                help.classList.add('is-idle');
+                icon.hidden = true;
+                password.removeAttribute('aria-invalid');
+                return;
+            }
+
+            icon.classList.toggle('is-invalid', !ok);
+            icon.classList.toggle('is-valid', ok);
+            icon.hidden = ok;
+            help.classList.toggle('is-invalid', !ok);
+            help.classList.toggle('is-valid', ok);
+            password.setAttribute('aria-invalid', ok ? 'false' : 'true');
+        }
+
+        if (password) {
+            password.addEventListener('input', updatePasswordFeedback);
+            password.addEventListener('change', updatePasswordFeedback);
+            updatePasswordFeedback();
+        }
+
+        var pictureInput = document.getElementById('profile_picture');
+        var picturePreview = document.getElementById('registerPicturePreview');
+        var pictureClear = document.getElementById('registerPictureClear');
+        var pictureError = document.getElementById('registerPictureError');
+        var googlePictureSrc = {{ (gp.picture if gp and gp.picture else '') | tojson
+    }};
     var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     var maxSize = 5 * 1024 * 1024;
     var objectUrl = null;
@@ -249,20 +268,21 @@
         if (!isAllowedImage(file)) {
             pictureInput.value = '';
             restoreDefaultPreview();
-            showPictureError({{ _('auth.register.picture_error_type') | tojson }});
-            return;
+            showPictureError({{ _('auth.register.picture_error_type') | tojson }
+    });
+    return;
         }
-        if (file.size > maxSize) {
-            pictureInput.value = '';
-            restoreDefaultPreview();
-            showPictureError({{ _('auth.register.picture_error_size') | tojson }});
-            return;
+    if (file.size > maxSize) {
+        pictureInput.value = '';
+        restoreDefaultPreview();
+        showPictureError({{ _('auth.register.picture_error_size') | tojson }});
+    return;
         }
-        showPictureError('');
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        objectUrl = URL.createObjectURL(file);
-        setPreviewImage(objectUrl, pictureAltPreview);
-        if (pictureClear) pictureClear.hidden = false;
+    showPictureError('');
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(file);
+    setPreviewImage(objectUrl, pictureAltPreview);
+    if (pictureClear) pictureClear.hidden = false;
     }
 
     if (pictureInput) {
@@ -288,6 +308,6 @@
         btn.disabled = true;
         btn.setAttribute('aria-busy', 'true');
     });
-})();
+}) ();
 </script>
 {% endblock %}

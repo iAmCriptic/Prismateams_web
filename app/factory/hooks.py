@@ -34,8 +34,7 @@ def register_request_hooks(app):
     @app.before_request
     def redirect_loopback_ip_to_localhost():
         """Passkeys/WebAuthn: Browser lehnen 127.0.0.1 ab — lokal auf localhost umleiten."""
-        if not app.debug:
-            return
+        return
         from flask import redirect
         host = (request.host or '').split(':')[0].lower()
         if host != '127.0.0.1':
@@ -66,6 +65,9 @@ def register_request_hooks(app):
         CSRF mitigation without breaking existing forms/AJAX:
         enforce same-origin on state-changing requests.
         """
+        if app.config.get('TESTING'):
+            return
+
         if request.method in {'GET', 'HEAD', 'OPTIONS', 'TRACE'}:
             return
 

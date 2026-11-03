@@ -169,7 +169,9 @@
       "2fa_recovery_request": "Lost access to your authenticator app? Send code by email",
       "2fa_recovery_pending": "A recovery code was sent to your email (10 characters, valid for 5 minutes). You can enter it here.",
       "2fa_code_or_recovery_hint": "Authenticator code (6 digits) or email recovery code.",
-      "forgot_password": "Forgot password?"
+      "forgot_password": "Forgot password?",
+      "flash_company_mail_unreachable": "The company mail server is currently unreachable. Please contact an administrator.",
+      "flash_company_mail_rejected": "Corporate mailbox login failed or account locked."
     },
     "legal": {
       "nav_label": "Legal",
@@ -213,7 +215,11 @@
       "login_link_cta": "Log in here",
       "switch_title": "Already with us?",
       "switch_text": "Already have an account? Sign in and continue.",
-      "switch_cta": "Log in"
+      "switch_cta": "Log in",
+      "flash_company_email_only": "Registration is only allowed with a company email address ({domains}).",
+      "flash_company_mail_failed": "Authentication with company mail server failed ({error}). Please verify email and password.",
+      "flash_company_mail_success": "Registration successful! Your account and corporate mailbox are active. You can now log in.",
+      "company_email_hint": "Registration only permitted with authorized company email ({domains})."
     },
     "confirm_email": {
       "title": "Confirm email",
@@ -2313,6 +2319,26 @@
         "auto_reply": {
           "title": "Automatic reply (main mailbox)",
           "hint": "Server-side out-of-office reply for the main mailbox. Independent of the mail provider."
+        },
+        "company_auth": {
+          "title": "Company Login & Mailbox Integration",
+          "lead": "Links user accounts and registration directly to company mailboxes on your mail server.",
+          "auth_toggle_label": "Enable live check on login",
+          "auth_toggle_help": "Performs live credential check against mail server on every login. If mailbox is locked, portal access is denied.",
+          "register_only_label": "Allow company emails only",
+          "register_only_help": "Restricts registration strictly to specified company domains and validates the mailbox live prior to account creation.",
+          "allow_offline_label": "Allow offline login on server outage",
+          "allow_offline_help": "Allows regular users to log in with last known password if mail server is unreachable (Admins can always log in).",
+          "domains_label": "Allowed company domains",
+          "domains_help": "Comma-separated list (e.g. @company.com, @subsidiary.com).",
+          "server_overrides_label": "Server settings for employee mailboxes",
+          "server_overrides_help": "Optional: Only fill in if employee mailboxes use different servers/ports than the main mailbox.",
+          "imap_server": "IMAP Server (Incoming)",
+          "imap_port": "IMAP Port",
+          "smtp_server": "SMTP Server (Outgoing)",
+          "smtp_port": "SMTP Port",
+          "test_label": "Company Mail Server (IMAP) Connection Test",
+          "test_help": "Verifies connectivity and SSL handshake to the configured company mail server."
         }
       },
       "backup": {
