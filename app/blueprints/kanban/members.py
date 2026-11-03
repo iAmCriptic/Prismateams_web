@@ -50,7 +50,7 @@ from app.models.kanban import (
 )
 from app.models.team import Team, TeamMember
 from app.models.user import User
-from app.utils.access_control import check_module_access
+from app.utils.access_control import check_module_access, has_module_access
 from app.utils.common import portal_now_naive
 from app.utils.i18n import translate
 from app.utils.kanban_access import (
@@ -90,23 +90,76 @@ def api_board_members(board_id):
     if err:
         return err
     if request.method == 'GET':
-        return jsonify({'members': _serialize_board_members(board)})
+        return jsonify({
+            'members': _serialize_board_members(board),
+            'can_manage': can_manage_board(current_user, board),
+            'visibility': board.visibility,
+            'team_name': board.team.name if (board.team or board.team_id) else None,
+            'created_by': board.created_by,
+        })
     if not can_manage_board(current_user, board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
-    user_id = int(data['user_id'])
-    role = (data.get('role') or 'member').strip()
+    try:
+        user_id = int(data['user_id'])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({'error': 'User ID required'}), 400
+
+    target_user = User.query.get(user_id)
+    if not target_user or not target_user.is_active:
+        return jsonify({'error': 'User not found or inactive'}), 404
+
+    role = (data.get('role') or 'member').strip().lower()
     if role not in ('owner', 'admin', 'member'):
         role = 'member'
     existing = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=user_id).first()
+    is_update = existing is not None
     if existing:
         existing.role = role
     else:
         db.session.add(KanbanBoardMember(board_id=board.id, user_id=user_id, role=role))
-    _log_activity(board.id, 'member_added', str(user_id))
+    role_labels = {'owner': 'Inhaber', 'admin': 'Administrator', 'member': 'Mitglied'}
+    user_name = target_user.full_name or target_user.email
+    act_type = 'member_updated' if is_update else 'member_added'
+    _log_activity(board.id, act_type, f"{user_name} ({role_labels.get(role, role)})")
     db.session.commit()
     _emit_board(board.id, 'members_updated', {'board_id': board.id})
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True,
+        'members': _serialize_board_members(board),
+    })
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/candidate_users')
+@login_required
+@check_module_access('module_kanban')
+def api_candidate_users(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+    if not can_manage_board(current_user, board):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    q = (request.args.get('q') or '').strip().lower()
+    all_users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
+    existing_roles = get_board_member_roles(board)
+
+    candidates = []
+    for u in all_users:
+        if not has_module_access(u, 'module_kanban'):
+            continue
+        display_name = u.full_name or u.email or f'User {u.id}'
+        search_haystack = f"{display_name} {u.email or ''} {u.username or ''}".lower()
+        if q and q not in search_haystack:
+            continue
+        brief = _user_brief(u)
+        if not brief:
+            continue
+        brief['is_member'] = u.id in existing_roles
+        brief['current_role'] = existing_roles.get(u.id)
+        candidates.append(brief)
+
+    return jsonify({'users': candidates})
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/members/<int:user_id>', methods=['DELETE'])
@@ -118,12 +171,20 @@ def api_remove_member(board_id, user_id):
         return err
     if not can_manage_board(current_user, board):
         return jsonify({'error': 'Forbidden'}), 403
+    if user_id == board.created_by:
+        return jsonify({'error': 'Der Board-Ersteller kann nicht entfernt werden'}), 400
     m = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=user_id).first()
-    if m and m.role != 'owner':
+    if m:
+        target_user = User.query.get(user_id)
+        user_name = (target_user.full_name or target_user.email) if target_user else str(user_id)
         db.session.delete(m)
+        _log_activity(board.id, 'member_removed', user_name)
         db.session.commit()
         _emit_board(board.id, 'members_updated', {'board_id': board.id})
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True,
+        'members': _serialize_board_members(board),
+    })
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/activity')
@@ -171,6 +232,8 @@ def _activity_label(action: str) -> str:
         'card_uncompleted': 'Erledigt-Status entfernt',
         'attachment_added': 'Anhang hinzugefügt',
         'member_added': 'Mitglied hinzugefügt',
+        'member_updated': 'Mitgliederrolle geändert',
+        'member_removed': 'Mitglied entfernt',
         'label_created': 'Label erstellt',
     }
     return labels.get(action or '', action or 'Aktivität')

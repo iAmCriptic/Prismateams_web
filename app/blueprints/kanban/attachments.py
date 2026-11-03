@@ -86,6 +86,72 @@ from app.blueprints.kanban.helpers import *  # noqa: F401,F403
 
 # ── Attachments ────────────────────────────────────────────────────────
 
+def _fetch_url_title(raw_url: str, timeout: float = 3.5) -> str | None:
+    """Fetches the HTML <title> tag of a webpage, or derives a readable name."""
+    import html
+    import re
+    from urllib.parse import urlparse, unquote
+
+    parsed = urlparse(raw_url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+
+    try:
+        import requests
+        headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+        resp = requests.get(raw_url, headers=headers, timeout=timeout, stream=True, allow_redirects=True)
+        content_type = resp.headers.get('Content-Type', '').lower()
+        if 'html' in content_type or not content_type:
+            chunk = next(resp.iter_content(chunk_size=65536), b'')
+            encoding = resp.encoding or 'utf-8'
+            try:
+                html_text = chunk.decode(encoding, errors='replace')
+            except Exception:
+                html_text = chunk.decode('utf-8', errors='replace')
+
+            m = re.search(r'<title[^>]*>(.*?)</title>', html_text, re.IGNORECASE | re.DOTALL)
+            if m:
+                title = html.unescape(m.group(1)).strip()
+                title = re.sub(r'\s+', ' ', title).strip()
+                if title:
+                    return title[:250]
+    except Exception:
+        pass
+
+    try:
+        segments = [s for s in parsed.path.strip('/').split('/') if s]
+        if segments:
+            clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
+            if clean_seg:
+                return f"{clean_seg} ({parsed.netloc})"
+        return parsed.netloc
+    except Exception:
+        return None
+
+
+@kanban_bp.route('/api/fetch-url-title', methods=['GET', 'POST'])
+@login_or_share_required
+def api_fetch_url_title():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        raw_url = (data.get('url') or '').strip()
+    else:
+        raw_url = (request.args.get('url') or '').strip()
+    if not raw_url:
+        return jsonify({'error': 'URL required'}), 400
+    if not raw_url.startswith(('http://', 'https://')):
+        raw_url = 'https://' + raw_url
+    title = _fetch_url_title(raw_url)
+    return jsonify({'title': title or ''})
+
+
 @kanban_bp.route('/api/cards/<int:card_id>/attachments', methods=['POST'])
 @login_or_share_required
 def api_upload_attachment(card_id):
@@ -102,7 +168,12 @@ def api_upload_attachment(card_id):
             return jsonify({'error': 'URL required'}), 400
         if not raw_url.startswith(('http://', 'https://')):
             raw_url = 'https://' + raw_url
-        title = (data.get('title') or data.get('name') or '').strip() or raw_url
+        user_title = (data.get('title') or data.get('name') or '').strip()
+        if not user_title or user_title == raw_url:
+            resolved_title = _fetch_url_title(raw_url)
+            title = resolved_title or raw_url
+        else:
+            title = user_title
         if len(title) > 255:
             title = title[:252] + '…'
         att = KanbanAttachment(

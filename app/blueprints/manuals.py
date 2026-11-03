@@ -154,6 +154,14 @@ def _manuals_denied():
     return redirect(url_for('manuals.index'))
 
 
+def _accessible_folders_query(user=None):
+    user = user or current_user
+    return accessible_query(user, ManualFolder, 'manuals').order_by(
+        ManualFolder.position.asc(),
+        ManualFolder.name.asc(),
+    )
+
+
 def _manuals_form_kwargs(folder_id=None):
     section, filter_team_id = parse_section_args('manuals', current_user)
     pre_section = None
@@ -167,9 +175,7 @@ def _manuals_form_kwargs(folder_id=None):
         pre_section = section
         pre_team_id = filter_team_id
 
-    all_folders = ManualFolder.query.order_by(
-        ManualFolder.position.asc(), ManualFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
     ctx = visibility_form_context(
         'manuals',
         current_user,
@@ -185,9 +191,7 @@ def _manuals_form_kwargs(folder_id=None):
 @check_module_access('module_manuals')
 def index():
     """List manuals for all, folder, or space view."""
-    all_folders = ManualFolder.query.order_by(
-        ManualFolder.position.asc(), ManualFolder.name.asc()
-    ).all()
+    all_folders = _accessible_folders_query().all()
     folders_by_scope = _group_folders_by_scope(all_folders)
     section, filter_team_id = parse_section_args('manuals', current_user)
     space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
@@ -198,13 +202,16 @@ def index():
     active_folder = None
     if raw_folder_id:
         active_folder = ManualFolder.query.get(raw_folder_id)
-        if active_folder:
+        if active_folder and can_view_item(current_user, active_folder, 'manuals'):
             active_folder_id = raw_folder_id
             folder_vis, folder_team_id = _folder_scope(active_folder)
             if not space_view:
                 section = folder_vis
                 filter_team_id = folder_team_id
                 space_view = section in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC)
+        elif active_folder:
+            flash(translate('visibility.flash.access_denied'), 'danger')
+            return redirect(url_for('manuals.index'))
 
     manuals_query = accessible_query(current_user, Manual, 'manuals').order_by(Manual.uploaded_at.desc())
     if active_folder_id:

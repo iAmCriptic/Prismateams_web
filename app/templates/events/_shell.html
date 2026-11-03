@@ -296,7 +296,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 {% endmacro %}
 
 {% macro appointments_grid_list(appointments, empty_message) %}
-<div id="gridViewContainer" style="display: none;">
+<div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
     {% if appointments %}
     <div class="row g-3">
         {% for appointment in appointments %}
@@ -313,7 +313,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
     {% endif %}
 </div>
 
-<div id="listViewContainer" style="display: none;">
+<div id="listViewContainer" class="mod-view-pane" style="display: none;">
     {% if appointments %}
     <div class="mod-list-table-wrap">
         <table class="table mod-list-table events-list-table align-middle mb-0">
@@ -345,7 +345,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
 {% endmacro %}
 
 {% macro events_grid_list(events, empty_message) %}
-<div id="gridViewContainer" style="display: none;">
+<div id="gridViewContainer" class="mod-view-pane mod-view-pane--active">
     {% if events %}
     <div class="row g-3">
         {% for event in events %}
@@ -362,7 +362,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
     {% endif %}
 </div>
 
-<div id="listViewContainer" style="display: none;">
+<div id="listViewContainer" class="mod-view-pane" style="display: none;">
     {% if events %}
     <div class="mod-list-table-wrap">
         <table class="table mod-list-table events-list-table align-middle mb-0">
@@ -408,8 +408,16 @@ function setEventsViewMode(mode) {
     ].filter(Boolean);
 
     const isList = mode === 'list';
-    if (grid) grid.style.display = isList ? 'none' : '';
-    if (list) list.style.display = isList ? '' : 'none';
+    if (grid) {
+        grid.style.display = isList ? 'none' : '';
+        grid.classList.toggle('mod-view-pane--active', !isList);
+        grid.classList.toggle('d-none', isList);
+    }
+    if (list) {
+        list.style.display = isList ? '' : 'none';
+        list.classList.toggle('mod-view-pane--active', isList);
+        list.classList.toggle('d-none', !isList);
+    }
 
     listBtns.forEach((btn) => {
         btn.classList.toggle('active', isList);
@@ -425,7 +433,7 @@ function setEventsViewMode(mode) {
     localStorage.setItem('eventsViewMode', isList ? 'list' : 'grid');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initEventsViewMode() {
     const saved = localStorage.getItem('eventsViewMode') || 'grid';
     setEventsViewMode(saved);
 
@@ -437,6 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById(id);
         if (btn) btn.addEventListener('click', () => setEventsViewMode('grid'));
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEventsViewMode);
+} else {
+    initEventsViewMode();
+}
 </script>
 {% endmacro %}

@@ -29,7 +29,24 @@
       {% endif %}
     </div>
     <div class="kanban-board-topbar__right">
-      <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
+      <div class="dropdown d-inline-block">
+        <div class="kanban-board-members" id="kanbanBoardMembers" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Board-Mitglieder & Zugriff anzeigen" tabindex="0"></div>
+        <div class="dropdown-menu dropdown-menu-end kanban-board-members-dropdown p-3 shadow-lg" id="kanbanBoardMembersDropdown" style="min-width: 320px; max-width: 380px;">
+          <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom" style="border-color: var(--kanban-border) !important;">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-people me-1"></i>Board-Mitglieder</h6>
+            <span class="badge rounded-pill bg-secondary" id="kanbanBoardMembersCount">0</span>
+          </div>
+          <div class="small mb-2 text-muted" id="kanbanBoardAccessNotice"></div>
+          <div class="kanban-board-members-list d-flex flex-column gap-1 mb-3" id="kanbanBoardMembersList" style="max-height: 280px; overflow-y: auto;">
+            <div class="text-muted small">Lade Mitglieder…</div>
+          </div>
+          {% if can_manage %}
+          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn">
+            <i class="bi bi-person-plus me-1"></i>Freigabe & Mitglieder verwalten
+          </button>
+          {% endif %}
+        </div>
+      </div>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanFilterBtn"
               title="{{ _('kanban.board.filter') }}">
         <i class="bi bi-funnel" aria-hidden="true"></i>
@@ -189,7 +206,7 @@
             <form id="cardAttachLinkForm" class="kanban-link-form mb-2" hidden>
               <div class="d-flex flex-wrap gap-2">
                 <input type="url" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="cardAttachLinkUrl" placeholder="https://…" required>
-                <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="{{ _('kanban.card.link_title') }}" style="max-width:10rem;">
+                <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="Titel (optional / automatisch)" style="min-width:13rem;">
                 <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">{{ _('kanban.card.add') }}</button>
                 <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardAttachLinkCancel"><i class="bi bi-x-lg"></i></button>
               </div>
@@ -321,41 +338,100 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content kanban-modal">
       <div class="modal-header">
-        <h5 class="modal-title">{{ _('kanban.board.share') }}</h5>
+        <h5 class="modal-title"><i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <form id="kanbanShareForm" class="kanban-share-create row g-2 align-items-end mb-3">
-          <div class="col-md-3">
-            <label class="form-label small mb-1" for="kanbanShareMode">{{ _('kanban.share.mode') }}</label>
-            <select class="form-select kanban-pill-input" id="kanbanShareMode" name="mode">
-              <option value="view">{{ _('kanban.share.mode_view') }}</option>
-              <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
-            </select>
+        <ul class="nav nav-pills kanban-share-nav mb-3 gap-2 border-bottom pb-2" id="kanbanShareTabs" role="tablist" style="border-color: var(--kanban-border) !important;">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active mod-pill-btn" id="kanbanShareTabUsersBtn" data-bs-toggle="pill" data-bs-target="#kanbanSharePaneUsers" type="button" role="tab" aria-controls="kanbanSharePaneUsers" aria-selected="true">
+              <i class="bi bi-people me-1"></i>Portalsnutzer freigeben
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn" id="kanbanShareTabLinksBtn" data-bs-toggle="pill" data-bs-target="#kanbanSharePaneLinks" type="button" role="tab" aria-controls="kanbanSharePaneLinks" aria-selected="false">
+              <i class="bi bi-link-45deg me-1"></i>Öffentliche Freigabelinks
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="kanbanShareTabContent">
+          <!-- Pane: Portalsnutzer -->
+          <div class="tab-pane fade show active" id="kanbanSharePaneUsers" role="tabpanel" aria-labelledby="kanbanShareTabUsersBtn">
+            {% if can_manage %}
+            <form id="kanbanAddUserForm" class="kanban-share-create row g-2 align-items-end mb-3">
+              <div class="col-md-5">
+                <label class="form-label small mb-1" for="kanbanAddUserSelect">Portalsnutzer</label>
+                <select class="form-select kanban-pill-input" id="kanbanAddUserSelect" required>
+                  <option value="">Benutzer auswählen…</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1" for="kanbanAddUserRole">Rolle / Zugriff</label>
+                <select class="form-select kanban-pill-input" id="kanbanAddUserRole">
+                  <option value="member">Mitglied (Karten bearbeiten)</option>
+                  <option value="admin">Administrator (Board verwalten)</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-accent mod-pill-btn w-100" id="kanbanAddUserSubmitBtn">
+                  <i class="bi bi-person-plus me-1"></i>Freigeben
+                </button>
+              </div>
+            </form>
+            {% endif %}
+            <div class="table-responsive kanban-share-table-wrap">
+              <table class="table table-sm align-middle mb-0 kanban-share-table">
+                <thead>
+                  <tr>
+                    <th>Portalsnutzer</th>
+                    <th>Rolle</th>
+                    <th>Berechtigung</th>
+                    <th class="text-end">Optionen</th>
+                  </tr>
+                </thead>
+                <tbody id="kanbanPortalUsersList">
+                  <tr><td colspan="4" class="text-muted small">Lade Portalsnutzer…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="col-md-5">
-            <label class="form-label small mb-1" for="kanbanSharePassword">{{ _('kanban.share.password') }}</label>
-            <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
+
+          <!-- Pane: Öffentliche Links -->
+          <div class="tab-pane fade" id="kanbanSharePaneLinks" role="tabpanel" aria-labelledby="kanbanShareTabLinksBtn">
+            <form id="kanbanShareForm" class="kanban-share-create row g-2 align-items-end mb-3">
+              <div class="col-md-3">
+                <label class="form-label small mb-1" for="kanbanShareMode">{{ _('kanban.share.mode') }}</label>
+                <select class="form-select kanban-pill-input" id="kanbanShareMode" name="mode">
+                  <option value="view">{{ _('kanban.share.mode_view') }}</option>
+                  <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label small mb-1" for="kanbanSharePassword">{{ _('kanban.share.password') }}</label>
+                <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('kanban.share.create') }}</button>
+              </div>
+            </form>
+            <div class="table-responsive kanban-share-table-wrap">
+              <table class="table table-sm align-middle mb-0 kanban-share-table">
+                <thead>
+                  <tr>
+                    <th>{{ _('kanban.share.col_created_by') }}</th>
+                    <th>{{ _('kanban.share.col_link') }}</th>
+                    <th>{{ _('kanban.share.col_password') }}</th>
+                    <th>{{ _('kanban.share.col_mode') }}</th>
+                    <th class="text-end">{{ _('kanban.share.col_actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody id="kanbanShareList">
+                  <tr><td colspan="5" class="text-muted small">{{ _('kanban.share.empty') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="col-md-4">
-            <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('kanban.share.create') }}</button>
-          </div>
-        </form>
-        <div class="table-responsive kanban-share-table-wrap">
-          <table class="table table-sm align-middle mb-0 kanban-share-table">
-            <thead>
-              <tr>
-                <th>{{ _('kanban.share.col_created_by') }}</th>
-                <th>{{ _('kanban.share.col_link') }}</th>
-                <th>{{ _('kanban.share.col_password') }}</th>
-                <th>{{ _('kanban.share.col_mode') }}</th>
-                <th class="text-end">{{ _('kanban.share.col_actions') }}</th>
-              </tr>
-            </thead>
-            <tbody id="kanbanShareList">
-              <tr><td colspan="5" class="text-muted small">{{ _('kanban.share.empty') }}</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

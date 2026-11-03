@@ -78,7 +78,49 @@
     const el = document.getElementById('kanbanBoardMembers');
     if (!el) return;
     const members = board.members || [];
-    el.innerHTML = members.map((m) => avatarHtml(m)).join('');
+    el.innerHTML = members.map((m) => avatarHtml(m)).join('') || '<span class="text-white-50 small"><i class="bi bi-people"></i></span>';
+
+    // Populate the members dropdown
+    const countEl = document.getElementById('kanbanBoardMembersCount');
+    if (countEl) countEl.textContent = String(members.length);
+
+    const noticeEl = document.getElementById('kanbanBoardAccessNotice');
+    if (noticeEl) {
+      if (board.visibility === 'public') {
+        noticeEl.innerHTML = '<i class="bi bi-globe me-1"></i><strong>Öffentliches Board:</strong> Alle Portalsnutzer haben Zugriff.';
+      } else if (board.visibility === 'team') {
+        const tName = board.team_name || (board.team && board.team.name) || 'Team';
+        noticeEl.innerHTML = `<i class="bi bi-people-fill me-1"></i><strong>Team-Board:</strong> Alle Mitglieder von <em>${esc(tName)}</em> haben Zugriff.`;
+      } else {
+        noticeEl.innerHTML = '<i class="bi bi-lock-fill me-1"></i><strong>Privates Board:</strong> Nur autorisierte Personen haben Zugriff.';
+      }
+    }
+
+    const listEl = document.getElementById('kanbanBoardMembersList');
+    if (listEl) {
+      if (!members.length) {
+        listEl.innerHTML = '<div class="text-muted small py-2">Keine Mitglieder gefunden.</div>';
+      } else {
+        listEl.innerHTML = members.map((m) => {
+          const roleClass = m.is_owner || m.role === 'owner' ? 'kanban-role-badge--owner'
+            : (m.role === 'admin' ? 'kanban-role-badge--admin' : 'kanban-role-badge--member');
+          const roleLabel = m.is_owner || m.role === 'owner' ? 'Inhaber'
+            : (m.role === 'admin' ? 'Administrator' : 'Mitglied');
+          return `
+            <div class="kanban-member-menu-item">
+              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1 overflow-hidden">
+                ${avatarHtml(m)}
+                <div class="text-truncate">
+                  <div class="fw-semibold text-truncate" style="font-size: 0.88rem;">${esc(m.name || 'Benutzer')}</div>
+                  <div class="small text-muted text-truncate" style="font-size: 0.75rem;">${esc(m.role_label || roleLabel)}</div>
+                </div>
+              </div>
+              <span class="kanban-role-badge ${roleClass}">${esc(roleLabel)}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
   }
 
   function getModal(elOrId) {
@@ -1257,10 +1299,13 @@
     function attachRow(a) {
       const viewUrl = a.is_link ? a.url : (a.preview_url || a.url);
       const isCover = coverId && Number(coverId) === Number(a.id);
+      const rawUrl = a.external_url || (a.is_link ? a.url : null);
+      const showSubUrl = a.is_link && rawUrl && rawUrl !== a.filename;
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
           <a class="kanban-attach-row__name" href="${esc(viewUrl)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+          ${showSubUrl ? `<div class="kanban-attach-row__url" title="${esc(rawUrl)}">${esc(rawUrl)}</div>` : ''}
           <div class="kanban-attach-row__meta">
             ${a.created_at ? `<span>${formatAddedAt(a.created_at)}</span>` : ''}
             ${isCover ? `<span class="kanban-attach-cover-mark" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image-fill"></i> ${esc(i18n.setCover || 'Titelbild')}</span>` : ''}
@@ -1361,7 +1406,7 @@
       document.getElementById('kanbanCardActivity').innerHTML = (act.activities || []).map((a) => `
         <div class="kanban-activity-item">
           <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
-          ${a.detail ? `<div class="small">${esc(a.detail)}</div>` : ''}
+          ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
           <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
         </div>`).join('') || '<p class="text-muted small">—</p>';
     } catch (_) {
@@ -1534,6 +1579,31 @@
   document.getElementById('cardAttachLinkCancel')?.addEventListener('click', () => {
     const form = document.getElementById('cardAttachLinkForm');
     if (form) form.hidden = true;
+  });
+
+  let linkTitleFetchTimer = null;
+  const linkUrlInput = document.getElementById('cardAttachLinkUrl');
+  const linkTitleInput = document.getElementById('cardAttachLinkTitle');
+
+  linkUrlInput?.addEventListener('input', () => {
+    const rawVal = (linkUrlInput.value || '').trim();
+    if (!rawVal || (linkTitleInput && linkTitleInput.value.trim())) return;
+    clearTimeout(linkTitleFetchTimer);
+    linkTitleFetchTimer = setTimeout(async () => {
+      if (linkTitleInput && !linkTitleInput.value.trim() && (rawVal.startsWith('http://') || rawVal.startsWith('https://') || rawVal.includes('.'))) {
+        try {
+          linkTitleInput.setAttribute('placeholder', 'Titel wird ermittelt…');
+          const res = await api(`/kanban/api/fetch-url-title?url=${encodeURIComponent(rawVal)}`);
+          if (res && res.title && !linkTitleInput.value.trim()) {
+            linkTitleInput.value = res.title;
+          }
+        } catch (_) {
+          // ignore background fetch error
+        } finally {
+          linkTitleInput.setAttribute('placeholder', 'Titel (optional / automatisch)');
+        }
+      }
+    }, 400);
   });
 
   document.getElementById('cardAttachLinkForm')?.addEventListener('submit', async (e) => {
@@ -1831,11 +1901,144 @@
     }
   });
 
-  async function openShareModal() {
+  async function openShareModal(initialTab = 'users') {
+    const shareList = document.getElementById('kanbanShareList');
+    const portalList = document.getElementById('kanbanPortalUsersList');
+    if (shareList) shareList.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade Freigabelinks…</td></tr>';
+    if (portalList) portalList.innerHTML = '<tr><td colspan="4" class="text-muted small">Lade Portalsnutzer…</td></tr>';
+
+    if (initialTab === 'links') {
+      const linksTabBtn = document.getElementById('kanbanShareTabLinksBtn');
+      if (linksTabBtn && window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+      }
+    } else {
+      const usersTabBtn = document.getElementById('kanbanShareTabUsersBtn');
+      if (usersTabBtn && window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+      }
+    }
+
+    getModal('kanbanShareModal')?.show();
+
+    loadPortalUsersShare();
+    loadPublicShares();
+  }
+
+  async function loadPortalUsersShare() {
+    const portalList = document.getElementById('kanbanPortalUsersList');
+    const userSelect = document.getElementById('kanbanAddUserSelect');
+    try {
+      const [membersData, candidatesData] = await Promise.all([
+        api(`/kanban/api/boards/${boardId}/members`),
+        canManage ? api(`/kanban/api/boards/${boardId}/candidate_users`) : Promise.resolve({ users: [] }),
+      ]);
+
+      if (membersData && membersData.members) {
+        board.members = membersData.members;
+        renderBoardMembers();
+        renderPortalUsersRows(membersData.members);
+      }
+
+      if (userSelect && candidatesData && candidatesData.users) {
+        const nonMembers = candidatesData.users.filter((u) => !u.is_member);
+        userSelect.innerHTML = '<option value="">Benutzer auswählen…</option>' +
+          nonMembers.map((u) => `<option value="${u.id}">${esc(u.name || u.email)} (${esc(u.email || '')})</option>`).join('');
+      }
+    } catch (err) {
+      if (portalList) {
+        portalList.innerHTML = `<tr><td colspan="4" class="text-danger small">${esc(err.message || 'Fehler beim Laden der Portalsnutzer')}</td></tr>`;
+      }
+    }
+  }
+
+  function renderPortalUsersRows(members) {
+    const list = document.getElementById('kanbanPortalUsersList');
+    if (!list) return;
+    if (!members || !members.length) {
+      list.innerHTML = '<tr><td colspan="4" class="text-muted small">Keine Portalsnutzer gefunden.</td></tr>';
+      return;
+    }
+
+    list.innerHTML = members.map((m) => {
+      const roleLabel = m.is_owner || m.role === 'owner' ? 'Inhaber'
+        : (m.role === 'admin' ? 'Administrator' : 'Mitglied');
+      const roleBadgeClass = m.is_owner || m.role === 'owner' ? 'kanban-role-badge--owner'
+        : (m.role === 'admin' ? 'kanban-role-badge--admin' : 'kanban-role-badge--member');
+      const accessNote = m.is_creator ? 'Board-Ersteller'
+        : (m.is_explicit ? 'Direkt freigegeben'
+        : (board.visibility === 'team' ? `Team (${esc(board.team_name || 'Team')})` : 'Portalweit'));
+
+      return `
+        <tr data-member-id="${m.id}">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              ${avatarHtml(m)}
+              <div>
+                <div class="fw-semibold">${esc(m.name || 'Benutzer')}</div>
+                <div class="small text-muted">${esc(m.email || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            ${canManage && !m.is_owner && m.is_explicit ? `
+              <select class="form-select form-select-sm kanban-pill-input" data-change-role="${m.id}" style="width: auto; min-width: 8.5rem;">
+                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Mitglied</option>
+                <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Administrator</option>
+              </select>
+            ` : `<span class="kanban-role-badge ${roleBadgeClass}">${esc(roleLabel)}</span>`}
+          </td>
+          <td>
+            <small class="text-muted">${accessNote}</small>
+          </td>
+          <td class="text-end text-nowrap">
+            ${canManage && !m.is_owner && m.is_explicit ? `
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost text-danger" data-del-member="${m.id}" data-member-name="${esc(m.name || 'Benutzer')}" title="Freigabe entfernen">
+                <i class="bi bi-trash"></i>
+              </button>
+            ` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-change-role]').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        const userId = Number(sel.getAttribute('data-change-role'));
+        const newRole = sel.value;
+        try {
+          await api(`/kanban/api/boards/${boardId}/members`, {
+            method: 'POST',
+            body: { user_id: userId, role: newRole },
+          });
+          notify('Rolle aktualisiert');
+          loadPortalUsersShare();
+        } catch (err) {
+          notify(err.message || 'Änderung fehlgeschlagen');
+          loadPortalUsersShare();
+        }
+      });
+    });
+
+    list.querySelectorAll('[data-del-member]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.getAttribute('data-del-member');
+        const name = btn.getAttribute('data-member-name') || 'Benutzer';
+        if (!(await askConfirm(`Freigabe für "${name}" auf diesem Board entfernen?`))) return;
+        try {
+          await api(`/kanban/api/boards/${boardId}/members/${userId}`, { method: 'DELETE' });
+          notify('Freigabe entfernt');
+          loadPortalUsersShare();
+        } catch (err) {
+          notify(err.message || 'Entfernen fehlgeschlagen');
+        }
+      });
+    });
+  }
+
+  async function loadPublicShares() {
     const list = document.getElementById('kanbanShareList');
     if (!list) return;
-    list.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade…</td></tr>';
-    getModal('kanbanShareModal')?.show();
     try {
       const data = await api(`/kanban/api/boards/${boardId}/shares`);
       renderShareRows(data.shares || []);
@@ -2108,6 +2311,38 @@
     }
   });
 
+  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', () => {
+    // Hide dropdown if open
+    const dropdownToggle = document.getElementById('kanbanBoardMembers');
+    if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
+      bootstrap.Dropdown.getInstance(dropdownToggle)?.hide();
+    }
+    openShareModal('users');
+  });
+
+  document.getElementById('kanbanAddUserForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userSelect = document.getElementById('kanbanAddUserSelect');
+    const roleSelect = document.getElementById('kanbanAddUserRole');
+    const userId = userSelect?.value;
+    const role = roleSelect?.value || 'member';
+    if (!userId) {
+      notify('Bitte einen Portalsnutzer auswählen', 'warning');
+      return;
+    }
+    try {
+      await api(`/kanban/api/boards/${boardId}/members`, {
+        method: 'POST',
+        body: { user_id: Number(userId), role },
+      });
+      notify('Board für Portalsnutzer freigegeben');
+      if (userSelect) userSelect.value = '';
+      loadPortalUsersShare();
+    } catch (err) {
+      notify(err.message || 'Freigabe fehlgeschlagen');
+    }
+  });
+
   document.getElementById('kanbanShareForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -2117,7 +2352,7 @@
         body: Object.fromEntries(fd.entries()),
       });
       e.target.reset();
-      openShareModal();
+      openShareModal('links');
     } catch (err) {
       notify(err.message || 'Link konnte nicht erstellt werden');
     }
@@ -2136,7 +2371,7 @@
     try {
       await api(`/kanban/api/boards/${boardId}/shares/${id}`, { method: 'PATCH', body });
       getModal('kanbanShareEditModal')?.hide();
-      openShareModal();
+      openShareModal('links');
     } catch (err) {
       notify(err.message || 'Speichern fehlgeschlagen');
     }

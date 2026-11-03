@@ -377,6 +377,8 @@ def _serialize_board_members(board: KanbanBoard) -> list[dict]:
         for user in User.query.filter(User.id.in_(roles)).all()
     }
     role_order = {'owner': 0, 'admin': 1, 'member': 2}
+    role_labels = {'owner': 'Inhaber', 'admin': 'Administrator', 'member': 'Mitglied'}
+    explicit_ids = {m.user_id for m in (board.members or []) if m.user_id}
     entries = []
     for user_id, role in roles.items():
         user = users.get(user_id)
@@ -390,7 +392,14 @@ def _serialize_board_members(board: KanbanBoard) -> list[dict]:
         ))
     entries.sort()
     return [
-        {**(_user_brief(user) or {}), 'role': role}
+        {
+            **(_user_brief(user) or {}),
+            'role': role,
+            'role_label': role_labels.get(role, role),
+            'is_owner': (user.id == board.created_by or role == 'owner'),
+            'is_creator': (user.id == board.created_by),
+            'is_explicit': (user.id in explicit_ids),
+        }
         for _, _, user, role in entries
     ]
 
@@ -438,6 +447,19 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
         file_url = att.url
         # External image links can still act as card covers / previews
         preview_url = att.url if is_image else None
+        # Clean up display name if it's currently a raw URL
+        if name.startswith(('http://', 'https://')):
+            try:
+                from urllib.parse import urlparse, unquote
+                p = urlparse(name)
+                segments = [s for s in p.path.strip('/').split('/') if s]
+                if segments:
+                    clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
+                    name = f"{clean_seg} ({p.netloc})" if clean_seg else p.netloc
+                else:
+                    name = p.netloc or name
+            except Exception:
+                pass
     elif share_token:
         file_url = url_for('kanban.share_download_attachment', token=share_token, attachment_id=att.id)
         preview_url = url_for('kanban.share_preview_attachment', token=share_token, attachment_id=att.id)
@@ -749,11 +771,9 @@ def _share_guest_ok(token: str) -> bool:
 
 
 def _user_kanban_teams(user):
-    """Teams the user may assign boards to / see as sidebar folders."""
+    """Teams the user may assign boards to / see as sidebar folders (members only)."""
     if VISIBILITY_TEAM not in get_allowed_visibilities(user):
         return []
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return Team.query.order_by(Team.name).all()
     team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()]
     if not team_ids:
         return []

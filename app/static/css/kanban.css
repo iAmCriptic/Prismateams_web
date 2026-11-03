@@ -405,6 +405,15 @@ body:has(.kanban-board-page) {
   display: flex;
   align-items: center;
   margin-right: 0.25rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 9999px;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.kanban-board-members:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
 }
 
 .kanban-board-members .kanban-avatar {
@@ -412,6 +421,59 @@ body:has(.kanban-board-page) {
   height: 1.85rem;
   font-size: 0.7rem;
   border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.kanban-board-members-dropdown {
+  background: var(--kanban-menu-bg, #1c1e24);
+  color: var(--kanban-surface-text, #f3f4f6);
+  border: 1px solid var(--kanban-border, rgba(255, 255, 255, 0.15));
+  border-radius: 0.85rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  z-index: 1060;
+}
+
+.kanban-member-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: background 0.12s ease;
+}
+
+.kanban-member-menu-item:hover {
+  background: var(--kanban-soft-btn, rgba(255, 255, 255, 0.08));
+}
+
+.kanban-member-menu-item .kanban-avatar {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.kanban-role-badge {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.kanban-role-badge--owner {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.kanban-role-badge--admin {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+.kanban-role-badge--member {
+  background: rgba(156, 163, 175, 0.18);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
 .kanban-lists-scroll {
@@ -1035,11 +1097,19 @@ body:has(.kanban-board-page) {
 
 .kanban-card-modal__body {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 1.25rem;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.kanban-card-modal__main,
+.kanban-card-modal__side {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .kanban-card__title-row {
@@ -1086,13 +1156,26 @@ body:has(.kanban-board-page) {
 
 .kanban-activity-feed {
   font-size: 0.85rem;
-  max-height: 240px;
+  max-height: 260px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .kanban-activity-item {
-  padding: 0.4rem 0;
+  padding: 0.45rem 0;
   border-bottom: 1px solid var(--kanban-border);
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.kanban-activity-item > div,
+.kanban-activity-item .small {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .kanban-share-auth {
@@ -1256,6 +1339,15 @@ body:has(.kanban-board-page) {
   white-space: nowrap;
 }
 
+.kanban-attach-row__url {
+  font-size: 0.76rem;
+  color: var(--kanban-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .kanban-attach-row__meta {
   display: flex;
   flex-wrap: wrap;
@@ -1413,7 +1505,7 @@ body:has(.kanban-board-page) {
 
 @media (max-width: 991.98px) {
   .kanban-card-modal__body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .kanban-card-modal-dialog {
     height: 100vh;

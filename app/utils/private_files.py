@@ -48,18 +48,15 @@ def user_file_team_ids(user):
 
 
 def user_file_teams(user):
-    """Teams shown as file-sidebar folders (members; admins see all)."""
+    """Teams shown as file-sidebar folders (members only)."""
     from app.utils.team_module_settings import filter_teams_with_section
 
     if not is_team_folders_enabled() or not user or getattr(user, 'is_guest', False):
         return []
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        teams = Team.query.order_by(Team.name).all()
-    else:
-        team_ids = list(user_file_team_ids(user))
-        if not team_ids:
-            return []
-        teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    team_ids = list(user_file_team_ids(user))
+    if not team_ids:
+        return []
+    teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
     return filter_teams_with_section(teams, 'files')
 
 
@@ -240,8 +237,6 @@ def _file_is_team_space(file_obj):
 def _user_has_team_membership(user, team_id):
     if not user or not team_id:
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return True
     return team_id in user_file_team_ids(user)
 
 
@@ -534,7 +529,7 @@ def can_manage_acl(resource, resource_type, user):
     """Who may change internal ACL: owner, admin, or team member of a team space."""
     if not resource or not user:
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
+    if getattr(user, 'is_admin', False):
         return True
     if resource_type == 'file':
         if _file_owned_by(resource, user.id):

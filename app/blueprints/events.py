@@ -5,6 +5,7 @@ import json
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from app import db
@@ -20,6 +21,7 @@ from app.models.event import (
     EventTimelineItem,
 )
 from app.models.file import Folder
+from app.utils.private_files import can_view_folder
 from app.models.inventory import Product
 from app.models.user import User
 from app.services.event_service import EventService
@@ -35,7 +37,19 @@ events_bp = Blueprint('events', __name__)
 
 
 def _parse_datetime(value):
-    return datetime.strptime(value, '%Y-%m-%dT%H:%M')
+    if not value:
+        return None
+    value = str(value).strip()
+    for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            pass
+    try:
+        from dateutil import parser
+        return parser.parse(value)
+    except Exception:
+        return None
 
 
 def _refresh_archive_state():
@@ -44,8 +58,12 @@ def _refresh_archive_state():
     events = Event.query.all()
     changed = False
     for event_obj in events:
-        has_future = any(appointment.end_time >= now for appointment in event_obj.appointments)
-        should_archive = not has_future
+        if event_obj.appointments:
+            has_future = any(appointment.end_time >= now for appointment in event_obj.appointments)
+            should_archive = not has_future
+        else:
+            # Veranstaltungen ohne Termine sind in Planung und sollen nicht archiviert werden
+            should_archive = False
         if event_obj.is_archived != should_archive:
             event_obj.is_archived = should_archive
             event_obj.archived_at = now if should_archive else None
@@ -119,7 +137,13 @@ def _query_appointments(archived=False, assigned_user_id=None, order_desc=False)
             .filter(EventAssignment.user_id == assigned_user_id)
             .distinct()
         )
-        query = query.filter(Event.id.in_(assigned_event_ids))
+        query = query.filter(
+            or_(
+                Event.id.in_(assigned_event_ids),
+                Event.owner_id == assigned_user_id,
+                Event.created_by == assigned_user_id,
+            )
+        )
     if order_desc:
         query = query.order_by(EventAppointment.start_time.desc())
     else:
@@ -216,7 +240,8 @@ def people_overview():
 def create_event():
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
-    folders = Folder.query.order_by(Folder.name).all()
+    all_folders = Folder.query.filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
+    folders = [f for f in all_folders if can_view_folder(f, current_user)]
     Folder.prefetch_paths(folders)
     products = Product.query.order_by(Product.name).all()
 
@@ -265,6 +290,11 @@ def _store_form_data(event_obj, req):
     EventContact.query.filter_by(event_id=event_obj.id).delete()
     EventTimelineItem.query.filter_by(event_id=event_obj.id).delete()
 
+    event_obj.appointments = []
+    event_obj.assignments = []
+    event_obj.contacts = []
+    event_obj.timeline_items = []
+
     labels = req.form.getlist('appointment_label[]')
     starts = req.form.getlist('appointment_start[]')
     ends = req.form.getlist('appointment_end[]')
@@ -277,17 +307,21 @@ def _store_form_data(event_obj, req):
 
     created_appointments = []
     for index, label in enumerate(labels):
-        label = (label or '').strip()
-        start_raw = starts[index] if index < len(starts) else ''
-        end_raw = ends[index] if index < len(ends) else ''
-        if not label or not start_raw or not end_raw:
+        start_raw = (starts[index] if index < len(starts) else '').strip()
+        end_raw = (ends[index] if index < len(ends) else '').strip()
+        if not start_raw or not end_raw:
             continue
+        start_dt = _parse_datetime(start_raw)
+        end_dt = _parse_datetime(end_raw)
+        if not start_dt or not end_dt:
+            continue
+        label = (label or '').strip() or (event_obj.name or 'Termin')
         appointment = EventAppointment(
-            event_id=event_obj.id,
+            event=event_obj,
             label=label,
             description=(descriptions[index] if index < len(descriptions) else '').strip() or None,
-            start_time=_parse_datetime(start_raw),
-            end_time=_parse_datetime(end_raw),
+            start_time=start_dt,
+            end_time=end_dt,
             location=(locations[index] if index < len(locations) else '').strip() or None,
         )
         db.session.add(appointment)
@@ -458,7 +492,8 @@ def edit_event(event_id):
     event_obj = Event.query.get_or_404(event_id)
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     contacts = accessible_query(current_user, Contact, 'contacts').order_by(Contact.name).all()
-    folders = Folder.query.order_by(Folder.name).all()
+    all_folders = Folder.query.filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
+    folders = [f for f in all_folders if can_view_folder(f, current_user)]
     Folder.prefetch_paths(folders)
     products = Product.query.order_by(Product.name).all()
 

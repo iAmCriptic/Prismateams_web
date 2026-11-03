@@ -58,16 +58,12 @@ def _color_for_user(user_id):
 def user_calendar_team_ids(user):
     if not user or not getattr(user, 'id', None):
         return set()
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return {tid for (tid,) in Team.query.with_entities(Team.id).all()}
     return {m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()}
 
 
 def _is_team_member(user, team_id):
     if not user or not team_id:
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return True
     return TeamMember.query.filter_by(team_id=team_id, user_id=user.id).first() is not None
 
 

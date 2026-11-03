@@ -111,20 +111,17 @@ def user_team_ids(user) -> set[int]:
 
 
 def user_visibility_teams(user, module: str):
-    """Teams shown as sidebar folders (members; admins see all)."""
+    """Teams shown as sidebar folders (members only)."""
     from app.utils.team_module_settings import filter_teams_with_section
 
     if VISIBILITY_TEAM not in get_allowed_visibilities(module, user) or not user:
         return []
     if getattr(user, 'is_guest', False):
         return []
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        teams = Team.query.order_by(Team.name).all()
-    else:
-        team_ids = list(user_team_ids(user))
-        if not team_ids:
-            return []
-        teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    team_ids = list(user_team_ids(user))
+    if not team_ids:
+        return []
+    teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
     return filter_teams_with_section(teams, module)
 
 
@@ -154,8 +151,6 @@ def can_view_item(user, item, module: str) -> bool:
     module_key = MODULE_KEYS.get(module)
     if module_key and (not is_module_enabled(module_key) or not has_module_access(user, module_key)):
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return True
 
     allowed = set(get_allowed_visibilities(module, user))
     vis = _item_visibility(item)
@@ -179,9 +174,9 @@ def can_view_item(user, item, module: str) -> bool:
 def can_edit_item(user, item, module: str) -> bool:
     if not can_view_item(user, item, module):
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return True
     if owner_id(item, module) == getattr(user, 'id', None):
+        return True
+    if getattr(user, 'is_admin', False):
         return True
     # Credentials: nur Owner/Admin dürfen ändern (kein Public-/Team-Edit)
     if module == 'credentials':
@@ -201,28 +196,27 @@ def accessible_query(user, model, module: str):
     from sqlalchemy import and_, or_
 
     q = model.query
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return q
 
-    owner_col = getattr(model, OWNER_ATTRS[module])
-    vis_col = model.visibility
-    team_col = model.team_id
+    owner_attr = OWNER_ATTRS.get(module, 'created_by')
+    owner_col = getattr(model, owner_attr, None)
+    if owner_col is None and hasattr(model, 'created_by'):
+        owner_col = getattr(model, 'created_by')
+
+    vis_col = getattr(model, 'visibility', None)
+    team_col = getattr(model, 'team_id', None)
     team_ids = list(user_team_ids(user))
     allowed = set(get_allowed_visibilities(module, user))
 
     clauses = []
     # Own items only for visibilities the user may access
-    for vis in allowed:
-        if vis == VISIBILITY_PRIVATE:
-            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_PRIVATE))
-        elif vis == VISIBILITY_PUBLIC:
-            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_PUBLIC))
-        elif vis == VISIBILITY_TEAM:
-            clauses.append(and_(owner_col == user.id, vis_col == VISIBILITY_TEAM))
+    if owner_col is not None and vis_col is not None:
+        for vis in allowed:
+            if vis in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC, VISIBILITY_TEAM):
+                clauses.append(and_(owner_col == user.id, vis_col == vis))
 
-    if VISIBILITY_PUBLIC in allowed:
+    if vis_col is not None and VISIBILITY_PUBLIC in allowed:
         clauses.append(vis_col == VISIBILITY_PUBLIC)
-    if VISIBILITY_TEAM in allowed and team_ids:
+    if vis_col is not None and team_col is not None and VISIBILITY_TEAM in allowed and team_ids:
         clauses.append(and_(vis_col == VISIBILITY_TEAM, team_col.in_(team_ids)))
 
     if not clauses:

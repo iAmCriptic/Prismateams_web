@@ -5,6 +5,7 @@ from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.user import User
 from app.models.file import Folder
+from app.utils.private_files import can_view_folder
 from app.utils.access_control import check_module_access, get_guest_accessible_items
 from app.utils.chat_service import (
     has_structured_message_content as _has_structured_message_content,
@@ -432,7 +433,8 @@ def get_chat_folder_options(chat_id):
     if current_user.is_guest:
         _, folders = get_guest_accessible_items(current_user)
     else:
-        folders = Folder.query.order_by(Folder.name.asc()).all()
+        all_folders = Folder.query.filter(Folder.deleted_at.is_(None)).order_by(Folder.name.asc()).all()
+        folders = [f for f in all_folders if can_view_folder(f, current_user)]
 
     unique_folders = list({folder.id: folder for folder in folders}.values())
     Folder.prefetch_paths(unique_folders)

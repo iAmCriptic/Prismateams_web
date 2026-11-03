@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 import tempfile
 
@@ -48,6 +47,62 @@ def _user_from_environ(environ) -> User | None:
     if not user_id:
         return None
     return User.query.get(user_id)
+
+
+def _user_bypasses_edit_acl(user) -> bool:
+    """Match web UI: admins may edit regardless of ACL owner checks."""
+    return bool(user and getattr(user, 'is_admin', False))
+
+
+def _may_edit_folder(folder, user) -> bool:
+    if _user_bypasses_edit_acl(user):
+        return True
+    return can_edit_folder(folder, user)
+
+
+def _may_edit_file(file_obj, user) -> bool:
+    if _user_bypasses_edit_acl(user):
+        return True
+    return can_edit_file(file_obj, user)
+
+
+def _persist_empty_file(*, path, environ, name, parent_folder, view, team_id, user):
+    """Create a real 0-byte file (DB + disk) so LOCK/PROPFIND find it after create_empty_resource."""
+    fd, temp_path = tempfile.mkstemp(prefix='webdav_empty_', suffix='.bin')
+    try:
+        os.close(fd)
+        try:
+            file_obj = ops.create_or_version_file(
+                name=name,
+                parent_folder=parent_folder,
+                user=user,
+                view=view,
+                team_id=team_id,
+                temp_path=temp_path,
+                content_type=None,
+            )
+        except (PermissionError, ValueError, FileExistsError, FileNotFoundError) as exc:
+            _logger.warning(
+                'WebDAV create_empty_resource failed path=%s name=%s err=%s',
+                path,
+                name,
+                exc,
+            )
+            raise DAVError(HTTP_FORBIDDEN, str(exc)) from exc
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+    return DbFileResource(
+        path,
+        environ,
+        file_obj=file_obj,
+        view=view,
+        team_id=team_id,
+    )
 
 
 def _split_path(path: str) -> list[str]:
@@ -293,19 +348,20 @@ class SpaceRootCollection(_BaseCollection):
 
     def create_empty_resource(self, name):
         user = self.get_user()
-        parent = self.root_folder
-        if parent is not None and not can_edit_folder(parent, user):
+        if not user:
             self._raise_forbidden()
-        if self.view == 'public' and parent is None:
-            # Public root: anyone with module access can create when spaces rules allow
-            pass
-        return PendingFileResource(
-            util.join_uri(self.path, name),
-            self.environ,
+        parent = self.root_folder
+        if parent is not None and not _may_edit_folder(parent, user):
+            self._raise_forbidden()
+        # Public root (parent is None): module access already checked at auth time
+        return _persist_empty_file(
+            path=util.join_uri(self.path, name),
+            environ=self.environ,
             name=name,
             parent_folder=parent,
             view=self.view,
             team_id=self.team_id,
+            user=user,
         )
 
     def create_collection(self, name):
@@ -364,15 +420,16 @@ class DbFolderCollection(_BaseCollection):
 
     def create_empty_resource(self, name):
         user = self.get_user()
-        if not can_edit_folder(self.folder, user):
+        if not user or not _may_edit_folder(self.folder, user):
             self._raise_forbidden()
-        return PendingFileResource(
-            util.join_uri(self.path, name),
-            self.environ,
+        return _persist_empty_file(
+            path=util.join_uri(self.path, name),
+            environ=self.environ,
             name=name,
             parent_folder=self.folder,
             view=self.view,
             team_id=self.team_id,
+            user=user,
         )
 
     def create_collection(self, name):
@@ -446,11 +503,24 @@ def _parent_db_folder(parent_res):
 class _FileWriteMixin:
     def begin_write(self, *, content_type=None):
         self._write_content_type = content_type
+        # NamedTemporaryFile must be closed before shutil.copyfile on Windows.
         self._temp = tempfile.NamedTemporaryFile(delete=False, prefix='webdav_', suffix='.bin')
         self._temp_path = self._temp.name
         return self._temp
 
+    def _ensure_temp_closed(self):
+        temp = getattr(self, '_temp', None)
+        if temp is not None:
+            try:
+                if not temp.closed:
+                    temp.flush()
+                    temp.close()
+            except OSError:
+                _logger.exception('WebDAV temp file close failed path=%s', getattr(self, '_temp_path', None))
+            self._temp = None
+
     def _cleanup_temp(self):
+        self._ensure_temp_closed()
         path = getattr(self, '_temp_path', None)
         if path and os.path.exists(path):
             try:
@@ -460,61 +530,6 @@ class _FileWriteMixin:
         self._temp_path = None
 
 
-class PendingFileResource(_FileWriteMixin, DAVNonCollection):
-    """Placeholder created by MKCOL-equivalent create_empty_resource before PUT body."""
-
-    def __init__(self, path, environ, *, name, parent_folder, view, team_id=None):
-        super().__init__(path, environ)
-        self.name = name
-        self.parent_folder = parent_folder
-        self.view = view
-        self.team_id = team_id
-        self._file_obj = None
-        self._temp_path = None
-
-    def get_content_length(self):
-        return 0
-
-    def get_content_type(self):
-        return ops.guess_mime(ops.name_from_path_segment(self.name))
-
-    def get_content(self):
-        return io.BytesIO(b'')
-
-    def get_etag(self):
-        return hashlib.md5(self.path.encode('utf-8')).hexdigest()
-
-    def support_etag(self):
-        return True
-
-    def end_write(self, *, with_errors):
-        user = _user_from_environ(self.environ)
-        if with_errors or not user:
-            self._cleanup_temp()
-            return
-        try:
-            # New uploads: no existing file_id yet — occupancy N/A for create.
-            self._file_obj = ops.create_or_version_file(
-                name=self.name,
-                parent_folder=self.parent_folder,
-                user=user,
-                view=self.view,
-                team_id=self.team_id,
-                temp_path=self._temp_path,
-                content_type=getattr(self, '_write_content_type', None),
-            )
-        except (PermissionError, ValueError, FileExistsError, FileNotFoundError) as exc:
-            self._cleanup_temp()
-            raise DAVError(HTTP_FORBIDDEN, str(exc)) from exc
-        finally:
-            self._cleanup_temp()
-
-    def delete(self):
-        if self._file_obj:
-            user = _user_from_environ(self.environ)
-            ops.delete_file_record(self._file_obj, user)
-
-
 class DbFileResource(_FileWriteMixin, DAVNonCollection):
     def __init__(self, path, environ, *, file_obj: File, view: str, team_id=None):
         super().__init__(path, environ)
@@ -522,6 +537,7 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
         self.view = view
         self.team_id = team_id
         self._temp_path = None
+        self._temp = None
 
     def get_display_name(self):
         return self.file_obj.name
@@ -559,7 +575,13 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
 
     def begin_write(self, *, content_type=None):
         user = _user_from_environ(self.environ)
-        if not user or not can_edit_file(self.file_obj, user):
+        if not user or not _may_edit_file(self.file_obj, user):
+            _logger.warning(
+                'WebDAV begin_write forbidden path=%s file_id=%s user_id=%s',
+                self.path,
+                getattr(self.file_obj, 'id', None),
+                getattr(user, 'id', None),
+            )
             raise DAVError(HTTP_FORBIDDEN, 'No edit permission')
         from app.utils.file_occupancy import raise_if_browser_blocks_webdav
 
@@ -567,8 +589,15 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
         return super().begin_write(content_type=content_type)
 
     def end_write(self, *, with_errors):
+        self._ensure_temp_closed()
         user = _user_from_environ(self.environ)
         if with_errors or not user:
+            if with_errors:
+                _logger.warning(
+                    'WebDAV end_write aborted with_errors path=%s file_id=%s',
+                    self.path,
+                    getattr(self.file_obj, 'id', None),
+                )
             self._cleanup_temp()
             return
         parent = Folder.query.get(self.file_obj.folder_id) if self.file_obj.folder_id else None
@@ -587,8 +616,19 @@ class DbFileResource(_FileWriteMixin, DAVNonCollection):
             )
             self.file_obj = File.query.get(self.file_obj.id)
         except DAVError:
+            _logger.warning(
+                'WebDAV end_write DAVError path=%s file_id=%s',
+                self.path,
+                getattr(self.file_obj, 'id', None),
+            )
             raise
         except (PermissionError, ValueError, FileExistsError, FileNotFoundError) as exc:
+            _logger.warning(
+                'WebDAV end_write failed path=%s file_id=%s err=%s',
+                self.path,
+                getattr(self.file_obj, 'id', None),
+                exc,
+            )
             self._cleanup_temp()
             raise DAVError(HTTP_FORBIDDEN, str(exc)) from exc
         finally:
