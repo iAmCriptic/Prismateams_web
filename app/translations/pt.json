@@ -563,6 +563,18 @@
         "info": "Página {page} de {pages} ({total})",
         "aria": "Páginas wiki"
       }
+    },
+    "media": {
+      "modal_title": "Adicionar foto ou vídeo",
+      "tab_upload": "Enviar arquivo",
+      "tab_video": "Incorporar vídeo (URL)",
+      "tab_image": "Link da imagem (URL)",
+      "drop_prompt": "Arraste foto ou vídeo aqui",
+      "select_file": "Selecionar arquivo",
+      "upload_btn": "Enviar e inserir",
+      "insert_video_btn": "Inserir vídeo",
+      "insert_image_btn": "Inserir imagem",
+      "preview_title": "Visualização"
     }
   },
   "chat": {

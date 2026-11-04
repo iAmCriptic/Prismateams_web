@@ -1128,3 +1128,99 @@ body.md-table-resizing {
         padding: 0.75rem !important;
     }
 }
+
+
+/* Media Embeds: Video, Audio, YouTube, Vimeo */
+.markdown-content video,
+.markdown-content .wiki-video-player {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+    display: block;
+    background: #000;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.markdown-content .wiki-media-embed {
+    margin: 1.5rem 0;
+    max-width: 100%;
+}
+
+.markdown-content figure.wiki-video-wrapper,
+.markdown-content figure.wiki-audio-wrapper {
+    margin: 1.5rem 0;
+    max-width: 100%;
+}
+
+.markdown-content figure.wiki-video-wrapper video {
+    margin: 0;
+    width: 100%;
+    display: block;
+    border-radius: 0.5rem;
+}
+
+.markdown-content .wiki-video-caption,
+.markdown-content .wiki-audio-caption {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+.markdown-content .wiki-video-responsive {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    background: #000;
+    margin: 1.5rem 0;
+}
+
+.markdown-content .wiki-video-responsive iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0.5rem;
+}
+
+.markdown-content iframe {
+    max-width: 100%;
+    border-radius: 0.5rem;
+}
+
+.markdown-content audio,
+.markdown-content .wiki-audio-player {
+    width: 100%;
+    max-width: 32rem;
+    margin: 1rem 0;
+    display: block;
+}
+
+/* Editor Dragover State */
+.wiki-editor-dragover {
+    outline: 2px dashed var(--accent-color, #0d6efd) !important;
+    outline-offset: -4px;
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+/* Dropzone styling in Media Modal */
+.wiki-upload-dropzone {
+    border: 2px dashed var(--bs-border-color, #dee2e6) !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.wiki-upload-dropzone:hover,
+.wiki-upload-dropzone.border-primary {
+    border-color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg)) !important;
+}

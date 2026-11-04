@@ -185,6 +185,13 @@
     border-radius: var(--mod-radius-pill);
 }
 
+.comment-avatar .avatar-initials {
+    line-height: 1;
+    display: inline-block;
+    user-select: none;
+    text-transform: uppercase;
+}
+
 .comment-author {
     font-weight: 650;
     color: var(--bs-body-color);
@@ -280,7 +287,7 @@
 
 .comment-empty.portal-msg,
 .comment-status.portal-msg {
-    margin: 0.25rem 0 0;
+    margin: 0.5rem 0.2rem;
 }
 
 .comment-empty .portal-msg__text,

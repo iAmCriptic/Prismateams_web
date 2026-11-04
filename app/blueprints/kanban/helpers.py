@@ -443,10 +443,19 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
     name = att.original_filename or att.filename or (att.url or 'Link')
     ext = (os.path.splitext(name)[1] or '').lower().lstrip('.')
     is_image = mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')
+    favicon_url = None
     if is_link:
         file_url = att.url
         # External image links can still act as card covers / previews
         preview_url = att.url if is_image else None
+        try:
+            from urllib.parse import urlparse
+            p_fav = urlparse((att.url or '').strip())
+            fav_host = (p_fav.hostname or '').strip().lower().rstrip('.')
+            if fav_host and fav_host not in {'localhost', '127.0.0.1', '::1'} and not fav_host.endswith('.local'):
+                favicon_url = f'https://www.google.com/s2/favicons?domain={fav_host}&sz=64'
+        except Exception:
+            favicon_url = None
         # Clean up display name if it's currently a raw URL
         if name.startswith(('http://', 'https://')):
             try:
@@ -475,6 +484,7 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
         'external_url': att.url,
         'preview_url': preview_url,
         'is_link': is_link,
+        'favicon_url': favicon_url,
         'is_image': is_image and (not is_link or bool(preview_url)),
         'is_pdf': (not is_link) and (mime == 'application/pdf' or ext == 'pdf'),
         'is_office': (not is_link) and (is_onlyoffice_file_type(ext) if ext else False),

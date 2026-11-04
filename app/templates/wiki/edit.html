@@ -276,7 +276,12 @@ function formatText(type) {
 }
 
 function openPreview() {
-    window.open('{{ url_for("wiki.view", slug=page.slug) }}', '_blank');
+    if (typeof window.openWikiPreviewModal === 'function') {
+        const editor = document.getElementById('wikiEditor');
+        window.openWikiPreviewModal(editor ? editor.value : '');
+    } else {
+        window.open('{{ url_for("wiki.view", slug=page.slug) }}', '_blank');
+    }
 }
 
 document.addEventListener('keydown', function(e) {
@@ -289,7 +294,9 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 <script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
-<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/wiki-media-modal.js') }}"></script>
 <script>
 window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 document.addEventListener('DOMContentLoaded', function () {

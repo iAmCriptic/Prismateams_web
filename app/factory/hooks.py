@@ -134,6 +134,9 @@ def register_request_hooks(app):
             return jsonify({'error': 'CSRF validation failed', 'detail': error.description}), 400
         flash('Sicherheitsprüfung fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.', 'danger')
         target = request.referrer if request.referrer and _is_same_origin(request.referrer, request.host) else None
+        from flask_login import current_user
+        if not target and current_user.is_authenticated and not getattr(current_user, 'is_email_confirmed', True):
+            target = flask_url_for('auth.confirm_email')
         return redirect(target or flask_url_for('dashboard.index'))
 
     @app.before_request

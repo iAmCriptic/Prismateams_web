@@ -206,10 +206,13 @@ function formatText(type) {
 }
 
 function openPreview() {
-    if (typeof window.ptAlert === 'function') {
-        window.ptAlert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.', 'info');
+    if (typeof window.openWikiPreviewModal === 'function') {
+        const editor = document.getElementById('wikiEditor');
+        window.openWikiPreviewModal(editor ? editor.value : '');
+    } else if (typeof window.ptAlert === 'function') {
+        window.ptAlert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau wird geladen...', 'info');
     } else {
-        window.alert(WIKI_CREATE_ALERTS.preview_unavailable || 'Vorschau ist bei neuen Seiten erst nach dem ersten Speichern verfügbar.');
+        window.alert('Vorschau wird geladen...');
     }
 }
 
@@ -227,7 +230,9 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 <script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
-<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/wiki-media-modal.js') }}"></script>
 <script>
 window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
 document.addEventListener('DOMContentLoaded', function () {

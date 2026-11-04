@@ -748,6 +748,12 @@ body:has(.kanban-board-page) {
   overflow-y: auto;
 }
 
+.kanban-comments .comments-list:has(.comment-empty, .comment-status, .comment-loading, .portal-msg),
+.kanban-comments .comments-list.is-empty {
+  overflow: visible;
+  max-height: none;
+}
+
 .kanban-comments .comment-author {
   font-weight: 600;
   margin-right: 0.35rem;
@@ -1390,6 +1396,17 @@ body:has(.kanban-board-page) {
 
 .kanban-attach-thumb--icon {
   font-size: 1.1rem;
+}
+
+.kanban-attach-thumb--favicon {
+  background: var(--kanban-soft-btn);
+}
+
+.kanban-attach-favicon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .kanban-cf-cat-list {

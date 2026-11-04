@@ -268,9 +268,8 @@
         if (!isAllowedImage(file)) {
             pictureInput.value = '';
             restoreDefaultPreview();
-            showPictureError({{ _('auth.register.picture_error_type') | tojson }
-    });
-    return;
+            showPictureError({{ _('auth.register.picture_error_type') | tojson }});
+            return;
         }
     if (file.size > maxSize) {
         pictureInput.value = '';

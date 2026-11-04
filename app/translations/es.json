@@ -3744,7 +3744,8 @@
         "math_block": "LaTeX (bloque)",
         "mermaid": "Diagrama Mermaid",
         "more_tools": "Más formatos",
-        "sheet_title": "Formatos"
+        "sheet_title": "Formatos",
+        "video": "Vídeo"
       },
       "editor": {
         "placeholder": "Empiece a escribir...",
@@ -3777,7 +3778,8 @@
         "back": "Volver",
         "submit": "Guardar",
         "preview": "Vista previa",
-        "saving": "Guardando..."
+        "saving": "Guardando...",
+        "video": "Vídeo"
       },
       "alerts": {
         "title_required": "Introduzca un título.",
@@ -3865,6 +3867,18 @@
       "created": "Se ha creado la página wiki \"{title}\".",
       "updated": "Se ha actualizado la página wiki \"{title}\".",
       "deleted": "Se ha eliminado la página wiki \"{title}\"."
+    },
+    "media": {
+      "modal_title": "Añadir foto o vídeo",
+      "tab_upload": "Subir archivo",
+      "tab_video": "Incrustar vídeo (URL)",
+      "tab_image": "Enlace de imagen (URL)",
+      "drop_prompt": "Arrastra foto o vídeo aquí",
+      "select_file": "Seleccionar archivo",
+      "upload_btn": "Subir e insertar",
+      "insert_video_btn": "Insertar vídeo",
+      "insert_image_btn": "Insertar imagen",
+      "preview_title": "Vista previa"
     }
   },
   "comments": {

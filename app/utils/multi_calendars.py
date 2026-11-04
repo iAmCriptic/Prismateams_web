@@ -189,22 +189,36 @@ def list_personal_calendars(user):
 def get_or_create_team_calendar(team, created_by=None):
     if not team or not getattr(team, 'id', None):
         return None
-    cal = (
-        Calendar.query.filter_by(calendar_type='team', team_id=team.id, is_default=True)
-        .order_by(Calendar.id.asc())
-        .first()
-    )
-    if cal:
-        return cal
-    cal = (
+    cals = (
         Calendar.query.filter_by(calendar_type='team', team_id=team.id)
-        .order_by(Calendar.id.asc())
-        .first()
+        .order_by(Calendar.is_default.desc(), Calendar.id.asc())
+        .all()
     )
-    if cal:
-        if cal.name != team.name:
-            cal.name = team.name
-        return _mark_default(cal)
+    if cals:
+        primary = cals[0]
+        changed = False
+        if not primary.is_default:
+            primary.is_default = True
+            changed = True
+        if primary.name != team.name:
+            primary.name = team.name
+            changed = True
+        if team.color and primary.color != team.color:
+            primary.color = team.color
+            changed = True
+        # Ensure every team gets exactly one calendar: merge any duplicates
+        if len(cals) > 1:
+            for extra in cals[1:]:
+                CalendarEvent.query.filter_by(calendar_id=extra.id).update(
+                    {CalendarEvent.calendar_id: primary.id},
+                    synchronize_session=False,
+                )
+                db.session.delete(extra)
+            changed = True
+        if changed:
+            db.session.flush()
+        return primary
+
     cal = Calendar(
         name=team.name or TEAM_CALENDAR_NAME,
         calendar_type='team',
@@ -228,18 +242,17 @@ def list_team_calendars_for_user(user):
         return []
     teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name.asc()).all()
     teams = filter_teams_with_section(teams, 'calendar')
-    team_ids = [t.id for t in teams]
-    if not team_ids:
+    if not teams:
         return []
     calendars = []
+    seen_team_ids = set()
     for team in teams:
-        get_or_create_team_calendar(team, created_by=getattr(user, 'id', None))
-    rows = (
-        Calendar.query.filter(Calendar.calendar_type == 'team', Calendar.team_id.in_(team_ids))
-        .order_by(Calendar.team_id.asc(), Calendar.is_default.desc(), Calendar.name.asc(), Calendar.id.asc())
-        .all()
-    )
-    calendars.extend(rows)
+        if team.id in seen_team_ids:
+            continue
+        seen_team_ids.add(team.id)
+        cal = get_or_create_team_calendar(team, created_by=getattr(user, 'id', None))
+        if cal:
+            calendars.append(cal)
     return calendars
 
 
@@ -344,13 +357,13 @@ def can_manage_calendar(user, calendar):
 def can_delete_calendar_row(user, calendar):
     if not can_manage_calendar(user, calendar):
         return False
-    if calendar.calendar_type == 'events':
+    if calendar.calendar_type in ('events', 'team'):
         return False
-    if calendar.is_default and calendar.calendar_type in ('personal', 'public', 'team'):
+    if calendar.is_default and calendar.calendar_type in ('personal', 'public'):
         return False
     if calendar.calendar_type == 'imported':
         return True
-    return calendar.calendar_type in ('personal', 'public', 'team')
+    return calendar.calendar_type in ('personal', 'public')
 
 
 def _is_module_managed_calendar_event(event):
@@ -719,7 +732,7 @@ def create_extra_calendar(user, name, calendar_type, color=None, team_id=None):
     if not name:
         return None, 'name_required'
     calendar_type = (calendar_type or '').strip().lower()
-    if calendar_type not in ('personal', 'public', 'team'):
+    if calendar_type not in ('personal', 'public'):
         return None, 'invalid_type'
     if calendar_type == 'personal':
         if not is_calendar_personal_enabled():
@@ -740,30 +753,6 @@ def create_extra_calendar(user, name, calendar_type, color=None, team_id=None):
             calendar_type='public',
             owner_id=user.id,
             color=color or DEFAULT_PUBLIC_COLOR,
-            is_default=False,
-        )
-        db.session.add(cal)
-        db.session.flush()
-        return cal, None
-    if calendar_type == 'team':
-        if not is_calendar_team_enabled():
-            return None, 'team_disabled'
-        try:
-            team_id = int(team_id)
-        except (TypeError, ValueError):
-            return None, 'team_required'
-        if not _is_team_member(user, team_id):
-            return None, 'team_forbidden'
-        team = Team.query.get(team_id)
-        if not team:
-            return None, 'team_required'
-        get_or_create_team_calendar(team, created_by=user.id)
-        cal = Calendar(
-            name=name,
-            calendar_type='team',
-            team_id=team.id,
-            owner_id=user.id,
-            color=color or team.color or DEFAULT_TEAM_COLOR,
             is_default=False,
         )
         db.session.add(cal)

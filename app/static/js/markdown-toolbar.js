@@ -472,8 +472,20 @@
                 newCursorPos = start + replacement.length;
                 break;
             case 'image':
+                if (typeof window.openMarkdownMediaModal === 'function') {
+                    window.openMarkdownMediaModal('image', editor, selectedText);
+                    return;
+                }
                 replacement = `![${selectedText || label('alt_text')}](URL)`;
                 newCursorPos = start + replacement.length - 4;
+                break;
+            case 'video':
+                if (typeof window.openMarkdownMediaModal === 'function') {
+                    window.openMarkdownMediaModal('video', editor, selectedText);
+                    return;
+                }
+                replacement = `@[video](URL)`;
+                newCursorPos = start + replacement.length - 1;
                 break;
             case 'code':
                 replacement = `\`${selectedText || label('code')}\``;

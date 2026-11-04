@@ -3768,7 +3768,8 @@
         "math_block": "LaTeX (block)",
         "mermaid": "Mermaid diagram",
         "more_tools": "More formatting",
-        "sheet_title": "Formatting"
+        "sheet_title": "Formatting",
+        "video": "Video"
       },
       "editor": {
         "placeholder": "Start writing...",
@@ -3801,7 +3802,8 @@
         "back": "Back",
         "submit": "Save",
         "preview": "Preview",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "video": "Video"
       },
       "alerts": {
         "title_required": "Please enter a title.",
@@ -3889,6 +3891,18 @@
       "created": "Wiki page \"{title}\" has been created.",
       "updated": "Wiki page \"{title}\" has been updated.",
       "deleted": "Wiki page \"{title}\" has been deleted."
+    },
+    "media": {
+      "modal_title": "Add photo or video",
+      "tab_upload": "Upload file",
+      "tab_video": "Embed video (URL)",
+      "tab_image": "Image link (URL)",
+      "drop_prompt": "Drop photo or video here",
+      "select_file": "Select file",
+      "upload_btn": "Upload & Insert",
+      "insert_video_btn": "Insert video",
+      "insert_image_btn": "Insert image",
+      "preview_title": "Preview"
     }
   },
   "comments": {

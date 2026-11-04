@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, url_for
 from flask_login import login_required, current_user
 from app import db
 from app.models.comment import Comment, CommentMention
@@ -10,6 +10,27 @@ from app.utils.kanban_access import can_view_board
 from datetime import datetime
 
 comments_bp = Blueprint('comments', __name__, url_prefix='/api/comments')
+
+
+def _serialize_author(user):
+    """Serialize author info including profile picture URL."""
+    if not user:
+        return {'id': None, 'name': 'Unknown', 'email': '', 'profile_picture': None, 'avatar_url': None}
+
+    avatar_url = None
+    if getattr(user, 'profile_picture', None):
+        try:
+            avatar_url = url_for('settings.profile_picture', filename=user.profile_picture)
+        except Exception:
+            avatar_url = None
+
+    return {
+        'id': user.id,
+        'name': user.full_name or user.email,
+        'email': user.email,
+        'profile_picture': avatar_url,
+        'avatar_url': avatar_url,
+    }
 
 
 def _check_kanban_comment_access(card_id):
@@ -140,12 +161,7 @@ def get_comments(content_type, content_id):
         result.append({
             'id': comment.id,
             'content': comment.content,
-            'author': {
-                'id': comment.author.id,
-                'name': comment.author.full_name,
-                'email': comment.author.email,
-                'profile_picture': comment.author.profile_picture or None
-            },
+            'author': _serialize_author(comment.author),
             'created_at': comment.created_at.isoformat(),
             'updated_at': comment.updated_at.isoformat(),
             'replies': get_replies(comment.id)
@@ -166,12 +182,7 @@ def get_replies(parent_id):
         result.append({
             'id': reply.id,
             'content': reply.content,
-            'author': {
-                'id': reply.author.id,
-                'name': reply.author.full_name,
-                'email': reply.author.email,
-                'profile_picture': reply.author.profile_picture or None
-            },
+            'author': _serialize_author(reply.author),
             'created_at': reply.created_at.isoformat(),
             'updated_at': reply.updated_at.isoformat(),
             'replies': get_replies(reply.id)  # Rekursiv für verschachtelte Threads
@@ -238,12 +249,7 @@ def create_comment(content_type, content_id):
         'comment': {
             'id': comment.id,
             'content': comment.content,
-            'author': {
-                'id': comment.author.id,
-                'name': comment.author.full_name,
-                'email': comment.author.email,
-                'profile_picture': comment.author.profile_picture or None
-            },
+            'author': _serialize_author(comment.author),
             'created_at': comment.created_at.isoformat(),
             'updated_at': comment.updated_at.isoformat(),
             'replies': []

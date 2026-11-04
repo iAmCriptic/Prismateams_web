@@ -3744,7 +3744,8 @@
         "math_block": "LaTeX (блок)",
         "mermaid": "Диаграмма Mermaid",
         "more_tools": "Ещё форматирование",
-        "sheet_title": "Форматирование"
+        "sheet_title": "Форматирование",
+        "video": "Видео"
       },
       "editor": {
         "placeholder": "Начните писать…",
@@ -3777,7 +3778,8 @@
         "back": "Назад",
         "submit": "Сохранить",
         "preview": "Предпросмотр",
-        "saving": "Сохранение…"
+        "saving": "Сохранение…",
+        "video": "Видео"
       },
       "alerts": {
         "title_required": "Введите заголовок.",
@@ -3865,6 +3867,18 @@
       "created": "Страница Wiki «{title}» создана.",
       "updated": "Страница Wiki «{title}» обновлена.",
       "deleted": "Страница Wiki «{title}» удалена."
+    },
+    "media": {
+      "modal_title": "Добавить фото или видео",
+      "tab_upload": "Загрузить файл",
+      "tab_video": "Встроить видео (URL)",
+      "tab_image": "Ссылка на изображение (URL)",
+      "drop_prompt": "Перетащите фото или видео сюда",
+      "select_file": "Выбрать файл",
+      "upload_btn": "Загрузить и вставить",
+      "insert_video_btn": "Вставить видео",
+      "insert_image_btn": "Вставить изображение",
+      "preview_title": "Предпросмотр"
     }
   },
   "comments": {

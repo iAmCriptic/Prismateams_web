@@ -4336,7 +4336,8 @@
         "math_block": "LaTeX (Block)",
         "mermaid": "Mermaid-Diagramm",
         "more_tools": "Weitere Formatierungen",
-        "sheet_title": "Formatierungen"
+        "sheet_title": "Formatierungen",
+        "video": "Video"
       },
       "editor": {
         "placeholder": "Beginnen Sie mit dem Schreiben...",
@@ -4369,7 +4370,8 @@
         "back": "Zurück",
         "submit": "Speichern",
         "preview": "Vorschau",
-        "saving": "Speichere..."
+        "saving": "Speichere...",
+        "video": "Video"
       },
       "alerts": {
         "title_required": "Bitte geben Sie einen Titel ein.",
@@ -4457,6 +4459,18 @@
       "created": "Wiki-Seite \"{title}\" wurde erstellt.",
       "updated": "Wiki-Seite \"{title}\" wurde aktualisiert.",
       "deleted": "Wiki-Seite \"{title}\" wurde gelöscht."
+    },
+    "media": {
+      "modal_title": "Foto oder Video hinzufügen",
+      "tab_upload": "Datei hochladen",
+      "tab_video": "Video einbetten (URL)",
+      "tab_image": "Bild-Link (URL)",
+      "drop_prompt": "Foto oder Video hierher ziehen",
+      "select_file": "Datei auswählen",
+      "upload_btn": "Hochladen & Einfügen",
+      "insert_video_btn": "Video einfügen",
+      "insert_image_btn": "Bild einfügen",
+      "preview_title": "Vorschau"
     }
   },
   "comments": {

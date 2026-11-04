@@ -120,22 +120,9 @@
                         {% if calendar_personal_enabled|default(false) %}
                         <option value="personal">{{ _('calendar.sidebar.group_personal') }}</option>
                         {% endif %}
-                        {% if calendar_team_enabled|default(false) and user_calendar_teams|default([]) %}
-                        <option value="team">{{ _('calendar.sidebar.group_team') }}</option>
-                        {% endif %}
                         <option value="public">{{ _('calendar.sidebar.group_public') }}</option>
                     </select>
                 </div>
-                {% if user_calendar_teams|default([]) %}
-                <div class="mb-3 d-none" id="newCalTeamWrap">
-                    <label class="form-label" for="newCalTeam">{{ _('calendar.sidebar.form.team') }}</label>
-                    <select class="form-select" id="newCalTeam" name="team_id">
-                        {% for t in user_calendar_teams %}
-                        <option value="{{ t.id }}">{{ t.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
                 <div class="mb-0">
                     <label class="form-label" for="newCalColor">{{ _('calendar.sidebar.form.color') }}</label>
                     <input class="form-control form-control-color" id="newCalColor" name="color" type="color" value="#0d6efd">

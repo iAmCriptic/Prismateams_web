@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, abort
 from flask_login import login_required, current_user
 from app.utils.i18n import _
 from app import db
@@ -21,6 +21,8 @@ from datetime import datetime
 from sqlalchemy.orm import defer, joinedload, selectinload
 import os
 import re
+import uuid
+from werkzeug.utils import secure_filename
 
 wiki_bp = Blueprint('wiki', __name__, url_prefix='/wiki')
 
@@ -613,5 +615,109 @@ def check_favorite(page_id):
     ).first()
     
     return jsonify({'is_favorite': favorite is not None})
+
+
+ALLOWED_WIKI_IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'}
+ALLOWED_WIKI_VIDEO_EXTS = {'.mp4', '.webm', '.ogg', '.mov', '.m4v'}
+ALLOWED_WIKI_AUDIO_EXTS = {'.mp3', '.wav', '.oga', '.m4a', '.aac'}
+
+
+@wiki_bp.route('/api/upload-media', methods=['POST'])
+@login_required
+@check_module_access('module_wiki')
+def upload_media():
+    """Lädt Bilder oder Videos für Wikieinträge hoch."""
+    if not check_wiki_module():
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Keine Datei ausgewählt.'}), 400
+
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'error': 'Keine Datei ausgewählt.'}), 400
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        filename = 'media_file'
+
+    ext = os.path.splitext(filename)[1].lower()
+    if (ext not in ALLOWED_WIKI_IMAGE_EXTS and
+            ext not in ALLOWED_WIKI_VIDEO_EXTS and
+            ext not in ALLOWED_WIKI_AUDIO_EXTS):
+        allowed_str = ", ".join(sorted(ALLOWED_WIKI_IMAGE_EXTS | ALLOWED_WIKI_VIDEO_EXTS))
+        return jsonify({
+            'error': f'Format {ext} nicht unterstützt. Erlaubt: {allowed_str}'
+        }), 400
+
+    media_dir = os.path.join('uploads', 'wiki', 'media')
+    os.makedirs(media_dir, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    random_token = uuid.uuid4().hex[:8]
+    stored_filename = f"{timestamp}_{random_token}_{filename}"
+    filepath = os.path.join(media_dir, stored_filename)
+
+    file.save(filepath)
+
+    is_video = ext in ALLOWED_WIKI_VIDEO_EXTS
+    is_image = ext in ALLOWED_WIKI_IMAGE_EXTS
+    media_url = url_for('wiki.serve_media', filename=stored_filename)
+
+    display_name = os.path.splitext(filename)[0]
+    if is_video:
+        markdown_snippet = f"![{display_name}]({media_url})"
+    elif is_image:
+        markdown_snippet = f"![{display_name}]({media_url})"
+    else:
+        markdown_snippet = f"[{display_name}]({media_url})"
+
+    return jsonify({
+        'success': True,
+        'filename': stored_filename,
+        'original_name': filename,
+        'url': media_url,
+        'is_video': is_video,
+        'is_image': is_image,
+        'markdown': markdown_snippet
+    })
+
+
+@wiki_bp.route('/media/<filename>')
+@login_required
+@check_module_access('module_wiki')
+def serve_media(filename):
+    """Liefert hochgeladene Wiki-Medien (Fotos/Videos) mit HTTP-Range-Support aus."""
+    if not check_wiki_module():
+        abort(403)
+
+    clean_name = os.path.basename(filename)
+    if clean_name != filename:
+        abort(400)
+
+    media_dir = os.path.abspath(os.path.join('uploads', 'wiki', 'media'))
+    filepath = os.path.join(media_dir, clean_name)
+
+    if not os.path.exists(filepath) or not os.path.isfile(filepath):
+        abort(404)
+
+    return send_file(filepath, conditional=True)
+
+
+@wiki_bp.route('/api/preview', methods=['POST'])
+@login_required
+@check_module_access('module_wiki')
+def api_preview():
+    """Generiert eine gerenderte Markdown-HTML-Vorschau inkl. Video- und Wiki-Links."""
+    if not check_wiki_module():
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
+
+    payload = request.get_json(silent=True) or {}
+    raw_content = payload.get('content', '')
+    html = process_markdown(raw_content, wiki_mode=True)
+    return jsonify({
+        'success': True,
+        'html': html
+    })
 
 

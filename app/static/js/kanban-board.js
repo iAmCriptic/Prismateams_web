@@ -20,6 +20,7 @@
   let commentSystem = null;
   let ignoreSSE = false;
   let cardModal = null;
+  let lastFocusedCardEl = null;
   const cardSortables = new Map();
   let listsSortable = null;
   let lastBoardSig = '';
@@ -132,6 +133,44 @@
   function ensureCardModal() {
     if (!cardModal) cardModal = getModal('kanbanCardModal');
     return cardModal;
+  }
+
+  const cardModalEl = document.getElementById('kanbanCardModal');
+  if (cardModalEl) {
+    cardModalEl.addEventListener('hide.bs.modal', () => {
+      if (cardModalEl.contains(document.activeElement)) {
+        try { document.activeElement.blur(); } catch (_) {}
+      }
+    });
+    cardModalEl.addEventListener('hidden.bs.modal', () => {
+      currentCardId = null;
+      currentCardDetail = null;
+      if (commentSystem) {
+        commentSystem = null;
+        window.commentSystem = null;
+      }
+      // DOM leeren um Ressourcen / Speicher zu schonen
+      const clRoot = document.getElementById('cardChecklists');
+      if (clRoot) clRoot.innerHTML = '';
+      const attRoot = document.getElementById('cardAttachments');
+      if (attRoot) attRoot.innerHTML = '';
+      const actRoot = document.getElementById('kanbanCardActivity');
+      if (actRoot) actRoot.innerHTML = '';
+      const coverEl = document.getElementById('cardModalCover');
+      if (coverEl) coverEl.innerHTML = '';
+      const commentsRoot = document.getElementById('kanbanCardComments');
+      if (commentsRoot) {
+        const commentsList = commentsRoot.querySelector('.comments-list');
+        if (commentsList) {
+          commentsList.innerHTML = '';
+          commentsList.classList.add('is-empty');
+        }
+      }
+      if (lastFocusedCardEl) {
+        try { lastFocusedCardEl.focus(); } catch (_) {}
+        lastFocusedCardEl = null;
+      }
+    });
   }
 
   function esc(s) {
@@ -629,7 +668,7 @@
     if (card.attachment_count) meta.push(`<span><i class="bi bi-paperclip"></i> ${card.attachment_count}</span>`);
     if (card.poll_text || card.vote_count) meta.push(`<span><i class="bi bi-hand-thumbs-up"></i> ${card.vote_count || 0}</span>`);
     const avatars = (card.assignees || []).map((a) => avatarHtml(a)).join('');
-    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}" data-card-id="${card.id}" draggable="false">
+    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}" data-card-id="${card.id}" role="button" tabindex="0">
       ${cover}
       ${labels ? `<div class="kanban-card__labels">${labels}</div>` : ''}
       <div class="kanban-card__title-row">
@@ -700,6 +739,9 @@
       group: 'kanban-cards',
       animation: 200,
       ghostClass: 'opacity-50',
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       onEnd: async (evt) => {
         const cardId = Number(evt.item.dataset.cardId);
         const listId = Number(evt.to.dataset.listCards);
@@ -735,6 +777,9 @@
       handle: '.kanban-list-col__head',
       draggable: '.kanban-list-col',
       filter: '.kanban-add-list-wrap',
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       onEnd: async () => {
         const order = Array.from(listsEl.querySelectorAll('.kanban-list-col')).map((el) => Number(el.dataset.listId));
         ignoreSSE = true;
@@ -984,7 +1029,8 @@
   // Delegated clicks / submits on the board
   app.addEventListener('click', async (e) => {
     const card = e.target.closest('.kanban-card');
-    if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form')) {
+    if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
+      lastFocusedCardEl = card;
       openCard(Number(card.dataset.cardId));
       return;
     }
@@ -1062,6 +1108,17 @@
         renderBoard();
       } catch (err) {
         notify(err.message || 'Löschen fehlgeschlagen');
+      }
+    }
+  });
+
+  app.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const card = e.target.closest('.kanban-card');
+      if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
+        e.preventDefault();
+        lastFocusedCardEl = card;
+        openCard(Number(card.dataset.cardId));
       }
     }
   });
@@ -1288,8 +1345,29 @@
       return `${formatDueDisplay(iso)} ${esc(i18n.addedSuffix || 'hinzugefügt')}`;
     }
 
+    function getFaviconUrl(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const target = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : `https://${rawUrl}`;
+        const u = new URL(target);
+        const host = (u.hostname || '').toLowerCase().replace(/\.$/, '');
+        if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return null;
+        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+      } catch (_) {
+        return null;
+      }
+    }
+
     function attachThumb(a) {
-      if (a.is_link) return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-link-45deg"></i></div>`;
+      if (a.is_link) {
+        const fav = a.favicon_url || getFaviconUrl(a.external_url || a.url);
+        if (fav) {
+          return `<div class="kanban-attach-thumb kanban-attach-thumb--icon kanban-attach-thumb--favicon">
+            <img class="kanban-attach-favicon" src="${esc(fav)}" alt="" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<i class=\\\'bi bi-link-45deg\\\'></i>';">
+          </div>`;
+        }
+        return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-link-45deg"></i></div>`;
+      }
       if (a.is_image && a.preview_url) return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt="">`;
       if (a.is_pdf) return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">PDF</div>`;
       const ext = ((a.filename || '').split('.').pop() || '').toUpperCase().slice(0, 4);
@@ -1393,7 +1471,10 @@
           oldForm.replaceWith(clone);
         }
         const commentsList = commentsRoot.querySelector('.comments-list');
-        if (commentsList) commentsList.innerHTML = '';
+        if (commentsList) {
+          commentsList.innerHTML = '';
+          commentsList.classList.add('is-empty');
+        }
         if (window.CommentSystem) {
           commentSystem = new window.CommentSystem('kanban_card', cardId, 'kanbanCardComments');
           window.commentSystem = commentSystem;
@@ -1401,19 +1482,27 @@
       }
     }
 
+    ensureCardModal()?.show();
+
     try {
       const act = await api(`/kanban/api/boards/${boardId}/activity?card_id=${cardId}`);
-      document.getElementById('kanbanCardActivity').innerHTML = (act.activities || []).map((a) => `
-        <div class="kanban-activity-item">
-          <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
-          ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
-          <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
-        </div>`).join('') || '<p class="text-muted small">—</p>';
+      if (currentCardId === cardId) {
+        const actRoot = document.getElementById('kanbanCardActivity');
+        if (actRoot) {
+          actRoot.innerHTML = (act.activities || []).map((a) => `
+            <div class="kanban-activity-item">
+              <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
+              ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
+              <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
+            </div>`).join('') || '<p class="text-muted small">—</p>';
+        }
+      }
     } catch (_) {
-      document.getElementById('kanbanCardActivity').innerHTML = '';
+      if (currentCardId === cardId) {
+        const actRoot = document.getElementById('kanbanCardActivity');
+        if (actRoot) actRoot.innerHTML = '';
+      }
     }
-
-    ensureCardModal()?.show();
   }
 
   function renderPollSection(card) {

@@ -220,6 +220,15 @@ window.ptConfirm = function ptConfirm(message, options) {
     return openConfirm();
 };
 
+// Prevent browser accessibility warning: "Blocked aria-hidden on an element because its descendant retained focus"
+document.addEventListener('hide.bs.modal', function (e) {
+    if (e.target && e.target.contains(document.activeElement)) {
+        try {
+            document.activeElement.blur();
+        } catch (_) {}
+    }
+});
+
 /**
  * App-styled prompt dialog (Promise). Prefer over window.prompt().
  * @param {string} message

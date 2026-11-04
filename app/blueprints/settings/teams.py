@@ -276,6 +276,8 @@ def create_team():
 
         from app.utils.team_chat import ensure_team_chat
         ensure_team_chat(team, created_by=current_user.id)
+        from app.utils.multi_calendars import get_or_create_team_calendar
+        get_or_create_team_calendar(team, created_by=current_user.id)
 
         db.session.commit()
         flash(translate('settings.admin.teams.flash_created', name=team.name), 'success')
