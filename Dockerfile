@@ -50,6 +50,12 @@ RUN apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Veraltete Base-Image-Tools (insbesondere ungepatchtes setuptools 70.3.0 aus dem Python-Base-Image) entfernen.
+# Die Anwendung läuft vollkommen autark und sicher im gepatchten /opt/venv.
+RUN rm -rf /usr/local/lib/python3.12/site-packages/setuptools* \
+           /usr/local/lib/python3.12/site-packages/pip* \
+           /usr/local/lib/python3.12/site-packages/wheel*
+
 # Statisches, gehärtetes FFmpeg ohne anfällige Debian-Codec-Pakete (libtiff etc.) übernehmen
 COPY --from=ffmpeg-source /ffmpeg /ffprobe /usr/local/bin/
 

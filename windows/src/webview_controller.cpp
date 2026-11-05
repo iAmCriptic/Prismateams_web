@@ -54,7 +54,6 @@ void WebViewController::Initialize(std::function<void(bool success)> onComplete)
 
                             RECT bounds;
                             GetClientRect(m_hWndParent, &bounds);
-                            bounds.top = 36;
                             m_controller->put_Bounds(bounds);
                             m_controller->put_IsVisible(m_isVisible ? TRUE : FALSE);
 
@@ -139,39 +138,73 @@ void WebViewController::SetupEventHandlers() {
 void WebViewController::InjectNativeBridgeScript() {
     if (!m_webview) return;
 
-    // JavaScript bridge available on all pages
+    // JavaScript bridge with drag region & window control handling
     const wchar_t* bridgeJs =
-        L"window.prismateamsNative = {"
-        L"  isDesktopApp: true,"
-        L"  version: '1.0.0',"
-        L"  mountDrive: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'mount_drive'})); },"
-        L"  openExplorer: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'open_explorer'})); },"
-        L"  isMounted: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'check_mount'})); },"
-        L"  logout: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'logout'})); }"
-        L"};"
-        L"document.dispatchEvent(new CustomEvent('prismateams-native-ready', { detail: window.prismateamsNative }));"
         L"(function() {"
-        L"  function checkAuth() {"
-        L"    var path = window.location.pathname || '';"
-        L"    if (path !== '/login' && !path.startsWith('/auth/') && path !== '/setup') {"
-        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'logged_in'}));"
+        L"  window.prismateamsNative = {"
+        L"    isDesktopApp: true,"
+        L"    version: '1.0.0',"
+        L"    startDrag: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'start_drag'})); },"
+        L"    minimize: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'minimize'})); },"
+        L"    maximize: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'toggle_maximize'})); },"
+        L"    close: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'close'})); },"
+        L"    openSettings: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'open_settings'})); },"
+        L"    mountDrive: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'mount_drive'})); },"
+        L"    openExplorer: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'open_explorer'})); },"
+        L"    isMounted: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'check_mount'})); },"
+        L"    logout: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'logout'})); }"
+        L"  };"
+        L"  document.dispatchEvent(new CustomEvent('prismateams-native-ready', { detail: window.prismateamsNative }));"
+        L"  function onMouseDown(e) {"
+        L"    if (e.button !== 0) return;"
+        L"    var el = e.target;"
+        L"    if (!el) return;"
+        L"    var interactive = el.closest('button, a, input, select, textarea, [role=\"button\"], [contenteditable=\"true\"], .top-navbar-icon-btn, .btn, .dropdown-menu, .modal');"
+        L"    if (interactive) return;"
+        L"    var nav = el.closest('.top-navbar, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
+        L"    var isTopArea = e.clientY <= 56;"
+        L"    if (nav || isTopArea) {"
+        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'start_drag'}));"
         L"    }"
         L"  }"
-        L"  if (document.readyState === 'complete' || document.readyState === 'interactive') {"
-        L"    checkAuth();"
-        L"  } else {"
-        L"    window.addEventListener('DOMContentLoaded', checkAuth);"
+        L"  function onDblClick(e) {"
+        L"    if (e.button !== 0) return;"
+        L"    var el = e.target;"
+        L"    if (!el) return;"
+        L"    var interactive = el.closest('button, a, input, select, textarea, [role=\"button\"], .top-navbar-icon-btn, .btn');"
+        L"    if (interactive) return;"
+        L"    var nav = el.closest('.top-navbar, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
+        L"    var isTopArea = e.clientY <= 56;"
+        L"    if (nav || isTopArea) {"
+        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'toggle_maximize'}));"
+        L"    }"
         L"  }"
+        L"  window.addEventListener('mousedown', onMouseDown, true);"
+        L"  window.addEventListener('dblclick', onDblClick, true);"
         L"})();";
 
     m_webview->AddScriptToExecuteOnDocumentCreated(bridgeJs, nullptr);
 }
 
 void WebViewController::HandleWebMessage(const std::wstring& message) {
-    if (message.find(L"\"logged_in\"") != std::string::npos) {
+    if (message.find(L"\"start_drag\"") != std::string::npos) {
+        ReleaseCapture();
+        SendMessageW(m_hWndParent, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+    } else if (message.find(L"\"minimize\"") != std::string::npos) {
+        ShowWindow(m_hWndParent, SW_MINIMIZE);
+    } else if (message.find(L"\"toggle_maximize\"") != std::string::npos || message.find(L"\"maximize\"") != std::string::npos) {
+        if (IsZoomed(m_hWndParent)) {
+            ShowWindow(m_hWndParent, SW_RESTORE);
+        } else {
+            ShowWindow(m_hWndParent, SW_MAXIMIZE);
+        }
+    } else if (message.find(L"\"close\"") != std::string::npos) {
+        SendMessageW(m_hWndParent, WM_CLOSE, 0, 0);
+    } else if (message.find(L"\"open_settings\"") != std::string::npos) {
+        PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(1002, 0), 0); // ID_NAV_SETTINGS
+    } else if (message.find(L"\"logged_in\"") != std::string::npos) {
         PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2050, 0), 0); // ID_CMD_USER_LOGGED_IN
     } else if (message.find(L"\"mount_drive\"") != std::string::npos) {
-        // Fetch credentials and mount drive
         auto creds = AuthManager::Instance().FetchWebDavCredentials();
         if (creds.success) {
             wchar_t assigned = L'P';
@@ -218,7 +251,7 @@ bool WebViewController::IsVisible() const {
 
 void WebViewController::Resize(int width, int height) {
     if (m_controller) {
-        RECT bounds = { 0, 36, width, 36 + height };
+        RECT bounds = { 0, 0, width, height };
         m_controller->put_Bounds(bounds);
     }
 }

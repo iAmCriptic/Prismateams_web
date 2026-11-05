@@ -46,21 +46,13 @@ private:
 
     bool RegisterAppClass();
     bool CreateMainWindow(int nCmdShow);
-    void CreateTitlebarControls(HWND hWnd);
     void LayoutViews(int width, int height);
-    void ShowPrismateamsDropdownMenu();
     void OpenNativeSettings();
 
     void CheckSystemTheme();
-    void DrawNavbarButton(LPDRAWITEMSTRUCT pdis);
 
     HINSTANCE m_hInstance = nullptr;
     HWND m_hWndMain = nullptr;
-
-    // Titlebar buttons
-    HWND m_btnPrismaMenu = nullptr;
-    HWND m_btnSettings = nullptr;
-    int m_hoverCaptionBtn = 0; // 0=none, 1=min, 2=max, 3=close
 
     // Sub-views
     std::unique_ptr<NativeLoginView> m_nativeLoginView;

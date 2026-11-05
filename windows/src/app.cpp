@@ -173,10 +173,10 @@ bool App::RegisterAppClass() {
 
 bool App::CreateMainWindow(int nCmdShow) {
     m_hWndMain = CreateWindowExW(
-        0,
+        WS_EX_APPWINDOW,
         MAIN_WINDOW_CLASS,
         L"Prismateams Desktop",
-        WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+        WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 1360, 860,
         nullptr, nullptr, m_hInstance, this
     );
@@ -186,10 +186,9 @@ bool App::CreateMainWindow(int nCmdShow) {
     BOOL val = m_isDarkMode ? TRUE : FALSE;
     DwmSetWindowAttribute(m_hWndMain, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &val, sizeof(val));
 
-    MARGINS margins = { 0, 0, 1, 0 };
+    // Enable Windows 11 drop shadow and rounded corners on frameless window
+    MARGINS margins = { 1, 1, 1, 1 };
     DwmExtendFrameIntoClientArea(m_hWndMain, &margins);
-
-    CreateTitlebarControls(m_hWndMain);
 
     if (nCmdShow != SW_HIDE) {
         ShowWindow(m_hWndMain, nCmdShow);
@@ -199,79 +198,14 @@ bool App::CreateMainWindow(int nCmdShow) {
     return true;
 }
 
-void App::CreateTitlebarControls(HWND hWnd) {
-    // Menu items inside the single custom titlebar
-    m_btnPrismaMenu = CreateWindowExW(0, L"BUTTON", L"Prismateams \x25BE",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        34, 4, 115, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_PRISMATEAMS, m_hInstance, nullptr);
-
-    m_btnSettings = CreateWindowExW(0, L"BUTTON", L"Einstellungen",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        155, 4, 105, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_SETTINGS, m_hInstance, nullptr);
-}
-
-void App::ShowPrismateamsDropdownMenu() {
-    HMENU hMenu = CreatePopupMenu();
-    if (!hMenu) return;
-
-    const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
-    std::wstring domainInfo = L"Server: " + (serverUrl.empty() ? L"Nicht konfiguriert" : serverUrl);
-
-    AppendMenuW(hMenu, MF_STRING | MF_DISABLED, IDM_POPUP_DOMAIN, domainInfo.c_str());
-    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_BACK, L"\x25C0  Zur\xFCck\tAlt + Links");
-    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_FORWARD, L"\x25B6  Vorw\xE4rts\tAlt + Rechts");
-    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_RELOAD, L"\x21BB  Neu laden\tF5");
-    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_HOME, L"\x2302  Startseite / Dashboard");
-
-    if (WebDavManager::Instance().IsMounted()) {
-        AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-        wchar_t driveLetter = WebDavManager::Instance().GetMountedDriveLetter();
-        std::wstring driveItem = L"\x229E  Netzlaufwerk " + std::wstring(1, driveLetter) + L": im Explorer \xF6ffnen";
-        AppendMenuW(hMenu, MF_STRING, IDM_POPUP_EXPLORER, driveItem.c_str());
-    }
-
-    RECT rcBtn;
-    GetWindowRect(m_btnPrismaMenu, &rcBtn);
-
-    SetForegroundWindow(m_hWndMain);
-    TrackPopupMenuEx(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN, rcBtn.left, rcBtn.bottom + 2, m_hWndMain, nullptr);
-    DestroyMenu(hMenu);
-}
-
-void App::DrawNavbarButton(LPDRAWITEMSTRUCT pdis) {
-    HDC hdc = pdis->hDC;
-    RECT rc = pdis->rcItem;
-    bool isSelected = (pdis->itemState & ODS_SELECTED);
-
-    HBRUSH hBr = isSelected ? m_hBrBtnHover : m_hBrNavbar;
-    FillRect(hdc, &rc, hBr);
-
-    SetBkMode(hdc, TRANSPARENT);
-    COLORREF txtColor = m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59);
-    SetTextColor(hdc, txtColor);
-
-    HFONT hOldFont = (HFONT)SelectObject(hdc, m_hFontNav);
-
-    wchar_t text[64];
-    GetWindowTextW(pdis->hwndItem, text, 64);
-    DrawTextW(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    SelectObject(hdc, hOldFont);
-}
-
 void App::LayoutViews(int width, int height) {
-    int contentY = TITLEBAR_HEIGHT;
-    int contentH = height - TITLEBAR_HEIGHT;
-    if (contentH < 0) contentH = 0;
-
     if (m_nativeLoginView && !m_isAuthenticated) {
-        m_nativeLoginView->Resize(width, contentH);
-        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
+        m_nativeLoginView->Resize(width, height);
+        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, 0, width, height, SWP_NOZORDER);
     }
 
     if (m_webViewController && m_isAuthenticated) {
-        m_webViewController->Resize(width, contentH);
+        m_webViewController->Resize(width, height);
     }
 }
 
