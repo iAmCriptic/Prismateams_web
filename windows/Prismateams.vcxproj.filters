@@ -27,6 +27,15 @@
     <ClInclude Include="src\file_router.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\native_login_view.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\native_settings_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\passkey_authenticator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -57,6 +66,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\native_login_view.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\native_settings_window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\passkey_authenticator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\settings.cpp">

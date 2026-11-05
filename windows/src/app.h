@@ -6,8 +6,23 @@
 
 #include "webview_controller.h"
 #include "tray_icon.h"
+#include "native_login_view.h"
 
 namespace Prismateams {
+
+const int ID_NAV_PRISMATEAMS = 1001;
+const int ID_NAV_SETTINGS    = 1002;
+const int ID_NAV_MINIMIZE    = 1003;
+const int ID_NAV_MAXIMIZE    = 1004;
+const int ID_NAV_CLOSE       = 1005;
+
+// Dropdown commands
+const int IDM_POPUP_DOMAIN   = 2101;
+const int IDM_POPUP_BACK     = 2102;
+const int IDM_POPUP_FORWARD  = 2103;
+const int IDM_POPUP_RELOAD   = 2104;
+const int IDM_POPUP_HOME     = 2105;
+const int IDM_POPUP_EXPLORER = 2106;
 
 class App {
 public:
@@ -18,40 +33,54 @@ public:
     HWND GetMainWindow() const { return m_hWndMain; }
     void NavigateTo(const std::wstring& url);
     void HandleFileOpen(const std::wstring& filePath);
+    void OnLoginSuccess();
+    void OnLogout();
+    void SetDarkMode(bool isDark);
+    bool IsDarkMode() const { return m_isDarkMode; }
 
 private:
     App() = default;
+    ~App();
 
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-    static INT_PTR CALLBACK LoginDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-    static INT_PTR CALLBACK SettingsDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
     bool RegisterAppClass();
     bool CreateMainWindow(int nCmdShow);
-    void CreateToolbar(HWND hWnd);
-    void UpdateToolbarStatus();
+    void CreateAppNavbar(HWND hWnd);
+    void LayoutViews(int width, int height);
+    void ShowPrismateamsDropdownMenu();
+    void OpenNativeSettings();
 
-    void ShowLoginDialog();
-    void ShowSettingsDialog();
-    void PerformAutoMount();
+    void CheckSystemTheme();
+    void DrawNavbarButton(LPDRAWITEMSTRUCT pdis);
 
     HINSTANCE m_hInstance = nullptr;
     HWND m_hWndMain = nullptr;
-    HWND m_hWndToolbar = nullptr;
 
-    HWND m_btnBack = nullptr;
-    HWND m_btnForward = nullptr;
-    HWND m_btnReload = nullptr;
-    HWND m_btnMount = nullptr;
-    HWND m_btnExplorer = nullptr;
+    // Navbar Controls
+    HWND m_btnPrismaMenu = nullptr;
     HWND m_btnSettings = nullptr;
-    HWND m_lblStatus = nullptr;
+    HWND m_btnMin = nullptr;
+    HWND m_btnMax = nullptr;
+    HWND m_btnClose = nullptr;
 
+    // Sub-views
+    std::unique_ptr<NativeLoginView> m_nativeLoginView;
     std::unique_ptr<WebViewController> m_webViewController;
     std::unique_ptr<TrayIcon> m_trayIcon;
 
-    std::wstring m_initialFileArgument = L"";
+    bool m_isDarkMode = true;
+    bool m_isAuthenticated = false;
     bool m_isStartingMinimized = false;
+    std::wstring m_initialFileArgument = L"";
+
+    // Theme GDI objects
+    HBRUSH m_hBrNavbar = nullptr;
+    HBRUSH m_hBrBtnHover = nullptr;
+    HBRUSH m_hBrCloseHover = nullptr;
+    HPEN m_hPenNavBorder = nullptr;
+    HFONT m_hFontNav = nullptr;
+    HFONT m_hFontCaption = nullptr;
 };
 
 } // namespace Prismateams

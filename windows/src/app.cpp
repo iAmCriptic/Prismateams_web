@@ -3,46 +3,99 @@
 #include "auth_manager.h"
 #include "webdav_manager.h"
 #include "file_router.h"
+#include "native_settings_window.h"
 #include "../resources/resource.h"
 
-#include <commctrl.h>
+#include <dwmapi.h>
 #include <windowsx.h>
 #include <shellapi.h>
 
-#pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 namespace Prismateams {
 
 const wchar_t* const MAIN_WINDOW_CLASS = L"Prismateams_MainWindow_Class";
-const int TOOLBAR_HEIGHT = 42;
-
-// Control IDs
-const int ID_BTN_BACK     = 1001;
-const int ID_BTN_FORWARD  = 1002;
-const int ID_BTN_RELOAD   = 1003;
-const int ID_BTN_MOUNT    = 1004;
-const int ID_BTN_EXPLORER = 1005;
-const int ID_BTN_SETTINGS = 1006;
-const int ID_LBL_STATUS   = 1007;
+const int NAVBAR_HEIGHT = 38;
 
 App& App::Instance() {
     static App instance;
     return instance;
 }
 
+App::~App() {
+    if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
+    if (m_hBrBtnHover) DeleteObject(m_hBrBtnHover);
+    if (m_hBrCloseHover) DeleteObject(m_hBrCloseHover);
+    if (m_hPenNavBorder) DeleteObject(m_hPenNavBorder);
+    if (m_hFontNav) DeleteObject(m_hFontNav);
+    if (m_hFontCaption) DeleteObject(m_hFontCaption);
+}
+
+void App::CheckSystemTheme() {
+    DWORD lightTheme = 0;
+    DWORD size = sizeof(lightTheme);
+    HKEY hKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, reinterpret_cast<LPBYTE>(&lightTheme), &size);
+        RegCloseKey(hKey);
+    }
+    SetDarkMode(lightTheme == 0);
+}
+
+void App::SetDarkMode(bool isDark) {
+    m_isDarkMode = isDark;
+
+    if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
+    if (m_hBrBtnHover) DeleteObject(m_hBrBtnHover);
+    if (m_hBrCloseHover) DeleteObject(m_hBrCloseHover);
+    if (m_hPenNavBorder) DeleteObject(m_hPenNavBorder);
+
+    if (m_isDarkMode) {
+        m_hBrNavbar = CreateSolidBrush(RGB(22, 22, 32));      // Antigravity dark navbar
+        m_hBrBtnHover = CreateSolidBrush(RGB(40, 40, 58));    // Hover tab
+        m_hBrCloseHover = CreateSolidBrush(RGB(225, 29, 72)); // Red close hover
+        m_hPenNavBorder = CreatePen(PS_SOLID, 1, RGB(42, 42, 60));
+    } else {
+        m_hBrNavbar = CreateSolidBrush(RGB(248, 250, 252));    // Light navbar
+        m_hBrBtnHover = CreateSolidBrush(RGB(226, 232, 240));  // Light hover
+        m_hBrCloseHover = CreateSolidBrush(RGB(225, 29, 72));
+        m_hPenNavBorder = CreatePen(PS_SOLID, 1, RGB(226, 232, 240));
+    }
+
+    if (!m_hFontNav) {
+        m_hFontNav = CreateFontW(-12, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+        m_hFontCaption = CreateFontW(-11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    }
+
+    if (m_hWndMain) {
+        BOOL val = m_isDarkMode ? TRUE : FALSE;
+        DwmSetWindowAttribute(m_hWndMain, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &val, sizeof(val));
+
+        if (m_nativeLoginView) {
+            m_nativeLoginView->SetTheme(m_isDarkMode);
+        }
+
+        InvalidateRect(m_hWndMain, nullptr, TRUE);
+    }
+}
+
 int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
     m_hInstance = hInstance;
 
-    // Load settings
+    // Load local settings
     SettingsManager::Instance().Load();
     AuthManager::Instance().SetServerUrl(SettingsManager::Instance().Get().serverUrl);
 
-    // Parse command line arguments
+    CheckSystemTheme();
+
+    // Parse command line
     if (!cmdLine.empty()) {
         if (cmdLine.find(L"--minimized") != std::string::npos) {
             m_isStartingMinimized = true;
         } else {
-            // Strip quotes if present
             std::wstring arg = cmdLine;
             if (arg.front() == L'"' && arg.back() == L'"' && arg.length() >= 2) {
                 arg = arg.substr(1, arg.length() - 2);
@@ -60,9 +113,16 @@ int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
         return 1;
     }
 
-    // Initialize System Tray
+    // System Tray
     m_trayIcon = std::make_unique<TrayIcon>(m_hWndMain, m_hInstance);
     m_trayIcon->Create();
+
+    // Native Login View (created as child view)
+    m_nativeLoginView = std::make_unique<NativeLoginView>(m_hWndMain, m_hInstance);
+    m_nativeLoginView->Create();
+    m_nativeLoginView->SetOnLoginSuccess([this]() {
+        OnLoginSuccess();
+    });
 
     // Initialize WebView2
     m_webViewController = std::make_unique<WebViewController>(m_hWndMain);
@@ -70,28 +130,20 @@ int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
         if (!success) {
             MessageBoxW(
                 m_hWndMain,
-                L"Die Microsoft Edge WebView2-Laufzeitumgebung konnte nicht initialisiert werden.\nBitte stellen Sie sicher, dass Microsoft Edge installiert ist.",
-                L"Prismateams - Fehler",
+                L"Microsoft Edge WebView2 konnte nicht geladen werden.",
+                L"Prismateams",
                 MB_ICONERROR | MB_OK
             );
             return;
         }
 
-        // Verify existing session
+        // Verify existing stored session
         if (AuthManager::Instance().VerifyStoredSession()) {
-            PerformAutoMount();
-
-            if (!m_initialFileArgument.empty()) {
-                HandleFileOpen(m_initialFileArgument);
-            } else {
-                NavigateTo(AuthManager::Instance().GetServerUrl());
-            }
+            OnLoginSuccess();
         } else {
-            // Show Native Login
-            ShowLoginDialog();
+            // Not authenticated: Show NATIVE LOGIN VIEW
+            OnLogout();
         }
-
-        UpdateToolbarStatus();
     });
 
     // Message Loop
@@ -112,7 +164,7 @@ bool App::RegisterAppClass() {
     wcex.hInstance = m_hInstance;
     wcex.hIcon = LoadIconW(m_hInstance, MAKEINTRESOURCEW(IDI_PRISMATEAMS));
     wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+    wcex.hbrBackground = m_hBrNavbar;
     wcex.lpszClassName = MAIN_WINDOW_CLASS;
     wcex.hIconSm = LoadIconW(m_hInstance, MAKEINTRESOURCEW(IDI_SMALL));
 
@@ -125,13 +177,16 @@ bool App::CreateMainWindow(int nCmdShow) {
         MAIN_WINDOW_CLASS,
         L"Prismateams Desktop",
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
-        CW_USEDEFAULT, CW_USEDEFAULT, 1280, 800,
+        CW_USEDEFAULT, CW_USEDEFAULT, 1360, 860,
         nullptr, nullptr, m_hInstance, this
     );
 
     if (!m_hWndMain) return false;
 
-    CreateToolbar(m_hWndMain);
+    BOOL val = m_isDarkMode ? TRUE : FALSE;
+    DwmSetWindowAttribute(m_hWndMain, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &val, sizeof(val));
+
+    CreateAppNavbar(m_hWndMain);
 
     if (nCmdShow != SW_HIDE) {
         ShowWindow(m_hWndMain, nCmdShow);
@@ -141,67 +196,119 @@ bool App::CreateMainWindow(int nCmdShow) {
     return true;
 }
 
-void App::CreateToolbar(HWND hWnd) {
-    HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+void App::CreateAppNavbar(HWND hWnd) {
+    // Left Menus
+    m_btnPrismaMenu = CreateWindowExW(0, L"BUTTON", L"Prismateams \x25BE",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        38, 5, 115, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_PRISMATEAMS, m_hInstance, nullptr);
 
-    m_btnBack = CreateWindowExW(0, L"BUTTON", L"◀", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        10, 7, 32, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_BACK, m_hInstance, nullptr);
-    SendMessageW(m_btnBack, WM_SETFONT, (WPARAM)hFont, TRUE);
+    m_btnSettings = CreateWindowExW(0, L"BUTTON", L"Einstellungen",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        156, 5, 105, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_SETTINGS, m_hInstance, nullptr);
 
-    m_btnForward = CreateWindowExW(0, L"BUTTON", L"▶", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        46, 7, 32, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_FORWARD, m_hInstance, nullptr);
-    SendMessageW(m_btnForward, WM_SETFONT, (WPARAM)hFont, TRUE);
+    // Right Window Controls (Minimize, Maximize, Close)
+    m_btnMin = CreateWindowExW(0, L"BUTTON", L"\x2014",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        0, 0, 46, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_MINIMIZE, m_hInstance, nullptr);
 
-    m_btnReload = CreateWindowExW(0, L"BUTTON", L"↻", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        82, 7, 32, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_RELOAD, m_hInstance, nullptr);
-    SendMessageW(m_btnReload, WM_SETFONT, (WPARAM)hFont, TRUE);
+    m_btnMax = CreateWindowExW(0, L"BUTTON", L"\x25A1",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        0, 0, 46, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_MAXIMIZE, m_hInstance, nullptr);
 
-    m_btnMount = CreateWindowExW(0, L"BUTTON", L"Netzlaufwerk (P:) verbinden", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        124, 7, 210, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_MOUNT, m_hInstance, nullptr);
-    SendMessageW(m_btnMount, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-    m_btnExplorer = CreateWindowExW(0, L"BUTTON", L"Im Explorer öffnen", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        340, 7, 140, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_EXPLORER, m_hInstance, nullptr);
-    SendMessageW(m_btnExplorer, WM_SETFONT, (WPARAM)hFont, TRUE);
-    EnableWindow(m_btnExplorer, FALSE);
-
-    m_btnSettings = CreateWindowExW(0, L"BUTTON", L"⚙ Einstellungen", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        486, 7, 120, 28, hWnd, (HMENU)(INT_PTR)ID_BTN_SETTINGS, m_hInstance, nullptr);
-    SendMessageW(m_btnSettings, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-    m_lblStatus = CreateWindowExW(0, L"STATIC", L"Prismateams wird geladen...", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
-        616, 7, 450, 28, hWnd, (HMENU)(INT_PTR)ID_LBL_STATUS, m_hInstance, nullptr);
-    SendMessageW(m_lblStatus, WM_SETFONT, (WPARAM)hFont, TRUE);
+    m_btnClose = CreateWindowExW(0, L"BUTTON", L"\x2715",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        0, 0, 48, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_CLOSE, m_hInstance, nullptr);
 }
 
-void App::UpdateToolbarStatus() {
-    bool isMounted = WebDavManager::Instance().IsMounted();
-    wchar_t letter = WebDavManager::Instance().GetMountedDriveLetter();
+void App::LayoutViews(int width, int height) {
+    // Position caption buttons on the right
+    int rightEdge = width;
+    SetWindowPos(m_btnClose, nullptr, rightEdge - 48, 0, 48, NAVBAR_HEIGHT, SWP_NOZORDER);
+    SetWindowPos(m_btnMax, nullptr, rightEdge - 94, 0, 46, NAVBAR_HEIGHT, SWP_NOZORDER);
+    SetWindowPos(m_btnMin, nullptr, rightEdge - 140, 0, 46, NAVBAR_HEIGHT, SWP_NOZORDER);
 
-    std::wstring mountBtnText = isMounted ?
-        (L"Laufwerk " + std::wstring(1, letter) + L": trennen") :
-        (L"Netzlaufwerk (" + std::wstring(1, letter) + L":) verbinden");
+    int contentY = NAVBAR_HEIGHT;
+    int contentH = height - NAVBAR_HEIGHT;
 
-    SetWindowTextW(m_btnMount, mountBtnText.c_str());
-    EnableWindow(m_btnExplorer, isMounted ? TRUE : FALSE);
-
-    std::wstring statusText;
-    if (AuthManager::Instance().IsAuthenticated()) {
-        statusText = L"Angemeldet als: " + AuthManager::Instance().GetUserEmail();
-        if (isMounted) {
-            statusText += L" | Netzlaufwerk " + std::wstring(1, letter) + L": aktiv";
-        }
-    } else {
-        statusText = L"Nicht angemeldet";
+    if (m_nativeLoginView && !m_isAuthenticated) {
+        m_nativeLoginView->Resize(width, contentH);
+        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
     }
 
-    SetWindowTextW(m_lblStatus, statusText.c_str());
+    if (m_webViewController && m_isAuthenticated) {
+        m_webViewController->Resize(width, contentH);
+        SetWindowPos(m_webViewController->GetParentHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
+    }
 }
 
-void App::PerformAutoMount() {
-    if (!SettingsManager::Instance().Get().autoMountDrive) return;
-    if (WebDavManager::Instance().IsMounted()) return;
+void App::DrawNavbarButton(LPDRAWITEMSTRUCT pdis) {
+    HDC hdc = pdis->hDC;
+    RECT rc = pdis->rcItem;
+    bool isSelected = (pdis->itemState & ODS_SELECTED);
+    int ctlId = pdis->CtlID;
 
+    HBRUSH hBr = m_hBrNavbar;
+    if (ctlId == ID_NAV_CLOSE && isSelected) {
+        hBr = m_hBrCloseHover;
+    } else if (isSelected) {
+        hBr = m_hBrBtnHover;
+    }
+
+    FillRect(hdc, &rc, hBr);
+
+    SetBkMode(hdc, TRANSPARENT);
+
+    // Text color
+    COLORREF txtColor = (ctlId == ID_NAV_CLOSE && isSelected) ? RGB(255, 255, 255) :
+        (m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
+    SetTextColor(hdc, txtColor);
+
+    HFONT hOldFont = (HFONT)SelectObject(hdc, (ctlId >= ID_NAV_MINIMIZE) ? m_hFontCaption : m_hFontNav);
+
+    wchar_t text[64];
+    GetWindowTextW(pdis->hwndItem, text, 64);
+    DrawTextW(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    SelectObject(hdc, hOldFont);
+}
+
+void App::ShowPrismateamsDropdownMenu() {
+    HMENU hMenu = CreatePopupMenu();
+    if (!hMenu) return;
+
+    const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
+    std::wstring domainInfo = L"\x1F310 Server: " + serverUrl;
+
+    AppendMenuW(hMenu, MF_STRING | MF_DISABLED, IDM_POPUP_DOMAIN, domainInfo.c_str());
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_BACK, L"\x25C0  Zur\xFCck\tAlt + Links");
+    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_FORWARD, L"\x25B6  Vorw\xE4rts\tAlt + Rechts");
+    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_RELOAD, L"\x21BB  Neu laden\tF5");
+    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_HOME, L"\x1F3E0  Startseite / Dashboard");
+
+    if (WebDavManager::Instance().IsMounted()) {
+        AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+        wchar_t driveLetter = WebDavManager::Instance().GetMountedDriveLetter();
+        std::wstring driveItem = L"\x1F4C1  Netzlaufwerk " + std::wstring(1, driveLetter) + L": im Explorer \xF6ffnen";
+        AppendMenuW(hMenu, MF_STRING, IDM_POPUP_EXPLORER, driveItem.c_str());
+    }
+
+    RECT rcBtn;
+    GetWindowRect(m_btnPrismaMenu, &rcBtn);
+
+    SetForegroundWindow(m_hWndMain);
+    TrackPopupMenuEx(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN, rcBtn.left, rcBtn.bottom + 2, m_hWndMain, nullptr);
+    DestroyMenu(hMenu);
+}
+
+void App::OpenNativeSettings() {
+    NativeSettingsWindow::Show(m_hWndMain, m_hInstance, m_isDarkMode);
+}
+
+void App::OnLoginSuccess() {
+    m_isAuthenticated = true;
+
+    // Auto mount WebDAV drive
     auto creds = AuthManager::Instance().FetchWebDavCredentials();
     if (creds.success) {
         wchar_t assigned = L'P';
@@ -219,43 +326,70 @@ void App::PerformAutoMount() {
             m_trayIcon->ShowNotification(L"Prismateams", msg);
         }
     }
+
+    // Hide native login view
+    if (m_nativeLoginView) {
+        m_nativeLoginView->Show(false);
+    }
+
+    // Show WebView2 & Navigate
+    if (m_webViewController) {
+        // Sync session cookie
+        const std::wstring& cookie = AuthManager::Instance().GetSessionCookie();
+        if (!cookie.empty()) {
+            m_webViewController->SyncSessionCookie(AuthManager::Instance().GetServerUrl(), cookie);
+        }
+
+        if (!m_initialFileArgument.empty()) {
+            HandleFileOpen(m_initialFileArgument);
+        } else {
+            NavigateTo(AuthManager::Instance().GetServerUrl() + L"/dashboard");
+        }
+    }
+
+    RECT rc;
+    GetClientRect(m_hWndMain, &rc);
+    LayoutViews(rc.right - rc.left, rc.bottom - rc.top);
+}
+
+void App::OnLogout() {
+    m_isAuthenticated = false;
+
+    // Show native login view
+    if (m_nativeLoginView) {
+        m_nativeLoginView->Show(true);
+    }
+
+    // Hide WebView2
+    if (m_webViewController) {
+        m_webViewController->Navigate(L"about:blank");
+    }
+
+    RECT rc;
+    GetClientRect(m_hWndMain, &rc);
+    LayoutViews(rc.right - rc.left, rc.bottom - rc.top);
 }
 
 void App::NavigateTo(const std::wstring& url) {
-    if (m_webViewController) {
+    if (m_webViewController && m_isAuthenticated) {
         m_webViewController->Navigate(url);
     }
 }
 
 void App::HandleFileOpen(const std::wstring& filePath) {
+    if (!m_isAuthenticated) {
+        m_initialFileArgument = filePath;
+        return;
+    }
+
     FileRouteResult route = FileRouter::Instance().RouteLocalPath(filePath);
     if (route.success && !route.navigationUrl.empty()) {
         NavigateTo(route.navigationUrl);
         if (m_trayIcon) {
-            std::wstring notice = L"Öffne " + (route.filename.empty() ? L"Datei" : route.filename) + L" in Prismateams...";
+            std::wstring notice = L"\xD6ffne " + (route.filename.empty() ? L"Datei" : route.filename) + L" in Prismateams...";
             m_trayIcon->ShowNotification(L"Live Bearbeiten", notice);
         }
     }
-}
-
-void App::ShowLoginDialog() {
-    DialogBoxParamW(
-        m_hInstance,
-        MAKEINTRESOURCEW(IDD_LOGIN_DIALOG),
-        m_hWndMain,
-        App::LoginDlgProc,
-        reinterpret_cast<LPARAM>(this)
-    );
-}
-
-void App::ShowSettingsDialog() {
-    DialogBoxParamW(
-        m_hInstance,
-        MAKEINTRESOURCEW(IDD_SETTINGS_DIALOG),
-        m_hWndMain,
-        App::SettingsDlgProc,
-        reinterpret_cast<LPARAM>(this)
-    );
 }
 
 LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -265,64 +399,99 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     case WM_SIZE: {
         int width = LOWORD(lParam);
         int height = HIWORD(lParam);
-        if (app.m_webViewController) {
-            // Position webview below toolbar
-            app.m_webViewController->Resize(width, height - TOOLBAR_HEIGHT);
-            SetWindowPos(app.m_webViewController->GetParentHwnd(), nullptr, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT, SWP_NOZORDER);
-        }
+        app.LayoutViews(width, height);
+        InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
+    }
+
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+        rc.bottom = NAVBAR_HEIGHT;
+
+        FillRect(hdc, &rc, app.m_hBrNavbar);
+
+        // Draw small app icon on the far left
+        HICON hIcon = LoadIconW(app.m_hInstance, MAKEINTRESOURCEW(IDI_PRISMATEAMS));
+        if (hIcon) {
+            DrawIconEx(hdc, 10, 10, hIcon, 18, 18, 0, nullptr, DI_NORMAL);
+        }
+
+        // Draw bottom separator
+        HPEN hOldPen = (HPEN)SelectObject(hdc, app.m_hPenNavBorder);
+        MoveToEx(hdc, 0, NAVBAR_HEIGHT - 1, nullptr);
+        LineTo(hdc, rc.right, NAVBAR_HEIGHT - 1);
+        SelectObject(hdc, hOldPen);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_DRAWITEM: {
+        LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
+        if (pdis->CtlType == ODT_BUTTON) {
+            app.DrawNavbarButton(pdis);
+            return TRUE;
+        }
+        break;
     }
 
     case WM_COMMAND: {
         int wmId = LOWORD(wParam);
         switch (wmId) {
-        case ID_BTN_BACK:
+        case ID_NAV_PRISMATEAMS:
+            app.ShowPrismateamsDropdownMenu();
+            break;
+        case ID_NAV_SETTINGS:
+            app.OpenNativeSettings();
+            break;
+        case ID_NAV_MINIMIZE:
+            ShowWindow(hWnd, SW_MINIMIZE);
+            break;
+        case ID_NAV_MAXIMIZE:
+            if (IsZoomed(hWnd)) {
+                ShowWindow(hWnd, SW_RESTORE);
+            } else {
+                ShowWindow(hWnd, SW_MAXIMIZE);
+            }
+            break;
+        case ID_NAV_CLOSE:
+            SendMessageW(hWnd, WM_CLOSE, 0, 0);
+            break;
+        case IDM_POPUP_BACK:
             if (app.m_webViewController) app.m_webViewController->GoBack();
             break;
-        case ID_BTN_FORWARD:
+        case IDM_POPUP_FORWARD:
             if (app.m_webViewController) app.m_webViewController->GoForward();
             break;
-        case ID_BTN_RELOAD:
+        case IDM_POPUP_RELOAD:
             if (app.m_webViewController) app.m_webViewController->Reload();
             break;
-        case ID_BTN_MOUNT:
-        case ID_TRAY_MOUNT:
-            if (WebDavManager::Instance().IsMounted()) {
-                WebDavManager::Instance().UnmountCurrentDrive(true);
-            } else {
-                app.PerformAutoMount();
-            }
-            app.UpdateToolbarStatus();
+        case IDM_POPUP_HOME:
+            app.NavigateTo(SettingsManager::Instance().Get().serverUrl + L"/dashboard");
             break;
-        case ID_BTN_EXPLORER:
-        case ID_TRAY_OPEN_EXPLORER:
+        case IDM_POPUP_EXPLORER:
             WebDavManager::Instance().OpenInExplorer();
-            break;
-        case ID_BTN_SETTINGS:
-        case ID_TRAY_SETTINGS:
-            app.ShowSettingsDialog();
             break;
         case ID_TRAY_OPEN:
             ShowWindow(hWnd, SW_RESTORE);
             SetForegroundWindow(hWnd);
             break;
-        case ID_TRAY_UNMOUNT:
-            WebDavManager::Instance().UnmountCurrentDrive(true);
-            app.UpdateToolbarStatus();
-            break;
         case ID_TRAY_LOGOUT:
-            AuthManager::Instance().Logout();
-            WebDavManager::Instance().UnmountCurrentDrive(true);
-            app.UpdateToolbarStatus();
-            app.ShowLoginDialog();
+            app.OnLogout();
             break;
         case ID_TRAY_EXIT:
-        case IDM_EXIT:
             DestroyWindow(hWnd);
             break;
-        default:
-            return DefWindowProcW(hWnd, message, wParam, lParam);
         }
+        return 0;
+    }
+
+    case WM_SETTINGCHANGE: {
+        app.CheckSystemTheme();
         return 0;
     }
 
@@ -339,7 +508,6 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     }
 
     case WM_COPYDATA: {
-        // Inter-process communication: file opened from explorer while already running
         PCOPYDATASTRUCT pcds = reinterpret_cast<PCOPYDATASTRUCT>(lParam);
         if (pcds && pcds->lpData && pcds->cbData > 0) {
             std::wstring filePath(reinterpret_cast<const wchar_t*>(pcds->lpData), pcds->cbData / sizeof(wchar_t));
@@ -354,7 +522,7 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
         if (SettingsManager::Instance().Get().minimizeToTray) {
             ShowWindow(hWnd, SW_HIDE);
             if (app.m_trayIcon) {
-                app.m_trayIcon->ShowNotification(L"Prismateams", L"Die Anwendung läuft im Hintergrund weiter.");
+                app.m_trayIcon->ShowNotification(L"Prismateams", L"Die Anwendung l\xE4uft im Hintergrund weiter.");
             }
             return 0;
         }
@@ -369,129 +537,6 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     }
 
     return DefWindowProcW(hWnd, message, wParam, lParam);
-}
-
-INT_PTR CALLBACK App::LoginDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-    App* pApp = &App::Instance();
-
-    switch (message) {
-    case WM_INITDIALOG: {
-        // Pre-fill server URL and last email
-        SetDlgItemTextW(hDlg, IDC_EDIT_SERVER_URL, SettingsManager::Instance().Get().serverUrl.c_str());
-        SetDlgItemTextW(hDlg, IDC_EDIT_EMAIL, SettingsManager::Instance().Get().lastUserEmail.c_str());
-        ShowWindow(GetDlgItem(hDlg, IDC_GROUP_2FA), SW_HIDE);
-        ShowWindow(GetDlgItem(hDlg, IDC_EDIT_2FA_CODE), SW_HIDE);
-        return TRUE;
-    }
-
-    case WM_COMMAND: {
-        int wmId = LOWORD(wParam);
-        if (wmId == IDC_BTN_LOGIN) {
-            wchar_t serverBuf[256], emailBuf[256], passBuf[256], totpBuf[32];
-            GetDlgItemTextW(hDlg, IDC_EDIT_SERVER_URL, serverBuf, 256);
-            GetDlgItemTextW(hDlg, IDC_EDIT_EMAIL, emailBuf, 256);
-            GetDlgItemTextW(hDlg, IDC_EDIT_PASSWORD, passBuf, 256);
-            GetDlgItemTextW(hDlg, IDC_EDIT_2FA_CODE, totpBuf, 32);
-
-            std::wstring serverUrl = serverBuf;
-            SettingsManager::Instance().Get().serverUrl = serverUrl;
-            SettingsManager::Instance().Save();
-            AuthManager::Instance().SetServerUrl(serverUrl);
-
-            SetDlgItemTextW(hDlg, IDC_STATIC_STATUS, L"Anmeldung läuft...");
-            EnableWindow(GetDlgItem(hDlg, IDC_BTN_LOGIN), FALSE);
-
-            LoginResult res = AuthManager::Instance().Login(emailBuf, passBuf, totpBuf);
-            EnableWindow(GetDlgItem(hDlg, IDC_BTN_LOGIN), TRUE);
-
-            if (res.requires2FA) {
-                ShowWindow(GetDlgItem(hDlg, IDC_GROUP_2FA), SW_SHOW);
-                ShowWindow(GetDlgItem(hDlg, IDC_EDIT_2FA_CODE), SW_SHOW);
-                SetFocus(GetDlgItem(hDlg, IDC_EDIT_2FA_CODE));
-                SetDlgItemTextW(hDlg, IDC_STATIC_STATUS, L"Bitte 2FA-Code aus Authenticator-App eingeben.");
-                return TRUE;
-            }
-
-            if (res.success) {
-                SetDlgItemTextW(hDlg, IDC_STATIC_STATUS, L"Erfolgreich!");
-                pApp->PerformAutoMount();
-                pApp->NavigateTo(serverUrl);
-                pApp->UpdateToolbarStatus();
-                EndDialog(hDlg, IDOK);
-                return TRUE;
-            } else {
-                SetDlgItemTextW(hDlg, IDC_STATIC_STATUS, res.errorMessage.c_str());
-            }
-            return TRUE;
-        } else if (wmId == IDC_BTN_PASSKEY) {
-            // Passkey login: navigates webview to passkey login page
-            wchar_t serverBuf[256];
-            GetDlgItemTextW(hDlg, IDC_EDIT_SERVER_URL, serverBuf, 256);
-            std::wstring serverUrl = serverBuf;
-            SettingsManager::Instance().Get().serverUrl = serverUrl;
-            SettingsManager::Instance().Save();
-            AuthManager::Instance().SetServerUrl(serverUrl);
-
-            pApp->NavigateTo(serverUrl + L"/login");
-            EndDialog(hDlg, IDOK);
-            return TRUE;
-        } else if (wmId == IDCANCEL) {
-            EndDialog(hDlg, IDCANCEL);
-            return TRUE;
-        }
-        break;
-    }
-    }
-    return FALSE;
-}
-
-INT_PTR CALLBACK App::SettingsDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-    case WM_INITDIALOG: {
-        auto& s = SettingsManager::Instance().Get();
-        HWND hCombo = GetDlgItem(hDlg, IDC_COMBO_DRIVE_LETTER);
-
-        // Populate letters P, Q, R, S, T, U, V, W, X, Y, Z
-        const wchar_t* letters = L"PQRSTUVWXYZABCDEFGHIJKLMNO";
-        for (size_t i = 0; i < wcslen(letters); ++i) {
-            wchar_t item[8] = { letters[i], L':', 0 };
-            int idx = (int)SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)item);
-            if (letters[i] == s.driveLetter) {
-                SendMessageW(hCombo, CB_SETCURSEL, idx, 0);
-            }
-        }
-
-        CheckDlgButton(hDlg, IDC_CHECK_AUTO_MOUNT, s.autoMountDrive ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hDlg, IDC_CHECK_AUTO_START, s.autoStartWithWindows ? BST_CHECKED : BST_UNCHECKED);
-        return TRUE;
-    }
-
-    case WM_COMMAND: {
-        int wmId = LOWORD(wParam);
-        if (wmId == IDOK) {
-            auto& s = SettingsManager::Instance().Get();
-            HWND hCombo = GetDlgItem(hDlg, IDC_COMBO_DRIVE_LETTER);
-            int sel = (int)SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
-            if (sel != CB_ERR) {
-                wchar_t buf[8];
-                SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)buf);
-                s.driveLetter = buf[0];
-            }
-
-            s.autoMountDrive = (IsDlgButtonChecked(hDlg, IDC_CHECK_AUTO_MOUNT) == BST_CHECKED);
-            s.autoStartWithWindows = (IsDlgButtonChecked(hDlg, IDC_CHECK_AUTO_START) == BST_CHECKED);
-            SettingsManager::Instance().Save();
-
-            EndDialog(hDlg, IDOK);
-            return TRUE;
-        } else if (wmId == IDCANCEL) {
-            EndDialog(hDlg, IDCANCEL);
-            return TRUE;
-        }
-        break;
-    }
-    }
-    return FALSE;
 }
 
 } // namespace Prismateams

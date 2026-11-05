@@ -174,6 +174,9 @@ bool AuthManager::SendHttpRequest(
     }
 
     std::wstring headers = L"Content-Type: application/json\r\nAccept: application/json\r\n";
+    headers += L"X-Requested-With: com.prismateams.desktop\r\n";
+    headers += L"Origin: " + m_serverUrl + L"\r\n";
+    headers += L"Referer: " + m_serverUrl + L"/\r\n";
     if (!m_sessionCookie.empty()) {
         headers += L"Cookie: " + m_sessionCookie + L"\r\n";
     }

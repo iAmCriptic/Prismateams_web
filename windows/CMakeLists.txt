@@ -21,6 +21,12 @@ set(SOURCES
     src/main.cpp
     src/app.h
     src/app.cpp
+    src/native_login_view.h
+    src/native_login_view.cpp
+    src/native_settings_window.h
+    src/native_settings_window.cpp
+    src/passkey_authenticator.h
+    src/passkey_authenticator.cpp
     src/settings.h
     src/settings.cpp
     src/credential_vault.h
@@ -50,6 +56,8 @@ target_link_libraries(Prismateams PRIVATE
     advapi32
     ole32
     shlwapi
+    dwmapi
+    uxtheme
 )
 
 set_target_properties(Prismateams PROPERTIES

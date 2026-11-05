@@ -144,13 +144,28 @@ void WebViewController::InjectNativeBridgeScript() {
         L"  isMounted: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'check_mount'})); },"
         L"  logout: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'logout'})); }"
         L"};"
-        L"document.dispatchEvent(new CustomEvent('prismateams-native-ready', { detail: window.prismateamsNative }));";
+        L"document.dispatchEvent(new CustomEvent('prismateams-native-ready', { detail: window.prismateamsNative }));"
+        L"(function() {"
+        L"  function checkAuth() {"
+        L"    var path = window.location.pathname || '';"
+        L"    if (path !== '/login' && !path.startsWith('/auth/') && path !== '/setup') {"
+        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'logged_in'}));"
+        L"    }"
+        L"  }"
+        L"  if (document.readyState === 'complete' || document.readyState === 'interactive') {"
+        L"    checkAuth();"
+        L"  } else {"
+        L"    window.addEventListener('DOMContentLoaded', checkAuth);"
+        L"  }"
+        L"})();";
 
     m_webview->AddScriptToExecuteOnDocumentCreated(bridgeJs, nullptr);
 }
 
 void WebViewController::HandleWebMessage(const std::wstring& message) {
-    if (message.find(L"\"mount_drive\"") != std::string::npos) {
+    if (message.find(L"\"logged_in\"") != std::string::npos) {
+        PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2050, 0), 0); // ID_CMD_USER_LOGGED_IN
+    } else if (message.find(L"\"mount_drive\"") != std::string::npos) {
         // Fetch credentials and mount drive
         auto creds = AuthManager::Instance().FetchWebDavCredentials();
         if (creds.success) {
@@ -211,6 +226,20 @@ void WebViewController::GoForward() {
 void WebViewController::SyncSessionCookie(const std::wstring& domain, const std::wstring& cookieHeader) {
     if (!m_webview || cookieHeader.empty()) return;
 
+    std::wstring cleanDomain = domain;
+    size_t schemePos = cleanDomain.find(L"://");
+    if (schemePos != std::string::npos) {
+        cleanDomain = cleanDomain.substr(schemePos + 3);
+    }
+    size_t colonPos = cleanDomain.find(L':');
+    if (colonPos != std::string::npos) {
+        cleanDomain = cleanDomain.substr(0, colonPos);
+    }
+    size_t slashPos = cleanDomain.find(L'/');
+    if (slashPos != std::string::npos) {
+        cleanDomain = cleanDomain.substr(0, slashPos);
+    }
+
     // Use ICoreWebView2_2 or CookieManager if available
     ComPtr<ICoreWebView2_2> webview2;
     if (SUCCEEDED(m_webview.As(&webview2)) && webview2) {
@@ -226,7 +255,7 @@ void WebViewController::SyncSessionCookie(const std::wstring& domain, const std:
                     cookieHeader.substr(eqPos + 1);
 
                 ComPtr<ICoreWebView2Cookie> cookie;
-                if (SUCCEEDED(cookieManager->CreateCookie(name.c_str(), val.c_str(), domain.c_str(), L"/", &cookie)) && cookie) {
+                if (SUCCEEDED(cookieManager->CreateCookie(name.c_str(), val.c_str(), cleanDomain.c_str(), L"/", &cookie)) && cookie) {
                     cookie->put_IsHttpOnly(TRUE);
                     cookieManager->AddOrUpdateCookie(cookie.Get());
                 }

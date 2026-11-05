@@ -82,19 +82,23 @@ BEGIN
 END
 
 // Settings Dialog
-IDD_SETTINGS_DIALOG DIALOGEX 0, 0, 240, 160
+IDD_SETTINGS_DIALOG DIALOGEX 0, 0, 260, 210
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Prismateams - Einstellungen"
 FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "Windows Explorer & Netzlaufwerk", IDC_STATIC, 14, 10, 212, 60
-    LTEXT           "Bevorzugter Laufwerksbuchstabe:", IDC_STATIC, 22, 26, 120, 8
-    COMBOBOX        IDC_COMBO_DRIVE_LETTER, 150, 24, 60, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Laufwerk bei App-Start automatisch verbinden", IDC_CHECK_AUTO_MOUNT, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 46, 196, 10
-    
-    GROUPBOX        "System & Start", IDC_STATIC, 14, 78, 212, 45
-    CONTROL         "Mit Windows automatisch starten (im Hintergrund)", IDC_CHECK_AUTO_START, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 94, 196, 10
+    GROUPBOX        "Prismateams Server", IDC_STATIC, 14, 10, 232, 45
+    LTEXT           "Server-URL (z. B. http://localhost:5000):", IDC_STATIC, 22, 24, 216, 8
+    EDITTEXT        IDC_EDIT_SERVER_URL, 22, 36, 216, 14, ES_AUTOHSCROLL
 
-    DEFPUSHBUTTON   "Speichern", IDOK, 64, 134, 52, 14
-    PUSHBUTTON      "Abbrechen", IDCANCEL, 124, 134, 52, 14
+    GROUPBOX        "Windows Explorer & Netzlaufwerk", IDC_STATIC, 14, 60, 232, 60
+    LTEXT           "Bevorzugter Laufwerksbuchstabe:", IDC_STATIC, 22, 76, 130, 8
+    COMBOBOX        IDC_COMBO_DRIVE_LETTER, 160, 74, 70, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Laufwerk bei App-Start automatisch verbinden", IDC_CHECK_AUTO_MOUNT, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 96, 216, 10
+    
+    GROUPBOX        "System & Start", IDC_STATIC, 14, 126, 232, 45
+    CONTROL         "Mit Windows automatisch starten (im Hintergrund)", IDC_CHECK_AUTO_START, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 142, 216, 10
+
+    DEFPUSHBUTTON   "Speichern", IDOK, 70, 182, 56, 15
+    PUSHBUTTON      "Abbrechen", IDCANCEL, 134, 182, 56, 15
 END
