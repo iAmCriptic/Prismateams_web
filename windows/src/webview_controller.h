@@ -22,6 +22,9 @@ public:
     void GoBack();
     void GoForward();
 
+    void SetVisible(bool visible);
+    bool IsVisible() const;
+
     void SyncSessionCookie(const std::wstring& domain, const std::wstring& cookieHeader);
     void PostJsonMessage(const std::wstring& jsonMessage);
 
@@ -35,6 +38,8 @@ private:
 
     HWND m_hWndParent;
     bool m_isInitialized = false;
+    bool m_isVisible = false;
+    std::wstring m_pendingNavigateUrl;
 
     Microsoft::WRL::ComPtr<ICoreWebView2Environment> m_environment;
     Microsoft::WRL::ComPtr<ICoreWebView2Controller> m_controller;

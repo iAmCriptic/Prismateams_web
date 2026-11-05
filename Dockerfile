@@ -34,6 +34,8 @@ RUN python -m venv /opt/venv \
 # ------------------------------------------
 # Stage 2: Minimales Runtime-Image
 # ------------------------------------------
+FROM mwader/static-ffmpeg:latest AS ffmpeg-source
+
 FROM python:3.12-slim-bookworm AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -43,12 +45,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Basis-OS absichern & updaten, ausschließlich Laufzeit-Tools installieren
+# Basis-OS absichern & updaten, ausschließlich schlanke Laufzeit-Tools installieren
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         curl \
-        ffmpeg \
+        ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Statisches, gehärtetes FFmpeg ohne anfällige Debian-Codec-Pakete (libtiff etc.) übernehmen
+COPY --from=ffmpeg-source /ffmpeg /ffprobe /usr/local/bin/
 
 # Venv aus Stage 1 übernehmen (enthält alle fertig installierten Python-Module)
 COPY --from=builder /opt/venv /opt/venv
