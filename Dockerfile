@@ -45,10 +45,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Basis-OS absichern & updaten, ausschließlich schlanke Laufzeit-Tools installieren
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-        curl \
-        ca-certificates \
+# Basis-OS absichern & updaten (kein curl nötig, da Healthcheck nativ über Python läuft)
+RUN apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -76,7 +74,7 @@ USER appuser
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
-    CMD curl -sf http://127.0.0.1:5000/ || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=4)" || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["gunicorn", \

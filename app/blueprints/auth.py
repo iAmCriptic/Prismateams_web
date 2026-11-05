@@ -641,6 +641,28 @@ def coderegister(code=None):
     return render_template('auth/coderegister.html', **_tpl())
 
 
+@auth_bp.route('/desktop-login', methods=['GET'])
+def desktop_login():
+    """Desktop app SSO entry: consumes an API token and logs the web session in."""
+    raw_token = request.args.get('token', '').strip()
+    next_page = _sanitize_next_page(request.args.get('next')) or url_for('dashboard.index')
+
+    if not raw_token:
+        return redirect(url_for('auth.login'))
+
+    from app.models.api_token import ApiToken
+    token_row = ApiToken.find_by_raw_token(raw_token)
+    if not token_row or token_row.is_expired():
+        return redirect(url_for('auth.login'))
+
+    user = token_row.user
+    if not user or not user.is_active:
+        return redirect(url_for('auth.login'))
+
+    token_row.mark_as_used()
+    return _finalize_portal_login(user, remember=True, next_page=next_page)
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per 15 minutes", methods=["POST"])
 def login():

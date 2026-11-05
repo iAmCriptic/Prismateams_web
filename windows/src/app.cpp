@@ -16,7 +16,7 @@
 namespace Prismateams {
 
 const wchar_t* const MAIN_WINDOW_CLASS = L"Prismateams_MainWindow_Class";
-const int NAVBAR_HEIGHT = 38;
+const int TITLEBAR_HEIGHT = 36;
 
 App& App::Instance() {
     static App instance;
@@ -186,7 +186,10 @@ bool App::CreateMainWindow(int nCmdShow) {
     BOOL val = m_isDarkMode ? TRUE : FALSE;
     DwmSetWindowAttribute(m_hWndMain, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &val, sizeof(val));
 
-    CreateAppNavbar(m_hWndMain);
+    MARGINS margins = { 0, 0, 1, 0 };
+    DwmExtendFrameIntoClientArea(m_hWndMain, &margins);
+
+    CreateTitlebarControls(m_hWndMain);
 
     if (nCmdShow != SW_HIDE) {
         ShowWindow(m_hWndMain, nCmdShow);
@@ -196,80 +199,15 @@ bool App::CreateMainWindow(int nCmdShow) {
     return true;
 }
 
-void App::CreateAppNavbar(HWND hWnd) {
-    // Left Menus
+void App::CreateTitlebarControls(HWND hWnd) {
+    // Menu items inside the single custom titlebar
     m_btnPrismaMenu = CreateWindowExW(0, L"BUTTON", L"Prismateams \x25BE",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        38, 5, 115, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_PRISMATEAMS, m_hInstance, nullptr);
+        34, 4, 115, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_PRISMATEAMS, m_hInstance, nullptr);
 
     m_btnSettings = CreateWindowExW(0, L"BUTTON", L"Einstellungen",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        156, 5, 105, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_SETTINGS, m_hInstance, nullptr);
-
-    // Right Window Controls (Minimize, Maximize, Close)
-    m_btnMin = CreateWindowExW(0, L"BUTTON", L"\x2014",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        0, 0, 46, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_MINIMIZE, m_hInstance, nullptr);
-
-    m_btnMax = CreateWindowExW(0, L"BUTTON", L"\x25A1",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        0, 0, 46, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_MAXIMIZE, m_hInstance, nullptr);
-
-    m_btnClose = CreateWindowExW(0, L"BUTTON", L"\x2715",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        0, 0, 48, NAVBAR_HEIGHT, hWnd, (HMENU)(INT_PTR)ID_NAV_CLOSE, m_hInstance, nullptr);
-}
-
-void App::LayoutViews(int width, int height) {
-    // Position caption buttons on the right
-    int rightEdge = width;
-    SetWindowPos(m_btnClose, nullptr, rightEdge - 48, 0, 48, NAVBAR_HEIGHT, SWP_NOZORDER);
-    SetWindowPos(m_btnMax, nullptr, rightEdge - 94, 0, 46, NAVBAR_HEIGHT, SWP_NOZORDER);
-    SetWindowPos(m_btnMin, nullptr, rightEdge - 140, 0, 46, NAVBAR_HEIGHT, SWP_NOZORDER);
-
-    int contentY = NAVBAR_HEIGHT;
-    int contentH = height - NAVBAR_HEIGHT;
-
-    if (m_nativeLoginView && !m_isAuthenticated) {
-        m_nativeLoginView->Resize(width, contentH);
-        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
-    }
-
-    if (m_webViewController && m_isAuthenticated) {
-        m_webViewController->Resize(width, contentH);
-        SetWindowPos(m_webViewController->GetParentHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
-    }
-}
-
-void App::DrawNavbarButton(LPDRAWITEMSTRUCT pdis) {
-    HDC hdc = pdis->hDC;
-    RECT rc = pdis->rcItem;
-    bool isSelected = (pdis->itemState & ODS_SELECTED);
-    int ctlId = pdis->CtlID;
-
-    HBRUSH hBr = m_hBrNavbar;
-    if (ctlId == ID_NAV_CLOSE && isSelected) {
-        hBr = m_hBrCloseHover;
-    } else if (isSelected) {
-        hBr = m_hBrBtnHover;
-    }
-
-    FillRect(hdc, &rc, hBr);
-
-    SetBkMode(hdc, TRANSPARENT);
-
-    // Text color
-    COLORREF txtColor = (ctlId == ID_NAV_CLOSE && isSelected) ? RGB(255, 255, 255) :
-        (m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-    SetTextColor(hdc, txtColor);
-
-    HFONT hOldFont = (HFONT)SelectObject(hdc, (ctlId >= ID_NAV_MINIMIZE) ? m_hFontCaption : m_hFontNav);
-
-    wchar_t text[64];
-    GetWindowTextW(pdis->hwndItem, text, 64);
-    DrawTextW(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    SelectObject(hdc, hOldFont);
+        155, 4, 105, 28, hWnd, (HMENU)(INT_PTR)ID_NAV_SETTINGS, m_hInstance, nullptr);
 }
 
 void App::ShowPrismateamsDropdownMenu() {
@@ -277,7 +215,7 @@ void App::ShowPrismateamsDropdownMenu() {
     if (!hMenu) return;
 
     const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
-    std::wstring domainInfo = L"Server: " + serverUrl;
+    std::wstring domainInfo = L"Server: " + (serverUrl.empty() ? L"Nicht konfiguriert" : serverUrl);
 
     AppendMenuW(hMenu, MF_STRING | MF_DISABLED, IDM_POPUP_DOMAIN, domainInfo.c_str());
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
@@ -299,6 +237,42 @@ void App::ShowPrismateamsDropdownMenu() {
     SetForegroundWindow(m_hWndMain);
     TrackPopupMenuEx(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN, rcBtn.left, rcBtn.bottom + 2, m_hWndMain, nullptr);
     DestroyMenu(hMenu);
+}
+
+void App::DrawNavbarButton(LPDRAWITEMSTRUCT pdis) {
+    HDC hdc = pdis->hDC;
+    RECT rc = pdis->rcItem;
+    bool isSelected = (pdis->itemState & ODS_SELECTED);
+
+    HBRUSH hBr = isSelected ? m_hBrBtnHover : m_hBrNavbar;
+    FillRect(hdc, &rc, hBr);
+
+    SetBkMode(hdc, TRANSPARENT);
+    COLORREF txtColor = m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59);
+    SetTextColor(hdc, txtColor);
+
+    HFONT hOldFont = (HFONT)SelectObject(hdc, m_hFontNav);
+
+    wchar_t text[64];
+    GetWindowTextW(pdis->hwndItem, text, 64);
+    DrawTextW(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    SelectObject(hdc, hOldFont);
+}
+
+void App::LayoutViews(int width, int height) {
+    int contentY = TITLEBAR_HEIGHT;
+    int contentH = height - TITLEBAR_HEIGHT;
+    if (contentH < 0) contentH = 0;
+
+    if (m_nativeLoginView && !m_isAuthenticated) {
+        m_nativeLoginView->Resize(width, contentH);
+        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, contentY, width, contentH, SWP_NOZORDER);
+    }
+
+    if (m_webViewController && m_isAuthenticated) {
+        m_webViewController->Resize(width, contentH);
+    }
 }
 
 void App::OpenNativeSettings() {
@@ -334,7 +308,9 @@ void App::OnLoginSuccess() {
 
     // Show WebView2 & Navigate
     if (m_webViewController) {
-        // Sync session cookie
+        m_webViewController->SetVisible(true);
+
+        const std::wstring& token = AuthManager::Instance().GetAuthToken();
         const std::wstring& cookie = AuthManager::Instance().GetSessionCookie();
         if (!cookie.empty()) {
             m_webViewController->SyncSessionCookie(AuthManager::Instance().GetServerUrl(), cookie);
@@ -342,6 +318,10 @@ void App::OnLoginSuccess() {
 
         if (!m_initialFileArgument.empty()) {
             HandleFileOpen(m_initialFileArgument);
+        } else if (!token.empty()) {
+            // Direct SSO login via token -> lands directly on dashboard, 100% authenticated!
+            std::wstring ssoUrl = AuthManager::Instance().GetServerUrl() + L"/auth/desktop-login?token=" + token + L"&next=/dashboard";
+            NavigateTo(ssoUrl);
         } else {
             NavigateTo(AuthManager::Instance().GetServerUrl() + L"/dashboard");
         }
@@ -350,24 +330,27 @@ void App::OnLoginSuccess() {
     RECT rc;
     GetClientRect(m_hWndMain, &rc);
     LayoutViews(rc.right - rc.left, rc.bottom - rc.top);
+    InvalidateRect(m_hWndMain, nullptr, TRUE);
 }
 
 void App::OnLogout() {
     m_isAuthenticated = false;
+
+    // Hide WebView2
+    if (m_webViewController) {
+        m_webViewController->SetVisible(false);
+        m_webViewController->Navigate(L"about:blank");
+    }
 
     // Show native login view
     if (m_nativeLoginView) {
         m_nativeLoginView->Show(true);
     }
 
-    // Hide WebView2
-    if (m_webViewController) {
-        m_webViewController->Navigate(L"about:blank");
-    }
-
     RECT rc;
     GetClientRect(m_hWndMain, &rc);
     LayoutViews(rc.right - rc.left, rc.bottom - rc.top);
+    InvalidateRect(m_hWndMain, nullptr, TRUE);
 }
 
 void App::NavigateTo(const std::wstring& url) {
@@ -396,6 +379,98 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     App& app = App::Instance();
 
     switch (message) {
+    case WM_NCCALCSIZE: {
+        if (wParam == TRUE) {
+            if (IsZoomed(hWnd)) {
+                NCCALCSIZE_PARAMS* pParams = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+                int borderX = GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+                int borderY = GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+                pParams->rgrc[0].left += borderX;
+                pParams->rgrc[0].top += borderY;
+                pParams->rgrc[0].right -= borderX;
+                pParams->rgrc[0].bottom -= borderY;
+            }
+            return 0;
+        }
+        break;
+    }
+
+    case WM_NCHITTEST: {
+        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        ScreenToClient(hWnd, &pt);
+
+        RECT rcClient;
+        GetClientRect(hWnd, &rcClient);
+        int winW = rcClient.right;
+        int winH = rcClient.bottom;
+
+        if (!IsZoomed(hWnd)) {
+            int resizeBorder = 6;
+            if (pt.y < resizeBorder) {
+                if (pt.x < resizeBorder) return HTTOPLEFT;
+                if (pt.x > winW - resizeBorder) return HTTOPRIGHT;
+                return HTTOP;
+            }
+            if (pt.y > winH - resizeBorder) {
+                if (pt.x < resizeBorder) return HTBOTTOMLEFT;
+                if (pt.x > winW - resizeBorder) return HTBOTTOMRIGHT;
+                return HTBOTTOM;
+            }
+            if (pt.x < resizeBorder) return HTLEFT;
+            if (pt.x > winW - resizeBorder) return HTRIGHT;
+        }
+
+        if (pt.y >= 0 && pt.y < TITLEBAR_HEIGHT) {
+            if (pt.x >= winW - 46) return HTCLOSE;
+            if (pt.x >= winW - 92) return HTMAXBUTTON;
+            if (pt.x >= winW - 138) return HTMINBUTTON;
+
+            if ((pt.x >= 34 && pt.x < 150) || (pt.x >= 155 && pt.x < 260)) {
+                return HTCLIENT;
+            }
+
+            return HTCAPTION;
+        }
+
+        return HTCLIENT;
+    }
+
+    case WM_NCMOUSEMOVE: {
+        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        ScreenToClient(hWnd, &pt);
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+        int winW = rc.right;
+
+        int newHover = 0;
+        if (pt.y >= 0 && pt.y < TITLEBAR_HEIGHT) {
+            if (pt.x >= winW - 46) newHover = 3;       // Close
+            else if (pt.x >= winW - 92) newHover = 2;  // Maximize (Snap Layout on Win11!)
+            else if (pt.x >= winW - 138) newHover = 1; // Minimize
+        }
+
+        if (newHover != app.m_hoverCaptionBtn) {
+            app.m_hoverCaptionBtn = newHover;
+            RECT rcTop = { winW - 140, 0, winW, TITLEBAR_HEIGHT };
+            InvalidateRect(hWnd, &rcTop, FALSE);
+        }
+
+        TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_NONCLIENT | TME_LEAVE, hWnd, 0 };
+        TrackMouseEvent(&tme);
+        break;
+    }
+
+    case WM_NCMOUSELEAVE: {
+        if (app.m_hoverCaptionBtn != 0) {
+            app.m_hoverCaptionBtn = 0;
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+            RECT rcTop = { rc.right - 140, 0, rc.right, TITLEBAR_HEIGHT };
+            InvalidateRect(hWnd, &rcTop, FALSE);
+        }
+        break;
+    }
+
     case WM_SIZE: {
         int width = LOWORD(lParam);
         int height = HIWORD(lParam);
@@ -410,22 +485,58 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
         RECT rc;
         GetClientRect(hWnd, &rc);
-        rc.bottom = NAVBAR_HEIGHT;
+        int winW = rc.right;
 
-        FillRect(hdc, &rc, app.m_hBrNavbar);
+        RECT rcTitle = { 0, 0, winW, TITLEBAR_HEIGHT };
+        FillRect(hdc, &rcTitle, app.m_hBrNavbar);
 
-        // Draw small app icon on the far left
+        // 1. Icon
         HICON hIcon = LoadIconW(app.m_hInstance, MAKEINTRESOURCEW(IDI_PRISMATEAMS));
         if (hIcon) {
-            DrawIconEx(hdc, 10, 10, hIcon, 18, 18, 0, nullptr, DI_NORMAL);
+            DrawIconEx(hdc, 10, 9, hIcon, 18, 18, 0, nullptr, DI_NORMAL);
         }
 
-        // Draw bottom separator
+        // 2. Middle Title
+        const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
+        std::wstring titleText = L"Prismateams Desktop \x2014 " + (serverUrl.empty() ? L"http://localhost:5000" : serverUrl);
+
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, app.m_isDarkMode ? RGB(160, 174, 192) : RGB(100, 116, 139));
+        HFONT hOldFont = (HFONT)SelectObject(hdc, app.m_hFontNav);
+
+        RECT rcCenter = { 270, 0, winW - 145, TITLEBAR_HEIGHT };
+        DrawTextW(hdc, titleText.c_str(), -1, &rcCenter, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+        // 3. Caption Buttons
+        SelectObject(hdc, app.m_hFontCaption);
+
+        RECT rcMin = { winW - 138, 0, winW - 92, TITLEBAR_HEIGHT };
+        if (app.m_hoverCaptionBtn == 1) {
+            FillRect(hdc, &rcMin, app.m_hBrBtnHover);
+        }
+        SetTextColor(hdc, app.m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
+        DrawTextW(hdc, L"\x2014", -1, &rcMin, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        RECT rcMax = { winW - 92, 0, winW - 46, TITLEBAR_HEIGHT };
+        if (app.m_hoverCaptionBtn == 2) {
+            FillRect(hdc, &rcMax, app.m_hBrBtnHover);
+        }
+        DrawTextW(hdc, IsZoomed(hWnd) ? L"\x25F2" : L"\x25A1", -1, &rcMax, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        RECT rcClose = { winW - 46, 0, winW, TITLEBAR_HEIGHT };
+        if (app.m_hoverCaptionBtn == 3) {
+            FillRect(hdc, &rcClose, app.m_hBrCloseHover);
+            SetTextColor(hdc, RGB(255, 255, 255));
+        }
+        DrawTextW(hdc, L"\x2715", -1, &rcClose, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        // Separator
         HPEN hOldPen = (HPEN)SelectObject(hdc, app.m_hPenNavBorder);
-        MoveToEx(hdc, 0, NAVBAR_HEIGHT - 1, nullptr);
-        LineTo(hdc, rc.right, NAVBAR_HEIGHT - 1);
+        MoveToEx(hdc, 0, TITLEBAR_HEIGHT - 1, nullptr);
+        LineTo(hdc, winW, TITLEBAR_HEIGHT - 1);
         SelectObject(hdc, hOldPen);
 
+        SelectObject(hdc, hOldFont);
         EndPaint(hWnd, &ps);
         return 0;
     }
@@ -447,19 +558,6 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
             break;
         case ID_NAV_SETTINGS:
             app.OpenNativeSettings();
-            break;
-        case ID_NAV_MINIMIZE:
-            ShowWindow(hWnd, SW_MINIMIZE);
-            break;
-        case ID_NAV_MAXIMIZE:
-            if (IsZoomed(hWnd)) {
-                ShowWindow(hWnd, SW_RESTORE);
-            } else {
-                ShowWindow(hWnd, SW_MAXIMIZE);
-            }
-            break;
-        case ID_NAV_CLOSE:
-            SendMessageW(hWnd, WM_CLOSE, 0, 0);
             break;
         case IDM_POPUP_BACK:
             if (app.m_webViewController) app.m_webViewController->GoBack();

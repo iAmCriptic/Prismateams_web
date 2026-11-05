@@ -54,13 +54,18 @@ void WebViewController::Initialize(std::function<void(bool success)> onComplete)
 
                             RECT bounds;
                             GetClientRect(m_hWndParent, &bounds);
+                            bounds.top = 36;
                             m_controller->put_Bounds(bounds);
-                            m_controller->put_IsVisible(TRUE);
+                            m_controller->put_IsVisible(m_isVisible ? TRUE : FALSE);
 
                             SetupEventHandlers();
                             InjectNativeBridgeScript();
 
                             m_isInitialized = true;
+                            if (!m_pendingNavigateUrl.empty()) {
+                                m_webview->Navigate(m_pendingNavigateUrl.c_str());
+                                m_pendingNavigateUrl.clear();
+                            }
                             if (onComplete) onComplete(true);
                             return S_OK;
                         }
@@ -195,12 +200,25 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
 void WebViewController::Navigate(const std::wstring& url) {
     if (m_webview) {
         m_webview->Navigate(url.c_str());
+    } else {
+        m_pendingNavigateUrl = url;
     }
+}
+
+void WebViewController::SetVisible(bool visible) {
+    m_isVisible = visible;
+    if (m_controller) {
+        m_controller->put_IsVisible(visible ? TRUE : FALSE);
+    }
+}
+
+bool WebViewController::IsVisible() const {
+    return m_isVisible;
 }
 
 void WebViewController::Resize(int width, int height) {
     if (m_controller) {
-        RECT bounds = { 0, 0, width, height };
+        RECT bounds = { 0, 36, width, 36 + height };
         m_controller->put_Bounds(bounds);
     }
 }
@@ -238,6 +256,11 @@ void WebViewController::SyncSessionCookie(const std::wstring& domain, const std:
     size_t slashPos = cleanDomain.find(L'/');
     if (slashPos != std::string::npos) {
         cleanDomain = cleanDomain.substr(0, slashPos);
+    }
+
+    // RFC 6265: for localhost or IP addresses, domain MUST be empty for host-only cookies in Chromium!
+    if (cleanDomain == L"localhost" || cleanDomain == L"127.0.0.1") {
+        cleanDomain = L"";
     }
 
     // Use ICoreWebView2_2 or CookieManager if available
