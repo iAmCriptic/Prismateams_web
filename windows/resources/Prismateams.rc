@@ -1,0 +1,100 @@
+#include <windows.h>
+#include <commctrl.h>
+#include "resource.h"
+
+IDI_PRISMATEAMS         ICON                    "app.ico"
+IDI_SMALL               ICON                    "app.ico"
+
+// Version Info
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704b0"
+        BEGIN
+            VALUE "CompanyName", "Prismateams"
+            VALUE "FileDescription", "Prismateams Native Desktop Client"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "Prismateams.exe"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Prismateams"
+            VALUE "OriginalFilename", "Prismateams.exe"
+            VALUE "ProductName", "Prismateams"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x407, 1200
+    END
+END
+
+// Tray Menu
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "Prismateams"
+    BEGIN
+        MENUITEM "Prismateams öffnen",           ID_TRAY_OPEN
+        MENUITEM SEPARATOR
+        MENUITEM "Netzlaufwerk (P:) öffnen",     ID_TRAY_OPEN_EXPLORER
+        MENUITEM "Netzlaufwerk verbinden",       ID_TRAY_MOUNT
+        MENUITEM "Netzlaufwerk trennen",         ID_TRAY_UNMOUNT
+        MENUITEM SEPARATOR
+        MENUITEM "Einstellungen...",             ID_TRAY_SETTINGS
+        MENUITEM "Abmelden",                     ID_TRAY_LOGOUT
+        MENUITEM SEPARATOR
+        MENUITEM "Beenden",                      ID_TRAY_EXIT
+    END
+END
+
+// Login Dialog
+IDD_LOGIN_DIALOG DIALOGEX 0, 0, 260, 240
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Prismateams - Anmeldung"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "Server-URL (z. B. https://prisma.meinefirma.de):", IDC_STATIC, 14, 12, 230, 8
+    EDITTEXT        IDC_EDIT_SERVER_URL, 14, 24, 232, 14, ES_AUTOHSCROLL
+    LTEXT           "E-Mail-Adresse:", IDC_STATIC, 14, 46, 230, 8
+    EDITTEXT        IDC_EDIT_EMAIL, 14, 58, 232, 14, ES_AUTOHSCROLL
+    LTEXT           "Passwort:", IDC_STATIC, 14, 80, 230, 8
+    EDITTEXT        IDC_EDIT_PASSWORD, 14, 92, 232, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    
+    GROUPBOX        "Zwei-Faktor-Authentifizierung (TOTP)", IDC_GROUP_2FA, 14, 112, 232, 34
+    LTEXT           "6-stelliger Code:", IDC_STATIC, 20, 126, 60, 8
+    EDITTEXT        IDC_EDIT_2FA_CODE, 85, 124, 150, 14, ES_AUTOHSCROLL | ES_NUMBER
+
+    LTEXT           "", IDC_STATIC_STATUS, 14, 154, 232, 20, SS_LEFT
+    
+    DEFPUSHBUTTON   "Anmelden", IDC_BTN_LOGIN, 14, 180, 110, 16
+    PUSHBUTTON      "Passkey / WebAuthn", IDC_BTN_PASSKEY, 136, 180, 110, 16
+    PUSHBUTTON      "Abbrechen", IDCANCEL, 100, 206, 60, 14
+END
+
+// Settings Dialog
+IDD_SETTINGS_DIALOG DIALOGEX 0, 0, 240, 160
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Prismateams - Einstellungen"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "Windows Explorer & Netzlaufwerk", IDC_STATIC, 14, 10, 212, 60
+    LTEXT           "Bevorzugter Laufwerksbuchstabe:", IDC_STATIC, 22, 26, 120, 8
+    COMBOBOX        IDC_COMBO_DRIVE_LETTER, 150, 24, 60, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Laufwerk bei App-Start automatisch verbinden", IDC_CHECK_AUTO_MOUNT, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 46, 196, 10
+    
+    GROUPBOX        "System & Start", IDC_STATIC, 14, 78, 212, 45
+    CONTROL         "Mit Windows automatisch starten (im Hintergrund)", IDC_CHECK_AUTO_START, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 22, 94, 196, 10
+
+    DEFPUSHBUTTON   "Speichern", IDOK, 64, 134, 52, 14
+    PUSHBUTTON      "Abbrechen", IDCANCEL, 124, 134, 52, 14
+END

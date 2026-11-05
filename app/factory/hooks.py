@@ -97,6 +97,12 @@ def register_request_hooks(app):
         ):
             return
 
+        # Native Desktop Client / Windows App
+        if request.headers.get('X-Requested-With') == 'com.prismateams.desktop' or (
+            request.user_agent and 'Prismateams-NativeClient' in str(request.user_agent)
+        ):
+            return
+
         origin = request.headers.get('Origin', '')
         referer = request.headers.get('Referer', '')
         sec_fetch_site = (request.headers.get('Sec-Fetch-Site') or '').strip().lower()
