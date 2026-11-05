@@ -18,6 +18,19 @@ const int IDC_NL_2FA      = 5004;
 const int IDC_NL_BTNLOGIN = 5005;
 const int IDC_NL_BTNPASSK = 5006;
 
+// Subclass procedure for Edit controls to trigger login on [Enter]
+static WNDPROC s_origEditProc = nullptr;
+static LRESULT CALLBACK EditSubclassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_KEYDOWN && wParam == VK_RETURN) {
+        HWND hParent = GetParent(hWnd);
+        if (hParent) {
+            SendMessageW(hParent, WM_COMMAND, MAKEWPARAM(IDC_NL_BTNLOGIN, BN_CLICKED), 0);
+            return 0;
+        }
+    }
+    return CallWindowProcW(s_origEditProc, hWnd, msg, wParam, lParam);
+}
+
 NativeLoginView::NativeLoginView(HWND hWndParent, HINSTANCE hInstance)
     : m_hWndParent(hWndParent), m_hInstance(hInstance) {
     SetTheme(true);
@@ -123,15 +136,24 @@ bool NativeLoginView::Create() {
     SendMessageW(m_edit2Fa, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
 
     // Buttons (Owner drawn)
-    m_btnLogin = CreateWindowExW(0, L"BUTTON", L"\x1F680 Anmelden",
+    m_btnLogin = CreateWindowExW(0, L"BUTTON", L"Anmelden",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNLOGIN, m_hInstance, nullptr);
 
-    m_btnPasskey = CreateWindowExW(0, L"BUTTON", L"\x1F511 Passkey / Windows Hello",
+    m_btnPasskey = CreateWindowExW(0, L"BUTTON", L"Passkey / Windows Hello",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNPASSK, m_hInstance, nullptr);
 
     // Pre-fill fields
     SetWindowTextW(m_editServer, SettingsManager::Instance().Get().serverUrl.c_str());
     SetWindowTextW(m_editEmail, SettingsManager::Instance().Get().lastUserEmail.c_str());
+
+    // Subclass Edit fields to support [Enter] key to submit
+    s_origEditProc = (WNDPROC)GetWindowLongPtrW(m_editPass, GWLP_WNDPROC);
+    if (s_origEditProc) {
+        SetWindowLongPtrW(m_editServer, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+        SetWindowLongPtrW(m_editEmail, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+        SetWindowLongPtrW(m_editPass, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+        SetWindowLongPtrW(m_edit2Fa, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+    }
 
     RepositionControls();
     return true;
@@ -341,7 +363,7 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
 
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(148, 163, 184) : RGB(100, 116, 139));
         SelectObject(hdc, pThis->m_hFontSub);
-        TextOutW(hdc, cardX + 78, cardY + 50, L"Nativer Login \x2014 Keine Webseite", 30);
+        TextOutW(hdc, cardX + 78, cardY + 50, L"Sichere Anmeldung am Workspace", 30);
 
         // Field Labels
         SelectObject(hdc, pThis->m_hFontBold);

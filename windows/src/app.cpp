@@ -277,19 +277,19 @@ void App::ShowPrismateamsDropdownMenu() {
     if (!hMenu) return;
 
     const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
-    std::wstring domainInfo = L"\x1F310 Server: " + serverUrl;
+    std::wstring domainInfo = L"Server: " + serverUrl;
 
     AppendMenuW(hMenu, MF_STRING | MF_DISABLED, IDM_POPUP_DOMAIN, domainInfo.c_str());
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(hMenu, MF_STRING, IDM_POPUP_BACK, L"\x25C0  Zur\xFCck\tAlt + Links");
     AppendMenuW(hMenu, MF_STRING, IDM_POPUP_FORWARD, L"\x25B6  Vorw\xE4rts\tAlt + Rechts");
     AppendMenuW(hMenu, MF_STRING, IDM_POPUP_RELOAD, L"\x21BB  Neu laden\tF5");
-    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_HOME, L"\x1F3E0  Startseite / Dashboard");
+    AppendMenuW(hMenu, MF_STRING, IDM_POPUP_HOME, L"\x2302  Startseite / Dashboard");
 
     if (WebDavManager::Instance().IsMounted()) {
         AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
         wchar_t driveLetter = WebDavManager::Instance().GetMountedDriveLetter();
-        std::wstring driveItem = L"\x1F4C1  Netzlaufwerk " + std::wstring(1, driveLetter) + L": im Explorer \xF6ffnen";
+        std::wstring driveItem = L"\x229E  Netzlaufwerk " + std::wstring(1, driveLetter) + L": im Explorer \xF6ffnen";
         AppendMenuW(hMenu, MF_STRING, IDM_POPUP_EXPLORER, driveItem.c_str());
     }
 

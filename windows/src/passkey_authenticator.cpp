@@ -51,8 +51,15 @@ PasskeyAuthResult PasskeyAuthenticator::Authenticate(HWND hWndParent, const std:
     }
 
     // Client data
+    std::string rpIdUtf8;
+    int len = WideCharToMultiByte(CP_UTF8, 0, rpId.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (len > 1) {
+        rpIdUtf8.resize(len - 1);
+        WideCharToMultiByte(CP_UTF8, 0, rpId.c_str(), -1, &rpIdUtf8[0], len, nullptr, nullptr);
+    }
+
     std::string clientDataStr = "{\"type\":\"webauthn.get\",\"challenge\":\"" + challenge + "\",\"origin\":\"https://" +
-        std::string(rpId.begin(), rpId.end()) + "\",\"crossOrigin\":false}";
+        rpIdUtf8 + "\",\"crossOrigin\":false}";
 
     WEBAUTHN_CLIENT_DATA clientData = { 0 };
     clientData.dwVersion = WEBAUTHN_CLIENT_DATA_CURRENT_VERSION;
