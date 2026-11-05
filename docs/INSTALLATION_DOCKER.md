@@ -22,78 +22,57 @@
 
 Prismateams kann als **Docker-Compose-Stack** betrieben werden:
 
-| Service | Rolle | Immer / Profile |
-|---------|--------|-----------------|
-| `app` | Flask + Gunicorn | immer |
-| `db` | MySQL 8 | immer |
-| `redis` | Redis (Sessions, Socket.IO, Limiter) | immer |
-| `eurooffice` | Euro-Office Document Server | `--profile onlyoffice` |
-| `excalidraw-room` | Live-Kollaboration | `--profile excalidraw` |
-| `mirotalk` | MiroTalk SFU (Meetings) | `--profile mirotalk` |
+| Service | Rolle | Standard (Opt-Out) | Profile |
+|---------|--------|--------------------|---------|
+| `proxy` | Nginx Reverse-Proxy (WebSockets, Euro-Office Routing) | aktiv (Opt-Out) | `proxy` |
+| `app` | Flask + Gunicorn | immer aktiv | – |
+| `db` | MySQL 8 | immer aktiv | – |
+| `redis` | Redis (Sessions, Socket.IO, Limiter) | immer aktiv | – |
+| `eurooffice` | Euro-Office Document Server | aktiv (Opt-Out) | `onlyoffice` |
+| `excalidraw-room` | Live-Kollaboration | aktiv (Opt-Out) | `excalidraw` |
+| `mirotalk` | MiroTalk SFU (Meetings) | aktiv (Opt-Out) | `mirotalk` |
 
-Die App erreicht Sidecars im Compose-Netz per **Service-Name** (`db`, `redis`, `eurooffice`, `mirotalk`, …). Der Browser erreicht Euro-Office / Excalidraw / MiroTalk typischerweise über einen **Reverse-Proxy** (`/eurooffice`, `/excalidraw-room`, `meet.`-Host).
-
-**Abgrenzung:** Der klassische Weg auf Ubuntu Server bleibt [`INSTALLATION_SCRIPT.md`](INSTALLATION_SCRIPT.md) (`scripts/install_ubuntu.sh` – venv + systemd). Diese Seite beschreibt die **reine Docker-Variante**.
-
----
-
-## Voraussetzungen
-
-- Docker Engine + Compose Plugin (v2)
-- ca. **2 GB RAM** für den Kern; **≥ 4 GB** mit Euro-Office
-- Ports: App (Standard `5000` auf Loopback), optional `8080` / `8082` / `3010` + UDP `40000–40100` (MiroTalk)
+> [!NOTE]
+> Standardmäßig sind alle Dienste (`proxy`, `eurooffice`, `excalidraw-room`, `mirotalk`) **aktiviert** und in `COMPOSE_PROFILES=proxy,onlyoffice,excalidraw,mirotalk` in der `.env` hinterlegt.
+> Der enthaltene `proxy`-Container routet automatisch `/`, `/eurooffice/`, `/cache/`, `/excalidraw-room/` und WebSockets – **Sie müssen keinen Webserver auf dem Host-Betriebssystem installieren**.
 
 ---
 
-## Docker Hub
+## 1. Universeller Schnellstart (100% OS-unabhängig)
 
-App-Image: **[iamcriptic/prismateams](https://hub.docker.com/r/iamcriptic/prismateams)**
-
-Bei Push auf `main`/`master` (relevante Pfade) oder Tag `v*` baut GitHub Actions und pusht nach Hub  
-(Workflow: [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml)).  
-Manuell: GitHub → **Actions** → **Docker Hub publish** → **Run workflow**.
-
-Compose nutzt standardmäßig `iamcriptic/prismateams:latest` (`APP_IMAGE` in `.env` überschreibbar).
-
-## Schnellstart (beliebiges OS)
+Funktioniert auf **Windows (PowerShell/CMD)**, **macOS (Terminal)** und **jedem Linux** (Debian, Arch, Fedora, openSUSE, Ubuntu etc.):
 
 ```bash
 git clone https://github.com/iAmCriptic/Prismateams_web.git
 cd Prismateams_web
-cp docs/env.docker.example .env
-# Secrets in .env setzen (mindestens MYSQL_PASSWORD, MYSQL_ROOT_PASSWORD, SECRET_KEY, Encryption-/VAPID-Keys)
 
-# Image von Hub ziehen (nach erstem erfolgreichen CI-Push):
-docker compose pull app
-docker compose up -d
-
-# Oder lokal bauen:
-docker compose up -d --build
+# Interaktiver Installer (Opt-Out für Sidecars, automatische Secrets & Start):
+python scripts/setup_docker.py
 ```
 
-Keys erzeugen (nach erstem Image-Build):
+*Oder vollautomatisch mit allen Standardwerten (Opt-Out per Flags):*
 
 ```bash
-docker compose run --rm --no-deps app python scripts/generate_encryption_keys.py
-docker compose run --rm --no-deps app python scripts/generate_vapid_keys.py
-# Ausgaben in .env eintragen, dann:
-docker compose up -d
+# Windows / macOS / Linux:
+python scripts/setup_docker.py --defaults
+
+# Einzelne Dienste abwählen (Opt-Out):
+python scripts/setup_docker.py --defaults --skip-mirotalk
 ```
 
-Portal lokal: **http://127.0.0.1:5000/** (Binding laut `APP_HOST_BIND` / `APP_HOST_PORT` in `.env`).
-
-### Mit optionalen Sidecars
-
+*Unter Linux/macOS kann alternativ das Shell-Script genutzt werden:*
 ```bash
-# .env: ONLYOFFICE_*, EXCALIDRAW_*, MIROTALK_*, SFU_ANNOUNCED_IP setzen
-docker compose --profile onlyoffice --profile excalidraw --profile mirotalk up -d --build
+bash scripts/setup_docker.sh
 ```
+
+Das Portal ist anschließend sofort unter **http://localhost** erreichbar (bzw. auf dem konfigurierten Port/Domain). Euro-Office, Excalidraw und MiroTalk sind sofort einsatzbereit.
 
 ---
 
 ## Ubuntu: Installer (reine Docker-Variante)
 
-Automatisiert Docker-CE, Repo-Clone, `.env`, `docker compose up` und optional Nginx/Apache + SSL + UFW.
+Automatisiert Docker-CE, Repo-Clone, Secrets-Generierung, `.env`, `docker compose up` und optional Nginx/Apache + SSL + UFW.
+Alle Sidecars (Euro-Office, Excalidraw, MiroTalk) sind standardmäßig vorausgewählt.
 
 ```bash
 git clone https://github.com/iAmCriptic/Prismateams_web.git
@@ -108,18 +87,28 @@ Beispiel Produktion:
 sudo bash scripts/install_ubuntu_docker.sh \
   --domain portal.example.com \
   --webserver nginx --ssl \
-  --letsencrypt-email admin@example.com \
-  --onlyoffice --excalidraw --mirotalk
+  --letsencrypt-email admin@example.com
+```
+
+Möchten Sie einzelne Dienste abwählen (Opt-Out):
+
+```bash
+sudo bash scripts/install_ubuntu_docker.sh \
+  --domain portal.example.com \
+  --webserver nginx --ssl \
+  --skip-onlyoffice
 ```
 
 | Option | Bedeutung |
 |--------|-----------|
 | `--install-dir PATH` | Standard `/var/www/teamportal` |
-| `--onlyoffice` / `--excalidraw` / `--mirotalk` | Compose-Profiles |
+| `--skip-onlyoffice` | Euro-Office Document Server abwählen (Opt-Out) |
+| `--skip-excalidraw` | Excalidraw-Room abwählen (Opt-Out) |
+| `--skip-mirotalk` | MiroTalk SFU abwählen (Opt-Out) |
 | `--webserver nginx\|apache` | Host-Proxy vor den Containern |
-| `--no-webserver` | Nur Compose (App auf Loopback-Port) |
+| `--no-webserver` | Nur Compose (App bindet auf 0.0.0.0) |
 | `--ssl` | Certbot Let's Encrypt |
-| `--non-interactive` | Keine Prompts |
+| `--non-interactive` | Keine Prompts (übernimmt alle Defaults inkl. Sidecars) |
 
 **Nicht** installiert: Host-MySQL, Host-Redis, Python-venv, `teamportal.service`.
 

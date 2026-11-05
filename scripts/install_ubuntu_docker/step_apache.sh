@@ -22,7 +22,7 @@ step_apache() {
     RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"
     LimitRequestBody 104857600
 
-$(if is_yes "${INSTALL_ONLYOFFICE:-n}"; then cat <<OO
+$(if is_yes "${INSTALL_ONLYOFFICE:-j}"; then cat <<OO
     ProxyPass /eurooffice/ http://127.0.0.1:${oo_port}/
     ProxyPassReverse /eurooffice/ http://127.0.0.1:${oo_port}/
     ProxyPass /onlyoffice/ http://127.0.0.1:${oo_port}/
@@ -32,7 +32,7 @@ $(if is_yes "${INSTALL_ONLYOFFICE:-n}"; then cat <<OO
 OO
 fi)
 
-$(if is_yes "${INSTALL_EXCALIDRAW:-n}"; then cat <<EX
+$(if is_yes "${INSTALL_EXCALIDRAW:-j}"; then cat <<EX
     ProxyPass /excalidraw-room/ http://127.0.0.1:${ex_port}/
     ProxyPassReverse /excalidraw-room/ http://127.0.0.1:${ex_port}/
 EX
@@ -47,7 +47,7 @@ EOF
 
     local _meet_host
     _meet_host=$(mirotalk_meet_hostname)
-    if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+    if is_yes "${INSTALL_MIROTALK:-j}" && [ -n "$_meet_host" ]; then
         cat > /etc/apache2/sites-available/teamportal-meet.conf <<EOF
 <VirtualHost *:80>
     ServerName ${_meet_host}

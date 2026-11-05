@@ -29,7 +29,7 @@ step_ssl() {
         fi
         local _meet_host
         _meet_host=$(mirotalk_meet_hostname)
-        if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+        if is_yes "${INSTALL_MIROTALK:-j}" && [ -n "$_meet_host" ]; then
             certbot --nginx -d "$_meet_host" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect \
                 && systemctl reload nginx \
                 || log_warning "SSL für ${_meet_host} fehlgeschlagen (DNS prüfen)"
@@ -44,7 +44,7 @@ step_ssl() {
         fi
         local _meet_host
         _meet_host=$(mirotalk_meet_hostname)
-        if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+        if is_yes "${INSTALL_MIROTALK:-j}" && [ -n "$_meet_host" ]; then
             certbot --apache -d "$_meet_host" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect \
                 && systemctl reload apache2 \
                 || log_warning "SSL für ${_meet_host} fehlgeschlagen"

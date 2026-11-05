@@ -30,13 +30,19 @@ print_summary() {
         fi
     fi
 
+    log_info "Aktive Dienste:"
+    log_info "  - Kern:      App (Flask), DB (MySQL), Redis"
+    [ -n "$(compose_profile_args)" ] && log_info "  - Sidecars:  $(compose_profile_args)"
+
     echo
     log_info "Wartung (im Install-Dir):"
     log_manual "  cd ${INSTALL_DIR:-/var/www/teamportal}"
-    log_manual "  docker compose $(compose_profile_args) ps"
-    log_manual "  docker compose $(compose_profile_args) logs -f app"
-    log_manual "  docker compose $(compose_profile_args) pull && docker compose $(compose_profile_args) up -d --build"
+    log_manual "  docker compose ps"
+    log_manual "  docker compose logs -f app"
+    log_manual "  docker compose pull && docker compose up -d --build"
     echo
+    log_info "Tipp: Da COMPOSE_PROFILES in .env hinterlegt ist, starten alle gewählten"
+    log_info "Sidecars automatisch auch bei 'docker compose up -d'."
     log_info "Kein systemd-Service teamportal – Steuerung nur über Docker Compose."
     log_info "Doku: docs/INSTALLATION_DOCKER.md"
     echo

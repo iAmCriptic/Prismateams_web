@@ -19,7 +19,7 @@ step_firewall() {
         log_info "Kein Webserver – Port ${APP_HOST_PORT:-5000} freigegeben (nur wenn öffentlich nötig)"
     fi
 
-    if is_yes "${INSTALL_MIROTALK:-n}"; then
+    if is_yes "${INSTALL_MIROTALK:-j}"; then
         ufw allow "${MIROTALK_UDP_MIN:-40000}:${MIROTALK_UDP_MAX:-40100}/udp"
         ufw allow "${MIROTALK_UDP_MIN:-40000}:${MIROTALK_UDP_MAX:-40100}/tcp"
         if ! domain_is_hostname "${DOMAIN:-}"; then

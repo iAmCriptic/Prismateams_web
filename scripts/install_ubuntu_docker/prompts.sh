@@ -17,19 +17,17 @@ gather_information() {
     prompt_or_default VAPID_CLAIM_EMAIL "VAPID Claim E-Mail" "admin@example.com"
 
     log_info ""
-    log_info "=== Optionale Sidecars (Compose-Profiles) ==="
-    prompt_yes_no INSTALL_ONLYOFFICE "Euro-Office Document Server installieren? (≥4 GB RAM)" "n"
-    prompt_yes_no INSTALL_EXCALIDRAW "Excalidraw-Room installieren?" "n"
-    prompt_yes_no INSTALL_MIROTALK "MiroTalk SFU (Meetings) installieren?" "n"
-
-    if is_yes "$INSTALL_ONLYOFFICE"; then
-        local mem_kb mem_gb
-        mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
-        mem_gb=$((mem_kb / 1024 / 1024))
-        if [ "$mem_gb" -gt 0 ] && [ "$mem_gb" -lt 4 ]; then
-            log_warning "Nur ca. ${mem_gb} GB RAM – Euro-Office kann OOM verursachen"
-        fi
+    log_info "=== Sidecars & Zusatzdienste (Standard: alle aktiv / Opt-Out) ==="
+    local mem_kb mem_gb
+    mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
+    mem_gb=$((mem_kb / 1024 / 1024))
+    if [ "$mem_gb" -gt 0 ] && [ "$mem_gb" -lt 4 ]; then
+        log_warning "Erkannt: ca. ${mem_gb} GB RAM. Euro-Office empfiehlt mindestens 4 GB RAM."
     fi
+
+    prompt_yes_no INSTALL_ONLYOFFICE "Euro-Office Document Server installieren? (≥4 GB RAM)" "j"
+    prompt_yes_no INSTALL_EXCALIDRAW "Excalidraw-Room (Live-Kollaboration) installieren?" "j"
+    prompt_yes_no INSTALL_MIROTALK "MiroTalk SFU (Video-Meetings) installieren?" "j"
 
     log_info ""
     log_info "=== Webserver (Host-Reverse-Proxy) ==="

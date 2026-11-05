@@ -43,7 +43,7 @@ step_compose() {
         docker_compose "${profiles[@]}" logs --tail 40 app || true
     fi
 
-    if is_yes "${INSTALL_ONLYOFFICE:-n}"; then
+    if is_yes "${INSTALL_ONLYOFFICE:-j}"; then
         log_info "Warte auf Euro-Office healthcheck (bis 180s)..."
         ready=0
         for i in $(seq 1 90); do
@@ -55,6 +55,18 @@ step_compose() {
             sleep 2
         done
         [ "$ready" -eq 0 ] && log_warning "Euro-Office noch nicht bereit (kann länger brauchen)"
+    fi
+
+    if is_yes "${INSTALL_EXCALIDRAW:-j}"; then
+        if curl -sf "http://127.0.0.1:${EXCALIDRAW_HOST_PORT:-8082}/" >/dev/null 2>&1; then
+            log_success "Excalidraw-Room bereit"
+        fi
+    fi
+
+    if is_yes "${INSTALL_MIROTALK:-j}"; then
+        if curl -sf "http://127.0.0.1:${MIROTALK_HOST_PORT:-3010}/" >/dev/null 2>&1; then
+            log_success "MiroTalk SFU bereit"
+        fi
     fi
 
     log_success "Compose-Stack gestartet"

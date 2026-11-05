@@ -17,6 +17,7 @@ from app.blueprints.files import onlyoffice_io as _onlyoffice_io  # noqa: F401
 from app.blueprints.files import share as _share  # noqa: F401
 from app.blueprints.files import trash as _trash  # noqa: F401
 from app.blueprints.files import upload as _upload  # noqa: F401
+from app.blueprints.files import windows_integration as _windows_integration  # noqa: F401
 
 from app.blueprints.files_browse import register_browse_routes
 

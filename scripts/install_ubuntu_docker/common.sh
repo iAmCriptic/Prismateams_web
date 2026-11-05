@@ -116,6 +116,14 @@ set_env_var() {
     fi
 }
 
+get_env_val() {
+    local key="$1"
+    local file="${2:-.env}"
+    if [ -f "$file" ]; then
+        grep "^${key}=" "$file" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d '\r'
+    fi
+}
+
 APT_LOCK_TIMEOUT="${APT_LOCK_TIMEOUT:-180}"
 UBUNTU_VERSION_ID=""
 UBUNTU_CODENAME=""
@@ -279,13 +287,13 @@ detect_public_ip() {
 
 compose_profile_args() {
     local args=()
-    if is_yes "${INSTALL_ONLYOFFICE:-n}"; then
+    if is_yes "${INSTALL_ONLYOFFICE:-j}"; then
         args+=(--profile onlyoffice)
     fi
-    if is_yes "${INSTALL_EXCALIDRAW:-n}"; then
+    if is_yes "${INSTALL_EXCALIDRAW:-j}"; then
         args+=(--profile excalidraw)
     fi
-    if is_yes "${INSTALL_MIROTALK:-n}"; then
+    if is_yes "${INSTALL_MIROTALK:-j}"; then
         args+=(--profile mirotalk)
     fi
     echo "${args[@]}"

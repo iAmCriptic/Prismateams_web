@@ -14,8 +14,8 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-teamportal}
       MYSQL_USER: ${MYSQL_USER:-teamportal}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD in .env setzen}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD in .env setzen}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-teamportal_db_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-teamportal_root_pass}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -68,6 +68,20 @@ services:
       - app_instance:/app/instance
     ports:
       - "${APP_HOST_BIND:-127.0.0.1}:${APP_HOST_PORT:-5000}:5000"
+    networks:
+      - portal
+
+  # Containerisierter Reverse-Proxy (Betriebssystemunabhängig: Windows, macOS, Linux)
+  proxy:
+    profiles: ["proxy"]
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${PORTAL_HOST_BIND:-0.0.0.0}:${PORTAL_PORT:-80}:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - portal
 

@@ -52,7 +52,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     client_max_body_size 100M;
 
-$(if is_yes "${INSTALL_ONLYOFFICE:-n}"; then cat <<OO
+$(if is_yes "${INSTALL_ONLYOFFICE:-j}"; then cat <<OO
     include /etc/nginx/snippets/teamportal-documentserver-extra.conf;
 
     location /cache {
@@ -101,7 +101,7 @@ $(if is_yes "${INSTALL_ONLYOFFICE:-n}"; then cat <<OO
 OO
 fi)
 
-$(if is_yes "${INSTALL_EXCALIDRAW:-n}"; then cat <<EX
+$(if is_yes "${INSTALL_EXCALIDRAW:-j}"; then cat <<EX
     location /excalidraw-room/ {
         proxy_pass http://127.0.0.1:${ex_port}/;
         proxy_http_version 1.1;
@@ -159,7 +159,7 @@ EOF
     local _meet_host _meet_scheme
     _meet_host=$(mirotalk_meet_hostname)
     _meet_scheme=$(mirotalk_public_scheme)
-    if is_yes "${INSTALL_MIROTALK:-n}" && [ -n "$_meet_host" ]; then
+    if is_yes "${INSTALL_MIROTALK:-j}" && [ -n "$_meet_host" ]; then
         cat > /etc/nginx/sites-available/teamportal-meet <<EOF
 server {
     listen 80;

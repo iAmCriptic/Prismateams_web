@@ -23,13 +23,13 @@ Webserver (Host-Proxy vor Containern):
   --ssl                      Let's Encrypt SSL
   --letsencrypt-email EMAIL  E-Mail für Let's Encrypt
 
-Compose-Profiles / Sidecars:
-  --onlyoffice               Euro-Office Document Server
-  --skip-onlyoffice          Euro-Office überspringen
-  --excalidraw               Excalidraw-Room
-  --skip-excalidraw          Excalidraw überspringen
-  --mirotalk                 MiroTalk SFU
-  --skip-mirotalk            MiroTalk überspringen
+Compose-Profiles / Sidecars (Standard: alle aktiv / Opt-Out):
+  --onlyoffice               Euro-Office Document Server (Standard: aktiv)
+  --skip-onlyoffice          Euro-Office abwählen (Opt-Out)
+  --excalidraw               Excalidraw-Room (Standard: aktiv)
+  --skip-excalidraw          Excalidraw abwählen (Opt-Out)
+  --mirotalk                 MiroTalk SFU (Standard: aktiv)
+  --skip-mirotalk            MiroTalk abwählen (Opt-Out)
 
 Ports:
   --app-port PORT            Host-Port der App (Standard: 5000)
