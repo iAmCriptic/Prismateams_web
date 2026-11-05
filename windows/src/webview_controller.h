@@ -26,6 +26,7 @@ public:
     bool IsVisible() const;
 
     void SyncSessionCookie(const std::wstring& domain, const std::wstring& cookieHeader);
+    void ClearAllCookies();
     void PostJsonMessage(const std::wstring& jsonMessage);
 
     bool IsInitialized() const { return m_isInitialized; }

@@ -99,10 +99,6 @@ def index():
             filter_team_id = None
 
     teams = _user_kanban_teams(current_user)
-    if filter_team_id and not any(t.id == filter_team_id for t in teams):
-        filter_team_id = None
-        section = 'all'
-
     allowed = set(get_allowed_visibilities(current_user))
     base = (
         accessible_boards_query(current_user, include_closed=False)
@@ -112,6 +108,12 @@ def index():
 
     def vis_query(vis):
         return base.filter(KanbanBoard.visibility == vis)
+
+    if filter_team_id and not any(t.id == filter_team_id for t in teams):
+        has_shared_team_board = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == filter_team_id).first() is not None
+        if not has_shared_team_board:
+            filter_team_id = None
+            section = 'all'
 
     recent_views = (
         KanbanBoardView.query.filter_by(user_id=current_user.id)
@@ -163,7 +165,21 @@ def index():
             list_has_more = pag.has_next
             list_page = pag.page
         else:
-            for team in teams:
+            team_ids_with_boards = [
+                row[0] for row in vis_query(VISIBILITY_TEAM)
+                .filter(KanbanBoard.team_id.isnot(None))
+                .with_entities(KanbanBoard.team_id)
+                .distinct()
+                .all()
+            ]
+            all_teams_map = {t.id: t for t in teams}
+            missing_team_ids = [tid for tid in team_ids_with_boards if tid not in all_teams_map]
+            if missing_team_ids:
+                for t in Team.query.filter(Team.id.in_(missing_team_ids)).order_by(Team.name).all():
+                    all_teams_map[t.id] = t
+            display_teams = sorted(all_teams_map.values(), key=lambda t: t.name.lower())
+
+            for team in display_teams:
                 q = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == team.id)
                 items, pag = paginate_list(q, page=1)
                 if items:

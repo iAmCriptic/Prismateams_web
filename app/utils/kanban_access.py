@@ -132,7 +132,9 @@ def allowed_import_board_targets(user) -> list[dict]:
 def user_team_ids(user) -> set[int]:
     if not user or not getattr(user, 'id', None):
         return set()
-    return {m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()}
+    ids = {m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()}
+    led = {t.id for t in Team.query.filter_by(leader_id=user.id).all()}
+    return ids | led
 
 
 def get_board_membership(board: KanbanBoard, user) -> KanbanBoardMember | None:
@@ -247,6 +249,10 @@ def can_edit_board(user, board: KanbanBoard) -> bool:
         return True
     if board.created_by and board.created_by == getattr(user, 'id', None):
         return True
+    if board.visibility == VISIBILITY_TEAM and board.team_id:
+        from app.utils.multi_mailboxes import can_manage_team
+        if can_manage_team(user, board.team_id):
+            return True
     membership = get_board_membership(board, user)
     if membership and membership.role in ('owner', 'admin', 'member'):
         return True
@@ -267,6 +273,10 @@ def can_manage_board(user, board: KanbanBoard) -> bool:
         return True
     if board.created_by and board.created_by == getattr(user, 'id', None):
         return True
+    if board.visibility == VISIBILITY_TEAM and board.team_id:
+        from app.utils.multi_mailboxes import can_manage_team
+        if can_manage_team(user, board.team_id):
+            return True
     membership = get_board_membership(board, user)
     return bool(membership and membership.role in ('owner', 'admin'))
 

@@ -642,6 +642,7 @@ def coderegister(code=None):
 
 
 @auth_bp.route('/desktop-login', methods=['GET'])
+@auth_bp.route('/auth/desktop-login', methods=['GET'])
 def desktop_login():
     """Desktop app SSO entry: consumes an API token and logs the web session in."""
     raw_token = request.args.get('token', '').strip()

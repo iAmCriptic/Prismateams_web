@@ -300,6 +300,23 @@ class KanbanActivity(db.Model):
     user = db.relationship('User', backref='kanban_activities')
 
 
+class KanbanActivityRead(db.Model):
+    """Tracks which user has read which Kanban activity / notification."""
+    __tablename__ = 'kanban_activity_reads'
+
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('kanban_activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    read_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    activity = db.relationship('KanbanActivity', backref=db.backref('reads', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('kanban_activity_reads', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('activity_id', 'user_id', name='unique_kanban_activity_read'),
+    )
+
+
 class KanbanBoardTemplate(db.Model):
     """Phase 2: board templates (JSON snapshot of lists/labels)."""
     __tablename__ = 'kanban_board_templates'

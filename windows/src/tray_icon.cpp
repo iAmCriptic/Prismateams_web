@@ -59,36 +59,31 @@ void TrayIcon::UpdateTooltip(const std::wstring& tooltip) {
 }
 
 void TrayIcon::ShowContextMenu(HWND hWnd) {
-    HMENU hMenu = LoadMenuW(m_hInstance, MAKEINTRESOURCEW(IDR_MAINFRAME));
+    HMENU hMenu = CreatePopupMenu();
     if (!hMenu) return;
 
-    HMENU hSubMenu = GetSubMenu(hMenu, 0);
-    if (!hSubMenu) {
-        DestroyMenu(hMenu);
-        return;
-    }
+    AppendMenuW(hMenu, MF_STRING, ID_TRAY_OPEN, L"Prismateams \xF6ffnen");
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
 
-    // Update WebDAV menu items state
     bool isMounted = WebDavManager::Instance().IsMounted();
     wchar_t driveLetter = WebDavManager::Instance().GetMountedDriveLetter();
 
-    std::wstring openExplorerText = L"Netzlaufwerk (" + std::wstring(1, driveLetter) + L":) im Explorer öffnen";
-    ModifyMenuW(hSubMenu, ID_TRAY_OPEN_EXPLORER, MF_BYCOMMAND | MF_STRING, ID_TRAY_OPEN_EXPLORER, openExplorerText.c_str());
+    std::wstring openExplorerText = L"Netzlaufwerk (" + std::wstring(1, driveLetter) + L":) im Explorer \xF6ffnen";
+    AppendMenuW(hMenu, (isMounted ? MF_STRING : (MF_STRING | MF_GRAYED)), ID_TRAY_OPEN_EXPLORER, openExplorerText.c_str());
 
-    if (isMounted) {
-        EnableMenuItem(hSubMenu, ID_TRAY_OPEN_EXPLORER, MF_BYCOMMAND | MF_ENABLED);
-        EnableMenuItem(hSubMenu, ID_TRAY_UNMOUNT, MF_BYCOMMAND | MF_ENABLED);
-        EnableMenuItem(hSubMenu, ID_TRAY_MOUNT, MF_BYCOMMAND | MF_GRAYED);
-    } else {
-        EnableMenuItem(hSubMenu, ID_TRAY_OPEN_EXPLORER, MF_BYCOMMAND | MF_GRAYED);
-        EnableMenuItem(hSubMenu, ID_TRAY_UNMOUNT, MF_BYCOMMAND | MF_GRAYED);
-        EnableMenuItem(hSubMenu, ID_TRAY_MOUNT, MF_BYCOMMAND | MF_ENABLED);
-    }
+    AppendMenuW(hMenu, (isMounted ? (MF_STRING | MF_GRAYED) : MF_STRING), ID_TRAY_MOUNT, L"Netzlaufwerk verbinden");
+    AppendMenuW(hMenu, (isMounted ? MF_STRING : (MF_STRING | MF_GRAYED)), ID_TRAY_UNMOUNT, L"Netzlaufwerk trennen");
+
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hMenu, MF_STRING, ID_TRAY_SETTINGS, L"Einstellungen...");
+    AppendMenuW(hMenu, MF_STRING, ID_TRAY_LOGOUT, L"Abmelden");
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hMenu, MF_STRING, ID_TRAY_EXIT, L"Beenden");
 
     POINT pt;
     GetCursorPos(&pt);
     SetForegroundWindow(hWnd);
-    TrackPopupMenu(hSubMenu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, pt.x, pt.y, 0, hWnd, nullptr);
+    TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, pt.x, pt.y, 0, hWnd, nullptr);
     PostMessageW(hWnd, WM_NULL, 0, 0);
 
     DestroyMenu(hMenu);

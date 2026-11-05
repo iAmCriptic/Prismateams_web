@@ -25,11 +25,7 @@ App& App::Instance() {
 
 App::~App() {
     if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
-    if (m_hBrBtnHover) DeleteObject(m_hBrBtnHover);
-    if (m_hBrCloseHover) DeleteObject(m_hBrCloseHover);
-    if (m_hPenNavBorder) DeleteObject(m_hPenNavBorder);
     if (m_hFontNav) DeleteObject(m_hFontNav);
-    if (m_hFontCaption) DeleteObject(m_hFontCaption);
 }
 
 void App::CheckSystemTheme() {
@@ -47,26 +43,15 @@ void App::SetDarkMode(bool isDark) {
     m_isDarkMode = isDark;
 
     if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
-    if (m_hBrBtnHover) DeleteObject(m_hBrBtnHover);
-    if (m_hBrCloseHover) DeleteObject(m_hBrCloseHover);
-    if (m_hPenNavBorder) DeleteObject(m_hPenNavBorder);
 
     if (m_isDarkMode) {
-        m_hBrNavbar = CreateSolidBrush(RGB(22, 22, 32));      // Antigravity dark navbar
-        m_hBrBtnHover = CreateSolidBrush(RGB(40, 40, 58));    // Hover tab
-        m_hBrCloseHover = CreateSolidBrush(RGB(225, 29, 72)); // Red close hover
-        m_hPenNavBorder = CreatePen(PS_SOLID, 1, RGB(42, 42, 60));
+        m_hBrNavbar = CreateSolidBrush(RGB(22, 22, 32));      // Dark background
     } else {
-        m_hBrNavbar = CreateSolidBrush(RGB(248, 250, 252));    // Light navbar
-        m_hBrBtnHover = CreateSolidBrush(RGB(226, 232, 240));  // Light hover
-        m_hBrCloseHover = CreateSolidBrush(RGB(225, 29, 72));
-        m_hPenNavBorder = CreatePen(PS_SOLID, 1, RGB(226, 232, 240));
+        m_hBrNavbar = CreateSolidBrush(RGB(248, 250, 252));    // Light background
     }
 
     if (!m_hFontNav) {
         m_hFontNav = CreateFontW(-12, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        m_hFontCaption = CreateFontW(-11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
     }
 
@@ -254,7 +239,7 @@ void App::OnLoginSuccess() {
             HandleFileOpen(m_initialFileArgument);
         } else if (!token.empty()) {
             // Direct SSO login via token -> lands directly on dashboard, 100% authenticated!
-            std::wstring ssoUrl = AuthManager::Instance().GetServerUrl() + L"/auth/desktop-login?token=" + token + L"&next=/dashboard";
+            std::wstring ssoUrl = AuthManager::Instance().GetServerUrl() + L"/desktop-login?token=" + token + L"&next=/dashboard";
             NavigateTo(ssoUrl);
         } else {
             NavigateTo(AuthManager::Instance().GetServerUrl() + L"/dashboard");
@@ -270,11 +255,14 @@ void App::OnLoginSuccess() {
 void App::OnLogout() {
     m_isAuthenticated = false;
 
-    // Hide WebView2
+    // Clear session cookies and hide WebView2
     if (m_webViewController) {
+        m_webViewController->ClearAllCookies();
         m_webViewController->SetVisible(false);
         m_webViewController->Navigate(L"about:blank");
     }
+
+    AuthManager::Instance().Logout();
 
     // Show native login view
     if (m_nativeLoginView) {
@@ -313,6 +301,22 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     App& app = App::Instance();
 
     switch (message) {
+    case WM_GETMINMAXINFO: {
+        MINMAXINFO* pMMI = reinterpret_cast<MINMAXINFO*>(lParam);
+        HMONITOR hMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+        if (hMon) {
+            MONITORINFO mi = { sizeof(MONITORINFO) };
+            if (GetMonitorInfoW(hMon, &mi)) {
+                // rcWork excludes the taskbar, so maximized window never covers the taskbar
+                pMMI->ptMaxPosition.x = mi.rcWork.left - mi.rcMonitor.left;
+                pMMI->ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
+                pMMI->ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
+                pMMI->ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
+            }
+        }
+        return 0;
+    }
+
     case WM_NCCALCSIZE: {
         if (wParam == TRUE) {
             if (IsZoomed(hWnd)) {
@@ -354,55 +358,7 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
             if (pt.x > winW - resizeBorder) return HTRIGHT;
         }
 
-        if (pt.y >= 0 && pt.y < TITLEBAR_HEIGHT) {
-            if (pt.x >= winW - 46) return HTCLOSE;
-            if (pt.x >= winW - 92) return HTMAXBUTTON;
-            if (pt.x >= winW - 138) return HTMINBUTTON;
-
-            if ((pt.x >= 34 && pt.x < 150) || (pt.x >= 155 && pt.x < 260)) {
-                return HTCLIENT;
-            }
-
-            return HTCAPTION;
-        }
-
         return HTCLIENT;
-    }
-
-    case WM_NCMOUSEMOVE: {
-        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-        ScreenToClient(hWnd, &pt);
-        RECT rc;
-        GetClientRect(hWnd, &rc);
-        int winW = rc.right;
-
-        int newHover = 0;
-        if (pt.y >= 0 && pt.y < TITLEBAR_HEIGHT) {
-            if (pt.x >= winW - 46) newHover = 3;       // Close
-            else if (pt.x >= winW - 92) newHover = 2;  // Maximize (Snap Layout on Win11!)
-            else if (pt.x >= winW - 138) newHover = 1; // Minimize
-        }
-
-        if (newHover != app.m_hoverCaptionBtn) {
-            app.m_hoverCaptionBtn = newHover;
-            RECT rcTop = { winW - 140, 0, winW, TITLEBAR_HEIGHT };
-            InvalidateRect(hWnd, &rcTop, FALSE);
-        }
-
-        TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_NONCLIENT | TME_LEAVE, hWnd, 0 };
-        TrackMouseEvent(&tme);
-        break;
-    }
-
-    case WM_NCMOUSELEAVE: {
-        if (app.m_hoverCaptionBtn != 0) {
-            app.m_hoverCaptionBtn = 0;
-            RECT rc;
-            GetClientRect(hWnd, &rc);
-            RECT rcTop = { rc.right - 140, 0, rc.right, TITLEBAR_HEIGHT };
-            InvalidateRect(hWnd, &rcTop, FALSE);
-        }
-        break;
     }
 
     case WM_SIZE: {
@@ -416,81 +372,18 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     case WM_PAINT: {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-
         RECT rc;
         GetClientRect(hWnd, &rc);
-        int winW = rc.right;
-
-        RECT rcTitle = { 0, 0, winW, TITLEBAR_HEIGHT };
-        FillRect(hdc, &rcTitle, app.m_hBrNavbar);
-
-        // 1. Icon
-        HICON hIcon = LoadIconW(app.m_hInstance, MAKEINTRESOURCEW(IDI_PRISMATEAMS));
-        if (hIcon) {
-            DrawIconEx(hdc, 10, 9, hIcon, 18, 18, 0, nullptr, DI_NORMAL);
-        }
-
-        // 2. Middle Title
-        const std::wstring& serverUrl = SettingsManager::Instance().Get().serverUrl;
-        std::wstring titleText = L"Prismateams Desktop \x2014 " + (serverUrl.empty() ? L"http://localhost:5000" : serverUrl);
-
-        SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, app.m_isDarkMode ? RGB(160, 174, 192) : RGB(100, 116, 139));
-        HFONT hOldFont = (HFONT)SelectObject(hdc, app.m_hFontNav);
-
-        RECT rcCenter = { 270, 0, winW - 145, TITLEBAR_HEIGHT };
-        DrawTextW(hdc, titleText.c_str(), -1, &rcCenter, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-
-        // 3. Caption Buttons
-        SelectObject(hdc, app.m_hFontCaption);
-
-        RECT rcMin = { winW - 138, 0, winW - 92, TITLEBAR_HEIGHT };
-        if (app.m_hoverCaptionBtn == 1) {
-            FillRect(hdc, &rcMin, app.m_hBrBtnHover);
-        }
-        SetTextColor(hdc, app.m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-        DrawTextW(hdc, L"\x2014", -1, &rcMin, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-        RECT rcMax = { winW - 92, 0, winW - 46, TITLEBAR_HEIGHT };
-        if (app.m_hoverCaptionBtn == 2) {
-            FillRect(hdc, &rcMax, app.m_hBrBtnHover);
-        }
-        DrawTextW(hdc, IsZoomed(hWnd) ? L"\x25F2" : L"\x25A1", -1, &rcMax, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-        RECT rcClose = { winW - 46, 0, winW, TITLEBAR_HEIGHT };
-        if (app.m_hoverCaptionBtn == 3) {
-            FillRect(hdc, &rcClose, app.m_hBrCloseHover);
-            SetTextColor(hdc, RGB(255, 255, 255));
-        }
-        DrawTextW(hdc, L"\x2715", -1, &rcClose, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-        // Separator
-        HPEN hOldPen = (HPEN)SelectObject(hdc, app.m_hPenNavBorder);
-        MoveToEx(hdc, 0, TITLEBAR_HEIGHT - 1, nullptr);
-        LineTo(hdc, winW, TITLEBAR_HEIGHT - 1);
-        SelectObject(hdc, hOldPen);
-
-        SelectObject(hdc, hOldFont);
+        FillRect(hdc, &rc, app.m_hBrNavbar);
         EndPaint(hWnd, &ps);
         return 0;
-    }
-
-    case WM_DRAWITEM: {
-        LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
-        if (pdis->CtlType == ODT_BUTTON) {
-            app.DrawNavbarButton(pdis);
-            return TRUE;
-        }
-        break;
     }
 
     case WM_COMMAND: {
         int wmId = LOWORD(wParam);
         switch (wmId) {
-        case ID_NAV_PRISMATEAMS:
-            app.ShowPrismateamsDropdownMenu();
-            break;
         case ID_NAV_SETTINGS:
+        case ID_TRAY_SETTINGS:
             app.OpenNativeSettings();
             break;
         case IDM_POPUP_BACK:
@@ -505,8 +398,35 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
         case IDM_POPUP_HOME:
             app.NavigateTo(SettingsManager::Instance().Get().serverUrl + L"/dashboard");
             break;
+        case ID_TRAY_OPEN_EXPLORER:
         case IDM_POPUP_EXPLORER:
             WebDavManager::Instance().OpenInExplorer();
+            break;
+        case ID_TRAY_MOUNT: {
+            auto creds = AuthManager::Instance().FetchWebDavCredentials();
+            if (creds.success) {
+                wchar_t assigned = L'P';
+                std::wstring err;
+                WebDavManager::Instance().MountDrive(
+                    AuthManager::Instance().GetServerUrl(),
+                    creds.username,
+                    creds.password,
+                    SettingsManager::Instance().Get().driveLetter,
+                    assigned,
+                    err
+                );
+                if (app.m_trayIcon && WebDavManager::Instance().IsMounted()) {
+                    std::wstring msg = L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich eingebunden.";
+                    app.m_trayIcon->ShowNotification(L"Prismateams", msg);
+                }
+            }
+            break;
+        }
+        case ID_TRAY_UNMOUNT:
+            WebDavManager::Instance().UnmountCurrentDrive(true);
+            if (app.m_trayIcon) {
+                app.m_trayIcon->ShowNotification(L"Prismateams", L"Netzlaufwerk getrennt.");
+            }
             break;
         case ID_TRAY_OPEN:
             ShowWindow(hWnd, SW_RESTORE);

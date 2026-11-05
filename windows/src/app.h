@@ -66,11 +66,7 @@ private:
 
     // Theme GDI objects
     HBRUSH m_hBrNavbar = nullptr;
-    HBRUSH m_hBrBtnHover = nullptr;
-    HBRUSH m_hBrCloseHover = nullptr;
-    HPEN m_hPenNavBorder = nullptr;
     HFONT m_hFontNav = nullptr;
-    HFONT m_hFontCaption = nullptr;
 };
 
 } // namespace Prismateams

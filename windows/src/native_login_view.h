@@ -41,6 +41,8 @@ private:
     HWND m_edit2Fa = nullptr;
     HWND m_btnLogin = nullptr;
     HWND m_btnPasskey = nullptr;
+    HWND m_btnMin = nullptr;
+    HWND m_btnClose = nullptr;
     HWND m_lblStatus = nullptr;
 
     bool m_isDarkMode = true;

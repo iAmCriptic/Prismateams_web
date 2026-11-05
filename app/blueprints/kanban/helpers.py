@@ -31,6 +31,7 @@ from app.models.comment import Comment
 from app.models.public_share import PublicShare
 from app.models.kanban import (
     KanbanActivity,
+    KanbanActivityRead,
     KanbanAttachment,
     KanbanBoard,
     KanbanBoardMember,
@@ -785,9 +786,11 @@ def _user_kanban_teams(user):
     if VISIBILITY_TEAM not in get_allowed_visibilities(user):
         return []
     team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()]
-    if not team_ids:
+    led_ids = [t.id for t in Team.query.filter_by(leader_id=user.id).all()]
+    all_ids = set(team_ids) | set(led_ids)
+    if not all_ids:
         return []
-    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    return Team.query.filter(Team.id.in_(all_ids)).order_by(Team.name).all()
 
 
 def _user_may_use_team(user, team_id: int) -> bool:

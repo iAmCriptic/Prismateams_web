@@ -235,6 +235,8 @@ def api_move_card(board_id):
     card = KanbanCard.query.get_or_404(card_id)
     if card.list.board_id != board.id:
         return jsonify({'error': 'Wrong board'}), 400
+    old_list_id = card.list_id
+    old_list_title = card.list.title if card.list else ''
     lst = KanbanList.query.filter_by(id=list_id, board_id=board.id).first_or_404()
     card.list_id = lst.id
     card.position = position
@@ -248,6 +250,8 @@ def api_move_card(board_id):
     siblings.insert(max(0, min(position, len(siblings))), card)
     for i, c in enumerate(siblings):
         c.position = i
+    if old_list_id != lst.id:
+        _log_activity(board.id, 'card_moved', detail=f"{old_list_title} → {lst.title}", card_id=card.id)
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_moved', payload)
@@ -318,10 +322,10 @@ def api_toggle_assignee(card_id):
     uname = (target_user.full_name or target_user.name or target_user.email) if target_user else str(user_id)
     if existing:
         db.session.delete(existing)
-        _log_activity(board.id, 'assignee_removed', detail=uname, card_id=card.id)
+        _log_activity(board.id, 'assignee_removed', detail=f"{user_id}::{uname}", card_id=card.id)
     else:
         db.session.add(KanbanCardAssignee(card_id=card.id, user_id=user_id))
-        _log_activity(board.id, 'assignee_added', detail=uname, card_id=card.id)
+        _log_activity(board.id, 'assignee_added', detail=f"{user_id}::{uname}", card_id=card.id)
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -445,7 +449,12 @@ def api_checklist_item(item_id):
                 return jsonify({'error': 'Invalid due_date'}), 400
     if 'assignee_id' in data:
         raw_assignee = data.get('assignee_id')
+        cl_title = item.checklist.title if item.checklist else 'Checkliste'
         if raw_assignee in (None, ''):
+            if item.assignee_id:
+                prev_user = User.query.get(item.assignee_id)
+                pname = (prev_user.full_name or prev_user.email) if prev_user else str(item.assignee_id)
+                _log_activity(board.id, 'checklist_assignee_removed', detail=f"{item.assignee_id}::{pname}::{cl_title}::{item.text}", card_id=card.id)
             item.assignee_id = None
         else:
             try:
@@ -454,7 +463,11 @@ def api_checklist_item(item_id):
                 return jsonify({'error': 'Invalid assignee_id'}), 400
             if not is_effective_board_member(board, assignee_id):
                 return jsonify({'error': 'Assignee is not a board member'}), 400
-            item.assignee_id = assignee_id
+            if item.assignee_id != assignee_id:
+                item.assignee_id = assignee_id
+                target_user = User.query.get(assignee_id)
+                uname = (target_user.full_name or target_user.email) if target_user else str(assignee_id)
+                _log_activity(board.id, 'checklist_assignee_added', detail=f"{assignee_id}::{uname}::{cl_title}::{item.text}", card_id=card.id)
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)

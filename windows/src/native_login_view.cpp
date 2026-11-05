@@ -17,6 +17,8 @@ const int IDC_NL_PASS     = 5003;
 const int IDC_NL_2FA      = 5004;
 const int IDC_NL_BTNLOGIN = 5005;
 const int IDC_NL_BTNPASSK = 5006;
+const int IDC_NL_BTNMIN   = 5007;
+const int IDC_NL_BTNCLOSE = 5008;
 
 // Subclass procedure for Edit controls to trigger login on [Enter]
 static WNDPROC s_origEditProc = nullptr;
@@ -142,6 +144,13 @@ bool NativeLoginView::Create() {
     m_btnPasskey = CreateWindowExW(0, L"BUTTON", L"Passkey / Windows Hello",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNPASSK, m_hInstance, nullptr);
 
+    // Window controls for frameless mode (Minimize, Close)
+    m_btnMin = CreateWindowExW(0, L"BUTTON", L"\x2014",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNMIN, m_hInstance, nullptr);
+
+    m_btnClose = CreateWindowExW(0, L"BUTTON", L"\x2715",
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNCLOSE, m_hInstance, nullptr);
+
     // Pre-fill fields
     SetWindowTextW(m_editServer, SettingsManager::Instance().Get().serverUrl.c_str());
     SetWindowTextW(m_editEmail, SettingsManager::Instance().Get().lastUserEmail.c_str());
@@ -222,6 +231,10 @@ void NativeLoginView::RepositionControls() {
 
     // Passkey Button
     SetWindowPos(m_btnPasskey, nullptr, contentX, curY, contentW, 32, SWP_NOZORDER);
+
+    // Window controls at top right
+    SetWindowPos(m_btnMin, nullptr, winW - 88, 8, 38, 28, SWP_NOZORDER);
+    SetWindowPos(m_btnClose, nullptr, winW - 46, 8, 38, 28, SWP_NOZORDER);
 
     InvalidateRect(m_hWnd, nullptr, TRUE);
 }
@@ -321,6 +334,14 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
     if (!pThis) return DefWindowProcW(hWnd, message, wParam, lParam);
 
     switch (message) {
+    case WM_LBUTTONDOWN: {
+        POINT curPt;
+        GetCursorPos(&curPt);
+        ReleaseCapture();
+        SendMessageW(pThis->m_hWndParent, WM_NCLBUTTONDOWN, HTCAPTION, MAKELPARAM(curPt.x, curPt.y));
+        return 0;
+    }
+
     case WM_PAINT: {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
@@ -411,6 +432,29 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
             RECT rc = pdis->rcItem;
             bool isSelected = (pdis->itemState & ODS_SELECTED);
 
+            if (pdis->CtlID == IDC_NL_BTNCLOSE) {
+                HBRUSH hBr = isSelected ? CreateSolidBrush(RGB(225, 29, 72)) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(35, 35, 48)) : CreateSolidBrush(RGB(226, 232, 240)));
+                FillRect(hdc, &rc, hBr);
+                DeleteObject(hBr);
+                SetBkMode(hdc, TRANSPARENT);
+                SetTextColor(hdc, isSelected ? RGB(255, 255, 255) : (pThis->m_isDarkMode ? RGB(200, 200, 210) : RGB(80, 80, 90)));
+                HFONT hOldFont = (HFONT)SelectObject(hdc, pThis->m_hFontBold);
+                DrawTextW(hdc, L"\x2715", -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                SelectObject(hdc, hOldFont);
+                return TRUE;
+            }
+            if (pdis->CtlID == IDC_NL_BTNMIN) {
+                HBRUSH hBr = isSelected ? (pThis->m_isDarkMode ? CreateSolidBrush(RGB(50, 50, 70)) : CreateSolidBrush(RGB(200, 200, 210))) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(35, 35, 48)) : CreateSolidBrush(RGB(226, 232, 240)));
+                FillRect(hdc, &rc, hBr);
+                DeleteObject(hBr);
+                SetBkMode(hdc, TRANSPARENT);
+                SetTextColor(hdc, pThis->m_isDarkMode ? RGB(200, 200, 210) : RGB(80, 80, 90));
+                HFONT hOldFont = (HFONT)SelectObject(hdc, pThis->m_hFontBold);
+                DrawTextW(hdc, L"\x2014", -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                SelectObject(hdc, hOldFont);
+                return TRUE;
+            }
+
             HBRUSH hBr = (pdis->CtlID == IDC_NL_BTNLOGIN) ? pThis->m_hBrBtnPrimary : pThis->m_hBrBtnSecondary;
             HPEN hPen = (pdis->CtlID == IDC_NL_BTNLOGIN) ? pThis->m_hPenCardBorder : pThis->m_hPenInputBorder;
 
@@ -444,6 +488,12 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
             return 0;
         } else if (wmId == IDC_NL_BTNPASSK) {
             pThis->PerformPasskeyLogin();
+            return 0;
+        } else if (wmId == IDC_NL_BTNMIN) {
+            ShowWindow(pThis->m_hWndParent, SW_MINIMIZE);
+            return 0;
+        } else if (wmId == IDC_NL_BTNCLOSE) {
+            PostMessageW(pThis->m_hWndParent, WM_CLOSE, 0, 0);
             return 0;
         }
         break;

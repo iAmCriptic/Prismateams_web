@@ -133,6 +133,43 @@ void WebViewController::SetupEventHandlers() {
         ).Get(),
         nullptr
     );
+
+    // Navigation failure / Offline fallback
+    m_webview->add_NavigationCompleted(
+        Callback<ICoreWebView2NavigationCompletedEventHandler>(
+            [this](ICoreWebView2* sender, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
+                BOOL isSuccess = TRUE;
+                args->get_IsSuccess(&isSuccess);
+                if (!isSuccess) {
+                    COREWEBVIEW2_WEB_ERROR_STATUS status;
+                    args->get_WebErrorStatus(&status);
+                    std::wstring offlineHtml =
+                        L"<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                        L"<style>"
+                        L"body { background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }"
+                        L".card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 36px 40px; text-align: center; max-width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }"
+                        L"h2 { margin: 14px 0 8px; font-size: 20px; font-weight: 600; }"
+                        L"p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }"
+                        L".btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 38px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; margin-bottom: 10px; text-decoration: none; }"
+                        L".btn-primary { background: #3b82f6; color: #fff; }"
+                        L".btn-secondary { background: #334155; color: #e2e8f0; }"
+                        L".btn-danger { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }"
+                        L"</style></head><body>"
+                        L"<div class='card'>"
+                        L"<svg width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='#f59e0b' stroke-width='2'><path d='M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01'/></svg>"
+                        L"<h2>Verbindung nicht m\xF6glich</h2>"
+                        L"<p>Der Server ist nicht erreichbar oder es besteht keine Internetverbindung.<br><small style='color:#64748b;'>" + AuthManager::Instance().GetServerUrl() + L"</small></p>"
+                        L"<button class='btn btn-primary' onclick='location.reload()'>Erneut versuchen</button>"
+                        L"<button class='btn btn-secondary' onclick='window.prismateamsNative.openSettings()'>Einstellungen</button>"
+                        L"<button class='btn btn-danger' onclick='window.prismateamsNative.logout()'>Server wechseln / Abmelden</button>"
+                        L"</div></body></html>";
+                    m_webview->NavigateToString(offlineHtml.c_str());
+                }
+                return S_OK;
+            }
+        ).Get(),
+        nullptr
+    );
 }
 
 void WebViewController::InjectNativeBridgeScript() {
@@ -159,9 +196,8 @@ void WebViewController::InjectNativeBridgeScript() {
         L"    if (e.button !== 0) return;"
         L"    var el = e.target;"
         L"    if (!el) return;"
-        L"    var interactive = el.closest('button, a, input, select, textarea, [role=\"button\"], [contenteditable=\"true\"], .top-navbar-icon-btn, .btn, .dropdown-menu, .modal');"
-        L"    if (interactive) return;"
-        L"    var nav = el.closest('.top-navbar, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
+        L"    if (el.closest('.pt-desktop-win-controls, button, input, select, textarea, .top-navbar-icon-btn, .dropdown-menu, .modal')) return;"
+        L"    var nav = el.closest('.top-navbar, #desktopTopNav, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
         L"    var isTopArea = e.clientY <= 56;"
         L"    if (nav || isTopArea) {"
         L"      window.chrome.webview.postMessage(JSON.stringify({action: 'start_drag'}));"
@@ -171,14 +207,112 @@ void WebViewController::InjectNativeBridgeScript() {
         L"    if (e.button !== 0) return;"
         L"    var el = e.target;"
         L"    if (!el) return;"
-        L"    var interactive = el.closest('button, a, input, select, textarea, [role=\"button\"], .top-navbar-icon-btn, .btn');"
-        L"    if (interactive) return;"
-        L"    var nav = el.closest('.top-navbar, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
+        L"    if (el.closest('.pt-desktop-win-controls, button, input, select, textarea, .top-navbar-icon-btn, .dropdown-menu, .modal')) return;"
+        L"    var nav = el.closest('.top-navbar, #desktopTopNav, .navbar, nav, header, [data-drag-region], [data-tauri-drag-region]');"
         L"    var isTopArea = e.clientY <= 56;"
         L"    if (nav || isTopArea) {"
         L"      window.chrome.webview.postMessage(JSON.stringify({action: 'toggle_maximize'}));"
         L"    }"
         L"  }"
+        L"  function ensureWindowControls() {"
+        L"    var host = document.querySelector('.top-navbar-actions') || document.querySelector('#desktopTopNav');"
+        L"    if (!host || document.getElementById('ptDesktopWinControls')) return;"
+        L"    var container = document.createElement('div');"
+        L"    container.id = 'ptDesktopWinControls';"
+        L"    container.className = 'pt-desktop-win-controls';"
+        L"    container.style.display = 'inline-flex';"
+        L"    container.style.alignItems = 'center';"
+        L"    container.style.marginLeft = '12px';"
+        L"    container.style.gap = '2px';"
+        L"    container.style.height = '100%';"
+        L"    container.style.userSelect = 'none';"
+        L"    var btnBase = 'display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;border:none;background:transparent;color:inherit;font-size:12px;cursor:pointer;opacity:0.85;border-radius:4px;padding:0;';"
+        L"    var btnMin = document.createElement('button');"
+        L"    btnMin.type = 'button';"
+        L"    btnMin.title = 'Minimieren';"
+        L"    btnMin.style.cssText = btnBase;"
+        L"    btnMin.innerHTML = '<svg width=\"10\" height=\"2\" viewBox=\"0 0 10 2\"><rect width=\"10\" height=\"2\" fill=\"currentColor\"/></svg>';"
+        L"    btnMin.onmouseenter = function() { btnMin.style.backgroundColor = 'rgba(255,255,255,0.12)'; btnMin.style.opacity = '1'; };"
+        L"    btnMin.onmouseleave = function() { btnMin.style.backgroundColor = 'transparent'; btnMin.style.opacity = '0.85'; };"
+        L"    btnMin.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.minimize(); };"
+        L"    var btnMax = document.createElement('button');"
+        L"    btnMax.type = 'button';"
+        L"    btnMax.title = 'Maximieren / Wiederherstellen';"
+        L"    btnMax.style.cssText = btnBase;"
+        L"    btnMax.innerHTML = '<svg width=\"10\" height=\"10\" viewBox=\"0 0 10 10\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/></svg>';"
+        L"    btnMax.onmouseenter = function() { btnMax.style.backgroundColor = 'rgba(255,255,255,0.12)'; btnMax.style.opacity = '1'; };"
+        L"    btnMax.onmouseleave = function() { btnMax.style.backgroundColor = 'transparent'; btnMax.style.opacity = '0.85'; };"
+        L"    btnMax.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.maximize(); };"
+        L"    var btnClose = document.createElement('button');"
+        L"    btnClose.type = 'button';"
+        L"    btnClose.title = 'Schlie\\u00dfen';"
+        L"    btnClose.style.cssText = btnBase;"
+        L"    btnClose.innerHTML = '<svg width=\"10\" height=\"10\" viewBox=\"0 0 10 10\"><path d=\"M1 1 L9 9 M9 1 L1 9\" stroke=\"currentColor\" stroke-width=\"1.4\"/></svg>';"
+        L"    btnClose.onmouseenter = function() { btnClose.style.backgroundColor = '#e11d48'; btnClose.style.color = '#fff'; btnClose.style.opacity = '1'; };"
+        L"    btnClose.onmouseleave = function() { btnClose.style.backgroundColor = 'transparent'; btnClose.style.color = 'inherit'; btnClose.style.opacity = '0.85'; };"
+        L"    btnClose.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.close(); };"
+        L"    container.appendChild(btnMin);"
+        L"    container.appendChild(btnMax);"
+        L"    container.appendChild(btnClose);"
+        L"    host.appendChild(container);"
+        L"  }"
+        L"  function ensureSettingsIntegration() {"
+        L"    var popup = document.querySelector('#accountPopup, .account-popup');"
+        L"    if (popup && !document.getElementById('ptDesktopAccountLinks')) {"
+        L"      var container = document.createElement('div');"
+        L"      container.id = 'ptDesktopAccountLinks';"
+        L"      container.style.cssText = 'border-top:1px solid rgba(127,127,127,0.2);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:4px;text-align:left;';"
+        L"      var linkSettings = document.createElement('a');"
+        L"      linkSettings.href = '#';"
+        L"      linkSettings.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:inherit;text-decoration:none;padding:6px 12px;border-radius:6px;cursor:pointer;';"
+        L"      linkSettings.innerHTML = '<i class=\"bi bi-laptop\"></i> <span>Desktop-Einstellungen</span>';"
+        L"      linkSettings.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.openSettings(); };"
+        L"      var linkMount = document.createElement('a');"
+        L"      linkMount.href = '#';"
+        L"      linkMount.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:inherit;text-decoration:none;padding:6px 12px;border-radius:6px;cursor:pointer;';"
+        L"      linkMount.innerHTML = '<i class=\"bi bi-folder2-open\"></i> <span>Netzlaufwerk (P:) \xF6ffnen</span>';"
+        L"      linkMount.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.openExplorer(); };"
+        L"      var linkLogout = document.createElement('a');"
+        L"      linkLogout.href = '#';"
+        L"      linkLogout.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:#ef4444;text-decoration:none;padding:6px 12px;border-radius:6px;cursor:pointer;';"
+        L"      linkLogout.innerHTML = '<i class=\"bi bi-box-arrow-right\"></i> <span>Aus Desktop-App abmelden</span>';"
+        L"      linkLogout.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.logout(); };"
+        L"      container.appendChild(linkSettings);"
+        L"      container.appendChild(linkMount);"
+        L"      container.appendChild(linkLogout);"
+        L"      popup.appendChild(container);"
+        L"    }"
+        L"    if (window.location.pathname.indexOf('/settings') !== -1 && !document.getElementById('ptDesktopSettingsCard')) {"
+        L"      var links = document.querySelectorAll('a');"
+        L"      var targetContainer = null;"
+        L"      for (var i = 0; i < links.length; i++) {"
+        L"        var t = (links[i].textContent || '').trim();"
+        L"        if (t.indexOf('Profil') === 0 && links[i].parentElement) {"
+        L"          targetContainer = links[i].parentElement;"
+        L"          var card = document.createElement('a');"
+        L"          card.id = 'ptDesktopSettingsCard';"
+        L"          card.href = '#';"
+        L"          card.className = links[i].className;"
+        L"          card.style.cursor = 'pointer';"
+        L"          card.innerHTML = '<div style=\"display:flex;align-items:center;gap:12px;width:100%;\"><div style=\"width:40px;height:40px;border-radius:10px;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;\"><i class=\"bi bi-laptop\"></i></div><div style=\"flex:1;\"><div style=\"font-weight:600;\">Desktop-App</div><div style=\"font-size:12px;opacity:0.75;\">Netzlaufwerk & App-Optionen</div></div><i class=\"bi bi-chevron-right\"></i></div>';"
+        L"          card.onclick = function(e) { e.preventDefault(); window.prismateamsNative.openSettings(); };"
+        L"          targetContainer.appendChild(card);"
+        L"          break;"
+        L"        }"
+        L"      }"
+        L"    }"
+        L"  }"
+        L"  function initAll() {"
+        L"    ensureWindowControls();"
+        L"    ensureSettingsIntegration();"
+        L"  }"
+        L"  if (document.readyState === 'loading') {"
+        L"    document.addEventListener('DOMContentLoaded', initAll);"
+        L"  } else {"
+        L"    initAll();"
+        L"  }"
+        L"  var obs = new MutationObserver(initAll);"
+        L"  obs.observe(document.documentElement, { childList: true, subtree: true });"
         L"  window.addEventListener('mousedown', onMouseDown, true);"
         L"  window.addEventListener('dblclick', onDblClick, true);"
         L"})();";
@@ -188,8 +322,10 @@ void WebViewController::InjectNativeBridgeScript() {
 
 void WebViewController::HandleWebMessage(const std::wstring& message) {
     if (message.find(L"\"start_drag\"") != std::string::npos) {
+        POINT pt;
+        GetCursorPos(&pt);
         ReleaseCapture();
-        SendMessageW(m_hWndParent, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+        SendMessageW(m_hWndParent, WM_NCLBUTTONDOWN, HTCAPTION, MAKELPARAM(pt.x, pt.y));
     } else if (message.find(L"\"minimize\"") != std::string::npos) {
         ShowWindow(m_hWndParent, SW_MINIMIZE);
     } else if (message.find(L"\"toggle_maximize\"") != std::string::npos || message.find(L"\"maximize\"") != std::string::npos) {
@@ -226,6 +362,7 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
     } else if (message.find(L"\"logout\"") != std::string::npos) {
         AuthManager::Instance().Logout();
         WebDavManager::Instance().UnmountCurrentDrive(true);
+        ClearAllCookies();
         PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2006, 0), 0); // ID_TRAY_LOGOUT
     }
 }
@@ -316,6 +453,17 @@ void WebViewController::SyncSessionCookie(const std::wstring& domain, const std:
                     cookieManager->AddOrUpdateCookie(cookie.Get());
                 }
             }
+        }
+    }
+}
+
+void WebViewController::ClearAllCookies() {
+    if (!m_webview) return;
+    ComPtr<ICoreWebView2_2> webview2;
+    if (SUCCEEDED(m_webview.As(&webview2)) && webview2) {
+        ComPtr<ICoreWebView2CookieManager> cookieManager;
+        if (SUCCEEDED(webview2->get_CookieManager(&cookieManager)) && cookieManager) {
+            cookieManager->DeleteAllCookies();
         }
     }
 }

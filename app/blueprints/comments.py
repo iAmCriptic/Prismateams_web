@@ -236,7 +236,19 @@ def create_comment(content_type, content_id):
     
     db.session.add(comment)
     db.session.commit()
-    
+
+    if content_type == 'kanban_card':
+        try:
+            from app.models.kanban import KanbanCard
+            card = KanbanCard.query.get(content_id)
+            if card and card.list:
+                from app.blueprints.kanban.helpers import _log_activity
+                snippet = (content[:80] + '…') if len(content) > 80 else content
+                _log_activity(card.list.board_id, 'comment_added', detail=snippet, card_id=card.id)
+                db.session.commit()
+        except Exception:
+            pass
+
     # Verarbeite Mentions
     mentions = process_mentions(content, comment.id)
     

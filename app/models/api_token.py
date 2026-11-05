@@ -75,6 +75,9 @@ class ApiToken(db.Model):
                 return row
         return None
 
+    def is_valid(self):
+        return not self.is_expired()
+
     def is_expired(self):
         if self.expires_at is None:
             return False

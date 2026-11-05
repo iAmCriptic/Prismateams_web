@@ -2018,25 +2018,28 @@
     const portalList = document.getElementById('kanbanPortalUsersList');
     const userSelect = document.getElementById('kanbanAddUserSelect');
     try {
-      const [membersData, candidatesData] = await Promise.all([
-        api(`/kanban/api/boards/${boardId}/members`),
-        canManage ? api(`/kanban/api/boards/${boardId}/candidate_users`) : Promise.resolve({ users: [] }),
-      ]);
-
+      const membersData = await api(`/kanban/api/boards/${boardId}/members`);
       if (membersData && membersData.members) {
         board.members = membersData.members;
         renderBoardMembers();
         renderPortalUsersRows(membersData.members);
       }
-
-      if (userSelect && candidatesData && candidatesData.users) {
-        const nonMembers = candidatesData.users.filter((u) => !u.is_member);
-        userSelect.innerHTML = '<option value="">Benutzer auswählen…</option>' +
-          nonMembers.map((u) => `<option value="${u.id}">${esc(u.name || u.email)} (${esc(u.email || '')})</option>`).join('');
-      }
     } catch (err) {
       if (portalList) {
         portalList.innerHTML = `<tr><td colspan="4" class="text-danger small">${esc(err.message || 'Fehler beim Laden der Portalsnutzer')}</td></tr>`;
+      }
+    }
+
+    if (canManage && userSelect) {
+      try {
+        const candidatesData = await api(`/kanban/api/boards/${boardId}/candidate_users`);
+        if (candidatesData && candidatesData.users) {
+          const nonMembers = candidatesData.users.filter((u) => !u.is_member);
+          userSelect.innerHTML = '<option value="">Benutzer auswählen…</option>' +
+            nonMembers.map((u) => `<option value="${u.id}">${esc(u.name || u.email)} (${esc(u.email || '')})</option>`).join('');
+        }
+      } catch (err) {
+        userSelect.innerHTML = `<option value="">${esc(err.message || 'Fehler beim Laden der Benutzer')}</option>`;
       }
     }
   }
@@ -2070,7 +2073,7 @@
             </div>
           </td>
           <td>
-            ${canManage && !m.is_owner && m.is_explicit ? `
+            ${canManage && !m.is_owner ? `
               <select class="form-select form-select-sm kanban-pill-input" data-change-role="${m.id}" style="width: auto; min-width: 8.5rem;">
                 <option value="member" ${m.role === 'member' ? 'selected' : ''}>Mitglied</option>
                 <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Administrator</option>

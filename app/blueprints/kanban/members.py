@@ -121,7 +121,7 @@ def api_board_members(board_id):
     role_labels = {'owner': 'Inhaber', 'admin': 'Administrator', 'member': 'Mitglied'}
     user_name = target_user.full_name or target_user.email
     act_type = 'member_updated' if is_update else 'member_added'
-    _log_activity(board.id, act_type, f"{user_name} ({role_labels.get(role, role)})")
+    _log_activity(board.id, act_type, f"{user_id}::{user_name} ({role_labels.get(role, role)})")
     db.session.commit()
     _emit_board(board.id, 'members_updated', {'board_id': board.id})
     return jsonify({
@@ -149,7 +149,7 @@ def api_candidate_users(board_id):
         if not has_module_access(u, 'module_kanban'):
             continue
         display_name = u.full_name or u.email or f'User {u.id}'
-        search_haystack = f"{display_name} {u.email or ''} {u.username or ''}".lower()
+        search_haystack = f"{display_name} {u.email or ''}".lower()
         if q and q not in search_haystack:
             continue
         brief = _user_brief(u)
@@ -178,7 +178,7 @@ def api_remove_member(board_id, user_id):
         target_user = User.query.get(user_id)
         user_name = (target_user.full_name or target_user.email) if target_user else str(user_id)
         db.session.delete(m)
-        _log_activity(board.id, 'member_removed', user_name)
+        _log_activity(board.id, 'member_removed', f"{user_id}::{user_name}")
         db.session.commit()
         _emit_board(board.id, 'members_updated', {'board_id': board.id})
     return jsonify({

@@ -91,6 +91,7 @@ from .kanban import (
     KanbanAttachment,
     KanbanCardVote,
     KanbanActivity,
+    KanbanActivityRead,
     KanbanBoardTemplate,
     KanbanBoardView,
     KanbanCustomFieldCategory,

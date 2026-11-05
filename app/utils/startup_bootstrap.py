@@ -206,6 +206,15 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                             pass
 
                     table_names = inspector.get_table_names()
+                    if 'kanban_activity_reads' not in table_names:
+                        try:
+                            from app.models.kanban import KanbanActivityRead
+                            log_startup("[INFO] Erstelle kanban_activity_reads ...")
+                            KanbanActivityRead.__table__.create(db.engine, checkfirst=True)
+                            log_startup("[OK] kanban_activity_reads erstellt")
+                        except Exception as e:
+                            log_startup(f"[WARN] kanban_activity_reads konnte nicht erstellt werden: {e}")
+
                     if 'credential_folders' not in table_names:
                         log_startup("[INFO] Erstelle credential_folders ...")
                         CredentialFolder.__table__.create(db.engine, checkfirst=True)
