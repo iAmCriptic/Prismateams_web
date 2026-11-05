@@ -127,31 +127,47 @@ def api_card(card_id):
 
     if request.method == 'DELETE':
         bid = board.id
+        card_title = card.title
+        card_id_num = card.id
         db.session.delete(card)
+        _log_activity(bid, 'card_deleted', detail=card_title, card_id=card_id_num)
         db.session.commit()
         _emit_board(bid, 'card_deleted', {'id': card_id})
         return jsonify({'success': True})
 
     data = request.get_json(silent=True) or {}
     if 'title' in data:
-        card.title = (data['title'] or card.title).strip() or card.title
+        new_title = (data['title'] or card.title).strip() or card.title
+        if new_title != card.title:
+            _log_activity(board.id, 'card_updated', detail=f'{card.title} → {new_title}', card_id=card.id)
+            card.title = new_title
     if 'description' in data:
         card.description = data.get('description')
     if 'poll_text' in data:
         raw_poll = data.get('poll_text')
         if raw_poll is None or str(raw_poll).strip() == '':
+            if card.poll_text:
+                _log_activity(board.id, 'poll_deleted', detail=card.poll_text, card_id=card.id)
             card.poll_text = None
             # Clear votes when poll removed
             KanbanCardVote.query.filter_by(card_id=card.id).delete()
         else:
-            card.poll_text = str(raw_poll).strip()
+            new_poll = str(raw_poll).strip()
+            if new_poll != card.poll_text:
+                _log_activity(board.id, 'card_updated', detail=f'Abstimmung: {new_poll}', card_id=card.id)
+            card.poll_text = new_poll
     if 'due_date' in data:
         raw = data.get('due_date')
         if not raw:
+            if card.due_date:
+                _log_activity(board.id, 'due_date_cleared', card_id=card.id)
             card.due_date = None
         else:
             try:
-                card.due_date = datetime.fromisoformat(str(raw).replace('Z', ''))
+                new_due = datetime.fromisoformat(str(raw).replace('Z', ''))
+                if new_due != card.due_date:
+                    card.due_date = new_due
+                    _log_activity(board.id, 'due_date_updated', detail=new_due.strftime('%d.%m.%Y, %H:%M'), card_id=card.id)
             except ValueError:
                 pass
     if 'archived' in data:
@@ -168,11 +184,14 @@ def api_card(card_id):
     if 'cover_attachment_id' in data:
         cid = data.get('cover_attachment_id')
         if cid is None:
+            if card.cover_attachment_id is not None:
+                _log_activity(board.id, 'cover_removed', card_id=card.id)
             card.cover_attachment_id = None
         else:
             att = KanbanAttachment.query.filter_by(id=int(cid), card_id=card.id).first()
             if att:
                 card.cover_attachment_id = att.id
+                _log_activity(board.id, 'cover_updated', detail=att.original_filename or att.filename, card_id=card.id)
     if 'list_id' in data or 'position' in data:
         new_list_id = int(data.get('list_id') or card.list_id)
         new_list = KanbanList.query.filter_by(id=new_list_id, board_id=board.id).first()
@@ -272,9 +291,11 @@ def api_toggle_card_label(card_id):
     if existing:
         db.session.delete(existing)
         attached = False
+        _log_activity(board.id, 'label_removed', detail=label.name, card_id=card.id)
     else:
         db.session.add(KanbanCardLabel(card_id=card.id, label_id=label.id))
         attached = True
+        _log_activity(board.id, 'label_added', detail=label.name, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -293,10 +314,14 @@ def api_toggle_assignee(card_id):
     if not is_effective_board_member(board, user_id):
         return jsonify({'error': 'Assignee is not a board member'}), 400
     existing = KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=user_id).first()
+    target_user = User.query.get(user_id)
+    uname = (target_user.full_name or target_user.name or target_user.email) if target_user else str(user_id)
     if existing:
         db.session.delete(existing)
+        _log_activity(board.id, 'assignee_removed', detail=uname, card_id=card.id)
     else:
         db.session.add(KanbanCardAssignee(card_id=card.id, user_id=user_id))
+        _log_activity(board.id, 'assignee_added', detail=uname, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -311,12 +336,14 @@ def api_create_checklist(card_id):
     if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
+    title = (data.get('title') or 'Checkliste').strip()
     cl = KanbanChecklist(
         card_id=card.id,
-        title=(data.get('title') or 'Checkliste').strip(),
+        title=title,
         position=len(card.checklists),
     )
     db.session.add(cl)
+    _log_activity(board.id, 'checklist_added', detail=title, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -332,7 +359,9 @@ def api_checklist(checklist_id):
     if not _can_edit_board_ctx(board):
         return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
+        cl_title = cl.title
         db.session.delete(cl)
+        _log_activity(board.id, 'checklist_deleted', detail=cl_title, card_id=card.id)
         db.session.commit()
         payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
@@ -360,6 +389,7 @@ def api_add_checklist_item(checklist_id):
         return jsonify({'error': 'Text required'}), 400
     item = KanbanChecklistItem(checklist_id=cl.id, text=text, position=len(cl.items))
     db.session.add(item)
+    _log_activity(board.id, 'checklist_item_added', detail=text, card_id=cl.card.id)
     db.session.commit()
     payload = _serialize_card_detail(cl.card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -384,6 +414,7 @@ def api_checklist_item(item_id):
     if request.method == 'DELETE':
         item_text = item.text
         db.session.delete(item)
+        _log_activity(board.id, 'checklist_item_deleted', detail=item_text, card_id=card.id)
         db.session.commit()
         payload = _serialize_card_detail(card, share_token=_share_token_from_request())
         _emit_board(board.id, 'card_updated', payload)
@@ -397,7 +428,10 @@ def api_checklist_item(item_id):
         return jsonify({'success': True, 'card': payload})
     data = request.get_json(silent=True) or {}
     if 'done' in data:
-        item.done = bool(data['done'])
+        new_done = bool(data['done'])
+        if new_done != item.done:
+            item.done = new_done
+            _log_activity(board.id, 'checklist_item_completed' if new_done else 'checklist_item_uncompleted', detail=item.text, card_id=card.id)
     if 'text' in data:
         item.text = (data['text'] or item.text).strip() or item.text
     if 'due_date' in data:
@@ -525,7 +559,9 @@ def api_custom_field_category(category_id):
     if err:
         return err
     if request.method == 'DELETE':
+        cat_name = category.name
         db.session.delete(category)
+        _log_activity(board.id, 'custom_field_category_deleted', detail=cat_name)
         db.session.commit()
         return jsonify({'success': True})
     data = request.get_json(silent=True) or {}
@@ -558,7 +594,9 @@ def api_custom_field(field_id):
         return err
     if request.method == 'DELETE':
         card_id = field.card_id
+        field_label = field.label
         db.session.delete(field)
+        _log_activity(board.id, 'custom_field_deleted', detail=field_label, card_id=card_id)
         db.session.commit()
         fields = [_serialize_custom_field(f) for f in board.custom_fields]
         _emit_board(board.id, 'custom_field_deleted', {'id': field_id})
@@ -707,6 +745,12 @@ def api_set_card_custom_field_value(card_id):
     else:
         value = '' if raw is None else str(raw).strip()
     existing = KanbanCardFieldValue.query.filter_by(card_id=card.id, field_id=field.id).first()
+    old_value = existing.value if existing else ''
+    if old_value != value:
+        if value:
+            _log_activity(board.id, 'custom_field_value_updated', detail=f'{field.label}: {value}', card_id=card.id)
+        else:
+            _log_activity(board.id, 'custom_field_value_cleared', detail=field.label, card_id=card.id)
     if existing:
         existing.value = value
     else:

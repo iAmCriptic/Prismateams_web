@@ -197,7 +197,7 @@ def api_board_activity(board_id):
     q = KanbanActivity.query.filter_by(board_id=board.id)
     if card_id:
         q = q.filter_by(card_id=card_id)
-    rows = q.order_by(KanbanActivity.created_at.desc()).limit(50).all()
+    rows = q.order_by(KanbanActivity.created_at.desc()).limit(100).all()
     return jsonify({
         'activities': [
             {
@@ -220,21 +220,45 @@ def _activity_label(action: str) -> str:
         'board_created': 'Board erstellt',
         'board_closed': 'Board geschlossen',
         'board_reopened': 'Board wieder geöffnet',
+        'board_updated': 'Board aktualisiert',
         'list_created': 'Liste erstellt',
         'list_updated': 'Liste aktualisiert',
         'list_deleted': 'Liste gelöscht',
         'card_created': 'Karte erstellt',
         'card_updated': 'Karte aktualisiert',
+        'card_deleted': 'Karte gelöscht',
         'card_moved': 'Karte verschoben',
         'card_archived': 'Karte archiviert',
         'card_restored': 'Karte wiederhergestellt',
         'card_completed': 'Karte als erledigt markiert',
         'card_uncompleted': 'Erledigt-Status entfernt',
         'attachment_added': 'Anhang hinzugefügt',
+        'attachment_deleted': 'Anhang gelöscht',
+        'checklist_added': 'Checkliste hinzugefügt',
+        'checklist_deleted': 'Checkliste gelöscht',
+        'checklist_item_added': 'Checklisten-Eintrag hinzugefügt',
+        'checklist_item_deleted': 'Checklisten-Eintrag gelöscht',
+        'checklist_item_completed': 'Checklisten-Eintrag erledigt',
+        'checklist_item_uncompleted': 'Checklisten-Eintrag unerledigt',
+        'label_created': 'Label erstellt',
+        'label_added': 'Label zugewiesen',
+        'label_removed': 'Label entfernt',
+        'assignee_added': 'Mitglied zugewiesen',
+        'assignee_removed': 'Mitgliedszuweisung entfernt',
         'member_added': 'Mitglied hinzugefügt',
         'member_updated': 'Mitgliederrolle geändert',
         'member_removed': 'Mitglied entfernt',
-        'label_created': 'Label erstellt',
+        'custom_field_created': 'Feld erstellt',
+        'custom_field_deleted': 'Feld gelöscht',
+        'custom_field_category_deleted': 'Feld-Kategorie gelöscht',
+        'custom_field_value_updated': 'Feldwert aktualisiert',
+        'custom_field_value_cleared': 'Feldwert entfernt',
+        'cover_updated': 'Titelbild gesetzt',
+        'cover_removed': 'Titelbild entfernt',
+        'background_removed': 'Board-Hintergrund entfernt',
+        'poll_deleted': 'Abstimmung gelöscht',
+        'due_date_cleared': 'Fälligkeitsdatum entfernt',
+        'due_date_updated': 'Fälligkeitsdatum aktualisiert',
     }
     return labels.get(action or '', action or 'Aktivität')
 

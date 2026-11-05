@@ -28,13 +28,18 @@ def sanitize_files_item_name(name):
 
 
 def is_private_folders_enabled():
-    setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
-    return bool(setting and str(setting.value).lower() == 'true')
+    from app.utils.module_visibility_settings import is_global_private_enabled
+    return is_global_private_enabled()
 
 
 def is_team_folders_enabled():
-    setting = SystemSettings.query.filter_by(key='files_team_folders_enabled').first()
-    return bool(setting and str(setting.value).lower() == 'true')
+    from app.utils.module_visibility_settings import is_global_team_enabled
+    return is_global_team_enabled()
+
+
+def is_public_folders_enabled():
+    from app.utils.module_visibility_settings import is_global_public_enabled
+    return is_global_public_enabled()
 
 
 def is_files_spaces_enabled():
@@ -80,12 +85,14 @@ def parse_team_id(raw):
     return value if value > 0 else None
 
 
-def normalize_view(view, private_enabled=None, team_enabled=None, user=None):
+def normalize_view(view, private_enabled=None, team_enabled=None, public_enabled=None, user=None):
     """Normalize ?view= for the files browser."""
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
+    if public_enabled is None:
+        public_enabled = is_public_folders_enabled()
     view = (view or '').strip().lower()
 
     from app.utils.user_content_access import (
@@ -94,11 +101,11 @@ def normalize_view(view, private_enabled=None, team_enabled=None, user=None):
         user_may_access_public,
     )
 
-    allow_public = True
-    allow_private = True
+    allow_public = public_enabled
+    allow_private = private_enabled
     if user and not user_bypasses_content_restrictions(user):
-        allow_public = user_may_access_public(user)
-        allow_private = user_may_access_private(user)
+        allow_public = allow_public and user_may_access_public(user)
+        allow_private = allow_private and user_may_access_private(user)
 
     allowed = {'trash'}
     if allow_public:
@@ -111,15 +118,13 @@ def normalize_view(view, private_enabled=None, team_enabled=None, user=None):
     if view in allowed:
         return view
     if view == 'ablage':
-        return 'team' if team_enabled and not allow_public else ('public' if allow_public else 'team')
+        return 'team' if team_enabled else ('public' if allow_public else 'trash')
     if view == 'freigaben':
-        return 'public' if allow_public else ('team' if team_enabled else 'trash')
+        return 'ablage' if (private_enabled and allow_private) else ('team' if team_enabled else ('public' if allow_public else 'trash'))
     if view == 'public' and not allow_public:
-        return 'team' if team_enabled else 'trash'
+        return 'ablage' if (private_enabled and allow_private) else ('team' if team_enabled else 'trash')
     if view == 'team':
-        if team_enabled:
-            return 'team'
-        return 'ablage' if private_enabled and allow_private else ('public' if allow_public else 'trash')
+        return 'ablage' if (private_enabled and allow_private) else ('public' if allow_public else 'trash')
     if private_enabled and allow_private:
         return 'ablage'
     if team_enabled:
@@ -402,6 +407,11 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
         if not is_personal and not user_may_access_public(user):
             return False
 
+    if not is_public_folders_enabled():
+        space = (getattr(folder, 'space', None) or 'public').lower()
+        if space == 'public' and not has_acl_access('folder', folder.id, user.id if user else None):
+            return False
+
     if not private_enabled:
         return True
     if getattr(folder, 'is_personal_root', False) and folder.created_by != user.id:
@@ -462,6 +472,11 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
         if space == 'public' and not user_may_access_public(user):
             return False
 
+    if not is_public_folders_enabled():
+        space = (getattr(file_obj, 'space', None) or 'public').lower()
+        if space == 'public' and not has_acl_access('file', file_obj.id, user.id if user else None):
+            return False
+
     if not private_enabled:
         return True
     if _file_owned_by(file_obj, user.id):
@@ -480,12 +495,16 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
 def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
     if not folder:
         return False
+    if folder.deleted_at is not None:
+        return False
+    if getattr(folder, 'is_personal_root', False) and folder.created_by != getattr(user, 'id', None):
+        return False
+    if getattr(user, 'is_admin', False):
+        return True
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
-    if folder.deleted_at is not None:
-        return False
 
     if _folder_is_team_space(folder):
         if not team_enabled:
@@ -504,12 +523,14 @@ def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
 def can_edit_file(file_obj, user, private_enabled=None, team_enabled=None):
     if not file_obj:
         return False
+    if file_obj.deleted_at is not None:
+        return False
+    if getattr(user, 'is_admin', False):
+        return True
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
-    if file_obj.deleted_at is not None:
-        return False
 
     if _file_is_team_space(file_obj):
         if not team_enabled:

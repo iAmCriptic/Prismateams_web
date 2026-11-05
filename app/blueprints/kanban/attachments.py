@@ -625,12 +625,14 @@ def api_delete_attachment(attachment_id):
         return jsonify({'error': 'Forbidden'}), 403
     if card.cover_attachment_id == att.id:
         card.cover_attachment_id = None
+    att_name = att.original_filename or att.filename or att.url or 'Anhang'
     try:
         if att.storage_path and os.path.isfile(att.storage_path):
             os.remove(att.storage_path)
     except OSError:
         pass
     db.session.delete(att)
+    _log_activity(board.id, 'attachment_deleted', detail=att_name, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)

@@ -123,7 +123,7 @@ def register_app_routes(app):
         from app.utils.static_packs import build_core_css
 
         body, etag = build_core_css(app.static_folder)
-        response = make_response(Response(body, mimetype='text/css; charset=utf-8'))
+        response = make_response(Response(body, mimetype='text/css'))
         response.set_etag(etag)
         if app.debug:
             response.headers['Cache-Control'] = 'no-cache'

@@ -240,17 +240,14 @@
     }
 
     function positionLinkPopover(pop) {
-        const toolbarBtn = document.querySelector('.markdown-editor-toolbar [onclick*="link"], .markdown-editor-toolbar [data-md-action="link"]');
-        const editor = getEditor();
+        const toolbarBtn = document.querySelector('.markdown-editor-toolbar [onclick*="\'link\'"], .markdown-editor-toolbar [onclick*=\"'link'\"], .markdown-editor-toolbar [data-md-action="link"]');
         let rect = null;
-        if (document.activeElement && document.activeElement.getBoundingClientRect) {
-            const active = document.activeElement;
-            if (active.closest && (active.closest('.md-table-widget') || active.classList.contains('md-segment-textarea'))) {
-                rect = active.getBoundingClientRect();
-            }
+        if (toolbarBtn) {
+            rect = toolbarBtn.getBoundingClientRect();
+        } else {
+            const editor = getEditor();
+            if (editor) rect = editor.getBoundingClientRect();
         }
-        if (!rect && toolbarBtn) rect = toolbarBtn.getBoundingClientRect();
-        if (!rect && editor) rect = editor.getBoundingClientRect();
         if (!rect) {
             pop.style.left = '50%';
             pop.style.top = '4.5rem';
@@ -762,6 +759,7 @@
         closeSheet: closeSheet,
         handleEscape: handleEscape,
         getEditor: getEditor,
+        syncVisual: syncVisual,
         getContent: function () {
             if (state.editorId && window.MarkdownTableEditor) {
                 return window.MarkdownTableEditor.getContent(state.editorId);

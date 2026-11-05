@@ -160,12 +160,21 @@ def register_request_hooks(app):
         # Öffentliche Musikwunschliste-Route ausschließen (keine Authentifizierung erforderlich)
         if request.path.startswith('/music/wishlist'):
             return
+
+        # Statische Assets, Core-CSS und Service-Worker nie blockieren
+        if (
+            request.path.startswith('/assets/')
+            or request.path.startswith('/static/')
+            or request.path in {'/sw.js', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/manifest.json', '/offline'}
+        ):
+            return
         
         if (request.endpoint and 
             (request.endpoint.startswith('auth.') or 
              request.endpoint.startswith('setup.') or
              request.endpoint.startswith('static') or
              request.endpoint.startswith('api.') or
+             request.endpoint in {'manifest', 'core_css', 'service_worker', 'robots_txt', 'sitemap_xml', 'offline'} or
              request.endpoint.startswith('files.onlyoffice') or
              request.endpoint.startswith('files.share_onlyoffice') or
              request.endpoint.startswith('booking.public') or
@@ -173,7 +182,6 @@ def register_request_hooks(app):
              request.endpoint == 'booking.public_booking' or
              request.endpoint == 'booking.public_form' or
              request.endpoint == 'booking.public_view' or
-             request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo' or
              request.endpoint == 'settings.auth_brand_image' or
              request.endpoint == 'music.public_wishlist' or
@@ -191,7 +199,10 @@ def register_request_hooks(app):
         if not current_user.is_email_confirmed:
             if request.endpoint == 'auth.confirm_email':
                 return
-            flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
+            msg = 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.'
+            flashes = session.get('_flashes', [])
+            if not any(f[1] == msg for f in flashes):
+                flash(msg, 'info')
             return redirect(url_for('auth.confirm_email'))
 
     @app.before_request

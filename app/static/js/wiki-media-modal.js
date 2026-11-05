@@ -12,30 +12,63 @@
     let savedSelection = null;
 
     function getEditor() {
-        if (activeEditor) return activeEditor;
-        return document.getElementById('wikiEditor');
+        if (window.MarkdownToolbar && typeof window.MarkdownToolbar.getEditor === 'function') {
+            const ed = window.MarkdownToolbar.getEditor();
+            if (ed) return ed;
+        }
+        if (window.MarkdownTableEditor) {
+            const ed = window.MarkdownTableEditor.getActiveTextarea('wikiEditor') ||
+                       window.MarkdownTableEditor.getActiveTextarea('markdownEditor');
+            if (ed) return ed;
+        }
+        if (activeEditor && document.body.contains(activeEditor)) return activeEditor;
+        return document.getElementById('wikiEditor') || document.getElementById('markdownEditor');
     }
 
-    function insertAtCursor(textarea, text) {
-        if (!textarea) return;
-        textarea.focus();
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const before = textarea.value.substring(0, start);
-        const after = textarea.value.substring(end);
-        
+    function insertAtCursor(target, text) {
+        const editor = target || getEditor();
+        if (!editor) return;
+
+        // Wenn aktives Ziel eine MarkdownTableEditor-Zelle ist
+        if (typeof editor.setText === 'function' && typeof editor.getText === 'function') {
+            editor.setText(text);
+            return;
+        }
+
+        editor.focus();
+        let start = typeof editor.selectionStart === 'number' ? editor.selectionStart : editor.value.length;
+        let end = typeof editor.selectionEnd === 'number' ? editor.selectionEnd : start;
+
+        // Gespeicherte Selektion wiederherstellen, falls aktiv
+        if (savedSelection && target === activeEditor) {
+            start = savedSelection.start;
+            end = savedSelection.end;
+            savedSelection = null;
+        }
+
+        const before = editor.value.substring(0, start);
+        const after = editor.value.substring(end);
+
         // Füge bei Bedarf neue Zeilen hinzu
         const needsNewlineBefore = before.length > 0 && !before.endsWith('\n');
         const needsNewlineAfter = after.length > 0 && !after.startsWith('\n');
         const insertText = (needsNewlineBefore ? '\n' : '') + text + (needsNewlineAfter ? '\n' : '');
 
-        textarea.value = before + insertText + after;
+        editor.value = before + insertText + after;
         const newPos = start + insertText.length;
-        textarea.selectionStart = newPos;
-        textarea.selectionEnd = newPos;
+        editor.selectionStart = newPos;
+        editor.selectionEnd = newPos;
 
-        // Triggere Input-Event für Autosave / Dirty Check
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        // Triggere Input-Event für Autosave / Dirty Check / MarkdownTableEditor
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // Visuellen Editor synchronisieren
+        if (window.MarkdownToolbar && typeof window.MarkdownToolbar.syncVisual === 'function') {
+            window.MarkdownToolbar.syncVisual();
+        } else if (window.MarkdownTableEditor) {
+            window.MarkdownTableEditor.sync('wikiEditor');
+            window.MarkdownTableEditor.sync('markdownEditor');
+        }
     }
 
     function createMediaModal() {
@@ -78,12 +111,12 @@
                         </ul>
 
                         <div class="tab-content" id="wikiMediaTabContent">
-                            <!-- TAB 1: UPLOAD -->
+                            <!-- TAB 1: UPLOAD (Fotos & Videos) -->
                             <div class="tab-pane fade show active" id="wiki-pane-upload" role="tabpanel">
                                 <div class="wiki-upload-dropzone p-4 text-center border rounded-3 mb-3" id="wikiUploadDropzone">
-                                    <i class="bi bi-cloud-arrow-up display-5 text-muted mb-2 d-block"></i>
-                                    <h6>Foto oder Video hierher ziehen</h6>
-                                    <p class="text-muted small mb-2">Unterstützt: MP4, WebM, OGG, MOV sowie JPEG, PNG, GIF, WebP, SVG</p>
+                                    <i class="bi bi-cloud-arrow-up display-5 text-primary mb-2 d-block"></i>
+                                    <h6 id="wikiUploadDropzoneTitle">Datei hierher ziehen</h6>
+                                    <p class="text-muted small mb-2" id="wikiUploadDropzoneDesc">Unterstützt: MP4, WebM, OGG, MOV sowie JPEG, PNG, GIF, WebP, SVG</p>
                                     <label class="btn btn-outline-primary mod-pill-btn btn-sm">
                                         <i class="bi bi-folder2-open me-1"></i> Datei auswählen
                                         <input type="file" id="wikiMediaFileInput" class="d-none" accept="image/*,video/*">
@@ -238,7 +271,6 @@
             }
 
             let md = '';
-            // YouTube oder Vimeo
             if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')) {
                 md = `![${caption || 'Video'}](${url})`;
             } else if (/\.(mp4|webm|ogg|mov|m4v)($|\?)/i.test(url)) {
@@ -288,6 +320,10 @@
     function uploadMediaFile(file) {
         const formData = new FormData();
         formData.append('file', file);
+        if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function') {
+            const token = window.PrismateamsCsrf.getToken();
+            if (token) formData.append('csrf_token', token);
+        }
 
         return fetch('/wiki/api/upload-media', {
             method: 'POST',
@@ -305,22 +341,46 @@
 
     function openMarkdownMediaModal(type, editor, selectedText) {
         activeEditor = editor || getEditor();
+        if (activeEditor && typeof activeEditor.selectionStart === 'number') {
+            savedSelection = {
+                start: activeEditor.selectionStart,
+                end: activeEditor.selectionEnd
+            };
+        } else {
+            savedSelection = null;
+        }
+
         const modalEl = createMediaModal();
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
         const tabUpload = modalEl.querySelector('#wiki-tab-upload');
-        const tabVideo = modalEl.querySelector('#wiki-tab-video');
-        const tabImage = modalEl.querySelector('#wiki-tab-image');
+        const fileInput = modalEl.querySelector('#wikiMediaFileInput');
+        const modalTitle = modalEl.querySelector('#wikiMediaModalTitle');
+        const dropzoneTitle = modalEl.querySelector('#wikiUploadDropzoneTitle');
+        const dropzoneDesc = modalEl.querySelector('#wikiUploadDropzoneDesc');
+
+        // Fehlermeldung & Details zurücksetzen
+        modalEl.querySelector('#wikiUploadAlert').classList.add('d-none');
+        modalEl.querySelector('#wikiUploadFileDetails').style.display = 'none';
+        modalEl.querySelector('#wikiUploadSubmitBtn').disabled = true;
+
+        // Immer Upload-Tab standardmäßig aktivieren (bei Bildern und bei Videos)
+        const trigger = new bootstrap.Tab(tabUpload);
+        trigger.show();
 
         if (type === 'video') {
-            const trigger = new bootstrap.Tab(tabVideo);
-            trigger.show();
+            fileInput.accept = 'video/*,image/*';
+            if (modalTitle) modalTitle.textContent = 'Video oder Foto hinzufügen';
+            if (dropzoneTitle) dropzoneTitle.textContent = 'Video oder Foto hierher ziehen';
+            if (dropzoneDesc) dropzoneDesc.textContent = 'Unterstützt: MP4, WebM, OGG, MOV sowie JPEG, PNG, GIF, WebP, SVG';
             if (selectedText) {
                 modalEl.querySelector('#wikiVideoCaptionInput').value = selectedText;
             }
-        } else if (type === 'image') {
-            const trigger = new bootstrap.Tab(tabUpload);
-            trigger.show();
+        } else {
+            fileInput.accept = 'image/*,video/*';
+            if (modalTitle) modalTitle.textContent = 'Foto oder Video hinzufügen';
+            if (dropzoneTitle) dropzoneTitle.textContent = 'Foto oder Video hierher ziehen';
+            if (dropzoneDesc) dropzoneDesc.textContent = 'Unterstützt: JPEG, PNG, GIF, WebP, SVG sowie MP4, WebM, OGG, MOV';
             if (selectedText) {
                 modalEl.querySelector('#wikiImageAltInput').value = selectedText;
             }
@@ -330,71 +390,102 @@
     }
 
     // Drag & Drop direkt auf den Editor
-    function setupEditorDropAndPaste(editor) {
-        if (!editor || editor.dataset.mediaDropConfigured === '1') return;
-        editor.dataset.mediaDropConfigured = '1';
+    function setupEditorDropAndPaste() {
+        const dropZones = [
+            document.querySelector('.markdown-editor-content'),
+            document.querySelector('.wiki-editor-shell'),
+            document.getElementById('wikiEditor')
+        ].filter(Boolean);
 
-        editor.addEventListener('dragover', function (e) {
-            e.preventDefault();
-            editor.classList.add('wiki-editor-dragover');
-        });
+        dropZones.forEach(function (zone) {
+            if (!zone || zone.dataset.mediaDropConfigured === '1') return;
+            zone.dataset.mediaDropConfigured = '1';
 
-        editor.addEventListener('dragleave', function (e) {
-            e.preventDefault();
-            editor.classList.remove('wiki-editor-dragover');
-        });
+            zone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                zone.classList.add('wiki-editor-dragover');
+            });
 
-        editor.addEventListener('drop', function (e) {
-            e.preventDefault();
-            editor.classList.remove('wiki-editor-dragover');
+            zone.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                zone.classList.remove('wiki-editor-dragover');
+            });
 
-            const files = e.dataTransfer && e.dataTransfer.files;
-            if (!files || files.length === 0) return;
+            zone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                zone.classList.remove('wiki-editor-dragover');
 
-            Array.from(files).forEach(function (file) {
-                if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-                    insertAtCursor(editor, `<!-- Lade ${file.name} hoch... -->`);
-                    uploadMediaFile(file)
-                        .then(function (data) {
-                            editor.value = editor.value.replace(`<!-- Lade ${file.name} hoch... -->`, data.markdown);
-                            editor.dispatchEvent(new Event('input', { bubbles: true }));
-                        })
-                        .catch(function (err) {
-                            editor.value = editor.value.replace(`<!-- Lade ${file.name} hoch... -->`, `<!-- Upload fehlgeschlagen: ${err.message} -->`);
-                            console.error('Upload error:', err);
-                        });
-                }
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || files.length === 0) return;
+
+                const editor = getEditor();
+                Array.from(files).forEach(function (file) {
+                    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                        const tempPlaceholder = `<!-- Lade ${file.name} hoch... -->`;
+                        insertAtCursor(editor, tempPlaceholder);
+                        uploadMediaFile(file)
+                            .then(function (data) {
+                                editor.value = editor.value.replace(tempPlaceholder, data.markdown);
+                                editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                if (window.MarkdownToolbar && typeof window.MarkdownToolbar.syncVisual === 'function') {
+                                    window.MarkdownToolbar.syncVisual();
+                                }
+                            })
+                            .catch(function (err) {
+                                editor.value = editor.value.replace(tempPlaceholder, `<!-- Upload fehlgeschlagen: ${err.message} -->`);
+                                editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                console.error('Upload error:', err);
+                            });
+                    }
+                });
             });
         });
 
         // Clipboard Paste (z.B. Screenshots)
-        editor.addEventListener('paste', function (e) {
-            const items = e.clipboardData && e.clipboardData.items;
-            if (!items) return;
+        if (!document.body.dataset.wikiPasteConfigured) {
+            document.body.dataset.wikiPasteConfigured = '1';
+            document.addEventListener('paste', function (e) {
+                const active = document.activeElement;
+                const isEditorArea = active && (
+                    active.classList.contains('markdown-editor-textarea') ||
+                    active.classList.contains('md-segment-textarea') ||
+                    active.closest('.markdown-editor-content') ||
+                    active.closest('.wiki-editor-shell')
+                );
+                if (!isEditorArea) return;
 
-            for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                if (item.type.indexOf('image') !== -1) {
-                    const blob = item.getAsFile();
-                    if (blob) {
-                        e.preventDefault();
-                        const tempPlaceholder = `<!-- Lade Screenshot hoch... -->`;
-                        insertAtCursor(editor, tempPlaceholder);
+                const items = e.clipboardData && e.clipboardData.items;
+                if (!items) return;
 
-                        uploadMediaFile(blob)
-                            .then(function (data) {
-                                editor.value = editor.value.replace(tempPlaceholder, data.markdown);
-                                editor.dispatchEvent(new Event('input', { bubbles: true }));
-                            })
-                            .catch(function (err) {
-                                editor.value = editor.value.replace(tempPlaceholder, `<!-- Screenshot-Upload fehlgeschlagen: ${err.message} -->`);
-                                console.error('Screenshot upload error:', err);
-                            });
-                        break;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type && item.type.indexOf('image') !== -1) {
+                        const blob = item.getAsFile();
+                        if (blob) {
+                            e.preventDefault();
+                            const editor = getEditor();
+                            const tempPlaceholder = `<!-- Lade Screenshot hoch... -->`;
+                            insertAtCursor(editor, tempPlaceholder);
+
+                            uploadMediaFile(blob)
+                                .then(function (data) {
+                                    editor.value = editor.value.replace(tempPlaceholder, data.markdown);
+                                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                    if (window.MarkdownToolbar && typeof window.MarkdownToolbar.syncVisual === 'function') {
+                                        window.MarkdownToolbar.syncVisual();
+                                    }
+                                })
+                                .catch(function (err) {
+                                    editor.value = editor.value.replace(tempPlaceholder, `<!-- Screenshot-Upload fehlgeschlagen: ${err.message} -->`);
+                                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                    console.error('Screenshot upload error:', err);
+                                });
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
     // Vorschau-Modal
@@ -454,11 +545,15 @@
         container.innerHTML = '';
         modal.show();
 
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function') {
+            const token = window.PrismateamsCsrf.getToken();
+            if (token) headers['X-CSRFToken'] = token;
+        }
+
         fetch('/wiki/api/preview', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({ content: content })
         })
         .then(function (res) {
@@ -482,10 +577,7 @@
 
     // Initialisierung bei DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function () {
-        const editor = document.getElementById('wikiEditor');
-        if (editor) {
-            setupEditorDropAndPaste(editor);
-        }
+        setupEditorDropAndPaste();
     });
 
     window.openMarkdownMediaModal = openMarkdownMediaModal;

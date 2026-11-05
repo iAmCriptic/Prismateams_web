@@ -672,6 +672,7 @@ body.md-table-resizing {
     border: 1px solid var(--bs-border-color);
     border-radius: 0.85rem;
     box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.22);
+    pointer-events: auto;
 }
 
 .md-link-popover {

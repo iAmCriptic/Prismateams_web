@@ -788,8 +788,9 @@ def admin_file_settings():
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     files_webdav_enabled = (webdav_setting and str(webdav_setting.value).lower() == 'true') or False
-    files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
-    files_team_folders_enabled = (team_setting and str(team_setting.value).lower() == 'true') or False
+    from app.utils.private_files import is_private_folders_enabled, is_team_folders_enabled
+    files_private_folders_enabled = is_private_folders_enabled()
+    files_team_folders_enabled = is_team_folders_enabled()
     files_document_format = get_document_format() or FORMAT_OFFICE
     webdav_url = f"{request.url_root.rstrip('/')}/webdav"
 

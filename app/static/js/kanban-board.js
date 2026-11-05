@@ -2633,6 +2633,33 @@
     getModal('kanbanFilterModal')?.show();
   });
 
+  async function loadBoardActivity() {
+    const listEl = document.getElementById('kanbanBoardActivityList');
+    if (listEl) listEl.innerHTML = '<div class="text-muted small py-2">Lade Aktivitäten…</div>';
+    try {
+      const act = await api(`/kanban/api/boards/${boardId}/activity`);
+      if (listEl) {
+        listEl.innerHTML = (act.activities || []).map((a) => `
+          <div class="kanban-activity-item">
+            <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
+            ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
+            <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
+          </div>`).join('') || '<p class="text-muted small">Keine Aktivitäten gefunden.</p>';
+      }
+    } catch (err) {
+      if (listEl) listEl.innerHTML = '<p class="text-danger small">Aktivitäten konnten nicht geladen werden.</p>';
+    }
+  }
+
+  document.getElementById('kanbanBoardActivityBtn')?.addEventListener('click', () => {
+    loadBoardActivity();
+    getModal('kanbanBoardActivityModal')?.show();
+  });
+
+  document.getElementById('kanbanBoardActivityModal')?.addEventListener('show.bs.modal', () => {
+    loadBoardActivity();
+  });
+
   document.getElementById('kanbanFilterReset')?.addEventListener('click', () => {
     filterState.q = '';
     filterState.no_members = false;

@@ -9,6 +9,7 @@
 
 {% block content %}
 <form method="POST" id="createForm" class="markdown-editor-fullscreen wiki-editor-shell" action="{{ url_for('wiki.create') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="markdown-editor-toolbar">
         <div class="markdown-editor-brand">
             {% if portal_logo_filename %}
@@ -230,8 +231,10 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 <script src="{{ url_for('static', filename='js/markdown-table-editor.js') }}"></script>
-<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
-<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
+
 <script src="{{ url_for('static', filename='js/wiki-media-modal.js') }}"></script>
 <script>
 window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};
