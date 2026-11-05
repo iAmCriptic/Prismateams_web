@@ -290,17 +290,24 @@ def _emit_board(board_id: int, event_type: str, data: dict):
 
 def _log_activity(board_id: int, action: str, detail: str = None, card_id: int = None, user_id: int = None):
     try:
+        actor_id = user_id or (current_user.id if getattr(current_user, 'is_authenticated', False) else None)
         act = KanbanActivity(
             board_id=board_id,
             card_id=card_id,
-            user_id=user_id or (current_user.id if current_user.is_authenticated else None),
+            user_id=actor_id,
             action=action,
             detail=detail,
         )
         db.session.add(act)
         db.session.flush()
+        if actor_id:
+            db.session.add(KanbanActivityRead(activity_id=act.id, user_id=actor_id, read_at=portal_now_naive()))
+            db.session.flush()
+        _emit_board(board_id, 'activity_added', {'id': act.id, 'action': action, 'card_id': card_id})
+        return act
     except Exception:
         pass
+    return None
 
 
 def _upload_root():

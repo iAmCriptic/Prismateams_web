@@ -52,11 +52,39 @@
         <i class="bi bi-funnel" aria-hidden="true"></i>
         <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
       </button>
-      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanBoardActivityBtn"
-              data-bs-toggle="modal" data-bs-target="#kanbanBoardActivityModal"
-              title="Board-Aktivitäten">
-        <i class="bi bi-clock-history" aria-hidden="true"></i>
-      </button>
+      <div class="dropdown d-inline-block kanban-notifications-dropdown">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--icon position-relative" id="kanbanNotificationsBtn"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                data-bs-popper-config='{"strategy":"fixed"}'
+                title="Benachrichtigungen">
+          <i class="bi bi-bell" aria-hidden="true" id="kanbanNotificationsBellIcon"></i>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="kanbanNotificationsBadge" style="display:none; font-size: 0.65rem; padding: 0.2em 0.45em;">0</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end kanban-notifications-panel shadow-lg p-0" id="kanbanNotificationsPanel" aria-labelledby="kanbanNotificationsBtn">
+          <div class="kanban-notifications-header d-flex align-items-center justify-content-between p-3 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <h6 class="mb-0 fw-bold d-flex align-items-center gap-2" id="kanbanNotificationsLabel">
+                <i class="bi bi-bell text-primary"></i>
+                <span>Benachrichtigungen</span>
+              </h6>
+              <span class="badge bg-danger rounded-pill" id="kanbanNotificationsHeaderBadge" style="display:none; font-size: 0.72rem;"></span>
+            </div>
+            <button type="button" class="btn-close" id="kanbanNotificationsCloseBtn" aria-label="{{ _('common.close') }}"></button>
+          </div>
+          <div class="kanban-notifications-toolbar px-3 py-2 border-bottom d-flex align-items-center justify-content-between gap-2">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="kanbanNotificationsUnreadOnly">
+              <label class="form-check-label small fw-medium" for="kanbanNotificationsUnreadOnly">Nur ungelesene</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 small" id="kanbanNotificationsMarkAllRead" title="Alle als gelesen markieren">
+              <i class="bi bi-check2-all me-1"></i>Alle als gelesen
+            </button>
+          </div>
+          <div class="kanban-notifications-feed p-3" id="kanbanNotificationsFeed">
+            <div class="text-center text-muted py-4 small">Lade Benachrichtigungen…</div>
+          </div>
+        </div>
+      </div>
       <div class="dropdown">
         <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanExportBtn"
                 data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('kanban.export.title') }}">
@@ -588,23 +616,6 @@
           <button type="submit" class="btn mod-pill-btn">{{ _('common.save') }}</button>
         </div>
       </form>
-    </div>
-  </div>
-</div>
-
-{# Board Activity Modal #}
-<div class="modal fade" id="kanbanBoardActivityModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content kanban-modal">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Board-Aktivitäten</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-      </div>
-      <div class="modal-body">
-        <div id="kanbanBoardActivityList" class="kanban-activity-feed" style="max-height: 60vh;">
-          <div class="text-muted small py-2">Lade Aktivitäten…</div>
-        </div>
-      </div>
     </div>
   </div>
 </div>

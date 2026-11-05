@@ -6,6 +6,10 @@
 
 #include <commctrl.h>
 #include <windowsx.h>
+#include <uxtheme.h>
+#include <vector>
+
+#pragma comment(lib, "uxtheme.lib")
 
 namespace Prismateams {
 
@@ -20,17 +24,45 @@ const int IDC_NL_BTNPASSK = 5006;
 const int IDC_NL_BTNMIN   = 5007;
 const int IDC_NL_BTNCLOSE = 5008;
 
-// Subclass procedure for Edit controls to trigger login on [Enter]
-static WNDPROC s_origEditProc = nullptr;
-static LRESULT CALLBACK EditSubclassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (msg == WM_KEYDOWN && wParam == VK_RETURN) {
-        HWND hParent = GetParent(hWnd);
-        if (hParent) {
-            SendMessageW(hParent, WM_COMMAND, MAKEWPARAM(IDC_NL_BTNLOGIN, BN_CLICKED), 0);
-            return 0;
+// Subclass procedure for Edit controls and Buttons to handle [Enter] submit, [Tab] navigation, and focus styling
+static LRESULT CALLBACK ControlSubclassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    NativeLoginView* pView = (NativeLoginView*)GetWindowLongPtrW(GetParent(hWnd), GWLP_USERDATA);
+
+    if (msg == WM_GETDLGCODE) {
+        return DLGC_WANTTAB | DLGC_WANTALLKEYS | DLGC_WANTARROWS;
+    }
+
+    if (msg == WM_SETFOCUS) {
+        if (pView) {
+            pView->SetFocusedControl(hWnd);
+        }
+    } else if (msg == WM_KILLFOCUS) {
+        if (pView) {
+            pView->SetFocusedControl(nullptr);
         }
     }
-    return CallWindowProcW(s_origEditProc, hWnd, msg, wParam, lParam);
+
+    if (msg == WM_KEYDOWN) {
+        if (wParam == VK_RETURN) {
+            HWND hParent = GetParent(hWnd);
+            if (hParent) {
+                SendMessageW(hParent, WM_COMMAND, MAKEWPARAM(IDC_NL_BTNLOGIN, BN_CLICKED), 0);
+                return 0;
+            }
+        } else if (wParam == VK_TAB) {
+            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            if (pView) {
+                pView->FocusNextControl(hWnd, shift);
+                return 0;
+            }
+        }
+    }
+
+    WNDPROC orig = (WNDPROC)GetPropW(hWnd, L"OrigProc");
+    if (orig) {
+        return CallWindowProcW(orig, hWnd, msg, wParam, lParam);
+    }
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
 }
 
 NativeLoginView::NativeLoginView(HWND hWndParent, HINSTANCE hInstance)
@@ -46,6 +78,7 @@ NativeLoginView::~NativeLoginView() {
     if (m_hBrBtnSecondary) DeleteObject(m_hBrBtnSecondary);
     if (m_hPenCardBorder) DeleteObject(m_hPenCardBorder);
     if (m_hPenInputBorder) DeleteObject(m_hPenInputBorder);
+    if (m_hPenInputFocus) DeleteObject(m_hPenInputFocus);
     if (m_hFontTitle) DeleteObject(m_hFontTitle);
     if (m_hFontSub) DeleteObject(m_hFontSub);
     if (m_hFontBody) DeleteObject(m_hFontBody);
@@ -62,23 +95,26 @@ void NativeLoginView::SetTheme(bool isDarkMode) {
     if (m_hBrBtnSecondary) DeleteObject(m_hBrBtnSecondary);
     if (m_hPenCardBorder) DeleteObject(m_hPenCardBorder);
     if (m_hPenInputBorder) DeleteObject(m_hPenInputBorder);
+    if (m_hPenInputFocus) DeleteObject(m_hPenInputFocus);
 
     if (m_isDarkMode) {
-        m_hBrBg = CreateSolidBrush(RGB(15, 15, 23));           // Deep background
-        m_hBrCard = CreateSolidBrush(RGB(26, 26, 38));         // Dark card
-        m_hBrInput = CreateSolidBrush(RGB(35, 35, 50));        // Input bg
-        m_hBrBtnPrimary = CreateSolidBrush(RGB(99, 102, 241)); // Indigo
-        m_hBrBtnSecondary = CreateSolidBrush(RGB(40, 40, 58)); // Dark grey
-        m_hPenCardBorder = CreatePen(PS_SOLID, 1, RGB(45, 45, 65));
-        m_hPenInputBorder = CreatePen(PS_SOLID, 1, RGB(55, 55, 78));
+        m_hBrBg = CreateSolidBrush(RGB(10, 14, 20));           // Deep sleek canvas #0a0e14
+        m_hBrCard = CreateSolidBrush(RGB(22, 27, 34));         // Elevated card #161b22
+        m_hBrInput = CreateSolidBrush(RGB(13, 17, 23));        // Sleek input background #0d1117
+        m_hBrBtnPrimary = CreateSolidBrush(RGB(37, 99, 235));  // Vibrant blue #2563eb
+        m_hBrBtnSecondary = CreateSolidBrush(RGB(33, 38, 45)); // Secondary button #21262d
+        m_hPenCardBorder = CreatePen(PS_SOLID, 1, RGB(48, 54, 61)); // #30363d
+        m_hPenInputBorder = CreatePen(PS_SOLID, 1, RGB(55, 65, 81)); // Subtle border #374151
+        m_hPenInputFocus = CreatePen(PS_SOLID, 2, RGB(59, 130, 246)); // Vibrant active focus #3b82f6
     } else {
-        m_hBrBg = CreateSolidBrush(RGB(241, 245, 249));        // Light slate
-        m_hBrCard = CreateSolidBrush(RGB(255, 255, 255));      // White card
-        m_hBrInput = CreateSolidBrush(RGB(248, 250, 252));     // Light input
-        m_hBrBtnPrimary = CreateSolidBrush(RGB(79, 70, 229));  // Deep indigo
+        m_hBrBg = CreateSolidBrush(RGB(241, 245, 249));
+        m_hBrCard = CreateSolidBrush(RGB(255, 255, 255));
+        m_hBrInput = CreateSolidBrush(RGB(248, 250, 252));
+        m_hBrBtnPrimary = CreateSolidBrush(RGB(37, 99, 235));
         m_hBrBtnSecondary = CreateSolidBrush(RGB(241, 245, 249));
         m_hPenCardBorder = CreatePen(PS_SOLID, 1, RGB(226, 232, 240));
         m_hPenInputBorder = CreatePen(PS_SOLID, 1, RGB(203, 213, 225));
+        m_hPenInputFocus = CreatePen(PS_SOLID, 2, RGB(37, 99, 235));
     }
 
     if (!m_hFontTitle) {
@@ -86,7 +122,7 @@ void NativeLoginView::SetTheme(bool isDarkMode) {
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
         m_hFontSub = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        m_hFontBody = CreateFontW(-13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        m_hFontBody = CreateFontW(-14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
         m_hFontBold = CreateFontW(-13, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
@@ -94,6 +130,52 @@ void NativeLoginView::SetTheme(bool isDarkMode) {
 
     if (m_hWnd) {
         InvalidateRect(m_hWnd, nullptr, TRUE);
+    }
+}
+
+void NativeLoginView::SetFocusedControl(HWND hwnd) {
+    m_focusedControl = hwnd;
+    if (m_hWnd) {
+        InvalidateRect(m_hWnd, nullptr, FALSE);
+    }
+}
+
+void NativeLoginView::FocusNextControl(HWND current, bool reverse) {
+    std::vector<HWND> controls;
+    if (m_editServer) controls.push_back(m_editServer);
+    if (m_editEmail) controls.push_back(m_editEmail);
+    if (m_editPass) controls.push_back(m_editPass);
+    if (m_show2Fa && m_edit2Fa && IsWindowVisible(m_edit2Fa)) {
+        controls.push_back(m_edit2Fa);
+    }
+    if (m_btnLogin) controls.push_back(m_btnLogin);
+    if (m_btnPasskey) controls.push_back(m_btnPasskey);
+
+    if (controls.empty()) return;
+
+    int curIdx = -1;
+    for (int i = 0; i < (int)controls.size(); ++i) {
+        if (controls[i] == current) {
+            curIdx = i;
+            break;
+        }
+    }
+
+    int nextIdx = 0;
+    if (curIdx != -1) {
+        if (!reverse) {
+            nextIdx = (curIdx + 1) % controls.size();
+        } else {
+            nextIdx = (curIdx - 1 + (int)controls.size()) % controls.size();
+        }
+    }
+
+    HWND nextWnd = controls[nextIdx];
+    SetFocus(nextWnd);
+
+    // If edit control, select entire text for effortless typing
+    if (nextWnd == m_editServer || nextWnd == m_editEmail || nextWnd == m_editPass || nextWnd == m_edit2Fa) {
+        SendMessageW(nextWnd, EM_SETSEL, 0, -1);
     }
 }
 
@@ -120,29 +202,40 @@ bool NativeLoginView::Create() {
 
     if (!m_hWnd) return false;
 
-    // Create Edit Controls inside card
-    m_editServer = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_SERVER, m_hInstance, nullptr);
-    SendMessageW(m_editServer, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    // Helper lambda to setup edit controls without ugly native borders
+    auto setupEdit = [&](const wchar_t* text, int id, bool isPassword = false) -> HWND {
+        DWORD style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL;
+        if (isPassword) style |= ES_PASSWORD;
+        HWND h = CreateWindowExW(0, L"EDIT", text, style, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)id, m_hInstance, nullptr);
+        SetWindowTheme(h, L"", L""); // Strip uxtheme native border box
+        SendMessageW(h, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+        WNDPROC orig = (WNDPROC)SetWindowLongPtrW(h, GWLP_WNDPROC, (LONG_PTR)ControlSubclassProc);
+        SetPropW(h, L"OrigProc", (HANDLE)orig);
+        return h;
+    };
 
-    m_editEmail = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_EMAIL, m_hInstance, nullptr);
-    SendMessageW(m_editEmail, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    m_editServer = setupEdit(SettingsManager::Instance().Get().serverUrl.c_str(), IDC_NL_SERVER);
+    m_editEmail  = setupEdit(SettingsManager::Instance().Get().lastUserEmail.c_str(), IDC_NL_EMAIL);
+    m_editPass   = setupEdit(L"", IDC_NL_PASS, true);
 
-    m_editPass = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | WS_VISIBLE | ES_PASSWORD | ES_AUTOHSCROLL, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_PASS, m_hInstance, nullptr);
-    SendMessageW(m_editPass, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
-
-    m_edit2Fa = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | ES_NUMBER | ES_AUTOHSCROLL, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_2FA, m_hInstance, nullptr);
+    m_edit2Fa = CreateWindowExW(0, L"EDIT", L"",
+        WS_CHILD | WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_2FA, m_hInstance, nullptr);
+    SetWindowTheme(m_edit2Fa, L"", L"");
     SendMessageW(m_edit2Fa, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    WNDPROC orig2fa = (WNDPROC)SetWindowLongPtrW(m_edit2Fa, GWLP_WNDPROC, (LONG_PTR)ControlSubclassProc);
+    SetPropW(m_edit2Fa, L"OrigProc", (HANDLE)orig2fa);
 
     // Buttons (Owner drawn)
-    m_btnLogin = CreateWindowExW(0, L"BUTTON", L"Anmelden",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNLOGIN, m_hInstance, nullptr);
+    auto setupBtn = [&](const wchar_t* label, int id) -> HWND {
+        HWND b = CreateWindowExW(0, L"BUTTON", label,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)id, m_hInstance, nullptr);
+        WNDPROC orig = (WNDPROC)SetWindowLongPtrW(b, GWLP_WNDPROC, (LONG_PTR)ControlSubclassProc);
+        SetPropW(b, L"OrigProc", (HANDLE)orig);
+        return b;
+    };
 
-    m_btnPasskey = CreateWindowExW(0, L"BUTTON", L"Passkey / Windows Hello",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNPASSK, m_hInstance, nullptr);
+    m_btnLogin = setupBtn(L"Anmelden", IDC_NL_BTNLOGIN);
+    m_btnPasskey = setupBtn(L"Passkey / Windows Hello", IDC_NL_BTNPASSK);
 
     // Window controls for frameless mode (Minimize, Close)
     m_btnMin = CreateWindowExW(0, L"BUTTON", L"\x2014",
@@ -150,19 +243,6 @@ bool NativeLoginView::Create() {
 
     m_btnClose = CreateWindowExW(0, L"BUTTON", L"\x2715",
         WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, m_hWnd, (HMENU)(INT_PTR)IDC_NL_BTNCLOSE, m_hInstance, nullptr);
-
-    // Pre-fill fields
-    SetWindowTextW(m_editServer, SettingsManager::Instance().Get().serverUrl.c_str());
-    SetWindowTextW(m_editEmail, SettingsManager::Instance().Get().lastUserEmail.c_str());
-
-    // Subclass Edit fields to support [Enter] key to submit
-    s_origEditProc = (WNDPROC)GetWindowLongPtrW(m_editPass, GWLP_WNDPROC);
-    if (s_origEditProc) {
-        SetWindowLongPtrW(m_editServer, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
-        SetWindowLongPtrW(m_editEmail, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
-        SetWindowLongPtrW(m_editPass, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
-        SetWindowLongPtrW(m_edit2Fa, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
-    }
 
     RepositionControls();
     return true;
@@ -173,6 +253,7 @@ void NativeLoginView::Show(bool visible) {
         ShowWindow(m_hWnd, visible ? SW_SHOW : SW_HIDE);
         if (visible) {
             SetFocus(m_editPass);
+            SendMessageW(m_editPass, EM_SETSEL, 0, -1);
         }
     }
 }
@@ -193,44 +274,44 @@ void NativeLoginView::RepositionControls() {
     int winH = rc.bottom - rc.top;
 
     int cardW = 440;
-    int cardH = m_show2Fa ? 510 : 440;
+    int cardH = m_show2Fa ? 530 : 460;
     int cardX = (winW - cardW) / 2;
     int cardY = (winH - cardH) / 2;
     if (cardY < 20) cardY = 20;
 
-    int contentX = cardX + 32;
-    int contentW = cardW - 64;
-    int curY = cardY + 95; // below title & subtitle
+    int inputX = cardX + 44;
+    int inputW = cardW - 88;
+    int curY = cardY + 95;
 
     // Server-URL
-    curY += 20;
-    SetWindowPos(m_editServer, nullptr, contentX, curY, contentW, 28, SWP_NOZORDER);
-    curY += 48;
+    curY += 24;
+    SetWindowPos(m_editServer, nullptr, inputX, curY + 8, inputW, 20, SWP_NOZORDER);
+    curY += 56;
 
     // E-Mail
-    SetWindowPos(m_editEmail, nullptr, contentX, curY, contentW, 28, SWP_NOZORDER);
-    curY += 48;
+    SetWindowPos(m_editEmail, nullptr, inputX, curY + 8, inputW, 20, SWP_NOZORDER);
+    curY += 56;
 
     // Passwort
-    SetWindowPos(m_editPass, nullptr, contentX, curY, contentW, 28, SWP_NOZORDER);
-    curY += 48;
+    SetWindowPos(m_editPass, nullptr, inputX, curY + 8, inputW, 20, SWP_NOZORDER);
+    curY += 56;
 
     // 2FA field (if active)
     if (m_show2Fa) {
         ShowWindow(m_edit2Fa, SW_SHOW);
-        SetWindowPos(m_edit2Fa, nullptr, contentX, curY, contentW, 28, SWP_NOZORDER);
-        curY += 50;
+        SetWindowPos(m_edit2Fa, nullptr, inputX, curY + 8, inputW, 20, SWP_NOZORDER);
+        curY += 56;
     } else {
         ShowWindow(m_edit2Fa, SW_HIDE);
     }
 
     curY += 10;
     // Anmelden Button
-    SetWindowPos(m_btnLogin, nullptr, contentX, curY, contentW, 36, SWP_NOZORDER);
-    curY += 44;
+    SetWindowPos(m_btnLogin, nullptr, cardX + 32, curY, cardW - 64, 40, SWP_NOZORDER);
+    curY += 48;
 
     // Passkey Button
-    SetWindowPos(m_btnPasskey, nullptr, contentX, curY, contentW, 32, SWP_NOZORDER);
+    SetWindowPos(m_btnPasskey, nullptr, cardX + 32, curY, cardW - 64, 38, SWP_NOZORDER);
 
     // Window controls at top right
     SetWindowPos(m_btnMin, nullptr, winW - 88, 8, 38, 28, SWP_NOZORDER);
@@ -335,10 +416,9 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
 
     switch (message) {
     case WM_LBUTTONDOWN: {
-        POINT curPt;
-        GetCursorPos(&curPt);
+        // Free window dragging when grabbing anywhere on the login canvas
         ReleaseCapture();
-        SendMessageW(pThis->m_hWndParent, WM_NCLBUTTONDOWN, HTCAPTION, MAKELPARAM(curPt.x, curPt.y));
+        SendMessageW(pThis->m_hWndParent, WM_SYSCOMMAND, 0xF012 /* SC_MOVE | HTCAPTION */, 0);
         return 0;
     }
 
@@ -351,21 +431,20 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
         int winW = rc.right - rc.left;
         int winH = rc.bottom - rc.top;
 
-        // Background
+        // Background canvas
         FillRect(hdc, &rc, pThis->m_hBrBg);
 
         int cardW = 440;
-        int cardH = pThis->m_show2Fa ? 510 : 440;
+        int cardH = pThis->m_show2Fa ? 530 : 460;
         int cardX = (winW - cardW) / 2;
         int cardY = (winH - cardH) / 2;
         if (cardY < 20) cardY = 20;
 
-        // Draw Card with rounded corners
-        RECT cardRc = { cardX, cardY, cardX + cardW, cardY + cardH };
+        // Draw Card with smooth rounded corners
         HPEN hOldPen = (HPEN)SelectObject(hdc, pThis->m_hPenCardBorder);
         HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, pThis->m_hBrCard);
 
-        RoundRect(hdc, cardRc.left, cardRc.top, cardRc.right, cardRc.bottom, 16, 16);
+        RoundRect(hdc, cardX, cardY, cardX + cardW, cardY + cardH, 16, 16);
 
         SelectObject(hdc, hOldBr);
         SelectObject(hdc, hOldPen);
@@ -386,21 +465,37 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
         SelectObject(hdc, pThis->m_hFontSub);
         TextOutW(hdc, cardX + 78, cardY + 50, L"Sichere Anmeldung am Workspace", 30);
 
-        // Field Labels
+        // Field Labels and Modern Input Box Containers
         SelectObject(hdc, pThis->m_hFontBold);
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(203, 213, 225) : RGB(51, 65, 85));
 
+        auto drawInputBox = [&](int y, HWND associatedEdit) {
+            bool hasFocus = (pThis->m_focusedControl == associatedEdit);
+            HPEN pen = hasFocus ? pThis->m_hPenInputFocus : pThis->m_hPenInputBorder;
+            HPEN hOldP = (HPEN)SelectObject(hdc, pen);
+            HBRUSH hOldB = (HBRUSH)SelectObject(hdc, pThis->m_hBrInput);
+            RoundRect(hdc, cardX + 32, y, cardX + cardW - 32, y + 36, 8, 8);
+            SelectObject(hdc, hOldB);
+            SelectObject(hdc, hOldP);
+        };
+
         int curY = cardY + 95;
         TextOutW(hdc, cardX + 32, curY, L"Server-URL:", 11);
-        curY += 48;
+        drawInputBox(curY + 20, pThis->m_editServer);
+
+        curY += 56;
         TextOutW(hdc, cardX + 32, curY, L"E-Mail / Benutzername:", 22);
-        curY += 48;
+        drawInputBox(curY + 20, pThis->m_editEmail);
+
+        curY += 56;
         TextOutW(hdc, cardX + 32, curY, L"Passwort:", 9);
+        drawInputBox(curY + 20, pThis->m_editPass);
 
         if (pThis->m_show2Fa) {
-            curY += 48;
+            curY += 56;
             SetTextColor(hdc, RGB(99, 102, 241));
             TextOutW(hdc, cardX + 32, curY, L"Zwei-Faktor-Code (TOTP):", 24);
+            drawInputBox(curY + 20, pThis->m_edit2Fa);
         }
 
         // Status / Error message banner
@@ -409,7 +504,7 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
             COLORREF statusColor = pThis->m_statusIsError ? RGB(239, 68, 68) : RGB(34, 197, 94);
             SetTextColor(hdc, statusColor);
 
-            RECT statusRc = { cardX + 32, cardY + cardH - 28, cardX + cardW - 32, cardY + cardH - 6 };
+            RECT statusRc = { cardX + 32, cardY + cardH - 30, cardX + cardW - 32, cardY + cardH - 8 };
             DrawTextW(hdc, pThis->m_statusMessage.c_str(), -1, &statusRc, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
         }
 
@@ -421,7 +516,7 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
     case WM_CTLCOLOREDIT: {
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(241, 245, 249) : RGB(15, 23, 42));
-        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(35, 35, 50) : RGB(248, 250, 252));
+        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(13, 17, 23) : RGB(248, 250, 252));
         return (INT_PTR)pThis->m_hBrInput;
     }
 
@@ -433,7 +528,7 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
             bool isSelected = (pdis->itemState & ODS_SELECTED);
 
             if (pdis->CtlID == IDC_NL_BTNCLOSE) {
-                HBRUSH hBr = isSelected ? CreateSolidBrush(RGB(225, 29, 72)) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(35, 35, 48)) : CreateSolidBrush(RGB(226, 232, 240)));
+                HBRUSH hBr = isSelected ? CreateSolidBrush(RGB(225, 29, 72)) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(30, 35, 45)) : CreateSolidBrush(RGB(226, 232, 240)));
                 FillRect(hdc, &rc, hBr);
                 DeleteObject(hBr);
                 SetBkMode(hdc, TRANSPARENT);
@@ -444,7 +539,7 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
                 return TRUE;
             }
             if (pdis->CtlID == IDC_NL_BTNMIN) {
-                HBRUSH hBr = isSelected ? (pThis->m_isDarkMode ? CreateSolidBrush(RGB(50, 50, 70)) : CreateSolidBrush(RGB(200, 200, 210))) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(35, 35, 48)) : CreateSolidBrush(RGB(226, 232, 240)));
+                HBRUSH hBr = isSelected ? (pThis->m_isDarkMode ? CreateSolidBrush(RGB(45, 50, 65)) : CreateSolidBrush(RGB(200, 200, 210))) : (pThis->m_isDarkMode ? CreateSolidBrush(RGB(30, 35, 45)) : CreateSolidBrush(RGB(226, 232, 240)));
                 FillRect(hdc, &rc, hBr);
                 DeleteObject(hBr);
                 SetBkMode(hdc, TRANSPARENT);
@@ -455,8 +550,12 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
                 return TRUE;
             }
 
-            HBRUSH hBr = (pdis->CtlID == IDC_NL_BTNLOGIN) ? pThis->m_hBrBtnPrimary : pThis->m_hBrBtnSecondary;
-            HPEN hPen = (pdis->CtlID == IDC_NL_BTNLOGIN) ? pThis->m_hPenCardBorder : pThis->m_hPenInputBorder;
+            // Anmelden & Passkey buttons: sleek modern Fluent styling (NO retro dashed focus box!)
+            bool isPrimary = (pdis->CtlID == IDC_NL_BTNLOGIN);
+            COLORREF btnBgColor = isPrimary ? (isSelected ? RGB(29, 78, 216) : RGB(37, 99, 235))
+                                            : (isSelected ? RGB(22, 27, 34) : RGB(33, 38, 45));
+            HBRUSH hBr = CreateSolidBrush(btnBgColor);
+            HPEN hPen = isPrimary ? pThis->m_hPenCardBorder : pThis->m_hPenInputBorder;
 
             HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
             HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, hBr);
@@ -465,9 +564,10 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
 
             SelectObject(hdc, hOldBr);
             SelectObject(hdc, hOldPen);
+            DeleteObject(hBr);
 
             SetBkMode(hdc, TRANSPARENT);
-            SetTextColor(hdc, (pdis->CtlID == IDC_NL_BTNLOGIN) ? RGB(255, 255, 255) : (pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(51, 65, 85)));
+            SetTextColor(hdc, isPrimary ? RGB(255, 255, 255) : (pThis->m_isDarkMode ? RGB(241, 245, 249) : RGB(30, 41, 59)));
 
             HFONT hOldFont = (HFONT)SelectObject(hdc, pThis->m_hFontBold);
 

@@ -21,6 +21,8 @@ public:
     }
 
     HWND GetHwnd() const { return m_hWnd; }
+    void FocusNextControl(HWND current, bool reverse);
+    void SetFocusedControl(HWND hwnd);
 
 private:
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -33,6 +35,7 @@ private:
     HWND m_hWndParent;
     HINSTANCE m_hInstance;
     HWND m_hWnd = nullptr;
+    HWND m_focusedControl = nullptr;
 
     // Controls
     HWND m_editServer = nullptr;
@@ -59,6 +62,7 @@ private:
     HBRUSH m_hBrBtnSecondary = nullptr;
     HPEN m_hPenCardBorder = nullptr;
     HPEN m_hPenInputBorder = nullptr;
+    HPEN m_hPenInputFocus = nullptr;
     HFONT m_hFontTitle = nullptr;
     HFONT m_hFontSub = nullptr;
     HFONT m_hFontBody = nullptr;

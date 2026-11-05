@@ -94,7 +94,7 @@ def test_candidate_users_and_sharing_private_board(client, kanban_users_and_boar
     assert user2.id in member_ids
 
     # 3. Log out and log in as user2
-    client.get('/logout', follow_redirects=True)
+    client.post('/logout', follow_redirects=True)
     _login(client, user2.email)
 
     # User2 should now be able to view the private board
@@ -125,7 +125,7 @@ def test_sharing_team_board(client, kanban_users_and_boards):
     assert share_resp.status_code == 200
 
     # Log out and log in as user2
-    client.get('/logout', follow_redirects=True)
+    client.post('/logout', follow_redirects=True)
     _login(client, user2.email)
 
     # User2 should now be able to view the team board

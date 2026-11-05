@@ -358,6 +358,11 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
             if (pt.x > winW - resizeBorder) return HTRIGHT;
         }
 
+        // Top area: treat as caption for dragging (except window control buttons on top right)
+        if (pt.y <= 52 && pt.x < winW - 140) {
+            return HTCAPTION;
+        }
+
         return HTCLIENT;
     }
 

@@ -445,4 +445,43 @@
       }
     });
   }
+
+  // Live unread notification badges on board cards
+  async function refreshBoardUnreadCounts() {
+    try {
+      var res = await fetch('/kanban/api/boards/unread_counts', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!res.ok) return;
+      var data = await res.json();
+      var counts = data.unread_counts || {};
+
+      qsa('[data-board-wrapper]').forEach(function (wrapper) {
+        var boardId = wrapper.dataset.boardWrapper;
+        var count = counts[boardId] || counts[String(boardId)] || 0;
+        var cover = wrapper.querySelector('.kanban-grid-cover');
+        var badge = wrapper.querySelector('.kanban-board-unread-badge');
+
+        if (count > 0) {
+          if (!badge && cover) {
+            badge = document.createElement('span');
+            badge.className = 'position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge d-flex align-items-center gap-1';
+            badge.dataset.boardUnreadBadge = boardId;
+            cover.appendChild(badge);
+          }
+          if (badge) {
+            badge.innerHTML = '<i class="bi bi-bell-fill" style="font-size: 0.65rem;"></i>' + count;
+            badge.title = count + (count > 1 ? ' neue Benachrichtigungen' : ' neue Benachrichtigung');
+            badge.style.display = '';
+          }
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    } catch (_) {}
+  }
+
+  window.addEventListener('focus', function () {
+    refreshBoardUnreadCounts();
+  });
 })();

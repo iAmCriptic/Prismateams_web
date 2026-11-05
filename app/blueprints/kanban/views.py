@@ -31,6 +31,7 @@ from app.models.comment import Comment
 from app.models.public_share import PublicShare
 from app.models.kanban import (
     KanbanActivity,
+    KanbanActivityRead,
     KanbanAttachment,
     KanbanBoard,
     KanbanBoardMember,
@@ -215,6 +216,24 @@ def index():
         displayed.extend(group.get('boards') or [])
     manageable_ids = {b.id for b in displayed if can_manage_board(current_user, b)}
 
+    all_board_ids = {b.id for b in displayed if b}
+    unread_counts_by_board = {}
+    if all_board_ids and getattr(current_user, 'is_authenticated', False):
+        try:
+            from sqlalchemy import func, select
+            read_subq = select(KanbanActivityRead.activity_id).filter_by(user_id=current_user.id)
+            counts = (
+                db.session.query(KanbanActivity.board_id, func.count(KanbanActivity.id))
+                .filter(KanbanActivity.board_id.in_(all_board_ids))
+                .filter(KanbanActivity.user_id != current_user.id)
+                .filter(KanbanActivity.id.not_in(read_subq))
+                .group_by(KanbanActivity.board_id)
+                .all()
+            )
+            unread_counts_by_board = {board_id: cnt for board_id, cnt in counts if cnt > 0}
+        except Exception:
+            unread_counts_by_board = {}
+
     active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
 
     return render_template(
@@ -230,6 +249,7 @@ def index():
         backgrounds=BOARD_BACKGROUNDS,
         show_closed_link=True,
         manageable_ids=manageable_ids,
+        unread_counts_by_board=unread_counts_by_board,
         section_filter=section,
         filter_team_id=filter_team_id,
         active_nav=active_nav,

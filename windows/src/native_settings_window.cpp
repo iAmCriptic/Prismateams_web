@@ -5,6 +5,11 @@
 #include "../resources/resource.h"
 
 #include <commctrl.h>
+#include <dwmapi.h>
+#include <uxtheme.h>
+
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 namespace Prismateams {
 
@@ -71,29 +76,29 @@ void NativeSettingsWindow::SetTheme(bool isDarkMode) {
     if (m_hPenBorder) DeleteObject(m_hPenBorder);
 
     if (m_isDarkMode) {
-        m_hBrBg = CreateSolidBrush(RGB(18, 18, 26));           // Background
-        m_hBrCard = CreateSolidBrush(RGB(28, 28, 40));         // Cards
-        m_hBrInput = CreateSolidBrush(RGB(38, 38, 54));        // Input fields
-        m_hBrBtnPrimary = CreateSolidBrush(RGB(99, 102, 241)); // Indigo
-        m_hBrBtnSecondary = CreateSolidBrush(RGB(42, 42, 60)); // Dark button
-        m_hPenBorder = CreatePen(PS_SOLID, 1, RGB(46, 46, 66));
+        m_hBrBg = CreateSolidBrush(RGB(10, 14, 20));           // #0a0e14
+        m_hBrCard = CreateSolidBrush(RGB(22, 27, 34));         // #161b22
+        m_hBrInput = CreateSolidBrush(RGB(13, 17, 23));        // #0d1117
+        m_hBrBtnPrimary = CreateSolidBrush(RGB(37, 99, 235));  // #2563eb
+        m_hBrBtnSecondary = CreateSolidBrush(RGB(33, 38, 45)); // #21262d
+        m_hPenBorder = CreatePen(PS_SOLID, 1, RGB(48, 54, 61)); // #30363d
     } else {
         m_hBrBg = CreateSolidBrush(RGB(241, 245, 249));
         m_hBrCard = CreateSolidBrush(RGB(255, 255, 255));
         m_hBrInput = CreateSolidBrush(RGB(248, 250, 252));
-        m_hBrBtnPrimary = CreateSolidBrush(RGB(79, 70, 229));
+        m_hBrBtnPrimary = CreateSolidBrush(RGB(37, 99, 235));
         m_hBrBtnSecondary = CreateSolidBrush(RGB(241, 245, 249));
         m_hPenBorder = CreatePen(PS_SOLID, 1, RGB(226, 232, 240));
     }
 
     if (!m_hFontTitle) {
-        m_hFontTitle = CreateFontW(-18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        m_hFontTitle = CreateFontW(-20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
         m_hFontHeading = CreateFontW(-14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        m_hFontBody = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        m_hFontBody = CreateFontW(-13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        m_hFontBold = CreateFontW(-12, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+        m_hFontBold = CreateFontW(-13, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
     }
 }
@@ -110,8 +115,8 @@ bool NativeSettingsWindow::Create() {
 
     RegisterClassExW(&wcex);
 
-    int winW = 560;
-    int winH = 680;
+    int winW = 580;
+    int winH = 710;
 
     RECT rcParent;
     GetWindowRect(m_hWndParent, &rcParent);
@@ -119,9 +124,9 @@ bool NativeSettingsWindow::Create() {
     int posY = rcParent.top + ((rcParent.bottom - rcParent.top) - winH) / 2;
 
     m_hWnd = CreateWindowExW(
-        WS_EX_DLGMODALFRAME,
+        0,
         SETTINGS_WINDOW_CLASS,
-        L"Prismateams \x2014 Einstellungen",
+        L"Prismateams \x2014 Desktop-Einstellungen",
         WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN,
         posX, posY, winW, winH,
         m_hWndParent, nullptr, m_hInstance, this
@@ -129,11 +134,16 @@ bool NativeSettingsWindow::Create() {
 
     if (!m_hWnd) return false;
 
+    // Enable Windows 11 Immersive Dark Mode for title bar
+    BOOL useDark = m_isDarkMode ? TRUE : FALSE;
+    DwmSetWindowAttribute(m_hWnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &useDark, sizeof(useDark));
+
     // --- Sektion 1: Netzwerklaufwerk ---
     m_comboDriveLetter = CreateWindowExW(0, L"COMBOBOX", L"",
         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP,
-        220, 80, 80, 150, m_hWnd, (HMENU)(INT_PTR)IDC_SW_COMBODRIVE, m_hInstance, nullptr);
+        245, 88, 80, 150, m_hWnd, (HMENU)(INT_PTR)IDC_SW_COMBODRIVE, m_hInstance, nullptr);
     SendMessageW(m_comboDriveLetter, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    SetWindowTheme(m_comboDriveLetter, L"Explorer", nullptr);
 
     const wchar_t* letters = L"PQRSTUVWXYZABCDEFGHIJKLMNO";
     wchar_t curLetter = SettingsManager::Instance().Get().driveLetter;
@@ -147,53 +157,57 @@ bool NativeSettingsWindow::Create() {
 
     m_checkAutoMount = CreateWindowExW(0, L"BUTTON", L"Netzlaufwerk bei App-Start automatisch verbinden",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | WS_TABSTOP,
-        44, 115, 380, 20, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKAUTOMOUNT, m_hInstance, nullptr);
+        46, 126, 420, 22, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKAUTOMOUNT, m_hInstance, nullptr);
     SendMessageW(m_checkAutoMount, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    SetWindowTheme(m_checkAutoMount, L"Explorer", nullptr);
     CheckDlgButton(m_hWnd, IDC_SW_CHKAUTOMOUNT, SettingsManager::Instance().Get().autoMountDrive ? BST_CHECKED : BST_UNCHECKED);
 
     m_btnMountToggle = CreateWindowExW(0, L"BUTTON", L"Netzlaufwerk verbinden",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        44, 145, 200, 32, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNMOUNT, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        46, 158, 200, 34, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNMOUNT, m_hInstance, nullptr);
 
     m_btnOpenExplorer = CreateWindowExW(0, L"BUTTON", L"Im Explorer \xF6ffnen",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        256, 145, 160, 32, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNEXPLORER, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        258, 158, 170, 34, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNEXPLORER, m_hInstance, nullptr);
 
     // --- Sektion 2: Server & Login ---
-    m_editServer = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", SettingsManager::Instance().Get().serverUrl.c_str(),
-        WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        44, 250, 340, 26, m_hWnd, (HMENU)(INT_PTR)IDC_SW_SERVER, m_hInstance, nullptr);
+    m_editServer = CreateWindowExW(0, L"EDIT", SettingsManager::Instance().Get().serverUrl.c_str(),
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+        56, 266, 350, 22, m_hWnd, (HMENU)(INT_PTR)IDC_SW_SERVER, m_hInstance, nullptr);
+    SetWindowTheme(m_editServer, L"", L"");
     SendMessageW(m_editServer, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
 
     m_btnTestServer = CreateWindowExW(0, L"BUTTON", L"Pr\xFCfen",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        396, 250, 100, 26, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNTESTSRV, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        426, 260, 100, 32, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNTESTSRV, m_hInstance, nullptr);
 
     m_btnLogout = CreateWindowExW(0, L"BUTTON", L"Abmelden",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        396, 305, 100, 30, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNLOGOUT, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        426, 316, 100, 32, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNLOGOUT, m_hInstance, nullptr);
 
-    // --- Sektion 3: System & Start ---
+    // --- Sektion 3: System & Autostart ---
     m_checkAutoStart = CreateWindowExW(0, L"BUTTON", L"Mit Windows automatisch im Hintergrund starten",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | WS_TABSTOP,
-        44, 405, 380, 20, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKAUTOSTART, m_hInstance, nullptr);
+        46, 420, 420, 22, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKAUTOSTART, m_hInstance, nullptr);
     SendMessageW(m_checkAutoStart, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    SetWindowTheme(m_checkAutoStart, L"Explorer", nullptr);
     CheckDlgButton(m_hWnd, IDC_SW_CHKAUTOSTART, SettingsManager::Instance().Get().autoStartWithWindows ? BST_CHECKED : BST_UNCHECKED);
 
     m_checkMinTray = CreateWindowExW(0, L"BUTTON", L"Beim Schlie\xDFen in den Infobereich (Tray) minimieren",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | WS_TABSTOP,
-        44, 435, 380, 20, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKMINTRAY, m_hInstance, nullptr);
+        46, 452, 420, 22, m_hWnd, (HMENU)(INT_PTR)IDC_SW_CHKMINTRAY, m_hInstance, nullptr);
     SendMessageW(m_checkMinTray, WM_SETFONT, (WPARAM)m_hFontBody, TRUE);
+    SetWindowTheme(m_checkMinTray, L"Explorer", nullptr);
     CheckDlgButton(m_hWnd, IDC_SW_CHKMINTRAY, SettingsManager::Instance().Get().minimizeToTray ? BST_CHECKED : BST_UNCHECKED);
 
-    // --- Bottom Controls ---
+    // --- Bottom Action Buttons ---
     m_btnSave = CreateWindowExW(0, L"BUTTON", L"Speichern && Schlie\xDFen",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        280, 585, 150, 36, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNSAVE, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        290, 608, 165, 38, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNSAVE, m_hInstance, nullptr);
 
     m_btnCancel = CreateWindowExW(0, L"BUTTON", L"Abbrechen",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-        442, 585, 90, 36, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNCANCEL, m_hInstance, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
+        465, 608, 85, 38, m_hWnd, (HMENU)(INT_PTR)IDC_SW_BTNCANCEL, m_hInstance, nullptr);
 
     UpdateDriveStatus();
     return true;
@@ -201,11 +215,8 @@ bool NativeSettingsWindow::Create() {
 
 void NativeSettingsWindow::UpdateDriveStatus() {
     bool isMounted = WebDavManager::Instance().IsMounted();
-    wchar_t drive = WebDavManager::Instance().GetMountedDriveLetter();
-
     SetWindowTextW(m_btnMountToggle, isMounted ? L"Laufwerk trennen" : L"Netzlaufwerk verbinden");
     EnableWindow(m_btnOpenExplorer, isMounted ? TRUE : FALSE);
-
     InvalidateRect(m_hWnd, nullptr, TRUE);
 }
 
@@ -309,21 +320,21 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
         // Header Title
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(248, 250, 252) : RGB(15, 23, 42));
         HFONT hOldFont = (HFONT)SelectObject(hdc, pThis->m_hFontTitle);
-        TextOutW(hdc, 32, 20, L"Einstellungen", 13);
+        TextOutW(hdc, 30, 20, L"Desktop-Einstellungen", 21);
 
         // --- Card 1: Netzlaufwerk ---
-        RECT card1 = { 32, 55, 528, 195 };
+        RECT card1 = { 30, 56, 550, 208 };
         HPEN hOldPen = (HPEN)SelectObject(hdc, pThis->m_hPenBorder);
         HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, pThis->m_hBrCard);
         RoundRect(hdc, card1.left, card1.top, card1.right, card1.bottom, 12, 12);
 
         SelectObject(hdc, pThis->m_hFontHeading);
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-        TextOutW(hdc, 44, 65, L"Windows Explorer & Netzlaufwerk", 31);
+        TextOutW(hdc, 46, 68, L"Windows Explorer & Netzlaufwerk", 31);
 
         SelectObject(hdc, pThis->m_hFontBody);
-        SetTextColor(hdc, pThis->m_isDarkMode ? RGB(160, 174, 192) : RGB(100, 116, 139));
-        TextOutW(hdc, 44, 86, L"Bevorzugter Laufwerksbuchstabe:", 31);
+        SetTextColor(hdc, pThis->m_isDarkMode ? RGB(148, 163, 184) : RGB(100, 116, 139));
+        TextOutW(hdc, 46, 92, L"Bevorzugter Laufwerksbuchstabe:", 31);
 
         // Drive status pill inside card 1
         bool isMounted = WebDavManager::Instance().IsMounted();
@@ -334,42 +345,45 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
         HPEN hDotPen = CreatePen(PS_SOLID, 1, dotCol);
         SelectObject(hdc, hDot);
         SelectObject(hdc, hDotPen);
-        Ellipse(hdc, 330, 88, 338, 96);
+        Ellipse(hdc, 345, 94, 353, 102);
         DeleteObject(hDot);
         DeleteObject(hDotPen);
 
         SelectObject(hdc, pThis->m_hFontBold);
         SetTextColor(hdc, isMounted ? RGB(34, 197, 94) : (pThis->m_isDarkMode ? RGB(148, 163, 184) : RGB(100, 116, 139)));
-        std::wstring statStr = isMounted ? (L"Laufwerk " + std::wstring(1, letter) + L": verbunden") : L"Getrennt";
-        TextOutW(hdc, 344, 84, statStr.c_str(), static_cast<int>(statStr.length()));
+        std::wstring statStr = isMounted ? (L"Laufwerk " + std::wstring(1, letter) + L": aktiv") : L"Getrennt";
+        TextOutW(hdc, 360, 90, statStr.c_str(), static_cast<int>(statStr.length()));
 
-        // --- Card 2: Server & Login ---
-        RECT card2 = { 32, 210, 528, 355 };
+        // --- Card 2: Server & Authentifizierung ---
+        RECT card2 = { 30, 222, 550, 368 };
         SelectObject(hdc, pThis->m_hPenBorder);
         SelectObject(hdc, pThis->m_hBrCard);
         RoundRect(hdc, card2.left, card2.top, card2.right, card2.bottom, 12, 12);
 
         SelectObject(hdc, pThis->m_hFontHeading);
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-        TextOutW(hdc, 44, 220, L"Server & Authentifizierung", 26);
+        TextOutW(hdc, 46, 234, L"Server & Authentifizierung", 26);
 
+        // Input container box for Server URL
+        SelectObject(hdc, pThis->m_hPenBorder);
+        SelectObject(hdc, pThis->m_hBrInput);
+        RoundRect(hdc, 46, 260, 414, 292, 8, 8);
+
+        // User info inside Card 2
         SelectObject(hdc, pThis->m_hFontBody);
-        SetTextColor(hdc, pThis->m_isDarkMode ? RGB(160, 174, 192) : RGB(100, 116, 139));
-        TextOutW(hdc, 44, 236, L"Server-Adresse:", 15);
-
-        // User email
+        SetTextColor(hdc, pThis->m_isDarkMode ? RGB(148, 163, 184) : RGB(100, 116, 139));
         std::wstring userText = L"Angemeldet als: " + (AuthManager::Instance().GetUserEmail().empty() ? L"Nicht angemeldet" : AuthManager::Instance().GetUserEmail());
-        TextOutW(hdc, 44, 312, userText.c_str(), static_cast<int>(userText.length()));
+        TextOutW(hdc, 46, 322, userText.c_str(), static_cast<int>(userText.length()));
 
-        // --- Card 3: System & Start ---
-        RECT card3 = { 32, 370, 528, 475 };
+        // --- Card 3: System & Verhalten ---
+        RECT card3 = { 30, 382, 550, 492 };
         SelectObject(hdc, pThis->m_hPenBorder);
         SelectObject(hdc, pThis->m_hBrCard);
         RoundRect(hdc, card3.left, card3.top, card3.right, card3.bottom, 12, 12);
 
         SelectObject(hdc, pThis->m_hFontHeading);
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-        TextOutW(hdc, 44, 380, L"System & Verhalten", 18);
+        TextOutW(hdc, 46, 394, L"System & Verhalten", 18);
 
         SelectObject(hdc, hOldBr);
         SelectObject(hdc, hOldPen);
@@ -382,14 +396,14 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
     case WM_CTLCOLORSTATIC: {
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(30, 41, 59));
-        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(28, 28, 40) : RGB(255, 255, 255));
+        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(22, 27, 34) : RGB(255, 255, 255));
         return (INT_PTR)pThis->m_hBrCard;
     }
 
     case WM_CTLCOLOREDIT: {
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, pThis->m_isDarkMode ? RGB(241, 245, 249) : RGB(15, 23, 42));
-        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(38, 38, 54) : RGB(248, 250, 252));
+        SetBkColor(hdc, pThis->m_isDarkMode ? RGB(13, 17, 23) : RGB(248, 250, 252));
         return (INT_PTR)pThis->m_hBrInput;
     }
 
@@ -398,12 +412,22 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
         if (pdis->CtlType == ODT_BUTTON) {
             HDC hdc = pdis->hDC;
             RECT rc = pdis->rcItem;
-
+            bool isSelected = (pdis->itemState & ODS_SELECTED);
             bool isPrimary = (pdis->CtlID == IDC_SW_BTNSAVE);
             bool isDanger = (pdis->CtlID == IDC_SW_BTNLOGOUT);
 
-            HBRUSH hBr = isPrimary ? pThis->m_hBrBtnPrimary : (isDanger ? CreateSolidBrush(RGB(225, 29, 72)) : pThis->m_hBrBtnSecondary);
-            HPEN hPen = isPrimary ? pThis->m_hPenBorder : pThis->m_hPenBorder;
+            COLORREF bgColor;
+            if (isDanger) {
+                bgColor = isSelected ? RGB(185, 28, 28) : RGB(220, 38, 38);
+            } else if (isPrimary) {
+                bgColor = isSelected ? RGB(29, 78, 216) : RGB(37, 99, 235);
+            } else {
+                bgColor = isSelected ? (pThis->m_isDarkMode ? RGB(22, 27, 34) : RGB(226, 232, 240))
+                                     : (pThis->m_isDarkMode ? RGB(33, 38, 45) : RGB(241, 245, 249));
+            }
+
+            HBRUSH hBr = CreateSolidBrush(bgColor);
+            HPEN hPen = (isPrimary || isDanger) ? CreatePen(PS_SOLID, 1, bgColor) : pThis->m_hPenBorder;
 
             HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
             HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, hBr);
@@ -412,10 +436,12 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
 
             SelectObject(hdc, hOldBr);
             SelectObject(hdc, hOldPen);
-            if (isDanger) DeleteObject(hBr);
+            DeleteObject(hBr);
+            if (isPrimary || isDanger) DeleteObject(hPen);
 
             SetBkMode(hdc, TRANSPARENT);
-            SetTextColor(hdc, (isPrimary || isDanger) ? RGB(255, 255, 255) : (pThis->m_isDarkMode ? RGB(226, 232, 240) : RGB(51, 65, 85)));
+            SetTextColor(hdc, (isPrimary || isDanger) ? RGB(255, 255, 255)
+                                                     : (pThis->m_isDarkMode ? RGB(241, 245, 249) : RGB(30, 41, 59)));
 
             HFONT hOldFont = (HFONT)SelectObject(hdc, pThis->m_hFontBold);
 

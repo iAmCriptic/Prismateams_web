@@ -22,6 +22,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -30,6 +31,7 @@ from app.models.comment import Comment
 from app.models.public_share import PublicShare
 from app.models.kanban import (
     KanbanActivity,
+    KanbanActivityRead,
     KanbanAttachment,
     KanbanBoard,
     KanbanBoardMember,
@@ -240,6 +242,8 @@ def _activity_label(action: str) -> str:
         'checklist_item_deleted': 'Checklisten-Eintrag gelöscht',
         'checklist_item_completed': 'Checklisten-Eintrag erledigt',
         'checklist_item_uncompleted': 'Checklisten-Eintrag unerledigt',
+        'checklist_assignee_added': 'Checklisten-Aufgabe zugewiesen',
+        'checklist_assignee_removed': 'Checklisten-Zuweisung entfernt',
         'label_created': 'Label erstellt',
         'label_added': 'Label zugewiesen',
         'label_removed': 'Label entfernt',
@@ -248,6 +252,7 @@ def _activity_label(action: str) -> str:
         'member_added': 'Mitglied hinzugefügt',
         'member_updated': 'Mitgliederrolle geändert',
         'member_removed': 'Mitglied entfernt',
+        'comment_added': 'Kommentar hinzugefügt',
         'custom_field_created': 'Feld erstellt',
         'custom_field_deleted': 'Feld gelöscht',
         'custom_field_category_deleted': 'Feld-Kategorie gelöscht',
@@ -261,6 +266,330 @@ def _activity_label(action: str) -> str:
         'due_date_updated': 'Fälligkeitsdatum aktualisiert',
     }
     return labels.get(action or '', action or 'Aktivität')
+
+
+def _relative_time_de(dt) -> str:
+    if not dt:
+        return ''
+    now = datetime.utcnow()
+    diff = now - dt
+    seconds = int(diff.total_seconds())
+    if seconds < 0 or seconds < 45:
+        return 'gerade eben'
+    minutes = seconds // 60
+    if minutes < 60:
+        return 'vor 1 Minute' if minutes == 1 else f'vor {minutes} Minuten'
+    hours = minutes // 60
+    if hours < 24:
+        return 'vor 1 Stunde' if hours == 1 else f'vor {hours} Stunden'
+    days = hours // 24
+    if days == 1:
+        return f'Gestern, {dt.strftime("%H:%M")}'
+    if days < 7:
+        return f'vor {days} Tagen'
+    return dt.strftime('%d.%m.%Y, %H:%M')
+
+
+def _format_notification_text(activity: KanbanActivity, current_user) -> tuple[str, bool]:
+    """Generates natural language notification text and returns (text, is_for_me)."""
+    action = activity.action
+    detail = activity.detail or ''
+    is_me = bool(activity.user_id and activity.user_id == current_user.id)
+    actor_name = activity.user.full_name if (activity.user and activity.user.full_name) else (
+        activity.user.email if activity.user else 'Jemand'
+    )
+
+    prefix = "Du hast" if is_me else "Hat"
+    is_for_me = False
+
+    # Check for target user patterns like "user_id::User Name"
+    target_id = None
+    target_name = detail
+    rest = ''
+    if '::' in detail:
+        parts = detail.split('::')
+        try:
+            target_id = int(parts[0].strip())
+            target_name = parts[1].strip()
+            if len(parts) > 2:
+                rest = '::'.join(parts[2:]).strip()
+        except (ValueError, TypeError):
+            pass
+
+    my_name = (current_user.full_name or '').lower().strip()
+    my_email = (current_user.email or '').lower().strip()
+    t_name_lower = (target_name or '').lower().strip()
+
+    user_matches_target = (target_id is not None and target_id == current_user.id) or (
+        bool(t_name_lower) and (
+            (bool(my_name) and (t_name_lower == my_name or t_name_lower.startswith(my_name))) or
+            (bool(my_email) and t_name_lower == my_email)
+        )
+    )
+
+    if user_matches_target and not is_me:
+        is_for_me = True
+
+    if action == 'member_added':
+        if user_matches_target:
+            return ("Hat Sie zum Board hinzugefügt", True) if not is_me else ("Du wurdest zum Board hinzugefügt", False)
+        return (f"{prefix} {target_name or detail} zum Board hinzugefügt", False)
+
+    elif action == 'member_removed':
+        if user_matches_target:
+            return ("Hat Sie vom Board entfernt", True) if not is_me else ("Du wurdest vom Board entfernt", False)
+        return (f"{prefix} {target_name or detail} vom Board entfernt", False)
+
+    elif action == 'member_updated':
+        if user_matches_target:
+            return (f"Hat Ihre Rolle geändert ({rest or target_name})", True) if not is_me else (f"Deine Rolle wurde geändert ({rest or target_name})", False)
+        return (f"{prefix} die Rolle von {target_name} geändert", False)
+
+    elif action == 'assignee_added':
+        if user_matches_target:
+            return ("Hat Sie dieser Karte zugewiesen", True) if not is_me else ("Du hast dich dieser Karte zugewiesen", False)
+        return (f"{prefix} {target_name} dieser Karte zugewiesen", False)
+
+    elif action == 'assignee_removed':
+        if user_matches_target:
+            return ("Hat Ihre Zuweisung zu dieser Karte entfernt", True) if not is_me else ("Du hast deine Zuweisung entfernt", False)
+        return (f"{prefix} {target_name} von dieser Karte entfernt", False)
+
+    elif action == 'checklist_assignee_added':
+        parts = detail.split('::')
+        item_text = parts[3].strip() if len(parts) > 3 else (rest or 'Aufgabe')
+        cl_name = parts[2].strip() if len(parts) > 2 else 'Checkliste'
+        if user_matches_target:
+            return (f"Hat Ihnen '{item_text}' auf der Checkliste '{cl_name}' zugewiesen", True) if not is_me else (f"Du hast dir '{item_text}' zugewiesen", False)
+        return (f"{prefix} {target_name} '{item_text}' auf der Checkliste '{cl_name}' zugewiesen", False)
+
+    elif action == 'checklist_assignee_removed':
+        parts = detail.split('::')
+        item_text = parts[3].strip() if len(parts) > 3 else (rest or 'Aufgabe')
+        cl_name = parts[2].strip() if len(parts) > 2 else 'Checkliste'
+        if user_matches_target:
+            return (f"Hat Ihre Zuweisung für '{item_text}' auf '{cl_name}' entfernt", True) if not is_me else (f"Du hast deine Zuweisung für '{item_text}' entfernt", False)
+        return (f"{prefix} die Zuweisung von {target_name} für '{item_text}' entfernt", False)
+
+    elif action == 'attachment_added':
+        return (f"{prefix} '{detail}' angehängt", False)
+
+    elif action == 'attachment_deleted':
+        return (f"{prefix} Anhang '{detail}' gelöscht", False)
+
+    elif action == 'card_moved':
+        if '→' in detail:
+            src, dst = detail.split('→', 1)
+            return (f"{prefix} die Karte nach '{dst.strip()}' verschoben", False)
+        return (f"{prefix} die Karte nach '{detail}' verschoben", False)
+
+    elif action == 'card_created':
+        return (f"{prefix} die Karte erstellt", False)
+
+    elif action == 'card_completed':
+        return (f"{prefix} die Karte als erledigt markiert", False)
+
+    elif action == 'card_uncompleted':
+        return (f"{prefix} die Karte wieder als offen markiert", False)
+
+    elif action == 'checklist_added':
+        return (f"{prefix} Checkliste '{detail}' hinzugefügt", False)
+
+    elif action == 'checklist_deleted':
+        return (f"{prefix} Checkliste '{detail}' gelöscht", False)
+
+    elif action == 'checklist_item_added':
+        return (f"{prefix} '{detail}' zur Checkliste hinzugefügt", False)
+
+    elif action == 'checklist_item_completed':
+        return (f"{prefix} '{detail}' erledigt", False)
+
+    elif action == 'checklist_item_uncompleted':
+        return (f"{prefix} '{detail}' wieder als offen markiert", False)
+
+    elif action == 'comment_added':
+        return (f"{prefix} einen Kommentar hinterlassen: \"{detail}\"", False)
+
+    elif action == 'due_date_updated':
+        return (f"{prefix} das Fälligkeitsdatum aktualisiert", False)
+
+    elif action == 'due_date_cleared':
+        return (f"{prefix} das Fälligkeitsdatum entfernt", False)
+
+    elif action == 'label_added':
+        return (f"{prefix} Label '{detail}' zugewiesen", False)
+
+    elif action == 'label_removed':
+        return (f"{prefix} Label '{detail}' entfernt", False)
+
+    elif action == 'card_updated':
+        return (f"{prefix} die Karte aktualisiert", False)
+
+    return (f"{prefix} {_activity_label(action)}: {detail}" if detail else f"{prefix} {_activity_label(action)}", False)
+
+
+def _get_unread_notifications_count(board_id: int, user_id: int) -> int:
+    try:
+        from sqlalchemy import select
+        read_subq = select(KanbanActivityRead.activity_id).filter_by(user_id=user_id)
+        return (
+            KanbanActivity.query
+            .filter(KanbanActivity.board_id == board_id)
+            .filter(KanbanActivity.user_id != user_id)
+            .filter(KanbanActivity.id.not_in(read_subq))
+            .count()
+        )
+    except Exception:
+        return 0
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/notifications')
+@login_required
+@check_module_access('module_kanban')
+def api_board_notifications(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+
+    unread_only = request.args.get('unread_only') in ('1', 'true', 'True')
+    limit = min(request.args.get('limit', 50, type=int), 100)
+
+    try:
+        read_ids = set(
+            r[0] for r in db.session.query(KanbanActivityRead.activity_id)
+            .filter_by(user_id=current_user.id)
+            .all()
+        )
+    except Exception:
+        read_ids = set()
+
+    q = (
+        KanbanActivity.query
+        .filter_by(board_id=board.id)
+        .options(
+            joinedload(KanbanActivity.user),
+            joinedload(KanbanActivity.card).joinedload(KanbanCard.list),
+        )
+        .order_by(KanbanActivity.created_at.desc())
+    )
+
+    rows = q.limit(limit * 2 if unread_only else limit).all()
+
+    items = []
+    for a in rows:
+        is_own = bool(a.user_id and a.user_id == current_user.id)
+        is_read = is_own or (a.id in read_ids)
+        if unread_only and is_read:
+            continue
+
+        action_text, is_for_me = _format_notification_text(a, current_user)
+        card_obj = a.card
+        list_title = card_obj.list.title if (card_obj and card_obj.list) else None
+
+        items.append({
+            'id': a.id,
+            'board_id': board.id,
+            'board_title': board.title,
+            'card_id': a.card_id,
+            'card_title': card_obj.title if card_obj else None,
+            'list_title': list_title,
+            'actor': _user_brief(a.user),
+            'action': a.action,
+            'action_text': action_text,
+            'detail': a.detail,
+            'is_read': is_read,
+            'is_own': is_own,
+            'is_for_me': is_for_me,
+            'created_at': a.created_at.isoformat() if a.created_at else None,
+            'created_at_relative': _relative_time_de(a.created_at),
+            'created_at_display': a.created_at.strftime('%d.%m.%Y, %H:%M') if a.created_at else None,
+        })
+        if len(items) >= limit:
+            break
+
+    unread_count = _get_unread_notifications_count(board.id, current_user.id)
+
+    return jsonify({
+        'notifications': items,
+        'unread_count': unread_count,
+    })
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/notifications/mark_read', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_mark_notifications_read(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    activity_id = data.get('activity_id')
+    mark_all = data.get('all', False)
+    now = portal_now_naive()
+
+    if mark_all:
+        activities = KanbanActivity.query.filter_by(board_id=board.id).all()
+        existing_read_ids = {
+            r[0] for r in db.session.query(KanbanActivityRead.activity_id)
+            .filter_by(user_id=current_user.id)
+            .filter(KanbanActivityRead.activity_id.in_([a.id for a in activities]))
+            .all()
+        } if activities else set()
+        for a in activities:
+            if a.id not in existing_read_ids:
+                db.session.add(KanbanActivityRead(activity_id=a.id, user_id=current_user.id, read_at=now))
+        db.session.commit()
+    elif activity_id:
+        try:
+            aid = int(activity_id)
+            existing = KanbanActivityRead.query.filter_by(activity_id=aid, user_id=current_user.id).first()
+            if not existing:
+                db.session.add(KanbanActivityRead(activity_id=aid, user_id=current_user.id, read_at=now))
+                db.session.commit()
+        except (ValueError, TypeError):
+            pass
+
+    unread_count = _get_unread_notifications_count(board.id, current_user.id)
+    return jsonify({
+        'success': True,
+        'unread_count': unread_count,
+    })
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/notifications/count')
+@login_required
+@check_module_access('module_kanban')
+def api_board_notifications_count(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+    count = _get_unread_notifications_count(board.id, current_user.id)
+    return jsonify({'unread_count': count})
+
+
+@kanban_bp.route('/api/boards/unread_counts')
+@login_required
+@check_module_access('module_kanban')
+def api_boards_unread_counts():
+    try:
+        from sqlalchemy import func, select
+        boards = accessible_boards_query(current_user, include_closed=False).with_entities(KanbanBoard.id).all()
+        board_ids = [b[0] for b in boards]
+        if not board_ids:
+            return jsonify({'unread_counts': {}})
+        read_subq = select(KanbanActivityRead.activity_id).filter_by(user_id=current_user.id)
+        counts = (
+            db.session.query(KanbanActivity.board_id, func.count(KanbanActivity.id))
+            .filter(KanbanActivity.board_id.in_(board_ids))
+            .filter(KanbanActivity.user_id != current_user.id)
+            .filter(KanbanActivity.id.not_in(read_subq))
+            .group_by(KanbanActivity.board_id)
+            .all()
+        )
+        return jsonify({'unread_counts': {str(bid): cnt for bid, cnt in counts if cnt > 0}})
+    except Exception as e:
+        return jsonify({'unread_counts': {}, 'error': str(e)}), 500
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/filter', methods=['GET', 'POST'])

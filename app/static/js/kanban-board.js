@@ -2636,32 +2636,205 @@
     getModal('kanbanFilterModal')?.show();
   });
 
-  async function loadBoardActivity() {
-    const listEl = document.getElementById('kanbanBoardActivityList');
-    if (listEl) listEl.innerHTML = '<div class="text-muted small py-2">Lade Aktivitäten…</div>';
+  // ── Board Notifications (Trello-Style Feed) ─────────────────────────────
+  let notifState = {
+    unread_only: false,
+    notifications: [],
+    unread_count: 0,
+  };
+
+  async function refreshNotificationsBadge() {
     try {
-      const act = await api(`/kanban/api/boards/${boardId}/activity`);
-      if (listEl) {
-        listEl.innerHTML = (act.activities || []).map((a) => `
-          <div class="kanban-activity-item">
-            <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
-            ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
-            <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
-          </div>`).join('') || '<p class="text-muted small">Keine Aktivitäten gefunden.</p>';
+      const data = await api(`/kanban/api/boards/${boardId}/notifications/count`);
+      updateNotificationsBadge(data.unread_count || 0);
+    } catch (_) {}
+  }
+
+  function updateNotificationsBadge(count) {
+    notifState.unread_count = count || 0;
+    const badge = document.getElementById('kanbanNotificationsBadge');
+    const headerBadge = document.getElementById('kanbanNotificationsHeaderBadge');
+    const bellIcon = document.getElementById('kanbanNotificationsBellIcon');
+
+    if (badge) {
+      if (notifState.unread_count > 0) {
+        badge.textContent = notifState.unread_count > 99 ? '99+' : notifState.unread_count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
       }
-    } catch (err) {
-      if (listEl) listEl.innerHTML = '<p class="text-danger small">Aktivitäten konnten nicht geladen werden.</p>';
+    }
+    if (headerBadge) {
+      if (notifState.unread_count > 0) {
+        headerBadge.textContent = `${notifState.unread_count} neu`;
+        headerBadge.style.display = 'inline-block';
+      } else {
+        headerBadge.style.display = 'none';
+      }
+    }
+    if (bellIcon) {
+      if (notifState.unread_count > 0) {
+        bellIcon.className = 'bi bi-bell-fill text-warning';
+      } else {
+        bellIcon.className = 'bi bi-bell';
+      }
     }
   }
 
-  document.getElementById('kanbanBoardActivityBtn')?.addEventListener('click', () => {
-    loadBoardActivity();
-    getModal('kanbanBoardActivityModal')?.show();
+  async function loadNotifications() {
+    const feed = document.getElementById('kanbanNotificationsFeed');
+    if (!feed) return;
+    feed.innerHTML = '<div class="text-center text-muted py-4 small"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>Lade Benachrichtigungen…</div>';
+
+    try {
+      const params = new URLSearchParams();
+      if (notifState.unread_only) params.set('unread_only', '1');
+      params.set('limit', '50');
+
+      const data = await api(`/kanban/api/boards/${boardId}/notifications?${params.toString()}`);
+      notifState.notifications = data.notifications || [];
+      updateNotificationsBadge(data.unread_count);
+      renderNotifications();
+    } catch (err) {
+      feed.innerHTML = `<div class="text-center text-danger py-4 small">${esc(err.message || 'Benachrichtigungen konnten nicht geladen werden.')}</div>`;
+    }
+  }
+
+  function renderNotifications() {
+    const feed = document.getElementById('kanbanNotificationsFeed');
+    if (!feed) return;
+
+    if (!notifState.notifications.length) {
+      feed.innerHTML = `
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-bell-slash fs-1 d-block mb-2 text-secondary opacity-50"></i>
+          <div class="fw-semibold small">${notifState.unread_only ? 'Keine ungelesenen Benachrichtigungen' : 'Noch keine Benachrichtigungen'}</div>
+          <div class="small text-muted mt-1">${notifState.unread_only ? 'Alle Aktivitäten auf diesem Board wurden gelesen.' : 'Sobald Karten verschoben oder bearbeitet werden, siehst du es hier.'}</div>
+        </div>
+      `;
+      return;
+    }
+
+    feed.innerHTML = notifState.notifications.map((item) => {
+      const isUnread = !item.is_read;
+      const cardTitle = item.card_title || `Board: ${item.board_title}`;
+      const subtitle = item.card_title
+        ? `${esc(item.board_title)}${item.list_title ? ` · ${esc(item.list_title)}` : ''}`
+        : 'Board-Aktivität';
+
+      return `
+        <div class="kanban-notif-card card mb-2 ${isUnread ? 'is-unread' : ''} ${item.is_for_me ? 'is-for-me' : ''}"
+             data-notif-id="${item.id}"
+             ${item.card_id ? `data-card-id="${item.card_id}"` : ''}
+             role="button"
+             tabindex="0">
+          <div class="card-header bg-transparent py-2 px-3 border-bottom-0 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-width-0">
+              <div class="kanban-notif-card__title fw-semibold text-truncate" title="${esc(cardTitle)}">
+                ${item.card_id ? `<i class="bi bi-card-text me-1 opacity-75"></i>` : `<i class="bi bi-kanban me-1 opacity-75"></i>`}
+                ${esc(cardTitle)}
+              </div>
+              <div class="kanban-notif-card__subtitle text-truncate">${subtitle}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              ${isUnread ? '<span class="kanban-notif-card__dot" title="Ungelesen"></span>' : ''}
+            </div>
+          </div>
+          <div class="card-body py-2 px-3 pt-0">
+            <div class="d-flex align-items-start gap-2 mt-1">
+              ${avatarHtml(item.actor)}
+              <div class="flex-grow-1 min-width-0">
+                <div class="small fw-semibold text-truncate">${esc(item.actor ? item.actor.name : 'Jemand')}</div>
+                <div class="small text-body kanban-notif-card__action">${esc(item.action_text)}</div>
+                <div class="kanban-notif-card__time mt-1 text-muted">${esc(item.created_at_relative || item.created_at_display || '')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Click handler on notification cards
+    feed.querySelectorAll('.kanban-notif-card').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const notifId = Number(el.dataset.notifId);
+        const cardId = el.dataset.cardId ? Number(el.dataset.cardId) : null;
+
+        // Mark as read immediately on client & server
+        if (el.classList.contains('is-unread')) {
+          el.classList.remove('is-unread');
+          const dot = el.querySelector('.kanban-notif-card__dot');
+          if (dot) dot.remove();
+          const target = notifState.notifications.find((n) => n.id === notifId);
+          if (target) target.is_read = true;
+          try {
+            const res = await api(`/kanban/api/boards/${boardId}/notifications/mark_read`, {
+              method: 'POST',
+              body: { activity_id: notifId },
+            });
+            updateNotificationsBadge(res.unread_count);
+          } catch (_) {}
+        }
+
+        // If card associated, open card and close notification panel
+        if (cardId) {
+          openCard(cardId);
+          hideNotificationsPanel();
+        }
+      });
+    });
+  }
+
+  function hideNotificationsPanel() {
+    const btn = document.getElementById('kanbanNotificationsBtn');
+    if (btn && window.bootstrap && bootstrap.Dropdown) {
+      const dd = bootstrap.Dropdown.getInstance(btn);
+      if (dd) dd.hide();
+    }
+  }
+
+  // Hook up event listeners for notifications
+  const notifBtn = document.getElementById('kanbanNotificationsBtn');
+  if (notifBtn) {
+    notifBtn.addEventListener('show.bs.dropdown', () => {
+      loadNotifications();
+    });
+  }
+  document.getElementById('kanbanNotificationsPanel')?.addEventListener('show.bs.dropdown', () => {
+    loadNotifications();
+  });
+  document.getElementById('kanbanNotificationsCloseBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideNotificationsPanel();
   });
 
-  document.getElementById('kanbanBoardActivityModal')?.addEventListener('show.bs.modal', () => {
-    loadBoardActivity();
+  document.getElementById('kanbanNotificationsUnreadOnly')?.addEventListener('change', (e) => {
+    notifState.unread_only = e.target.checked;
+    loadNotifications();
   });
+
+  document.getElementById('kanbanNotificationsMarkAllRead')?.addEventListener('click', async () => {
+    try {
+      const res = await api(`/kanban/api/boards/${boardId}/notifications/mark_read`, {
+        method: 'POST',
+        body: { all: true },
+      });
+      notify('Alle Benachrichtigungen als gelesen markiert');
+      updateNotificationsBadge(res.unread_count);
+      notifState.notifications.forEach((n) => { n.is_read = true; });
+      if (notifState.unread_only) {
+        notifState.notifications = [];
+      }
+      renderNotifications();
+    } catch (err) {
+      notify(err.message || 'Fehler beim Markieren');
+    }
+  });
+
+  async function loadBoardActivity() {
+    loadNotifications();
+  }
 
   document.getElementById('kanbanFilterReset')?.addEventListener('click', () => {
     filterState.q = '';
@@ -2777,7 +2950,8 @@
       ['kanban:card_created', 'kanban:card_updated', 'kanban:card_moved', 'kanban:card_deleted',
         'kanban:list_created', 'kanban:list_updated', 'kanban:list_deleted', 'kanban:lists_reordered',
         'kanban:board_updated', 'kanban:label_created', 'kanban:members_updated',
-        'kanban:custom_field_created', 'kanban:custom_field_updated', 'kanban:custom_field_deleted'].forEach((name) => {
+        'kanban:custom_field_created', 'kanban:custom_field_updated', 'kanban:custom_field_deleted',
+        'kanban:activity_added'].forEach((name) => {
         es.addEventListener(name, (ev) => {
           if (ignoreSSE) return;
           try { handleLiveEvent({ event: name, data: JSON.parse(ev.data) }); } catch (_) {}
@@ -2793,6 +2967,16 @@
   function handleLiveEvent(msg) {
     const event = msg.event || '';
     const data = msg.data || msg;
+
+    refreshNotificationsBadge();
+    const notifPanel = document.getElementById('kanbanNotificationsPanel');
+    if (notifPanel && notifPanel.classList.contains('show')) {
+      loadNotifications();
+    }
+
+    if (event.includes('activity_added')) {
+      return;
+    }
     if (event.includes('label_created') && data.id) {
       board.labels = board.labels || [];
       if (!board.labels.some((l) => l.id === data.id)) board.labels.push(data);
@@ -2845,6 +3029,7 @@
     }
     if (ignoreSSE) return;
     refreshBoard();
+    refreshNotificationsBadge();
     connectSSE();
     if (!sseLive) startPolling();
   });
@@ -2860,5 +3045,6 @@
 
   renderBoardMembers();
   renderBoard();
+  refreshNotificationsBadge();
   connectSSE();
 })();

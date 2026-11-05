@@ -5,7 +5,7 @@ os.environ['PRISMATEAMS_RUNNING_MIGRATIONS'] = '1'
 os.environ['FLASK_ENV'] = 'testing'
 
 import pytest
-from app import create_app, db
+from app import create_app, db, limiter
 
 
 @pytest.fixture(scope='session')
@@ -17,6 +17,7 @@ def app_instance():
         'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
         'RATELIMIT_ENABLED': False,
     })
+    limiter.enabled = False
     return app
 
 
