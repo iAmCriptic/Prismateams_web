@@ -93,3 +93,51 @@ def test_public_bilingual_overview(client, app):
     assert 'Fee / Gage' in content_en
     assert '€450.00' in content_en
 
+
+def test_public_apply_and_submission(client, app):
+    with app.app_context():
+        event = BookingPersonalEvent(name='Open Air 2026')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+        apply_token = event.get_apply_token()
+        event_id = event.id
+        db.session.commit()
+
+    # 1. Öffentliches Bewerbungsformular aufrufen (ohne Login)
+    res = client.get(f'/booking-personal/apply/{apply_token}')
+    assert res.status_code == 200
+    assert 'Open Air 2026' in res.data.decode('utf-8')
+    assert 'Bewerbung' in res.data.decode('utf-8')
+
+    # 2. Bewerbung absenden
+    post_data = {
+        'project_name': 'DJ Cosmic Pulse',
+        'contact_name': 'Clara Himmel',
+        'mail': 'clara@cosmicpulse.music',
+        'phone': '+4915199887766',
+        'pronouns': 'she/her',
+        'bereich': 'Ambient',
+        'soundcloud': 'https://soundcloud.com/cosmicpulse',
+        'promotext': 'Sphärische Ambient Klänge zum Träumen.',
+    }
+    res = client.post(
+        f'/booking-personal/apply/{apply_token}/submit',
+        data=post_data,
+        follow_redirects=True
+    )
+    assert res.status_code == 200
+    assert 'Bewerbung erfolgreich' in res.data.decode('utf-8')
+
+    # 3. Prüfen, dass der Act automatisch in der Veranstaltung angelegt wurde
+    with app.app_context():
+        new_entry = BookingPersonalEntry.query.filter_by(event_id=event_id, name='DJ Cosmic Pulse').first()
+        assert new_entry is not None
+        assert new_entry.email == 'clara@cosmicpulse.music'
+        assert new_entry.phone == '+4915199887766'
+        assert new_entry.status == 'Bewerbung eingegangen'
+        assert new_entry.get_value('bereich') == 'Ambient'
+        assert new_entry.get_value('soundcloud') == 'https://soundcloud.com/cosmicpulse'
+        assert new_entry.get_value('promotext') == 'Sphärische Ambient Klänge zum Träumen.'
+
+

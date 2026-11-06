@@ -18,6 +18,10 @@ class BookingPersonalEvent(db.Model):
     # Verknüpftes Postfach aus dem E-Mail-Modul
     mailbox_id = db.Column(db.Integer, db.ForeignKey('mailboxes.id'), nullable=True)
 
+    # Öffentlicher Bewerbungs-Token (für die offene Künstler-/Personal-Anmeldung)
+    apply_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    apply_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
     # Standard-E-Mail-Vorlagen je Event
     accept_template_subject = db.Column(
         db.String(255),
@@ -94,6 +98,20 @@ class BookingPersonalEvent(db.Model):
     )
     mailbox = db.relationship('Mailbox', foreign_keys=[mailbox_id])
     creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.apply_token:
+            self.apply_token = secrets.token_urlsafe(32)
+
+    def get_apply_token(self):
+        if not self.apply_token:
+            self.apply_token = secrets.token_urlsafe(32)
+            try:
+                db.session.commit()
+            except Exception:
+                pass
+        return self.apply_token
 
     def to_dict(self):
         return {

@@ -134,3 +134,210 @@ def test_api_template_save_and_load(client, app):
     data = res.get_json()
     assert data['success'] is True
     assert len(data['fields']) >= 35
+
+    # Benutzerdefiniertes Template löschen
+    res_del = client.post(f'/booking-personal/api/template/{tmpl_id}/delete')
+    assert res_del.status_code == 200
+    assert res_del.get_json()['success'] is True
+
+
+def test_api_column_crud_and_reorder(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Spalten-Test-Event')
+        db.session.add(event)
+        db.session.commit()
+        event_id = event.id
+
+    # 1. Spalte hinzufügen
+    res_add = client.post(
+        f'/booking-personal/api/event/{event_id}/field/add',
+        data=json.dumps({
+            'label': 'Hotelzimmer',
+            'label_en': 'Hotel Room',
+            'field_type': 'text',
+            'width': 180,
+            'is_external': True,
+            'visible_in_overview': True
+        }),
+        content_type='application/json'
+    )
+    assert res_add.status_code == 200
+    data_add = res_add.get_json()
+    assert data_add['success'] is True
+    field_id = data_add['field']['id']
+    assert data_add['field']['label'] == 'Hotelzimmer'
+    assert data_add['field']['label_en'] == 'Hotel Room'
+    assert data_add['field']['is_external'] is True
+
+    # 2. Zweite Spalte hinzufügen
+    res_add2 = client.post(
+        f'/booking-personal/api/event/{event_id}/field/add',
+        data=json.dumps({
+            'label': 'Shuttle benötigt',
+            'field_type': 'badge_select',
+            'options': [{'value': 'Ja', 'color': 'success'}, {'value': 'Nein', 'color': 'secondary'}]
+        }),
+        content_type='application/json'
+    )
+    assert res_add2.status_code == 200
+    field_id2 = res_add2.get_json()['field']['id']
+
+    # 3. Spalte bearbeiten
+    res_upd = client.post(
+        f'/booking-personal/api/field/{field_id}/update',
+        data=json.dumps({
+            'label': 'Hotelzimmer Luxus',
+            'width': 220,
+            'visible_in_overview': False
+        }),
+        content_type='application/json'
+    )
+    assert res_upd.status_code == 200
+    assert res_upd.get_json()['field']['label'] == 'Hotelzimmer Luxus'
+    assert res_upd.get_json()['field']['width'] == 220
+    assert res_upd.get_json()['field']['visible_in_overview'] is False
+
+    # 4. Spalten neu sortieren
+    res_reorder = client.post(
+        f'/booking-personal/api/event/{event_id}/fields/reorder',
+        data=json.dumps({'order': [field_id2, field_id]}),
+        content_type='application/json'
+    )
+    assert res_reorder.status_code == 200
+    fields_order = res_reorder.get_json()['fields']
+    assert fields_order[0]['id'] == field_id2
+    assert fields_order[1]['id'] == field_id
+
+    # 5. Spalte löschen
+    res_del = client.post(f'/booking-personal/api/field/{field_id}/delete')
+    assert res_del.status_code == 200
+    remaining_fields = res_del.get_json()['fields']
+    assert len(remaining_fields) == 1
+    assert remaining_fields[0]['id'] == field_id2
+
+
+def test_act_detail_view_renders_structured_page(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Open Air 2026')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        entry = BookingPersonalEntry(
+            event_id=event.id,
+            name='Lunar Resonance',
+            email='lunar@resonance.live',
+            status='Zusage gesendet'
+        )
+        entry.set_custom_data({
+            'gage': '€1200.00',
+            'booking_fee': '€300.00',
+            'bereich': 'Main Stage',
+            'pronouns': 'they/them',
+            'contact_name': 'Alex Nova',
+            'techrider_djs': '2 x Pioneer CDJ 3000'
+        })
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. Detail-Seite aufrufen
+    resp = client.get(f'/booking-personal/event/{event_id}/act/{entry_id}')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+
+    # Verifizieren, dass das strukturierte Profil und die Daten gerendert werden
+    assert 'Lunar Resonance' in html
+    assert 'Zusage gesendet' in html
+    assert 'Main Stage' in html
+    assert 'they/them' in html
+    assert 'Alex Nova' in html
+    assert '€1500.00' in html
+    assert '2 x Pioneer CDJ 3000' in html
+    assert 'Zurück zur Tabelle' in html
+    assert 'Angaben bearbeiten' in html
+
+
+def test_templates_management_page_and_crud(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Herbst Session')
+        db.session.add(event)
+        db.session.commit()
+        event_id = event.id
+
+    # 1. Vorlagenseite aufrufen
+    resp = client.get('/booking-personal/templates')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'Vorlagenverwaltung' in html
+    assert 'Festival Standard' in html
+
+    # 2. Neue Vorlage erstellen
+    resp_create = client.post('/booking-personal/templates/create', data={
+        'name': 'Clubnacht Minimal',
+        'description': 'Schlankes Template für Clubnächte',
+        'source_type': 'blank',
+    }, follow_redirects=True)
+    assert resp_create.status_code == 200
+    html_created = resp_create.get_data(as_text=True)
+    assert 'Clubnacht Minimal' in html_created
+
+    with app.app_context():
+        tmpl = BookingPersonalTemplate.query.filter_by(name='Clubnacht Minimal').first()
+        assert tmpl is not None
+        tmpl_id = tmpl.id
+
+    # 3. Spalte zur Vorlage hinzufügen
+    resp_field = client.post(f'/booking-personal/templates/{tmpl_id}/field/add', data={
+        'label': 'DJ Slot Time',
+        'label_en': 'Slot Time',
+        'field_type': 'text',
+        'width': '180',
+        'visible_in_overview': '1',
+    }, follow_redirects=True)
+    assert resp_field.status_code == 200
+    html_field = resp_field.get_data(as_text=True)
+    assert 'DJ Slot Time' in html_field
+
+    with app.app_context():
+        tmpl = BookingPersonalTemplate.query.get(tmpl_id)
+        fields = tmpl.get_fields()
+        assert len(fields) == 1
+        assert fields[0]['label'] == 'DJ Slot Time'
+
+    # 4. Vorlage auf Event anwenden
+    resp_apply = client.post(f'/booking-personal/templates/{tmpl_id}/apply', data={
+        'event_id': event_id,
+    }, follow_redirects=True)
+    assert resp_apply.status_code == 200
+
+    with app.app_context():
+        ev = BookingPersonalEvent.query.get(event_id)
+        assert len(ev.fields) == 1
+        assert ev.fields[0].label == 'DJ Slot Time'
+
+    # 5. Spalte aus Vorlage löschen
+    resp_del_field = client.post(f'/booking-personal/templates/{tmpl_id}/field/0/delete', follow_redirects=True)
+    assert resp_del_field.status_code == 200
+
+    with app.app_context():
+        tmpl = BookingPersonalTemplate.query.get(tmpl_id)
+        assert len(tmpl.get_fields()) == 0
+
+    # 6. Vorlage löschen
+    resp_del_tmpl = client.post(f'/booking-personal/templates/{tmpl_id}/delete', follow_redirects=True)
+    assert resp_del_tmpl.status_code == 200
+
+    with app.app_context():
+        tmpl = BookingPersonalTemplate.query.get(tmpl_id)
+        assert tmpl is None
+
+
+

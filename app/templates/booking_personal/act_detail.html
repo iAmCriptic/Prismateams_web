@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.name or 'Act' }} - {{ current_event.name }} - Booking / Personal{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="bpSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="bpSearchInput"
+               class="mod-search-input"
+               placeholder="In Booking / Personal suchen..."
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search"
+               onkeydown="if(event.key==='Enter'){ window.location.href='{{ url_for('booking_personal.index', event_id=current_event.id) }}?q=' + encodeURIComponent(this.value); }">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen" onclick="document.getElementById('bpSearchInput').value='';">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mod-shell--nav booking-personal-shell">
+    <!-- Linke Seitenleiste -->
+    <aside class="mod-sidebar d-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+            <span>Booking / Personal</span>
+        </div>
+
+        <!-- Neuer Event Button -->
+        <div class="mod-sidebar-new-wrap w-100">
+            <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#bpNewEventModal">
+                <i class="bi bi-plus-lg me-2"></i> NEU
+            </button>
+        </div>
+
+        <div class="text-uppercase small fw-bold text-muted px-2 mb-2" style="font-size: 0.75rem; letter-spacing: 0.04em;">
+            Veranstaltungen
+        </div>
+
+        <!-- Liste der aktiven Veranstaltungen -->
+        <nav class="mod-sidebar-nav nav flex-column gap-1 flex-grow-1 overflow-y-auto">
+            {% for ev in events %}
+            <a class="nav-link mod-nav-link rounded-pill d-flex align-items-center justify-content-between {% if current_event and current_event.id == ev.id %}active{% endif %}"
+               href="{{ url_for('booking_personal.index', event_id=ev.id) }}">
+                <span class="d-flex align-items-center text-truncate">
+                    <i class="bi bi-calendar2-event me-2 flex-shrink-0"></i>
+                    <span class="text-truncate">{{ ev.name }}</span>
+                </span>
+                {% if ev.entries %}
+                <span class="badge rounded-pill bg-light text-dark border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </nav>
+
+        <div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
+            <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
+                <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
+                <span>Vorlagen verwalten</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Hauptbereich: Artist-Dossier -->
+    <main class="mod-main flex-grow-1 min-width-0">
+        <!-- Top Navigation Bar -->
+        <div class="bp-top-toolbar d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 border-bottom pb-3">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1">
+                    <i class="bi bi-arrow-left me-1"></i>Zurück zur Tabelle
+                </a>
+                <span class="text-muted">/</span>
+                <span class="fw-semibold text-secondary">{{ current_event.name }}</span>
+                <span class="text-muted">/</span>
+                <span class="fw-bold text-dark">{{ entry.name or 'Act' }}</span>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1" onclick="openEntryDetail({{ entry.id }})">
+                    <i class="bi bi-pencil-square me-1"></i>Angaben bearbeiten
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" onclick="deleteEntryFromDetail({{ entry.id }})">
+                    <i class="bi bi-trash me-1"></i>Löschen
+                </button>
+            </div>
+        </div>
+
+        <div class="p-4 flex-grow-1">
+            <!-- Artist Hero Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-body p-4 bg-white">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 64px; height: 64px; font-size: 1.75rem;">
+                                <i class="bi bi-music-note-beamed"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                    <h2 class="fw-bold mb-0 text-dark">{{ entry.name or custom_data.get('project_name', 'Unbenannter Act') }}</h2>
+                                    
+                                    <!-- Status Badge Pill -->
+                                    {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
+                                    {% set status_color = 'primary' %}
+                                    {% if status_val in ('Abgeschlossen', 'Zusage gesendet') %}{% set status_color = 'success' %}
+                                    {% elif status_val in ('Formular gesendet', 'Formular ausgefüllt') %}{% set status_color = 'info' %}
+                                    {% elif status_val == 'Absage' %}{% set status_color = 'danger' %}
+                                    {% elif status_val == 'Rechnung weitergeleitet' %}{% set status_color = 'warning' %}
+                                    {% endif %}
+                                    <span class="badge rounded-pill bg-{{ status_color }}-subtle text-{{ status_color }} border border-{{ status_color }}-subtle px-3 py-1p5">
+                                        {{ status_val }}
+                                    </span>
+
+                                    <!-- Bereich Pill -->
+                                    {% if custom_data.get('bereich') %}
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-3 py-1p5">
+                                        <i class="bi bi-geo-alt me-1"></i>{{ custom_data.get('bereich') }}
+                                    </span>
+                                    {% endif %}
+
+                                    <!-- Pronomen Pill -->
+                                    {% if custom_data.get('pronouns') %}
+                                    <span class="badge rounded-pill bg-info-subtle text-info border px-3 py-1p5">
+                                        {{ custom_data.get('pronouns') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small">
+                                    Erstellt am {{ entry.created_at.strftime('%d.%m.%Y um %H:%M') if entry.created_at else '-' }} &bull; Veranstaltung: <strong>{{ current_event.name }}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Pills -->
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1p5 shadow-sm" onclick="openMailPreview({{ entry.id }}, 'accept')">
+                                <i class="bi bi-envelope-check me-1"></i>Mail &rarr; Zusage
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1p5" onclick="openMailPreview({{ entry.id }}, 'reject')">
+                                <i class="bi bi-envelope-x me-1"></i>Mail &rarr; Absage
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1p5 text-dark" onclick="openMailPreview({{ entry.id }}, 'invite')">
+                                <i class="bi bi-send me-1"></i>Fragebogen senden
+                            </button>
+                            {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1p5" onclick="copyToClipboard('{{ form_url }}')" title="Formular-Link kopieren">
+                                <i class="bi bi-clipboard me-1"></i>Formular-Link
+                            </button>
+                            {% set overview_url = url_for('booking_personal.public_overview', token=entry.overview_token, _external=True) %}
+                            <a href="{{ overview_url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1p5" title="Öffentliche Zusage-Übersicht im neuen Tab">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Zusage-Übersicht (DE/EN)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailansicht als strukturierte Informations-Karten -->
+            <div class="row g-4">
+                <!-- 1. Stammdaten & Kontakt -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-person-lines-fill text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0">Stammdaten & Kontakt</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4 text-muted fw-normal">Ansprechpartner:</dt>
+                                <dd class="col-sm-8 fw-semibold">{{ custom_data.get('contact_name') or '-' }}</dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Pronomen:</dt>
+                                <dd class="col-sm-8">
+                                    {% if custom_data.get('pronouns') %}
+                                    <span class="bp-badge bp-badge-info">{{ custom_data.get('pronouns') }}</span>
+                                    {% else %}-{% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">E-Mail:</dt>
+                                <dd class="col-sm-8">
+                                    {% if entry.email or custom_data.get('mail') %}
+                                    <a href="mailto:{{ entry.email or custom_data.get('mail') }}" class="text-decoration-none">
+                                        <i class="bi bi-envelope me-1"></i>{{ entry.email or custom_data.get('mail') }}
+                                    </a>
+                                    {% else %}-{% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Telefonnummer:</dt>
+                                <dd class="col-sm-8">
+                                    {% if entry.phone or custom_data.get('phone') %}
+                                    <a href="tel:{{ entry.phone or custom_data.get('phone') }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone me-1"></i>{{ entry.phone or custom_data.get('phone') }}
+                                    </a>
+                                    {% else %}-{% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Label:</dt>
+                                <dd class="col-sm-8">{{ custom_data.get('label') or '-' }}</dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Instagram:</dt>
+                                <dd class="col-sm-8">
+                                    {% if custom_data.get('instagram') %}
+                                    <a href="{{ custom_data.get('instagram') if custom_data.get('instagram').startswith('http') else 'https://' + custom_data.get('instagram') }}" target="_blank" class="text-decoration-none">
+                                        <i class="bi bi-instagram me-1"></i>{{ custom_data.get('instagram') }}
+                                    </a>
+                                    {% else %}-{% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Soundcloud:</dt>
+                                <dd class="col-sm-8">
+                                    {% if custom_data.get('soundcloud') %}
+                                    <a href="{{ custom_data.get('soundcloud') if custom_data.get('soundcloud').startswith('http') else 'https://' + custom_data.get('soundcloud') }}" target="_blank" class="text-decoration-none">
+                                        <i class="bi bi-music-note-list me-1"></i>{{ custom_data.get('soundcloud') }}
+                                    </a>
+                                    {% else %}-{% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted fw-normal">Bandgröße:</dt>
+                                <dd class="col-sm-8">{{ custom_data.get('mitgliederanzahl') or '1' }} Person(en)</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Finanzen & Vereinbarungen -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-currency-euro text-success fs-5"></i>
+                            <h5 class="fw-bold mb-0">Finanzen & Gesamtkosten</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <!-- Große Stat-Card für GESAMT -->
+                            <div class="p-3 mb-3 rounded-4 bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="text-uppercase small fw-bold text-success" style="font-size: 0.75rem;">Kalkulierte Gesamtkosten (GESAMT)</div>
+                                    <h2 class="fw-bold text-success mb-0">{{ custom_data.get('gesamt') or '€0.00' }}</h2>
+                                </div>
+                                <i class="bi bi-wallet2 display-6 text-success opacity-75"></i>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Gage</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('gage') or '€0.00' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">BookingFee</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('booking_fee') or '€0.00' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Steuersatz</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('steuersatz') or '0%' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Travel (Reise)</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('travel') or '€0.00' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Unterkunft</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('unterkunft') or '€0.00' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2 border rounded-3 bg-light">
+                                        <div class="text-muted small" style="font-size: 0.75rem;">sonstAusgaben</div>
+                                        <div class="fw-bold text-dark">{{ custom_data.get('sonst_ausgaben') or '€0.00' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Hospitality & Logistik -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-cup-straw text-warning fs-5"></i>
+                            <h5 class="fw-bold mb-0">Hospitality & Logistik</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <div class="text-muted small">Getränkeguthaben / Marken</div>
+                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('getraenkeguthaben') or '0' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <div class="text-muted small">Foodstände-Guthaben</div>
+                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('foodstaende_guthaben') or '0' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <div class="text-muted small">Gästeliste-Plätze</div>
+                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('anzahl_gaesteliste') or '0' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <div class="text-muted small">Friends-Tickets</div>
+                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('anzahl_friends_tickets') or '0' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5 text-muted fw-normal">Zelte gestellt:</dt>
+                                <dd class="col-sm-7 fw-semibold">{{ custom_data.get('anzahl_zelte') or '0' }} Zelte ({{ custom_data.get('zelt_gestellt_naechte') or '0' }} Nächte)</dd>
+
+                                <dt class="col-sm-5 text-muted fw-normal">Zeltpräferenzen:</dt>
+                                <dd class="col-sm-7">{{ custom_data.get('zeltpraeferenzen') or '-' }}</dd>
+
+                                <dt class="col-sm-5 text-muted fw-normal">Anreiseart & Zeit:</dt>
+                                <dd class="col-sm-7">{{ custom_data.get('anfahrt') or '-' }}</dd>
+
+                                <dt class="col-sm-5 text-muted fw-normal">Weitere Angaben:</dt>
+                                <dd class="col-sm-7">{{ custom_data.get('weitere_angaben') or '-' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Technik & Techrider -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-sliders text-info fs-5"></i>
+                            <h5 class="fw-bold mb-0">Technik & Techrider</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="mb-3">
+                                <label class="text-muted small d-block mb-1">TECHRIDER (DJs):</label>
+                                {% if custom_data.get('techrider_djs') %}
+                                <span class="badge rounded-pill bg-purple-subtle text-purple border border-purple-subtle px-3 py-2 fs-6">
+                                    <i class="bi bi-disc me-1"></i>{{ custom_data.get('techrider_djs') }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="text-muted small d-block mb-1">TECHRIDER (Live / sonstiges Setup):</label>
+                                <div class="p-3 bg-light rounded-3 text-dark small" style="white-space: pre-wrap;">{{ custom_data.get('techrider_other') or 'Keine individuellen Wünsche angegeben.' }}</div>
+                            </div>
+
+                            <div>
+                                <label class="text-muted small d-block mb-1">TECHRIDER (Attachments / Dokumente):</label>
+                                {% if custom_data.get('techrider_attachments') %}
+                                    {% set atts = custom_data.get('techrider_attachments') %}
+                                    {% if atts is iterable and atts is not string %}
+                                        <div class="d-flex flex-column gap-1">
+                                        {% for att in atts %}
+                                            <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1 w-auto">
+                                                <i class="bi bi-file-earmark-pdf"></i>Techrider Anhang herunterladen
+                                            </a>
+                                        {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ atts }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1">
+                                            <i class="bi bi-file-earmark-pdf"></i>Techrider Anhang herunterladen
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted small">Keine Dateien hochgeladen.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Presse & Promotext -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-camera text-danger fs-5"></i>
+                            <h5 class="fw-bold mb-0">Presse & Promomaterial</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-4">
+                                <div class="col-md-7">
+                                    <h6 class="fw-semibold text-muted small text-uppercase mb-2">Promotext / Bio</h6>
+                                    <div class="p-3 bg-light rounded-3 text-dark" style="white-space: pre-wrap; line-height: 1.6;">{{ custom_data.get('promotext') or 'Noch kein Promotext hinterlegt.' }}</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <h6 class="fw-semibold text-muted small text-uppercase mb-2">Promo Pictures</h6>
+                                    {% set pics = custom_data.get('promo_pictures') %}
+                                    {% if pics %}
+                                        <div class="d-flex gap-3 flex-wrap">
+                                        {% if pics is iterable and pics is not string %}
+                                            {% for p in pics %}
+                                            <a href="{{ p }}" target="_blank" class="d-inline-block">
+                                                <img src="{{ p }}" class="rounded-3 shadow-sm border" style="width: 120px; height: 120px; object-fit: cover;" alt="Promo">
+                                            </a>
+                                            {% endfor %}
+                                        {% else %}
+                                            <a href="{{ pics }}" target="_blank" class="d-inline-block">
+                                                <img src="{{ pics }}" class="rounded-3 shadow-sm border" style="width: 120px; height: 120px; object-fit: cover;" alt="Promo">
+                                            </a>
+                                        {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">Keine Pressefotos hochgeladen.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Interne Notizen & Künstler-Feedback -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-chat-left-quote text-secondary fs-5"></i>
+                            <h5 class="fw-bold mb-0">Absprachen & Notizen</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded-3 bg-light h-100">
+                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-lock me-1"></i>Kommentar Booking-Team</div>
+                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('kommentar_team') or '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded-3 bg-light h-100">
+                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-envelope-paper me-1"></i>Sonstige Absprachen Mail</div>
+                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('sonstige_absprachen_mail') or '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded-3 bg-light h-100">
+                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-chat-dots me-1"></i>Was du uns noch sagen wolltest...</div>
+                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('was_du_uns_noch_sagen') or '-' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- =========================================================================
+     MODALS FÜR DIESE SEITE
+     ========================================================================= -->
+
+<!-- Modal: Neue Veranstaltung anlegen -->
+<div class="modal fade" id="bpNewEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('booking_personal.create_event') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue Veranstaltung anlegen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name der Veranstaltung</label>
+                        <input type="text" name="name" class="form-control" placeholder="z. B. Sommerfestival 2026" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
+                        <select name="template_id" class="form-select">
+                            {% for tmpl in templates %}
+                            <option value="{{ tmpl.id }}" {% if tmpl.is_system_default %}selected{% endif %}>
+                                {{ tmpl.name }} ({{ tmpl.fields_count }} Spalten)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Universal Bestätigung -->
+<div class="modal fade" id="bpConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="bpConfirmModalTitle">Bestätigung erforderlich</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="bpConfirmModalMessage">
+                Bist du sicher?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4" id="bpConfirmModalBtn">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: E-Mail-Vorschau vor dem Versand -->
+<div class="modal fade" id="bpMailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="bpMailModalTitle"><i class="bi bi-envelope-paper me-2 text-primary"></i>E-Mail-Vorschau</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="bpMailEntryId">
+                <input type="hidden" id="bpMailType">
+                
+                <div class="mb-3 p-2 bg-light rounded-3 small text-muted">
+                    Absender-Postfach: <strong id="bpMailboxName" class="text-dark">-</strong>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Empfänger</label>
+                    <input type="email" id="bpMailRecipient" class="form-control form-control-sm" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Betreff</label>
+                    <input type="text" id="bpMailSubject" class="form-control form-control-sm" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nachricht (kann vor dem Absenden manuell angepasst werden)</label>
+                    <textarea id="bpMailBody" class="form-control font-monospace" rows="10"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-success rounded-pill px-4" id="bpSendMailBtn">
+                    <i class="bi bi-send me-1"></i>E-Mail jetzt senden
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Bearbeiten aller Felder -->
+<div class="modal fade" id="bpEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="bpDetailModalTitle">Angaben bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="bpDetailModalBody">
+                <div class="text-center py-4"><span class="spinner-border text-primary"></span></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="bpDetailModalSaveBtn">Änderungen speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
+<script>
+function deleteEntryFromDetail(entryId) {
+    showConfirmModal({
+        title: 'Act löschen',
+        message: 'Möchtest du diesen Act wirklich aus der Veranstaltung entfernen?',
+        confirmText: 'Act löschen',
+        confirmClass: 'btn-danger',
+        onConfirm: async function () {
+            try {
+                const resp = await fetch(`/booking-personal/api/entry/${entryId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Act erfolgreich gelöscht.', 'info');
+                    window.location.href = "{{ url_for('booking_personal.index', event_id=current_event.id) }}";
+                } else {
+                    showToast(data.error || 'Fehler beim Löschen.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Netzwerkfehler beim Löschen.', 'error');
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
+

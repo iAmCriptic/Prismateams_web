@@ -143,3 +143,134 @@ def public_overview(token):
         lang=lang,
     )
 
+
+@booking_personal_bp.route('/apply/<token>', methods=['GET'])
+def public_apply(token):
+    """Öffentliches Anmelde- / Bewerbungsformular für eine Veranstaltung."""
+    event = BookingPersonalEvent.query.filter_by(apply_token=token).first()
+    if not event or not event.is_active:
+        abort(404)
+
+    # Relevante Felder für die Bewerbung (alle externen Felder oder Basis-Felder)
+    apply_fields = [f for f in event.fields if f.is_external]
+    if not apply_fields:
+        apply_fields = [
+            f for f in event.fields
+            if f.field_key in (
+                'project_name', 'contact_name', 'mail', 'phone', 'pronouns',
+                'promotext', 'promo_pictures', 'techrider_djs', 'techrider_other',
+                'soundcloud', 'instagram'
+            )
+        ]
+
+    submitted = request.args.get('submitted') == '1'
+
+    return render_template(
+        'booking_personal/public_apply.html',
+        event=event,
+        apply_fields=apply_fields,
+        submitted=submitted,
+    )
+
+
+@booking_personal_bp.route('/apply/<token>/submit', methods=['POST'])
+def public_apply_submit(token):
+    """Verarbeitet eine neue Bewerbung / Anmeldung und legt einen neuen Act an."""
+    event = BookingPersonalEvent.query.filter_by(apply_token=token).first()
+    if not event or not event.is_active:
+        abort(404)
+
+    apply_fields = [f for f in event.fields if f.is_external]
+    if not apply_fields:
+        apply_fields = [
+            f for f in event.fields
+            if f.field_key in (
+                'project_name', 'contact_name', 'mail', 'phone', 'pronouns',
+                'promotext', 'promo_pictures', 'techrider_djs', 'techrider_other',
+                'soundcloud', 'instagram'
+            )
+        ]
+
+    # Neuen Eintrag in der Veranstaltung erzeugen
+    entry_name = (
+        request.form.get('project_name') or
+        request.form.get('auftrittsname_projektname') or
+        request.form.get('contact_name') or
+        'Neuer Bewerber'
+    ).strip()
+
+    email_val = (request.form.get('mail') or request.form.get('email') or '').strip()
+    phone_val = (request.form.get('phone') or request.form.get('telefonnummer') or '').strip()
+
+    entry = BookingPersonalEntry(
+        event_id=event.id,
+        name=entry_name,
+        email=email_val,
+        phone=phone_val,
+        status='Bewerbung eingegangen'
+    )
+    db.session.add(entry)
+    db.session.flush()
+
+    custom_data = {}
+    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'booking_personal', str(event.id))
+    os.makedirs(upload_dir, exist_ok=True)
+
+    for field in apply_fields:
+        f_key = field.field_key
+        f_type = field.field_type
+
+        if f_type in ('file_upload', 'image_upload'):
+            files = request.files.getlist(f_key)
+            uploaded_paths = []
+            for file_item in files:
+                if file_item and file_item.filename and _allowed_file(file_item.filename):
+                    filename = secure_filename(f"{entry.id}_{f_key}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}")
+                    save_path = os.path.join(upload_dir, filename)
+                    file_item.save(save_path)
+                    rel_url = f"/uploads/booking_personal/{event.id}/{filename}"
+                    uploaded_paths.append(rel_url)
+
+                    is_img = file_item.filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
+                    db_file = BookingPersonalFile(
+                        entry_id=entry.id,
+                        field_key=f_key,
+                        file_path=rel_url,
+                        file_name=file_item.filename,
+                        is_image=is_img,
+                        mime_type=file_item.mimetype,
+                    )
+                    db.session.add(db_file)
+
+            if uploaded_paths:
+                custom_data[f_key] = uploaded_paths
+        else:
+            val = request.form.get(f_key)
+            if val is not None:
+                custom_data[f_key] = val.strip()
+
+    # Alle übermittelten Formularwerte erfassen
+    for k, v in request.form.items():
+        if k not in custom_data and v is not None:
+            custom_data[k] = v.strip()
+
+    if entry_name:
+        custom_data['project_name'] = entry_name
+        custom_data['auftrittsname_projektname'] = entry_name
+    if email_val:
+        custom_data['mail'] = email_val
+    if phone_val:
+        custom_data['phone'] = phone_val
+    custom_data['status_booking'] = 'Bewerbung eingegangen'
+
+    entry.set_custom_data(custom_data)
+    entry.form_submitted_at = datetime.utcnow()
+    entry.compute_formula_values(event.fields)
+
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({'success': True, 'message': 'Vielen Dank für deine Bewerbung!'})
+
+    return redirect(url_for('booking_personal.public_apply', token=token, submitted='1'))
+

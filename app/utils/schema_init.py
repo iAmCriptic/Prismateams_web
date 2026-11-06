@@ -395,6 +395,53 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] team_invite_codes.role ergänzt")
                 except Exception as role_err:
                     logger.warning("Konnte team_invite_codes.role nicht ergänzen: %s", role_err)
+
+        if "booking_personal_events" in table_names:
+            bpe_cols = {c["name"] for c in inspector.get_columns("booking_personal_events")}
+            if "apply_token" not in bpe_cols:
+                try:
+                    logger.info("Ergänze booking_personal_events.apply_token ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_events ADD COLUMN apply_token VARCHAR(64) NULL")
+                        )
+                        try:
+                            conn.execute(
+                                text("CREATE UNIQUE INDEX ix_booking_personal_events_apply_token ON booking_personal_events (apply_token)")
+                            )
+                        except Exception:
+                            pass
+                    logger.info("[OK] booking_personal_events.apply_token ergänzt")
+                except Exception as bpe_err:
+                    logger.warning("Konnte booking_personal_events.apply_token nicht ergänzen: %s", bpe_err)
+
+            if "apply_enabled" not in bpe_cols:
+                try:
+                    logger.info("Ergänze booking_personal_events.apply_enabled ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text(f"ALTER TABLE booking_personal_events ADD COLUMN apply_enabled {bool_true}")
+                        )
+                    logger.info("[OK] booking_personal_events.apply_enabled ergänzt")
+                except Exception as bpe_err:
+                    logger.warning("Konnte booking_personal_events.apply_enabled nicht ergänzen: %s", bpe_err)
+
+            try:
+                import secrets
+                with db.engine.connect() as conn:
+                    rows = conn.execute(
+                        text("SELECT id FROM booking_personal_events WHERE apply_token IS NULL OR apply_token = ''")
+                    ).fetchall()
+                if rows:
+                    with db.engine.begin() as conn:
+                        for row in rows:
+                            conn.execute(
+                                text("UPDATE booking_personal_events SET apply_token = :token WHERE id = :id"),
+                                {"token": secrets.token_urlsafe(32), "id": row[0]},
+                            )
+                    logger.info("[OK] apply_token für %s bestehende booking_personal_events generiert", len(rows))
+            except Exception as tok_err:
+                logger.warning("Konnte apply_token für bestehende booking_personal_events nicht generieren: %s", tok_err)
     except Exception as exc:
         logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 

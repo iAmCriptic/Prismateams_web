@@ -1,6 +1,8 @@
 import io
 import csv
 import os
+import re
+import secrets
 from datetime import datetime
 from flask import (
     render_template, request, jsonify, flash, redirect, url_for,
@@ -40,11 +42,13 @@ def _check_access():
 
 @booking_personal_bp.before_request
 def before_request():
-    # Öffentliche Routen für Formular und Zusage-Übersicht sind ohne Login zugänglich
+    # Öffentliche Routen für Formular, Bewerbung und Zusage-Übersicht sind ohne Login zugänglich
     if request.endpoint and (
         request.endpoint.endswith('.public_form') or
         request.endpoint.endswith('.public_form_submit') or
-        request.endpoint.endswith('.public_overview')
+        request.endpoint.endswith('.public_overview') or
+        request.endpoint.endswith('.public_apply') or
+        request.endpoint.endswith('.public_apply_submit')
     ):
         return
     if not current_user.is_authenticated:
@@ -91,6 +95,38 @@ def index(event_id=None):
         current_event=current_event,
         fields=fields,
         entries=entries,
+        templates=templates,
+        mailboxes=mailboxes,
+    )
+
+
+@booking_personal_bp.route('/event/<int:event_id>/act/<int:entry_id>')
+def act_detail(event_id, entry_id):
+    """Detailansicht eines Acts / Künstlers als strukturierte Profilseite."""
+    current_event = BookingPersonalEvent.query.get_or_404(event_id)
+    entry = BookingPersonalEntry.query.get_or_404(entry_id)
+    if entry.event_id != current_event.id:
+        abort(404)
+
+    events = BookingPersonalEvent.query.filter_by(is_active=True).order_by(
+        BookingPersonalEvent.created_at.desc()
+    ).all()
+
+    entry.compute_formula_values(current_event.fields)
+    custom_data = entry.get_custom_data()
+    templates = BookingPersonalTemplate.query.order_by(
+        BookingPersonalTemplate.is_system_default.desc(),
+        BookingPersonalTemplate.name.asc()
+    ).all()
+    mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
+
+    return render_template(
+        'booking_personal/act_detail.html',
+        events=events,
+        current_event=current_event,
+        entry=entry,
+        fields=current_event.fields,
+        custom_data=custom_data,
         templates=templates,
         mailboxes=mailboxes,
     )
@@ -266,6 +302,160 @@ def api_update_entry_all(entry_id):
 # -------------------------------------------------------------
 # Custom Fields & Templates
 # -------------------------------------------------------------
+
+@booking_personal_bp.route('/api/event/<int:event_id>/field/add', methods=['POST'])
+def api_add_field(event_id):
+    """Fügt einer Veranstaltung eine neue Spalte / Custom Field hinzu."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    data = request.get_json() or {}
+
+    label = (data.get('label') or '').strip()
+    if not label:
+        return jsonify({'success': False, 'error': 'Bitte einen Spaltennamen angeben.'}), 400
+
+    field_type = data.get('field_type') or 'text'
+    # Generiere eindeutigen field_key
+    import re
+    base_key = re.sub(r'[^a-z0-9_]', '', label.lower().replace(' ', '_').replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss'))
+    if not base_key:
+        base_key = 'custom_col'
+
+    existing_keys = {f.field_key for f in event.fields}
+    field_key = base_key
+    counter = 1
+    while field_key in existing_keys:
+        field_key = f"{base_key}_{counter}"
+        counter += 1
+
+    max_order = db.session.query(db.func.max(BookingPersonalField.field_order)).filter_by(event_id=event_id).scalar() or 0
+
+    field = BookingPersonalField(
+        event_id=event.id,
+        field_key=field_key,
+        label=label,
+        label_en=data.get('label_en') or label,
+        field_type=field_type,
+        field_order=max_order + 1,
+        width=int(data.get('width', 160)),
+        is_required=bool(data.get('is_required', False)),
+        is_external=bool(data.get('is_external', False)),
+        is_internal=bool(data.get('is_internal', True)),
+        visible_in_overview=bool(data.get('visible_in_overview', True)),
+        formula_definition=data.get('formula_definition') or '',
+        help_text=data.get('help_text') or '',
+    )
+    if data.get('options'):
+        field.set_options(data.get('options'))
+
+    db.session.add(field)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'field': field.to_dict(),
+        'fields': [f.to_dict() for f in event.fields]
+    })
+
+
+@booking_personal_bp.route('/api/field/<int:field_id>/update', methods=['POST'])
+def api_update_field(field_id):
+    """Aktualisiert die Einstellungen einer Spalte."""
+    field = BookingPersonalField.query.get_or_404(field_id)
+    data = request.get_json() or {}
+
+    if 'label' in data and data['label'].strip():
+        field.label = data['label'].strip()
+    if 'label_en' in data:
+        field.label_en = data['label_en'].strip() or field.label
+    if 'field_type' in data:
+        field.field_type = data['field_type']
+    if 'width' in data:
+        try:
+            field.width = max(60, min(600, int(data['width'])))
+        except (ValueError, TypeError):
+            pass
+    if 'is_required' in data:
+        field.is_required = bool(data['is_required'])
+    if 'is_external' in data:
+        field.is_external = bool(data['is_external'])
+    if 'is_internal' in data:
+        field.is_internal = bool(data['is_internal'])
+    if 'visible_in_overview' in data:
+        field.visible_in_overview = bool(data['visible_in_overview'])
+    if 'formula_definition' in data:
+        field.formula_definition = data['formula_definition'] or ''
+    if 'help_text' in data:
+        field.help_text = data['help_text'] or ''
+    if 'options' in data:
+        field.set_options(data['options'])
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'field': field.to_dict()
+    })
+
+
+@booking_personal_bp.route('/api/field/<int:field_id>/delete', methods=['POST'])
+def api_delete_field(field_id):
+    """Löscht eine Spalte aus einer Veranstaltung."""
+    field = BookingPersonalField.query.get_or_404(field_id)
+    event = field.event
+    db.session.delete(field)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'fields': [f.to_dict() for f in event.fields]
+    })
+
+
+@booking_personal_bp.route('/api/event/<int:event_id>/fields/reorder', methods=['POST'])
+def api_reorder_fields(event_id):
+    """Sortiert die Spalten einer Veranstaltung anhand einer übergebenen ID-Reihenfolge."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    data = request.get_json() or {}
+    order_ids = data.get('order', [])
+
+    field_map = {f.id: f for f in event.fields}
+    for idx, fid in enumerate(order_ids):
+        if fid in field_map:
+            field_map[fid].field_order = idx
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'fields': [f.to_dict() for f in event.fields]
+    })
+
+
+@booking_personal_bp.route('/api/templates', methods=['GET'])
+def api_list_templates():
+    """Gibt alle gespeicherten Vorlagen zurück."""
+    templates = BookingPersonalTemplate.query.order_by(
+        BookingPersonalTemplate.is_system_default.desc(),
+        BookingPersonalTemplate.name.asc()
+    ).all()
+    return jsonify({
+        'success': True,
+        'templates': [t.to_dict() for t in templates]
+    })
+
+
+@booking_personal_bp.route('/api/template/<int:template_id>/delete', methods=['POST'])
+def api_delete_template(template_id):
+    """Löscht eine benutzerdefinierte Vorlage."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    if template.is_system_default:
+        return jsonify({'success': False, 'error': 'Standard-Systemvorlagen können nicht gelöscht werden.'}), 400
+
+    db.session.delete(template)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
 
 @booking_personal_bp.route('/api/event/<int:event_id>/fields', methods=['POST'])
 def api_save_fields(event_id):
@@ -448,6 +638,239 @@ def api_mail_send(entry_id):
     except Exception as e:
         current_app.logger.exception('Fehler beim E-Mail-Versand (Booking / Personal):')
         return jsonify({'success': False, 'error': f'Fehler beim E-Mail-Versand: {str(e)}'}), 500
+
+
+# -------------------------------------------------------------
+# Vorlagenverwaltung (Dedizierte Seite & Vollständige Verwaltung)
+# -------------------------------------------------------------
+
+@booking_personal_bp.route('/templates')
+def templates_view():
+    """Dedizierte Seite zur vollständigen Vorlagenverwaltung."""
+    ensure_default_template(db.session, current_user.id)
+
+    templates = BookingPersonalTemplate.query.order_by(
+        BookingPersonalTemplate.is_system_default.desc(),
+        BookingPersonalTemplate.name.asc()
+    ).all()
+
+    events = BookingPersonalEvent.query.filter_by(is_active=True).order_by(
+        BookingPersonalEvent.created_at.desc()
+    ).all()
+
+    template_id = request.args.get('template_id', type=int)
+    selected_template = None
+    if template_id:
+        selected_template = BookingPersonalTemplate.query.get(template_id)
+    if not selected_template and templates:
+        selected_template = templates[0]
+
+    return render_template(
+        'booking_personal/templates.html',
+        templates=templates,
+        selected_template=selected_template,
+        events=events,
+        is_templates_view=True
+    )
+
+
+@booking_personal_bp.route('/templates/create', methods=['POST'])
+def template_create():
+    """Erstellt eine neue Vorlage (leer, aus Preset oder aus Event)."""
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    source_type = request.form.get('source_type', 'standard')
+    source_event_id = request.form.get('source_event_id', type=int)
+
+    if not name:
+        flash('Bitte einen Namen für die Vorlage angeben.', 'warning')
+        return redirect(url_for('booking_personal.templates_view'))
+
+    existing = BookingPersonalTemplate.query.filter_by(name=name).first()
+    if existing:
+        flash(f'Eine Vorlage mit dem Namen „{name}“ existiert bereits.', 'danger')
+        return redirect(url_for('booking_personal.templates_view', template_id=existing.id))
+
+    fields = []
+    if source_type == 'event' and source_event_id:
+        ev = BookingPersonalEvent.query.get(source_event_id)
+        if ev:
+            fields = [f.to_dict() for f in ev.fields]
+    elif source_type == 'standard':
+        default_tmpl = BookingPersonalTemplate.query.filter_by(is_system_default=True).first()
+        if default_tmpl:
+            fields = default_tmpl.get_fields()
+        else:
+            fields = FESTIVAL_STANDARD_FIELDS
+    elif source_type == 'copy':
+        copy_tmpl_id = request.form.get('copy_template_id', type=int)
+        copy_tmpl = BookingPersonalTemplate.query.get(copy_tmpl_id)
+        if copy_tmpl:
+            fields = copy_tmpl.get_fields()
+
+    new_tmpl = BookingPersonalTemplate(
+        name=name,
+        description=description,
+        is_system_default=False,
+        created_by=current_user.id
+    )
+    new_tmpl.set_fields(fields)
+    db.session.add(new_tmpl)
+    db.session.commit()
+
+    flash(f'Vorlage „{name}“ erfolgreich mit {len(fields)} Spalten angelegt.', 'success')
+    return redirect(url_for('booking_personal.templates_view', template_id=new_tmpl.id))
+
+
+@booking_personal_bp.route('/templates/<int:template_id>/update', methods=['POST'])
+def template_update(template_id):
+    """Aktualisiert Name und Beschreibung der Vorlage."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    if template.is_system_default:
+        flash('System-Standardvorlagen können in den Grundeigenschaften nicht geändert werden.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+
+    if name and name != template.name:
+        existing = BookingPersonalTemplate.query.filter_by(name=name).first()
+        if existing and existing.id != template.id:
+            flash(f'Eine Vorlage mit dem Namen „{name}“ existiert bereits.', 'danger')
+            return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+        template.name = name
+
+    template.description = description
+    db.session.commit()
+
+    flash('Vorlagen-Eigenschaften erfolgreich aktualisiert.', 'success')
+    return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+
+@booking_personal_bp.route('/templates/<int:template_id>/field/add', methods=['POST'])
+def template_field_add(template_id):
+    """Fügt ein neues Feld zur Vorlage hinzu."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    if template.is_system_default:
+        flash('System-Standardvorlagen können nicht direkt modifiziert werden. Bitte dupliziere die Vorlage.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    label = request.form.get('label', '').strip()
+    label_en = request.form.get('label_en', '').strip() or label
+    field_type = request.form.get('field_type', 'text')
+    field_key = request.form.get('field_key', '').strip()
+    is_external = request.form.get('is_external') == '1'
+    visible_in_overview = request.form.get('visible_in_overview') == '1'
+    width = int(request.form.get('width', 160) or 160)
+    options_raw = request.form.get('options', '').strip()
+
+    if not label:
+        flash('Bitte eine Feldbezeichnung angeben.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    if not field_key:
+        field_key = re.sub(r'[^a-z0-9_]', '', label.lower().replace(' ', '_'))
+        if not field_key:
+            field_key = f'field_{secrets.token_hex(4)}'
+
+    options = []
+    if options_raw and field_type == 'badge_select':
+        for line in options_raw.splitlines():
+            line = line.strip()
+            if line:
+                parts = [p.strip() for p in line.split('|')]
+                options.append({
+                    'value': parts[0],
+                    'color': parts[1] if len(parts) > 1 else 'secondary'
+                })
+
+    fields = template.get_fields()
+    # Eindeutigen Key garantieren
+    existing_keys = {f.get('field_key') for f in fields}
+    base_key = field_key
+    counter = 1
+    while field_key in existing_keys:
+        field_key = f"{base_key}_{counter}"
+        counter += 1
+
+    new_field_def = {
+        'field_key': field_key,
+        'label': label,
+        'label_en': label_en,
+        'field_type': field_type,
+        'is_external': is_external,
+        'is_internal': not is_external,
+        'visible_in_overview': visible_in_overview,
+        'width': width,
+        'options': options,
+        'formula_definition': '',
+        'help_text': '',
+        'is_required': False,
+    }
+    fields.append(new_field_def)
+    template.set_fields(fields)
+    db.session.commit()
+
+    flash(f'Spalte „{label}“ erfolgreich zur Vorlage hinzugefügt.', 'success')
+    return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+
+@booking_personal_bp.route('/templates/<int:template_id>/field/<int:index>/delete', methods=['POST'])
+def template_field_delete(template_id, index):
+    """Entfernt ein Feld aus der Vorlage per Index."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    if template.is_system_default:
+        flash('System-Standardvorlagen können nicht verändert werden.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    fields = template.get_fields()
+    if 0 <= index < len(fields):
+        removed = fields.pop(index)
+        template.set_fields(fields)
+        db.session.commit()
+        flash(f'Spalte „{removed.get("label", "Spalte")}“ aus Vorlage entfernt.', 'info')
+    else:
+        flash('Ungültiger Spalten-Index.', 'danger')
+
+    return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+
+@booking_personal_bp.route('/templates/<int:template_id>/delete', methods=['POST'])
+def template_delete(template_id):
+    """Löscht eine benutzerdefinierte Vorlage."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    if template.is_system_default:
+        flash('System-Standardvorlagen können nicht gelöscht werden.', 'danger')
+        return redirect(url_for('booking_personal.templates_view'))
+
+    name = template.name
+    db.session.delete(template)
+    db.session.commit()
+
+    flash(f'Vorlage „{name}“ erfolgreich gelöscht.', 'info')
+    return redirect(url_for('booking_personal.templates_view'))
+
+
+@booking_personal_bp.route('/templates/<int:template_id>/apply', methods=['POST'])
+def template_apply(template_id):
+    """Wendet die Vorlage auf eine ausgewählte Veranstaltung an."""
+    template = BookingPersonalTemplate.query.get_or_404(template_id)
+    event_id = request.form.get('event_id', type=int)
+    if not event_id:
+        flash('Bitte eine Veranstaltung auswählen.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    fields_def = template.get_fields()
+    if not fields_def:
+        flash('Diese Vorlage enthält keine Felder.', 'warning')
+        return redirect(url_for('booking_personal.templates_view', template_id=template.id))
+
+    apply_template_to_event(event, fields_def, db.session)
+    db.session.commit()
+
+    flash(f'Vorlage „{template.name}“ erfolgreich auf „{event.name}“ angewendet!', 'success')
+    return redirect(url_for('booking_personal.index', event_id=event.id))
 
 
 # -------------------------------------------------------------
