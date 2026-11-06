@@ -114,10 +114,10 @@ def api_create_card(list_id):
 @kanban_bp.route('/api/cards/<int:card_id>', methods=['GET', 'PATCH', 'DELETE'])
 @login_or_share_required
 def api_card(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_view(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_view_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'GET':
         return jsonify(_serialize_card_detail(card, share_token=_share_token_from_request()))

@@ -362,7 +362,8 @@
       "code_team_hint": "Du wirst dem Team „{team}“ beitreten.",
       "submit": "Mit Code registrieren",
       "flash_code_required": "Bitte gib einen Einladungscode ein.",
-      "flash_code_invalid": "Dieser Einladungscode ist ungültig, abgelaufen oder aufgebraucht."
+      "flash_code_invalid": "Dieser Einladungscode ist ungültig, abgelaufen oder aufgebraucht.",
+      "code_team_portal_hint": "Mit diesem Code erhältst du einen vollwertigen Portal-Account und wirst Mitglied im Team „{team}“."
     }
   },
   "dashboard": {
@@ -1642,10 +1643,15 @@
         "col_status": "Status",
         "queue_title": "Warteschlange",
         "badge_team_only": "Nur Team",
+        "badge_private_only": "Nur Privat",
+        "badge_restricted": "Eingeschränkt",
         "content_access_title": "Inhaltszugriff",
-        "content_access_help": "Steuert, ob der Nutzer Public- und Private-Bereiche sehen und nutzen darf. Ohne beides hat der Nutzer nur Team-Zugriff.",
+        "content_access_help": "Steuert, ob der Nutzer Public-, Team- und Private-Bereiche sehen und nutzen darf.",
         "can_access_public": "Public-Zugriff",
-        "can_access_private": "Private-Zugriff"
+        "can_access_team": "Team-Zugriff",
+        "can_access_private": "Private-Zugriff",
+        "col_user": "Benutzer",
+        "col_roles": "Rolle"
       },
       "create_user": {
         "page_title": "Benutzer erstellen - Administration",
@@ -1806,7 +1812,11 @@
         "inactivity_logout_hint": "Ohne „Angemeldet bleiben“: Abmeldung nach 12 Stunden Inaktivität bzw. spätestens nach 7 Tagen. Mit „Angemeldet bleiben“: bis 14 Tage Idle / 30 Tage absolut (per .env konfigurierbar).",
         "flash_inactivity_logout": "Sie wurden wegen Inaktivität abgemeldet. Bitte melden Sie sich erneut an.",
         "flash_absolute_logout": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
-        "lead_short": "Portalname, Logo, Zeitzone und Branding."
+        "lead_short": "Portalname, Logo, Zeitzone und Branding.",
+        "section_team_invites": "Teameinladungen",
+        "team_invite_info": "Steuert die Rechte neuer Nutzer bei der Registrierung über Team-Einladungscodes.",
+        "team_invite_allow_portal_user": "Vollwertige Portal-Accounts über Team-Codes erlauben",
+        "team_invite_allow_portal_user_help": "Teams können bei Bedarf Einladungscodes erstellen, die neuen Mitarbeitern vollen Portal-Zugriff (Public/Private) anstelle von reinem Gast-/Team-Zugriff zuweisen."
       },
       "legal": {
         "page_title": "Rechtliche Hinweise - Administration",
@@ -1844,6 +1854,8 @@
         "full_access_title": "Vollzugriff",
         "full_access_toggle": "Vollzugriff als Standard",
         "full_access_help": "Neue Benutzer erhalten automatisch Zugriff auf alle Module.",
+        "spaces_title": "Standard-Bereichszugriff",
+        "spaces_help": "Steuert, welche Bereiche (Öffentlich, Team, Privat) neue Benutzer standardmäßig nutzen dürfen.",
         "modules_title": "Modulspezifische Standardrollen",
         "modules_help": "Nur relevant, wenn Vollzugriff aus ist. Module als Pillen auswählen.",
         "full_access_active_hint": "Vollzugriff aktiv — alle Module sind freigeschaltet.",
@@ -2537,8 +2549,21 @@
           "flash_deactivated": "Einladungscode deaktiviert.",
           "flash_deleted": "Einladungscode gelöscht.",
           "flash_invalid_max_uses": "Ungültige maximale Nutzungen.",
-          "flash_invalid_expires": "Ungültige Gültigkeitsdauer."
-        }
+          "flash_invalid_expires": "Ungültige Gültigkeitsdauer.",
+          "code_label": "Code",
+          "status_label": "Status",
+          "usage_label": "Nutzung",
+          "expires_label": "Gültig bis",
+          "role_label": "Zugriffsrechte",
+          "role_team_only": "Nur Team-Zugriff (Gast)",
+          "role_portal_user": "Vollwertiger Portal-Nutzer",
+          "role_team_only_badge": "Team-Zugriff",
+          "role_portal_user_badge": "Portal-Nutzer",
+          "role_team_only_help": "Neuer Benutzer erhält nur Zugriff auf Team-Bereiche",
+          "role_portal_user_help": "Neuer Benutzer erhält vollen Zugriff (Public/Private/Team)",
+          "col_access": "Zugriff"
+        },
+        "badge_member": "Mitglied"
       },
       "kanban": {
         "page_title": "Kanban-Einstellungen",

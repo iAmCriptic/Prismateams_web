@@ -3,59 +3,192 @@
 {% block title %}{{ _('settings.admin.roles.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.roles.heading') }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.settings-admin-roles-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.settings-admin-roles-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 550;
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: var(--sp-surface, #f8f9fa);
+  color: var(--bs-body-color);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.16s ease;
+}
+
+.settings-admin-roles-chip:hover {
+  border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 50%, var(--sp-border, var(--bs-border-color)));
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+  color: var(--accent-color, var(--bs-primary));
+}
+
+.btn-check:checked + .settings-admin-roles-chip {
+  background: var(--accent-color, var(--bs-primary)) !important;
+  border-color: var(--accent-color, var(--bs-primary)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+  font-weight: 600;
+}
+
+.btn-check:checked + .settings-admin-roles-chip::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: #fff;
+  margin-right: 0.2rem;
+}
+
+.btn-check:disabled + .settings-admin-roles-chip {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+</style>
+{% endblock %}
+
 {% block settings_content %}
-<div class="settings-admin-roles">
-    <a href="{{ url_for('settings.admin_users') }}" class="settings-subpage-back">
+<div class="sp-page settings-admin-roles">
+    <a href="{{ url_for('settings.admin_users') }}" class="settings-subpage-back mb-3 d-inline-flex align-items-center gap-1 text-decoration-none">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
-    <div class="settings-admin-roles-header">
-        <h1 class="settings-admin-roles-title">{{ _('settings.admin.roles.heading') }}</h1>
-        <p class="settings-admin-roles-subtitle">{{ _('settings.admin.roles.subtitle') }}</p>
-    </div>
+
+    <header class="sp-page-header">
+        <h1 class="sp-page-title">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <span>{{ _('settings.admin.roles.heading') }}</span>
+        </h1>
+        <p class="sp-page-lead">{{ _('settings.admin.roles.subtitle') }}</p>
+    </header>
 
     <form method="POST" id="defaultRolesForm" class="settings-admin-roles-form">
-        <section class="settings-admin-roles-card" aria-labelledby="roles-full-heading">
-            <div class="settings-admin-roles-card-head">
-                <h2 id="roles-full-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.full_access_title') }}</h2>
-                <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.full_access_help') }}" aria-label="{{ _('settings.admin.roles.full_access_help') }}">
+        <!-- Vollzugriff -->
+        <section class="sp-group">
+            <div class="sp-group-head">
+                <h2 class="sp-group-title">
+                    <i class="bi bi-shield-check" aria-hidden="true"></i>
+                    {{ _('settings.admin.roles.full_access_title') }}
+                </h2>
+                <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.full_access_help') }}" aria-label="{{ _('settings.admin.roles.full_access_help') }}">
                     <i class="bi bi-info-circle" aria-hidden="true"></i>
                 </button>
             </div>
-            <div class="form-check form-switch settings-admin-roles-switch">
-                <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" value="on"
-                       {% if default_roles.get('full_access', False) %}checked{% endif %}>
-                <label class="form-check-label" for="default_full_access">{{ _('settings.admin.roles.full_access_toggle') }}</label>
+            <div class="sp-group-body p-0">
+                <div class="sp-row">
+                    <div class="sp-row-label">
+                        <label class="sp-row-label-text" for="default_full_access">{{ _('settings.admin.roles.full_access_toggle') }}</label>
+                    </div>
+                    <div class="sp-row-control">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" value="on"
+                                   {% if default_roles.get('full_access', False) %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <section id="defaultModuleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modules-heading">
-            <div class="settings-admin-roles-card-head">
-                <h2 id="roles-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.modules_title') }}</h2>
-                <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.modules_help') }}" aria-label="{{ _('settings.admin.roles.modules_help') }}">
+        <!-- Standard-Bereichszugriff -->
+        <section class="sp-group">
+            <div class="sp-group-head">
+                <h2 class="sp-group-title">
+                    <i class="bi bi-layers" aria-hidden="true"></i>
+                    {{ _('settings.admin.roles.spaces_title') }}
+                </h2>
+                <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.spaces_help') }}" aria-label="{{ _('settings.admin.roles.spaces_help') }}">
                     <i class="bi bi-info-circle" aria-hidden="true"></i>
                 </button>
             </div>
-
-            <p id="roles-full-hint" class="settings-admin-roles-hint" hidden>{{ _('settings.admin.roles.full_access_active_hint') }}</p>
-
-            <div class="settings-admin-roles-chips" id="rolesChips" role="group" aria-label="{{ _('settings.admin.roles.modules_title') }}">
-                {% for module_key, module_name in all_modules %}
-                <input type="checkbox"
-                       class="btn-check default-module-checkbox"
-                       id="default_{{ module_key }}"
-                       name="default_{{ module_key }}"
-                       value="on"
-                       autocomplete="off"
-                       {% if default_roles.get(module_key, False) %}checked{% endif %}>
-                <label class="settings-admin-roles-chip" for="default_{{ module_key }}">{{ module_name }}</label>
-                {% endfor %}
+            <div class="sp-group-body p-0">
+                <div class="sp-row">
+                    <div class="sp-row-label">
+                        <label class="sp-row-label-text" for="default_can_access_public">{{ _('settings.admin.users.can_access_public') }}</label>
+                    </div>
+                    <div class="sp-row-control">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="default_can_access_public" name="default_can_access_public" value="on"
+                                   {% if default_roles.get('can_access_public', True) %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="sp-row">
+                    <div class="sp-row-label">
+                        <label class="sp-row-label-text" for="default_can_access_team">{{ _('settings.admin.users.can_access_team') }}</label>
+                    </div>
+                    <div class="sp-row-control">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="default_can_access_team" name="default_can_access_team" value="on"
+                                   {% if default_roles.get('can_access_team', True) %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="sp-row">
+                    <div class="sp-row-label">
+                        <label class="sp-row-label-text" for="default_can_access_private">{{ _('settings.admin.users.can_access_private') }}</label>
+                    </div>
+                    <div class="sp-row-control">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="default_can_access_private" name="default_can_access_private" value="on"
+                                   {% if default_roles.get('can_access_private', True) %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <div class="settings-admin-roles-actions">
-            <button type="submit" class="btn btn-accent settings-admin-roles-btn">
-                <i class="bi bi-check-lg" aria-hidden="true"></i>
+        <!-- Modulspezifische Standardrollen -->
+        <section id="defaultModuleRolesSection" class="sp-group">
+            <div class="sp-group-head">
+                <div class="d-flex align-items-center gap-2">
+                    <h2 id="roles-modules-heading" class="sp-group-title">
+                        <i class="bi bi-grid" aria-hidden="true"></i>
+                        {{ _('settings.admin.roles.modules_title') }}
+                    </h2>
+                    <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.modules_help') }}" aria-label="{{ _('settings.admin.roles.modules_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-1" id="defaultModuleRolesQuickActions">
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="defaultSelectAllBtn" style="font-size: 0.8rem;">Alle auswählen</button>
+                    <span class="text-muted" style="font-size: 0.75rem;">·</span>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="defaultDeselectAllBtn" style="font-size: 0.8rem;">Keine</button>
+                </div>
+            </div>
+            <div class="sp-group-body">
+                <div id="roles-full-hint" class="sp-hint mb-3" hidden>
+                    <i class="bi bi-info-circle me-1"></i>{{ _('settings.admin.roles.full_access_active_hint') }}
+                </div>
+                <div class="settings-admin-roles-chips" id="rolesChips" role="group" aria-label="{{ _('settings.admin.roles.modules_title') }}">
+                    {% for module_key, module_name in all_modules %}
+                    <input type="checkbox"
+                           class="btn-check default-module-checkbox"
+                           id="default_{{ module_key }}"
+                           name="default_{{ module_key }}"
+                           value="on"
+                           autocomplete="off"
+                           {% if default_roles.get(module_key, False) %}checked{% endif %}>
+                    <label class="settings-admin-roles-chip" for="default_{{ module_key }}">{{ module_name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <div class="mt-4 d-flex justify-content-end">
+            <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn px-4">
+                <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
                 {{ _('common.save') }}
             </button>
         </div>
@@ -67,10 +200,12 @@ function toggleDefaultModuleRoles() {
     var fullAccess = document.getElementById('default_full_access').checked;
     var chips = document.getElementById('rolesChips');
     var hint = document.getElementById('roles-full-hint');
+    var quickActions = document.getElementById('defaultModuleRolesQuickActions');
     var boxes = document.querySelectorAll('.default-module-checkbox');
 
     if (hint) hint.hidden = !fullAccess;
     if (chips) chips.hidden = fullAccess;
+    if (quickActions) quickActions.hidden = fullAccess;
 
     boxes.forEach(function (cb) {
         cb.disabled = fullAccess;
@@ -83,9 +218,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (full) {
         full.addEventListener('change', toggleDefaultModuleRoles);
     }
+    document.getElementById('defaultSelectAllBtn')?.addEventListener('click', function () {
+        if (document.getElementById('default_full_access').checked) return;
+        document.querySelectorAll('.default-module-checkbox').forEach(function (cb) { cb.checked = true; });
+    });
+    document.getElementById('defaultDeselectAllBtn')?.addEventListener('click', function () {
+        if (document.getElementById('default_full_access').checked) return;
+        document.querySelectorAll('.default-module-checkbox').forEach(function (cb) { cb.checked = false; });
+    });
     if (form) {
         form.addEventListener('submit', function () {
-            // Disabled Felder würden sonst nicht mitgeschickt
             document.querySelectorAll('.default-module-checkbox').forEach(function (cb) {
                 cb.disabled = false;
             });

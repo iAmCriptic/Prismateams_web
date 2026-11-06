@@ -146,13 +146,7 @@ def build_settings_catalog(user) -> list[dict]:
             translate('settings.admin.cards.teams.title'),
             'settings.admin_teams',
             'leader',
-            'teams mitglieder teamleitung',
-        ))
-        catalog.append(_entry(
-            translate('settings.team_settings.title'),
-            'settings.team_settings',
-            'leader',
-            'team module teameinstellungen aktivieren deaktivieren',
+            'teams mitglieder teamleitung module teameinstellungen aktivieren deaktivieren',
         ))
 
     if not user.is_admin:
@@ -168,13 +162,7 @@ def build_settings_catalog(user) -> list[dict]:
         translate('settings.admin.cards.teams.title'),
         'settings.admin_teams',
         'admin',
-        'teams mitglieder teamleitung',
-    ))
-    catalog.append(_entry(
-        translate('settings.team_settings.title'),
-        'settings.team_settings',
-        'admin',
-        'team module teameinstellungen aktivieren deaktivieren',
+        'teams mitglieder teamleitung module teameinstellungen aktivieren deaktivieren',
     ))
     catalog.append(_entry(
         translate('settings.admin.cards.whitelist.title'),

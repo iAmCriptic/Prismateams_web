@@ -355,7 +355,8 @@
       "code_team_hint": "Te unirás al equipo \"{team}\".",
       "submit": "Registrarse con código",
       "flash_code_required": "Introduce un código de invitación.",
-      "flash_code_invalid": "Este código de invitación no es válido, ha caducado o se ha agotado."
+      "flash_code_invalid": "Este código de invitación no es válido, ha caducado o se ha agotado.",
+      "code_team_portal_hint": "Con este código recibirás una cuenta completa en el portal y te unirás al equipo «{team}»."
     }
   },
   "dashboard": {
@@ -1638,7 +1639,9 @@
         "content_access_title": "Acceso al contenido",
         "content_access_help": "Controla si el usuario puede ver y usar las áreas Public y Private. Sin ambos, solo tiene acceso de equipo.",
         "can_access_public": "Acceso Public",
-        "can_access_private": "Acceso Private"
+        "can_access_private": "Acceso Private",
+        "col_user": "Usuario",
+        "col_roles": "Rol"
       },
       "create_user": {
         "page_title": "Crear usuario - Administración",
@@ -2046,7 +2049,11 @@
         "inactivity_logout_hint": "Sin «Recordarme»: cierre de sesión tras 12 horas de inactividad o como máximo 7 días. Con «Recordarme»: hasta 14 días de inactividad / 30 días absolutos (configurable vía .env).",
         "flash_inactivity_logout": "Se ha cerrado la sesión por inactividad. Inicie sesión de nuevo.",
         "flash_absolute_logout": "Su sesión ha caducado. Inicie sesión de nuevo.",
-        "lead_short": "Nombre, logo, zona horaria y marca."
+        "lead_short": "Nombre, logo, zona horaria y marca.",
+        "section_team_invites": "Invitaciones de equipo",
+        "team_invite_info": "Controla los permisos de nuevos usuarios al registrarse mediante códigos de invitación.",
+        "team_invite_allow_portal_user": "Permitir cuentas completas del portal mediante códigos de equipo",
+        "team_invite_allow_portal_user_help": "Permite a los equipos crear códigos que otorgan acceso completo al portal (Público/Privado) en lugar de solo acceso de invitado al equipo."
       },
       "legal": {
         "page_title": "Avisos legales - Administración",
@@ -2512,8 +2519,21 @@
           "flash_deactivated": "Código de invitación desactivado.",
           "flash_deleted": "Código de invitación eliminado.",
           "flash_invalid_max_uses": "Usos máximos no válidos.",
-          "flash_invalid_expires": "Periodo de validez no válido."
-        }
+          "flash_invalid_expires": "Periodo de validez no válido.",
+          "role_label": "Permisos de acceso",
+          "role_team_only": "Solo acceso al equipo (invitado)",
+          "role_portal_user": "Usuario completo del portal",
+          "role_team_only_badge": "Acceso al equipo",
+          "role_portal_user_badge": "Usuario del portal",
+          "role_team_only_help": "El nuevo usuario solo recibe acceso a las áreas del equipo",
+          "role_portal_user_help": "El nuevo usuario recibe acceso completo (Público/Privado/Equipo)",
+          "col_access": "Acceso",
+          "code_label": "Código",
+          "status_label": "Estado",
+          "usage_label": "Uso",
+          "expires_label": "Válido hasta"
+        },
+        "badge_member": "Miembro"
       },
       "kanban": {
         "page_title": "Ajustes de Kanban",

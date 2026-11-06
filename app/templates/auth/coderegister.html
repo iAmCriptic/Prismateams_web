@@ -17,7 +17,13 @@
                autocomplete="off" spellcheck="false"
                {% if invite_code and invite_valid %}readonly{% endif %}>
         {% if invite_team and invite_valid %}
-        <div class="form-text">{{ _('auth.coderegister.code_team_hint', team=invite_team.name) }}</div>
+        <div class="form-text">
+            {% if invite_is_portal %}
+            <i class="bi bi-shield-check text-success me-1"></i>{{ _('auth.coderegister.code_team_portal_hint', team=invite_team.name) }}
+            {% else %}
+            {{ _('auth.coderegister.code_team_hint', team=invite_team.name) }}
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 

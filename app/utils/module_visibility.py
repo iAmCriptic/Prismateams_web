@@ -92,11 +92,6 @@ def get_allowed_visibilities(module: str, user=None) -> list[str]:
             allowed = [VISIBILITY_PRIVATE]
     if user is not None:
         allowed = filter_visibilities_for_user(allowed, user)
-        if not allowed:
-            # Team-only users with no team section still need a non-empty list for forms
-            if is_global_team_enabled() and _setting_bool(setting_key(module, 'team'), True):
-                return [VISIBILITY_TEAM]
-            return []
     return allowed
 
 

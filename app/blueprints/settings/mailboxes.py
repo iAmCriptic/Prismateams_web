@@ -1036,7 +1036,7 @@ def team_mailboxes(team_id):
     from app.utils.team_module_settings import is_team_section_enabled
     if not is_team_section_enabled(team.id, 'email'):
         flash(translate('settings.team_settings.flash_email_disabled'), 'warning')
-        return redirect(url_for('settings.team_settings', team_id=team.id))
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
     if not is_email_multi_enabled():
         flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))

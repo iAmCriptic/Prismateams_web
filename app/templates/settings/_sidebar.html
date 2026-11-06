@@ -54,9 +54,10 @@
     'settings.delete_team',
     'settings.team_image',
     'settings.team_mailboxes',
+    'settings.team_mailbox_new',
+    'settings.team_mailbox_edit',
     'settings.team_settings'
 ] %}
-{% set team_settings_active = ep == 'settings.team_settings' %}
 {% set my_mailboxes_active = ep == 'settings.my_mailboxes' %}
 {% set mailboxes_admin_active = ep in [
     'settings.admin_mailboxes',
@@ -143,11 +144,8 @@
     {% if show_teams_nav and not current_user.is_admin %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.team_lead_heading') }}</div>
-    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active and not team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
-    </a>
-    <a href="{{ url_for('settings.team_settings') }}" class="nav-link mod-nav-link{% if team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-sliders me-2"></i>{{ _('settings.team_settings.title') }}
     </a>
     {% endif %}
 
@@ -161,11 +159,8 @@
     <a href="{{ url_for('settings.admin_users') }}" class="nav-link mod-nav-link{% if users_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>{{ _('settings.admin.cards.user_management.title') }}
     </a>
-    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active and not team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
-    </a>
-    <a href="{{ url_for('settings.team_settings') }}" class="nav-link mod-nav-link{% if team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-sliders me-2"></i>{{ _('settings.team_settings.title') }}
     </a>
     <a href="{{ url_for('settings.admin_whitelist') }}" class="nav-link mod-nav-link{% if whitelist_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-check me-2"></i>{{ _('settings.admin.cards.whitelist.title') }}

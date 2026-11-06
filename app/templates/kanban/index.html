@@ -10,7 +10,7 @@
 
 {% macro board_actions_dropdown(b, manage) %}
 <div class="dropdown">
-  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
+  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-label="Aktionen" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
@@ -27,7 +27,7 @@
     {% if manage %}
     <li><hr class="dropdown-divider"></li>
     <li>
-      <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" onclick="event.stopPropagation();">
+      <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}?share=1" onclick="event.stopPropagation();">
         <i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}
       </a>
     </li>
@@ -57,7 +57,7 @@
 
 {% macro board_grid_card(b) %}
 {% set manage = b.id in manageable_ids %}
-{% set board_url = url_for('kanban.board', board_id=b.id) %}
+{% set board_url = url_for('kanban.board', board_id=b.public_id or b.id) %}
 {% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
 <div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}">
   <div class="card folder-item kanban-board-card h-100 position-relative"
@@ -113,7 +113,7 @@
 {% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
 <tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}">
   <td class="mod-list-name-cell">
-    <a class="mod-list-name text-decoration-none mod-item-name d-inline-flex align-items-center gap-2" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
+    <a class="mod-list-name text-decoration-none mod-item-name d-inline-flex align-items-center gap-2" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
       <span class="mod-item-name-text text-truncate" title="{{ b.title }}">{{ b.title }}</span>
       {% if unread_cnt > 0 %}
@@ -130,7 +130,7 @@
     <div class="mod-list-actions position-relative" onclick="event.stopPropagation();">
       <div class="mod-list-hover-actions">
         {% if manage %}
-        <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
+        <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
         <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
                 data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
                 onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
@@ -363,5 +363,5 @@
 </script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
-<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kanban.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

@@ -99,35 +99,38 @@ def normalize_view(view, private_enabled=None, team_enabled=None, public_enabled
         user_bypasses_content_restrictions,
         user_may_access_private,
         user_may_access_public,
+        user_may_access_team,
     )
 
     allow_public = public_enabled
     allow_private = private_enabled
+    allow_team = team_enabled
     if user and not user_bypasses_content_restrictions(user):
         allow_public = allow_public and user_may_access_public(user)
         allow_private = allow_private and user_may_access_private(user)
+        allow_team = allow_team and user_may_access_team(user)
 
     allowed = {'trash'}
     if allow_public:
         allowed.add('public')
     if private_enabled and allow_private:
         allowed.update({'ablage', 'freigaben'})
-    if team_enabled:
+    if team_enabled and allow_team:
         allowed.update({'team', 'freigaben'})
 
     if view in allowed:
         return view
     if view == 'ablage':
-        return 'team' if team_enabled else ('public' if allow_public else 'trash')
+        return 'team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash')
     if view == 'freigaben':
-        return 'ablage' if (private_enabled and allow_private) else ('team' if team_enabled else ('public' if allow_public else 'trash'))
+        return 'ablage' if (private_enabled and allow_private) else ('team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash'))
     if view == 'public' and not allow_public:
-        return 'ablage' if (private_enabled and allow_private) else ('team' if team_enabled else 'trash')
-    if view == 'team':
+        return 'team' if (team_enabled and allow_team) else ('ablage' if (private_enabled and allow_private) else 'trash')
+    if view == 'team' and not allow_team:
         return 'ablage' if (private_enabled and allow_private) else ('public' if allow_public else 'trash')
     if private_enabled and allow_private:
         return 'ablage'
-    if team_enabled:
+    if team_enabled and allow_team:
         return 'team'
     if allow_public:
         return 'public'
@@ -380,10 +383,13 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
         user_bypasses_content_restrictions,
         user_may_access_private,
         user_may_access_public,
+        user_may_access_team,
     )
 
     if _folder_is_team_space(folder):
         if not team_enabled:
+            return False
+        if user and not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
             return False
         if _user_has_team_membership(user, folder.team_id):
             return True
@@ -448,10 +454,13 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
         user_bypasses_content_restrictions,
         user_may_access_private,
         user_may_access_public,
+        user_may_access_team,
     )
 
     if _file_is_team_space(file_obj):
         if not team_enabled:
+            return False
+        if user and not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
             return False
         if _user_has_team_membership(user, getattr(file_obj, 'team_id', None)):
             return True
@@ -509,6 +518,9 @@ def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
     if _folder_is_team_space(folder):
         if not team_enabled:
             return False
+        from app.utils.user_content_access import user_bypasses_content_restrictions, user_may_access_team
+        if not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
         if _user_has_team_membership(user, folder.team_id):
             return True
         return has_acl_access('folder', folder.id, user.id, need_edit=True)
@@ -534,6 +546,9 @@ def can_edit_file(file_obj, user, private_enabled=None, team_enabled=None):
 
     if _file_is_team_space(file_obj):
         if not team_enabled:
+            return False
+        from app.utils.user_content_access import user_bypasses_content_restrictions, user_may_access_team
+        if not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
             return False
         if _user_has_team_membership(user, getattr(file_obj, 'team_id', None)):
             return True

@@ -41,7 +41,8 @@
             <div class="text-muted small">Lade Mitglieder…</div>
           </div>
           {% if can_manage %}
-          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn">
+          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn"
+                  onclick="event.preventDefault(); event.stopPropagation(); window.kanbanOpenShareModal ? window.kanbanOpenShareModal('users') : document.getElementById('kanbanShareBtn')?.click(); return false;">
             <i class="bi bi-person-plus me-1"></i>Freigabe & Mitglieder verwalten
           </button>
           {% endif %}
@@ -55,7 +56,6 @@
       <div class="dropdown d-inline-block kanban-notifications-dropdown">
         <button type="button" class="btn mod-pill-btn mod-pill-btn--icon position-relative" id="kanbanNotificationsBtn"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                data-bs-offset="0,8"
                 title="Benachrichtigungen">
           <i class="bi bi-bell" aria-hidden="true" id="kanbanNotificationsBellIcon"></i>
           <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="kanbanNotificationsBadge" style="display:none; font-size: 0.65rem; padding: 0.2em 0.45em;">0</span>
@@ -73,7 +73,7 @@
           </div>
           <div class="kanban-notifications-toolbar px-3 py-2 border-bottom d-flex align-items-center justify-content-between gap-2">
             <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" id="kanbanNotificationsUnreadOnly">
+              <input class="form-check-input" type="checkbox" id="kanbanNotificationsUnreadOnly" checked>
               <label class="form-check-label small fw-medium" for="kanbanNotificationsUnreadOnly">Nur ungelesene</label>
             </div>
             <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 small" id="kanbanNotificationsMarkAllRead" title="Alle als gelesen markieren">
@@ -110,7 +110,9 @@
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn"
+              data-bs-toggle="modal" data-bs-target="#kanbanShareModal"
+              title="{{ _('kanban.board.share') }}">
         <i class="bi bi-person-plus" aria-hidden="true"></i>
       </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">
@@ -712,8 +714,51 @@
     backgroundClear: {{ _('kanban.board.background_clear') | tojson }}
   };
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
+
+  window.kanbanOpenShareModal = function(tab) {
+    tab = tab || 'users';
+    try {
+      var dropdownToggle = document.getElementById('kanbanBoardMembers');
+      if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
+        var dd = bootstrap.Dropdown.getInstance(dropdownToggle);
+        if (dd) dd.hide();
+      }
+      var menu = document.getElementById('kanbanBoardMembersDropdown');
+      if (menu) menu.classList.remove('show');
+      if (dropdownToggle) {
+        dropdownToggle.classList.remove('show');
+        dropdownToggle.setAttribute('aria-expanded', 'false');
+      }
+    } catch (_) {}
+
+    setTimeout(function() {
+      var modalEl = document.getElementById('kanbanShareModal');
+      if (modalEl && window.bootstrap && bootstrap.Modal) {
+        try {
+          var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modal.show();
+        } catch (_) {}
+      }
+      var tabBtnId = (tab === 'links') ? 'kanbanShareTabLinksBtn' : 'kanbanShareTabUsersBtn';
+      var tabBtn = document.getElementById(tabBtnId);
+      if (tabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+          } else {
+            tabBtn.click();
+          }
+        } catch (_) {
+          tabBtn.click();
+        }
+      }
+      if (typeof window.kanbanInternalOpenShare === 'function') {
+        window.kanbanInternalOpenShare(tab);
+      }
+    }, 50);
+  };
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261106_05"></script>
 {% endblock %}

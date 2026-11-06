@@ -13,6 +13,24 @@
   const isShare = app.dataset.isShare === '1' || Boolean(shareToken);
   const boardId = board.id;
   const i18n = window.KANBAN_I18N || {};
+
+  const collapsedListStorageKey = `kanban_collapsed_lists_${boardId}`;
+  function getCollapsedListIds() {
+    try {
+      const raw = localStorage.getItem(collapsedListStorageKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+  function setCollapsedListIds(set) {
+    try {
+      localStorage.setItem(collapsedListStorageKey, JSON.stringify(Array.from(set)));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  const collapsedListIds = getCollapsedListIds();
   let currentCardId = null;
   let currentCardDetail = null;
   let checklistItemDueTarget = null;
@@ -79,7 +97,19 @@
     const el = document.getElementById('kanbanBoardMembers');
     if (!el) return;
     const members = board.members || [];
-    el.innerHTML = members.map((m) => avatarHtml(m)).join('') || '<span class="text-white-50 small"><i class="bi bi-people"></i></span>';
+    const maxVisible = 4;
+    let topbarHtml = '';
+    if (!members.length) {
+      topbarHtml = '<span class="text-white-50 small"><i class="bi bi-people"></i></span>';
+    } else {
+      const visibleMembers = members.slice(0, maxVisible);
+      const extraCount = members.length - maxVisible;
+      topbarHtml = visibleMembers.map((m) => avatarHtml(m)).join('');
+      if (extraCount > 0) {
+        topbarHtml += `<span class="kanban-avatar kanban-avatar--more" title="+${extraCount} weitere Personen">+${extraCount}</span>`;
+      }
+    }
+    el.innerHTML = topbarHtml;
 
     // Populate the members dropdown
     const countEl = document.getElementById('kanbanBoardMembersCount');
@@ -109,9 +139,9 @@
             : (m.role === 'admin' ? 'Administrator' : 'Mitglied');
           return `
             <div class="kanban-member-menu-item">
-              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1 overflow-hidden">
+              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
                 ${avatarHtml(m)}
-                <div class="text-truncate">
+                <div class="text-truncate min-w-0 flex-grow-1">
                   <div class="fw-semibold text-truncate" style="font-size: 0.88rem;">${esc(m.name || 'Benutzer')}</div>
                   <div class="small text-muted text-truncate" style="font-size: 0.75rem;">${esc(m.role_label || roleLabel)}</div>
                 </div>
@@ -182,7 +212,7 @@
   function notify(message, category) {
     const msg = String(message || '');
     if (typeof window.showAppBanner === 'function') {
-      window.showAppBanner(msg, category || 'danger');
+      window.showAppBanner(msg, category || 'info');
     } else {
       window.alert(msg);
     }
@@ -682,12 +712,13 @@
 
   function listHtml(list) {
     const cards = (list.cards || []).map(cardHtml).join('');
+    const isCollapsed = collapsedListIds.has(list.id);
     const menu = canEdit
       ? `<div class="dropdown kanban-list-menu">
-          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Listenaktionen">
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" aria-label="Listenaktionen">
             <i class="bi bi-three-dots"></i>
           </button>
-          <ul class="dropdown-menu dropdown-menu-end">
+          <ul class="dropdown-menu dropdown-menu-end shadow">
             <li><button type="button" class="dropdown-item" data-list-rename="${list.id}">${esc(i18n.rename || 'Umbenennen')}</button></li>
             <li><button type="button" class="dropdown-item text-danger" data-list-delete="${list.id}">${esc(i18n.delete || 'Löschen')}</button></li>
           </ul>
@@ -707,11 +738,27 @@
           </form>
         </div>`
       : '';
-    return `<div class="kanban-list-col" data-list-id="${list.id}">
+    return `<div class="kanban-list-col${isCollapsed ? ' is-collapsed' : ''}" data-list-id="${list.id}">
       <div class="kanban-list-col__head">
-        <span class="kanban-list-col__title" data-list-title="${list.id}">${esc(list.title)}</span>
-        <span class="kanban-list-col__count">${(list.cards || []).length}</span>
-        ${menu}
+        <span class="kanban-list-col__title text-truncate" data-list-title="${list.id}" title="${esc(list.title)}">${esc(list.title)}</span>
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+          <span class="kanban-list-col__count">${(list.cards || []).length}</span>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-list-collapse-btn p-0" data-list-collapse="${list.id}" title="Liste einklappen" aria-label="Liste einklappen">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h5.793L5.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L7.293 8.5H1.5A.5.5 0 0 1 1 8zm14 0a.5.5 0 0 0-.5-.5H8.707l2.147-2.146a.5.5 0 0 0-.708-.708l-3 3a.5.5 0 0 0 0 .708l3 3a.5.5 0 0 0 .708-.708L8.707 8.5H14.5a.5.5 0 0 0 .5-.5z"/>
+            </svg>
+          </button>
+          ${menu}
+        </div>
+      </div>
+      <div class="kanban-list-col__collapsed-view" data-list-expand="${list.id}" role="button" tabindex="0" title="Liste aufklappen: ${esc(list.title)}">
+        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-list-expand-btn p-0" data-list-expand="${list.id}" title="Liste aufklappen" aria-label="Liste aufklappen">
+          <i class="bi bi-arrow-left-right"></i>
+        </button>
+        <div class="kanban-list-col__collapsed-body">
+          <span class="kanban-list-col__collapsed-title">${esc(list.title)}</span>
+          <span class="kanban-list-col__collapsed-count">${(list.cards || []).length}</span>
+        </div>
       </div>
       <div class="kanban-list-col__cards" data-list-cards="${list.id}">${cards}</div>
       ${footer}
@@ -851,6 +898,12 @@
     }
     const countEl = col.querySelector('.kanban-list-col__count');
     if (countEl) countEl.textContent = String((list.cards || []).length);
+    const collapsedTitleEl = col.querySelector('.kanban-list-col__collapsed-title');
+    if (collapsedTitleEl && collapsedTitleEl.textContent !== (list.title || '')) {
+      collapsedTitleEl.textContent = list.title || '';
+    }
+    const collapsedCountEl = col.querySelector('.kanban-list-col__collapsed-count');
+    if (collapsedCountEl) collapsedCountEl.textContent = String((list.cards || []).length);
     const cardsEl = col.querySelector(`[data-list-cards="${list.id}"]`);
     if (cardsEl) patchCards(cardsEl, list.cards || []);
   }
@@ -1028,6 +1081,35 @@
 
   // Delegated clicks / submits on the board
   app.addEventListener('click', async (e) => {
+    const collapseBtn = e.target.closest('[data-list-collapse]');
+    if (collapseBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const listId = Number(collapseBtn.getAttribute('data-list-collapse'));
+      const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+      if (col) {
+        col.classList.add('is-collapsed');
+        collapsedListIds.add(listId);
+        setCollapsedListIds(collapsedListIds);
+      }
+      return;
+    }
+
+    const expandTarget = e.target.closest('[data-list-expand]');
+    if (expandTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+      const listId = Number(expandTarget.getAttribute('data-list-expand'));
+      const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+      if (col) {
+        col.classList.remove('is-collapsed');
+        collapsedListIds.delete(listId);
+        setCollapsedListIds(collapsedListIds);
+        bindListInteractions();
+      }
+      return;
+    }
+
     const card = e.target.closest('.kanban-card');
     if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
       lastFocusedCardEl = card;
@@ -1114,6 +1196,12 @@
 
   app.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
+      const expandTarget = e.target.closest('[data-list-expand]');
+      if (expandTarget) {
+        e.preventDefault();
+        expandTarget.click();
+        return;
+      }
       const card = e.target.closest('.kanban-card');
       if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
         e.preventDefault();
@@ -1121,6 +1209,15 @@
         openCard(Number(card.dataset.cardId));
       }
     }
+  });
+
+  document.addEventListener('show.bs.dropdown', (e) => {
+    const col = e.target && e.target.closest && e.target.closest('.kanban-list-col');
+    if (col) col.classList.add('has-dropdown-open');
+  });
+  document.addEventListener('hide.bs.dropdown', (e) => {
+    const col = e.target && e.target.closest && e.target.closest('.kanban-list-col');
+    if (col) col.classList.remove('has-dropdown-open');
   });
 
   app.addEventListener('submit', async (e) => {
@@ -1991,6 +2088,9 @@
   });
 
   async function openShareModal(initialTab = 'users') {
+    const modalEl = document.getElementById('kanbanShareModal');
+    if (!modalEl) return;
+
     const shareList = document.getElementById('kanbanShareList');
     const portalList = document.getElementById('kanbanPortalUsersList');
     if (shareList) shareList.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade Freigabelinks…</td></tr>';
@@ -1998,21 +2098,44 @@
 
     if (initialTab === 'links') {
       const linksTabBtn = document.getElementById('kanbanShareTabLinksBtn');
-      if (linksTabBtn && window.bootstrap && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+      if (linksTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+          } else {
+            linksTabBtn.click();
+          }
+        } catch (_) {
+          linksTabBtn.click();
+        }
       }
     } else {
       const usersTabBtn = document.getElementById('kanbanShareTabUsersBtn');
-      if (usersTabBtn && window.bootstrap && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+      if (usersTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+          } else {
+            usersTabBtn.click();
+          }
+        } catch (_) {
+          usersTabBtn.click();
+        }
       }
     }
 
-    getModal('kanbanShareModal')?.show();
+    try {
+      getModal(modalEl)?.show();
+    } catch (_) {}
 
     loadPortalUsersShare();
     loadPublicShares();
   }
+
+  document.getElementById('kanbanShareModal')?.addEventListener('show.bs.modal', () => {
+    loadPortalUsersShare();
+    loadPublicShares();
+  });
 
   async function loadPortalUsersShare() {
     const portalList = document.getElementById('kanbanPortalUsersList');
@@ -2403,11 +2526,19 @@
     }
   });
 
-  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', () => {
+  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', (e) => {
     // Hide dropdown if open
     const dropdownToggle = document.getElementById('kanbanBoardMembers');
     if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
-      bootstrap.Dropdown.getInstance(dropdownToggle)?.hide();
+      try {
+        bootstrap.Dropdown.getOrCreateInstance(dropdownToggle).hide();
+      } catch (_) {}
+    }
+    const menu = document.getElementById('kanbanBoardMembersDropdown');
+    if (menu) menu.classList.remove('show');
+    if (dropdownToggle) {
+      dropdownToggle.classList.remove('show');
+      dropdownToggle.setAttribute('aria-expanded', 'false');
     }
     openShareModal('users');
   });
@@ -2638,7 +2769,7 @@
 
   // ── Board Notifications (Trello-Style Feed) ─────────────────────────────
   let notifState = {
-    unread_only: false,
+    unread_only: true,
     notifications: [],
     unread_count: 0,
   };
@@ -2820,7 +2951,7 @@
         method: 'POST',
         body: { all: true },
       });
-      notify('Alle Benachrichtigungen als gelesen markiert');
+      notify('Alle Benachrichtigungen als gelesen markiert', 'info');
       updateNotificationsBadge(res.unread_count);
       notifState.notifications.forEach((n) => { n.is_read = true; });
       if (notifState.unread_only) {
@@ -2828,7 +2959,7 @@
       }
       renderNotifications();
     } catch (err) {
-      notify(err.message || 'Fehler beim Markieren');
+      notify(err.message || 'Fehler beim Markieren', 'danger');
     }
   });
 

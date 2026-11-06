@@ -509,6 +509,7 @@ def coderegister(code=None):
             invite_code=prefill_code,
             invite_team=team_preview,
             invite_valid=bool(invite_preview and team_preview),
+            invite_is_portal=bool(invite_preview and invite_preview.is_portal_user),
         )
         ctx.update(extra)
         return ctx
@@ -567,6 +568,7 @@ def coderegister(code=None):
         default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
         default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
 
+        is_portal_user = bool(invite and invite.is_portal_user)
         new_user = User(
             email=email,
             first_name=first_name,
@@ -577,8 +579,9 @@ def coderegister(code=None):
             dark_mode=dark_mode,
             accent_color=default_accent_color,
             is_email_confirmed=False,
-            can_access_public=False,
-            can_access_private=False,
+            can_access_public=is_portal_user,
+            can_access_private=is_portal_user,
+            can_access_team=True,
         )
         new_user.set_password(password)
 
@@ -592,6 +595,11 @@ def coderegister(code=None):
 
             from app.utils.access_control import apply_default_roles_to_user
             apply_default_roles_to_user(new_user)
+
+            if not is_portal_user:
+                new_user.can_access_public = False
+                new_user.can_access_private = False
+                new_user.can_access_team = True
 
             db.session.add(EmailPermission(user_id=new_user.id, can_read=True, can_send=True))
             db.session.add(TeamMember(team_id=team.id, user_id=new_user.id))

@@ -121,10 +121,11 @@ def _schema_guard(fallback_endpoint='duty_roster.index', **fallback_values):
 
 
 def _allowed_sections(user):
+    from app.utils.user_content_access import user_may_access_team
     sections = []
     if is_global_private_enabled() and user_may_access_private(user):
         sections.append('private')
-    if is_global_team_enabled():
+    if is_global_team_enabled() and (not user or user_may_access_team(user)):
         sections.append('team')
     if is_global_public_enabled() and user_may_access_public(user):
         sections.append('public')

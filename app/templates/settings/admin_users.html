@@ -3,6 +3,295 @@
 {% block title %}{{ _('settings.admin.users.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.cards.user_management.title') }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Unconditional overflow: visible and elevated stacking for admin user dropdowns */
+.settings-admin-users .sp-group,
+.settings-admin-users .sp-group-body,
+.settings-admin-users .mod-list-table-wrap,
+.settings-admin-users .mod-list-table,
+.settings-admin-users .mod-list-row,
+.settings-admin-users .mod-list-row td,
+.settings-admin-users .mod-list-actions,
+.settings-admin-users .sp-dir-card,
+.settings-admin-users .settings-admin-users-section,
+.settings-admin-users .mod-view-stage,
+.settings-admin-users .mod-view-pane {
+  overflow: visible !important;
+}
+
+/* Eliminate transform/animation stacking context leaks on view panes and groups */
+.settings-admin-users .mod-view-pane.mod-view-pane--active {
+  transform: none !important;
+}
+
+.settings-admin-users .sp-group {
+  animation: none !important;
+  transform: none !important;
+}
+
+.sau-dropdown-menu {
+  border-radius: 1.1rem !important;
+  padding: 0.45rem !important;
+  border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.22) !important;
+  min-width: 14rem !important;
+  z-index: 99999 !important;
+  background-color: var(--bs-dropdown-bg, var(--sp-surface-elevated, #fff)) !important;
+}
+
+.sau-dropdown-menu .dropdown-item {
+  border-radius: var(--mod-radius-pill, 1.5rem) !important;
+  padding: 0.5rem 0.9rem !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  font-weight: 500 !important;
+  width: 100% !important;
+}
+
+.sau-dropdown-menu .dropdown-item:hover,
+.sau-dropdown-menu .dropdown-item:focus {
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
+}
+
+.sau-dropdown-menu .dropdown-item.text-danger:hover,
+.sau-dropdown-menu .dropdown-item.text-danger:focus {
+  background: color-mix(in srgb, #dc3545 12%, transparent) !important;
+  color: #dc3545 !important;
+}
+
+.sau-dropdown-menu .dropdown-divider {
+  margin: 0.35rem 0.55rem !important;
+  opacity: 0.55 !important;
+}
+
+/* ——— Rollen-Modal & Gast-Modal im Portal-Design ——— */
+.settings-admin-roles-modal .modal-content {
+  border-radius: 1.25rem;
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: var(--sp-surface, var(--bs-body-bg));
+  box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.settings-admin-roles-modal-header {
+  border-bottom: 1px solid var(--sp-border, var(--bs-border-color));
+  padding: 1.15rem 1.45rem;
+  background: var(--sp-surface-elevated, var(--bs-body-bg));
+}
+
+.settings-admin-roles-modal .modal-title {
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--bs-body-color);
+}
+
+.settings-admin-roles-modal-body {
+  padding: 1.25rem 1.45rem;
+  background: var(--sp-surface, var(--bs-body-bg));
+}
+
+.settings-admin-roles-modal-footer {
+  border-top: 1px solid var(--sp-border, var(--bs-border-color));
+  padding: 0.95rem 1.45rem;
+  gap: 0.5rem;
+  background: var(--sp-surface-elevated, var(--bs-body-bg));
+}
+
+.settings-admin-roles-modal .sp-group {
+  margin-bottom: 0.85rem !important;
+  background: var(--sp-surface-elevated, #fff) !important;
+  border: 1px solid var(--sp-border, var(--bs-border-color)) !important;
+  border-radius: var(--sp-radius, 1rem) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  animation: none !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+
+.settings-admin-roles-modal .sp-group-head {
+  padding: 0.85rem 1.15rem !important;
+  border-bottom: 1px solid var(--sp-border, var(--bs-border-color)) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.settings-admin-roles-modal .sp-group-title {
+  font-size: 0.95rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--bs-body-color) !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.45rem !important;
+}
+
+.settings-admin-roles-modal .sp-group-title i {
+  color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+.settings-admin-roles-modal .sp-group-body {
+  padding: 0.85rem 1.15rem;
+}
+
+.settings-admin-roles-modal .sp-group-body.p-0 {
+  padding: 0 !important;
+}
+
+.settings-admin-roles-modal .sp-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 1rem !important;
+  align-items: center !important;
+  padding: 0.85rem 1.15rem !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--sp-border) 70%, transparent) !important;
+  transition: background 0.15s ease !important;
+}
+
+.settings-admin-roles-modal .sp-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.settings-admin-roles-modal .sp-row:hover {
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 4%, transparent) !important;
+}
+
+.settings-admin-roles-modal .sp-row-label {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.settings-admin-roles-modal .sp-row-label-text {
+  font-weight: 550 !important;
+  font-size: 0.9rem !important;
+  line-height: 1.35 !important;
+  cursor: pointer !important;
+  color: var(--bs-body-color) !important;
+}
+
+.settings-admin-roles-modal .sp-row-control {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 0.5rem !important;
+}
+
+.settings-admin-roles-modal .sp-row-control .form-switch {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.settings-admin-roles-modal .sp-row-control .form-switch .form-check-input {
+  width: 2.75rem !important;
+  height: 1.45rem !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  float: none !important;
+}
+
+.sp-hint {
+  font-size: 0.84rem;
+  color: var(--sp-muted, #6c757d);
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 20%, transparent);
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.settings-admin-roles-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.settings-admin-roles-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 550;
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: var(--sp-surface, #f8f9fa);
+  color: var(--bs-body-color);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-admin-roles-chip:hover {
+  border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 50%, var(--sp-border, var(--bs-border-color)));
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+  color: var(--accent-color, var(--bs-primary));
+}
+
+.btn-check:checked + .settings-admin-roles-chip {
+  background: var(--accent-color, var(--bs-primary)) !important;
+  border-color: var(--accent-color, var(--bs-primary)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+  font-weight: 600;
+}
+
+.btn-check:checked + .settings-admin-roles-chip::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: #fff;
+  margin-right: 0.2rem;
+}
+
+.btn-check:focus-visible + .settings-admin-roles-chip {
+  outline: 2px solid var(--accent-color, var(--bs-primary));
+  outline-offset: 2px;
+}
+
+.btn-check:disabled + .settings-admin-roles-chip {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.settings-admin-roles-empty {
+  font-size: 0.85rem;
+  color: var(--sp-muted, #6c757d);
+  margin: 0;
+  font-style: italic;
+}
+
+.settings-admin-roles-booking {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-admin-roles-booking-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-admin-roles-booking-title {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--sp-muted, #6c757d);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+</style>
+{% endblock %}
+
 {% block settings_content %}
 {% macro user_initials(name) -%}
 {%- set parts = (name or '').split() -%}
@@ -29,8 +318,16 @@
 {% else %}
 <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_modules') }}</span>
 {% endif %}
-{% if not item.can_access_public|default(true) or not item.can_access_private|default(true) %}
-<span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
+{% if not item.can_access_public|default(true) %}
+    {% if item.can_access_team|default(true) %}
+    <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
+    {% elif item.can_access_private|default(true) %}
+    <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.users.badge_private_only') }}</span>
+    {% else %}
+    <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.users.badge_restricted') }}</span>
+    {% endif %}
+{% elif not item.can_access_team|default(true) or not item.can_access_private|default(true) %}
+    <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_restricted') }}</span>
 {% endif %}
 {% endmacro %}
 
@@ -92,10 +389,10 @@
 </div>
 {% endif %}
 <div class="dropdown">
-    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
     </button>
-    <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+    <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu" data-bs-popper-config='{"strategy":"fixed"}'>
         <li>
             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" data-team-ids="{{ member_team_ids|join(',') }}">
                 <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>{{ _('settings.admin.teams.assign_teams') }}
@@ -159,10 +456,10 @@
 </div>
 {% endif %}
 <div class="dropdown">
-    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
     </button>
-    <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+    <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu" data-bs-popper-config='{"strategy":"fixed"}'>
         <li>
             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#teamsModal" data-user-id="{{ guest.id }}" data-user-name="{{ guest.full_name }}" data-team-ids="{{ guest_team_ids|join(',') }}">
                 <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>{{ _('settings.admin.teams.assign_teams') }}
@@ -288,10 +585,10 @@
                                             </form>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+                                            <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
                                                 <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
+                                            <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu" data-bs-popper-config='{"strategy":"fixed"}'>
                                                 <li>
                                                     <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}">
                                                         <button type="submit" class="dropdown-item text-success">
@@ -607,67 +904,91 @@
                 <form id="guestEditForm" class="settings-admin-roles-form" onsubmit="return false;">
                     <input type="hidden" id="guestEditUserId" name="user_id">
 
-                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-details-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="guest-edit-details-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.section_details') }}</h2>
+                    <!-- Details -->
+                    <div class="modal-roles-section" aria-labelledby="guest-edit-details-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="guest-edit-details-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                                {{ _('settings.admin.create_user.section_details') }}
+                            </h6>
                         </div>
-                        <div class="settings-admin-roles-fields">
-                            <div class="settings-admin-roles-field">
-                                <label for="guestEditFirstName" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditFirstName" name="first_name" required autocomplete="off">
-                            </div>
-                            <div class="settings-admin-roles-field">
-                                <label for="guestEditLastName" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control settings-admin-roles-input" id="guestEditLastName" name="last_name" required autocomplete="off">
-                            </div>
-                            <div class="settings-admin-roles-field">
-                                <label for="guestEditUsername" class="form-label">{{ _('settings.admin.create_user.guest_username') }}</label>
-                                <input type="text" class="form-control settings-admin-roles-input font-monospace" id="guestEditUsername" readonly tabindex="-1">
-                            </div>
-                            <div class="settings-admin-roles-field">
-                                <div class="settings-admin-roles-card-head settings-admin-roles-field-label">
-                                    <label for="guestEditExpires" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
-                                    <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
-                                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                    </button>
+                        <div class="pt-2">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-6">
+                                    <label for="guestEditFirstName" class="form-label small fw-semibold">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control rounded-pill" id="guestEditFirstName" name="first_name" required autocomplete="off">
                                 </div>
-                                <input type="datetime-local" class="form-control settings-admin-roles-input" id="guestEditExpires" name="guest_expires_at">
+                                <div class="col-12 col-sm-6">
+                                    <label for="guestEditLastName" class="form-label small fw-semibold">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control rounded-pill" id="guestEditLastName" name="last_name" required autocomplete="off">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="guestEditUsername" class="form-label small fw-semibold">{{ _('settings.admin.create_user.guest_username') }}</label>
+                                    <input type="text" class="form-control rounded-pill font-monospace" id="guestEditUsername" readonly tabindex="-1">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <label for="guestEditExpires" class="form-label small fw-semibold mb-0">{{ _('settings.admin.create_user.expires') }}</label>
+                                        <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
+                                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <input type="datetime-local" class="form-control rounded-pill" id="guestEditExpires" name="guest_expires_at">
+                                </div>
                             </div>
                         </div>
-                    </section>
+                    </div>
 
-                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-shares-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="guest-edit-shares-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.shares_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
+                    <hr class="modal-roles-divider">
+
+                    <!-- Freigaben -->
+                    <div class="modal-roles-section" aria-labelledby="guest-edit-shares-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="guest-edit-shares-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-folder-check" aria-hidden="true"></i>
+                                {{ _('settings.admin.create_user.shares_title') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div class="settings-admin-roles-chips" id="guestEditShares" role="group" aria-label="{{ _('settings.admin.create_user.shares_title') }}"></div>
-                        <p id="guestEditSharesEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.shares_empty') }}</p>
-                    </section>
+                        <div class="settings-admin-roles-chips pt-1" id="guestEditShares" role="group" aria-label="{{ _('settings.admin.create_user.shares_title') }}"></div>
+                        <p id="guestEditSharesEmpty" class="settings-admin-roles-empty mt-2 mb-0" hidden>{{ _('settings.admin.create_user.shares_empty') }}</p>
+                    </div>
 
-                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-chats-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="guest-edit-chats-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.chats_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
+                    <hr class="modal-roles-divider">
+
+                    <!-- Chats -->
+                    <div class="modal-roles-section" aria-labelledby="guest-edit-chats-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="guest-edit-chats-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                                {{ _('settings.admin.create_user.chats_title') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div class="settings-admin-roles-chips" id="guestEditChats" role="group" aria-label="{{ _('settings.admin.create_user.chats_title') }}"></div>
-                        <p id="guestEditChatsEmpty" class="settings-admin-roles-empty" hidden>{{ _('settings.admin.create_user.chats_empty') }}</p>
-                    </section>
+                        <div class="settings-admin-roles-chips pt-1" id="guestEditChats" role="group" aria-label="{{ _('settings.admin.create_user.chats_title') }}"></div>
+                        <p id="guestEditChatsEmpty" class="settings-admin-roles-empty mt-2 mb-0" hidden>{{ _('settings.admin.create_user.chats_empty') }}</p>
+                    </div>
 
-                    <section class="settings-admin-roles-card" aria-labelledby="guest-edit-modules-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="guest-edit-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.create_user.modules_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
+                    <hr class="modal-roles-divider">
+
+                    <!-- Module -->
+                    <div class="modal-roles-section mb-0" aria-labelledby="guest-edit-modules-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="guest-edit-modules-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-grid" aria-hidden="true"></i>
+                                {{ _('settings.admin.create_user.modules_title') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div class="settings-admin-roles-chips" id="guestEditModules" role="group" aria-label="{{ _('settings.admin.create_user.modules_title') }}"></div>
-                        <p class="settings-admin-roles-hint">{{ _('settings.admin.create_user.guest_hint') }}</p>
-                    </section>
+                        <div class="settings-admin-roles-chips pt-1" id="guestEditModules" role="group" aria-label="{{ _('settings.admin.create_user.modules_title') }}"></div>
+                        <p class="sp-hint mt-2 mb-0">{{ _('settings.admin.create_user.guest_hint') }}</p>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer settings-admin-roles-modal-footer">
@@ -695,84 +1016,141 @@
                 <form id="rolesForm" class="settings-admin-roles-form" onsubmit="return false;">
                     <input type="hidden" id="modalUserId" name="user_id">
 
-                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-full-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-full-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.badge_full') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.full_access_help') }}" aria-label="{{ _('settings.admin.users.full_access_help') }}">
+                    <!-- Vollzugriff -->
+                    <div class="modal-roles-section" aria-labelledby="roles-modal-full-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="roles-modal-full-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                                {{ _('settings.admin.users.badge_full') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.full_access_help') }}" aria-label="{{ _('settings.admin.users.full_access_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div class="form-check form-switch settings-admin-roles-switch">
-                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access">
-                            <label class="form-check-label" for="modalHasFullAccess">{{ _('settings.admin.users.badge_full') }}</label>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="modalHasFullAccess">{{ _('settings.admin.users.badge_full') }}</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access">
+                            </div>
                         </div>
-                    </section>
+                    </div>
 
-                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-spaces-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-spaces-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.content_access_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.content_access_help') }}" aria-label="{{ _('settings.admin.users.content_access_help') }}">
+                    <hr class="modal-roles-divider">
+
+                    <!-- Inhaltszugriff -->
+                    <div class="modal-roles-section" aria-labelledby="roles-modal-spaces-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="roles-modal-spaces-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-layers" aria-hidden="true"></i>
+                                {{ _('settings.admin.users.content_access_title') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.content_access_help') }}" aria-label="{{ _('settings.admin.users.content_access_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div class="settings-admin-roles-switch-stack">
-                            <div class="form-check form-switch settings-admin-roles-switch">
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="modalCanAccessPublic">{{ _('settings.admin.users.can_access_public') }}</label>
+                            <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="modalCanAccessPublic" name="can_access_public">
-                                <label class="form-check-label" for="modalCanAccessPublic">{{ _('settings.admin.users.can_access_public') }}</label>
                             </div>
-                            <div class="form-check form-switch settings-admin-roles-switch">
+                        </div>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="modalCanAccessTeam">{{ _('settings.admin.users.can_access_team') }}</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="modalCanAccessTeam" name="can_access_team">
+                            </div>
+                        </div>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="modalCanAccessPrivate">{{ _('settings.admin.users.can_access_private') }}</label>
+                            <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="modalCanAccessPrivate" name="can_access_private">
-                                <label class="form-check-label" for="modalCanAccessPrivate">{{ _('settings.admin.users.can_access_private') }}</label>
                             </div>
                         </div>
-                    </section>
+                    </div>
 
-                    <section id="moduleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-modules-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.module_roles_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.module_roles_help') }}" aria-label="{{ _('settings.admin.users.module_roles_help') }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <p id="rolesModalFullHint" class="settings-admin-roles-hint" hidden>{{ _('settings.admin.roles.full_access_active_hint') }}</p>
-                        <div class="settings-admin-roles-chips" id="moduleCheckboxes" role="group" aria-label="{{ _('settings.admin.users.module_roles_title') }}"></div>
-                    </section>
+                    <hr class="modal-roles-divider">
 
-                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-email-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-email-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.email_perms_title') }}</h2>
+                    <!-- Modulspezifische Rollen -->
+                    <div id="moduleRolesSection" class="modal-roles-section" aria-labelledby="roles-modal-modules-heading">
+                        <div class="modal-roles-head">
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 id="roles-modal-modules-heading" class="modal-roles-title mb-0">
+                                    <i class="bi bi-grid" aria-hidden="true"></i>
+                                    {{ _('settings.admin.users.module_roles_title') }}
+                                </h6>
+                                <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.module_roles_help') }}" aria-label="{{ _('settings.admin.users.module_roles_help') }}">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-1" id="moduleRolesQuickActions">
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="selectAllModulesBtn" style="font-size: 0.8rem;">Alle auswählen</button>
+                                <span class="text-muted" style="font-size: 0.75rem;">·</span>
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="deselectAllModulesBtn" style="font-size: 0.8rem;">Keine</button>
+                            </div>
                         </div>
-                        <div class="settings-admin-roles-switch-stack">
-                            <div class="form-check form-switch settings-admin-roles-switch">
+                        <div id="rolesModalFullHint" class="sp-hint my-2" hidden>
+                            <i class="bi bi-info-circle me-1"></i>{{ _('settings.admin.roles.full_access_active_hint') }}
+                        </div>
+                        <div class="settings-admin-roles-chips pt-1" id="moduleCheckboxes" role="group" aria-label="{{ _('settings.admin.users.module_roles_title') }}"></div>
+                    </div>
+
+                    <hr class="modal-roles-divider">
+
+                    <!-- E-Mail-Berechtigungen -->
+                    <div class="modal-roles-section" aria-labelledby="roles-modal-email-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="roles-modal-email-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-envelope" aria-hidden="true"></i>
+                                {{ _('settings.admin.users.email_perms_title') }}
+                            </h6>
+                        </div>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="emailCanRead">{{ _('settings.admin.users.email_read') }}</label>
+                            <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="emailCanRead" name="email_can_read">
-                                <label class="form-check-label" for="emailCanRead">{{ _('settings.admin.users.email_read') }}</label>
                             </div>
-                            <div class="form-check form-switch settings-admin-roles-switch">
+                        </div>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="emailCanSend">{{ _('settings.admin.users.email_send') }}</label>
+                            <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="emailCanSend" name="email_can_send">
-                                <label class="form-check-label" for="emailCanSend">{{ _('settings.admin.users.email_send') }}</label>
                             </div>
                         </div>
-                    </section>
+                    </div>
 
-                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-borrow-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-borrow-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.borrow_title') }}</h2>
-                        </div>
-                        <div class="form-check form-switch settings-admin-roles-switch">
-                            <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
-                            <label class="form-check-label" for="canBorrow">{{ _('settings.admin.users.borrow_toggle') }}</label>
-                        </div>
-                    </section>
+                    <hr class="modal-roles-divider">
 
-                    <section id="bookingRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-booking-heading">
-                        <div class="settings-admin-roles-card-head">
-                            <h2 id="roles-modal-booking-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.booking_roles_title') }}</h2>
-                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.booking_roles_help') }}" aria-label="{{ _('settings.admin.users.booking_roles_help') }}">
+                    <!-- Leihrechte -->
+                    <div class="modal-roles-section" aria-labelledby="roles-modal-borrow-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="roles-modal-borrow-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-box-seam" aria-hidden="true"></i>
+                                {{ _('settings.admin.users.borrow_title') }}
+                            </h6>
+                        </div>
+                        <div class="modal-roles-row">
+                            <label class="modal-roles-row-label" for="canBorrow">{{ _('settings.admin.users.borrow_toggle') }}</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="modal-roles-divider">
+
+                    <!-- Buchungsrollen -->
+                    <div id="bookingRolesSection" class="modal-roles-section mb-0" aria-labelledby="roles-modal-booking-heading">
+                        <div class="modal-roles-head">
+                            <h6 id="roles-modal-booking-heading" class="modal-roles-title mb-0">
+                                <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                                {{ _('settings.admin.users.booking_roles_title') }}
+                            </h6>
+                            <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.booking_roles_help') }}" aria-label="{{ _('settings.admin.users.booking_roles_help') }}">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                         </div>
-                        <div id="bookingRolesCheckboxes" class="settings-admin-roles-booking"></div>
-                    </section>
+                        <div id="bookingRolesCheckboxes" class="settings-admin-roles-booking pt-1"></div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer settings-admin-roles-modal-footer">
@@ -929,6 +1307,16 @@ function moveModalToBody(el) {
 document.getElementById('modalHasFullAccess').addEventListener('change', toggleModuleRoles);
 document.getElementById('rolesSaveBtn').addEventListener('click', saveRoles);
 
+document.getElementById('selectAllModulesBtn')?.addEventListener('click', function () {
+    if (document.getElementById('modalHasFullAccess').checked) return;
+    document.querySelectorAll('#moduleCheckboxes .module-checkbox').forEach(cb => { cb.checked = true; });
+});
+
+document.getElementById('deselectAllModulesBtn')?.addEventListener('click', function () {
+    if (document.getElementById('modalHasFullAccess').checked) return;
+    document.querySelectorAll('#moduleCheckboxes .module-checkbox').forEach(cb => { cb.checked = false; });
+});
+
 function fillGuestChipGroup(container, emptyEl, items, selected, idPrefix, valueKey, labelFn) {
     container.innerHTML = '';
     const selectedSet = new Set((selected || []).map(String));
@@ -1062,6 +1450,7 @@ function loadUserRoles(userId) {
         .then(data => {
             document.getElementById('modalHasFullAccess').checked = !!data.has_full_access;
             document.getElementById('modalCanAccessPublic').checked = data.can_access_public !== false;
+            document.getElementById('modalCanAccessTeam').checked = data.can_access_team !== false;
             document.getElementById('modalCanAccessPrivate').checked = data.can_access_private !== false;
             if (data.email_permissions) {
                 document.getElementById('emailCanRead').checked = !!data.email_permissions.can_read;
@@ -1160,9 +1549,11 @@ function toggleModuleRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
     const chips = document.getElementById('moduleCheckboxes');
     const hint = document.getElementById('rolesModalFullHint');
+    const quickActions = document.getElementById('moduleRolesQuickActions');
     const moduleCheckboxes = document.querySelectorAll('.module-checkbox');
     if (hint) hint.hidden = !fullAccess;
     if (chips) chips.hidden = fullAccess;
+    if (quickActions) quickActions.hidden = fullAccess;
     moduleCheckboxes.forEach(cb => { cb.disabled = fullAccess; });
 }
 
@@ -1198,6 +1589,7 @@ function saveRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
     formData.append('has_full_access', fullAccess ? 'on' : '');
     formData.append('can_access_public', document.getElementById('modalCanAccessPublic').checked ? 'on' : '');
+    formData.append('can_access_team', document.getElementById('modalCanAccessTeam').checked ? 'on' : '');
     formData.append('can_access_private', document.getElementById('modalCanAccessPrivate').checked ? 'on' : '');
     // Disabled chips mitsenden (FormData liest .checked direkt)
     document.querySelectorAll('.module-checkbox').forEach(cb => { cb.disabled = false; });
@@ -1240,6 +1632,64 @@ function saveRoles() {
         adminNotify('Fehler beim Speichern der Rollen. Bitte erneut versuchen.', 'danger');
     });
 }
+
+// Stacking-Context und z-index dynamisch erhöhen, damit Dropdowns immer über allen anderen Karten/Sektionen liegen
+document.addEventListener('show.bs.dropdown', function (event) {
+    const toggle = event.target.closest('[data-bs-toggle="dropdown"]') || event.target;
+    const dropdown = toggle.closest ? toggle.closest('.dropdown') : null;
+    if (!dropdown) return;
+
+    const dirCard = dropdown.closest('.sp-dir-card');
+    if (dirCard) {
+        dirCard.classList.add('has-dropdown-open');
+        dirCard.style.zIndex = '1250';
+        dirCard.style.position = 'relative';
+    }
+    const col = dropdown.closest('[class*="col-"]');
+    if (col) {
+        col.classList.add('has-dropdown-open');
+        col.style.zIndex = '1250';
+        col.style.position = 'relative';
+    }
+    const row = dropdown.closest('.mod-list-row');
+    if (row) {
+        row.classList.add('has-dropdown-open');
+        row.style.zIndex = '1250';
+        row.style.position = 'relative';
+        row.querySelectorAll('td').forEach(td => {
+            td.classList.add('has-dropdown-open');
+            td.style.overflow = 'visible';
+            td.style.zIndex = '1250';
+        });
+    }
+    const tableWrap = dropdown.closest('.mod-list-table-wrap');
+    if (tableWrap) {
+        tableWrap.classList.add('has-dropdown-open');
+        tableWrap.style.overflow = 'visible';
+        tableWrap.style.zIndex = '1210';
+        tableWrap.style.position = 'relative';
+    }
+    const section = dropdown.closest('.sp-group, .settings-admin-users-section');
+    if (section) {
+        section.classList.add('has-dropdown-open');
+        section.style.zIndex = '1200';
+        section.style.position = 'relative';
+        section.style.overflow = 'visible';
+    }
+});
+
+document.addEventListener('hidden.bs.dropdown', function (event) {
+    document.querySelectorAll('.has-dropdown-open').forEach(el => {
+        el.classList.remove('has-dropdown-open');
+        el.style.zIndex = '';
+        if (el.tagName !== 'SECTION' && !el.classList.contains('sp-group')) {
+            el.style.position = '';
+        }
+        if (el.tagName === 'TD' || el.classList.contains('mod-list-table-wrap')) {
+            el.style.overflow = '';
+        }
+    });
+});
 </script>
 
 <script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>

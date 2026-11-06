@@ -65,7 +65,7 @@
     {% endif %}
     {% if request.endpoint %}
         {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='3.4.17') }}">
             {% if request.endpoint.startswith('settings.booking_') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
             {% endif %}
@@ -104,7 +104,7 @@
         {% elif request.endpoint.startswith('shortlinks.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
         {% elif request.endpoint.startswith('kanban.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/kanban.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/kanban.css') }}?v={{ config.ABOUT_BUILD_NUMBER }}">
         {% elif request.endpoint.startswith('music.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
         {% elif request.endpoint.startswith('media_downloader.') %}
