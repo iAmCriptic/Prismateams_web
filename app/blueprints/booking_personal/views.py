@@ -34,6 +34,27 @@ from .mail import (
 from . import booking_personal_bp
 
 
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+
+
+def auto_column_width(field_type, label=""):
+    """Ermittelt eine sinnvolle Standard-Spaltenbreite automatisch."""
+    ft = (field_type or '').lower()
+    if ft == 'textarea':
+        return 260
+    elif ft in ('image_upload', 'promo_pictures'):
+        return 220
+    elif ft in ('file_upload', 'techrider'):
+        return 200
+    elif ft in ('multi_select', 'badge_select'):
+        return 190
+    elif ft in ('form_link', 'action_accept'):
+        return 150
+    elif ft in ('currency', 'counter', 'number'):
+        return 140
+    return max(len(label or '') * 11 + 60, 160)
+
+
 def _check_access():
     if not is_module_enabled('module_booking_personal'):
         abort(403)
@@ -202,6 +223,38 @@ def update_event_settings(event_id):
     return redirect(url_for('booking_personal.index', event_id=event.id))
 
 
+@booking_personal_bp.route('/events/<int:event_id>/design', methods=['POST'])
+def update_event_design(event_id):
+    """Speichert Veranstaltungs-Banner und anpassbare Texte für öffentliche Seiten."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+
+    # Banner-Upload
+    if 'header_image' in request.files:
+        file_item = request.files['header_image']
+        if file_item and file_item.filename and ('.' in file_item.filename and file_item.filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS):
+            upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'booking_personal', str(event.id))
+            os.makedirs(upload_dir, exist_ok=True)
+            filename = secure_filename(f"header_{event.id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}")
+            save_path = os.path.join(upload_dir, filename)
+            file_item.save(save_path)
+            event.header_image_path = f"/uploads/booking_personal/{event.id}/{filename}"
+
+    if request.form.get('delete_header_image') == '1':
+        event.header_image_path = None
+
+    event.apply_intro_text = (request.form.get('apply_intro_text') or '').strip() or None
+    event.apply_intro_text_en = (request.form.get('apply_intro_text_en') or '').strip() or None
+    event.form_intro_text = (request.form.get('form_intro_text') or '').strip() or None
+    event.form_intro_text_en = (request.form.get('form_intro_text_en') or '').strip() or None
+    event.overview_intro_text = (request.form.get('overview_intro_text') or '').strip() or None
+    event.overview_intro_text_en = (request.form.get('overview_intro_text_en') or '').strip() or None
+
+    db.session.commit()
+    flash('Formular-Texte und Veranstaltungs-Bild erfolgreich aktualisiert.', 'success')
+    return redirect(url_for('booking_personal.index', event_id=event.id))
+
+
+
 @booking_personal_bp.route('/events/<int:event_id>/delete', methods=['POST'])
 def delete_event(event_id):
     """Löscht eine Veranstaltung samt aller Einträge."""
@@ -342,6 +395,9 @@ def api_add_field(event_id):
     from app.utils.booking_personal_presets import infer_category
     category = data.get('category') or infer_category(field_key)
 
+    raw_width = data.get('width')
+    calc_width = int(raw_width) if raw_width and int(raw_width) > 0 else auto_column_width(field_type, label)
+
     field = BookingPersonalField(
         event_id=event.id,
         field_key=field_key,
@@ -350,7 +406,7 @@ def api_add_field(event_id):
         field_type=field_type,
         category=category,
         field_order=max_order + 1,
-        width=int(data.get('width', 160)),
+        width=calc_width,
         is_required=bool(data.get('is_required', False)),
         is_external=bool(data.get('is_external', False)),
         is_internal=bool(data.get('is_internal', True)),
@@ -386,10 +442,11 @@ def api_update_field(field_id):
     if 'field_type' in data:
         field.field_type = data['field_type']
     if 'width' in data:
-        try:
-            field.width = max(60, min(600, int(data['width'])))
-        except (ValueError, TypeError):
-            pass
+        raw_width = data.get('width')
+        if raw_width and int(raw_width) > 0:
+            field.width = max(60, min(600, int(raw_width)))
+        else:
+            field.width = auto_column_width(field.field_type, field.label)
     if 'is_required' in data:
         field.is_required = bool(data['is_required'])
     if 'is_external' in data:
@@ -778,7 +835,8 @@ def template_field_add(template_id):
     field_key = request.form.get('field_key', '').strip()
     is_external = request.form.get('is_external') == '1'
     visible_in_overview = request.form.get('visible_in_overview') == '1'
-    width = int(request.form.get('width', 160) or 160)
+    raw_width = request.form.get('width')
+    width = int(raw_width) if raw_width and int(raw_width) > 0 else auto_column_width(field_type, label)
     options_raw = request.form.get('options', '').strip()
 
     if not label:
@@ -791,7 +849,7 @@ def template_field_add(template_id):
             field_key = f'field_{secrets.token_hex(4)}'
 
     options = []
-    if options_raw and field_type == 'badge_select':
+    if options_raw and field_type in ('badge_select', 'multi_select'):
         for line in options_raw.splitlines():
             line = line.strip()
             if line:

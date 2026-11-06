@@ -426,6 +426,24 @@ def ensure_critical_columns(db) -> None:
                 except Exception as bpe_err:
                     logger.warning("Konnte booking_personal_events.apply_enabled nicht ergänzen: %s", bpe_err)
 
+            event_text_cols = [
+                ("header_image_path", "VARCHAR(255) NULL"),
+                ("apply_intro_text", "TEXT NULL"),
+                ("apply_intro_text_en", "TEXT NULL"),
+                ("form_intro_text", "TEXT NULL"),
+                ("form_intro_text_en", "TEXT NULL"),
+                ("overview_intro_text", "TEXT NULL"),
+                ("overview_intro_text_en", "TEXT NULL"),
+            ]
+            for col_name, col_type in event_text_cols:
+                if col_name not in bpe_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_personal_events ADD COLUMN {col_name} {col_type}"))
+                        logger.info("[OK] booking_personal_events.%s ergänzt", col_name)
+                    except Exception as col_err:
+                        logger.warning("Konnte booking_personal_events.%s nicht ergänzen: %s", col_name, col_err)
+
             try:
                 import secrets
                 with db.engine.connect() as conn:

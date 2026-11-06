@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ lang|default('de') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Künstler-Fragebogen: {{ event.name }} - {{ entry.name or 'Angaben' }}</title>
+    <title>{% if lang == 'en' %}Artist Questionnaire{% else %}Künstler-Fragebogen{% endif %}: {{ event.name }} - {{ entry.name or 'Angaben' }}</title>
     {% include 'partials/vendor_bootstrap_css.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
     {% include 'auth/_auth_bg.html' %}
@@ -37,12 +37,36 @@
 
     <!-- Haupt-Karte -->
     <div class="bp-public-card">
+        <!-- Language Switcher Bar -->
+        <div class="d-flex justify-content-end mb-2">
+            <div class="btn-group btn-group-sm rounded-pill p-0.5 bg-light border shadow-sm" role="group">
+                <a href="?lang=de" class="btn btn-sm rounded-pill px-3 py-0.5 {% if lang == 'de' %}btn-primary fw-semibold{% else %}btn-light text-muted{% endif %}">DE</a>
+                <a href="?lang=en" class="btn btn-sm rounded-pill px-3 py-0.5 {% if lang == 'en' %}btn-primary fw-semibold{% else %}btn-light text-muted{% endif %}">EN</a>
+            </div>
+        </div>
+
         {% if submitted %}
         <!-- Erfolgs-Ansicht -->
         <div class="text-center py-4">
             <div class="d-inline-flex align-items-center justify-content-center bg-success-subtle text-success rounded-circle mb-3 shadow-sm" style="width: 5.5rem; height: 5.5rem; font-size: 2.75rem;">
                 <i class="bi bi-check-circle-fill"></i>
             </div>
+            {% if lang == 'en' %}
+            <h2 class="fw-bold mb-1 text-dark">Details saved successfully!</h2>
+            <h5 class="text-muted fw-normal mb-3">Thank you for your response</h5>
+            <div class="p-3 bg-light rounded-4 border mx-auto mb-4 text-start small" style="max-width: 540px;">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <strong>Hello {{ entry.name }}, your details have been received.</strong><br>
+                        Our booking and production team has received your details and attachments for <strong>{{ event.name }}</strong> and is incorporating them into your appearance schedule.
+                    </div>
+                </div>
+            </div>
+            <p class="text-secondary small mb-0">
+                You can close this window now or update your information later using this link.
+            </p>
+            {% else %}
             <h2 class="fw-bold mb-1 text-dark">Angaben gespeichert!</h2>
             <h5 class="text-muted fw-normal mb-3">Vielen Dank für deine Rückmeldung</h5>
             <div class="p-3 bg-light rounded-4 border mx-auto mb-4 text-start small" style="max-width: 540px;">
@@ -57,20 +81,32 @@
             <p class="text-secondary small mb-0">
                 Du kannst diese Seite jederzeit schließen oder bei Bedarf aktualisierte Angaben über diesen Link erneut einreichen.
             </p>
+            {% endif %}
         </div>
         {% else %}
         <!-- Formular-Kopf -->
         <div class="text-center mb-4 pb-2 border-bottom">
-            <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 mb-2">
-                Künstler-Fragebogen / Artist Form
-            </span>
+            {% if event.header_image_path %}
+                <img src="{{ event.header_image_path }}" alt="{{ event.name }}" class="bp-public-brand-logo mb-2 shadow-sm rounded-3" style="max-height: 90px; max-width: 260px; object-fit: contain;">
+            {% else %}
+                <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-2" style="width: 3.75rem; height: 3.75rem; font-size: 1.75rem;">
+                    <i class="bi bi-music-note-beamed"></i>
+                </div>
+            {% endif %}
             <h2 class="fw-bold mb-1 text-dark">{{ event.name }}</h2>
+            <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 mb-2">
+                {% if lang == 'en' %}Artist Questionnaire{% else %}Künstler-Fragebogen / Artist Form{% endif %}
+            </span>
             <p class="text-muted small mx-auto mb-1" style="max-width: 600px;">
-                Hallo <strong>{{ entry.name or 'Act' }}</strong>, bitte vervollständige die nachfolgenden Angaben für Hospitality, Technik, Verpflegung und Reise, damit wir deinen Auftritt bestmöglich vorbereiten können.
+                {% if lang == 'en' %}
+                    {{ event.form_intro_text_en or ('Hello ' ~ (entry.name or 'Act') ~ ', please complete the following hospitality, technical, catering, and travel details so we can best prepare for your show.') }}
+                {% else %}
+                    {{ event.form_intro_text or ('Hallo ' ~ (entry.name or 'Act') ~ ', bitte vervollständige die nachfolgenden Angaben für Hospitality, Technik, Verpflegung und Reise, damit wir deinen Auftritt bestmöglich vorbereiten können.') }}
+                {% endif %}
             </p>
         </div>
 
-        <form action="{{ url_for('booking_personal.public_form_submit', token=entry.form_token) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('booking_personal.public_form_submit', token=entry.form_token) }}{% if lang == 'en' %}?lang=en{% endif %}" method="POST" enctype="multipart/form-data">
             {% if fields_by_category and external_fields %}
                 {% for category_name, cat_fields in fields_by_category.items() %}
                 <div class="bp-public-section">
@@ -86,15 +122,15 @@
                         {% else %}
                             <i class="bi bi-folder-fill"></i>
                         {% endif %}
-                        <span>{{ category_name }}</span>
+                        <span>{{ category_en_map.get(category_name, category_name) if lang == 'en' and category_en_map else category_name }}</span>
                     </div>
 
                     <div class="row g-3">
                         {% for f in cat_fields %}
                         {% set val = custom_data.get(f.field_key, '') %}
-                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
+                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload', 'multi_select') %}col-md-6{% endif %}">
                             <label class="form-label">
-                                {{ f.label }}
+                                {{ f.label_en if lang == 'en' and f.label_en else f.label }}
                                 {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
                             </label>
 
@@ -102,16 +138,29 @@
                                 <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %} placeholder="{{ f.help_text or '' }}">{{ val }}</textarea>
                             {% elif f.field_type == 'badge_select' %}
                                 <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
-                                    <option value="">-- Bitte wählen --</option>
+                                    <option value="">{% if lang == 'en' %}-- Please choose --{% else %}-- Bitte wählen --{% endif %}</option>
                                     {% for opt in f.get_options() %}
                                         {% set opt_val = opt.value if opt is mapping else opt %}
                                         <option value="{{ opt_val }}" {% if opt_val == val %}selected{% endif %}>{{ opt_val }}</option>
                                     {% endfor %}
                                 </select>
+                            {% elif f.field_type == 'multi_select' %}
+                                {% set cur_vals = f.parse_multi_value(val) %}
+                                <div class="d-flex flex-wrap gap-2 pt-1">
+                                    {% for opt in f.get_options() %}
+                                        {% set opt_val = opt.value if opt is mapping else opt %}
+                                        {% set opt_color = (opt.color if opt is mapping and opt.color else 'primary') %}
+                                        {% set is_checked = (opt_val in cur_vals) %}
+                                        <label class="btn btn-outline-{{ opt_color }} btn-sm rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1 cursor-pointer">
+                                            <input type="checkbox" name="{{ f.field_key }}" value="{{ opt_val }}" class="form-check-input mt-0 me-1" {% if is_checked %}checked{% endif %}>
+                                            <span>{{ opt_val }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
                             {% elif f.field_type == 'image_upload' %}
                                 <div class="bp-upload-dropzone">
                                     <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
-                                    <span class="small text-muted d-block mb-2">Bilder auswählen</span>
+                                    <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Choose images{% else %}Bilder auswählen{% endif %}</span>
                                     <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept="image/*" multiple {% if f.is_required and not val %}required{% endif %}>
                                 </div>
                                 {% if val %}
@@ -132,12 +181,12 @@
                             {% elif f.field_type == 'file_upload' %}
                                 <div class="bp-upload-dropzone">
                                     <i class="bi bi-file-earmark-arrow-up text-danger fs-3 d-block mb-1"></i>
-                                    <span class="small text-muted d-block mb-2">Datei auswählen (PDF, DOCX, ZIP)</span>
+                                    <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Choose document (PDF, DOCX, ZIP){% else %}Datei auswählen (PDF, DOCX, ZIP){% endif %}</span>
                                     <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required and not val %}required{% endif %}>
                                 </div>
                                 {% if val %}
                                 <div class="form-text text-success small mt-1">
-                                    <i class="bi bi-file-earmark-check me-1"></i>Datei bereits hinterlegt
+                                    <i class="bi bi-file-earmark-check me-1"></i>{% if lang == 'en' %}File already uploaded{% else %}Datei bereits hinterlegt{% endif %}
                                 </div>
                                 {% endif %}
                             {% elif f.field_type in ('counter', 'number') %}
@@ -163,9 +212,9 @@
                     <div class="row g-3">
                         {% for f in external_fields %}
                         {% set val = custom_data.get(f.field_key, '') %}
-                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
+                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload', 'multi_select') %}col-md-6{% endif %}">
                             <label class="form-label">
-                                {{ f.label }}
+                                {{ f.label_en if lang == 'en' and f.label_en else f.label }}
                                 {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
                             </label>
 
@@ -173,12 +222,25 @@
                                 <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %}>{{ val }}</textarea>
                             {% elif f.field_type == 'badge_select' %}
                                 <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
-                                    <option value="">-- Bitte wählen --</option>
+                                    <option value="">{% if lang == 'en' %}-- Please choose --{% else %}-- Bitte wählen --{% endif %}</option>
                                     {% for opt in f.get_options() %}
                                         {% set opt_val = opt.value if opt is mapping else opt %}
                                         <option value="{{ opt_val }}" {% if opt_val == val %}selected{% endif %}>{{ opt_val }}</option>
                                     {% endfor %}
                                 </select>
+                            {% elif f.field_type == 'multi_select' %}
+                                {% set cur_vals = f.parse_multi_value(val) %}
+                                <div class="d-flex flex-wrap gap-2 pt-1">
+                                    {% for opt in f.get_options() %}
+                                        {% set opt_val = opt.value if opt is mapping else opt %}
+                                        {% set opt_color = (opt.color if opt is mapping and opt.color else 'primary') %}
+                                        {% set is_checked = (opt_val in cur_vals) %}
+                                        <label class="btn btn-outline-{{ opt_color }} btn-sm rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1 cursor-pointer">
+                                            <input type="checkbox" name="{{ f.field_key }}" value="{{ opt_val }}" class="form-check-input mt-0 me-1" {% if is_checked %}checked{% endif %}>
+                                            <span>{{ opt_val }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
                             {% elif f.field_type == 'image_upload' %}
                                 <div class="bp-upload-dropzone">
                                     <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
@@ -201,7 +263,7 @@
                                     <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required and not val %}required{% endif %}>
                                 </div>
                                 {% if val %}
-                                <div class="form-text text-success small mt-1"><i class="bi bi-file-earmark-check me-1"></i>Datei bereits hinterlegt</div>
+                                <div class="form-text text-success small mt-1"><i class="bi bi-file-earmark-check me-1"></i>{% if lang == 'en' %}File already uploaded{% else %}Datei bereits hinterlegt{% endif %}</div>
                                 {% endif %}
                             {% elif f.field_type in ('counter', 'number') %}
                                 <input type="number" name="{{ f.field_key }}" class="form-control" value="{{ val or '0' }}" min="0" {% if f.is_required %}required{% endif %}>
@@ -220,7 +282,7 @@
 
             <div class="text-center mt-4 pt-2">
                 <button type="submit" class="btn btn-primary btn-public-submit">
-                    <i class="bi bi-check-lg me-2"></i>Angaben speichern / Submit
+                    <i class="bi bi-check-lg me-2"></i>{% if lang == 'en' %}Save Details{% else %}Angaben speichern{% endif %}
                 </button>
             </div>
         </form>

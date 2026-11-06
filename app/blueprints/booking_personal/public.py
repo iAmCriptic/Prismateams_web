@@ -23,6 +23,17 @@ CATEGORY_EN_MAP = {
     'Presse & Technik': 'Media, Press & Technical Rider',
 }
 
+STATUS_EN_MAP = {
+    'Angefragt': 'Requested',
+    'Bewerbung eingegangen': 'Application Received',
+    'Formular gesendet': 'Form Sent',
+    'Formular ausgefüllt': 'Form Submitted',
+    'Zusage gesendet': 'Confirmed Booking',
+    'Abgeschlossen': 'Completed',
+    'Rechnung weitergeleitet': 'Invoice Forwarded',
+    'Absage': 'Declined',
+}
+
 
 def _allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -33,6 +44,11 @@ def public_form(token):
     """Öffentliches Künstler-Formular für einen Act."""
     entry = BookingPersonalEntry.query.filter_by(form_token=token).first_or_404()
     event = entry.event
+
+    # Sprachauswahl (Standard: de)
+    lang = request.args.get('lang', 'de').lower()
+    if lang not in ('de', 'en'):
+        lang = 'de'
 
     # Alle extern ausfüllbaren Felder
     external_fields = [f for f in event.fields if f.is_external]
@@ -51,8 +67,10 @@ def public_form(token):
         entry=entry,
         external_fields=external_fields,
         fields_by_category=fields_by_category,
+        category_en_map=CATEGORY_EN_MAP,
         custom_data=custom_data,
         submitted=submitted,
+        lang=lang,
     )
 
 
@@ -100,6 +118,9 @@ def public_form_submit(token):
 
             if uploaded_paths:
                 custom_data[f_key] = uploaded_paths
+        elif f_type == 'multi_select':
+            vals = request.form.getlist(f_key)
+            custom_data[f_key] = vals
         else:
             val = request.form.get(f_key)
             if val is not None:
@@ -128,7 +149,8 @@ def public_form_submit(token):
     if request.is_json:
         return jsonify({'success': True, 'message': 'Vielen Dank! Deine Angaben wurden gespeichert.'})
 
-    return redirect(url_for('booking_personal.public_form', token=token, submitted='1'))
+    lang = request.args.get('lang', 'de')
+    return redirect(url_for('booking_personal.public_form', token=token, submitted='1', lang=lang))
 
 
 @booking_personal_bp.route('/overview/<token>', methods=['GET'])
@@ -160,6 +182,7 @@ def public_overview(token):
         overview_fields=overview_fields,
         fields_by_category=fields_by_category,
         category_en_map=CATEGORY_EN_MAP,
+        status_en_map=STATUS_EN_MAP,
         custom_data=custom_data,
         lang=lang,
     )
@@ -171,6 +194,11 @@ def public_apply(token):
     event = BookingPersonalEvent.query.filter_by(apply_token=token).first()
     if not event or not event.is_active:
         abort(404)
+
+    # Sprachauswahl (Standard: de)
+    lang = request.args.get('lang', 'de').lower()
+    if lang not in ('de', 'en'):
+        lang = 'de'
 
     # Relevante Felder für die Bewerbung (alle externen Felder oder Basis-Felder)
     apply_fields = [f for f in event.fields if f.is_external]
@@ -196,7 +224,9 @@ def public_apply(token):
         event=event,
         apply_fields=apply_fields,
         fields_by_category=fields_by_category,
+        category_en_map=CATEGORY_EN_MAP,
         submitted=submitted,
+        lang=lang,
     )
 
 
@@ -271,6 +301,9 @@ def public_apply_submit(token):
 
             if uploaded_paths:
                 custom_data[f_key] = uploaded_paths
+        elif f_type == 'multi_select':
+            vals = request.form.getlist(f_key)
+            custom_data[f_key] = vals
         else:
             val = request.form.get(f_key)
             if val is not None:
@@ -299,5 +332,6 @@ def public_apply_submit(token):
     if request.is_json:
         return jsonify({'success': True, 'message': 'Vielen Dank für deine Bewerbung!'})
 
-    return redirect(url_for('booking_personal.public_apply', token=token, submitted='1'))
+    lang = request.args.get('lang', 'de')
+    return redirect(url_for('booking_personal.public_apply', token=token, submitted='1', lang=lang))
 

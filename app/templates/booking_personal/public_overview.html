@@ -18,7 +18,9 @@
 <div class="bp-public-shell" id="bpPublicOverview">
     <!-- Portal Branding Header (wird beim Drucken ausgeblendet) -->
     <div class="bp-public-brand no-print">
-        {% if portal_logo_filename %}
+        {% if event.header_image_path %}
+        <img src="{{ event.header_image_path }}" alt="{{ event.name }}" class="bp-public-brand-logo mb-2 rounded-3 shadow-sm" style="max-height: 90px; max-width: 260px; object-fit: contain;">
+        {% elif portal_logo_filename %}
         <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
         {% elif app_logo %}
         <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
@@ -28,9 +30,15 @@
         </div>
         {% endif %}
         <div>
+            {% set cur_status = entry.status or custom_data.get('status_booking') or 'Angefragt' %}
             <span class="bp-public-brand-pill">
-                <i class="bi bi-check2-circle me-1"></i>
-                {{ app_name or 'Prismateams' }} &bull; Offizielle Buchungsbestätigung
+                <i class="bi {% if cur_status in ('Zusage gesendet', 'Abgeschlossen') %}bi-check2-circle{% else %}bi-info-circle{% endif %} me-1"></i>
+                {{ app_name or 'Prismateams' }} &bull;
+                {% if cur_status in ('Zusage gesendet', 'Abgeschlossen') %}
+                    {% if lang == 'en' %}Official Booking Confirmation{% else %}Offizielle Buchungsbestätigung{% endif %}
+                {% else %}
+                    {% if lang == 'en' %}Artist & Booking Overview{% else %}Auftritts- & Buchungsübersicht{% endif %}
+                {% endif %}
             </span>
         </div>
     </div>
@@ -40,10 +48,37 @@
         <!-- Dokument-Kopfzeile -->
         <div class="bp-doc-header">
             <div>
-                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 mb-2 d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-check-circle-fill"></i>
-                    {% if lang == 'en' %}Confirmed Booking{% else %}Bestätigte Buchung{% endif %}
-                </span>
+                {% if cur_status in ('Zusage gesendet', 'Abgeschlossen') %}
+                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>{% if lang == 'en' %}{{ status_en_map.get(cur_status, 'Confirmed Booking') }}{% else %}{% if cur_status == 'Zusage gesendet' %}Bestätigte Buchung{% else %}Abgeschlossen{% endif %}{% endif %}</span>
+                    </span>
+                {% elif cur_status == 'Absage' %}
+                    <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-x-circle-fill"></i>
+                        <span>{% if lang == 'en' %}{{ status_en_map.get(cur_status, 'Declined') }}{% else %}Absage{% endif %}</span>
+                    </span>
+                {% elif cur_status == 'Formular ausgefüllt' %}
+                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-file-earmark-check-fill"></i>
+                        <span>{% if lang == 'en' %}{{ status_en_map.get(cur_status, 'Form Submitted') }}{% else %}Formular ausgefüllt{% endif %}</span>
+                    </span>
+                {% elif cur_status in ('Formular gesendet', 'Bewerbung eingegangen') %}
+                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi {% if cur_status == 'Formular gesendet' %}bi-envelope-paper-fill{% else %}bi-inbox-fill{% endif %}"></i>
+                        <span>{% if lang == 'en' %}{{ status_en_map.get(cur_status, cur_status) }}{% else %}{{ cur_status }}{% endif %}</span>
+                    </span>
+                {% elif cur_status == 'Rechnung weitergeleitet' %}
+                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-receipt"></i>
+                        <span>{% if lang == 'en' %}{{ status_en_map.get(cur_status, 'Invoice Forwarded') }}{% else %}Rechnung weitergeleitet{% endif %}</span>
+                    </span>
+                {% else %}
+                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-1.5 mb-2 d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span>{% if lang == 'en' %}Status: {{ status_en_map.get(cur_status, cur_status) }}{% else %}Status: {{ cur_status }}{% endif %}</span>
+                    </span>
+                {% endif %}
                 <h2 class="fw-bold mb-1 text-dark">{{ event.name }}</h2>
                 <h4 class="text-primary fw-bold mb-0">
                     <i class="bi bi-person-fill me-1"></i>{{ entry.name or custom_data.get('project_name', '') }}
@@ -71,12 +106,11 @@
 
         <div class="p-3 bg-light rounded-4 border mb-4">
             <p class="text-secondary small mb-0">
+                <i class="bi bi-info-circle text-primary me-1"></i>
                 {% if lang == 'en' %}
-                <i class="bi bi-info-circle text-primary me-1"></i>
-                This is your official artist and booking summary for <strong>{{ event.name }}</strong>. All verified details, agreed compensation, hospitality allocations, and logistics are listed below.
+                    {{ event.overview_intro_text_en or ('This is your official artist and booking summary for ' ~ event.name ~ '. All verified details, agreed compensation, hospitality allocations, and logistics are listed below.') }}
                 {% else %}
-                <i class="bi bi-info-circle text-primary me-1"></i>
-                Dies ist deine offizielle Auftritts- und Buchungsübersicht für <strong>{{ event.name }}</strong>. Nachfolgend findest du alle bestätigten Details, vereinbarten Gagen, Hospitality-Guthaben und Logistik-Absprachen.
+                    {{ event.overview_intro_text or ('Dies ist deine offizielle Auftritts- und Buchungsübersicht für ' ~ event.name ~ '. Nachfolgend findest du alle bestätigten Details, vereinbarten Gagen, Hospitality-Guthaben und Logistik-Absprachen.') }}
                 {% endif %}
             </p>
         </div>
@@ -145,6 +179,19 @@
                                 {% else %}
                                     <span class="text-muted fw-normal">-</span>
                                 {% endif %}
+                            {% elif f.field_type == 'multi_select' %}
+                                {% set m_vals = f.parse_multi_value(val) %}
+                                {% if m_vals %}
+                                    <div class="d-flex flex-wrap gap-1.5 mt-0.5">
+                                        {% for mv in m_vals %}
+                                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+                                            {{ mv }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted fw-normal">-</span>
+                                {% endif %}
                             {% elif f.field_key in ('soundcloud', 'instagram') and val and val != '-' %}
                                 <a href="{{ val }}" target="_blank" class="text-primary text-decoration-none d-inline-flex align-items-center gap-1">
                                     <span class="text-truncate" style="max-width: 320px;">{{ val }}</span>
@@ -198,7 +245,11 @@
         <div class="pt-3 mt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small">
             <div>
                 <i class="bi bi-calendar2-check text-primary me-1"></i>
-                {% if lang == 'en' %}Status: Confirmed & Synchronized{% else %}Status: Bestätigt & Synchronisiert{% endif %}
+                {% if lang == 'en' %}
+                    Status: {{ status_en_map.get(cur_status, cur_status) }} &bull; Synchronized
+                {% else %}
+                    Status: {{ cur_status }} &bull; Synchronisiert
+                {% endif %}
             </div>
             <div>
                 &copy; {{ event.name }} &bull; {{ app_name or 'Prismateams' }}

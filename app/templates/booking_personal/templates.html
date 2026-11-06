@@ -236,9 +236,20 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1">
-                                                    <i class="bi bi-tag me-1"></i>{{ f.category or 'Allgemein' }}
-                                                </span>
+                                                {% set cat = f.category or 'Allgemein' %}
+                                                {% if 'Stamm' in cat or 'Status' in cat %}
+                                                <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1"><i class="bi bi-person-lines-fill me-1"></i>{{ cat }}</span>
+                                                {% elif 'Finanz' in cat or 'Geld' in cat %}
+                                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="bi bi-cash-stack me-1"></i>{{ cat }}</span>
+                                                {% elif 'Hospitality' in cat or 'Logistik' in cat %}
+                                                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1"><i class="bi bi-cup-hot-fill me-1"></i>{{ cat }}</span>
+                                                {% elif 'Presse' in cat or 'Technik' in cat %}
+                                                <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle px-2.5 py-1"><i class="bi bi-sliders me-1"></i>{{ cat }}</span>
+                                                {% elif 'Aktion' in cat or 'Link' in cat %}
+                                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1"><i class="bi bi-lightning-charge-fill me-1"></i>{{ cat }}</span>
+                                                {% else %}
+                                                <span class="badge rounded-pill bg-light text-dark border px-2.5 py-1"><i class="bi bi-tag me-1"></i>{{ cat }}</span>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 <code class="small text-secondary">{{ f.field_key }}</code>
@@ -434,14 +445,34 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                 </div>
                 <div class="modal-body p-4">
+                    <!-- Schnell-Vorschläge für Vorlagen-Spalten -->
+                    <div class="p-2.5 mb-3 bg-light rounded-3 border">
+                        <div class="d-flex align-items-center justify-content-between mb-1.5">
+                            <span class="small fw-bold text-muted"><i class="bi bi-magic text-primary me-1"></i>Schnell-Vorschläge (1 Klick):</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1.5">
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('status')"><i class="bi bi-tag-fill text-primary"></i>Booking Status</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('bereich')"><i class="bi bi-pin-map-fill text-info"></i>Bereich</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('multi_select')"><i class="bi bi-ui-checks text-success"></i>Multiple Choice</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('form_link')"><i class="bi bi-link-45deg text-dark"></i>Formular-Link</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('action_accept')"><i class="bi bi-send text-primary"></i>Mail senden</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('gage')"><i class="bi bi-cash text-success"></i>Gage (€)</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-danger"></i>Techrider</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('promo_images')"><i class="bi bi-images text-warning"></i>Promo-Bilder</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('pronoun')"><i class="bi bi-person-badge text-secondary"></i>Pronomen</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('drinks')"><i class="bi bi-cup-straw text-primary"></i>Getränke</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('guestlist')"><i class="bi bi-people text-info"></i>Gästeliste</button>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Spaltenbezeichnung (Deutsch) <span class="text-danger">*</span></label>
-                        <input type="text" name="label" class="form-control rounded-3" placeholder="z. B. Übernachtungshotel, Ansprechpartner" required autofocus>
+                        <input type="text" name="label" id="tmplFieldLabel" class="form-control rounded-3" placeholder="z. B. Übernachtungshotel, Ansprechpartner" required autofocus>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Spaltenbezeichnung (Englisch)</label>
-                        <input type="text" name="label_en" class="form-control rounded-3" placeholder="z. B. Hotel, Contact Person">
+                        <input type="text" name="label_en" id="tmplFieldLabelEn" class="form-control rounded-3" placeholder="z. B. Hotel, Contact Person">
                     </div>
 
                     <div class="mb-3">
@@ -451,7 +482,8 @@
                             <option value="textarea">Text (Mehrzeilig)</option>
                             <option value="currency">Zahl / Währung (€)</option>
                             <option value="counter">Zahl / Zähler (z. B. Gästeliste)</option>
-                            <option value="badge_select">Dropdown / Status-Badges</option>
+                            <option value="badge_select">Dropdown / Status-Badges (Single Choice)</option>
+                            <option value="multi_select">Multiple Choice / Badges (Mehrfachauswahl)</option>
                             <option value="image_upload">Datei- / Bild-Upload</option>
                             <option value="form_link">Formular-Link</option>
                             <option value="action_accept">Aktion: Zusage-Mail</option>
@@ -460,7 +492,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Kategorie / Bereich</label>
-                        <input type="text" name="category" class="form-control rounded-3" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
+                        <input type="text" name="category" id="tmplFieldCategory" class="form-control rounded-3" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
                         <datalist id="categoryPresets">
                             <option value="Stammdaten & Status">
                             <option value="Finanzen">
@@ -473,18 +505,19 @@
 
                     <div class="mb-3 d-none" id="bpTmplOptionsGroup">
                         <label class="form-label fw-semibold">Auswahl-Optionen (eine Option pro Zeile; optional mit Farbe: Wert|Farbe)</label>
-                        <textarea name="options" class="form-control rounded-3 font-monospace small" rows="4" placeholder="Option 1|primary&#10;Option 2|success&#10;Option 3|danger"></textarea>
+                        <textarea name="options" id="tmplFieldOptions" class="form-control rounded-3 font-monospace small" rows="4" placeholder="Option 1|primary&#10;Option 2|success&#10;Option 3|danger"></textarea>
                         <div class="form-text small">Farben: primary, success, danger, warning, info, secondary, dark</div>
                     </div>
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-semibold">Spaltenbreite (px)</label>
-                            <input type="number" name="width" class="form-control rounded-3" value="160" min="80" max="600">
+                            <input type="number" name="width" id="tmplFieldWidth" class="form-control rounded-3" placeholder="Automatisch" min="60" max="600">
+                            <div class="form-text small">Leer lassen für automatische Breite.</div>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-semibold">Feld-Key (optional)</label>
-                            <input type="text" name="field_key" class="form-control rounded-3 font-monospace small" placeholder="auto-generiert">
+                            <input type="text" name="field_key" id="tmplFieldKey" class="form-control rounded-3 font-monospace small" placeholder="auto-generiert">
                         </div>
                     </div>
 
@@ -613,8 +646,135 @@ function toggleTemplateSourceFields(val) {
 function toggleTmplFieldOptions(val) {
     const optGrp = document.getElementById('bpTmplOptionsGroup');
     if (optGrp) {
-        optGrp.classList.toggle('d-none', val !== 'badge_select');
+        optGrp.classList.toggle('d-none', val !== 'badge_select' && val !== 'multi_select');
     }
+}
+
+function applyTmplColPreset(key) {
+    const presets = {
+        'status': {
+            label: 'Booking Status',
+            label_en: 'Booking Status',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: 'Angefragt|secondary\nBewerbung eingegangen|info\nFormular gesendet|primary\nFormular ausgefüllt|purple\nZusage gesendet|success\nAbgeschlossen|success\nRechnung weitergeleitet|warning\nAbsage|danger',
+            is_external: false,
+            overview: false
+        },
+        'bereich': {
+            label: 'Bereich',
+            label_en: 'Area / Stage',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: 'Main Stage|primary\nAmbient|info\nMühle|warning\nWorkshop|success',
+            is_external: false,
+            overview: true
+        },
+        'multi_select': {
+            label: 'Aufgaben / Tags',
+            label_en: 'Tasks / Tags',
+            type: 'multi_select',
+            category: 'Allgemein',
+            options: 'Soundcheck|primary\nCatering|success\nHotel gebucht|info\nFahrservice|warning',
+            is_external: false,
+            overview: true
+        },
+        'form_link': {
+            label: 'Formular-Link',
+            label_en: 'Form Link',
+            type: 'form_link',
+            category: 'Aktionen & Links',
+            options: '',
+            is_external: false,
+            overview: false
+        },
+        'action_accept': {
+            label: 'Zusage senden',
+            label_en: 'Send Confirmation',
+            type: 'action_accept',
+            category: 'Aktionen & Links',
+            options: '',
+            is_external: false,
+            overview: false
+        },
+        'gage': {
+            label: 'Gage (€)',
+            label_en: 'Fee (€)',
+            type: 'currency',
+            category: 'Finanzen',
+            options: '',
+            is_external: false,
+            overview: true
+        },
+        'techrider': {
+            label: 'Techrider (PDF)',
+            label_en: 'Techrider (PDF)',
+            type: 'file_upload',
+            category: 'Presse & Technik',
+            options: '',
+            is_external: true,
+            overview: false
+        },
+        'promo_images': {
+            label: 'Promo-Bilder',
+            label_en: 'Press Photos',
+            type: 'image_upload',
+            category: 'Presse & Technik',
+            options: '',
+            is_external: true,
+            overview: false
+        },
+        'pronoun': {
+            label: 'Pronomen',
+            label_en: 'Pronouns',
+            type: 'text',
+            category: 'Stammdaten & Status',
+            options: '',
+            is_external: true,
+            overview: true
+        },
+        'drinks': {
+            label: 'Getränkeguthaben',
+            label_en: 'Drink Tokens',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: '',
+            is_external: false,
+            overview: true
+        },
+        'guestlist': {
+            label: 'Gästeliste Plätze',
+            label_en: 'Guest List Spots',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: '',
+            is_external: true,
+            overview: true
+        }
+    };
+
+    const p = presets[key];
+    if (!p) return;
+
+    const labelEl = document.getElementById('tmplFieldLabel');
+    const labelEnEl = document.getElementById('tmplFieldLabelEn');
+    const typeEl = document.getElementById('bpTmplFieldTypeSelect');
+    const catEl = document.getElementById('tmplFieldCategory');
+    const optEl = document.getElementById('tmplFieldOptions');
+    const widthEl = document.getElementById('tmplFieldWidth');
+    const extEl = document.getElementById('tmplFieldExternal');
+    const overEl = document.getElementById('tmplFieldOverview');
+
+    if (labelEl) labelEl.value = p.label;
+    if (labelEnEl) labelEnEl.value = p.label_en;
+    if (typeEl) typeEl.value = p.type;
+    if (catEl) catEl.value = p.category;
+    if (optEl) optEl.value = p.options;
+    if (widthEl) widthEl.value = ''; // Auto width!
+    if (extEl) extEl.checked = p.is_external;
+    if (overEl) overEl.checked = p.overview;
+
+    toggleTmplFieldOptions(p.type);
 }
 
 function filterTemplateFields(q) {

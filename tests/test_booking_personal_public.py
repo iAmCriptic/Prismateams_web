@@ -74,24 +74,36 @@ def test_public_bilingual_overview(client, app):
         db.session.commit()
 
         overview_token = entry.overview_token
+        entry_id = entry.id
 
-    # 1. Deutsche Ansicht (Standard)
+    # 1. Deutsche Ansicht (Standard: Angefragt)
     res = client.get(f'/booking-personal/overview/{overview_token}?lang=de')
     assert res.status_code == 200
     content_de = res.data.decode('utf-8')
     assert 'Summer Closing' in content_de
     assert 'Luna Love' in content_de
-    assert 'Bestätigte Buchung' in content_de
+    assert 'Status: Angefragt' in content_de
     assert '€450.00' in content_de
 
-    # 2. Englische Ansicht
+    # 2. Englische Ansicht (Requested)
     res = client.get(f'/booking-personal/overview/{overview_token}?lang=en')
     assert res.status_code == 200
     content_en = res.data.decode('utf-8')
-    assert 'Confirmed Booking' in content_en
+    assert 'Status: Requested' in content_en
     assert 'Artist / Project Name' in content_en
     assert 'Fee / Gage' in content_en
     assert '€450.00' in content_en
+
+    # 3. Wenn Status auf 'Zusage gesendet' wechselt -> 'Bestätigte Buchung' / 'Confirmed Booking'
+    with app.app_context():
+        e = BookingPersonalEntry.query.get(entry_id)
+        e.status = 'Zusage gesendet'
+        db.session.commit()
+
+    res_confirmed_de = client.get(f'/booking-personal/overview/{overview_token}?lang=de')
+    assert 'Bestätigte Buchung' in res_confirmed_de.data.decode('utf-8')
+    res_confirmed_en = client.get(f'/booking-personal/overview/{overview_token}?lang=en')
+    assert 'Confirmed Booking' in res_confirmed_en.data.decode('utf-8')
 
 
 def test_public_apply_and_submission(client, app):
@@ -139,5 +151,84 @@ def test_public_apply_and_submission(client, app):
         assert new_entry.get_value('bereich') == 'Ambient'
         assert new_entry.get_value('soundcloud') == 'https://soundcloud.com/cosmicpulse'
         assert new_entry.get_value('promotext') == 'Sphärische Ambient Klänge zum Träumen.'
+
+
+def test_public_custom_design_intro_and_multiselect(client, app):
+    from app.models.booking_personal import BookingPersonalField
+    with app.app_context():
+        event = BookingPersonalEvent(
+            name='Aurora Nights 2026',
+            header_image_path='/uploads/branding/aurora_banner.png',
+            apply_intro_text='Willkommen beim Bewerbungsportal von Aurora Nights!',
+            apply_intro_text_en='Welcome to the Aurora Nights application portal!',
+            form_intro_text='Bitte trage alle Hospitality-Wünsche für Aurora Nights ein.',
+            form_intro_text_en='Please submit all hospitality details for Aurora Nights.',
+            overview_intro_text='Offizielle Bestätigung deiner Buchung bei Aurora Nights.',
+            overview_intro_text_en='Official confirmation of your booking at Aurora Nights.',
+        )
+        db.session.add(event)
+        db.session.flush()
+
+        # Multi-select field hinzufügen
+        multi_field = BookingPersonalField(
+            event_id=event.id,
+            field_key='tasks',
+            label='Aufgaben',
+            label_en='Tasks',
+            field_type='multi_select',
+            category='Allgemein',
+            field_order=1,
+            width=180,
+            is_external=True,
+            visible_in_overview=True
+        )
+        multi_field.set_options([
+            {'value': 'Soundcheck', 'color': 'primary'},
+            {'value': 'Hotel gebucht', 'color': 'info'},
+            {'value': 'Catering', 'color': 'success'}
+        ])
+        db.session.add(multi_field)
+
+        entry = BookingPersonalEntry(event_id=event.id, name='Aurora Ensemble')
+        entry.set_value('tasks', ['Soundcheck', 'Catering'])
+        db.session.add(entry)
+        db.session.commit()
+
+        apply_token = event.get_apply_token()
+        form_token = entry.form_token
+        overview_token = entry.overview_token
+
+    # 1. Apply: DE Ansicht mit Custom Intro Text & Banner
+    res = client.get(f'/booking-personal/apply/{apply_token}?lang=de')
+    assert res.status_code == 200
+    html_de = res.data.decode('utf-8')
+    assert 'Willkommen beim Bewerbungsportal von Aurora Nights!' in html_de
+    assert '/uploads/branding/aurora_banner.png' in html_de
+    assert 'Aufgaben' in html_de
+
+    # 2. Apply: EN Ansicht
+    res_en = client.get(f'/booking-personal/apply/{apply_token}?lang=en')
+    assert res_en.status_code == 200
+    html_en = res_en.data.decode('utf-8')
+    assert 'Welcome to the Aurora Nights application portal!' in html_en
+    assert 'Tasks' in html_en
+    assert 'Submit Application' in html_en
+
+    # 3. Form: EN Ansicht mit Custom Intro Text und Multi-Select
+    res_form = client.get(f'/booking-personal/form/{form_token}?lang=en')
+    assert res_form.status_code == 200
+    form_html = res_form.data.decode('utf-8')
+    assert 'Please submit all hospitality details for Aurora Nights.' in form_html
+    assert 'Soundcheck' in form_html
+    assert 'Catering' in form_html
+
+    # 4. Overview: EN Ansicht
+    res_ov = client.get(f'/booking-personal/overview/{overview_token}?lang=en')
+    assert res_ov.status_code == 200
+    ov_html = res_ov.data.decode('utf-8')
+    assert 'Official confirmation of your booking at Aurora Nights.' in ov_html
+    assert 'Soundcheck' in ov_html
+    assert 'Catering' in ov_html
+
 
 

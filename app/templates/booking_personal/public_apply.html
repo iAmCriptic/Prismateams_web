@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ lang|default('de') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bewerbung / Application - {{ event.name }}</title>
+    <title>{% if lang == 'en' %}Artist Application{% else %}Bewerbung{% endif %} - {{ event.name }}</title>
     {% include 'partials/vendor_bootstrap_css.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
     {% include 'auth/_auth_bg.html' %}
@@ -37,12 +37,36 @@
 
     <!-- Haupt-Karte -->
     <div class="bp-public-card">
+        <!-- Language Switcher Bar -->
+        <div class="d-flex justify-content-end mb-2">
+            <div class="btn-group btn-group-sm rounded-pill p-0.5 bg-light border shadow-sm" role="group">
+                <a href="?lang=de" class="btn btn-sm rounded-pill px-3 py-0.5 {% if lang == 'de' %}btn-primary fw-semibold{% else %}btn-light text-muted{% endif %}">DE</a>
+                <a href="?lang=en" class="btn btn-sm rounded-pill px-3 py-0.5 {% if lang == 'en' %}btn-primary fw-semibold{% else %}btn-light text-muted{% endif %}">EN</a>
+            </div>
+        </div>
+
         {% if submitted %}
         <!-- Erfolgs-Ansicht nach Absenden -->
         <div class="text-center py-4">
             <div class="d-inline-flex align-items-center justify-content-center bg-success-subtle text-success rounded-circle mb-3 shadow-sm" style="width: 5.5rem; height: 5.5rem; font-size: 2.75rem;">
                 <i class="bi bi-check-lg"></i>
             </div>
+            {% if lang == 'en' %}
+            <h2 class="fw-bold mb-1 text-dark">Application successfully submitted!</h2>
+            <h5 class="text-muted fw-normal mb-3">Thank you for your application</h5>
+            <div class="p-3 bg-light rounded-4 border mx-auto mb-4 text-start small" style="max-width: 540px;">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <strong>Thank you for applying to {{ event.name }}.</strong><br>
+                        Your details have been successfully forwarded to our booking and curation team. We will review your profile carefully and get back to you by email.
+                    </div>
+                </div>
+            </div>
+            <p class="text-secondary small mb-0">
+                For urgent questions, please contact the event organisation team directly.
+            </p>
+            {% else %}
             <h2 class="fw-bold mb-1 text-dark">Bewerbung erfolgreich eingereicht!</h2>
             <h5 class="text-muted fw-normal mb-3">Application successfully submitted</h5>
             <div class="p-3 bg-light rounded-4 border mx-auto mb-4 text-start small" style="max-width: 540px;">
@@ -57,23 +81,32 @@
             <p class="text-secondary small mb-0">
                 Bei dringenden Rückfragen wende dich bitte direkt an das Organisationsteam.
             </p>
+            {% endif %}
         </div>
         {% else %}
         <!-- Formular-Kopf -->
         <div class="text-center mb-4 pb-2 border-bottom">
-            <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-2" style="width: 3.75rem; height: 3.75rem; font-size: 1.75rem;">
-                <i class="bi bi-music-note-beamed"></i>
-            </div>
+            {% if event.header_image_path %}
+                <img src="{{ event.header_image_path }}" alt="{{ event.name }}" class="bp-public-brand-logo mb-2 shadow-sm rounded-3" style="max-height: 90px; max-width: 260px; object-fit: contain;">
+            {% else %}
+                <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-2" style="width: 3.75rem; height: 3.75rem; font-size: 1.75rem;">
+                    <i class="bi bi-music-note-beamed"></i>
+                </div>
+            {% endif %}
             <h2 class="fw-bold mb-1 text-dark">{{ event.name }}</h2>
             <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 mb-2">
-                Offenes Bewerbungsformular / Artist Application
+                {% if lang == 'en' %}Artist Application{% else %}Offenes Bewerbungsformular / Artist Application{% endif %}
             </span>
             <p class="text-muted small mx-auto mb-1" style="max-width: 600px;">
-                Bewirb dich jetzt für einen Auftritt bei <strong>{{ event.name }}</strong>. Bitte fülle die folgenden Abschnitte möglichst vollständig aus.
+                {% if lang == 'en' %}
+                    {{ event.apply_intro_text_en or ('Apply now for ' ~ event.name ~ '. Please fill out the sections below as completely as possible.') }}
+                {% else %}
+                    {{ event.apply_intro_text or ('Bewirb dich jetzt für einen Auftritt bei ' ~ event.name ~ '. Bitte fülle die folgenden Abschnitte möglichst vollständig aus.') }}
+                {% endif %}
             </p>
         </div>
 
-        <form action="{{ url_for('booking_personal.public_apply_submit', token=event.apply_token) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('booking_personal.public_apply_submit', token=event.apply_token) }}{% if lang == 'en' %}?lang=en{% endif %}" method="POST" enctype="multipart/form-data">
             {% if fields_by_category and apply_fields %}
                 <!-- Dynamisch strukturierte Sektionen nach Kategorien -->
                 {% for category_name, cat_fields in fields_by_category.items() %}
@@ -90,14 +123,14 @@
                         {% else %}
                             <i class="bi bi-folder-fill"></i>
                         {% endif %}
-                        <span>{{ category_name }}</span>
+                        <span>{{ category_en_map.get(category_name, category_name) if lang == 'en' and category_en_map else category_name }}</span>
                     </div>
 
                     <div class="row g-3">
                         {% for f in cat_fields %}
-                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
+                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload', 'multi_select') %}col-md-6{% endif %}">
                             <label class="form-label">
-                                {{ f.label }}
+                                {{ f.label_en if lang == 'en' and f.label_en else f.label }}
                                 {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
                             </label>
 
@@ -105,22 +138,33 @@
                                 <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %} placeholder="{{ f.help_text or '' }}"></textarea>
                             {% elif f.field_type == 'badge_select' %}
                                 <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
-                                    <option value="">-- Bitte wählen --</option>
+                                    <option value="">{% if lang == 'en' %}-- Please choose --{% else %}-- Bitte wählen --{% endif %}</option>
                                     {% for opt in f.get_options() %}
                                         {% set opt_val = opt.value if opt is mapping else opt %}
                                         <option value="{{ opt_val }}">{{ opt_val }}</option>
                                     {% endfor %}
                                 </select>
+                            {% elif f.field_type == 'multi_select' %}
+                                <div class="d-flex flex-wrap gap-2 pt-1">
+                                    {% for opt in f.get_options() %}
+                                        {% set opt_val = opt.value if opt is mapping else opt %}
+                                        {% set opt_color = (opt.color if opt is mapping and opt.color else 'primary') %}
+                                        <label class="btn btn-outline-{{ opt_color }} btn-sm rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1 cursor-pointer">
+                                            <input type="checkbox" name="{{ f.field_key }}" value="{{ opt_val }}" class="form-check-input mt-0 me-1">
+                                            <span>{{ opt_val }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
                             {% elif f.field_type == 'image_upload' %}
                                 <div class="bp-upload-dropzone">
                                     <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
-                                    <span class="small text-muted d-block mb-2">Bilder auswählen (PNG, JPG, WEBP)</span>
+                                    <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Choose images (PNG, JPG, WEBP){% else %}Bilder auswählen (PNG, JPG, WEBP){% endif %}</span>
                                     <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept="image/*" multiple {% if f.is_required %}required{% endif %}>
                                 </div>
                             {% elif f.field_type == 'file_upload' %}
                                 <div class="bp-upload-dropzone">
                                     <i class="bi bi-file-earmark-pdf text-danger fs-3 d-block mb-1"></i>
-                                    <span class="small text-muted d-block mb-2">Dokument auswählen (PDF, DOCX, ZIP)</span>
+                                    <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Choose document (PDF, DOCX, ZIP){% else %}Dokument auswählen (PDF, DOCX, ZIP){% endif %}</span>
                                     <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required %}required{% endif %}>
                                 </div>
                             {% elif f.field_type in ('counter', 'number') %}
@@ -146,37 +190,37 @@
                 <div class="bp-public-section">
                     <div class="bp-public-section-title">
                         <i class="bi bi-person-lines-fill"></i>
-                        <span>1. Stammdaten & Ansprechpartner</span>
+                        <span>{% if lang == 'en' %}1. Master Data & Contact Person{% else %}1. Stammdaten & Ansprechpartner{% endif %}</span>
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Auftrittsname / Projektname <span class="text-danger">*</span></label>
-                            <input type="text" name="project_name" class="form-control" required placeholder="z. B. DJ Sunshine / Bandname">
+                            <label class="form-label">{% if lang == 'en' %}Artist / Project Name{% else %}Auftrittsname / Projektname{% endif %} <span class="text-danger">*</span></label>
+                            <input type="text" name="project_name" class="form-control" required placeholder="{% if lang == 'en' %}e.g. DJ Sunshine / Band{% else %}z. B. DJ Sunshine / Bandname{% endif %}">
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Ansprechpartner* Vor- / Nachname <span class="text-danger">*</span></label>
-                            <input type="text" name="contact_name" class="form-control" required placeholder="Vorname Nachname">
+                            <label class="form-label">{% if lang == 'en' %}Contact Name{% else %}Ansprechpartner* Vor- / Nachname{% endif %} <span class="text-danger">*</span></label>
+                            <input type="text" name="contact_name" class="form-control" required placeholder="{% if lang == 'en' %}Firstname Lastname{% else %}Vorname Nachname{% endif %}">
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">E-Mail-Adresse <span class="text-danger">*</span></label>
+                            <label class="form-label">{% if lang == 'en' %}Email Address{% else %}E-Mail-Adresse{% endif %} <span class="text-danger">*</span></label>
                             <input type="email" name="mail" class="form-control" required placeholder="kontakt@example.com">
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Telefonnummer</label>
+                            <label class="form-label">{% if lang == 'en' %}Phone Number{% else %}Telefonnummer{% endif %}</label>
                             <input type="tel" name="phone" class="form-control" placeholder="+49 170 1234567">
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Pronomen</label>
+                            <label class="form-label">{% if lang == 'en' %}Pronouns{% else %}Pronomen{% endif %}</label>
                             <select name="pronouns" class="form-select">
-                                <option value="">-- Keine Angabe --</option>
+                                <option value="">{% if lang == 'en' %}-- Not specified --{% else %}-- Keine Angabe --{% endif %}</option>
                                 <option value="she/her">she/her</option>
                                 <option value="he/him">he/him</option>
                                 <option value="they/them">they/them</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Bereich / Genre</label>
-                            <input type="text" name="bereich" class="form-control" placeholder="z. B. DJ, Live-Act, Ambient, Performance">
+                            <label class="form-label">{% if lang == 'en' %}Area / Genre{% else %}Bereich / Genre{% endif %}</label>
+                            <input type="text" name="bereich" class="form-control" placeholder="{% if lang == 'en' %}e.g. DJ, Live-Act, Ambient, Performance{% else %}z. B. DJ, Live-Act, Ambient, Performance{% endif %}">
                         </div>
                     </div>
                 </div>
@@ -184,30 +228,30 @@
                 <div class="bp-public-section">
                     <div class="bp-public-section-title">
                         <i class="bi bi-music-note-beamed"></i>
-                        <span>2. Künstlerprofil, Medien & Socials</span>
+                        <span>{% if lang == 'en' %}2. Artist Profile, Media & Socials{% else %}2. Künstlerprofil, Medien & Socials{% endif %}</span>
                     </div>
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label">Soundcloud / Web-Link / Hörproben</label>
+                            <label class="form-label">{% if lang == 'en' %}Soundcloud / Web Link / Demos{% else %}Soundcloud / Web-Link / Hörproben{% endif %}</label>
                             <input type="url" name="soundcloud" class="form-control" placeholder="https://soundcloud.com/...">
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Promotext / Kurzvorstellung</label>
-                            <textarea name="promotext" class="form-control" rows="3" placeholder="Erzähle kurz etwas über dich und deine Musik / Performance..."></textarea>
+                            <label class="form-label">{% if lang == 'en' %}Promo Text / Short Bio{% else %}Promotext / Kurzvorstellung{% endif %}</label>
+                            <textarea name="promotext" class="form-control" rows="3" placeholder="{% if lang == 'en' %}Tell us a little bit about yourself and your music...{% else %}Erzähle kurz etwas über dich und deine Musik / Performance...{% endif %}"></textarea>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Promo-Bilder (Upload)</label>
+                            <label class="form-label">{% if lang == 'en' %}Promo Photos (Upload){% else %}Promo-Bilder (Upload){% endif %}</label>
                             <div class="bp-upload-dropzone">
                                 <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
-                                <span class="small text-muted d-block mb-2">Bilder auswählen</span>
+                                <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Select images{% else %}Bilder auswählen{% endif %}</span>
                                 <input type="file" name="promo_pictures" class="form-control form-control-sm" accept="image/*" multiple>
                             </div>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Techrider / Stageplot (PDF)</label>
+                            <label class="form-label">{% if lang == 'en' %}Techrider / Stageplot (PDF){% else %}Techrider / Stageplot (PDF){% endif %}</label>
                             <div class="bp-upload-dropzone">
                                 <i class="bi bi-file-earmark-pdf text-danger fs-3 d-block mb-1"></i>
-                                <span class="small text-muted d-block mb-2">Techrider hochladen</span>
+                                <span class="small text-muted d-block mb-2">{% if lang == 'en' %}Upload techrider{% else %}Techrider hochladen{% endif %}</span>
                                 <input type="file" name="techrider_other" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip">
                             </div>
                         </div>
@@ -217,12 +261,12 @@
                 <div class="bp-public-section">
                     <div class="bp-public-section-title">
                         <i class="bi bi-chat-heart"></i>
-                        <span>3. Sonstiges & Bemerkungen</span>
+                        <span>{% if lang == 'en' %}3. Miscellaneous & Comments{% else %}3. Sonstiges & Bemerkungen{% endif %}</span>
                     </div>
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label">Was du uns noch sagen möchtest...</label>
-                            <textarea name="was_du_uns_noch_sagen" class="form-control" rows="2" placeholder="Gage-Vorstellung, Reiseplanung oder sonstige Wünsche..."></textarea>
+                            <label class="form-label">{% if lang == 'en' %}Anything else you'd like to share...{% else %}Was du uns noch sagen möchtest...{% endif %}</label>
+                            <textarea name="was_du_uns_noch_sagen" class="form-control" rows="2" placeholder="{% if lang == 'en' %}Fee expectations, travel schedule, requests...{% else %}Gage-Vorstellung, Reiseplanung oder sonstige Wünsche...{% endif %}"></textarea>
                         </div>
                     </div>
                 </div>
@@ -230,14 +274,24 @@
 
             <div class="text-center mt-4 pt-2">
                 <button type="submit" class="btn btn-primary btn-public-submit">
-                    <i class="bi bi-send-fill me-2"></i>Bewerbung absenden / Submit
+                    <i class="bi bi-send-fill me-2"></i>{% if lang == 'en' %}Submit Application{% else %}Bewerbung absenden{% endif %}
                 </button>
                 <div class="text-muted small mt-2">
-                    <i class="bi bi-shield-check me-1"></i>Mit dem Absenden erklärst du dich mit der Kontaktaufnahme zur Vorbereitung des Events einverstanden.
+                    <i class="bi bi-shield-check me-1"></i>{% if lang == 'en' %}By submitting, you agree to be contacted for the purpose of event preparation.{% else %}Mit dem Absenden erklärst du dich mit der Kontaktaufnahme zur Vorbereitung des Events einverstanden.{% endif %}
                 </div>
             </div>
         </form>
         {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-3 text-white-50 small">
+        &copy; {{ event.name }} &bull; Powered by {{ app_name or 'Prismateams' }}
+    </div>
+</div>
+
+</body>
+</html>
     </div>
 
     <!-- Footer -->

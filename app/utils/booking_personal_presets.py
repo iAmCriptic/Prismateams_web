@@ -7,6 +7,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Auftrittsname / Projektname',
         'label_en': 'Artist / Project Name',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 220,
         'is_required': True,
         'is_external': False,
@@ -21,11 +22,12 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'STATUS BOOKING',
         'label_en': 'Booking Status',
         'field_type': 'badge_select',
+        'category': 'Stammdaten & Status',
         'width': 180,
         'is_required': False,
         'is_external': False,
         'is_internal': True,
-        'visible_in_overview': False,
+        'visible_in_overview': True,
         'options': [
             {'value': 'Angefragt', 'color': 'secondary'},
             {'value': 'Formular gesendet', 'color': 'info'},
@@ -42,6 +44,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Bereich',
         'label_en': 'Area / Stage',
         'field_type': 'badge_select',
+        'category': 'Stammdaten & Status',
         'width': 150,
         'is_required': False,
         'is_external': False,
@@ -62,6 +65,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Extern / Intern',
         'label_en': 'External / Internal',
         'field_type': 'badge_select',
+        'category': 'Stammdaten & Status',
         'width': 140,
         'is_required': False,
         'is_external': False,
@@ -79,6 +83,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Kommentar Booking-Team',
         'label_en': 'Team Comments',
         'field_type': 'textarea',
+        'category': 'Stammdaten & Status',
         'width': 220,
         'is_required': False,
         'is_external': False,
@@ -93,6 +98,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Ansprechpartner* Vorname / Nachname',
         'label_en': 'Contact Person',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 200,
         'is_required': False,
         'is_external': True,
@@ -107,6 +113,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Pronomen',
         'label_en': 'Pronouns',
         'field_type': 'badge_select',
+        'category': 'Stammdaten & Status',
         'width': 130,
         'is_required': False,
         'is_external': True,
@@ -126,6 +133,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Mail',
         'label_en': 'Email',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 210,
         'is_required': True,
         'is_external': True,
@@ -140,6 +148,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Telefonnummer',
         'label_en': 'Phone Number',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 160,
         'is_required': False,
         'is_external': True,
@@ -154,6 +163,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Label',
         'label_en': 'Record Label',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 160,
         'is_required': False,
         'is_external': True,
@@ -168,6 +178,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Instagram',
         'label_en': 'Instagram',
         'field_type': 'text',
+        'category': 'Stammdaten & Status',
         'width': 190,
         'is_required': False,
         'is_external': True,
@@ -184,6 +195,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Gage',
         'label_en': 'Fee / Gage',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 130,
         'is_required': False,
         'is_external': False,
@@ -198,6 +210,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'BookingFee',
         'label_en': 'Booking Fee',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 130,
         'is_required': False,
         'is_external': False,
@@ -212,6 +225,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Steuersatz',
         'label_en': 'Tax Rate',
         'field_type': 'badge_select',
+        'category': 'Finanzen',
         'width': 120,
         'is_required': False,
         'is_external': False,
@@ -231,6 +245,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'VerpflegungspauschaleAufladung',
         'label_en': 'Catering Top-Up (Count)',
         'field_type': 'counter',
+        'category': 'Finanzen',
         'width': 150,
         'is_required': False,
         'is_external': False,
@@ -245,6 +260,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'VerpflegungspauschaleKosten',
         'label_en': 'Catering Cost',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 150,
         'is_required': False,
         'is_external': False,
@@ -259,6 +275,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Travel',
         'label_en': 'Travel Costs',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 130,
         'is_required': False,
         'is_external': False,
@@ -273,6 +290,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Unterkunft',
         'label_en': 'Lodging Costs',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 130,
         'is_required': False,
         'is_external': False,
@@ -287,6 +305,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'sonstAusgaben',
         'label_en': 'Other Expenses',
         'field_type': 'currency',
+        'category': 'Finanzen',
         'width': 130,
         'is_required': False,
         'is_external': False,
@@ -301,6 +320,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'GESAMT',
         'label_en': 'Total',
         'field_type': 'formula',
+        'category': 'Finanzen',
         'width': 140,
         'is_required': False,
         'is_external': False,
@@ -317,6 +337,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Getränkeguthaben',
         'label_en': 'Drinks Credit',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 140,
         'is_required': False,
         'is_external': False,
@@ -331,6 +352,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'FoodständeGuthaben',
         'label_en': 'Food Stand Credit',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 150,
         'is_required': False,
         'is_external': False,
@@ -345,6 +367,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'AnzahlGästeliste',
         'label_en': 'Guestlist Spots',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 140,
         'is_required': False,
         'is_external': False,
@@ -359,6 +382,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'AnzahlFriendsTickets',
         'label_en': 'Friends Tickets',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 150,
         'is_required': False,
         'is_external': False,
@@ -373,6 +397,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Zeltgestellt (Nächte)',
         'label_en': 'Tents Provided (Nights)',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 150,
         'is_required': False,
         'is_external': True,
@@ -387,6 +412,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Anzahl Zelte',
         'label_en': 'Number of Tents',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 130,
         'is_required': False,
         'is_external': True,
@@ -401,6 +427,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Zeltpräferenzen',
         'label_en': 'Tent Preferences',
         'field_type': 'text',
+        'category': 'Hospitality & Logistik',
         'width': 160,
         'is_required': False,
         'is_external': True,
@@ -415,6 +442,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Mitgliederanzahl / ...',
         'label_en': 'Members Count',
         'field_type': 'counter',
+        'category': 'Hospitality & Logistik',
         'width': 140,
         'is_required': False,
         'is_external': True,
@@ -429,6 +457,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Anfahrt',
         'label_en': 'Arrival',
         'field_type': 'text',
+        'category': 'Hospitality & Logistik',
         'width': 160,
         'is_required': False,
         'is_external': True,
@@ -443,6 +472,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Weitere Angaben zur...',
         'label_en': 'Additional Information',
         'field_type': 'textarea',
+        'category': 'Hospitality & Logistik',
         'width': 180,
         'is_required': False,
         'is_external': True,
@@ -459,6 +489,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Soundcloud',
         'label_en': 'Soundcloud',
         'field_type': 'text',
+        'category': 'Presse & Technik',
         'width': 180,
         'is_required': False,
         'is_external': True,
@@ -473,6 +504,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Promo Pictures',
         'label_en': 'Promo Pictures',
         'field_type': 'image_upload',
+        'category': 'Presse & Technik',
         'width': 160,
         'is_required': False,
         'is_external': True,
@@ -487,6 +519,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Promotext',
         'label_en': 'Promo Text',
         'field_type': 'textarea',
+        'category': 'Presse & Technik',
         'width': 220,
         'is_required': False,
         'is_external': True,
@@ -501,6 +534,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'TECHRIDER (DJs)',
         'label_en': 'Techrider (DJs)',
         'field_type': 'badge_select',
+        'category': 'Presse & Technik',
         'width': 200,
         'is_required': False,
         'is_external': True,
@@ -521,6 +555,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'TECHRIDER (otherwise...)',
         'label_en': 'Techrider (Live/Other)',
         'field_type': 'textarea',
+        'category': 'Presse & Technik',
         'width': 200,
         'is_required': False,
         'is_external': True,
@@ -535,6 +570,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'TECHRIDER (Attachments)',
         'label_en': 'Techrider Attachments',
         'field_type': 'file_upload',
+        'category': 'Presse & Technik',
         'width': 180,
         'is_required': False,
         'is_external': True,
@@ -549,6 +585,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'SONSTIGEABSPRACHENMAIL',
         'label_en': 'Mail Agreements Notes',
         'field_type': 'textarea',
+        'category': 'Presse & Technik',
         'width': 200,
         'is_required': False,
         'is_external': False,
@@ -563,6 +600,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'Was du uns noch sagen...',
         'label_en': 'Notes & Messages',
         'field_type': 'textarea',
+        'category': 'Presse & Technik',
         'width': 200,
         'is_required': False,
         'is_external': True,
@@ -579,6 +617,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': 'LinkZumFormular',
         'label_en': 'Form Link',
         'field_type': 'form_link',
+        'category': 'Aktionen & Links',
         'width': 180,
         'is_required': False,
         'is_external': False,
@@ -593,6 +632,7 @@ FESTIVAL_STANDARD_FIELDS = [
         'label': '01 MAIL FÜR ZUSAGE',
         'label_en': 'Confirmation Mail Action',
         'field_type': 'action_accept',
+        'category': 'Aktionen & Links',
         'width': 160,
         'is_required': False,
         'is_external': False,
@@ -607,38 +647,38 @@ FESTIVAL_STANDARD_FIELDS = [
 
 def infer_category(field_key):
     """Ermittelt eine sinnvolle Standard-Kategorie anhand des Feld-Schlüssels."""
-    key = (field_key or '').lower()
+    key = (field_key or '').lower().strip()
     if key in (
         'project_name', 'status_booking', 'bereich', 'intern_extern',
         'kommentar_team', 'contact_name', 'pronouns', 'mail', 'phone',
-        'label', 'instagram', 'auftrittsname_projektname'
+        'label', 'instagram', 'auftrittsname_projektname', 'auftrittsname'
     ):
         return 'Stammdaten & Status'
     elif key in (
         'gage', 'booking_fee', 'gesamt', 'steuersatz', 'verpflegungspauschale_aufladung',
-        'verpflegungspauschale_kosten', 'travel', 'unterkunft', 'sonstige_ausgaben'
-    ):
+        'verpflegungspauschale_kosten', 'travel', 'unterkunft', 'sonst_ausgaben', 'sonstige_ausgaben'
+    ) or any(w in key for w in ('gage', 'fee', 'kosten', 'ausgaben', 'steuer')):
         return 'Finanzen'
     elif key in (
         'getraenkeguthaben', 'foodstaende_guthaben', 'anzahl_gaesteliste',
-        'anzahl_friends_tickets', 'zeltgestellt', 'anzahl_zelte', 'zeltpraeferenzen',
-        'mitgliederanzahl', 'anfahrt'
-    ):
+        'anzahl_friends_tickets', 'zelt_gestellt_naechte', 'zeltgestellt', 'anzahl_zelte', 'zeltpraeferenzen',
+        'mitgliederanzahl', 'anfahrt', 'weitere_angaben'
+    ) or any(w in key for w in ('hotel', 'zelt', 'ticket', 'guthaben', 'gaesteliste', 'gästeliste', 'anfahrt', 'mitglieder')):
         return 'Hospitality & Logistik'
     elif key in (
         'soundcloud', 'promo_pictures', 'promotext', 'techrider_djs',
         'techrider_other', 'techrider_attachments', 'sonstige_absprachen_mail',
         'was_du_uns_noch_sagen'
-    ):
+    ) or any(w in key for w in ('techrider', 'promo', 'rider', 'foto', 'picture', 'sound', 'presse')):
         return 'Presse & Technik'
-    elif key in ('form_link', 'action_accept_mail'):
+    elif key in ('form_link', 'action_accept_mail') or 'form_link' in key or 'accept' in key:
         return 'Aktionen & Links'
     return 'Allgemein'
 
 
 def ensure_default_template(db_session, user_id=None):
-    """Stellt sicher, dass das Template 'Festival Standard' in der Datenbank existiert."""
-    from app.models.booking_personal import BookingPersonalTemplate
+    """Stellt sicher, dass das Template 'Festival Standard' in der Datenbank existiert und aktuell kategorisiert ist."""
+    from app.models.booking_personal import BookingPersonalTemplate, BookingPersonalField
     tmpl = BookingPersonalTemplate.query.filter_by(name='Festival Standard').first()
     fields_with_categories = [
         {**f, 'category': f.get('category') or infer_category(f.get('field_key'))}
@@ -647,24 +687,28 @@ def ensure_default_template(db_session, user_id=None):
     if not tmpl:
         tmpl = BookingPersonalTemplate(
             name='Festival Standard',
-            description='Umfassende Standard-Vorlage für Festivals (Stammdaten, Hospitality, Finanzen, Rider)',
+            description='Umfassende Standard-Vorlage für Festivals (Stammdaten & Status, Finanzen, Hospitality & Logistik, Presse & Technik, Aktionen & Links)',
             is_system_default=True,
             created_by=user_id,
         )
         tmpl.set_fields(fields_with_categories)
         db_session.add(tmpl)
-        try:
-            db_session.commit()
-        except Exception:
-            db_session.rollback()
     else:
-        current_fields = tmpl.get_fields()
-        if current_fields and not any('category' in f for f in current_fields):
-            tmpl.set_fields(fields_with_categories)
-            try:
-                db_session.commit()
-            except Exception:
-                db_session.rollback()
+        tmpl.is_system_default = True
+        tmpl.description = 'Umfassende Standard-Vorlage für Festivals (Stammdaten & Status, Finanzen, Hospitality & Logistik, Presse & Technik, Aktionen & Links)'
+        tmpl.set_fields(fields_with_categories)
+
+    try:
+        # Bestehende Felder ohne oder mit Default-Kategorie direkt sauber zuordnen
+        fields_to_update = BookingPersonalField.query.filter(
+            (BookingPersonalField.category.is_(None)) | (BookingPersonalField.category == 'Allgemein') | (BookingPersonalField.category == '')
+        ).all()
+        for f in fields_to_update:
+            f.category = infer_category(f.field_key)
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+
     return tmpl
 
 

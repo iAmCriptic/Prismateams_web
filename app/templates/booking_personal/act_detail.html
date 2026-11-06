@@ -102,17 +102,32 @@
                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                                     <h2 class="fw-bold mb-0 text-dark">{{ entry.name or custom_data.get('project_name', 'Unbenannter Act') }}</h2>
                                     
-                                    <!-- Status Badge Pill -->
+                                    <!-- Interaktives Status Badge Dropdown -->
                                     {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
-                                    {% set status_color = 'primary' %}
+                                    {% set status_color = 'secondary' %}
                                     {% if status_val in ('Abgeschlossen', 'Zusage gesendet') %}{% set status_color = 'success' %}
-                                    {% elif status_val in ('Formular gesendet', 'Formular ausgefüllt') %}{% set status_color = 'info' %}
+                                    {% elif status_val in ('Formular gesendet', 'Formular ausgefüllt', 'Bewerbung eingegangen') %}{% set status_color = 'info' %}
                                     {% elif status_val == 'Absage' %}{% set status_color = 'danger' %}
                                     {% elif status_val == 'Rechnung weitergeleitet' %}{% set status_color = 'warning' %}
+                                    {% elif status_val == 'Angefragt' %}{% set status_color = 'secondary' %}
                                     {% endif %}
-                                    <span class="badge rounded-pill bg-{{ status_color }}-subtle text-{{ status_color }} border border-{{ status_color }}-subtle px-3 py-1p5">
-                                        {{ status_val }}
-                                    </span>
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-sm rounded-pill bg-{{ status_color }}-subtle text-{{ status_color }} border border-{{ status_color }}-subtle px-3 py-1 dropdown-toggle fw-semibold shadow-none"
+                                                type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Status direkt ändern">
+                                            <i class="bi bi-circle-fill me-1" style="font-size: 0.65rem;"></i><span id="actDetailStatusText">{{ status_val }}</span>
+                                        </button>
+                                        <ul class="dropdown-menu shadow-lg border p-1" style="border-radius: 0.85rem; min-width: 220px;">
+                                            <li><h6 class="dropdown-header small text-uppercase py-1 text-muted">Status ändern</h6></li>
+                                            {% for s_opt in ['Angefragt', 'Bewerbung eingegangen', 'Formular gesendet', 'Formular ausgefüllt', 'Zusage gesendet', 'Abgeschlossen', 'Rechnung weitergeleitet', 'Absage'] %}
+                                            <li>
+                                                <button type="button" class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center justify-content-between {% if s_opt == status_val %}active fw-bold{% endif %}" onclick="changeActStatus({{ entry.id }}, '{{ s_opt }}')">
+                                                    <span>{{ s_opt }}</span>
+                                                    {% if s_opt == status_val %}<i class="bi bi-check-lg ms-2"></i>{% endif %}
+                                                </button>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
 
                                     <!-- Bereich Pill -->
                                     {% if custom_data.get('bereich') %}
@@ -238,6 +253,22 @@
                                             </span>
                                             {% else %}
                                             <span class="text-muted">-</span>
+                                            {% endif %}
+                                        {% elif f.field_type == 'multi_select' %}
+                                            {% if val and val != '-' %}
+                                                {% set items = val if val is iterable and val is not string else val.split(',') %}
+                                                <div class="d-flex flex-wrap gap-1">
+                                                {% for it in items %}
+                                                    {% set it_clean = it.strip() %}
+                                                    {% if it_clean %}
+                                                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+                                                        {{ it_clean }}
+                                                    </span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
                                             {% endif %}
                                         {% elif f.field_type == 'currency' %}
                                             <span class="fw-bold text-dark">{{ val or '€0.00' }}</span>
@@ -471,6 +502,29 @@ function deleteEntryFromDetail(entryId) {
             }
         }
     });
+}
+
+async function changeActStatus(entryId, newStatus) {
+    try {
+        const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ field_key: 'status_booking', value: newStatus })
+        });
+        const res = await resp.json();
+        if (res.success) {
+            showToast(`Status auf „${newStatus}“ aktualisiert.`, 'success');
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            showToast(res.error || 'Fehler beim Aktualisieren des Status.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Netzwerkfehler.', 'error');
+    }
 }
 </script>
 {% endblock %}

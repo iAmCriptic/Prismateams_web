@@ -49,6 +49,25 @@ def test_create_event_and_apply_default_template(app):
         assert 'form_link' in field_keys
         assert 'action_accept_mail' in field_keys
 
+        # Prüfe sinnvolle Einteilung aller Felder in Kategorien
+        for f in event.fields:
+            assert f.category in (
+                'Stammdaten & Status',
+                'Finanzen',
+                'Hospitality & Logistik',
+                'Presse & Technik',
+                'Aktionen & Links'
+            ), f"Feld {f.field_key} hat ungültige Kategorie: {f.category}"
+
+        field_by_key = {f.field_key: f for f in event.fields}
+        assert field_by_key['project_name'].category == 'Stammdaten & Status'
+        assert field_by_key['status_booking'].category == 'Stammdaten & Status'
+        assert field_by_key['gage'].category == 'Finanzen'
+        assert field_by_key['gesamt'].category == 'Finanzen'
+        assert field_by_key['getraenkeguthaben'].category == 'Hospitality & Logistik'
+        assert field_by_key['techrider_djs'].category == 'Presse & Technik'
+        assert field_by_key['form_link'].category == 'Aktionen & Links'
+
 
 def test_entry_custom_data_and_formula_calculation(app):
     with app.app_context():

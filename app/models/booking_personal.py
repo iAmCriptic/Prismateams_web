@@ -79,6 +79,17 @@ class BookingPersonalEvent(db.Model):
         nullable=False
     )
 
+    # Bild / Banner für öffentliche Formulare
+    header_image_path = db.Column(db.String(255), nullable=True)
+
+    # Anpassbare Intro-Texte für die öffentlichen Formulare (DE & EN)
+    apply_intro_text = db.Column(db.Text, nullable=True)
+    apply_intro_text_en = db.Column(db.Text, nullable=True)
+    form_intro_text = db.Column(db.Text, nullable=True)
+    form_intro_text_en = db.Column(db.Text, nullable=True)
+    overview_intro_text = db.Column(db.Text, nullable=True)
+    overview_intro_text_en = db.Column(db.Text, nullable=True)
+
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -127,6 +138,13 @@ class BookingPersonalEvent(db.Model):
             'reject_template_body': self.reject_template_body or '',
             'invite_template_subject': self.invite_template_subject or '',
             'invite_template_body': self.invite_template_body or '',
+            'header_image_path': self.header_image_path or '',
+            'apply_intro_text': self.apply_intro_text or '',
+            'apply_intro_text_en': self.apply_intro_text_en or '',
+            'form_intro_text': self.form_intro_text or '',
+            'form_intro_text_en': self.form_intro_text_en or '',
+            'overview_intro_text': self.overview_intro_text or '',
+            'overview_intro_text_en': self.overview_intro_text_en or '',
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'entries_count': len(self.entries) if self.entries else 0,
         }
@@ -167,6 +185,23 @@ class BookingPersonalField(db.Model):
             self.options_json = json.dumps(options, ensure_ascii=False)
         else:
             self.options_json = None
+
+    def parse_multi_value(self, val):
+        if not val:
+            return []
+        if isinstance(val, list):
+            return [str(x) for x in val if str(x).strip()]
+        if isinstance(val, str):
+            val_str = val.strip()
+            if val_str.startswith('[') and val_str.endswith(']'):
+                try:
+                    parsed = json.loads(val_str)
+                    if isinstance(parsed, list):
+                        return [str(x) for x in parsed if str(x).strip()]
+                except Exception:
+                    pass
+            return [x.strip() for x in val_str.split(',') if x.strip()]
+        return [str(val)]
 
     def to_dict(self):
         return {

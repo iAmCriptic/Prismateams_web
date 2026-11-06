@@ -146,6 +146,8 @@
 
             if (fieldType === 'badge_select') {
                 openBadgePicker(cell, entryId, fieldKey);
+            } else if (fieldType === 'multi_select') {
+                openMultiSelectPicker(cell, entryId, fieldKey);
             } else if (fieldType === 'action_accept') {
                 openMailPreview(entryId, 'accept');
             } else if (fieldType !== 'image_upload' && fieldType !== 'file_upload' && fieldType !== 'formula' && fieldType !== 'form_link') {
@@ -233,6 +235,86 @@
         }, 10);
     }
 
+    function openMultiSelectPicker(cell, entryId, fieldKey) {
+        document.querySelectorAll('.bp-popover').forEach(p => p.remove());
+
+        let options = [];
+        try {
+            options = JSON.parse(cell.dataset.options || '[]');
+        } catch (e) {
+            options = [];
+        }
+
+        if (!options || options.length === 0) return;
+
+        let selected = [];
+        const raw = cell.dataset.rawValue || '';
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                selected = Array.isArray(parsed) ? parsed.map(String) : [String(raw)];
+            } catch (e) {
+                selected = raw.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+
+        const popover = document.createElement('div');
+        popover.className = 'bp-popover bp-multiselect-popover shadow-lg';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'd-flex align-items-center justify-content-between pb-1 mb-2 border-bottom';
+        titleDiv.innerHTML = '<span class="small fw-bold text-muted">Auswahl:</span><button type="button" class="btn btn-xs btn-primary rounded-pill px-2.5 py-0.5" id="bpMultiSelectDone">Fertig</button>';
+        popover.appendChild(titleDiv);
+
+        const listDiv = document.createElement('div');
+        listDiv.className = 'd-flex flex-column gap-1.5';
+
+        options.forEach(opt => {
+            const val = typeof opt === 'object' ? opt.value : opt;
+            const color = typeof opt === 'object' ? (opt.color || 'primary') : 'primary';
+            const isChecked = selected.includes(String(val));
+
+            const item = document.createElement('label');
+            item.className = 'd-flex align-items-center gap-2 p-1 rounded-2 cursor-pointer';
+            item.style.cursor = 'pointer';
+            item.innerHTML = `
+                <input type="checkbox" class="form-check-input mt-0 bp-multi-opt" value="${escapeHtml(val)}" ${isChecked ? 'checked' : ''}>
+                <span class="bp-badge bp-badge-${color}">${escapeHtml(val)}</span>
+            `;
+            listDiv.appendChild(item);
+        });
+        popover.appendChild(listDiv);
+
+        document.body.appendChild(popover);
+        const rect = cell.getBoundingClientRect();
+        popover.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+        popover.style.left = (rect.left + window.scrollX) + 'px';
+
+        let closed = false;
+        function saveMulti() {
+            if (closed) return;
+            closed = true;
+            const checkedVals = Array.from(popover.querySelectorAll('.bp-multi-opt:checked')).map(cb => cb.value);
+            popover.remove();
+            document.removeEventListener('click', closeOutside);
+            saveCell(entryId, fieldKey, JSON.stringify(checkedVals), cell, 'multi_select');
+        }
+
+        popover.querySelector('#bpMultiSelectDone')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveMulti();
+        });
+
+        function closeOutside(e) {
+            if (!popover.contains(e.target) && e.target !== cell && !cell.contains(e.target)) {
+                saveMulti();
+            }
+        }
+        setTimeout(() => {
+            document.addEventListener('click', closeOutside);
+        }, 10);
+    }
+
     async function saveCell(entryId, fieldKey, value, cell, fieldType, badgeColor) {
         try {
             const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
@@ -278,6 +360,34 @@
         } else if (fieldType === 'badge_select') {
             const color = badgeColor || cell.dataset.badgeColor || 'secondary';
             cell.innerHTML = `<span class="bp-badge bp-badge-${color}">${escapeHtml(value)}</span>`;
+        } else if (fieldType === 'multi_select') {
+            let arr = [];
+            if (Array.isArray(value)) {
+                arr = value;
+            } else {
+                try {
+                    const parsed = JSON.parse(value);
+                    arr = Array.isArray(parsed) ? parsed : [value];
+                } catch (e) {
+                    arr = String(value).split(',').map(s => s.trim()).filter(Boolean);
+                }
+            }
+            if (!arr || arr.length === 0) {
+                cell.innerHTML = '<span class="bp-cell-empty">-</span>';
+                return;
+            }
+            let options = [];
+            try { options = JSON.parse(cell.dataset.options || '[]'); } catch (e) {}
+            const optMap = {};
+            options.forEach(o => {
+                if (typeof o === 'object') optMap[o.value] = o.color || 'primary';
+                else optMap[o] = 'primary';
+            });
+            const badgesHtml = arr.map(item => {
+                const c = optMap[item] || 'primary';
+                return `<span class="bp-badge bp-badge-${c}">${escapeHtml(item)}</span>`;
+            }).join(' ');
+            cell.innerHTML = `<div class="bp-badge-group">${badgesHtml}</div>`;
         } else {
             cell.textContent = value;
         }
@@ -553,10 +663,166 @@
             const type = this.value;
             const optGroup = document.getElementById('bpColOptionsGroup');
             const formGroup = document.getElementById('bpColFormulaGroup');
-            if (optGroup) optGroup.style.display = (type === 'badge_select') ? 'block' : 'none';
+            if (optGroup) optGroup.style.display = (type === 'badge_select' || type === 'multi_select') ? 'block' : 'none';
             if (formGroup) formGroup.style.display = (type === 'formula') ? 'block' : 'none';
         });
     }
+
+    const COLUMN_PRESETS = {
+        'status': {
+            label: 'Booking Status',
+            label_en: 'Booking Status',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: [
+                { value: 'Angefragt', color: 'secondary' },
+                { value: 'Bewerbung eingegangen', color: 'info' },
+                { value: 'Formular gesendet', color: 'primary' },
+                { value: 'Formular ausgefüllt', color: 'purple' },
+                { value: 'Zusage gesendet', color: 'success' },
+                { value: 'Abgeschlossen', color: 'success' },
+                { value: 'Rechnung weitergeleitet', color: 'warning' },
+                { value: 'Absage', color: 'danger' }
+            ],
+            is_external: false,
+            overview: false
+        },
+        'bereich': {
+            label: 'Bereich',
+            label_en: 'Area / Stage',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: [
+                { value: 'Main Stage', color: 'primary' },
+                { value: 'Ambient', color: 'info' },
+                { value: 'Mühle', color: 'warning' },
+                { value: 'Workshop', color: 'success' }
+            ],
+            is_external: false,
+            overview: true
+        },
+        'multi_select': {
+            label: 'Aufgaben / Tags',
+            label_en: 'Tasks / Tags',
+            type: 'multi_select',
+            category: 'Allgemein',
+            options: [
+                { value: 'Soundcheck', color: 'primary' },
+                { value: 'Catering', color: 'success' },
+                { value: 'Hotel gebucht', color: 'info' },
+                { value: 'Fahrservice', color: 'warning' }
+            ],
+            is_external: false,
+            overview: true
+        },
+        'form_link': {
+            label: 'Formular-Link',
+            label_en: 'Form Link',
+            type: 'form_link',
+            category: 'Aktionen & Links',
+            options: [],
+            is_external: false,
+            overview: false
+        },
+        'action_accept': {
+            label: 'Zusage senden',
+            label_en: 'Send Confirmation',
+            type: 'action_accept',
+            category: 'Aktionen & Links',
+            options: [],
+            is_external: false,
+            overview: false
+        },
+        'gage': {
+            label: 'Gage (€)',
+            label_en: 'Fee (€)',
+            type: 'currency',
+            category: 'Finanzen',
+            options: [],
+            is_external: false,
+            overview: true
+        },
+        'techrider': {
+            label: 'Techrider (PDF)',
+            label_en: 'Techrider (PDF)',
+            type: 'file_upload',
+            category: 'Presse & Technik',
+            options: [],
+            is_external: true,
+            overview: false
+        },
+        'promo_images': {
+            label: 'Promo-Bilder',
+            label_en: 'Press Photos',
+            type: 'image_upload',
+            category: 'Presse & Technik',
+            options: [],
+            is_external: true,
+            overview: false
+        },
+        'pronoun': {
+            label: 'Pronomen',
+            label_en: 'Pronouns',
+            type: 'text',
+            category: 'Stammdaten & Status',
+            options: [],
+            is_external: true,
+            overview: true
+        },
+        'drinks': {
+            label: 'Getränkeguthaben',
+            label_en: 'Drink Tokens',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: [],
+            is_external: false,
+            overview: true
+        },
+        'guestlist': {
+            label: 'Gästeliste Plätze',
+            label_en: 'Guest List Spots',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: [],
+            is_external: true,
+            overview: true
+        }
+    };
+
+    window.applyColPreset = function (key) {
+        const p = COLUMN_PRESETS[key];
+        if (!p) return;
+
+        const labelEl = document.getElementById('bpColLabel');
+        const labelEnEl = document.getElementById('bpColLabelEn');
+        const typeEl = document.getElementById('bpColType');
+        const catEl = document.getElementById('bpColCategory');
+        const widthEl = document.getElementById('bpColWidth');
+        const extEl = document.getElementById('bpColIsExternal');
+        const overEl = document.getElementById('bpColVisibleOverview');
+        const optList = document.getElementById('bpColOptionsList');
+
+        if (labelEl) labelEl.value = p.label;
+        if (labelEnEl) labelEnEl.value = p.label_en;
+        if (typeEl) typeEl.value = p.type;
+        if (catEl) catEl.value = p.category;
+        if (widthEl) widthEl.value = ''; // Auto width!
+        if (extEl) extEl.checked = p.is_external;
+        if (overEl) overEl.checked = p.overview;
+
+        if (optList) {
+            optList.innerHTML = '';
+            if (p.options && p.options.length > 0) {
+                p.options.forEach(opt => addBadgeOptionRow(opt.value, opt.color));
+            }
+        }
+
+        const isChoice = (p.type === 'badge_select' || p.type === 'multi_select');
+        const optGroup = document.getElementById('bpColOptionsGroup');
+        const formGroup = document.getElementById('bpColFormulaGroup');
+        if (optGroup) optGroup.style.display = isChoice ? 'block' : 'none';
+        if (formGroup) formGroup.style.display = (p.type === 'formula') ? 'block' : 'none';
+    };
 
     window.openColumnModal = function (mode, fieldData = null) {
         const modalEl = document.getElementById('bpColumnModal');
@@ -574,7 +840,7 @@
             const catEl = document.getElementById('bpColCategory');
             if (catEl) catEl.value = 'Allgemein';
             document.getElementById('bpColType').value = 'text';
-            document.getElementById('bpColWidth').value = '160';
+            document.getElementById('bpColWidth').value = ''; // Auto!
             document.getElementById('bpColIsExternal').checked = false;
             document.getElementById('bpColVisibleOverview').checked = true;
             document.getElementById('bpColFormula').value = '';
@@ -589,7 +855,7 @@
             const catEl = document.getElementById('bpColCategory');
             if (catEl) catEl.value = fieldData.category || 'Allgemein';
             document.getElementById('bpColType').value = fieldData.field_type || 'text';
-            document.getElementById('bpColWidth').value = fieldData.width || 160;
+            document.getElementById('bpColWidth').value = fieldData.width || '';
             document.getElementById('bpColIsExternal').checked = !!fieldData.is_external;
             document.getElementById('bpColVisibleOverview').checked = !!fieldData.visible_in_overview;
             document.getElementById('bpColFormula').value = fieldData.formula_definition || '';
@@ -604,7 +870,8 @@
                 });
             }
 
-            document.getElementById('bpColOptionsGroup').style.display = (fieldData.field_type === 'badge_select') ? 'block' : 'none';
+            const isChoice = (fieldData.field_type === 'badge_select' || fieldData.field_type === 'multi_select');
+            document.getElementById('bpColOptionsGroup').style.display = isChoice ? 'block' : 'none';
             document.getElementById('bpColFormulaGroup').style.display = (fieldData.field_type === 'formula') ? 'block' : 'none';
         }
 
@@ -644,7 +911,8 @@
             const labelEn = document.getElementById('bpColLabelEn').value.trim();
             const category = document.getElementById('bpColCategory')?.value.trim() || 'Allgemein';
             const fieldType = document.getElementById('bpColType').value;
-            const width = parseInt(document.getElementById('bpColWidth').value, 10) || 160;
+            const rawW = document.getElementById('bpColWidth').value.trim();
+            const width = parseInt(rawW, 10) > 0 ? parseInt(rawW, 10) : 0; // 0 = Backend Berechnet automatisch
             const isExternal = document.getElementById('bpColIsExternal').checked;
             const visibleInOverview = document.getElementById('bpColVisibleOverview').checked;
             const formula = document.getElementById('bpColFormula').value.trim();
@@ -655,7 +923,7 @@
             }
 
             let options = [];
-            if (fieldType === 'badge_select') {
+            if (fieldType === 'badge_select' || fieldType === 'multi_select') {
                 const optRows = document.querySelectorAll('#bpColOptionsList > div');
                 optRows.forEach(r => {
                     const v = r.querySelector('.bp-badge-val').value.trim();
