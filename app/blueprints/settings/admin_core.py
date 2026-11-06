@@ -421,6 +421,17 @@ def admin_system():
                 description=INDEXING_DESC,
             ))
 
+        team_invite_allow_portal_user = request.form.get('team_invite_allow_portal_user') == 'on'
+        team_invite_setting = SystemSettings.query.filter_by(key='team_invite_allow_portal_user').first()
+        if team_invite_setting:
+            team_invite_setting.value = str(team_invite_allow_portal_user)
+        else:
+            db.session.add(SystemSettings(
+                key='team_invite_allow_portal_user',
+                value=str(team_invite_allow_portal_user),
+                description='Erlaube Teameinladungen mit vollwertigen Portalnutzer-Rechten'
+            ))
+
         from app.utils.access_log_retention import (
             set_session_record_retention_days,
             set_share_access_log_retention_days,
@@ -437,6 +448,8 @@ def admin_system():
         set_share_access_log_retention_days(share_log_days)
         
         db.session.commit()
+        from app.utils.system_settings_cache import invalidate_system_settings_cache
+        invalidate_system_settings_cache()
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_system')
     
     # Get current settings
@@ -481,8 +494,11 @@ def admin_system():
     redis_runtime_url = current_app.config.get('REDIS_RUNTIME_URL') or current_app.config.get('REDIS_URL') or ''
     session_backend = current_app.config.get('SESSION_BACKEND') or ''
     rate_limit_storage = current_app.config.get('RATELIMIT_STORAGE_URI') or ''
+    from app.models.team import is_team_invite_portal_user_allowed
+    team_invite_allow_portal_user = is_team_invite_portal_user_allowed()
     
     return render_template('settings/admin_system.html', 
+                         team_invite_allow_portal_user=team_invite_allow_portal_user,
                          portal_name=portal_name, 
                          portal_logo=portal_logo,
                          default_accent_color=default_accent_color,

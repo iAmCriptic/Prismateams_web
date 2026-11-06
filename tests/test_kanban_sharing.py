@@ -131,3 +131,152 @@ def test_sharing_team_board(client, kanban_users_and_boards):
     # User2 should now be able to view the team board
     view_resp = client.get(f'/kanban/board/{team_board.id}')
     assert view_resp.status_code == 200
+
+    # User2 is an invited member (not in team), so user2 CANNOT manage the board
+    patch_resp = client.patch(
+        f'/kanban/api/boards/{team_board.id}',
+        json={'background': 'coral'},
+    )
+    assert patch_resp.status_code == 403
+
+
+def test_team_member_can_manage_team_board(client, app, kanban_users_and_boards):
+    user1, user2, private_board, team_board, team = kanban_users_and_boards
+
+    # Add user3 to the team
+    with app.app_context():
+        user3 = User(
+            email='team_member@example.com',
+            first_name='Team',
+            last_name='Member',
+            is_active=True,
+            is_admin=False,
+            has_full_access=True,
+            is_email_confirmed=True,
+        )
+        user3.set_password('Password123!@#')
+        db.session.add(user3)
+        db.session.flush()
+
+        db.session.add(TeamMember(team_id=team.id, user_id=user3.id))
+        db.session.commit()
+        user3_id = user3.id
+        user3_email = user3.email
+
+    _login(client, user3_email)
+
+    # Team member CAN view team board
+    view_resp = client.get(f'/kanban/board/{team_board.id}')
+    assert view_resp.status_code == 200
+
+    # Team member CAN manage team board (e.g. change background)
+    patch_resp = client.patch(
+        f'/kanban/api/boards/{team_board.id}',
+        json={'background': 'slate'},
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.get_json().get('board', {}).get('background') == 'slate'
+
+
+def test_public_board_permissions(client, app, kanban_users_and_boards):
+    user1, user2, private_board, team_board, team = kanban_users_and_boards
+
+    with app.app_context():
+        public_board = KanbanBoard(
+            title='Public Company Board',
+            created_by=user1.id,
+            visibility='public',
+        )
+        db.session.add(public_board)
+        db.session.flush()
+
+        user4 = User(
+            email='random_user@example.com',
+            first_name='Random',
+            last_name='PortalUser',
+            is_active=True,
+            is_admin=False,
+            has_full_access=True,
+            is_email_confirmed=True,
+        )
+        user4.set_password('Password123!@#')
+        db.session.add(user4)
+        db.session.commit()
+        pub_id = public_board.id
+        u4_id = user4.id
+        u4_email = user4.email
+
+    # User2 is not invited to public board: as a portal user, user2 CAN manage (change color, invite)
+    _login(client, user2.email)
+    view_resp = client.get(f'/kanban/board/{pub_id}')
+    assert view_resp.status_code == 200
+
+    patch_resp = client.patch(
+        f'/kanban/api/boards/{pub_id}',
+        json={'background': 'emerald'},
+    )
+    assert patch_resp.status_code == 200
+
+    # User2 invites user4 as a restricted 'member'
+    share_resp = client.post(
+        f'/kanban/api/boards/{pub_id}/members',
+        json={'user_id': u4_id, 'role': 'member'},
+    )
+    assert share_resp.status_code == 200
+
+    # Log in as user4 (who was explicitly invited with role 'member')
+    client.post('/logout', follow_redirects=True)
+    _login(client, u4_email)
+
+    # user4 can view public board
+    v4 = client.get(f'/kanban/board/{pub_id}')
+    assert v4.status_code == 200
+
+    # user4 is an invited member and CANNOT manage (cannot change background)
+    p4 = client.patch(
+        f'/kanban/api/boards/{pub_id}',
+        json={'background': 'ocean'},
+    )
+    assert p4.status_code == 403
+
+
+def test_board_security_enumeration_protection(client, app, kanban_users_and_boards):
+    user1, user2, private_board, team, team_board = kanban_users_and_boards
+
+    # Verify private_board has a non-sequential public_id
+    assert private_board.public_id is not None
+    assert len(private_board.public_id) >= 12
+
+    # User2 logs in (has no access to private_board)
+    _login(client, user2.email)
+
+    # 1. Accessing private board by numeric id or public_id gives 404 (no existence disclosure, no 403, no 302)
+    resp = client.get(f'/kanban/board/{private_board.id}')
+    assert resp.status_code == 404
+
+    resp_public = client.get(f'/kanban/board/{private_board.public_id}')
+    assert resp_public.status_code == 404
+
+    resp_api = client.get(f'/kanban/api/boards/{private_board.id}')
+    assert resp_api.status_code == 404
+
+    resp_api_pub = client.get(f'/kanban/api/boards/{private_board.public_id}')
+    assert resp_api_pub.status_code == 404
+
+    # 2. Non-existent board gives 404 (indistinguishable from unauthorized board)
+    resp_fake = client.get('/kanban/board/nonexistent999999')
+    assert resp_fake.status_code == 404
+
+    # 3. User1 (authorized owner) logs in
+    client.post('/logout', follow_redirects=True)
+    _login(client, user1.email)
+
+    # Authorized user can access by public_id
+    resp_owner_pub = client.get(f'/kanban/board/{private_board.public_id}')
+    assert resp_owner_pub.status_code == 200
+
+    # Authorized user can also access by legacy numeric id
+    resp_owner_num = client.get(f'/kanban/board/{private_board.id}')
+    assert resp_owner_num.status_code == 200
+
+

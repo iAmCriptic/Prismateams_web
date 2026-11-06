@@ -114,6 +114,8 @@ def api_board_members(board_id):
     role = (data.get('role') or 'member').strip().lower()
     if role not in ('owner', 'admin', 'member'):
         role = 'member'
+    if user_id == board.created_by:
+        role = 'owner'
     existing = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=user_id).first()
     is_update = existing is not None
     if existing:
@@ -697,9 +699,9 @@ def api_templates():
         })
     data = request.get_json(silent=True) or {}
     board_id = data.get('board_id')
-    board = KanbanBoard.query.get_or_404(int(board_id))
-    if not can_manage_board(current_user, board):
-        return jsonify({'error': 'Forbidden'}), 403
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
     payload = {
         'lists': [{'title': l.title} for l in board.lists if not l.archived_at],
         'labels': [{'name': lb.name, 'color': lb.color} for lb in board.labels],

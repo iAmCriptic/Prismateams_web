@@ -97,6 +97,26 @@
         </div>
       </section>
 
+      <section class="sp-group" id="system-team-invites" data-settings-search-id="system-team-invites">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-ticket-perforated" aria-hidden="true"></i>{{ _('settings.admin.system.section_team_invites') }}</h2>
+          {{ sp_info(_('settings.admin.system.team_invite_info')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.system.team_invite_allow_portal_user') }}</span>
+              <span class="sp-row-hint">{{ _('settings.admin.system.team_invite_allow_portal_user_help') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="team_invite_allow_portal_user" name="team_invite_allow_portal_user" {% if team_invite_allow_portal_user %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="sp-group" id="system-indexing" data-settings-search-id="system-indexing">
         <div class="sp-group-head">
           <h2 class="sp-group-title"><i class="bi bi-search" aria-hidden="true"></i>{{ _('settings.admin.system.section_indexing') }}</h2>

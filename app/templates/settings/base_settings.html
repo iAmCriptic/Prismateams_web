@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block extra_css %}{{ super() }}{% endblock %}
+
 {% block navbar_search %}
 {% if not (request.args.get('embed') or request.form.get('embed')) %}
 {% from 'settings/_sidebar.html' import settings_search with context %}

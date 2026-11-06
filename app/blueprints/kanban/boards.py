@@ -47,6 +47,7 @@ from app.models.kanban import (
     KanbanCustomFieldCategory,
     KanbanLabel,
     KanbanList,
+    _generate_board_public_id,
 )
 from app.models.team import Team, TeamMember
 from app.models.user import User
@@ -134,6 +135,7 @@ def api_create_board():
         team_id=team_id,
         created_by=current_user.id,
         background=background,
+        public_id=_generate_board_public_id(),
     )
     db.session.add(board)
     db.session.flush()
@@ -358,9 +360,9 @@ def board_background(board_id):
 @login_required
 @check_module_access('module_kanban')
 def api_board_background(board_id):
-    board = KanbanBoard.query.get_or_404(board_id)
-    if not can_manage_board(current_user, board):
-        return jsonify({'error': 'Forbidden'}), 403
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
 
     if request.method == 'DELETE':
         _delete_board_cover_file(board)

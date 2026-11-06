@@ -1,217 +1,375 @@
 {% extends "settings/base_settings.html" %}
 
+{% macro user_initials(name) -%}
+{%- set parts = (name or '').split() -%}
+{%- if parts|length >= 2 -%}{{ (parts[0][0] ~ parts[1][0])|upper }}
+{%- elif parts|length == 1 and parts[0] -%}{{ parts[0][0]|upper }}
+{%- else -%}?{%- endif -%}
+{%- endmacro %}
+
 {% block title %}{{ team.name }} - {{ _('settings.admin.teams.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ team.name }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-teams" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
-    <a href="{{ url_for('settings.admin_teams') }}" class="settings-subpage-back">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        <span>{{ _('layout.nav.back') }}</span>
-    </a>
-    <div class="settings-admin-teams-header">
-        <div class="settings-admin-teams-detail-head">
-            <div class="settings-admin-teams-detail-title-row">
-                <div class="settings-admin-teams-avatar settings-admin-teams-avatar-lg">
-                    {% if team.image %}
-                    <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
-                    {% else %}
-                    <i class="bi bi-people-fill" aria-hidden="true"></i>
+<div class="sp-page sp-page--fluid settings-admin-teams" style="{% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+    <div class="mod-back-row mb-3">
+        <a href="{{ url_for('settings.admin_teams') }}" class="mod-back-link">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+    </div>
+
+    <header class="sp-page-header settings-admin-teams-header">
+        <div class="d-flex align-items-center gap-3">
+            <div class="sp-dir-card__avatar sp-dir-card__avatar--img" style="width: 3.5rem; height: 3.5rem; font-size: 1.5rem; flex-shrink: 0; {% if team.color %}--team-accent: {{ team.color }};{% endif %}">
+                {% if team.image %}
+                <img src="{{ url_for('settings.team_image', filename=team.image) }}" alt="">
+                {% else %}
+                <i class="bi bi-people-fill" aria-hidden="true"></i>
+                {% endif %}
+            </div>
+            <div>
+                <h1 class="sp-page-title mb-1">{{ team.name }}</h1>
+                {% if team.description %}
+                <p class="sp-page-lead mb-1">{{ team.description }}</p>
+                {% endif %}
+                <div class="settings-admin-users-meta">
+                    <span>{{ _('settings.admin.teams.members_count', count=members|length) }}</span>
+                    {% if team.leader %}
+                    <span aria-hidden="true">·</span>
+                    <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
                     {% endif %}
-                </div>
-                <div>
-                    <h1 class="settings-admin-teams-title mb-1">{{ team.name }}</h1>
-                    {% if team.description %}
-                    <p class="settings-admin-teams-subtitle mb-1">{{ team.description }}</p>
-                    {% endif %}
-                    <div class="settings-admin-teams-card-meta">
-                        <span>{{ _('settings.admin.teams.members_count', count=members|length) }}</span>
-                        {% if team.leader %}
-                        <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.teams.led_by', name=team.leader.full_name) }}</span>
-                        {% endif %}
-                    </div>
                 </div>
             </div>
         </div>
         <div class="settings-admin-teams-header-actions">
+            {% if email_multi_enabled %}
+            <a href="{{ url_for('settings.team_mailboxes', team_id=team.id) }}" class="btn btn-outline-primary rounded-pill mod-pill-btn">
+                <i class="bi bi-envelope" aria-hidden="true"></i>
+                {{ _('settings.mailboxes.team_mailboxes') }}
+            </a>
+            {% endif %}
             {% if can_edit_team_meta|default(true) %}
-            <a href="{{ url_for('settings.edit_team', team_id=team.id) }}" class="btn btn-outline-secondary settings-admin-teams-btn">
+            <a href="{{ url_for('settings.edit_team', team_id=team.id) }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
                 <i class="bi bi-pencil" aria-hidden="true"></i>
                 {{ _('settings.admin.teams.edit') }}
             </a>
-            <form method="POST" action="{{ url_for('settings.delete_team', team_id=team.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.delete_confirm', name=team.name) }}">
+            <form method="POST" action="{{ url_for('settings.delete_team', team_id=team.id) }}" class="d-inline" data-sp-no-autosave>
+                <button type="submit" class="btn btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.admin.teams.delete_confirm', name=team.name) }}">
                     <i class="bi bi-trash" aria-hidden="true"></i>
                     {{ _('settings.admin.teams.delete') }}
                 </button>
             </form>
             {% endif %}
-            {% if email_multi_enabled %}
-            <a href="{{ url_for('settings.team_mailboxes', team_id=team.id) }}" class="btn btn-outline-primary settings-admin-teams-btn">
-                <i class="bi bi-envelope" aria-hidden="true"></i>
-                {{ _('settings.mailboxes.team_mailboxes') }}
-            </a>
-            {% endif %}
         </div>
-    </div>
+    </header>
 
-    <section class="settings-admin-teams-panel mb-3">
-        <h2 class="settings-admin-teams-section-title">{{ _('settings.admin.teams.members_title') }}</h2>
-        {% if members %}
-        <div class="settings-admin-teams-member-list">
-            {% for m in members %}
-            <div class="settings-admin-teams-member-row">
-                <div class="settings-admin-teams-member-main">
-                    <div class="settings-admin-teams-member-name">
-                        {{ m.user.full_name }}
-                        {% if team.leader_id == m.user_id %}
-                        <span class="badge rounded-pill text-bg-primary">{{ _('settings.admin.teams.badge_leader') }}</span>
-                        {% endif %}
-                        {% if m.user.is_guest %}
-                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="settings-admin-teams-card-meta">
-                        {% if m.user.is_guest %}
-                        <code>{{ m.user.guest_username or m.user.email }}</code>
-                        {% else %}
-                        <span>{{ m.user.email }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% if team.leader_id != m.user_id %}
-                <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
-                    <input type="hidden" name="action" value="remove_member">
-                    <input type="hidden" name="user_id" value="{{ m.user_id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.remove_member_confirm', name=m.user.full_name) }}">
-                        <i class="bi bi-person-dash" aria-hidden="true"></i>
-                        {{ _('settings.admin.teams.remove_member') }}
-                    </button>
-                </form>
-                {% endif %}
-            </div>
-            {% endfor %}
+    <!-- Team Module Settings Section -->
+    <section class="sp-group mb-4" id="team-modules" aria-labelledby="team-modules-heading">
+        <div class="sp-group-head">
+            <h2 id="team-modules-heading" class="sp-group-title">
+                <i class="bi bi-sliders" aria-hidden="true"></i>
+                {{ _('settings.team_settings.section_modules') }}
+            </h2>
         </div>
-        {% else %}
-        <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.no_members') }}</p>
-        {% endif %}
-    </section>
-
-    <section class="settings-admin-teams-panel mb-3" aria-labelledby="invite-codes-heading">
-        <h2 id="invite-codes-heading" class="settings-admin-teams-section-title">{{ _('settings.admin.teams.invite.title') }}</h2>
-        <p class="settings-admin-teams-subtitle mb-3">{{ _('settings.admin.teams.invite.help') }}</p>
-
-        <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="mb-3">
-            <input type="hidden" name="action" value="create_invite_code">
-            <div class="row g-2 align-items-end">
-                <div class="col-sm-4">
-                    <label class="form-label" for="inviteMaxUses">{{ _('settings.admin.teams.invite.max_uses') }}</label>
-                    <input type="number" min="1" class="form-control settings-admin-teams-input" id="inviteMaxUses" name="max_uses" placeholder="{{ _('settings.admin.teams.invite.max_uses_placeholder') }}">
+        <div class="sp-group-body settings-admin-group-body p-3 p-md-4">
+            <p class="text-muted small mb-3">{{ _('settings.team_settings.section_lead') }}</p>
+            <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" data-sp-autosave>
+                <input type="hidden" name="action" value="update_team_modules">
+                <div class="settings-admin-modules-grid">
+                    {% for mod in modules %}
+                    <div class="form-check form-switch settings-admin-modules-switch">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="team_module_{{ mod.key }}" name="team_module_{{ mod.key }}"
+                               {% if mod.enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="team_module_{{ mod.key }}">
+                            <span class="sp-row-label-text">
+                                <i class="bi {{ mod.icon }}" aria-hidden="true"></i>
+                                {{ mod.label }}
+                            </span>
+                        </label>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">{{ _('settings.team_settings.no_modules') }}</p>
+                    {% endfor %}
                 </div>
-                <div class="col-sm-4">
-                    <label class="form-label" for="inviteExpiresDays">{{ _('settings.admin.teams.invite.expires_days') }}</label>
-                    <input type="number" min="1" class="form-control settings-admin-teams-input" id="inviteExpiresDays" name="expires_days" placeholder="{{ _('settings.admin.teams.invite.expires_days_placeholder') }}">
-                </div>
-                <div class="col-sm-4">
-                    <button type="submit" class="btn btn-accent settings-admin-teams-btn w-100">
-                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
-                        {{ _('settings.admin.teams.invite.create') }}
+                <div class="sp-actions d-none" style="border:0;padding-top:1rem">
+                    <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-sp-keep-submit>
+                        {{ _('common.save') }}
                     </button>
                 </div>
-            </div>
-        </form>
-
-        {% if invite_codes %}
-        <div class="settings-admin-teams-member-list">
-            {% for invite in invite_codes %}
-            <div class="settings-admin-teams-member-row">
-                <div class="settings-admin-teams-member-main">
-                    <div class="settings-admin-teams-member-name">
-                        <code>{{ invite.code }}</code>
-                        {% if invite.is_active and invite.is_valid() %}
-                        <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.teams.invite.status_active') }}</span>
-                        {% else %}
-                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.teams.invite.status_inactive') }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="settings-admin-teams-card-meta">
-                        <span>{{ _('settings.admin.teams.invite.uses', used=invite.uses_count, max=(invite.max_uses if invite.max_uses is not none else _('settings.admin.teams.invite.unlimited'))) }}</span>
-                        {% if invite.expires_at %}
-                        <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.teams.invite.expires_at', date=invite.expires_at|localdatetime('%d.%m.%Y')) }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="mt-1">
-                        <a href="{{ url_for('auth.coderegister', code=invite.code, _external=True) }}" class="small" target="_blank" rel="noopener">
-                            {{ url_for('auth.coderegister', code=invite.code, _external=True) }}
-                        </a>
-                    </div>
-                </div>
-                <div class="d-flex gap-1 flex-wrap justify-content-end">
-                    {% if invite.is_active %}
-                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
-                        <input type="hidden" name="action" value="deactivate_invite_code">
-                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary settings-admin-teams-btn">
-                            {{ _('settings.admin.teams.invite.deactivate') }}
-                        </button>
-                    </form>
-                    {% endif %}
-                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
-                        <input type="hidden" name="action" value="delete_invite_code">
-                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-teams-btn" data-confirm-delete="{{ _('settings.admin.teams.invite.delete_confirm') }}">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-            {% endfor %}
+            </form>
         </div>
-        {% else %}
-        <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.invite.empty') }}</p>
-        {% endif %}
     </section>
 
-    <section class="settings-admin-teams-panel" aria-labelledby="add-members-heading">
-        <h2 id="add-members-heading" class="settings-admin-teams-section-title">{{ _('settings.admin.teams.add_members') }}</h2>
-        <p class="settings-admin-teams-subtitle mb-3">{{ _('settings.admin.teams.add_members_help') }}</p>
-        <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}">
-            <input type="hidden" name="action" value="add_members">
-            {% if available_users %}
-            <div class="settings-admin-teams-modal-search">
-                <div class="sau-search-inner">
-                    <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
-                    <input type="search" id="memberPickerSearch" class="form-control sau-search-input settings-admin-teams-input" placeholder="{{ _('settings.admin.teams.search_users_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_users_placeholder') }}">
-                </div>
-            </div>
-            <div class="settings-admin-teams-picker-list settings-admin-teams-picker-list--page" id="memberPickerList">
-                {% for u in available_users %}
-                <label class="settings-admin-teams-picker-item" data-search-name="{{ u.full_name|lower }}" data-search-email="{{ (u.guest_username or u.email)|lower }}">
-                    <input class="form-check-input" type="checkbox" name="user_ids" value="{{ u.id }}">
-                    <span class="settings-admin-teams-picker-text">
-                        <strong>{{ u.full_name }}</strong>
-                        {% if u.is_guest %}
-                        <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
-                        {% endif %}
-                        <br>
-                        <small>{% if u.is_guest %}{{ u.guest_username or u.email }}{% else %}{{ u.email }}{% endif %}</small>
-                    </span>
-                </label>
-                {% endfor %}
-            </div>
-            <p class="settings-admin-teams-empty mt-2 mb-0" id="noMemberSearchResults" hidden>{{ _('settings.admin.teams.search_no_user_results') }}</p>
-            <div class="settings-admin-teams-form-actions">
-                <button type="submit" class="btn btn-accent settings-admin-teams-btn">
-                    <i class="bi bi-person-plus" aria-hidden="true"></i>
-                    {{ _('settings.admin.teams.add_selected') }}
-                </button>
+    <!-- Members Section -->
+    <section class="sp-group mb-4" id="team-members" aria-labelledby="team-members-heading">
+        <div class="sp-group-head">
+            <h2 id="team-members-heading" class="sp-group-title">
+                <i class="bi bi-people" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.members_title') }}
+                <span class="badge rounded-pill text-bg-secondary">{{ members|length }}</span>
+            </h2>
+        </div>
+        <div class="sp-group-body p-0">
+            {% if members %}
+            <div class="mod-list-table-wrap sp-list-wrap">
+                <table class="table mod-list-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 34%;">{{ _('settings.admin.users.col_user') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell" style="width: 36%;">{{ _('settings.admin.users.col_email') }}</th>
+                            <th scope="col" style="width: 18%;">{{ _('settings.admin.users.col_roles') }}</th>
+                            <th scope="col" class="text-end" style="width: 12%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr class="mod-list-row">
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="sp-dir-card__avatar {% if m.user.profile_picture %}sp-dir-card__avatar--img{% endif %}" style="width: 2.2rem; height: 2.2rem; font-size: 0.8rem; background: color-mix(in srgb, var(--team-accent, var(--accent-color, var(--bs-primary))) 85%, #000);">
+                                        {% if m.user.profile_picture %}
+                                        <img src="{{ url_for('settings.profile_picture', filename=m.user.profile_picture) }}" alt="{{ m.user.full_name }}">
+                                        {% else %}
+                                        {{ user_initials(m.user.full_name) }}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <span class="mod-list-name">{{ m.user.full_name }}</span>
+                                        <div class="d-md-none text-muted small">{% if m.user.is_guest %}{{ m.user.guest_username or m.user.email }}{% else %}{{ m.user.email }}{% endif %}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell text-muted">
+                                {% if m.user.is_guest %}
+                                <code>{{ m.user.guest_username or m.user.email }}</code>
+                                {% else %}
+                                <span>{{ m.user.email }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if team.leader_id == m.user_id %}
+                                <span class="badge rounded-pill text-bg-primary">{{ _('settings.admin.teams.badge_leader') }}</span>
+                                {% else %}
+                                <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.teams.badge_member') }}</span>
+                                {% endif %}
+                                {% if m.user.is_guest %}
+                                <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_guest') }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if team.leader_id != m.user_id %}
+                                <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="d-inline" data-sp-no-autosave>
+                                    <input type="hidden" name="action" value="remove_member">
+                                    <input type="hidden" name="user_id" value="{{ m.user_id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.admin.teams.remove_member_confirm', name=m.user.full_name) }}" title="{{ _('settings.admin.teams.remove_member') }}">
+                                        <i class="bi bi-person-dash" aria-hidden="true"></i>
+                                        <span class="d-none d-sm-inline">{{ _('settings.admin.teams.remove_member') }}</span>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             {% else %}
-            <p class="mb-0 settings-admin-teams-empty">{{ _('settings.admin.teams.all_users_already_members') }}</p>
+            <div class="p-3 p-md-4">
+                <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.no_members') }}</p>
+            </div>
             {% endif %}
-        </form>
+        </div>
+    </section>
+
+    <!-- Add Members Section -->
+    <section class="sp-group mb-4" id="team-add-members" aria-labelledby="add-members-heading">
+        <div class="sp-group-head">
+            <h2 id="add-members-heading" class="sp-group-title">
+                <i class="bi bi-person-plus" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.add_members') }}
+            </h2>
+        </div>
+        <div class="sp-group-body settings-admin-group-body p-3 p-md-4">
+            <p class="text-muted small mb-3">{{ _('settings.admin.teams.add_members_help') }}</p>
+            {% if available_users %}
+            <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" data-sp-no-autosave>
+                <input type="hidden" name="action" value="add_members">
+
+                <div class="sau-search-wrap mb-3 w-100" style="max-width: 36rem;">
+                    <div class="sau-search-inner">
+                        <i class="bi bi-search sau-search-icon" aria-hidden="true"></i>
+                        <input type="search" id="memberPickerSearch" class="form-control sau-search-input" placeholder="{{ _('settings.admin.teams.search_users_placeholder') }}" autocomplete="off" aria-label="{{ _('settings.admin.teams.search_users_placeholder') }}">
+                    </div>
+                </div>
+
+                <div class="settings-admin-teams-picker-grid mb-3" id="memberPickerList">
+                    {% for u in available_users %}
+                    <label class="settings-admin-teams-picker-item" data-search-name="{{ u.full_name|lower }}" data-search-email="{{ (u.guest_username or u.email)|lower }}">
+                        <input class="form-check-input" type="checkbox" name="user_ids" value="{{ u.id }}">
+                        <div class="sp-dir-card__avatar {% if u.profile_picture %}sp-dir-card__avatar--img{% endif %} me-2" style="width: 2rem; height: 2rem; font-size: 0.75rem; flex-shrink: 0;">
+                            {% if u.profile_picture %}
+                            <img src="{{ url_for('settings.profile_picture', filename=u.profile_picture) }}" alt="{{ u.full_name }}">
+                            {% else %}
+                            {{ user_initials(u.full_name) }}
+                            {% endif %}
+                        </div>
+                        <span class="settings-admin-teams-picker-text">
+                            <strong>{{ u.full_name }}</strong>
+                            {% if u.is_guest %}
+                            <span class="badge rounded-pill text-bg-info ms-1">{{ _('settings.admin.users.badge_guest') }}</span>
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">{% if u.is_guest %}{{ u.guest_username or u.email }}{% else %}{{ u.email }}{% endif %}</small>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <p class="settings-admin-teams-empty mt-2 mb-3" id="noMemberSearchResults" hidden>{{ _('settings.admin.teams.search_no_user_results') }}</p>
+
+                <div class="sp-actions" style="border:0;padding:0;">
+                    <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-sp-keep-submit>
+                        <i class="bi bi-person-plus" aria-hidden="true"></i>
+                        {{ _('settings.admin.teams.add_selected') }}
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <p class="mb-0 text-muted">{{ _('settings.admin.teams.all_users_already_members') }}</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Invite Codes Section -->
+    <section class="sp-group mb-4" id="team-invite-codes" aria-labelledby="invite-codes-heading">
+        <div class="sp-group-head">
+            <h2 id="invite-codes-heading" class="sp-group-title">
+                <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                {{ _('settings.admin.teams.invite.title') }}
+                {% if invite_codes %}
+                <span class="badge rounded-pill text-bg-secondary">{{ invite_codes|length }}</span>
+                {% endif %}
+            </h2>
+        </div>
+        <div class="sp-group-body settings-admin-group-body p-3 p-md-4">
+            <p class="text-muted small mb-3">{{ _('settings.admin.teams.invite.help') }}</p>
+
+            <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="mb-4" data-sp-no-autosave>
+                <input type="hidden" name="action" value="create_invite_code">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                        <label class="form-label small text-muted mb-1" for="inviteMaxUses">{{ _('settings.admin.teams.invite.max_uses') }}</label>
+                        <input type="number" min="1" class="form-control" id="inviteMaxUses" name="max_uses" placeholder="{{ _('settings.admin.teams.invite.max_uses_placeholder') }}">
+                    </div>
+                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                        <label class="form-label small text-muted mb-1" for="inviteExpiresDays">{{ _('settings.admin.teams.invite.expires_days') }}</label>
+                        <input type="number" min="1" class="form-control" id="inviteExpiresDays" name="expires_days" placeholder="{{ _('settings.admin.teams.invite.expires_days_placeholder') }}">
+                    </div>
+                    {% if can_create_portal_invite %}
+                    <div class="col-12 col-md-3 col-xl-3">
+                        <label class="form-label small text-muted mb-1" for="inviteRole">{{ _('settings.admin.teams.invite.role_label') }}</label>
+                        <select class="form-select" id="inviteRole" name="role">
+                            <option value="team_only" selected>{{ _('settings.admin.teams.invite.role_team_only') }}</option>
+                            <option value="portal_user">{{ _('settings.admin.teams.invite.role_portal_user') }}</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                        <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn w-100" data-sp-keep-submit>
+                            <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                            <span class="text-nowrap">{{ _('settings.admin.teams.invite.create') }}</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% if invite_codes %}
+            <div class="mod-list-table-wrap sp-list-wrap">
+                <table class="table mod-list-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 28%;">{{ _('settings.admin.teams.invite.code_label') }}</th>
+                            <th scope="col" style="width: 14%;">{{ _('settings.admin.teams.invite.status_label') }}</th>
+                            <th scope="col" style="width: 18%;">{{ _('settings.admin.teams.invite.col_access') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell" style="width: 16%;">{{ _('settings.admin.teams.invite.usage_label') }}</th>
+                            <th scope="col" class="d-none d-lg-table-cell" style="width: 14%;">{{ _('settings.admin.teams.invite.expires_label') }}</th>
+                            <th scope="col" class="text-end" style="width: 10%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invite in invite_codes %}
+                        <tr class="mod-list-row">
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <code class="px-2 py-1 rounded bg-body-secondary fs-6">{{ invite.code }}</code>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill mod-pill-btn team-invite-copy-btn" data-copy-text="{{ url_for('auth.coderegister', code=invite.code, _external=True) }}" title="{{ _('common.copy') }}">
+                                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    <a href="{{ url_for('auth.coderegister', code=invite.code, _external=True) }}" class="text-decoration-none" target="_blank" rel="noopener">
+                                        {{ url_for('auth.coderegister', code=invite.code, _external=True) }}
+                                    </a>
+                                </div>
+                            </td>
+                            <td>
+                                {% if invite.is_active and invite.is_valid() %}
+                                <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.teams.invite.status_active') }}</span>
+                                {% else %}
+                                <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.teams.invite.status_inactive') }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if invite.role == 'portal_user' %}
+                                <span class="badge rounded-pill text-bg-primary" title="{{ _('settings.admin.teams.invite.role_portal_user_help') }}">
+                                    <i class="bi bi-person-check me-1"></i>{{ _('settings.admin.teams.invite.role_portal_user_badge') }}
+                                </span>
+                                {% else %}
+                                <span class="badge rounded-pill text-bg-secondary" title="{{ _('settings.admin.teams.invite.role_team_only_help') }}">
+                                    <i class="bi bi-people me-1"></i>{{ _('settings.admin.teams.invite.role_team_only_badge') }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell text-muted small">
+                                {{ _('settings.admin.teams.invite.uses', used=invite.uses_count, max=(invite.max_uses if invite.max_uses is not none else _('settings.admin.teams.invite.unlimited'))) }}
+                            </td>
+                            <td class="d-none d-lg-table-cell text-muted small">
+                                {% if invite.expires_at %}
+                                {{ invite.expires_at|localdatetime('%d.%m.%Y') }}
+                                {% else %}
+                                {{ _('settings.admin.teams.invite.unlimited') }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    {% if invite.is_active %}
+                                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="d-inline" data-sp-no-autosave>
+                                        <input type="hidden" name="action" value="deactivate_invite_code">
+                                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill mod-pill-btn" title="{{ _('settings.admin.teams.invite.deactivate') }}">
+                                            {{ _('settings.admin.teams.invite.deactivate') }}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="d-inline" data-sp-no-autosave>
+                                        <input type="hidden" name="action" value="delete_invite_code">
+                                        <input type="hidden" name="invite_id" value="{{ invite.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.admin.teams.invite.delete_confirm') }}" title="{{ _('common.delete') }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="settings-admin-teams-empty mb-0">{{ _('settings.admin.teams.invite.empty') }}</p>
+            {% endif %}
+        </div>
     </section>
 </div>
 {% endblock %}
@@ -219,21 +377,40 @@
 {% block extra_js %}
 <script>
 (function () {
+    // Search in member picker
     var input = document.getElementById('memberPickerSearch');
     var list = document.getElementById('memberPickerList');
     var empty = document.getElementById('noMemberSearchResults');
-    if (!input || !list) return;
-    input.addEventListener('input', function () {
-        var q = (input.value || '').trim().toLowerCase();
-        var visible = 0;
-        list.querySelectorAll('.settings-admin-teams-picker-item').forEach(function (item) {
-            var name = item.getAttribute('data-search-name') || '';
-            var email = item.getAttribute('data-search-email') || '';
-            var show = !q || name.indexOf(q) !== -1 || email.indexOf(q) !== -1;
-            item.hidden = !show;
-            if (show) visible += 1;
+    if (input && list) {
+        input.addEventListener('input', function () {
+            var q = (input.value || '').trim().toLowerCase();
+            var visible = 0;
+            list.querySelectorAll('.settings-admin-teams-picker-item').forEach(function (item) {
+                var name = item.getAttribute('data-search-name') || '';
+                var email = item.getAttribute('data-search-email') || '';
+                var show = !q || name.indexOf(q) !== -1 || email.indexOf(q) !== -1;
+                item.hidden = !show;
+                if (show) visible += 1;
+            });
+            if (empty) empty.hidden = visible > 0;
         });
-        if (empty) empty.hidden = visible > 0;
+    }
+
+    // Copy invite link
+    document.querySelectorAll('.team-invite-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var text = btn.getAttribute('data-copy-text');
+            if (text && navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function () {
+                    var icon = btn.querySelector('i');
+                    if (icon) {
+                        var prev = icon.className;
+                        icon.className = 'bi bi-check2';
+                        setTimeout(function () { icon.className = prev; }, 1500);
+                    }
+                });
+            }
+        });
     });
 })();
 </script>

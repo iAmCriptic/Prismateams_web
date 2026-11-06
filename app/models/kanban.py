@@ -1,14 +1,20 @@
 """Kanban board models (Trello-like boards, lists, cards)."""
 
+import secrets
 from datetime import datetime
 
 from app import db
+
+
+def _generate_board_public_id() -> str:
+    return secrets.token_hex(8)
 
 
 class KanbanBoard(db.Model):
     __tablename__ = 'kanban_boards'
 
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(36), unique=True, index=True, nullable=True, default=_generate_board_public_id)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     cover_path = db.Column(db.String(500), nullable=True)

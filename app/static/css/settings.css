@@ -443,9 +443,31 @@
 .settings-admin-users .sp-group,
 .settings-admin-teams .sp-group,
 .sp-row-control:has(.mod-pill-select) {
-  overflow: visible;
+  overflow: visible !important;
 }
 
+.settings-admin-users.sp-page,
+.settings-admin-users .sp-page,
+.settings-admin-users .sp-group,
+.settings-admin-users section {
+  animation: none !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+
+.settings-admin-users .mod-list-table-wrap {
+  overflow: visible !important;
+}
+
+.settings-admin-users .has-dropdown-open,
+.settings-admin-users tr.has-dropdown-open,
+.settings-admin-users .mod-list-row.has-dropdown-open,
+.settings-admin-users .mod-list-table-wrap.has-dropdown-open,
+.settings-admin-users .sp-dir-card.has-dropdown-open,
+.settings-admin-users [class*="col-"].has-dropdown-open,
+.settings-admin-users .sp-group.has-dropdown-open,
+.settings-admin-users section.has-dropdown-open,
+.settings-admin-users .settings-admin-users-section.has-dropdown-open,
 .sp-group:has(.dropdown.show),
 .sp-group:has(.dropdown-menu.show),
 .sp-group.has-dropdown-open,
@@ -458,8 +480,8 @@
 #adminUsersGridPane section:has(.dropdown.show),
 #adminUsersGridPane section:has(.dropdown-menu.show),
 #adminUsersGridPane section.has-dropdown-open {
-  position: relative;
-  z-index: 1200 !important;
+  position: relative !important;
+  z-index: 9999 !important;
   overflow: visible !important;
 }
 
@@ -536,6 +558,23 @@
   font-weight: 550;
   font-size: 0.92rem;
   line-height: 1.35;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Verhindert Kollision von Toggles mit Labels, falls Switch und Text in d-flex nebeneinander stehen */
+.form-check.form-switch.d-flex,
+.form-switch.d-flex {
+  padding-left: 0 !important;
+  gap: 0.75rem !important;
+}
+
+.form-check.form-switch.d-flex .form-check-input,
+.form-switch.d-flex .form-check-input {
+  float: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  flex-shrink: 0 !important;
 }
 
 .sp-row-meta {
@@ -1253,34 +1292,42 @@
 .settings-admin-users-btn,
 .settings-admin-inventory-submit { border-radius: var(--mod-radius-pill, 1.5rem) !important; }
 
-/* Admin user modals (Rollen / Gast / Teams) — pill style */
+/* Admin user modals (Rollen / Gast / Teams) — einheitliches White-Dialog-Design mit Trennlinien */
 
 .settings-admin-roles-modal .modal-content {
-  border-radius: 1.25rem;
-  border: 1px solid var(--sp-border, var(--bs-border-color));
-  background: var(--sp-surface-elevated, var(--bs-body-bg));
-  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.28);
+  border-radius: 1.5rem !important;
+  border: 1px solid var(--sp-border, var(--bs-border-color)) !important;
+  background: var(--bs-body-bg, #ffffff) !important;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.16) !important;
   overflow: hidden;
 }
 
+[data-bs-theme="dark"] .settings-admin-roles-modal .modal-content {
+  background: var(--bs-body-bg, #1a1a1a) !important;
+}
+
 .settings-admin-roles-modal .modal-header {
-  border-bottom: 1px solid var(--sp-border, var(--bs-border-color));
-  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--sp-border, var(--bs-border-color)) 65%, transparent) !important;
+  padding: 1.15rem 1.45rem !important;
+  background: inherit !important;
 }
 
 .settings-admin-roles-modal .modal-title {
-  font-size: 1.05rem;
-  font-weight: 650;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
   letter-spacing: -0.01em;
+  color: var(--bs-body-color);
 }
 
 .settings-admin-roles-modal .modal-body {
-  padding: 1.1rem 1.15rem;
+  padding: 1.25rem 1.45rem !important;
+  background: inherit !important;
 }
 
 .settings-admin-roles-modal .modal-footer {
-  border-top: 1px solid var(--sp-border, var(--bs-border-color));
-  padding: 0.85rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--sp-border, var(--bs-border-color)) 65%, transparent) !important;
+  padding: 1rem 1.45rem !important;
+  background: inherit !important;
   gap: 0.5rem;
 }
 
@@ -1290,7 +1337,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.45rem 1.1rem;
+  padding: 0.48rem 1.25rem;
   font-weight: 600;
 }
 
@@ -1298,10 +1345,288 @@
   opacity: 0.55;
 }
 
+/* Modale Sektionen mit Trennlinien wie bei Teams zuweisen */
+.modal-roles-section {
+  padding: 0.2rem 0;
+}
+
+.modal-roles-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.modal-roles-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--bs-body-color);
+}
+
+.modal-roles-title i {
+  color: var(--accent-color, var(--bs-primary));
+  font-size: 1.05em;
+}
+
+.modal-roles-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  transition: background 0.15s ease;
+}
+
+.modal-roles-row:hover {
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 5%, transparent);
+}
+
+.modal-roles-row-label {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--bs-body-color);
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-roles-divider {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--sp-border, var(--bs-border-color)) 75%, transparent);
+  margin: 0.9rem 0;
+  opacity: 1;
+}
+
+.settings-admin-roles-card {
+  background: var(--sp-surface-elevated, #fff);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  border-radius: var(--sp-radius, 1rem);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.16s ease;
+}
+
+.settings-admin-roles-card:last-child {
+  margin-bottom: 0;
+}
+
+.settings-admin-roles-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-admin-roles-section-title {
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--bs-body-color);
+  margin: 0;
+}
+
+.settings-admin-roles-info {
+  background: transparent;
+  border: 0;
+  padding: 0.2rem;
+  color: var(--sp-muted, #6c757d);
+  font-size: 0.92rem;
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.settings-admin-roles-info:hover {
+  color: var(--accent-color, var(--bs-primary));
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+}
+
+.settings-admin-roles-switch-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.settings-admin-roles-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 3%, var(--sp-surface-elevated, #fff));
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.settings-admin-roles-switch:hover {
+  border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, var(--sp-border, var(--bs-border-color)));
+}
+
+.settings-admin-roles-switch .form-check-input {
+  cursor: pointer;
+  margin: 0;
+  float: none;
+  width: 2.35rem;
+  height: 1.3rem;
+  flex-shrink: 0;
+}
+
+.settings-admin-roles-switch .form-check-label {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 550;
+  color: var(--bs-body-color);
+  flex-grow: 1;
+  margin-right: 0.75rem;
+}
+
+.settings-admin-roles-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.settings-admin-roles-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 550;
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: var(--sp-surface, #f8f9fa);
+  color: var(--bs-body-color);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-admin-roles-chip:hover {
+  border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 50%, var(--sp-border, var(--bs-border-color)));
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+  color: var(--accent-color, var(--bs-primary));
+}
+
+.btn-check:checked + .settings-admin-roles-chip {
+  background: var(--accent-color, var(--bs-primary)) !important;
+  border-color: var(--accent-color, var(--bs-primary)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+  font-weight: 600;
+}
+
+.btn-check:checked + .settings-admin-roles-chip::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: #fff;
+  margin-right: 0.2rem;
+}
+
+.btn-check:focus-visible + .settings-admin-roles-chip {
+  outline: 2px solid var(--accent-color, var(--bs-primary));
+  outline-offset: 2px;
+}
+
+.btn-check:disabled + .settings-admin-roles-chip {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.settings-admin-roles-hint {
+  font-size: 0.84rem;
+  color: var(--sp-muted, #6c757d);
+  margin-bottom: 0.5rem;
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 20%, transparent);
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.65rem;
+}
+
+.settings-admin-roles-empty {
+  font-size: 0.85rem;
+  color: var(--sp-muted, #6c757d);
+  margin: 0;
+  font-style: italic;
+}
+
+.settings-admin-roles-booking {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-admin-roles-booking-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-admin-roles-booking-title {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--sp-muted, #6c757d);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settings-admin-roles-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 575.98px) {
+  .settings-admin-roles-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-admin-roles-field .form-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  color: var(--bs-body-color);
+}
+
+.settings-admin-roles-input {
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  padding: 0.45rem 0.95rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+}
+
 .settings-admin-teams-picker-list {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.settings-admin-teams-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.65rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem;
 }
 
 .settings-admin-teams-picker-item {
@@ -2374,10 +2699,10 @@ a.sp-dir-card:hover {
   border-radius: 1.1rem !important;
   padding: 0.45rem !important;
   border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
-  box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.22) !important;
   min-width: 14rem;
-  z-index: 1300 !important;
-  background-color: var(--bs-dropdown-bg, var(--sp-surface-elevated, #fff));
+  z-index: 99999 !important;
+  background-color: var(--bs-dropdown-bg, var(--sp-surface-elevated, #fff)) !important;
 }
 
 .mod-list-row:has(.dropdown.show),
@@ -2528,30 +2853,98 @@ a.sp-dir-card:hover {
 
 .settings-admin-modules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
-  gap: 0.15rem 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
+  gap: 0.75rem 1rem;
   width: 100%;
 }
 
 .settings-admin-modules-grid--visibility {
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.settings-admin-group-body,
+.settings-admin-teams .sp-group-body:not(.p-0) {
+  padding: 1.25rem 1.5rem !important;
+}
+
+.settings-admin-teams .sp-group-body.p-0 {
+  padding: 0 !important;
 }
 
 .settings-admin-modules-switch {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  margin: 0 !important;
+  padding: 0.65rem 1.4rem !important;
+  border-radius: var(--mod-radius-pill, 2rem);
+  border: 1px solid var(--sp-border, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, var(--accent-color, var(--bs-primary)) 3%);
+  min-height: 2.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-admin-modules-switch:hover {
+  border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+}
+
+.settings-admin-modules-switch .form-check-input {
+  float: none !important;
+  margin: 0 0 0 1rem !important;
+  flex-shrink: 0;
+  cursor: pointer;
+  width: 2.35em;
+  height: 1.3em;
+}
+
+.settings-admin-modules-switch .form-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0.45rem 0.35rem;
-  border-radius: var(--sp-radius-sm);
+  flex-grow: 1;
+  min-width: 0;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.92rem;
 }
 
 .settings-admin-modules-switch .sp-row-label-text {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 0.15rem;
 }
 
 .settings-admin-modules-switch .sp-row-label-text .bi {
-  opacity: 0.75;
-  font-size: 1rem;
+  opacity: 0.9;
+  font-size: 1.1rem;
+  color: var(--accent-color, var(--bs-primary));
+  flex-shrink: 0;
+}
+
+.sp-group .mod-list-table th:first-child,
+.sp-group .mod-list-table td:first-child {
+  padding-left: var(--sp-pad-x, 1.25rem) !important;
+}
+
+.sp-group .mod-list-table th:last-child,
+.sp-group .mod-list-table td:last-child {
+  padding-right: var(--sp-pad-x, 1.25rem) !important;
+}
+
+.sp-group .mod-list-table th,
+.sp-group .mod-list-table td {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 /* Backup category chips */

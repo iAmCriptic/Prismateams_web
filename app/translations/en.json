@@ -361,7 +361,8 @@
       "code_team_hint": "You will join the team \"{team}\".",
       "submit": "Register with code",
       "flash_code_required": "Please enter an invitation code.",
-      "flash_code_invalid": "This invitation code is invalid, expired, or used up."
+      "flash_code_invalid": "This invitation code is invalid, expired, or used up.",
+      "code_team_portal_hint": "With this code you will receive a full portal account and become a member of team '{team}'."
     }
   },
   "dashboard": {
@@ -1647,7 +1648,9 @@
         "content_access_help": "Controls whether the user may see and use Public, Team, and Private areas.",
         "can_access_public": "Public access",
         "can_access_team": "Team access",
-        "can_access_private": "Private access"
+        "can_access_private": "Private access",
+        "col_user": "User",
+        "col_roles": "Role"
       },
       "create_user": {
         "page_title": "Create user - Administration",
@@ -2053,7 +2056,11 @@
         "inactivity_logout_hint": "Without “Remember me”: logout after 12 hours idle or at most 7 days. With “Remember me”: up to 14 days idle / 30 days absolute (configurable via .env).",
         "flash_inactivity_logout": "You were logged out due to inactivity. Please sign in again.",
         "flash_absolute_logout": "Your session has expired. Please sign in again.",
-        "lead_short": "Portal name, logo, timezone and branding."
+        "lead_short": "Portal name, logo, timezone and branding.",
+        "section_team_invites": "Team Invites",
+        "team_invite_info": "Controls new user permissions when registering via team invite codes.",
+        "team_invite_allow_portal_user": "Allow full portal accounts via team invite codes",
+        "team_invite_allow_portal_user_help": "Allows teams to generate invite codes giving new users full portal access (Public/Private) instead of team-only guest access."
       },
       "legal": {
         "page_title": "Legal notice & terms - Administration",
@@ -2541,8 +2548,21 @@
           "flash_deactivated": "Invitation code deactivated.",
           "flash_deleted": "Invitation code deleted.",
           "flash_invalid_max_uses": "Invalid maximum uses.",
-          "flash_invalid_expires": "Invalid validity period."
-        }
+          "flash_invalid_expires": "Invalid validity period.",
+          "code_label": "Code",
+          "status_label": "Status",
+          "usage_label": "Usage",
+          "expires_label": "Valid until",
+          "role_label": "Access Rights",
+          "role_team_only": "Team access only (guest)",
+          "role_portal_user": "Full portal user",
+          "role_team_only_badge": "Team access",
+          "role_portal_user_badge": "Portal user",
+          "role_team_only_help": "New user receives access to team areas only",
+          "role_portal_user_help": "New user receives full portal access (Public/Private/Team)",
+          "col_access": "Access"
+        },
+        "badge_member": "Member"
       },
       "kanban": {
         "page_title": "Kanban settings",

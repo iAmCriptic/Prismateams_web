@@ -168,6 +168,26 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                                 ))
                             log_startup("[OK] resource_acl.grantee_team_id hinzugefügt")
 
+                    if 'kanban_boards' in inspector.get_table_names():
+                        board_cols = {col['name'] for col in inspector.get_columns('kanban_boards')}
+                        if 'public_id' not in board_cols:
+                            log_startup("[INFO] Ergänze kanban_boards.public_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE kanban_boards ADD COLUMN public_id VARCHAR(36) NULL"))
+                            log_startup("[OK] kanban_boards.public_id hinzugefügt")
+                        try:
+                            from app.models.kanban import KanbanBoard
+                            import secrets
+                            unseeded = KanbanBoard.query.filter(
+                                db.or_(KanbanBoard.public_id.is_(None), KanbanBoard.public_id == '')
+                            ).all()
+                            if unseeded:
+                                for b in unseeded:
+                                    b.public_id = secrets.token_hex(8)
+                                db.session.commit()
+                        except Exception:
+                            pass
+
                     if 'kanban_cards' in inspector.get_table_names():
                         kanban_cols = {col['name'] for col in inspector.get_columns('kanban_cards')}
                         if 'poll_text' not in kanban_cols:

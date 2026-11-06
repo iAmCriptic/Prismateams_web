@@ -65,7 +65,7 @@
     {% endif %}
     {% if request.endpoint %}
         {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='3.4.17') }}">
             {% if request.endpoint.startswith('settings.booking_') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
             {% endif %}

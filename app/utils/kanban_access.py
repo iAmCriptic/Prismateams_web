@@ -252,8 +252,8 @@ def can_edit_board(user, board: KanbanBoard) -> bool:
     membership = get_board_membership(board, user)
     if membership and membership.role in ('owner', 'admin', 'member'):
         return True
-    # Public boards: view-only for non-members unless they are members/creator
-    if board.visibility == VISIBILITY_PUBLIC and get_board_membership(board, user):
+    # Public boards: all users with view access can edit cards
+    if board.visibility == VISIBILITY_PUBLIC:
         return True
     if board.visibility == VISIBILITY_TEAM and board.team_id and board.team_id in user_team_ids(user):
         # Team members can edit team boards only when team boards are enabled
@@ -269,12 +269,26 @@ def can_manage_board(user, board: KanbanBoard) -> bool:
         return True
     if board.created_by and board.created_by == getattr(user, 'id', None):
         return True
-    if board.visibility == VISIBILITY_TEAM and board.team_id:
-        from app.utils.multi_mailboxes import can_manage_team
-        if can_manage_team(user, board.team_id):
-            return True
+
     membership = get_board_membership(board, user)
-    return bool(membership and membership.role in ('owner', 'admin'))
+    if membership:
+        if membership.role in ('owner', 'admin'):
+            return True
+        if membership.role == 'member':
+            # Explicitly invited as a regular member (view/edit cards, but not manage board)
+            # For team boards, actual team members retain team management rights
+            if board.visibility == VISIBILITY_TEAM and board.team_id and board.team_id in user_team_ids(user):
+                return True
+            return False
+
+    if board.visibility == VISIBILITY_TEAM and board.team_id:
+        if board.team_id in user_team_ids(user):
+            return True
+
+    if board.visibility == VISIBILITY_PUBLIC:
+        return True
+
+    return False
 
 
 def accessible_boards_query(user, *, include_closed: bool = False):

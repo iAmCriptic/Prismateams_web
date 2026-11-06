@@ -11,6 +11,7 @@ from functools import wraps
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -282,18 +283,19 @@ def closed_boards():
     )
 
 
-@kanban_bp.route('/board/<int:board_id>')
+@kanban_bp.route('/board/<board_id>')
 @login_required
 @check_module_access('module_kanban')
 def board(board_id):
-    board_obj = KanbanBoard.query.get_or_404(board_id)
+    board_obj = find_board(board_id)
+    if not board_obj:
+        abort(404)
+    # Security: do not disclose existence of closed or restricted boards to unauthorized users
     if board_obj.closed_at:
         if not can_manage_board(current_user, board_obj):
-            flash(translate('kanban.flash.board_closed'), 'warning')
-            return redirect(url_for('kanban.index'))
+            abort(404)
     elif not can_view_board(current_user, board_obj):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
 
     _track_view(board_obj)
     db.session.commit()

@@ -682,6 +682,7 @@ def _serialize_board(
         board = _reload_with_options(KanbanBoard, board, *_board_full_load_options())
     data = {
         'id': board.id,
+        'public_id': board.public_id,
         'title': board.title,
         'description': board.description,
         'cover_path': _board_cover_url(board),
@@ -694,7 +695,7 @@ def _serialize_board(
         'closed': bool(board.closed_at),
         'created_at': board.created_at.isoformat() if board.created_at else None,
         'member_count': len(get_board_member_roles(board)),
-        'url': url_for('kanban.board', board_id=board.id),
+        'url': url_for('kanban.board', board_id=board.public_id or board.id),
     }
     if full:
         lists = [lst for lst in board.lists if not lst.archived_at]
@@ -740,22 +741,40 @@ def _serialize_board(
     return data
 
 
-def _require_board_view(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def find_board(board_ref) -> KanbanBoard | None:
+    if not board_ref:
+        return None
+    ref_str = str(board_ref).strip()
+    if not ref_str:
+        return None
+    # Check by public_id first
+    board = KanbanBoard.query.filter_by(public_id=ref_str).first()
+    if not board and ref_str.isdigit():
+        board = KanbanBoard.query.get(int(ref_str))
+    return board
+
+
+def _require_board_view(board_id):
+    board = find_board(board_id)
+    if not board:
+        return None, (jsonify({'error': 'Not found'}), 404)
     if _get_valid_share_for_board(board.id):
         return board, None
     if not current_user.is_authenticated:
         return None, (jsonify({'error': 'Unauthorized'}), 401)
-    if not can_view_board(current_user, board) and not board.closed_at:
-        if not (board.closed_at and can_manage_board(current_user, board)):
-            return None, (jsonify({'error': 'Forbidden'}), 403)
-    elif board.closed_at and not can_manage_board(current_user, board):
-        return None, (jsonify({'error': 'Board closed'}), 403)
+    # Security: do not disclose existence of closed or restricted boards to unauthorized users
+    if board.closed_at:
+        if not can_manage_board(current_user, board):
+            return None, (jsonify({'error': 'Not found'}), 404)
+    elif not can_view_board(current_user, board):
+        return None, (jsonify({'error': 'Not found'}), 404)
     return board, None
 
 
-def _require_board_edit(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def _require_board_edit(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return None, err
     if _can_edit_board_ctx(board):
         return board, None
     if not current_user.is_authenticated:
@@ -763,13 +782,34 @@ def _require_board_edit(board_id: int):
     return None, (jsonify({'error': 'Forbidden'}), 403)
 
 
-def _require_board_manage(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def _require_board_manage(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return None, err
+    if can_manage_board(current_user, board):
+        return board, None
     if not current_user.is_authenticated:
         return None, (jsonify({'error': 'Unauthorized'}), 401)
-    if not can_manage_board(current_user, board):
+    return None, (jsonify({'error': 'Forbidden'}), 403)
+
+
+def _require_card_view(card_id: int):
+    card = KanbanCard.query.get(card_id)
+    if not card or not card.list or not card.list.board:
+        return None, (jsonify({'error': 'Not found'}), 404)
+    board, err = _require_board_view(card.list.board.id)
+    if err:
+        return None, err
+    return card, None
+
+
+def _require_card_edit(card_id: int):
+    card, err = _require_card_view(card_id)
+    if err:
+        return None, err
+    if not _can_edit_board_ctx(card.list.board):
         return None, (jsonify({'error': 'Forbidden'}), 403)
-    return board, None
+    return card, None
 
 
 def _track_view(board: KanbanBoard):
@@ -835,9 +875,12 @@ __all__ = [
     '_serialize_card_detail',
     '_serialize_list',
     '_serialize_board',
+    'find_board',
     '_require_board_view',
     '_require_board_edit',
     '_require_board_manage',
+    '_require_card_view',
+    '_require_card_edit',
     '_track_view',
     '_share_guest_ok',
     '_user_kanban_teams',

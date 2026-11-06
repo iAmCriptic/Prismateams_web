@@ -11,6 +11,7 @@ from functools import wraps
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -249,14 +250,14 @@ def api_upload_attachment(card_id):
 def download_attachment(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     board = att.card.list.board
+    if board.closed_at and not can_manage_board(current_user, board):
+        abort(404)
     if not can_view_board(current_user, board):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     if att.url and not att.storage_path:
         return redirect(att.url)
     if not att.storage_path or not os.path.isfile(att.storage_path):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
 
 
@@ -302,19 +303,20 @@ def edit_onlyoffice(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     card = att.card
     board = card.list.board
+    if board.closed_at and not can_manage_board(current_user, board):
+        abort(404)
     if not can_view_board(current_user, board):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     if att.url or not att.storage_path or not os.path.isfile(att.storage_path):
         flash('Datei nicht gefunden.', 'danger')
-        return redirect(url_for('kanban.board', board_id=board.id, card=card.id))
+        return redirect(url_for('kanban.board', board_id=board.public_id or board.id, card=card.id))
 
     can_edit = can_edit_board(current_user, board)
     name = att.original_filename or att.filename or 'Dokument'
     file_ext = os.path.splitext(name)[1].lower()
     if not is_onlyoffice_file_type(file_ext):
         flash('Dieser Dateityp wird von Euro-Office nicht unterstützt.', 'warning')
-        return redirect(url_for('kanban.board', board_id=board.id, card=card.id))
+        return redirect(url_for('kanban.board', board_id=board.public_id or board.id, card=card.id))
 
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
@@ -378,7 +380,7 @@ def edit_onlyoffice(attachment_id):
         editor_config["editorConfig"]["user"]["image"] = user_image
 
     token = generate_onlyoffice_token(editor_config)
-    return_url = url_for('kanban.board', board_id=board.id, card=card.id)
+    return_url = url_for('kanban.board', board_id=board.public_id or board.id, card=card.id)
     file_proxy = SimpleNamespace(
         id=att.id,
         name=name,

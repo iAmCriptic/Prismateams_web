@@ -185,7 +185,8 @@
       "code_team_hint": "Vai juntar-se à equipa \"{team}\".",
       "submit": "Registar com código",
       "flash_code_required": "Introduza um código de convite.",
-      "flash_code_invalid": "Este código de convite é inválido, expirou ou esgotou."
+      "flash_code_invalid": "Este código de convite é inválido, expirou ou esgotou.",
+      "code_team_portal_hint": "Com este código recebes uma conta completa no portal e tornas-te membro da equipa «{team}»."
     }
   },
   "dashboard": {
@@ -833,8 +834,21 @@
           "flash_deactivated": "Código de convite desativado.",
           "flash_deleted": "Código de convite eliminado.",
           "flash_invalid_max_uses": "Utilizações máximas inválidas.",
-          "flash_invalid_expires": "Período de validade inválido."
-        }
+          "flash_invalid_expires": "Período de validade inválido.",
+          "role_label": "Direitos de acesso",
+          "role_team_only": "Apenas acesso à equipa (convidado)",
+          "role_portal_user": "Utilizador completo do portal",
+          "role_team_only_badge": "Acesso à equipa",
+          "role_portal_user_badge": "Utilizador do portal",
+          "role_team_only_help": "O novo utilizador apenas tem acesso às áreas da equipa",
+          "role_portal_user_help": "O novo utilizador tem acesso total (Público/Privado/Equipa)",
+          "col_access": "Acesso",
+          "code_label": "Código",
+          "status_label": "Estado",
+          "usage_label": "Utilização",
+          "expires_label": "Válido até"
+        },
+        "badge_member": "Membro"
       },
       "cards": {
         "teams": {
@@ -921,7 +935,10 @@
         "content_access_title": "Acesso ao conteúdo",
         "content_access_help": "Controla se o utilizador pode ver e usar áreas Public e Private. Sem ambos, só tem acesso de equipa.",
         "can_access_public": "Acesso Public",
-        "can_access_private": "Acesso Private"
+        "can_access_private": "Acesso Private",
+        "col_user": "Utilizador",
+        "col_roles": "Função",
+        "badge_guest": "Convidado"
       },
       "whitelist": {
         "lead_short": "E-mails e domínios para ativação automática.",
@@ -937,7 +954,11 @@
         "tool_link": "Ligação"
       },
       "system": {
-        "lead_short": "Nome, logótipo, fuso horário e marca."
+        "lead_short": "Nome, logótipo, fuso horário e marca.",
+        "section_team_invites": "Convites de equipa",
+        "team_invite_info": "Controla as permissões de novos utilizadores ao registarem-se através de códigos de convite.",
+        "team_invite_allow_portal_user": "Permitir contas completas no portal através de códigos de equipa",
+        "team_invite_allow_portal_user_help": "Permite às equipas criar códigos de convite com acesso completo ao portal (Público/Privado) em vez de apenas acesso de convidado."
       },
       "backup": {
         "lead_short": "Exportar e importar backups do portal."

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
+from app.models.team import is_team_invite_portal_user_allowed
 from app.models.email import EmailPermission
 from app.models.settings import SystemSettings
 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
@@ -145,14 +146,9 @@ def admin_teams():
 @settings_bp.route('/team-settings', methods=['GET', 'POST'])
 @login_required
 def team_settings():
-    """Admins and team leaders: enable/disable team sections per team."""
+    """Redirect to team detail (or first manageable team) where team modules are now configured directly."""
     from app.models.team import Team
     from app.utils.multi_mailboxes import can_manage_team, get_led_teams, user_is_team_leader
-    from app.utils.team_module_settings import (
-        TEAM_SECTION_MODULES,
-        get_team_section_states,
-        set_team_section_enabled,
-    )
 
     is_admin = bool(current_user.is_admin)
     is_leader = user_is_team_leader(current_user)
@@ -160,69 +156,16 @@ def team_settings():
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
-    # Admins can configure any team; non-admin leaders only their own.
-    teams = Team.query.order_by(Team.name).all() if is_admin else get_led_teams(current_user)
-    if not teams:
-        flash(translate('settings.team_settings.flash_no_teams'), 'warning')
-        return redirect(url_for('settings.index'))
-
     team_id = request.args.get('team_id', type=int) or request.form.get('team_id', type=int)
-    if team_id:
-        team = next((t for t in teams if t.id == team_id), None)
-    else:
-        team = teams[0]
-    if not team or not can_manage_team(current_user, team.id):
-        flash(translate('settings.admin.flash_unauthorized'), 'danger')
-        return redirect(url_for('settings.team_settings'))
+    if team_id and can_manage_team(current_user, team_id):
+        return redirect(url_for('settings.admin_team_detail', team_id=team_id))
 
-    module_labels = {
-        'wiki': translate('layout.nav.wiki'),
-        'credentials': translate('layout.nav.credentials'),
-        'manuals': translate('layout.nav.manuals'),
-        'contacts': translate('layout.nav.contacts'),
-        'shortlinks': translate('layout.nav.shortlinks'),
-        'excalidraw': translate('layout.nav.excalidraw'),
-        'kanban': translate('settings.sidebar.kanban'),
-        'calendar': translate('settings.admin.cards.calendar_settings.title'),
-        'files': translate('settings.admin.cards.file_settings.title'),
-        'email': translate('settings.sidebar.email_module'),
-        'chat': translate('settings.team_settings.module_chat'),
-        'surveys': translate('layout.nav.surveys'),
-        'protocols': translate('layout.nav.protocols'),
-        'duty_roster': translate('layout.nav.duty_roster'),
-    }
+    teams = Team.query.order_by(Team.name).all() if is_admin else get_led_teams(current_user)
+    if teams:
+        return redirect(url_for('settings.admin_team_detail', team_id=teams[0].id))
 
-    if request.method == 'POST':
-        for module_key in TEAM_SECTION_MODULES:
-            enabled = request.form.get(f'team_module_{module_key}') == 'on'
-            set_team_section_enabled(team.id, module_key, enabled)
-        db.session.commit()
-        return _settings_save_response(
-            True,
-            translate('settings.autosave.saved'),
-            'settings.team_settings',
-            redirect_kwargs={'team_id': team.id},
-        )
-
-    states = get_team_section_states(team.id)
-    modules = []
-    for key in TEAM_SECTION_MODULES:
-        from app.utils.common import is_module_enabled
-        mod = TEAM_SECTION_MODULES[key]
-        if not is_module_enabled(mod):
-            continue
-        modules.append({
-            'key': key,
-            'label': module_labels.get(key, key),
-            'enabled': states.get(key, True),
-        })
-
-    return render_template(
-        'settings/team_settings.html',
-        teams=teams,
-        team=team,
-        modules=modules,
-    )
+    flash(translate('settings.team_settings.flash_no_teams'), 'warning')
+    return redirect(url_for('settings.admin_teams'))
 
 
 @settings_bp.route('/admin/teams/create', methods=['GET', 'POST'])
@@ -305,6 +248,22 @@ def admin_team_detail(team_id):
     if request.method == 'POST':
         action = request.form.get('action', '').strip()
 
+        if action == 'update_team_modules' or any(k.startswith('team_module_') for k in request.form):
+            from app.utils.team_module_settings import (
+                TEAM_SECTION_MODULES,
+                set_team_section_enabled,
+            )
+            for module_key in TEAM_SECTION_MODULES:
+                enabled = request.form.get(f'team_module_{module_key}') == 'on'
+                set_team_section_enabled(team.id, module_key, enabled)
+            db.session.commit()
+            return _settings_save_response(
+                True,
+                translate('settings.team_settings.flash_saved'),
+                'settings.admin_team_detail',
+                redirect_kwargs={'team_id': team.id},
+            )
+
         if action == 'add_members':
             user_ids = request.form.getlist('user_ids')
             added = 0
@@ -364,6 +323,12 @@ def admin_team_detail(team_id):
             while TeamInviteCode.query.filter_by(code=code).first():
                 code = secrets.token_urlsafe(8)
 
+            role = 'team_only'
+            if is_team_invite_portal_user_allowed():
+                req_role = (request.form.get('role') or '').strip()
+                if req_role in ('portal_user', 'team_only'):
+                    role = req_role
+
             invite = TeamInviteCode(
                 code=code,
                 team_id=team.id,
@@ -372,6 +337,7 @@ def admin_team_detail(team_id):
                 uses_count=0,
                 expires_at=expires_at,
                 is_active=True,
+                role=role,
             )
             db.session.add(invite)
             db.session.commit()
@@ -423,14 +389,69 @@ def admin_team_detail(team_id):
         .all()
     )
 
+    from app.utils.team_module_settings import (
+        TEAM_SECTION_MODULES,
+        get_team_section_states,
+    )
+    from app.utils.common import is_module_enabled
+
+    module_labels = {
+        'wiki': translate('layout.nav.wiki'),
+        'credentials': translate('layout.nav.credentials'),
+        'manuals': translate('layout.nav.manuals'),
+        'contacts': translate('layout.nav.contacts'),
+        'shortlinks': translate('layout.nav.shortlinks'),
+        'excalidraw': translate('layout.nav.excalidraw'),
+        'kanban': translate('settings.sidebar.kanban'),
+        'calendar': translate('settings.admin.cards.calendar_settings.title'),
+        'files': translate('settings.admin.cards.file_settings.title'),
+        'email': translate('settings.sidebar.email_module'),
+        'chat': translate('settings.team_settings.module_chat'),
+        'surveys': translate('layout.nav.surveys'),
+        'protocols': translate('layout.nav.protocols'),
+        'duty_roster': translate('layout.nav.duty_roster'),
+    }
+
+    module_icons = {
+        'wiki': 'bi-journal-text',
+        'credentials': 'bi-key',
+        'manuals': 'bi-journal-bookmark',
+        'contacts': 'bi-person-lines-fill',
+        'shortlinks': 'bi-link-45deg',
+        'excalidraw': 'bi-brush',
+        'kanban': 'bi-kanban',
+        'calendar': 'bi-calendar3',
+        'files': 'bi-folder2-open',
+        'email': 'bi-envelope',
+        'chat': 'bi-chat-dots',
+        'surveys': 'bi-bar-chart',
+        'protocols': 'bi-file-text',
+        'duty_roster': 'bi-calendar-check',
+    }
+
+    states = get_team_section_states(team.id)
+    modules = []
+    for key in TEAM_SECTION_MODULES:
+        mod = TEAM_SECTION_MODULES[key]
+        if not is_module_enabled(mod):
+            continue
+        modules.append({
+            'key': key,
+            'label': module_labels.get(key, key),
+            'icon': module_icons.get(key, 'bi-app'),
+            'enabled': states.get(key, True),
+        })
+
     return render_template(
         'settings/admin_team_detail.html',
         team=team,
         members=members,
         available_users=available_users,
         invite_codes=invite_codes,
+        modules=modules,
         email_multi_enabled=is_email_multi_enabled(),
         can_edit_team_meta=current_user.is_admin,
+        can_create_portal_invite=is_team_invite_portal_user_allowed(),
     )
 
 
