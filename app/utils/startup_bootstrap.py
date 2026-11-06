@@ -347,6 +347,13 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                         if 'user_sessions' not in inspector.get_table_names():
                             log_startup("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
 
+                        # Content Space Access & Berechtigungs-Spalten (can_access_team etc.)
+                        try:
+                            from app.utils.schema_init import ensure_critical_columns
+                            ensure_critical_columns(db)
+                        except Exception as crit_err:
+                            log_startup(f"[WARNUNG] ensure_critical_columns fehlgeschlagen: {crit_err}")
+
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
                         calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}

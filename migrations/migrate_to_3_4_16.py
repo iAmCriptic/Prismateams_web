@@ -82,3 +82,4 @@ if __name__ == '__main__':
         def note_error(self, m): print(f'[ERR] {m}')
 
     run(report=_CliReport())
+

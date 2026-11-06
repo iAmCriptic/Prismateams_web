@@ -336,6 +336,69 @@ def _create_missing_tables(db, table_names: Iterable[str]) -> list[str]:
     return still_missing
 
 
+def ensure_critical_columns(db) -> None:
+    """
+    Stellt sicher, dass neu hinzugekommene Spalten an existierenden Kern-Tabellen
+    (wie users, team_invite_codes) vorhanden sind.
+
+    create_all() legt nur nicht-existente Tabellen an, fügt aber an bestehenden
+    Tabellen keine Spalten hinzu. Diese Funktion verhindert 1054-Fehler
+    ("Unknown column in 'field list'") auf bestehenden Installationen, selbst wenn
+    eine Migration übersprungen wurde oder fehlschlug.
+    """
+    try:
+        inspector = inspect(db.engine)
+        table_names = set(inspector.get_table_names())
+        dialect = db.engine.dialect.name
+        is_mysql = dialect in ("mysql", "mariadb")
+        is_pg = dialect == "postgresql"
+
+        bool_true = (
+            "TINYINT(1) NOT NULL DEFAULT 1"
+            if is_mysql
+            else ("BOOLEAN NOT NULL DEFAULT TRUE" if is_pg else "BOOLEAN NOT NULL DEFAULT 1")
+        )
+        bool_false = (
+            "TINYINT(1) NOT NULL DEFAULT 0"
+            if is_mysql
+            else ("BOOLEAN NOT NULL DEFAULT FALSE" if is_pg else "BOOLEAN NOT NULL DEFAULT 0")
+        )
+
+        users_table = "users" if "users" in table_names else ("ass_users" if "ass_users" in table_names else None)
+        if users_table:
+            user_cols = {c["name"] for c in inspector.get_columns(users_table)}
+            user_column_defs = [
+                ("can_access_team", bool_true),
+                ("can_access_public", bool_true),
+                ("can_access_private", bool_true),
+                ("has_full_access", bool_false),
+            ]
+            for col_name, ddl in user_column_defs:
+                if col_name not in user_cols:
+                    try:
+                        logger.info("Ergänze fehlende Spalte %s.%s ...", users_table, col_name)
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE {users_table} ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] %s.%s ergänzt", users_table, col_name)
+                    except Exception as col_err:
+                        logger.warning("Konnte %s.%s nicht ergänzen: %s", users_table, col_name, col_err)
+
+        if "team_invite_codes" in table_names:
+            invite_cols = {c["name"] for c in inspector.get_columns("team_invite_codes")}
+            if "role" not in invite_cols:
+                try:
+                    logger.info("Ergänze team_invite_codes.role ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE team_invite_codes ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'team_only'")
+                        )
+                    logger.info("[OK] team_invite_codes.role ergänzt")
+                except Exception as role_err:
+                    logger.warning("Konnte team_invite_codes.role nicht ergänzen: %s", role_err)
+    except Exception as exc:
+        logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
+
+
 def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) -> tuple[bool, list[str]]:
     """
     Stellt sicher, dass das Schema (create_all + kritische Tabellen) steht.
@@ -429,6 +492,12 @@ def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) 
                 db.create_all()
             except Exception:
                 pass
+
+        # Kritische Spalten an existierenden Kern-Tabellen sicherstellen (verhindert 1054 Unknown Column)
+        try:
+            ensure_critical_columns(db)
+        except Exception as col_err:
+            logger.warning("ensure_critical_columns fehlgeschlagen: %s", col_err)
 
         logger.info("Schema vollständig (%s Tabellen, kritische geprüft)", len(inspect(db.engine).get_table_names()))
         return True, []
