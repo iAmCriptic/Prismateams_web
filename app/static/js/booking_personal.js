@@ -103,6 +103,19 @@
         });
     };
 
+    window.copyApplyUrlDirect = function (url) {
+        if (!url) {
+            const input = document.getElementById('bpApplyUrlInput');
+            url = input ? input.value : '';
+        }
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Bewerbungslink in Zwischenablage kopiert!', 'success');
+        }).catch(() => {
+            showToast('Link konnte nicht kopiert werden.', 'error');
+        });
+    };
+
     window.copyApplyUrl = function (btn) {
         const input = document.getElementById('bpApplyUrlInput');
         if (!input || !input.value) return;
@@ -289,6 +302,22 @@
         const statusVal = (statusFilter?.value || '').toLowerCase();
         const areaVal = (areaFilter?.value || '').toLowerCase();
 
+        const filterIndicator = document.getElementById('bpFilterIndicator');
+        const filterBtn = document.getElementById('bpFilterDropdownBtn');
+        const hasActiveFilter = Boolean(statusVal || areaVal);
+        if (filterIndicator) {
+            filterIndicator.classList.toggle('d-none', !hasActiveFilter);
+        }
+        if (filterBtn) {
+            if (hasActiveFilter) {
+                filterBtn.classList.remove('btn-outline-secondary');
+                filterBtn.classList.add('btn-primary');
+            } else {
+                filterBtn.classList.add('btn-outline-secondary');
+                filterBtn.classList.remove('btn-primary');
+            }
+        }
+
         const rows = tableEl.querySelectorAll('tbody tr');
         rows.forEach(row => {
             const rowText = row.textContent.toLowerCase();
@@ -310,6 +339,15 @@
     if (searchInput) searchInput.addEventListener('input', applyFilters);
     if (statusFilter) statusFilter.addEventListener('change', applyFilters);
     if (areaFilter) areaFilter.addEventListener('change', applyFilters);
+
+    const resetFiltersBtn = document.getElementById('bpResetFiltersBtn');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', function () {
+            if (statusFilter) statusFilter.value = '';
+            if (areaFilter) areaFilter.value = '';
+            applyFilters();
+        });
+    }
 
     const searchClear = document.getElementById('bpSearchClear');
     if (searchInput && searchClear) {

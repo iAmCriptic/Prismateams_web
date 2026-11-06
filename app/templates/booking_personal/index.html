@@ -6,13 +6,8 @@
 <div class="mod-search" role="search">
     <label class="mod-search-field" for="bpSearchInput">
         <i class="bi bi-search" aria-hidden="true"></i>
-        <input type="text"
-               id="bpSearchInput"
-               class="mod-search-input"
-               placeholder="In Booking / Personal suchen..."
-               autocomplete="off"
-               spellcheck="false"
-               enterkeyhint="search">
+        <input type="text" id="bpSearchInput" class="mod-search-input" placeholder="In Booking / Personal suchen..."
+            autocomplete="off" spellcheck="false" enterkeyhint="search">
     </label>
     <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen">
         <i class="bi bi-x-lg"></i>
@@ -52,7 +47,8 @@
                     <span class="text-truncate">{{ ev.name }}</span>
                 </span>
                 {% if ev.entries %}
-                <span class="badge rounded-pill bg-light text-dark border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
+                <span class="badge rounded-pill bg-light text-dark border ms-1 flex-shrink-0">{{ ev.entries|length
+                    }}</span>
                 {% endif %}
             </a>
             {% else %}
@@ -62,7 +58,8 @@
 
         <!-- Sidebar Footer mit Vorlagenverwaltung (Style wie bei Dateien "In System einbinden") -->
         <div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
-            <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
+            <a href="{{ url_for('booking_personal.templates_view') }}"
+                class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
                 <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
                 <span>Vorlagen verwalten</span>
             </a>
@@ -83,68 +80,120 @@
             </div>
 
             <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
-                <!-- Quick Filter: Status -->
-                <select id="bpStatusFilter" class="form-select form-select-sm rounded-pill px-3 py-1 bg-body border shadow-none w-auto">
-                    <option value="">Alle Status</option>
-                    <option value="Angefragt">Angefragt</option>
-                    <option value="Bewerbung eingegangen">Bewerbung eingegangen</option>
-                    <option value="Formular gesendet">Formular gesendet</option>
-                    <option value="Formular ausgefüllt">Formular ausgefüllt</option>
-                    <option value="Zusage gesendet">Zusage gesendet</option>
-                    <option value="Abgeschlossen">Abgeschlossen</option>
-                    <option value="Rechnung weitergeleitet">Rechnung weitergeleitet</option>
-                    <option value="Absage">Absage</option>
-                </select>
-
-                <!-- Quick Filter: Bereich -->
-                <select id="bpAreaFilter" class="form-select form-select-sm rounded-pill px-3 py-1 bg-body border shadow-none w-auto">
-                    <option value="">Alle Bereiche</option>
-                    <option value="Ambient">Ambient</option>
-                    <option value="Mühle">Mühle</option>
-                    <option value="Main Stage">Main Stage</option>
-                    <option value="Workshop">Workshop</option>
-                </select>
-
-                <!-- Link zum Bewerben (Öffentliches Anmeldeformular) -->
+                <!-- Filter Dropdown Icon Button -->
                 <div class="dropdown d-inline-block">
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Öffentlichen Bewerbungslink anzeigen">
-                        <i class="bi bi-link-45deg me-1"></i>Link zum Bewerben
+                    <button type="button" id="bpFilterDropdownBtn"
+                        class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm position-relative"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                        title="Tabelle filtern">
+                        <i class="bi bi-funnel"></i>
+                        <span id="bpFilterIndicator"
+                            class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle d-none">
+                            <span class="visually-hidden">Filter aktiv</span>
+                        </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border" style="min-width: 330px; border-radius: 1rem;">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <i class="bi bi-send-check text-primary fs-5"></i>
-                            <h6 class="fw-bold mb-0">Bewerbungslink</h6>
-                        </div>
-                        <p class="text-muted small mb-2">Acts können sich über diesen Link direkt online bewerben:</p>
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" class="form-control rounded-start-pill" id="bpApplyUrlInput" readonly value="{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token(), _external=True) }}">
-                            <button class="btn btn-primary rounded-end-pill px-3" type="button" onclick="copyApplyUrl(this)" title="In die Zwischenablage kopieren">
-                                <i class="bi bi-clipboard"></i>
+                    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border"
+                        style="min-width: 260px; border-radius: 1rem;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>Filter</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted"
+                                id="bpResetFiltersBtn" style="font-size: 0.75rem;">
+                                Zurücksetzen
                             </button>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a href="{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token()) }}" target="_blank" class="small text-decoration-none">
-                                <i class="bi bi-box-arrow-up-right me-1"></i>Formular öffnen
-                            </a>
-                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle small px-2">Aktiv</span>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="bpStatusFilter">Status</label>
+                            <select id="bpStatusFilter" class="form-select form-select-sm rounded-pill bg-body border">
+                                <option value="">Alle Status</option>
+                                <option value="Angefragt">Angefragt</option>
+                                <option value="Bewerbung eingegangen">Bewerbung eingegangen</option>
+                                <option value="Formular gesendet">Formular gesendet</option>
+                                <option value="Formular ausgefüllt">Formular ausgefüllt</option>
+                                <option value="Zusage gesendet">Zusage gesendet</option>
+                                <option value="Abgeschlossen">Abgeschlossen</option>
+                                <option value="Rechnung weitergeleitet">Rechnung weitergeleitet</option>
+                                <option value="Absage">Absage</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label small text-muted mb-1" for="bpAreaFilter">Bereich</label>
+                            <select id="bpAreaFilter" class="form-select form-select-sm rounded-pill bg-body border">
+                                <option value="">Alle Bereiche</option>
+                                <option value="Ambient">Ambient</option>
+                                <option value="Mühle">Mühle</option>
+                                <option value="Main Stage">Main Stage</option>
+                                <option value="Workshop">Workshop</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <a href="{{ url_for('booking_personal.export_csv', event_id=current_event.id) }}"
-                    class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm" title="Als CSV exportieren">
-                    <i class="bi bi-download me-1"></i>Export
-                </a>
+                <!-- Export Dropdown Icon Button (CSV & XLSX) -->
+                <div class="dropdown d-inline-block">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm"
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Exportieren (CSV / Excel)">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-1"
+                        style="border-radius: 0.75rem; min-width: 190px;">
+                        <li>
+                            <h6 class="dropdown-header small text-uppercase text-muted py-1" style="font-size: 0.7rem;">
+                                Exportieren als</h6>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                                href="{{ url_for('booking_personal.export_csv', event_id=current_event.id) }}">
+                                <i class="bi bi-filetype-csv text-primary me-2 fs-6"></i>
+                                <span>CSV-Export (.csv)</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                                href="{{ url_for('booking_personal.export_excel', event_id=current_event.id) }}">
+                                <i class="bi bi-file-earmark-excel text-success me-2 fs-6"></i>
+                                <span>Excel-Export (.xlsx)</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
 
-                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-sm" data-bs-toggle="modal"
-                    data-bs-target="#bpSettingsModal" title="Spalten & Vorlagen konfigurieren">
-                    <i class="bi bi-gear-fill me-1"></i>Spalten & Einstellungen
+                <!-- Spalten & Einstellungen Icon Button -->
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm"
+                    data-bs-toggle="modal" data-bs-target="#bpSettingsModal" title="Spalten & Einstellungen">
+                    <i class="bi bi-gear"></i>
                 </button>
 
-                <button type="button" id="bpAddActBtn" data-event-id="{{ current_event.id }}"
-                    class="btn btn-sm btn-primary rounded-pill px-3 py-1 shadow-sm">
-                    <i class="bi bi-plus-lg me-1"></i>+ Act hinzufügen
-                </button>
+                <!-- Neuer Act Button mit Dropdown-Option "Bewerbungslink kopieren" -->
+                <div class="btn-group" role="group" aria-label="Act Aktionen">
+                    <button type="button" id="bpAddActBtn" data-event-id="{{ current_event.id }}"
+                        class="btn btn-sm btn-primary rounded-start-pill px-3 py-1 shadow-sm" title="Neuen Act anlegen">
+                        <i class="bi bi-plus-lg me-1"></i>Act
+                    </button>
+                    <button type="button"
+                        class="btn btn-sm btn-primary rounded-end-pill px-2 py-1 shadow-sm dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Weitere Optionen">
+                        <span class="visually-hidden">Optionen</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-1"
+                        style="border-radius: 0.75rem; min-width: 230px;">
+                        <li>
+                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                                href="javascript:void(0)"
+                                onclick="copyApplyUrlDirect('{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token(), _external=True) }}')">
+                                <i class="bi bi-link-45deg text-primary me-2 fs-6"></i>
+                                <span>Bewerbungslink kopieren</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                                href="{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token()) }}"
+                                target="_blank">
+                                <i class="bi bi-box-arrow-up-right text-muted me-2"></i>
+                                <span>Bewerbungsformular öffnen</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -174,10 +223,11 @@
                         {% for f in fields %}
                         {% set val = custom.get(f.field_key, '') %}
                         <td style="min-width: {{ f.width }}px;">
-                            {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or loop.first %}
+                            {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or
+                            loop.first %}
                             <a href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}"
-                               class="bp-artist-link fw-semibold text-decoration-none"
-                               title="Artist-Profil von {{ val or entry.name or 'Act' }} öffnen">
+                                class="bp-artist-link fw-semibold text-decoration-none"
+                                title="Artist-Profil von {{ val or entry.name or 'Act' }} öffnen">
                                 {{ val or entry.name or 'Act' }}
                             </a>
                             {% elif f.field_type == 'action_accept' %}
@@ -188,7 +238,8 @@
                                 <i class="bi bi-envelope me-1"></i>Mail &rarr; Zusage
                             </span>
                             {% elif f.field_type == 'form_link' %}
-                            {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
+                            {% set form_url = url_for('booking_personal.public_form', token=entry.form_token,
+                            _external=True) %}
                             <a href="{{ form_url }}" target="_blank" class="bp-link small me-1"
                                 title="Formular im neuen Tab öffnen">
                                 {{ form_url|truncate(26) }}
@@ -265,33 +316,42 @@
 
                         <td class="text-end pe-3">
                             <div class="dropdown d-inline-block">
-                                <button type="button" class="btn btn-sm btn-link text-muted p-0 bp-row-kebab-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Optionen">
+                                <button type="button" class="btn btn-sm btn-link text-muted p-0 bp-row-kebab-btn"
+                                    data-bs-toggle="dropdown" aria-expanded="false" title="Optionen">
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu rounded-3 shadow-sm border py-1">
+                                <ul
+                                    class="dropdown-menu dropdown-menu-end mod-dropdown-menu rounded-3 shadow-sm border py-1">
                                     <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}">
+                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2"
+                                            href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}">
                                             <i class="bi bi-person-lines-fill text-primary"></i>Artist-Profil öffnen
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openEntryDetail({{ entry.id }}); return false;">
+                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#"
+                                            onclick="openEntryDetail({{ entry.id }}); return false;">
                                             <i class="bi bi-pencil-square text-secondary"></i>Schnell bearbeiten
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openMailPreview({{ entry.id }}, 'accept'); return false;">
+                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#"
+                                            onclick="openMailPreview({{ entry.id }}, 'accept'); return false;">
                                             <i class="bi bi-envelope-check text-success"></i>Mail &rarr; Zusage
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openMailPreview({{ entry.id }}, 'reject'); return false;">
+                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#"
+                                            onclick="openMailPreview({{ entry.id }}, 'reject'); return false;">
                                             <i class="bi bi-envelope-x text-danger"></i>Mail &rarr; Absage
                                         </a>
                                     </li>
-                                    <li><hr class="dropdown-divider my-1"></li>
                                     <li>
-                                        <a class="dropdown-item text-danger py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="deleteEntry({{ entry.id }}); return false;">
+                                        <hr class="dropdown-divider my-1">
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item text-danger py-1.5 px-3 d-flex align-items-center gap-2"
+                                            href="#" onclick="deleteEntry({{ entry.id }}); return false;">
                                             <i class="bi bi-trash"></i>Act löschen
                                         </a>
                                     </li>
@@ -526,7 +586,8 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2 py-1">
+                                            <span
+                                                class="badge rounded-pill bg-secondary-subtle text-secondary border px-2 py-1">
                                                 <i class="bi bi-tag me-1"></i>{{ f.category or 'Allgemein' }}
                                             </span>
                                         </td>
@@ -612,7 +673,8 @@
                                     rows="5">{{ current_event.accept_template_body }}</textarea>
                                 <div class="form-text small">Variablen: <code>@{{ contact_name }}</code>,
                                     <code>@{{ event_name }}</code>, <code>@{{ gage }}</code>,
-                                    <code>@{{ overview_link }}</code>, <code>@{{ form_link }}</code></div>
+                                    <code>@{{ overview_link }}</code>, <code>@{{ form_link }}</code>
+                                </div>
                             </div>
 
                             <hr>
@@ -725,7 +787,8 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Kategorie / Bereich</label>
-                            <input type="text" id="bpColCategory" class="form-control" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
+                            <input type="text" id="bpColCategory" class="form-control" list="bpColCatPresets"
+                                placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
                             <datalist id="bpColCatPresets">
                                 <option value="Stammdaten & Status">
                                 <option value="Finanzen">

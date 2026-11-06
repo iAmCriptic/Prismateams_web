@@ -496,3 +496,240 @@ body:has(.booking-personal-shell) {
         width: 100%;
     }
 }
+
+/* ==========================================================================
+   Public Booking & Personal Pages (Standalone with Portal Gradient)
+   ========================================================================== */
+
+body.bp-public-body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--bp-public-bg, var(--auth-page-bg, linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%))) !important;
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+}
+
+.bp-public-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 2.5rem 1rem 3.5rem;
+}
+
+@media (min-width: 768px) {
+    .bp-public-shell {
+        padding: 3.5rem 1.5rem 4.5rem;
+    }
+}
+
+.bp-public-brand {
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+.bp-public-brand-logo {
+    max-height: 52px;
+    width: auto;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25));
+}
+
+.bp-public-brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.95rem;
+    border-radius: 9999px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.bp-public-card {
+    width: 100%;
+    max-width: 52rem;
+    background: #ffffff;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 24px 50px -12px rgba(15, 23, 42, 0.3), 0 0 1px rgba(0, 0, 0, 0.15);
+    padding: 2rem 1.5rem 2.25rem;
+}
+
+@media (min-width: 576px) {
+    .bp-public-card {
+        padding: 2.75rem 2.5rem 3rem;
+    }
+}
+
+.bp-public-card--wide {
+    max-width: 58rem;
+}
+
+/* Category Sections inside public cards */
+.bp-public-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.15rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.bp-public-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.15rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.bp-public-section-title .bi {
+    color: var(--bs-primary, #0d6efd);
+    font-size: 1.15rem;
+}
+
+/* Form Controls in Public Pages */
+.bp-public-card .form-control,
+.bp-public-card .form-select {
+    border-radius: 9999px;
+    padding: 0.65rem 1.15rem;
+    font-size: 0.92rem;
+    border-color: #cbd5e1;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bp-public-card textarea.form-control {
+    border-radius: 1rem;
+    padding: 0.85rem 1.15rem;
+}
+
+.bp-public-card .form-control:focus,
+.bp-public-card .form-select:focus {
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.18);
+}
+
+.bp-public-card .form-label {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+}
+
+/* Public Upload Box / Dropzone */
+.bp-upload-dropzone {
+    border: 2px dashed #cbd5e1;
+    background: #ffffff;
+    border-radius: 1rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: all 0.15s ease-in-out;
+}
+
+.bp-upload-dropzone:hover {
+    border-color: var(--bs-primary, #0d6efd);
+    background: #f0f7ff;
+}
+
+/* Submit & Action Buttons */
+.btn-public-submit {
+    border-radius: 9999px;
+    padding: 0.8rem 2.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-public-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(13, 110, 253, 0.45);
+}
+
+/* Public Overview Document Pass Styles */
+.bp-doc-header {
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bp-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.85rem;
+}
+
+.bp-overview-cell {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.bp-overview-cell-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.3rem;
+}
+
+.bp-overview-cell-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.bp-overview-cell--full {
+    grid-column: 1 / -1;
+}
+
+@media print {
+    body.bp-public-body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    .bp-public-shell {
+        padding: 0 !important;
+    }
+    .bp-public-brand,
+    .no-print {
+        display: none !important;
+    }
+    .bp-public-card {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    .bp-public-section {
+        background: #ffffff !important;
+        border: 1px solid #cccccc !important;
+        break-inside: avoid;
+    }
+}
+

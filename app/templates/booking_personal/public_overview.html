@@ -6,106 +6,211 @@
     <title>Booking Overview: {{ event.name }} - {{ entry.name }}</title>
     {% include 'partials/vendor_bootstrap_css.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+    {% include 'auth/_auth_bg.html' %}
+    <style>
+        :root {
+            --bp-public-bg: var(--auth-page-bg, linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%));
+        }
+    </style>
 </head>
-<body style="background-color: #f8fafc;">
+<body class="bp-public-body">
 
-<div class="container py-4" id="bpPublicOverview">
-    <div class="bp-overview-card shadow-sm">
-        <!-- Header & Language Switcher -->
-        <div class="bp-overview-header">
+<div class="bp-public-shell" id="bpPublicOverview">
+    <!-- Portal Branding Header (wird beim Drucken ausgeblendet) -->
+    <div class="bp-public-brand no-print">
+        {% if portal_logo_filename %}
+        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
+        {% elif app_logo %}
+        <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
+        {% else %}
+        <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle shadow-sm p-3 mb-2" style="width: 58px; height: 58px;">
+            <i class="bi bi-person-badge text-primary fs-3"></i>
+        </div>
+        {% endif %}
+        <div>
+            <span class="bp-public-brand-pill">
+                <i class="bi bi-check2-circle me-1"></i>
+                {{ app_name or 'Prismateams' }} &bull; Offizielle Buchungsbestätigung
+            </span>
+        </div>
+    </div>
+
+    <!-- Haupt-Dokumentkarte -->
+    <div class="bp-public-card bp-public-card--wide">
+        <!-- Dokument-Kopfzeile -->
+        <div class="bp-doc-header">
             <div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill mb-2">
+                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1 mb-2 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-check-circle-fill"></i>
                     {% if lang == 'en' %}Confirmed Booking{% else %}Bestätigte Buchung{% endif %}
                 </span>
-                <h2 class="fw-bold mb-1">{{ event.name }}</h2>
-                <h4 class="text-primary mb-0">{{ entry.name or custom_data.get('project_name', '') }}</h4>
+                <h2 class="fw-bold mb-1 text-dark">{{ event.name }}</h2>
+                <h4 class="text-primary fw-bold mb-0">
+                    <i class="bi bi-person-fill me-1"></i>{{ entry.name or custom_data.get('project_name', '') }}
+                </h4>
             </div>
 
+            <!-- Sprachumschalter & Drucken (no-print) -->
             <div class="no-print d-flex align-items-center gap-2">
-                <div class="btn-group btn-group-sm">
-                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='de') }}" class="btn {% if lang == 'de' %}btn-primary{% else %}btn-outline-secondary{% endif %}">DE</a>
-                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='en') }}" class="btn {% if lang == 'en' %}btn-primary{% else %}btn-outline-secondary{% endif %}">EN</a>
+                <div class="btn-group btn-group-sm rounded-pill p-0.5 border bg-light shadow-sm">
+                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='de') }}"
+                       class="btn btn-sm rounded-pill px-3 py-1 {% if lang == 'de' %}btn-primary shadow-sm{% else %}btn-light text-muted{% endif %}">
+                        DE
+                    </a>
+                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='en') }}"
+                       class="btn btn-sm rounded-pill px-3 py-1 {% if lang == 'en' %}btn-primary shadow-sm{% else %}btn-light text-muted{% endif %}">
+                        EN
+                    </a>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print();" title="Drucken / PDF">
-                    <i class="bi bi-printer"></i>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 shadow-sm" onclick="window.print();" title="Drucken / Als PDF speichern">
+                    <i class="bi bi-printer me-1"></i>
+                    <span>{% if lang == 'en' %}Print / PDF{% else %}Drucken / PDF{% endif %}</span>
                 </button>
             </div>
         </div>
 
-        <p class="text-muted mb-4">
-            {% if lang == 'en' %}
-            This is your confirmed artist and booking summary. All details, hospitality allocations, agreed fees, and arrival instructions are listed below.
-            {% else %}
-            Dies ist deine verbindliche Buchungs- und Auftrittsübersicht. Nachfolgend findest du alle vereinbarten Details, Hospitality-Guthaben, Gagen und Logistik-Informationen.
-            {% endif %}
-        </p>
+        <div class="p-3 bg-light rounded-4 border mb-4">
+            <p class="text-secondary small mb-0">
+                {% if lang == 'en' %}
+                <i class="bi bi-info-circle text-primary me-1"></i>
+                This is your official artist and booking summary for <strong>{{ event.name }}</strong>. All verified details, agreed compensation, hospitality allocations, and logistics are listed below.
+                {% else %}
+                <i class="bi bi-info-circle text-primary me-1"></i>
+                Dies ist deine offizielle Auftritts- und Buchungsübersicht für <strong>{{ event.name }}</strong>. Nachfolgend findest du alle bestätigten Details, vereinbarten Gagen, Hospitality-Guthaben und Logistik-Absprachen.
+                {% endif %}
+            </p>
+        </div>
 
-        <!-- Datentabelle der Übersicht -->
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 40%;">
-                            {% if lang == 'en' %}Agreement / Detail{% else %}Vereinbarung / Position{% endif %}
-                        </th>
-                        <th style="width: 60%;">
-                            {% if lang == 'en' %}Value / Specification{% else %}Wert / Vereinbarung{% endif %}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for f in overview_fields %}
+        {% if fields_by_category and overview_fields %}
+            <!-- Strukturierte Abschnitte nach Kategorien -->
+            {% for category_name, cat_fields in fields_by_category.items() %}
+            <div class="bp-public-section">
+                <div class="bp-public-section-title">
+                    {% if 'Stamm' in category_name or 'Status' in category_name or 'Kontakt' in category_name %}
+                        <i class="bi bi-person-lines-fill"></i>
+                    {% elif 'Finanz' in category_name or 'Geld' in category_name %}
+                        <i class="bi bi-cash-stack"></i>
+                    {% elif 'Hospitality' in category_name or 'Logistik' in category_name %}
+                        <i class="bi bi-cup-hot-fill"></i>
+                    {% elif 'Presse' in category_name or 'Technik' in category_name or 'Rider' in category_name %}
+                        <i class="bi bi-sliders"></i>
+                    {% else %}
+                        <i class="bi bi-folder-fill"></i>
+                    {% endif %}
+                    <span>
+                        {% if lang == 'en' and category_en_map and category_name in category_en_map %}
+                            {{ category_en_map[category_name] }}
+                        {% else %}
+                            {{ category_name }}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="bp-overview-grid">
+                    {% for f in cat_fields %}
                     {% set val = custom_data.get(f.field_key, '') %}
-                    <tr>
-                        <td class="fw-semibold text-secondary">
+                    {% set is_full_width = f.field_type in ('textarea', 'image_upload') or (val and val|string|length > 60) %}
+                    <div class="bp-overview-cell {% if is_full_width %}bp-overview-cell--full{% endif %}">
+                        <div class="bp-overview-cell-label">
                             {% if lang == 'en' and f.label_en %}
                                 {{ f.label_en }}
                             {% else %}
                                 {{ f.label }}
                             {% endif %}
-                        </td>
-                        <td>
+                        </div>
+                        <div class="bp-overview-cell-value">
                             {% if f.field_type == 'image_upload' %}
-                                <div class="bp-thumbnails">
-                                    {% if val and val is iterable and val is not string %}
+                                {% if val and val is iterable and val is not string %}
+                                    <div class="d-flex flex-wrap gap-2 mt-1">
                                         {% for img_path in val %}
-                                        <a href="{{ img_path }}" target="_blank">
-                                            <img src="{{ img_path }}" class="bp-thumbnail" alt="Promo">
+                                        <a href="{{ img_path }}" target="_blank" class="border rounded-3 overflow-hidden d-inline-block shadow-sm">
+                                            <img src="{{ img_path }}" class="bp-thumbnail" alt="Promo" style="width: 80px; height: 80px; object-fit: cover;">
                                         </a>
                                         {% endfor %}
-                                    {% elif val and val is string and val != '-' %}
-                                        <a href="{{ val }}" target="_blank">
-                                            <img src="{{ val }}" class="bp-thumbnail" alt="Promo">
-                                        </a>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% elif val and val is string and val != '-' %}
+                                    <a href="{{ val }}" target="_blank" class="border rounded-3 overflow-hidden d-inline-block shadow-sm mt-1">
+                                        <img src="{{ val }}" class="bp-thumbnail" alt="Promo" style="width: 80px; height: 80px; object-fit: cover;">
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted fw-normal">-</span>
+                                {% endif %}
                             {% elif f.field_type == 'currency' %}
-                                <span class="fw-bold">{{ val or '€0.00' }}</span>
+                                <span class="fw-bold text-success">{{ val or '€0.00' }}</span>
                             {% elif f.field_type == 'badge_select' %}
                                 {% if val and val != '-' %}
-                                    <span class="bp-badge bp-badge-info">{{ val }}</span>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                                        {{ val }}
+                                    </span>
                                 {% else %}
-                                    <span class="text-muted">-</span>
+                                    <span class="text-muted fw-normal">-</span>
                                 {% endif %}
+                            {% elif f.field_key in ('soundcloud', 'instagram') and val and val != '-' %}
+                                <a href="{{ val }}" target="_blank" class="text-primary text-decoration-none d-inline-flex align-items-center gap-1">
+                                    <span class="text-truncate" style="max-width: 320px;">{{ val }}</span>
+                                    <i class="bi bi-box-arrow-up-right small"></i>
+                                </a>
                             {% else %}
-                                {{ val or '-' }}
+                                <span class="text-dark">{{ val or '-' }}</span>
                             {% endif %}
-                        </td>
-                    </tr>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Fallback Tabelle falls keine Kategorien vorliegen -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40%;">
+                                {% if lang == 'en' %}Agreement / Position{% else %}Vereinbarung / Position{% endif %}
+                            </th>
+                            <th style="width: 60%;">
+                                {% if lang == 'en' %}Value / Specification{% else %}Wert / Vereinbarung{% endif %}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in overview_fields %}
+                        {% set val = custom_data.get(f.field_key, '') %}
+                        <tr>
+                            <td class="fw-semibold text-secondary">
+                                {% if lang == 'en' and f.label_en %}
+                                    {{ f.label_en }}
+                                {% else %}
+                                    {{ f.label }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ val or '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
 
-        <div class="mt-4 pt-3 border-top text-muted small d-flex justify-content-between align-items-center">
-            <span>{{ event.name }} &bull; Booking Team</span>
-            <span>Stand: {{ entry.updated_at.strftime('%d.%m.%Y') if entry.updated_at else '' }}</span>
+        <!-- Dokument Footer -->
+        <div class="pt-3 mt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small">
+            <div>
+                <i class="bi bi-calendar2-check text-primary me-1"></i>
+                {% if lang == 'en' %}Status: Confirmed & Synchronized{% else %}Status: Bestätigt & Synchronisiert{% endif %}
+            </div>
+            <div>
+                &copy; {{ event.name }} &bull; {{ app_name or 'Prismateams' }}
+            </div>
         </div>
+    </div>
+
+    <!-- Footer Branding (no-print) -->
+    <div class="text-center mt-3 text-white-50 small no-print">
+        &copy; {{ event.name }} &bull; Powered by {{ app_name or 'Prismateams' }}
     </div>
 </div>
 
 </body>
 </html>
-

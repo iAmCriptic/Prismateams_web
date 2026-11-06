@@ -245,6 +245,14 @@ class BookingPersonalEntry(db.Model):
         data = self.get_custom_data()
         if field_key in data:
             return data[field_key]
+        if field_key in ('project_name', 'auftrittsname') and self.name:
+            return self.name
+        if field_key in ('mail', 'email') and self.email:
+            return self.email
+        if field_key in ('phone', 'telefonnummer') and self.phone:
+            return self.phone
+        if field_key in ('status_booking', 'status') and self.status:
+            return self.status
         if hasattr(self, field_key):
             val = getattr(self, field_key)
             if val is not None:

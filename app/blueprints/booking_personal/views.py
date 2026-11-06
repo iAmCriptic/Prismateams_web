@@ -927,3 +927,61 @@ def export_csv(event_id):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
+
+
+@booking_personal_bp.route('/event/<int:event_id>/export/xlsx')
+def export_excel(event_id):
+    """Exportiert alle Einträge der Veranstaltung als Excel-Datei (.xlsx)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = (re.sub(r'[\\/*?:\[\]]', '', event.name) or "Booking")[:31]
+
+    # Header styling
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid")
+
+    headers = [f.label for f in event.fields]
+    ws.append(headers)
+
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Data rows
+    for entry in event.entries:
+        entry.compute_formula_values(event.fields)
+        row = []
+        for f in event.fields:
+            val = entry.get_value(f.field_key, '')
+            if isinstance(val, list):
+                val = ', '.join([str(v) for v in val])
+            row.append(str(val) if val is not None else '')
+        ws.append(row)
+
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_len = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            val_str = str(cell.value or '')
+            if len(val_str) > max_len:
+                max_len = len(val_str)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 50)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"{secure_filename(event.name)}_booking_export.xlsx"
+    return Response(
+        output.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
+

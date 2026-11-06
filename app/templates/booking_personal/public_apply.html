@@ -6,195 +6,245 @@
     <title>Bewerbung / Application - {{ event.name }}</title>
     {% include 'partials/vendor_bootstrap_css.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+    {% include 'auth/_auth_bg.html' %}
     <style>
-        body {
-            background-color: var(--bs-body-bg, #f8fafc);
-            color: var(--bs-body-color, #1e293b);
-            font-family: system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
-        }
-        .apply-card {
-            max-width: 780px;
-            margin: 3rem auto;
-            background: #ffffff;
-            border-radius: 1.25rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            padding: 3rem;
-        }
-        @media (max-width: 576px) {
-            .apply-card {
-                margin: 1.25rem;
-                padding: 1.5rem;
-            }
-        }
-        .apply-header-icon {
-            width: 3.5rem;
-            height: 3.5rem;
-            border-radius: 50%;
-            background: rgba(37, 99, 235, 0.1);
-            color: #2563eb;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
-        }
-        .form-control, .form-select {
-            border-radius: 0.65rem;
-            padding: 0.65rem 0.9rem;
-            border-color: #cbd5e1;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-        }
-        .btn-submit-apply {
-            border-radius: 9999px;
-            padding: 0.75rem 2.5rem;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        :root {
+            --bp-public-bg: var(--auth-page-bg, linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%));
         }
     </style>
 </head>
-<body>
+<body class="bp-public-body">
 
-<div class="container py-4">
-    <div class="apply-card">
+<div class="bp-public-shell">
+    <!-- Portal Branding Header -->
+    <div class="bp-public-brand">
+        {% if portal_logo_filename %}
+        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
+        {% elif app_logo %}
+        <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Portal' }}" class="bp-public-brand-logo mb-2">
+        {% else %}
+        <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle shadow-sm p-3 mb-2" style="width: 58px; height: 58px;">
+            <i class="bi bi-person-badge text-primary fs-3"></i>
+        </div>
+        {% endif %}
+        <div>
+            <span class="bp-public-brand-pill">
+                <i class="bi bi-calendar2-event me-1"></i>
+                {{ app_name or 'Prismateams' }} &bull; Booking & Personal
+            </span>
+        </div>
+    </div>
+
+    <!-- Haupt-Karte -->
+    <div class="bp-public-card">
         {% if submitted %}
-        <div class="text-center py-5">
-            <div class="apply-header-icon bg-success-subtle text-success mx-auto mb-3" style="width: 4.5rem; height: 4.5rem; font-size: 2.25rem;">
-                <i class="bi bi-check-circle-fill"></i>
+        <!-- Erfolgs-Ansicht nach Absenden -->
+        <div class="text-center py-4">
+            <div class="d-inline-flex align-items-center justify-content-center bg-success-subtle text-success rounded-circle mb-3 shadow-sm" style="width: 5.5rem; height: 5.5rem; font-size: 2.75rem;">
+                <i class="bi bi-check-lg"></i>
             </div>
-            <h2 class="fw-bold mb-2">Bewerbung erfolgreich eingereicht!</h2>
-            <h5 class="text-muted fw-normal mb-4">Application successfully submitted</h5>
-            <p class="text-secondary max-w-md mx-auto mb-4" style="max-width: 520px;">
-                Vielen Dank für deine Bewerbung für <strong>{{ event.name }}</strong>. 
-                Unser Booking- und Organisationsteam prüft deine Angaben sorgfältig und meldet sich zeitnah per E-Mail bei dir.
+            <h2 class="fw-bold mb-1 text-dark">Bewerbung erfolgreich eingereicht!</h2>
+            <h5 class="text-muted fw-normal mb-3">Application successfully submitted</h5>
+            <div class="p-3 bg-light rounded-4 border mx-auto mb-4 text-start small" style="max-width: 540px;">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <strong>Vielen Dank für deine Bewerbung für {{ event.name }}.</strong><br>
+                        Deine Angaben wurden erfolgreich an unser Booking- und Organisationsteam übermittelt. Wir prüfen dein Profil sorgfältig und melden uns zeitnah per E-Mail bei dir.
+                    </div>
+                </div>
+            </div>
+            <p class="text-secondary small mb-0">
+                Bei dringenden Rückfragen wende dich bitte direkt an das Organisationsteam.
             </p>
-            <div class="p-3 bg-light rounded-3 d-inline-block text-start small border">
-                <i class="bi bi-info-circle text-primary me-2"></i>
-                Du erhältst eine Bestätigung, sobald deine Bewerbung gesichtet wurde.
-            </div>
         </div>
         {% else %}
-        <div class="text-center mb-4">
-            <div class="apply-header-icon mx-auto">
+        <!-- Formular-Kopf -->
+        <div class="text-center mb-4 pb-2 border-bottom">
+            <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-2" style="width: 3.75rem; height: 3.75rem; font-size: 1.75rem;">
                 <i class="bi bi-music-note-beamed"></i>
             </div>
+            <h2 class="fw-bold mb-1 text-dark">{{ event.name }}</h2>
             <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 mb-2">
-                Offenes Anmeldeformular / Application Form
+                Offenes Bewerbungsformular / Artist Application
             </span>
-            <h2 class="fw-bold mb-1">{{ event.name }}</h2>
-            <p class="text-muted small">
-                Bewirb dich jetzt für einen Slot oder eine Mitwirkung bei {{ event.name }}. Bitte fülle die folgenden Felder möglichst vollständig aus.
+            <p class="text-muted small mx-auto mb-1" style="max-width: 600px;">
+                Bewirb dich jetzt für einen Auftritt bei <strong>{{ event.name }}</strong>. Bitte fülle die folgenden Abschnitte möglichst vollständig aus.
             </p>
         </div>
 
         <form action="{{ url_for('booking_personal.public_apply_submit', token=event.apply_token) }}" method="POST" enctype="multipart/form-data">
-            <div class="row g-3">
-                <!-- Standard-Bewerbungsfelder falls keine externen konfiguriert sind -->
-                {% if not apply_fields %}
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Auftrittsname / Projektname <span class="text-danger">*</span></label>
-                    <input type="text" name="project_name" class="form-control" required placeholder="z. B. DJ Sunshine / Bandname">
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Ansprechpartner* Vor- / Nachname <span class="text-danger">*</span></label>
-                    <input type="text" name="contact_name" class="form-control" required placeholder="Vorname Nachname">
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">E-Mail-Adresse <span class="text-danger">*</span></label>
-                    <input type="email" name="mail" class="form-control" required placeholder="kontakt@example.com">
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Telefonnummer</label>
-                    <input type="text" name="phone" class="form-control" placeholder="+49 ...">
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Pronomen</label>
-                    <select name="pronouns" class="form-select">
-                        <option value="">-- Keine Angabe --</option>
-                        <option value="she/her">she/her</option>
-                        <option value="he/him">he/him</option>
-                        <option value="they/them">they/them</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Bereich / Genre</label>
-                    <input type="text" name="bereich" class="form-control" placeholder="z. B. DJ, Live-Act, Performance">
-                </div>
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Soundcloud / Hörproben / Web-Link</label>
-                    <input type="url" name="soundcloud" class="form-control" placeholder="https://soundcloud.com/...">
-                </div>
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Promotext / Kurzvorstellung</label>
-                    <textarea name="promotext" class="form-control" rows="3" placeholder="Erzähle kurz etwas über dich und deine Musik / Performance..."></textarea>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Promo-Bilder (Upload)</label>
-                    <input type="file" name="promo_pictures" class="form-control" accept="image/*" multiple>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Techrider / Stageplot (PDF)</label>
-                    <input type="file" name="techrider_other" class="form-control" accept=".pdf,.doc,.docx,.zip">
-                </div>
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Was du uns noch sagen möchtest...</label>
-                    <textarea name="was_du_uns_noch_sagen" class="form-control" rows="2" placeholder="Gage-Vorstellung, Reiseplanung oder sonstige Wünsche..."></textarea>
-                </div>
+            {% if fields_by_category and apply_fields %}
+                <!-- Dynamisch strukturierte Sektionen nach Kategorien -->
+                {% for category_name, cat_fields in fields_by_category.items() %}
+                <div class="bp-public-section">
+                    <div class="bp-public-section-title">
+                        {% if 'Stamm' in category_name or 'Status' in category_name or 'Kontakt' in category_name %}
+                            <i class="bi bi-person-lines-fill"></i>
+                        {% elif 'Finanz' in category_name or 'Geld' in category_name %}
+                            <i class="bi bi-cash-stack"></i>
+                        {% elif 'Hospitality' in category_name or 'Logistik' in category_name %}
+                            <i class="bi bi-cup-hot-fill"></i>
+                        {% elif 'Presse' in category_name or 'Technik' in category_name or 'Rider' in category_name %}
+                            <i class="bi bi-sliders"></i>
+                        {% else %}
+                            <i class="bi bi-folder-fill"></i>
+                        {% endif %}
+                        <span>{{ category_name }}</span>
+                    </div>
 
-                {% else %}
-                <!-- Dynamisch konfigurierte Felder der Veranstaltung -->
-                {% for f in apply_fields %}
-                <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
-                    <label class="form-label fw-semibold">
-                        {{ f.label }}
-                        {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
-                    </label>
+                    <div class="row g-3">
+                        {% for f in cat_fields %}
+                        <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
+                            <label class="form-label">
+                                {{ f.label }}
+                                {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
 
-                    {% if f.field_type == 'textarea' %}
-                        <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %}></textarea>
-                    {% elif f.field_type == 'badge_select' %}
-                        <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
-                            <option value="">-- Bitte wählen --</option>
-                            {% for opt in f.get_options() %}
-                                {% set opt_val = opt.value if opt is mapping else opt %}
-                                <option value="{{ opt_val }}">{{ opt_val }}</option>
-                            {% endfor %}
-                        </select>
-                    {% elif f.field_type == 'image_upload' %}
-                        <input type="file" name="{{ f.field_key }}" class="form-control" accept="image/*" multiple {% if f.is_required %}required{% endif %}>
-                    {% elif f.field_type == 'file_upload' %}
-                        <input type="file" name="{{ f.field_key }}" class="form-control" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required %}required{% endif %}>
-                    {% elif f.field_type in ('counter', 'number') %}
-                        <input type="number" name="{{ f.field_key }}" class="form-control" value="0" min="0" {% if f.is_required %}required{% endif %}>
-                    {% else %}
-                        <input type="text" name="{{ f.field_key }}" class="form-control" {% if f.is_required %}required{% endif %}>
-                    {% endif %}
+                            {% if f.field_type == 'textarea' %}
+                                <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %} placeholder="{{ f.help_text or '' }}"></textarea>
+                            {% elif f.field_type == 'badge_select' %}
+                                <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
+                                    <option value="">-- Bitte wählen --</option>
+                                    {% for opt in f.get_options() %}
+                                        {% set opt_val = opt.value if opt is mapping else opt %}
+                                        <option value="{{ opt_val }}">{{ opt_val }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elif f.field_type == 'image_upload' %}
+                                <div class="bp-upload-dropzone">
+                                    <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
+                                    <span class="small text-muted d-block mb-2">Bilder auswählen (PNG, JPG, WEBP)</span>
+                                    <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept="image/*" multiple {% if f.is_required %}required{% endif %}>
+                                </div>
+                            {% elif f.field_type == 'file_upload' %}
+                                <div class="bp-upload-dropzone">
+                                    <i class="bi bi-file-earmark-pdf text-danger fs-3 d-block mb-1"></i>
+                                    <span class="small text-muted d-block mb-2">Dokument auswählen (PDF, DOCX, ZIP)</span>
+                                    <input type="file" name="{{ f.field_key }}" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required %}required{% endif %}>
+                                </div>
+                            {% elif f.field_type in ('counter', 'number') %}
+                                <input type="number" name="{{ f.field_key }}" class="form-control" value="0" min="0" {% if f.is_required %}required{% endif %}>
+                            {% elif 'mail' in f.field_key or 'email' in f.field_key %}
+                                <input type="email" name="{{ f.field_key }}" class="form-control" {% if f.is_required %}required{% endif %} placeholder="kontakt@example.com">
+                            {% elif 'phone' in f.field_key or 'telefon' in f.field_key %}
+                                <input type="tel" name="{{ f.field_key }}" class="form-control" {% if f.is_required %}required{% endif %} placeholder="+49 ...">
+                            {% else %}
+                                <input type="text" name="{{ f.field_key }}" class="form-control" {% if f.is_required %}required{% endif %}>
+                            {% endif %}
 
-                    {% if f.help_text %}
-                    <div class="form-text text-muted small">{{ f.help_text }}</div>
-                    {% endif %}
+                            {% if f.help_text and f.field_type != 'textarea' %}
+                            <div class="form-text text-muted small">{{ f.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endfor %}
-                {% endif %}
-            </div>
+            {% else %}
+                <!-- Standard strukturierte Abschnitte -->
+                <div class="bp-public-section">
+                    <div class="bp-public-section-title">
+                        <i class="bi bi-person-lines-fill"></i>
+                        <span>1. Stammdaten & Ansprechpartner</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Auftrittsname / Projektname <span class="text-danger">*</span></label>
+                            <input type="text" name="project_name" class="form-control" required placeholder="z. B. DJ Sunshine / Bandname">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Ansprechpartner* Vor- / Nachname <span class="text-danger">*</span></label>
+                            <input type="text" name="contact_name" class="form-control" required placeholder="Vorname Nachname">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">E-Mail-Adresse <span class="text-danger">*</span></label>
+                            <input type="email" name="mail" class="form-control" required placeholder="kontakt@example.com">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Telefonnummer</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="+49 170 1234567">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Pronomen</label>
+                            <select name="pronouns" class="form-select">
+                                <option value="">-- Keine Angabe --</option>
+                                <option value="she/her">she/her</option>
+                                <option value="he/him">he/him</option>
+                                <option value="they/them">they/them</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Bereich / Genre</label>
+                            <input type="text" name="bereich" class="form-control" placeholder="z. B. DJ, Live-Act, Ambient, Performance">
+                        </div>
+                    </div>
+                </div>
 
-            <div class="text-center mt-5">
-                <button type="submit" class="btn btn-primary btn-submit-apply btn-lg">
-                    <i class="bi bi-send-fill me-2"></i>Bewerbung absenden / Submit Application
+                <div class="bp-public-section">
+                    <div class="bp-public-section-title">
+                        <i class="bi bi-music-note-beamed"></i>
+                        <span>2. Künstlerprofil, Medien & Socials</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Soundcloud / Web-Link / Hörproben</label>
+                            <input type="url" name="soundcloud" class="form-control" placeholder="https://soundcloud.com/...">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Promotext / Kurzvorstellung</label>
+                            <textarea name="promotext" class="form-control" rows="3" placeholder="Erzähle kurz etwas über dich und deine Musik / Performance..."></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Promo-Bilder (Upload)</label>
+                            <div class="bp-upload-dropzone">
+                                <i class="bi bi-images text-primary fs-3 d-block mb-1"></i>
+                                <span class="small text-muted d-block mb-2">Bilder auswählen</span>
+                                <input type="file" name="promo_pictures" class="form-control form-control-sm" accept="image/*" multiple>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Techrider / Stageplot (PDF)</label>
+                            <div class="bp-upload-dropzone">
+                                <i class="bi bi-file-earmark-pdf text-danger fs-3 d-block mb-1"></i>
+                                <span class="small text-muted d-block mb-2">Techrider hochladen</span>
+                                <input type="file" name="techrider_other" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.zip">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bp-public-section">
+                    <div class="bp-public-section-title">
+                        <i class="bi bi-chat-heart"></i>
+                        <span>3. Sonstiges & Bemerkungen</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Was du uns noch sagen möchtest...</label>
+                            <textarea name="was_du_uns_noch_sagen" class="form-control" rows="2" placeholder="Gage-Vorstellung, Reiseplanung oder sonstige Wünsche..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="text-center mt-4 pt-2">
+                <button type="submit" class="btn btn-primary btn-public-submit">
+                    <i class="bi bi-send-fill me-2"></i>Bewerbung absenden / Submit
                 </button>
                 <div class="text-muted small mt-2">
-                    Mit dem Absenden erklärst du dich mit der Speicherung deiner Kontaktdaten zur Vorbereitung des Events einverstanden.
+                    <i class="bi bi-shield-check me-1"></i>Mit dem Absenden erklärst du dich mit der Kontaktaufnahme zur Vorbereitung des Events einverstanden.
                 </div>
             </div>
         </form>
         {% endif %}
     </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-3 text-white-50 small">
+        &copy; {{ event.name }} &bull; Powered by {{ app_name or 'Prismateams' }}
+    </div>
 </div>
 
 </body>
 </html>
-

@@ -400,4 +400,67 @@ def test_templates_management_page_and_crud(client, app):
         assert tmpl is None
 
 
+def test_compact_toolbar_and_excel_export(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Summer OpenAir')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS[:5], db.session)
+
+        entry = BookingPersonalEntry(
+            event=event,
+            name='Live Band Awesome',
+            status='Bewerbung eingegangen'
+        )
+        entry.set_value('auftrittsname', 'Live Band Awesome')
+        entry.set_value('bereich', 'Main Stage')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+
+    # 1. Test Toolbar UI elements
+    resp = client.get(f'/booking-personal/?event_id={event_id}')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+
+    # Filter button & popup dropdown
+    assert 'id="bpFilterDropdownBtn"' in html
+    assert 'id="bpStatusFilter"' in html
+    assert 'id="bpAreaFilter"' in html
+    assert 'id="bpResetFiltersBtn"' in html
+
+    # Export dropdown with CSV & XLSX
+    assert f'/booking-personal/event/{event_id}/export' in html
+    assert f'/booking-personal/event/{event_id}/export/xlsx' in html
+
+    # Act button with split dropdown for Bewerbungslink kopieren
+    assert 'id="bpAddActBtn"' in html
+    assert 'Bewerbungslink kopieren' in html
+    assert 'Bewerbungsformular öffnen' in html
+
+    # Settings icon button
+    assert 'data-bs-target="#bpSettingsModal"' in html
+
+    # 2. Test Excel export (.xlsx)
+    resp_xlsx = client.get(f'/booking-personal/event/{event_id}/export/xlsx')
+    assert resp_xlsx.status_code == 200
+    assert resp_xlsx.mimetype == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    assert 'attachment' in resp_xlsx.headers.get('Content-Disposition', '')
+
+    import io
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(resp_xlsx.data))
+    ws = wb.active
+    assert ws is not None
+    # Check headers in row 1
+    headers = [cell.value for cell in ws[1]]
+    assert 'Auftrittsname / Projektname' in headers
+    # Check row 2 has the created act
+    row2_vals = [cell.value for cell in ws[2]]
+    assert 'Live Band Awesome' in row2_vals
+
+
+
 

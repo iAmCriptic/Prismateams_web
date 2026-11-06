@@ -9,11 +9,19 @@ from app.models.booking_personal import (
     BookingPersonalField,
     BookingPersonalFile,
 )
+from app.utils.booking_personal_presets import infer_category
 from . import booking_personal_bp
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'zip', 'doc', 'docx'}
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+
+CATEGORY_EN_MAP = {
+    'Stammdaten & Status': 'Basic Information & Status',
+    'Finanzen': 'Finances & Compensation',
+    'Hospitality & Logistik': 'Hospitality & Logistics',
+    'Presse & Technik': 'Media, Press & Technical Rider',
+}
 
 
 def _allowed_file(filename):
@@ -30,6 +38,11 @@ def public_form(token):
     external_fields = [f for f in event.fields if f.is_external]
     custom_data = entry.get_custom_data()
 
+    fields_by_category = {}
+    for f in external_fields:
+        cat = f.category or infer_category(f.field_key)
+        fields_by_category.setdefault(cat, []).append(f)
+
     submitted = request.args.get('submitted') == '1'
 
     return render_template(
@@ -37,6 +50,7 @@ def public_form(token):
         event=event,
         entry=entry,
         external_fields=external_fields,
+        fields_by_category=fields_by_category,
         custom_data=custom_data,
         submitted=submitted,
     )
@@ -134,11 +148,18 @@ def public_overview(token):
     # Berechne Formelwerte für korrekte Summen
     entry.compute_formula_values(event.fields)
 
+    fields_by_category = {}
+    for f in overview_fields:
+        cat = f.category or infer_category(f.field_key)
+        fields_by_category.setdefault(cat, []).append(f)
+
     return render_template(
         'booking_personal/public_overview.html',
         event=event,
         entry=entry,
         overview_fields=overview_fields,
+        fields_by_category=fields_by_category,
+        category_en_map=CATEGORY_EN_MAP,
         custom_data=custom_data,
         lang=lang,
     )
@@ -163,12 +184,18 @@ def public_apply(token):
             )
         ]
 
+    fields_by_category = {}
+    for f in apply_fields:
+        cat = f.category or infer_category(f.field_key)
+        fields_by_category.setdefault(cat, []).append(f)
+
     submitted = request.args.get('submitted') == '1'
 
     return render_template(
         'booking_personal/public_apply.html',
         event=event,
         apply_fields=apply_fields,
+        fields_by_category=fields_by_category,
         submitted=submitted,
     )
 
