@@ -1641,9 +1641,12 @@
         "col_status": "Status",
         "queue_title": "Queue",
         "badge_team_only": "Team only",
+        "badge_private_only": "Private only",
+        "badge_restricted": "Restricted",
         "content_access_title": "Content access",
-        "content_access_help": "Controls whether the user may see and use Public and Private areas. Without both, the user only has team access.",
+        "content_access_help": "Controls whether the user may see and use Public, Team, and Private areas.",
         "can_access_public": "Public access",
+        "can_access_team": "Team access",
         "can_access_private": "Private access"
       },
       "create_user": {
@@ -2193,6 +2196,8 @@
         "full_access_title": "Full access",
         "full_access_toggle": "Full access as default",
         "full_access_help": "New users automatically get access to all modules.",
+        "spaces_title": "Default content space access",
+        "spaces_help": "Controls which content spaces (Public, Team, Private) new users may access by default.",
         "modules_title": "Module-specific default roles",
         "modules_help": "Only used when full access is off. Select modules as pills.",
         "full_access_active_hint": "Full access is on — all modules are enabled.",

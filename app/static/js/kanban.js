@@ -484,4 +484,34 @@
   window.addEventListener('focus', function () {
     refreshBoardUnreadCounts();
   });
+
+  // Stellt sicher, dass das ⋮-Menü auf Index-Karten immer über allen Nachbarkarten & Sektionen liegt
+  document.addEventListener('show.bs.dropdown', function (e) {
+    var toggle = e.target;
+    var card = toggle.closest ? toggle.closest('.kanban-board-card') : null;
+    if (card) {
+      card.classList.add('has-dropdown-open');
+      var wrapper = card.closest('[data-board-wrapper]');
+      if (wrapper) wrapper.classList.add('has-dropdown-open');
+      var section = card.closest('.kanban-section');
+      if (section) section.classList.add('has-dropdown-open');
+    }
+  });
+
+  document.addEventListener('hidden.bs.dropdown', function (e) {
+    var toggle = e.target;
+    var card = toggle.closest ? toggle.closest('.kanban-board-card') : null;
+    if (card) {
+      card.classList.remove('has-dropdown-open');
+      var wrapper = card.closest('[data-board-wrapper]');
+      if (wrapper) wrapper.classList.remove('has-dropdown-open');
+      var section = card.closest('.kanban-section');
+      if (section) section.classList.remove('has-dropdown-open');
+    }
+    document.querySelectorAll('.has-dropdown-open').forEach(function (el) {
+      if (!el.querySelector('.dropdown-menu.show')) {
+        el.classList.remove('has-dropdown-open');
+      }
+    });
+  });
 })();

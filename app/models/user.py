@@ -65,8 +65,9 @@ class User(UserMixin, db.Model):
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
 
-    # Content space access (Public / Private sections); Team bleibt über TeamMember
+    # Content space access (Public / Team / Private sections)
     can_access_public = db.Column(db.Boolean, default=True, nullable=False)
+    can_access_team = db.Column(db.Boolean, default=True, nullable=False)
     can_access_private = db.Column(db.Boolean, default=True, nullable=False)
     
     # Password change requirement

@@ -151,6 +151,7 @@ def admin_roles_user(user_id):
         return jsonify({
             'has_full_access': user.has_full_access,
             'can_access_public': bool(getattr(user, 'can_access_public', True)),
+            'can_access_team': bool(getattr(user, 'can_access_team', True)),
             'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': module_roles,
             'booking_roles': booking_roles,
@@ -184,6 +185,7 @@ def admin_roles_user_update(user_id):
         # Aktualisiere Vollzugriff
         user.has_full_access = request.form.get('has_full_access') == 'on'
         user.can_access_public = request.form.get('can_access_public') == 'on'
+        user.can_access_team = request.form.get('can_access_team') == 'on'
         user.can_access_private = request.form.get('can_access_private') == 'on'
         
         # Liste aller Module
@@ -317,7 +319,10 @@ def admin_roles_default():
     if request.method == 'POST':
         # Sammle Standardrollen-Einstellungen
         default_roles = {
-            'full_access': request.form.get('default_full_access') == 'on'
+            'full_access': request.form.get('default_full_access') == 'on',
+            'can_access_public': request.form.get('default_can_access_public') == 'on',
+            'can_access_team': request.form.get('default_can_access_team') == 'on',
+            'can_access_private': request.form.get('default_can_access_private') == 'on',
         }
         
         # Modulspezifische Rollen (auch bei Vollzugriff mitspeichern, damit Umschalten Werte behält)
@@ -344,6 +349,9 @@ def admin_roles_default():
     raw_roles = load_default_module_roles()
     default_roles = {
         'full_access': _roles_flag_enabled(raw_roles.get('full_access', True)),
+        'can_access_public': _roles_flag_enabled(raw_roles.get('can_access_public', True)),
+        'can_access_team': _roles_flag_enabled(raw_roles.get('can_access_team', True)),
+        'can_access_private': _roles_flag_enabled(raw_roles.get('can_access_private', True)),
     }
     for module_key, _ in all_modules:
         default_roles[module_key] = _roles_flag_enabled(raw_roles.get(module_key, False))

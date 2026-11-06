@@ -27,20 +27,56 @@
   margin-left: auto;
 }
 
-/* Grid: Dropdowns nicht abschneiden / über Nachbarkarten legen */
+/* Grid: Dropdowns nicht abschneiden / über Nachbarkarten und nachfolgende Sektionen legen */
+
+.kanban-section {
+  position: relative;
+}
+
+.kanban-section:has(.dropdown-menu.show),
+.kanban-section:has([data-bs-toggle="dropdown"].show),
+.kanban-section:has(.dropdown.show),
+.kanban-section.has-dropdown-open {
+  position: relative;
+  z-index: 1200 !important;
+}
 
 .kanban-main [data-view-grid],
 .kanban-main [data-view-grid] > [class*="col-"] {
   overflow: visible;
 }
 
-.kanban-main [data-view-grid] > [class*="col-"]:has(.dropdown.show) {
+.kanban-main [data-view-grid] > [class*="col-"]:has(.dropdown-menu.show),
+.kanban-main [data-view-grid] > [class*="col-"]:has([data-bs-toggle="dropdown"].show),
+.kanban-main [data-view-grid] > [class*="col-"]:has(.dropdown.show),
+[data-board-wrapper]:has(.dropdown-menu.show),
+[data-board-wrapper]:has([data-bs-toggle="dropdown"].show),
+[data-board-wrapper]:has(.dropdown.show),
+[data-board-wrapper].has-dropdown-open {
   position: relative;
-  z-index: 1100;
+  z-index: 1200 !important;
 }
 
-.kanban-board-card:has(.dropdown.show) {
-  z-index: 1100;
+.kanban-board-card:has(.dropdown-menu.show),
+.kanban-board-card:has([data-bs-toggle="dropdown"].show),
+.kanban-board-card:has(.dropdown.show),
+.kanban-board-card.has-dropdown-open {
+  position: relative;
+  z-index: 1200 !important;
+  transform: none !important;
+}
+
+.kanban-board-card:has(.dropdown-menu.show) .kanban-grid-cover,
+.kanban-board-card:has([data-bs-toggle="dropdown"].show) .kanban-grid-cover,
+.kanban-board-card:has(.dropdown.show) .kanban-grid-cover,
+.kanban-board-card.has-dropdown-open .kanban-grid-cover {
+  transform: none !important;
+}
+
+.kanban-board-card .dropdown-menu.show,
+.mod-list-row .dropdown-menu.show,
+.kanban-section .dropdown-menu.show {
+  z-index: 1300 !important;
 }
 
 .kanban-board-actions {
@@ -80,7 +116,7 @@
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-.kanban-board-card:hover .kanban-grid-cover {
+.kanban-board-card:hover:not(:has(.dropdown-menu.show)):not(:has([data-bs-toggle="dropdown"].show)):not(:has(.dropdown.show)):not(.has-dropdown-open) .kanban-grid-cover {
   transform: scale(1.02);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
@@ -89,9 +125,15 @@
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
-.kanban-board-card:hover {
+.kanban-board-card:hover:not(:has(.dropdown-menu.show)):not(:has([data-bs-toggle="dropdown"].show)):not(:has(.dropdown.show)):not(.has-dropdown-open) {
   transform: translateY(-3px);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+}
+
+/* Verhindert, dass nachfolgende oder benachbarte Karten beim Hover über das Menü springen */
+.kanban-main:has(.dropdown-menu.show) .kanban-board-card:not(:has(.dropdown-menu.show)):hover,
+body:has(.kanban-section.has-dropdown-open) .kanban-board-card:not(.has-dropdown-open):hover {
+  transform: none !important;
 }
 
 .kanban-board-card .kanban-grid-cover .bi {
@@ -429,7 +471,7 @@ body:has(.kanban-board-page) {
   border: 1px solid var(--kanban-border, rgba(255, 255, 255, 0.15));
   border-radius: 0.85rem;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-  z-index: 1060;
+  z-index: 1050;
 }
 
 .kanban-member-menu-item {

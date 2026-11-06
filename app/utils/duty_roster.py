@@ -123,6 +123,9 @@ def can_view_team_roster(user, team_id: int) -> bool:
         return False
     if getattr(user, 'is_admin', False) or getattr(user, 'is_super_admin', False):
         return True
+    from app.utils.user_content_access import user_may_access_team
+    if not user_may_access_team(user):
+        return False
     if not is_team_section_enabled(team_id, 'duty_roster'):
         # Still allow planners/leaders to open settings even if section off? Keep strict: members need section on.
         if can_plan_team(user, team_id):

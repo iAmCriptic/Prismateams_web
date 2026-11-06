@@ -10,7 +10,7 @@
 
 {% macro board_actions_dropdown(b, manage) %}
 <div class="dropdown">
-  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
+  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-label="Aktionen" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
@@ -363,5 +363,5 @@
 </script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
-<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kanban.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

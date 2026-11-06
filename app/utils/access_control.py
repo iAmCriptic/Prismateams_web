@@ -63,7 +63,12 @@ def load_default_module_roles():
 
     setting = SystemSettings.query.filter_by(key='default_module_roles').first()
     if not setting or not setting.value:
-        return {'full_access': True}
+        return {
+            'full_access': True,
+            'can_access_public': True,
+            'can_access_team': True,
+            'can_access_private': True,
+        }
 
     try:
         data = json.loads(setting.value)
@@ -71,11 +76,27 @@ def load_default_module_roles():
         if isinstance(data, str):
             data = json.loads(data)
         if not isinstance(data, dict):
-            return {'full_access': True}
+            return {
+                'full_access': True,
+                'can_access_public': True,
+                'can_access_team': True,
+                'can_access_private': True,
+            }
+        if 'can_access_public' not in data:
+            data['can_access_public'] = True
+        if 'can_access_team' not in data:
+            data['can_access_team'] = True
+        if 'can_access_private' not in data:
+            data['can_access_private'] = True
         return data
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         logger.warning('default_module_roles ungültig, Fallback Vollzugriff: %s', exc)
-        return {'full_access': True}
+        return {
+            'full_access': True,
+            'can_access_public': True,
+            'can_access_team': True,
+            'can_access_private': True,
+        }
 
 
 def apply_default_roles_to_user(user):
@@ -87,6 +108,10 @@ def apply_default_roles_to_user(user):
         return
 
     roles = load_default_module_roles()
+
+    user.can_access_public = _roles_flag_enabled(roles.get('can_access_public', True))
+    user.can_access_team = _roles_flag_enabled(roles.get('can_access_team', True))
+    user.can_access_private = _roles_flag_enabled(roles.get('can_access_private', True))
 
     if _roles_flag_enabled(roles.get('full_access', True)):
         user.has_full_access = True
@@ -160,6 +185,12 @@ def has_module_access(user, module_key):
     # Admin/Superadmin: Vollzugriff auf aktivierte Module
     if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         return True
+
+    # Wenn der Benutzer in keinem Bereich (Public, Team, Private) dieses Moduls Zugriff hat,
+    # wird das Modul komplett ausgeblendet / verwehrt.
+    from app.utils.user_content_access import user_has_any_content_scope
+    if not user_has_any_content_scope(user, module_key):
+        return False
     
     # Prüfe ob has_full_access Spalte existiert (für Rückwärtskompatibilität)
     try:

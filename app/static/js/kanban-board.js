@@ -1991,6 +1991,9 @@
   });
 
   async function openShareModal(initialTab = 'users') {
+    const modalEl = document.getElementById('kanbanShareModal');
+    if (!modalEl) return;
+
     const shareList = document.getElementById('kanbanShareList');
     const portalList = document.getElementById('kanbanPortalUsersList');
     if (shareList) shareList.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade Freigabelinks…</td></tr>';
@@ -1998,21 +2001,44 @@
 
     if (initialTab === 'links') {
       const linksTabBtn = document.getElementById('kanbanShareTabLinksBtn');
-      if (linksTabBtn && window.bootstrap && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+      if (linksTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+          } else {
+            linksTabBtn.click();
+          }
+        } catch (_) {
+          linksTabBtn.click();
+        }
       }
     } else {
       const usersTabBtn = document.getElementById('kanbanShareTabUsersBtn');
-      if (usersTabBtn && window.bootstrap && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+      if (usersTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+          } else {
+            usersTabBtn.click();
+          }
+        } catch (_) {
+          usersTabBtn.click();
+        }
       }
     }
 
-    getModal('kanbanShareModal')?.show();
+    try {
+      getModal(modalEl)?.show();
+    } catch (_) {}
 
     loadPortalUsersShare();
     loadPublicShares();
   }
+
+  document.getElementById('kanbanShareModal')?.addEventListener('show.bs.modal', () => {
+    loadPortalUsersShare();
+    loadPublicShares();
+  });
 
   async function loadPortalUsersShare() {
     const portalList = document.getElementById('kanbanPortalUsersList');
@@ -2403,11 +2429,19 @@
     }
   });
 
-  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', () => {
+  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', (e) => {
     // Hide dropdown if open
     const dropdownToggle = document.getElementById('kanbanBoardMembers');
     if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
-      bootstrap.Dropdown.getInstance(dropdownToggle)?.hide();
+      try {
+        bootstrap.Dropdown.getOrCreateInstance(dropdownToggle).hide();
+      } catch (_) {}
+    }
+    const menu = document.getElementById('kanbanBoardMembersDropdown');
+    if (menu) menu.classList.remove('show');
+    if (dropdownToggle) {
+      dropdownToggle.classList.remove('show');
+      dropdownToggle.setAttribute('aria-expanded', 'false');
     }
     openShareModal('users');
   });

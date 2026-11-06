@@ -45,10 +45,6 @@ def get_allowed_visibilities(user=None) -> list[str]:
         allowed = [VISIBILITY_PRIVATE]
     if user is not None:
         allowed = filter_visibilities_for_user(allowed, user)
-        if not allowed:
-            return [VISIBILITY_TEAM] if (
-                is_global_team_enabled() and _setting_bool(SETTING_ALLOW_TEAM, True)
-            ) else []
     return allowed
 
 

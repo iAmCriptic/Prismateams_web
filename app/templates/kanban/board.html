@@ -41,7 +41,8 @@
             <div class="text-muted small">Lade Mitglieder…</div>
           </div>
           {% if can_manage %}
-          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn">
+          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn"
+                  data-bs-toggle="modal" data-bs-target="#kanbanShareModal">
             <i class="bi bi-person-plus me-1"></i>Freigabe & Mitglieder verwalten
           </button>
           {% endif %}
@@ -110,7 +111,9 @@
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn"
+              data-bs-toggle="modal" data-bs-target="#kanbanShareModal"
+              title="{{ _('kanban.board.share') }}">
         <i class="bi bi-person-plus" aria-hidden="true"></i>
       </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">

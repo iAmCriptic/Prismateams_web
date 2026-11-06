@@ -29,8 +29,16 @@
 {% else %}
 <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_modules') }}</span>
 {% endif %}
-{% if not item.can_access_public|default(true) or not item.can_access_private|default(true) %}
-<span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
+{% if not item.can_access_public|default(true) %}
+    {% if item.can_access_team|default(true) %}
+    <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
+    {% elif item.can_access_private|default(true) %}
+    <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.users.badge_private_only') }}</span>
+    {% else %}
+    <span class="badge rounded-pill text-bg-danger">{{ _('settings.admin.users.badge_restricted') }}</span>
+    {% endif %}
+{% elif not item.can_access_team|default(true) or not item.can_access_private|default(true) %}
+    <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_restricted') }}</span>
 {% endif %}
 {% endmacro %}
 
@@ -92,7 +100,7 @@
 </div>
 {% endif %}
 <div class="dropdown">
-    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" aria-label="{{ _('common.more_actions') }}">
         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
     </button>
     <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
@@ -159,7 +167,7 @@
 </div>
 {% endif %}
 <div class="dropdown">
-    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" aria-label="{{ _('common.more_actions') }}">
         <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
     </button>
     <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
@@ -288,7 +296,7 @@
                                             </form>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.more_actions') }}">
+                                            <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" aria-label="{{ _('common.more_actions') }}">
                                                 <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end sau-dropdown-menu">
@@ -721,6 +729,10 @@
                                 <label class="form-check-label" for="modalCanAccessPublic">{{ _('settings.admin.users.can_access_public') }}</label>
                             </div>
                             <div class="form-check form-switch settings-admin-roles-switch">
+                                <input class="form-check-input" type="checkbox" id="modalCanAccessTeam" name="can_access_team">
+                                <label class="form-check-label" for="modalCanAccessTeam">{{ _('settings.admin.users.can_access_team') }}</label>
+                            </div>
+                            <div class="form-check form-switch settings-admin-roles-switch">
                                 <input class="form-check-input" type="checkbox" id="modalCanAccessPrivate" name="can_access_private">
                                 <label class="form-check-label" for="modalCanAccessPrivate">{{ _('settings.admin.users.can_access_private') }}</label>
                             </div>
@@ -1062,6 +1074,7 @@ function loadUserRoles(userId) {
         .then(data => {
             document.getElementById('modalHasFullAccess').checked = !!data.has_full_access;
             document.getElementById('modalCanAccessPublic').checked = data.can_access_public !== false;
+            document.getElementById('modalCanAccessTeam').checked = data.can_access_team !== false;
             document.getElementById('modalCanAccessPrivate').checked = data.can_access_private !== false;
             if (data.email_permissions) {
                 document.getElementById('emailCanRead').checked = !!data.email_permissions.can_read;
@@ -1198,6 +1211,7 @@ function saveRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
     formData.append('has_full_access', fullAccess ? 'on' : '');
     formData.append('can_access_public', document.getElementById('modalCanAccessPublic').checked ? 'on' : '');
+    formData.append('can_access_team', document.getElementById('modalCanAccessTeam').checked ? 'on' : '');
     formData.append('can_access_private', document.getElementById('modalCanAccessPrivate').checked ? 'on' : '');
     // Disabled chips mitsenden (FormData liest .checked direkt)
     document.querySelectorAll('.module-checkbox').forEach(cb => { cb.disabled = false; });
@@ -1240,6 +1254,31 @@ function saveRoles() {
         adminNotify('Fehler beim Speichern der Rollen. Bitte erneut versuchen.', 'danger');
     });
 }
+
+// Stacking-Context und z-index dynamisch erhöhen, damit Dropdowns immer über allen anderen Karten/Sektionen liegen
+document.addEventListener('show.bs.dropdown', function (event) {
+    const dropdown = event.target.closest('.dropdown');
+    if (!dropdown) return;
+    const dirCard = dropdown.closest('.sp-dir-card');
+    if (dirCard) dirCard.classList.add('has-dropdown-open');
+    const col = dropdown.closest('[class*="col-"]');
+    if (col) col.classList.add('has-dropdown-open');
+    const row = dropdown.closest('.mod-list-row');
+    if (row) {
+        row.classList.add('has-dropdown-open');
+        row.querySelectorAll('td').forEach(td => td.classList.add('has-dropdown-open'));
+    }
+    const tableWrap = dropdown.closest('.mod-list-table-wrap');
+    if (tableWrap) tableWrap.classList.add('has-dropdown-open');
+    const section = dropdown.closest('.sp-group, .settings-admin-users-section');
+    if (section) section.classList.add('has-dropdown-open');
+});
+
+document.addEventListener('hidden.bs.dropdown', function (event) {
+    document.querySelectorAll('.has-dropdown-open').forEach(el => {
+        el.classList.remove('has-dropdown-open');
+    });
+});
 </script>
 
 <script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>

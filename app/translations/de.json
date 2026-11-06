@@ -1641,9 +1641,12 @@
         "col_status": "Status",
         "queue_title": "Warteschlange",
         "badge_team_only": "Nur Team",
+        "badge_private_only": "Nur Privat",
+        "badge_restricted": "Eingeschränkt",
         "content_access_title": "Inhaltszugriff",
-        "content_access_help": "Steuert, ob der Nutzer Public- und Private-Bereiche sehen und nutzen darf. Ohne beides hat der Nutzer nur Team-Zugriff.",
+        "content_access_help": "Steuert, ob der Nutzer Public-, Team- und Private-Bereiche sehen und nutzen darf.",
         "can_access_public": "Public-Zugriff",
+        "can_access_team": "Team-Zugriff",
         "can_access_private": "Private-Zugriff"
       },
       "create_user": {
@@ -1843,6 +1846,8 @@
         "full_access_title": "Vollzugriff",
         "full_access_toggle": "Vollzugriff als Standard",
         "full_access_help": "Neue Benutzer erhalten automatisch Zugriff auf alle Module.",
+        "spaces_title": "Standard-Bereichszugriff",
+        "spaces_help": "Steuert, welche Bereiche (Öffentlich, Team, Privat) neue Benutzer standardmäßig nutzen dürfen.",
         "modules_title": "Modulspezifische Standardrollen",
         "modules_help": "Nur relevant, wenn Vollzugriff aus ist. Module als Pillen auswählen.",
         "full_access_active_hint": "Vollzugriff aktiv — alle Module sind freigeschaltet.",

@@ -29,6 +29,32 @@
             </div>
         </section>
 
+        <section class="settings-admin-roles-card" aria-labelledby="roles-spaces-heading">
+            <div class="settings-admin-roles-card-head">
+                <h2 id="roles-spaces-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.spaces_title') }}</h2>
+                <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.spaces_help') }}" aria-label="{{ _('settings.admin.roles.spaces_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="settings-admin-roles-switch-stack">
+                <div class="form-check form-switch settings-admin-roles-switch">
+                    <input class="form-check-input" type="checkbox" id="default_can_access_public" name="default_can_access_public" value="on"
+                           {% if default_roles.get('can_access_public', True) %}checked{% endif %}>
+                    <label class="form-check-label" for="default_can_access_public">{{ _('settings.admin.users.can_access_public') }}</label>
+                </div>
+                <div class="form-check form-switch settings-admin-roles-switch">
+                    <input class="form-check-input" type="checkbox" id="default_can_access_team" name="default_can_access_team" value="on"
+                           {% if default_roles.get('can_access_team', True) %}checked{% endif %}>
+                    <label class="form-check-label" for="default_can_access_team">{{ _('settings.admin.users.can_access_team') }}</label>
+                </div>
+                <div class="form-check form-switch settings-admin-roles-switch">
+                    <input class="form-check-input" type="checkbox" id="default_can_access_private" name="default_can_access_private" value="on"
+                           {% if default_roles.get('can_access_private', True) %}checked{% endif %}>
+                    <label class="form-check-label" for="default_can_access_private">{{ _('settings.admin.users.can_access_private') }}</label>
+                </div>
+            </div>
+        </section>
+
         <section id="defaultModuleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modules-heading">
             <div class="settings-admin-roles-card-head">
                 <h2 id="roles-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.modules_title') }}</h2>

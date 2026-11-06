@@ -283,6 +283,7 @@ def can_view_calendar(user, calendar):
         user_bypasses_content_restrictions,
         user_may_access_private,
         user_may_access_public,
+        user_may_access_team,
     )
 
     ctype = calendar.calendar_type
@@ -304,6 +305,8 @@ def can_view_calendar(user, calendar):
     if ctype == 'team':
         if not is_calendar_team_enabled():
             return False
+        if user and not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
         return _is_team_member(user, calendar.team_id)
     return False
 
@@ -319,6 +322,7 @@ def can_create_in_calendar(user, calendar):
         user_bypasses_content_restrictions,
         user_may_access_private,
         user_may_access_public,
+        user_may_access_team,
     )
     if calendar.calendar_type == 'public':
         if not user_bypasses_content_restrictions(user) and not user_may_access_public(user):
@@ -332,6 +336,8 @@ def can_create_in_calendar(user, calendar):
         return calendar.owner_id == user.id
     if calendar.calendar_type == 'team':
         if not is_calendar_team_enabled():
+            return False
+        if not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
             return False
         return _is_team_member(user, calendar.team_id)
     return False
@@ -556,17 +562,21 @@ def participations_for_user(event_ids, user_id):
 
 
 def default_calendar_for_user(user):
-    from app.utils.user_content_access import user_may_access_private, user_may_access_public
+    from app.utils.user_content_access import (
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
 
-    if is_calendar_personal_enabled() and user and user_may_access_private(user):
-        return get_or_create_personal_calendar(user)
-    if is_calendar_team_enabled() and user:
+    if user and user_may_access_public(user):
+        return get_public_calendar()
+    if is_calendar_team_enabled() and user and user_may_access_team(user):
         teams = list_team_calendars_for_user(user)
         if teams:
             return teams[0]
-    if user and user_may_access_public(user):
-        return get_public_calendar()
-    if is_calendar_team_enabled() and user:
+    if is_calendar_personal_enabled() and user and user_may_access_private(user):
+        return get_or_create_personal_calendar(user)
+    if is_calendar_team_enabled() and user and user_may_access_team(user):
         teams = list_team_calendars_for_user(user)
         if teams:
             return teams[0]
@@ -574,10 +584,11 @@ def default_calendar_for_user(user):
 
 
 def list_writable_calendars(user):
+    from app.utils.user_content_access import user_may_access_team
     cals = []
     if is_calendar_personal_enabled() and user:
         cals.extend(list_personal_calendars(user))
-    if is_calendar_team_enabled() and user:
+    if is_calendar_team_enabled() and user and user_may_access_team(user):
         cals.extend(list_team_calendars_for_user(user))
     cals.extend(list_public_calendars())
     return [c for c in cals if can_create_in_calendar(user, c)]
@@ -585,7 +596,11 @@ def list_writable_calendars(user):
 
 def list_sidebar_calendars(user):
     """Ordered calendars for sidebar groups."""
-    from app.utils.user_content_access import user_may_access_private, user_may_access_public
+    from app.utils.user_content_access import (
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
 
     personal = None
     personals = []
@@ -597,7 +612,7 @@ def list_sidebar_calendars(user):
     publics = list_public_calendars() if allow_public else []
     public = get_public_calendar() if allow_public else None
     events_cal = get_or_create_events_calendar() if is_calendar_multi_enabled() and allow_public else None
-    teams = list_team_calendars_for_user(user) if is_calendar_team_enabled() else []
+    teams = list_team_calendars_for_user(user) if (is_calendar_team_enabled() and (not user or user_may_access_team(user))) else []
 
     reserved_ids = {c.id for c in personals}
     reserved_ids.update(c.id for c in publics)

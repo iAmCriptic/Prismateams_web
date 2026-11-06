@@ -433,11 +433,34 @@
   animation: sp-fade-up var(--sp-dur) var(--sp-ease) both;
 }
 
-/* Pill-Select-Dropdowns dürfen nicht am Kartenrand abgeschnitten werden */
+/* Pill-Select- und Action-Dropdowns dürfen nicht am Kartenrand abgeschnitten werden */
 .sp-group:has(.mod-pill-select),
 .sp-group:has(.mod-pill-select.is-open),
+.sp-group:has(.dropdown.show),
+.sp-group:has(.dropdown-menu.show),
+.sp-group.has-dropdown-open,
+.settings-admin-users-section,
+.settings-admin-users .sp-group,
+.settings-admin-teams .sp-group,
 .sp-row-control:has(.mod-pill-select) {
   overflow: visible;
+}
+
+.sp-group:has(.dropdown.show),
+.sp-group:has(.dropdown-menu.show),
+.sp-group.has-dropdown-open,
+.settings-admin-users-section:has(.dropdown.show),
+.settings-admin-users-section:has(.dropdown-menu.show),
+.settings-admin-users-section.has-dropdown-open,
+#adminUsersListPane > .sp-group:has(.dropdown.show),
+#adminUsersListPane > .sp-group:has(.dropdown-menu.show),
+#adminUsersListPane > .sp-group.has-dropdown-open,
+#adminUsersGridPane section:has(.dropdown.show),
+#adminUsersGridPane section:has(.dropdown-menu.show),
+#adminUsersGridPane section.has-dropdown-open {
+  position: relative;
+  z-index: 1200 !important;
+  overflow: visible !important;
 }
 
 .sp-group:nth-child(2) { animation-delay: 0.04s; }
@@ -2186,7 +2209,22 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   color: inherit;
   transition: border-color 0.18s var(--sp-ease), box-shadow 0.18s var(--sp-ease), transform 0.18s var(--sp-ease);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.sp-dir-card:has(.dropdown.show),
+.sp-dir-card:has(.dropdown-menu.show),
+.sp-dir-card.has-dropdown-open {
+  position: relative;
+  z-index: 1250 !important;
+  overflow: visible !important;
+}
+
+[class*="col-"]:has(.dropdown.show),
+[class*="col-"]:has(.dropdown-menu.show),
+[class*="col-"].has-dropdown-open {
+  position: relative;
+  z-index: 1250 !important;
 }
 
 a.sp-dir-card:hover {
@@ -2332,8 +2370,76 @@ a.sp-dir-card:hover {
   background: color-mix(in srgb, #dc3545 5%, transparent);
 }
 
+.sau-dropdown-menu {
+  border-radius: 1.1rem !important;
+  padding: 0.45rem !important;
+  border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+  box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.18) !important;
+  min-width: 14rem;
+  z-index: 1300 !important;
+  background-color: var(--bs-dropdown-bg, var(--sp-surface-elevated, #fff));
+}
+
+.mod-list-row:has(.dropdown.show),
+.mod-list-row:has(.dropdown-menu.show),
+.mod-list-row.has-dropdown-open,
+.mod-list-row:has(.dropdown.show) td,
+.mod-list-row:has(.dropdown-menu.show) td,
+.mod-list-row.has-dropdown-open td {
+  position: relative;
+  z-index: 1220 !important;
+}
+
+.mod-list-actions:has(.dropdown.show),
+.mod-list-actions:has(.dropdown-menu.show),
+.mod-list-actions.has-dropdown-open,
+.mod-list-actions > .dropdown.show {
+  position: relative;
+  z-index: 1230 !important;
+}
+
+.mod-list-table-wrap:has(.dropdown.show),
+.mod-list-table-wrap:has(.dropdown-menu.show),
+.mod-list-table-wrap.has-dropdown-open {
+  overflow: visible !important;
+  position: relative;
+  z-index: 1210 !important;
+}
+
 .sau-dropdown-menu form {
   margin: 0;
+}
+
+.sau-dropdown-menu .dropdown-item {
+  border-radius: var(--mod-radius-pill, 1.5rem);
+  padding: 0.5rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--bs-body-color, inherit);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sau-dropdown-menu .dropdown-item:hover,
+.sau-dropdown-menu .dropdown-item:focus {
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+  color: var(--bs-body-color, inherit);
+}
+
+.sau-dropdown-menu .dropdown-item.text-danger:hover,
+.sau-dropdown-menu .dropdown-item.text-danger:focus {
+  background: color-mix(in srgb, #dc3545 12%, transparent);
+  color: #dc3545 !important;
+}
+
+.sau-dropdown-menu .dropdown-divider {
+  margin: 0.35rem 0.55rem;
+  opacity: 0.55;
 }
 
 .sau-searchable[hidden] {
