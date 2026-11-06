@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Overview: {{ event.name }} - {{ entry.name }}</title>
+    {% include 'partials/vendor_bootstrap_css.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+</head>
+<body style="background-color: #f8fafc;">
+
+<div class="container py-4" id="bpPublicOverview">
+    <div class="bp-overview-card shadow-sm">
+        <!-- Header & Language Switcher -->
+        <div class="bp-overview-header">
+            <div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill mb-2">
+                    {% if lang == 'en' %}Confirmed Booking{% else %}Bestätigte Buchung{% endif %}
+                </span>
+                <h2 class="fw-bold mb-1">{{ event.name }}</h2>
+                <h4 class="text-primary mb-0">{{ entry.name or custom_data.get('project_name', '') }}</h4>
+            </div>
+
+            <div class="no-print d-flex align-items-center gap-2">
+                <div class="btn-group btn-group-sm">
+                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='de') }}" class="btn {% if lang == 'de' %}btn-primary{% else %}btn-outline-secondary{% endif %}">DE</a>
+                    <a href="{{ url_for('booking_personal.public_overview', token=entry.overview_token, lang='en') }}" class="btn {% if lang == 'en' %}btn-primary{% else %}btn-outline-secondary{% endif %}">EN</a>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print();" title="Drucken / PDF">
+                    <i class="bi bi-printer"></i>
+                </button>
+            </div>
+        </div>
+
+        <p class="text-muted mb-4">
+            {% if lang == 'en' %}
+            This is your confirmed artist and booking summary. All details, hospitality allocations, agreed fees, and arrival instructions are listed below.
+            {% else %}
+            Dies ist deine verbindliche Buchungs- und Auftrittsübersicht. Nachfolgend findest du alle vereinbarten Details, Hospitality-Guthaben, Gagen und Logistik-Informationen.
+            {% endif %}
+        </p>
+
+        <!-- Datentabelle der Übersicht -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40%;">
+                            {% if lang == 'en' %}Agreement / Detail{% else %}Vereinbarung / Position{% endif %}
+                        </th>
+                        <th style="width: 60%;">
+                            {% if lang == 'en' %}Value / Specification{% else %}Wert / Vereinbarung{% endif %}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in overview_fields %}
+                    {% set val = custom_data.get(f.field_key, '') %}
+                    <tr>
+                        <td class="fw-semibold text-secondary">
+                            {% if lang == 'en' and f.label_en %}
+                                {{ f.label_en }}
+                            {% else %}
+                                {{ f.label }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if f.field_type == 'image_upload' %}
+                                <div class="bp-thumbnails">
+                                    {% if val and val is iterable and val is not string %}
+                                        {% for img_path in val %}
+                                        <a href="{{ img_path }}" target="_blank">
+                                            <img src="{{ img_path }}" class="bp-thumbnail" alt="Promo">
+                                        </a>
+                                        {% endfor %}
+                                    {% elif val and val is string and val != '-' %}
+                                        <a href="{{ val }}" target="_blank">
+                                            <img src="{{ val }}" class="bp-thumbnail" alt="Promo">
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            {% elif f.field_type == 'currency' %}
+                                <span class="fw-bold">{{ val or '€0.00' }}</span>
+                            {% elif f.field_type == 'badge_select' %}
+                                {% if val and val != '-' %}
+                                    <span class="bp-badge bp-badge-info">{{ val }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            {% else %}
+                                {{ val or '-' }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 pt-3 border-top text-muted small d-flex justify-content-between align-items-center">
+            <span>{{ event.name }} &bull; Booking Team</span>
+            <span>Stand: {{ entry.updated_at.strftime('%d.%m.%Y') if entry.updated_at else '' }}</span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
+

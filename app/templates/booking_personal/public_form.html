@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Künstler-Fragebogen: {{ event.name }} - {{ entry.name or 'Angaben' }}</title>
+    {% include 'partials/vendor_bootstrap_css.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .form-card {
+            max-width: 760px;
+            margin: 2.5rem auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
+            border: 1px solid #e2e8f0;
+            padding: 2.5rem;
+        }
+        @media (max-width: 576px) {
+            .form-card {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4" id="bpPublicForm">
+    <div class="form-card">
+        <div class="text-center mb-4">
+            <span class="badge bg-primary px-3 py-2 rounded-pill mb-2">Fragebogen / Hospitality</span>
+            <h2 class="fw-bold">{{ event.name }}</h2>
+            <p class="text-muted">Hallo <strong>{{ entry.name or 'Act' }}</strong>, bitte fülle die folgenden Angaben sorgfältig aus, damit wir deinen Auftritt optimal vorbereiten können.</p>
+        </div>
+
+        {% if submitted %}
+        <div class="alert alert-success text-center py-4">
+            <i class="bi bi-check-circle-fill text-success display-4 d-block mb-3"></i>
+            <h4 class="alert-heading fw-bold">Vielen Dank für deine Angaben!</h4>
+            <p class="mb-0">Deine Antworten und Anhänge wurden erfolgreich an das Booking-Team übermittelt.</p>
+        </div>
+        {% else %}
+        <form action="{{ url_for('booking_personal.public_form_submit', token=entry.form_token) }}" method="POST" enctype="multipart/form-data">
+            <div class="row g-3">
+                {% for f in external_fields %}
+                {% set val = custom_data.get(f.field_key, '') %}
+                <div class="col-12 {% if f.field_type not in ('textarea', 'file_upload', 'image_upload') %}col-md-6{% endif %}">
+                    <label class="form-label fw-semibold">
+                        {{ f.label }}
+                        {% if f.is_required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+
+                    {% if f.field_type == 'textarea' %}
+                        <textarea name="{{ f.field_key }}" class="form-control" rows="3" {% if f.is_required %}required{% endif %}>{{ val }}</textarea>
+                    {% elif f.field_type == 'badge_select' %}
+                        <select name="{{ f.field_key }}" class="form-select" {% if f.is_required %}required{% endif %}>
+                            <option value="">-- Bitte wählen --</option>
+                            {% for opt in f.get_options() %}
+                                {% set opt_val = opt.value if opt is mapping else opt %}
+                                <option value="{{ opt_val }}" {% if opt_val == val %}selected{% endif %}>{{ opt_val }}</option>
+                            {% endfor %}
+                        </select>
+                    {% elif f.field_type == 'image_upload' %}
+                        <input type="file" name="{{ f.field_key }}" class="form-control" accept="image/*" multiple {% if f.is_required and not val %}required{% endif %}>
+                        {% if val %}
+                        <div class="mt-2 d-flex gap-2">
+                            {% if val is iterable and val is not string %}
+                                {% for img_path in val %}
+                                <img src="{{ img_path }}" class="bp-thumbnail" alt="Upload">
+                                {% endfor %}
+                            {% else %}
+                                <img src="{{ val }}" class="bp-thumbnail" alt="Upload">
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% elif f.field_type == 'file_upload' %}
+                        <input type="file" name="{{ f.field_key }}" class="form-control" accept=".pdf,.doc,.docx,.zip" multiple {% if f.is_required and not val %}required{% endif %}>
+                        {% if val %}
+                        <div class="form-text text-success"><i class="bi bi-file-earmark-check me-1"></i>Datei bereits hinterlegt</div>
+                        {% endif %}
+                    {% elif f.field_type in ('counter', 'number') %}
+                        <input type="number" name="{{ f.field_key }}" class="form-control" value="{{ val or '0' }}" min="0" {% if f.is_required %}required{% endif %}>
+                    {% else %}
+                        <input type="text" name="{{ f.field_key }}" class="form-control" value="{{ val }}" {% if f.is_required %}required{% endif %}>
+                    {% endif %}
+
+                    {% if f.help_text %}
+                    <div class="form-text text-muted small">{{ f.help_text }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="text-center mt-5">
+                <button type="submit" class="btn btn-primary btn-lg px-5">
+                    <i class="bi bi-check2-circle me-1"></i>Angaben verbindlich absenden
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>
+

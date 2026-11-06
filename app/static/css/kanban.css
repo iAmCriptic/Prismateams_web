@@ -1781,15 +1781,18 @@ body:has(.kanban-board-page) {
 }
 
 .kanban-notifications-panel {
-  width: min(390px, calc(100vw - 2rem)) !important;
-  max-height: min(80vh, 560px);
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(650px, calc(100vw - 2rem)) !important;
+  min-height: min(460px, calc(100vh - 6rem));
+  max-height: min(85vh, 780px);
   background: var(--kanban-panel-bg, #ffffff) !important;
   color: var(--kanban-text, #1e293b);
   border: 1px solid var(--kanban-border, rgba(0, 0, 0, 0.12)) !important;
   border-radius: 1.25rem !important;
   box-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.16) !important;
   overflow: hidden;
-  margin-top: 0.5rem !important;
+  margin: 0 !important;
   padding: 0 !important;
   z-index: 1060;
 }
@@ -1822,7 +1825,9 @@ body:has(.kanban-board-page) {
 }
 
 .kanban-notifications-feed {
-  max-height: min(65vh, 440px);
+  flex: 1 1 auto;
+  min-height: 340px;
+  max-height: min(72vh, 640px);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.85rem !important;
@@ -1865,7 +1870,7 @@ body:has(.kanban-board-page) {
 }
 
 .kanban-notif-card.is-unread {
-  border-left: 3.5px solid var(--bs-primary, #0d6efd) !important;
+  border-left: 3.5px solid var(--accent-color, var(--bs-primary)) !important;
   background: rgba(13, 110, 253, 0.03);
 }
 
@@ -1898,7 +1903,7 @@ body:has(.kanban-board-page) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--bs-primary, #0d6efd);
+  background-color: var(--accent-color, var(--bs-primary));
   flex-shrink: 0;
   margin-top: 4px;
 }

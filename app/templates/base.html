@@ -10,15 +10,16 @@
 {% set _theme_dark = false %}{% set _theme_oled = false %}
 {% endif %}
 <!DOCTYPE html>
-<html lang="{{ current_language or 'de' }}"
-      data-bs-theme="{{ 'dark' if _theme_dark else 'light' }}"
-      {% if _theme_oled %}data-oled-mode="true"{% endif %}
-      {% if current_user.is_authenticated %}data-preferred-layout="{{ (current_user.preferred_layout if current_user.preferred_layout is defined else 'auto') or 'auto' }}"{% endif %}>
+<html lang="{{ current_language or 'de' }}" data-bs-theme="{{ 'dark' if _theme_dark else 'light' }}" {% if _theme_oled
+    %}data-oled-mode="true" {% endif %} {% if current_user.is_authenticated
+    %}data-preferred-layout="{{ (current_user.preferred_layout if current_user.preferred_layout is defined else 'auto') or 'auto' }}"
+    {% endif %}>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ app_name or 'Prismateams' }}{% endblock %}</title>
-    
+
     <!-- PWA Meta Tags -->
     <meta name="description" content="{{ _('layout.meta.description') }}">
     <meta name="robots" content="{{ robots_meta|default('noindex, nofollow') }}">
@@ -40,7 +41,7 @@
     <meta name="apple-mobile-web-app-title" content="{{ app_name or 'Prismateams' }}">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+
     <!-- Favicon -->
     {% if portal_logo_filename %}
     <link rel="icon" type="image/png" href="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}">
@@ -52,82 +53,98 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo.png') }}">
     {% endif %}
-    
+
     <!-- Web App Manifest -->
     <link rel="manifest" href="{{ url_for('manifest') }}">
 
     {% include 'partials/vendor_bootstrap_css.html' %}
     <link rel="stylesheet" href="{{ url_for('core_css') }}">
-    
+
     <!-- Page-specific CSS -->
     {% if request.args.get('embed') or request.form.get('embed') %}
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
     {% endif %}
     {% if request.endpoint %}
-        {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-            {% if request.endpoint.startswith('settings.booking_') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
-            {% endif %}
-        {% elif request.endpoint.startswith('auth.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
-        {% elif request.endpoint.startswith('chat.') or 'chat' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
-        {% elif request.endpoint.startswith('events.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
-        {% elif request.endpoint.startswith('calendar.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
-        {% elif request.endpoint.startswith('files.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
-        {% elif request.endpoint.startswith('credentials.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
-        {% elif request.endpoint.startswith('manuals.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
-        {% elif request.endpoint.startswith('email.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
-        {% elif request.endpoint.startswith('contacts.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
-        {% elif request.endpoint.startswith('booking.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
-        {% elif request.endpoint.startswith('setup.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-        {% elif request.endpoint.startswith('errors.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
-        {% elif request.endpoint.startswith('inventory.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
-        {% elif request.endpoint.startswith('wiki.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
-        {% elif request.endpoint.startswith('excalidraw.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
-        {% elif request.endpoint.startswith('shortlinks.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
-        {% elif request.endpoint.startswith('kanban.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/kanban.css') }}">
-        {% elif request.endpoint.startswith('music.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
-        {% elif request.endpoint.startswith('media_downloader.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}">
-        {% elif request.endpoint.startswith('file_converter.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/file_converter.css') }}">
-        {% elif request.endpoint.startswith('assessment.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
-        {% elif request.endpoint.startswith('surveys.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
-        {% elif request.endpoint.startswith('protocols.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/protocols.css') }}">
-        {% elif request.endpoint.startswith('meetings.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/meetings.css') }}">
-        {% elif request.endpoint.startswith('dashboard.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-        {% endif %}
+    {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+    {% if request.endpoint.startswith('settings.booking_') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
     {% endif %}
-    {% if current_user.is_authenticated and not (request.endpoint and request.endpoint.startswith('setup.')) and not (request.args.get('embed') or request.form.get('embed')) %}
+    {% elif request.endpoint.startswith('auth.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    {% elif request.endpoint.startswith('chat.') or 'chat' in request.endpoint %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    {% elif request.endpoint.startswith('events.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
+    {% elif request.endpoint.startswith('calendar.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
+    {% elif request.endpoint.startswith('files.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+    {% elif request.endpoint.startswith('credentials.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
+    {% elif request.endpoint.startswith('manuals.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
+    {% elif request.endpoint.startswith('email.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
+    {% elif request.endpoint.startswith('contacts.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
+    {% elif request.endpoint.startswith('booking_personal.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+    {% elif request.endpoint.startswith('booking.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+    {% elif request.endpoint.startswith('setup.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+    {% elif request.endpoint.startswith('errors.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
+    {% elif request.endpoint.startswith('inventory.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+    {% elif request.endpoint.startswith('wiki.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
+    {% elif request.endpoint.startswith('excalidraw.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/excalidraw.css') }}">
+    {% elif request.endpoint.startswith('shortlinks.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shortlinks.css') }}">
+    {% elif request.endpoint.startswith('kanban.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/kanban.css') }}">
+    {% elif request.endpoint.startswith('music.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
+    {% elif request.endpoint.startswith('media_downloader.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}">
+    {% elif request.endpoint.startswith('file_converter.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/file_converter.css') }}">
+    {% elif request.endpoint.startswith('assessment.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
+    {% elif request.endpoint.startswith('surveys.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/surveys.css') }}">
+    {% elif request.endpoint.startswith('protocols.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/protocols.css') }}">
+    {% elif request.endpoint.startswith('meetings.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/meetings.css') }}">
+    {% elif request.endpoint.startswith('dashboard.') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    {% endif %}
+    {% endif %}
+    {% if current_user.is_authenticated and not (request.endpoint and request.endpoint.startswith('setup.')) and not
+    (request.args.get('embed') or request.form.get('embed')) %}
     <style>
         :root {
-            --accent-color: {{ current_user.accent_highlight_color }};
-            --accent-style: {{ current_user.accent_style }};
+            --accent-color: {
+                    {
+                    current_user.accent_highlight_color
+                }
+            }
+
+            ;
+
+            --accent-style: {
+                    {
+                    current_user.accent_style
+                }
+            }
+
+            ;
         }
-        
+
         /* Avatar-Kreise verwenden Akzentfarbe/Gradient und SIND RUND */
         .email-avatar .avatar-circle,
         .email-avatar .avatar-circle-mobile,
@@ -147,139 +164,164 @@
             border-bottom-left-radius: 50% !important;
             border-bottom-right-radius: 50% !important;
         }
-        .btn-primary, .badge.bg-primary {
+
+        .btn-primary,
+        .badge.bg-primary {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
         }
+
         .btn-outline-primary {
             border-color: var(--accent-color) !important;
             color: var(--accent-color) !important;
         }
+
         .btn-outline-primary:hover {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
         }
-        
+
         /* Outline Secondary Buttons */
         .btn-outline-secondary {
             border-color: var(--accent-color) !important;
             color: var(--accent-color) !important;
         }
+
         .btn-outline-secondary:hover {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
         }
-        
+
         /* Secondary Buttons */
         .btn-secondary {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
         }
+
         .btn-secondary:hover {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
             opacity: 0.9;
         }
-        
+
         /* Outline Warning Buttons */
         .btn-outline-warning {
             border-color: var(--accent-color) !important;
             color: var(--accent-color) !important;
         }
+
         .btn-outline-warning:hover {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
         }
+
         .text-primary {
             color: var(--accent-color) !important;
         }
+
         /* Override Bootstrap primary colors */
-        .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+        .btn-primary:hover,
+        .btn-primary:focus,
+        .btn-primary:active {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
             opacity: 0.9;
         }
+
         /* Navigation active states */
         .nav-link.active {
             color: var(--accent-color) !important;
             background-color: transparent !important;
         }
+
         /* Mobile navigation active */
         .mobile-nav .nav-link.active {
             color: var(--accent-color) !important;
             background-color: transparent !important;
         }
-        
+
         .mobile-nav .nav-link.active i {
             background: var(--accent-style) !important;
             -webkit-background-clip: text !important;
             -webkit-text-fill-color: transparent !important;
             background-clip: text !important;
         }
+
         .mobile-nav-home-fab {
             background: var(--accent-style) !important;
         }
+
         .mobile-nav-home-fab.active {
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
         }
+
         /* Desktop sidebar active */
         .sidebar .nav-link.active {
             color: var(--accent-color) !important;
             background-color: transparent !important;
         }
-        
+
         .sidebar .nav-link.active i {
             background: var(--accent-style) !important;
             -webkit-background-clip: text !important;
             -webkit-text-fill-color: transparent !important;
             background-clip: text !important;
         }
-        
+
         .sidebar .nav-link.active {
             background: var(--accent-style) !important;
             -webkit-background-clip: text !important;
             -webkit-text-fill-color: transparent !important;
             background-clip: text !important;
         }
+
         .module-launcher-item.is-current .module-launcher-icon {
             color: var(--accent-color) !important;
             background: color-mix(in srgb, var(--accent-color) 16%, transparent);
         }
+
         /* Form controls */
         .form-control:focus {
             border-color: var(--accent-color) !important;
             box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
         }
+
         .form-select:focus {
             border-color: var(--accent-color) !important;
             box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
         }
+
         /* Progress bars */
         .progress-bar {
             background: var(--accent-style) !important;
         }
+
         /* Pagination */
         .page-link {
             color: var(--accent-color) !important;
         }
+
         .page-link:hover {
             background-color: var(--accent-color) !important;
             border-color: var(--accent-color) !important;
             color: white !important;
         }
+
         .page-item.active .page-link {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;
         }
+
         /* Gradient support for elements that should use gradients */
         .accent-gradient {
             background: var(--accent-style) !important;
         }
+
         .accent-gradient-text {
             background: var(--accent-style);
             -webkit-background-clip: text;
@@ -288,64 +330,55 @@
         }
     </style>
     {% endif %}
-    
+
     {% block extra_css %}{% endblock %}
 </head>
-<body{% if _assess_scope %} class="assessment-scope-solo"{% elif force_light_theme %} class="auth-scope"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif _is_meetings_call %} class="meetings-call-scope embed-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
+<body{% if _assess_scope %} class="assessment-scope-solo" {% elif force_light_theme %} class="auth-scope" {% elif
+    request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope" {% elif _is_meetings_call %}
+    class="meetings-call-scope embed-scope" {% elif request.args.get('embed') or request.form.get('embed') %}
+    class="embed-scope" {% endif %}>
     {% set _is_setup = request.endpoint and request.endpoint.startswith('setup.') %}
     {% set _is_embed = request.args.get('embed') or request.form.get('embed') or _is_meetings_call %}
     {# Standalone auth pages (login/register/confirm-email/…) — no app chrome even when logged in #}
     {% set _is_auth_shell = force_light_theme|default(false) %}
-    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell %}
-    {% from "partials/desktop_top_nav.html" import top_nav_brand, top_nav_actions, top_nav_favorites_rail, top_nav_shared_panels with context %}
+    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed and not _is_auth_shell
+    %}
+    {% from "partials/desktop_top_nav.html" import top_nav_brand, top_nav_actions, top_nav_favorites_rail,
+    top_nav_shared_panels with context %}
     <!-- Mobile Bottom Navigation -->
-    <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
+    <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}"
+        id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
             <div class="mobile-nav-favorites" id="mobileNavFavorites">
                 {% set _current_key = current_nav_module.key if current_nav_module else '' %}
                 {% for item in (desktop_nav_favorites or [])[:5] %}
                 <a href="{{ item.url }}"
-                   class="mobile-nav-favorite-link{% if _current_key == item.key %} active{% endif %}"
-                   data-nav-id="{{ item.key }}"
-                   data-nav-tip
-                   aria-label="{{ _(item.label_key) }}"
-                   title="{{ _(item.label_key) }}">
+                    class="mobile-nav-favorite-link{% if _current_key == item.key %} active{% endif %}"
+                    data-nav-id="{{ item.key }}" data-nav-tip aria-label="{{ _(item.label_key) }}"
+                    title="{{ _(item.label_key) }}">
                     <i class="bi {{ item.icon }}" aria-hidden="true"></i>
                 </a>
                 {% endfor %}
             </div>
             <div class="mobile-nav-actions">
                 <button type="button"
-                        class="mobile-nav-action-btn notification-bell-btn border-0 bg-transparent position-relative"
-                        id="notificationBellBtnMobile"
-                        data-nav-tip
-                        aria-label="{{ _('layout.notification_center.open') }}"
-                        title="{{ _('layout.notification_center.open') }}">
+                    class="mobile-nav-action-btn notification-bell-btn border-0 bg-transparent position-relative"
+                    id="notificationBellBtnMobile" data-nav-tip aria-label="{{ _('layout.notification_center.open') }}"
+                    title="{{ _('layout.notification_center.open') }}">
                     <i class="bi bi-bell" aria-hidden="true"></i>
                     <span class="badge rounded-pill bg-danger notification-badge d-none">0</span>
                 </button>
-                <button type="button"
-                        class="mobile-nav-action-btn"
-                        data-launcher-toggle
-                        data-nav-tip
-                        aria-label="{{ _('layout.launcher.open') }}"
-                        title="{{ _('layout.launcher.open') }}"
-                        aria-expanded="false"
-                        aria-haspopup="true"
-                        aria-controls="moduleLauncherPanel">
+                <button type="button" class="mobile-nav-action-btn" data-launcher-toggle data-nav-tip
+                    aria-label="{{ _('layout.launcher.open') }}" title="{{ _('layout.launcher.open') }}"
+                    aria-expanded="false" aria-haspopup="true" aria-controls="moduleLauncherPanel">
                     <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
                 </button>
-                <button type="button"
-                        class="mobile-nav-action-btn mobile-nav-avatar-btn"
-                        data-account-toggle
-                        data-nav-tip
-                        aria-label="{{ _('layout.account.open') }}"
-                        title="{{ _('layout.account.open') }}"
-                        aria-expanded="false"
-                        aria-haspopup="true"
-                        aria-controls="accountPopup">
+                <button type="button" class="mobile-nav-action-btn mobile-nav-avatar-btn" data-account-toggle
+                    data-nav-tip aria-label="{{ _('layout.account.open') }}" title="{{ _('layout.account.open') }}"
+                    aria-expanded="false" aria-haspopup="true" aria-controls="accountPopup">
                     {% if current_user.profile_picture %}
-                    <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" class="top-navbar-avatar">
+                    <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt=""
+                        class="top-navbar-avatar">
                     {% else %}
                     <i class="bi bi-person-circle top-navbar-avatar-fallback" aria-hidden="true"></i>
                     {% endif %}
@@ -356,60 +389,64 @@
 
     <header class="d-none d-lg-flex top-navbar" id="desktopTopNav">
         {{ top_nav_brand() }}
-        <div class="top-navbar-search" role="search" aria-label="{{ _('layout.search.slot_label') }}">{% block navbar_search %}{% endblock %}</div>
+        <div class="top-navbar-search" role="search" aria-label="{{ _('layout.search.slot_label') }}">{% block
+            navbar_search %}{% endblock %}</div>
         {{ top_nav_actions() }}
     </header>
     {{ top_nav_favorites_rail() }}
     {{ top_nav_shared_panels() }}
     {% endif %}
 
-    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed and not _is_auth_shell %}
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not
+    _is_embed and not _is_auth_shell %}
     {% include 'partials/notification_center.html' %}
     {% endif %}
 
     <!-- Main Content -->
-    <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed and not _is_auth_shell %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
+    <main
+        class="{% if current_user.is_authenticated and not _is_setup and not _is_embed and not _is_auth_shell %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
         <div class="container-fluid{% if not _is_setup and not _is_embed and not _is_auth_shell %} py-3{% endif %}">
             <!-- Flash / App Banner Messages (fixed overlay — does not push content) -->
             <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true">
                 {% block portal_alerts %}{% endblock %}
                 {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                        {% set cat_raw = (category or 'info')|lower %}
-                        {% if cat_raw in ['error', 'danger'] %}
-                            {% set cat = 'danger' %}
-                            {% set icon = 'bi-exclamation-circle-fill' %}
-                        {% elif cat_raw == 'success' %}
-                            {% set cat = 'success' %}
-                            {% set icon = 'bi-check-circle-fill' %}
-                        {% elif cat_raw == 'warning' %}
-                            {% set cat = 'warning' %}
-                            {% set icon = 'bi-exclamation-triangle-fill' %}
-                        {% else %}
-                            {% set cat = 'info' %}
-                            {% set icon = 'bi-info-circle-fill' %}
-                        {% endif %}
-                        <div class="alert portal-msg portal-msg--{{ cat }} fade show" role="alert">
-                            <div class="portal-msg__body">
-                                <div class="portal-msg__icon" aria-hidden="true">
-                                    <i class="bi {{ icon }}"></i>
-                                </div>
-                                <div class="portal-msg__content">
-                                    <p class="portal-msg__text">{{ message }}</p>
-                                    <div class="portal-msg__actions">
-                                        <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" data-bs-dismiss="alert">
-                                            {{ _('common.close') }}
-                                        </button>
-                                    </div>
-                                </div>
+                {% if messages %}
+                {% for category, message in messages %}
+                {% set cat_raw = (category or 'info')|lower %}
+                {% if cat_raw in ['error', 'danger'] %}
+                {% set cat = 'danger' %}
+                {% set icon = 'bi-exclamation-circle-fill' %}
+                {% elif cat_raw == 'success' %}
+                {% set cat = 'success' %}
+                {% set icon = 'bi-check-circle-fill' %}
+                {% elif cat_raw == 'warning' %}
+                {% set cat = 'warning' %}
+                {% set icon = 'bi-exclamation-triangle-fill' %}
+                {% else %}
+                {% set cat = 'info' %}
+                {% set icon = 'bi-info-circle-fill' %}
+                {% endif %}
+                <div class="alert portal-msg portal-msg--{{ cat }} fade show" role="alert">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi {{ icon }}"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text">{{ message }}</p>
+                            <div class="portal-msg__actions">
+                                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close"
+                                    data-bs-dismiss="alert">
+                                    {{ _('common.close') }}
+                                </button>
                             </div>
                         </div>
-                        {% endfor %}
-                    {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
                 {% endwith %}
             </div>
-            
+
             <!-- Page Content -->
             {% block content %}{% endblock %}
         </div>
@@ -418,33 +455,37 @@
     {% include 'partials/pt_dialogs.html' %}
 
     {% include 'partials/vendor_bootstrap_js.html' %}
-    
+
     <!-- Custom JS -->
     <script>
-    window.PRISMATEAMS_I18N = window.PRISMATEAMS_I18N || {};
-    window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{ (
-        request.endpoint and (
-            request.endpoint.startswith('files.public_share') or
+        window.PRISMATEAMS_I18N = window.PRISMATEAMS_I18N || {};
+        window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{
+            (
+                request.endpoint and(
+                    request.endpoint.startswith('files.public_share') or
             request.endpoint.startswith('files.dropbox_') or
             request.endpoint.startswith('auth.')
-        )
-    ) | tojson }};
-    {# P23: nur kritische Dialog-Keys inline; PWA/Context-Menü lazy via /api/i18n/packs #}
-    window.PRISMATEAMS_I18N.common = {{ {
-        'cancel': _('common.cancel'),
-        'delete': _('common.delete'),
-        'confirm': _('common.confirm'),
-        'close': _('common.close'),
-        'confirm_delete_title': _('common.confirm_delete_title'),
-        'confirm_delete_default': _('common.confirm_delete_default')
-    } | tojson }};
-    window.PRISMATEAMS_I18N_PACKS_URL = {{ url_for('api.i18n_packs')|tojson }};
+                )
+    ) | tojson
+        }};
+        {# P23: nur kritische Dialog - Keys inline; PWA / Context - Menü lazy via / api / i18n / packs # }
+        window.PRISMATEAMS_I18N.common = {{
+            {
+                'cancel': _('common.cancel'),
+                    'delete': _('common.delete'),
+                        'confirm': _('common.confirm'),
+                            'close': _('common.close'),
+                                'confirm_delete_title': _('common.confirm_delete_title'),
+                                    'confirm_delete_default': _('common.confirm_delete_default')
+            } | tojson
+        }};
+        window.PRISMATEAMS_I18N_PACKS_URL = {{ url_for('api.i18n_packs') | tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
     <script>
-    window.PT_DASHBOARD_SSE_URL = {{ (url_for('sse.dashboard_events') if config.REDIS_ENABLED else '')|tojson }};
+        window.PT_DASHBOARD_SSE_URL = {{ (url_for('sse.dashboard_events') if config.REDIS_ENABLED else '')| tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
     <script src="{{ url_for('static', filename='js/module-launcher.js') }}"></script>
@@ -458,8 +499,6 @@
     {% endif %}
 
     {% block extra_js %}{% endblock %}
-</body>
+    </body>
+
 </html>
-
-
-

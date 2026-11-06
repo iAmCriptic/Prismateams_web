@@ -210,6 +210,7 @@ def admin_roles_user_update(user_id):
             'module_protocols',
             'module_meetings',
             'module_duty_roster',
+            'module_booking_personal',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -310,6 +311,7 @@ def admin_roles_default():
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
+        ('module_booking_personal', 'Booking / Personal'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

@@ -78,6 +78,13 @@ from .duty_roster import (
     DutyRosterPlanner,
     DutyTimeEntry,
 )
+from .booking_personal import (
+    BookingPersonalEvent,
+    BookingPersonalField,
+    BookingPersonalEntry,
+    BookingPersonalFile,
+    BookingPersonalTemplate,
+)
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -148,6 +155,8 @@ __all__ = [
     'Meeting', 'MeetingInvite',
     'DutyRoster', 'DutyRosterDay', 'DutyRosterColumn', 'DutyRosterEntry',
     'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
+    'BookingPersonalEvent', 'BookingPersonalField', 'BookingPersonalEntry',
+    'BookingPersonalFile', 'BookingPersonalTemplate',
 ]
 
 

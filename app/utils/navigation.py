@@ -24,6 +24,7 @@ MOBILE_NAV_SLOT_KEYS = (
     'file_converter',
     'meetings',
     'duty_roster',
+    'booking_personal',
 )
 
 MOBILE_NAV_DEFAULT_SLOTS = {
@@ -57,6 +58,7 @@ DESKTOP_NAV_ORDER = (
     'assessment',
     'meetings',
     'duty_roster',
+    'booking_personal',
 )
 
 NAV_LINK_REGISTRY = {
@@ -220,6 +222,14 @@ NAV_LINK_REGISTRY = {
         'label_key': 'layout.nav.duty_roster',
         'module': 'module_duty_roster',
         'active_prefix': 'duty_roster',
+        'in_launcher': True,
+    },
+    'booking_personal': {
+        'endpoint': 'booking_personal.index',
+        'icon': 'bi-person-badge',
+        'label_key': 'layout.nav.booking_personal',
+        'module': 'module_booking_personal',
+        'active_prefix': 'booking_personal',
         'in_launcher': True,
     },
     'media_downloader': {

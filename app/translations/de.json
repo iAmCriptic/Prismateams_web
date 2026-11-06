@@ -36,7 +36,8 @@
       "file_converter": "Dateikonverter",
       "protocols": "Protokollführung",
       "meetings": "Meetings",
-      "duty_roster": "Dienstplan"
+      "duty_roster": "Dienstplan",
+      "booking_personal": "Booking / Personal"
     },
     "brand": {
       "separator": "–",

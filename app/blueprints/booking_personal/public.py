@@ -1,0 +1,145 @@
+import os
+from datetime import datetime
+from flask import render_template, request, jsonify, flash, redirect, url_for, current_app, abort
+from werkzeug.utils import secure_filename
+from app import db
+from app.models.booking_personal import (
+    BookingPersonalEvent,
+    BookingPersonalEntry,
+    BookingPersonalField,
+    BookingPersonalFile,
+)
+from . import booking_personal_bp
+
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'zip', 'doc', 'docx'}
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+
+
+def _allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@booking_personal_bp.route('/form/<token>', methods=['GET'])
+def public_form(token):
+    """Öffentliches Künstler-Formular für einen Act."""
+    entry = BookingPersonalEntry.query.filter_by(form_token=token).first_or_404()
+    event = entry.event
+
+    # Alle extern ausfüllbaren Felder
+    external_fields = [f for f in event.fields if f.is_external]
+    custom_data = entry.get_custom_data()
+
+    submitted = request.args.get('submitted') == '1'
+
+    return render_template(
+        'booking_personal/public_form.html',
+        event=event,
+        entry=entry,
+        external_fields=external_fields,
+        custom_data=custom_data,
+        submitted=submitted,
+    )
+
+
+@booking_personal_bp.route('/form/<token>/submit', methods=['POST'])
+def public_form_submit(token):
+    """Verarbeitet die Antworten des externen Künstler-Formulars."""
+    entry = BookingPersonalEntry.query.filter_by(form_token=token).first_or_404()
+    event = entry.event
+
+    external_fields = [f for f in event.fields if f.is_external]
+    custom_data = entry.get_custom_data()
+
+    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'booking_personal', str(event.id))
+    os.makedirs(upload_dir, exist_ok=True)
+
+    for field in external_fields:
+        f_key = field.field_key
+        f_type = field.field_type
+
+        if f_type in ('file_upload', 'image_upload'):
+            # Prüfe ob Datei hochgeladen wurde
+            files = request.files.getlist(f_key)
+            uploaded_paths = custom_data.get(f_key, [])
+            if not isinstance(uploaded_paths, list):
+                uploaded_paths = [uploaded_paths] if uploaded_paths else []
+
+            for file_item in files:
+                if file_item and file_item.filename and _allowed_file(file_item.filename):
+                    filename = secure_filename(f"{entry.id}_{f_key}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}")
+                    save_path = os.path.join(upload_dir, filename)
+                    file_item.save(save_path)
+                    rel_url = f"/uploads/booking_personal/{event.id}/{filename}"
+                    uploaded_paths.append(rel_url)
+
+                    is_img = file_item.filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
+                    db_file = BookingPersonalFile(
+                        entry_id=entry.id,
+                        field_key=f_key,
+                        file_path=rel_url,
+                        file_name=file_item.filename,
+                        is_image=is_img,
+                        mime_type=file_item.mimetype,
+                    )
+                    db.session.add(db_file)
+
+            if uploaded_paths:
+                custom_data[f_key] = uploaded_paths
+        else:
+            val = request.form.get(f_key)
+            if val is not None:
+                custom_data[f_key] = val.strip()
+
+    # Aktualisiere Basis-Felder falls im Formular
+    if 'contact_name' in custom_data and custom_data['contact_name']:
+        if not entry.name:
+            entry.name = custom_data['contact_name']
+    if 'mail' in custom_data and custom_data['mail']:
+        entry.email = custom_data['mail']
+    if 'phone' in custom_data and custom_data['phone']:
+        entry.phone = custom_data['phone']
+
+    entry.set_custom_data(custom_data)
+    entry.form_submitted_at = datetime.utcnow()
+    # Status aktualisieren falls noch auf 'Angefragt' oder 'Formular gesendet'
+    if entry.status in ('Angefragt', 'Formular gesendet'):
+        entry.status = 'Formular ausgefüllt'
+
+    # Formelfelder neu berechnen
+    entry.compute_formula_values(event.fields)
+
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({'success': True, 'message': 'Vielen Dank! Deine Angaben wurden gespeichert.'})
+
+    return redirect(url_for('booking_personal.public_form', token=token, submitted='1'))
+
+
+@booking_personal_bp.route('/overview/<token>', methods=['GET'])
+def public_overview(token):
+    """Zweisprachige (DE/EN) schreibgeschützte Zusage-Übersicht für den Künstler."""
+    entry = BookingPersonalEntry.query.filter_by(overview_token=token).first_or_404()
+    event = entry.event
+
+    # Sprachauswahl (Standard: de)
+    lang = request.args.get('lang', 'de').lower()
+    if lang not in ('de', 'en'):
+        lang = 'de'
+
+    overview_fields = [f for f in event.fields if f.visible_in_overview]
+    custom_data = entry.get_custom_data()
+
+    # Berechne Formelwerte für korrekte Summen
+    entry.compute_formula_values(event.fields)
+
+    return render_template(
+        'booking_personal/public_overview.html',
+        event=event,
+        entry=entry,
+        overview_fields=overview_fields,
+        custom_data=custom_data,
+        lang=lang,
+    )
+

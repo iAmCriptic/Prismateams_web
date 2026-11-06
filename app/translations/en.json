@@ -36,7 +36,8 @@
       "file_converter": "File Converter",
       "protocols": "Meeting Minutes",
       "meetings": "Meetings",
-      "duty_roster": "Duty Roster"
+      "duty_roster": "Duty Roster",
+      "booking_personal": "Booking / Personal"
     },
     "brand": {
       "separator": "–",

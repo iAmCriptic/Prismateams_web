@@ -22,6 +22,7 @@ TEAM_SECTION_MODULES = {
     'email': 'module_email',
     'chat': 'module_chat',
     'duty_roster': 'module_duty_roster',
+    'booking_personal': 'module_booking_personal',
 }
 
 
