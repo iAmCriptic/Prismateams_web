@@ -492,6 +492,7 @@
                                     <tr>
                                         <th style="width: 70px;" class="text-center">Pos</th>
                                         <th>Spaltenname (DE / EN)</th>
+                                        <th style="min-width: 130px;">Kategorie</th>
                                         <th>Feld-Typ</th>
                                         <th class="text-center" style="width: 140px;">Extern (Formular)</th>
                                         <th class="text-center" style="width: 150px;">In Zusage-Übersicht</th>
@@ -523,6 +524,11 @@
                                             <div class="text-muted small font-monospace" style="font-size: 0.72rem;">
                                                 key: {{ f.field_key }}</div>
                                             {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2 py-1">
+                                                <i class="bi bi-tag me-1"></i>{{ f.category or 'Allgemein' }}
+                                            </span>
                                         </td>
                                         <td>
                                             <span class="badge bg-light text-dark border">{{ f.field_type }}</span>
@@ -715,6 +721,18 @@
                                 <option value="file_upload">Datei-Upload (z. B. Techrider-PDFs)</option>
                                 <option value="formula">Berechnetes Feld (Formel)</option>
                             </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Kategorie / Bereich</label>
+                            <input type="text" id="bpColCategory" class="form-control" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
+                            <datalist id="bpColCatPresets">
+                                <option value="Stammdaten & Status">
+                                <option value="Finanzen">
+                                <option value="Hospitality & Logistik">
+                                <option value="Presse & Technik">
+                                <option value="Aktionen & Links">
+                            </datalist>
                         </div>
 
                         <div class="col-md-6">

@@ -158,305 +158,168 @@
                 </div>
             </div>
 
-            <!-- Detailansicht als strukturierte Informations-Karten -->
+            <!-- Detailansicht als strukturierte Informations-Karten nach Kategorien -->
             <div class="row g-4">
-                <!-- 1. Stammdaten & Kontakt -->
-                <div class="col-lg-6">
+                {% for cat_name, cat_fields in categories.items() %}
+                {% set cat_lower = cat_name|lower %}
+                {% set icon_class = 'bi-collection' %}
+                {% set color_class = 'primary' %}
+                {% if 'stamm' in cat_lower or 'kontakt' in cat_lower %}
+                    {% set icon_class = 'bi-person-lines-fill' %}
+                    {% set color_class = 'primary' %}
+                {% elif 'finanz' in cat_lower or 'gage' in cat_lower or 'kosten' in cat_lower or 'honorar' in cat_lower %}
+                    {% set icon_class = 'bi-currency-euro' %}
+                    {% set color_class = 'success' %}
+                {% elif 'hospit' in cat_lower or 'logist' in cat_lower or 'hotel' in cat_lower or 'unterkunft' in cat_lower or 'catering' in cat_lower %}
+                    {% set icon_class = 'bi-cup-straw' %}
+                    {% set color_class = 'warning' %}
+                {% elif 'presse' in cat_lower or 'technik' in cat_lower or 'rider' in cat_lower or 'promo' in cat_lower or 'media' in cat_lower %}
+                    {% set icon_class = 'bi-sliders' %}
+                    {% set color_class = 'info' %}
+                {% elif 'notiz' in cat_lower or 'absprach' in cat_lower or 'feedback' in cat_lower or 'kommentar' in cat_lower %}
+                    {% set icon_class = 'bi-chat-left-quote' %}
+                    {% set color_class = 'secondary' %}
+                {% elif 'aktion' in cat_lower or 'link' in cat_lower or 'formular' in cat_lower %}
+                    {% set icon_class = 'bi-link-45deg' %}
+                    {% set color_class = 'primary' %}
+                {% endif %}
+
+                {% set has_large_content = false %}
+                {% for f in cat_fields %}
+                    {% if f.field_type in ('textarea', 'image_upload') or f.field_key in ('promotext', 'promo_pictures') %}
+                        {% set has_large_content = true %}
+                    {% endif %}
+                {% endfor %}
+
+                <div class="{% if has_large_content and cat_fields|length > 3 %}col-12{% else %}col-lg-6{% endif %}">
                     <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-person-lines-fill text-primary fs-5"></i>
-                            <h5 class="fw-bold mb-0">Stammdaten & Kontakt</h5>
-                        </div>
-                        <div class="card-body p-4">
-                            <dl class="row mb-0">
-                                <dt class="col-sm-4 text-muted fw-normal">Ansprechpartner:</dt>
-                                <dd class="col-sm-8 fw-semibold">{{ custom_data.get('contact_name') or '-' }}</dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Pronomen:</dt>
-                                <dd class="col-sm-8">
-                                    {% if custom_data.get('pronouns') %}
-                                    <span class="bp-badge bp-badge-info">{{ custom_data.get('pronouns') }}</span>
-                                    {% else %}-{% endif %}
-                                </dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">E-Mail:</dt>
-                                <dd class="col-sm-8">
-                                    {% if entry.email or custom_data.get('mail') %}
-                                    <a href="mailto:{{ entry.email or custom_data.get('mail') }}" class="text-decoration-none">
-                                        <i class="bi bi-envelope me-1"></i>{{ entry.email or custom_data.get('mail') }}
-                                    </a>
-                                    {% else %}-{% endif %}
-                                </dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Telefonnummer:</dt>
-                                <dd class="col-sm-8">
-                                    {% if entry.phone or custom_data.get('phone') %}
-                                    <a href="tel:{{ entry.phone or custom_data.get('phone') }}" class="text-decoration-none">
-                                        <i class="bi bi-telephone me-1"></i>{{ entry.phone or custom_data.get('phone') }}
-                                    </a>
-                                    {% else %}-{% endif %}
-                                </dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Label:</dt>
-                                <dd class="col-sm-8">{{ custom_data.get('label') or '-' }}</dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Instagram:</dt>
-                                <dd class="col-sm-8">
-                                    {% if custom_data.get('instagram') %}
-                                    <a href="{{ custom_data.get('instagram') if custom_data.get('instagram').startswith('http') else 'https://' + custom_data.get('instagram') }}" target="_blank" class="text-decoration-none">
-                                        <i class="bi bi-instagram me-1"></i>{{ custom_data.get('instagram') }}
-                                    </a>
-                                    {% else %}-{% endif %}
-                                </dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Soundcloud:</dt>
-                                <dd class="col-sm-8">
-                                    {% if custom_data.get('soundcloud') %}
-                                    <a href="{{ custom_data.get('soundcloud') if custom_data.get('soundcloud').startswith('http') else 'https://' + custom_data.get('soundcloud') }}" target="_blank" class="text-decoration-none">
-                                        <i class="bi bi-music-note-list me-1"></i>{{ custom_data.get('soundcloud') }}
-                                    </a>
-                                    {% else %}-{% endif %}
-                                </dd>
-
-                                <dt class="col-sm-4 text-muted fw-normal">Bandgröße:</dt>
-                                <dd class="col-sm-8">{{ custom_data.get('mitgliederanzahl') or '1' }} Person(en)</dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Finanzen & Vereinbarungen -->
-                <div class="col-lg-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-currency-euro text-success fs-5"></i>
-                            <h5 class="fw-bold mb-0">Finanzen & Gesamtkosten</h5>
-                        </div>
-                        <div class="card-body p-4">
-                            <!-- Große Stat-Card für GESAMT -->
-                            <div class="p-3 mb-3 rounded-4 bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
-                                <div>
-                                    <div class="text-uppercase small fw-bold text-success" style="font-size: 0.75rem;">Kalkulierte Gesamtkosten (GESAMT)</div>
-                                    <h2 class="fw-bold text-success mb-0">{{ custom_data.get('gesamt') or '€0.00' }}</h2>
-                                </div>
-                                <i class="bi bi-wallet2 display-6 text-success opacity-75"></i>
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi {{ icon_class }} text-{{ color_class }} fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-dark">{{ cat_name }}</h5>
                             </div>
-
-                            <div class="row g-2">
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">Gage</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('gage') or '€0.00' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">BookingFee</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('booking_fee') or '€0.00' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">Steuersatz</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('steuersatz') or '0%' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">Travel (Reise)</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('travel') or '€0.00' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">Unterkunft</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('unterkunft') or '€0.00' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="p-2 border rounded-3 bg-light">
-                                        <div class="text-muted small" style="font-size: 0.75rem;">sonstAusgaben</div>
-                                        <div class="fw-bold text-dark">{{ custom_data.get('sonst_ausgaben') or '€0.00' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. Hospitality & Logistik -->
-                <div class="col-lg-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-cup-straw text-warning fs-5"></i>
-                            <h5 class="fw-bold mb-0">Hospitality & Logistik</h5>
+                            <span class="badge rounded-pill bg-light text-muted border small">{{ cat_fields|length }} Felder</span>
                         </div>
                         <div class="card-body p-4">
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <div class="p-3 border rounded-3 bg-light">
-                                        <div class="text-muted small">Getränkeguthaben / Marken</div>
-                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('getraenkeguthaben') or '0' }}</div>
+                            <!-- Falls es eine Finanzen-Kategorie oder Formel-Spalte gibt: Große Gesamtsummen-Box -->
+                            {% for f in cat_fields %}
+                                {% if f.field_key == 'gesamt' or (f.field_type == 'formula' and 'gesamt' in f.field_key) %}
+                                <div class="p-3 mb-3 rounded-4 bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-uppercase small fw-bold text-success" style="font-size: 0.75rem;">Kalkulierte Gesamtkosten (GESAMT)</div>
+                                        <h2 class="fw-bold text-success mb-0">{{ custom_data.get(f.field_key) or custom_data.get('gesamt') or '€0.00' }}</h2>
                                     </div>
+                                    <i class="bi bi-wallet2 display-6 text-success opacity-75"></i>
                                 </div>
-                                <div class="col-6">
-                                    <div class="p-3 border rounded-3 bg-light">
-                                        <div class="text-muted small">Foodstände-Guthaben</div>
-                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('foodstaende_guthaben') or '0' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-3 border rounded-3 bg-light">
-                                        <div class="text-muted small">Gästeliste-Plätze</div>
-                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('anzahl_gaesteliste') or '0' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-3 border rounded-3 bg-light">
-                                        <div class="text-muted small">Friends-Tickets</div>
-                                        <div class="fs-5 fw-bold text-dark">{{ custom_data.get('anzahl_friends_tickets') or '0' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <hr class="my-3">
-
-                            <dl class="row mb-0">
-                                <dt class="col-sm-5 text-muted fw-normal">Zelte gestellt:</dt>
-                                <dd class="col-sm-7 fw-semibold">{{ custom_data.get('anzahl_zelte') or '0' }} Zelte ({{ custom_data.get('zelt_gestellt_naechte') or '0' }} Nächte)</dd>
-
-                                <dt class="col-sm-5 text-muted fw-normal">Zeltpräferenzen:</dt>
-                                <dd class="col-sm-7">{{ custom_data.get('zeltpraeferenzen') or '-' }}</dd>
-
-                                <dt class="col-sm-5 text-muted fw-normal">Anreiseart & Zeit:</dt>
-                                <dd class="col-sm-7">{{ custom_data.get('anfahrt') or '-' }}</dd>
-
-                                <dt class="col-sm-5 text-muted fw-normal">Weitere Angaben:</dt>
-                                <dd class="col-sm-7">{{ custom_data.get('weitere_angaben') or '-' }}</dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Technik & Techrider -->
-                <div class="col-lg-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-sliders text-info fs-5"></i>
-                            <h5 class="fw-bold mb-0">Technik & Techrider</h5>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="mb-3">
-                                <label class="text-muted small d-block mb-1">TECHRIDER (DJs):</label>
-                                {% if custom_data.get('techrider_djs') %}
-                                <span class="badge rounded-pill bg-purple-subtle text-purple border border-purple-subtle px-3 py-2 fs-6">
-                                    <i class="bi bi-disc me-1"></i>{{ custom_data.get('techrider_djs') }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted">-</span>
                                 {% endif %}
-                            </div>
+                            {% endfor %}
 
-                            <div class="mb-3">
-                                <label class="text-muted small d-block mb-1">TECHRIDER (Live / sonstiges Setup):</label>
-                                <div class="p-3 bg-light rounded-3 text-dark small" style="white-space: pre-wrap;">{{ custom_data.get('techrider_other') or 'Keine individuellen Wünsche angegeben.' }}</div>
-                            </div>
-
-                            <div>
-                                <label class="text-muted small d-block mb-1">TECHRIDER (Attachments / Dokumente):</label>
-                                {% if custom_data.get('techrider_attachments') %}
-                                    {% set atts = custom_data.get('techrider_attachments') %}
-                                    {% if atts is iterable and atts is not string %}
-                                        <div class="d-flex flex-column gap-1">
-                                        {% for att in atts %}
-                                            <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1 w-auto">
-                                                <i class="bi bi-file-earmark-pdf"></i>Techrider Anhang herunterladen
-                                            </a>
-                                        {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <a href="{{ atts }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1">
-                                            <i class="bi bi-file-earmark-pdf"></i>Techrider Anhang herunterladen
-                                        </a>
-                                    {% endif %}
-                                {% else %}
-                                <span class="text-muted small">Keine Dateien hochgeladen.</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. Presse & Promotext -->
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-camera text-danger fs-5"></i>
-                            <h5 class="fw-bold mb-0">Presse & Promomaterial</h5>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="row g-4">
-                                <div class="col-md-7">
-                                    <h6 class="fw-semibold text-muted small text-uppercase mb-2">Promotext / Bio</h6>
-                                    <div class="p-3 bg-light rounded-3 text-dark" style="white-space: pre-wrap; line-height: 1.6;">{{ custom_data.get('promotext') or 'Noch kein Promotext hinterlegt.' }}</div>
-                                </div>
-                                <div class="col-md-5">
-                                    <h6 class="fw-semibold text-muted small text-uppercase mb-2">Promo Pictures</h6>
-                                    {% set pics = custom_data.get('promo_pictures') %}
-                                    {% if pics %}
-                                        <div class="d-flex gap-3 flex-wrap">
-                                        {% if pics is iterable and pics is not string %}
-                                            {% for p in pics %}
-                                            <a href="{{ p }}" target="_blank" class="d-inline-block">
-                                                <img src="{{ p }}" class="rounded-3 shadow-sm border" style="width: 120px; height: 120px; object-fit: cover;" alt="Promo">
-                                            </a>
-                                            {% endfor %}
+                            <!-- Standard-Felder als Definitionsliste oder Grid -->
+                            <dl class="row mb-0 g-2">
+                                {% for f in cat_fields %}
+                                    {% set val = custom_data.get(f.field_key) %}
+                                    {% if f.field_type not in ('action_accept', 'form_link') or cat_name == 'Aktionen & Links' %}
+                                    <dt class="col-sm-5 text-muted fw-normal d-flex align-items-center">
+                                        <span class="text-truncate" title="{{ f.label }}">{{ f.label }}:</span>
+                                    </dt>
+                                    <dd class="col-sm-7 mb-2">
+                                        {% if f.field_type == 'badge_select' %}
+                                            {% if val and val != '-' %}
+                                            {% set badge_color = 'primary' %}
+                                            {% if f.options_json %}
+                                                {% for opt in f.get_options() %}
+                                                    {% if (opt.value if opt is mapping else opt) == val %}
+                                                        {% set badge_color = opt.color if opt is mapping and opt.color else 'primary' %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                            <span class="badge rounded-pill bg-{{ badge_color }}-subtle text-{{ badge_color }} border border-{{ badge_color }}-subtle px-3 py-1">
+                                                {{ val }}
+                                            </span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        {% elif f.field_type == 'currency' %}
+                                            <span class="fw-bold text-dark">{{ val or '€0.00' }}</span>
+                                        {% elif f.field_type == 'counter' %}
+                                            <span class="badge rounded-pill bg-light text-dark border px-2.5 py-1 fw-bold">{{ val or '0' }}</span>
+                                        {% elif f.field_type == 'image_upload' %}
+                                            {% if val %}
+                                                <div class="d-flex gap-2 flex-wrap mt-1">
+                                                {% if val is iterable and val is not string %}
+                                                    {% for p in val %}
+                                                    <a href="{{ p }}" target="_blank" class="d-inline-block">
+                                                        <img src="{{ p }}" class="rounded-3 shadow-sm border" style="width: 80px; height: 80px; object-fit: cover;" alt="Bild">
+                                                    </a>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <a href="{{ val }}" target="_blank" class="d-inline-block">
+                                                        <img src="{{ val }}" class="rounded-3 shadow-sm border" style="width: 80px; height: 80px; object-fit: cover;" alt="Bild">
+                                                    </a>
+                                                {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">Keine Bilder hochgeladen</span>
+                                            {% endif %}
+                                        {% elif f.field_type == 'file_upload' %}
+                                            {% if val %}
+                                                {% if val is iterable and val is not string %}
+                                                    <div class="d-flex flex-column gap-1">
+                                                    {% for att in val %}
+                                                    <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1 w-auto">
+                                                        <i class="bi bi-file-earmark-arrow-down"></i>Datei herunterladen
+                                                    </a>
+                                                    {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <a href="{{ val }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-file-earmark-arrow-down"></i>Datei herunterladen
+                                                    </a>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted small">Keine Datei hochgeladen</span>
+                                            {% endif %}
+                                        {% elif f.field_type == 'textarea' %}
+                                            <div class="p-2.5 bg-light rounded-3 text-dark small mt-1" style="white-space: pre-wrap;">{{ val or '-' }}</div>
+                                        {% elif f.field_type == 'form_link' %}
+                                            {% set f_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
+                                            <div class="d-flex align-items-center gap-2">
+                                                <a href="{{ f_url }}" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i>Formular
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-light border rounded-pill px-2 py-1" onclick="copyToClipboard('{{ f_url }}')" title="Link kopieren">
+                                                    <i class="bi bi-clipboard"></i>
+                                                </button>
+                                            </div>
+                                        {% elif f.field_type == 'action_accept' %}
+                                            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1" onclick="openMailPreview({{ entry.id }}, 'accept')">
+                                                <i class="bi bi-envelope-check me-1"></i>Zusage senden
+                                            </button>
                                         {% else %}
-                                            <a href="{{ pics }}" target="_blank" class="d-inline-block">
-                                                <img src="{{ pics }}" class="rounded-3 shadow-sm border" style="width: 120px; height: 120px; object-fit: cover;" alt="Promo">
-                                            </a>
+                                            {% if val and ('http://' in val or 'https://' in val) %}
+                                                <a href="{{ val }}" target="_blank" class="text-decoration-none">
+                                                    <i class="bi bi-link-45deg me-1"></i>{{ val }}
+                                                </a>
+                                            {% elif val and '@' in val and '.' in val %}
+                                                <a href="mailto:{{ val }}" class="text-decoration-none">
+                                                    <i class="bi bi-envelope me-1"></i>{{ val }}
+                                                </a>
+                                            {% elif val and f.field_key in ('phone', 'telefonnummer') %}
+                                                <a href="tel:{{ val }}" class="text-decoration-none">
+                                                    <i class="bi bi-telephone me-1"></i>{{ val }}
+                                                </a>
+                                            {% else %}
+                                                <span class="fw-semibold text-dark">{{ val or '-' }}</span>
+                                            {% endif %}
                                         {% endif %}
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted small">Keine Pressefotos hochgeladen.</span>
+                                    </dd>
                                     {% endif %}
-                                </div>
-                            </div>
+                                {% endfor %}
+                            </dl>
                         </div>
                     </div>
                 </div>
-
-                <!-- 6. Interne Notizen & Künstler-Feedback -->
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-chat-left-quote text-secondary fs-5"></i>
-                            <h5 class="fw-bold mb-0">Absprachen & Notizen</h5>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <div class="p-3 border rounded-3 bg-light h-100">
-                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-lock me-1"></i>Kommentar Booking-Team</div>
-                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('kommentar_team') or '-' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-3 border rounded-3 bg-light h-100">
-                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-envelope-paper me-1"></i>Sonstige Absprachen Mail</div>
-                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('sonstige_absprachen_mail') or '-' }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-3 border rounded-3 bg-light h-100">
-                                        <div class="fw-semibold text-dark mb-1"><i class="bi bi-chat-dots me-1"></i>Was du uns noch sagen wolltest...</div>
-                                        <div class="text-muted small" style="white-space: pre-wrap;">{{ custom_data.get('was_du_uns_noch_sagen') or '-' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
     </main>

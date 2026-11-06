@@ -143,6 +143,7 @@ class BookingPersonalField(db.Model):
     field_type = db.Column(db.String(32), nullable=False)  # text, textarea, number, currency, counter, badge_select, file_upload, image_upload, formula, form_link, action_accept
     field_order = db.Column(db.Integer, default=0, nullable=False)
     width = db.Column(db.Integer, default=160, nullable=False)
+    category = db.Column(db.String(100), default='Allgemein', nullable=True)
     is_required = db.Column(db.Boolean, default=False, nullable=False)
     is_external = db.Column(db.Boolean, default=False, nullable=False)  # Über externes Künstler-Formular befüllbar
     is_internal = db.Column(db.Boolean, default=True, nullable=False)   # Vom Team pflegbar
@@ -177,6 +178,7 @@ class BookingPersonalField(db.Model):
             'field_type': self.field_type,
             'field_order': self.field_order,
             'width': self.width,
+            'category': self.category or 'Allgemein',
             'is_required': self.is_required,
             'is_external': self.is_external,
             'is_internal': self.is_internal,

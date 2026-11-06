@@ -533,6 +533,8 @@
             fieldIdEl.value = '';
             document.getElementById('bpColLabel').value = '';
             document.getElementById('bpColLabelEn').value = '';
+            const catEl = document.getElementById('bpColCategory');
+            if (catEl) catEl.value = 'Allgemein';
             document.getElementById('bpColType').value = 'text';
             document.getElementById('bpColWidth').value = '160';
             document.getElementById('bpColIsExternal').checked = false;
@@ -546,6 +548,8 @@
             fieldIdEl.value = fieldData.id;
             document.getElementById('bpColLabel').value = fieldData.label || '';
             document.getElementById('bpColLabelEn').value = fieldData.label_en || '';
+            const catEl = document.getElementById('bpColCategory');
+            if (catEl) catEl.value = fieldData.category || 'Allgemein';
             document.getElementById('bpColType').value = fieldData.field_type || 'text';
             document.getElementById('bpColWidth').value = fieldData.width || 160;
             document.getElementById('bpColIsExternal').checked = !!fieldData.is_external;
@@ -600,6 +604,7 @@
             const fieldId = document.getElementById('bpColFieldId').value;
             const label = document.getElementById('bpColLabel').value.trim();
             const labelEn = document.getElementById('bpColLabelEn').value.trim();
+            const category = document.getElementById('bpColCategory')?.value.trim() || 'Allgemein';
             const fieldType = document.getElementById('bpColType').value;
             const width = parseInt(document.getElementById('bpColWidth').value, 10) || 160;
             const isExternal = document.getElementById('bpColIsExternal').checked;
@@ -624,6 +629,7 @@
             const payload = {
                 label: label,
                 label_en: labelEn,
+                category: category,
                 field_type: fieldType,
                 width: width,
                 is_external: isExternal,

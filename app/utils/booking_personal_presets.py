@@ -605,10 +605,45 @@ FESTIVAL_STANDARD_FIELDS = [
 ]
 
 
+def infer_category(field_key):
+    """Ermittelt eine sinnvolle Standard-Kategorie anhand des Feld-Schlüssels."""
+    key = (field_key or '').lower()
+    if key in (
+        'project_name', 'status_booking', 'bereich', 'intern_extern',
+        'kommentar_team', 'contact_name', 'pronouns', 'mail', 'phone',
+        'label', 'instagram', 'auftrittsname_projektname'
+    ):
+        return 'Stammdaten & Status'
+    elif key in (
+        'gage', 'booking_fee', 'gesamt', 'steuersatz', 'verpflegungspauschale_aufladung',
+        'verpflegungspauschale_kosten', 'travel', 'unterkunft', 'sonstige_ausgaben'
+    ):
+        return 'Finanzen'
+    elif key in (
+        'getraenkeguthaben', 'foodstaende_guthaben', 'anzahl_gaesteliste',
+        'anzahl_friends_tickets', 'zeltgestellt', 'anzahl_zelte', 'zeltpraeferenzen',
+        'mitgliederanzahl', 'anfahrt'
+    ):
+        return 'Hospitality & Logistik'
+    elif key in (
+        'soundcloud', 'promo_pictures', 'promotext', 'techrider_djs',
+        'techrider_other', 'techrider_attachments', 'sonstige_absprachen_mail',
+        'was_du_uns_noch_sagen'
+    ):
+        return 'Presse & Technik'
+    elif key in ('form_link', 'action_accept_mail'):
+        return 'Aktionen & Links'
+    return 'Allgemein'
+
+
 def ensure_default_template(db_session, user_id=None):
     """Stellt sicher, dass das Template 'Festival Standard' in der Datenbank existiert."""
     from app.models.booking_personal import BookingPersonalTemplate
     tmpl = BookingPersonalTemplate.query.filter_by(name='Festival Standard').first()
+    fields_with_categories = [
+        {**f, 'category': f.get('category') or infer_category(f.get('field_key'))}
+        for f in FESTIVAL_STANDARD_FIELDS
+    ]
     if not tmpl:
         tmpl = BookingPersonalTemplate(
             name='Festival Standard',
@@ -616,12 +651,20 @@ def ensure_default_template(db_session, user_id=None):
             is_system_default=True,
             created_by=user_id,
         )
-        tmpl.set_fields(FESTIVAL_STANDARD_FIELDS)
+        tmpl.set_fields(fields_with_categories)
         db_session.add(tmpl)
         try:
             db_session.commit()
         except Exception:
             db_session.rollback()
+    else:
+        current_fields = tmpl.get_fields()
+        if current_fields and not any('category' in f for f in current_fields):
+            tmpl.set_fields(fields_with_categories)
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
     return tmpl
 
 
@@ -640,6 +683,7 @@ def apply_template_to_event(event, fields_def, db_session):
             label=f_def.get('label') or 'Unbenannt',
             label_en=f_def.get('label_en') or f_def.get('label') or 'Untitled',
             field_type=f_def.get('field_type') or 'text',
+            category=f_def.get('category') or infer_category(f_def.get('field_key')),
             field_order=idx,
             width=f_def.get('width', 160),
             is_required=bool(f_def.get('is_required', False)),

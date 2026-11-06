@@ -91,8 +91,8 @@ body:has(.booking-personal-shell) {
 }
 
 .booking-personal-shell .mod-nav-link {
-    border-radius: 8px;
-    padding: 0.45rem 0.65rem;
+    border-radius: 9999px;
+    padding: 0.5rem 0.85rem;
     font-size: 0.88rem;
     color: var(--bs-body-color, #1e293b);
     transition: all 0.12s ease-in-out;
@@ -100,21 +100,29 @@ body:has(.booking-personal-shell) {
 
 .booking-personal-shell .mod-nav-link:hover {
     background-color: var(--bs-tertiary-bg, #f1f5f9);
+    color: var(--bs-body-color, #1e293b);
 }
 
-.booking-personal-shell .mod-nav-link.active {
-    background-color: var(--accent-color, #2563eb);
-    color: #ffffff !important;
+.booking-personal-shell .mod-nav-link.active,
+.booking-personal-shell a.mod-nav-link.active,
+.booking-personal-shell .nav-link.mod-nav-link.active {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 15%, transparent) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 15%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
     font-weight: 600;
 }
 
-.booking-personal-shell .mod-nav-link.active .bi {
-    color: #ffffff !important;
+.booking-personal-shell .mod-nav-link.active .bi,
+.booking-personal-shell a.mod-nav-link.active .bi,
+.booking-personal-shell .nav-link.mod-nav-link.active .bi {
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
 }
 
-.booking-personal-shell .mod-nav-link.active .badge {
-    background-color: rgba(255, 255, 255, 0.25) !important;
-    color: #ffffff !important;
+.booking-personal-shell .mod-nav-link.active .badge,
+.booking-personal-shell a.mod-nav-link.active .badge,
+.booking-personal-shell .nav-link.mod-nav-link.active .badge {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 20%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
     border-color: transparent !important;
 }
 

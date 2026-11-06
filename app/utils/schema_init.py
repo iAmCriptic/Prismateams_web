@@ -442,6 +442,19 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] apply_token für %s bestehende booking_personal_events generiert", len(rows))
             except Exception as tok_err:
                 logger.warning("Konnte apply_token für bestehende booking_personal_events nicht generieren: %s", tok_err)
+
+        if "booking_personal_fields" in table_names:
+            bpf_cols = {c["name"] for c in inspector.get_columns("booking_personal_fields")}
+            if "category" not in bpf_cols:
+                try:
+                    logger.info("Ergänze booking_personal_fields.category ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_fields ADD COLUMN category VARCHAR(100) DEFAULT 'Allgemein'")
+                        )
+                    logger.info("[OK] booking_personal_fields.category ergänzt")
+                except Exception as bpf_err:
+                    logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
     except Exception as exc:
         logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 

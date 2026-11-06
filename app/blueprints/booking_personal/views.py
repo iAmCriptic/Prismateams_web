@@ -120,6 +120,15 @@ def act_detail(event_id, entry_id):
     ).all()
     mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
 
+    # Felder dynamisch nach Kategorie gruppieren (für Standard- und Custom-Vorlagen)
+    from app.utils.booking_personal_presets import infer_category
+    categories = {}
+    for f in current_event.fields:
+        cat = f.category or infer_category(f.field_key)
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(f)
+
     return render_template(
         'booking_personal/act_detail.html',
         events=events,
@@ -129,6 +138,7 @@ def act_detail(event_id, entry_id):
         custom_data=custom_data,
         templates=templates,
         mailboxes=mailboxes,
+        categories=categories,
     )
 
 
@@ -329,12 +339,16 @@ def api_add_field(event_id):
 
     max_order = db.session.query(db.func.max(BookingPersonalField.field_order)).filter_by(event_id=event_id).scalar() or 0
 
+    from app.utils.booking_personal_presets import infer_category
+    category = data.get('category') or infer_category(field_key)
+
     field = BookingPersonalField(
         event_id=event.id,
         field_key=field_key,
         label=label,
         label_en=data.get('label_en') or label,
         field_type=field_type,
+        category=category,
         field_order=max_order + 1,
         width=int(data.get('width', 160)),
         is_required=bool(data.get('is_required', False)),
@@ -367,6 +381,8 @@ def api_update_field(field_id):
         field.label = data['label'].strip()
     if 'label_en' in data:
         field.label_en = data['label_en'].strip() or field.label
+    if 'category' in data and data['category'].strip():
+        field.category = data['category'].strip()
     if 'field_type' in data:
         field.field_type = data['field_type']
     if 'width' in data:
@@ -757,6 +773,7 @@ def template_field_add(template_id):
 
     label = request.form.get('label', '').strip()
     label_en = request.form.get('label_en', '').strip() or label
+    category = request.form.get('category', '').strip()
     field_type = request.form.get('field_type', 'text')
     field_key = request.form.get('field_key', '').strip()
     is_external = request.form.get('is_external') == '1'
@@ -793,11 +810,15 @@ def template_field_add(template_id):
         field_key = f"{base_key}_{counter}"
         counter += 1
 
+    from app.utils.booking_personal_presets import infer_category
+    cat_val = category or infer_category(field_key)
+
     new_field_def = {
         'field_key': field_key,
         'label': label,
         'label_en': label_en,
         'field_type': field_type,
+        'category': cat_val,
         'is_external': is_external,
         'is_internal': not is_external,
         'visible_in_overview': visible_in_overview,

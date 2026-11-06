@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.booking_personal import (
     BookingPersonalEvent,
     BookingPersonalEntry,
+    BookingPersonalField,
     BookingPersonalTemplate,
 )
 from app.utils.booking_personal_presets import (
@@ -261,6 +262,65 @@ def test_act_detail_view_renders_structured_page(client, app):
     assert '2 x Pioneer CDJ 3000' in html
     assert 'Zurück zur Tabelle' in html
     assert 'Angaben bearbeiten' in html
+
+
+def test_act_detail_view_with_custom_categories(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Club Night Special')
+        db.session.add(event)
+        db.session.flush()
+
+        # Eigene benutzerdefinierte Spalten mit Custom-Kategorien anlegen
+        f1 = BookingPersonalField(
+            event_id=event.id,
+            field_key='artist_name',
+            label='Künstler',
+            category='Allgemeine Infos',
+            field_type='text'
+        )
+        f2 = BookingPersonalField(
+            event_id=event.id,
+            field_key='stage_type',
+            label='Bühnen-Setup',
+            category='Bühne & Technik',
+            field_type='badge_select'
+        )
+        f3 = BookingPersonalField(
+            event_id=event.id,
+            field_key='hotel_room',
+            label='Hotelzimmer',
+            category='Unterkunft & Reise',
+            field_type='text'
+        )
+        db.session.add_all([f1, f2, f3])
+
+        entry = BookingPersonalEntry(
+            event_id=event.id,
+            name='Solar Flare',
+            status='Bestätigt'
+        )
+        entry.set_custom_data({
+            'artist_name': 'Solar Flare',
+            'stage_type': 'Live Modular Synth',
+            'hotel_room': 'Zimmer 402 (Late Checkout)'
+        })
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    resp = client.get(f'/booking-personal/event/{event_id}/act/{entry_id}')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+
+    # Prüfen, dass die benutzerdefinierten Kategorien als eigene Karten gerendert werden
+    assert 'Allgemeine Infos' in html
+    assert 'Bühne &amp; Technik' in html
+    assert 'Unterkunft &amp; Reise' in html
+    assert 'Live Modular Synth' in html
+    assert 'Zimmer 402 (Late Checkout)' in html
 
 
 def test_templates_management_page_and_crud(client, app):

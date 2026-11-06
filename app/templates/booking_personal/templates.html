@@ -214,6 +214,7 @@
                                         <tr>
                                             <th style="width: 44px;" class="text-center">#</th>
                                             <th style="min-width: 220px;">Spaltenbezeichnung (DE / EN)</th>
+                                            <th style="min-width: 140px;">Kategorie</th>
                                             <th style="min-width: 140px;">Schlüssel (Key)</th>
                                             <th style="min-width: 140px;">Feldtyp</th>
                                             <th style="min-width: 140px;">Herkunft / Pflege</th>
@@ -233,6 +234,11 @@
                                                 {% if f.label_en and f.label_en != f.label %}
                                                 <div class="text-muted small" style="font-size: 0.78rem;">{{ f.label_en }}</div>
                                                 {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1">
+                                                    <i class="bi bi-tag me-1"></i>{{ f.category or 'Allgemein' }}
+                                                </span>
                                             </td>
                                             <td>
                                                 <code class="small text-secondary">{{ f.field_key }}</code>
@@ -450,6 +456,19 @@
                             <option value="form_link">Formular-Link</option>
                             <option value="action_accept">Aktion: Zusage-Mail</option>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Kategorie / Bereich</label>
+                        <input type="text" name="category" class="form-control rounded-3" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
+                        <datalist id="categoryPresets">
+                            <option value="Stammdaten & Status">
+                            <option value="Finanzen">
+                            <option value="Hospitality & Logistik">
+                            <option value="Presse & Technik">
+                            <option value="Aktionen & Links">
+                        </datalist>
+                        <div class="form-text small text-muted">Unterteilt dieses Feld im Artist-Profil in einen eigenen strukturierten Bereich.</div>
                     </div>
 
                     <div class="mb-3 d-none" id="bpTmplOptionsGroup">
