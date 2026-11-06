@@ -614,103 +614,11 @@ body:has(.kanban-board-page) {
   height: fit-content;
   max-height: 100%;
   min-height: 0;
-  overflow: visible !important;
+  overflow: hidden;
   align-self: flex-start;
   flex: 0 0 auto;
   border: 1px solid var(--kanban-border);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  position: relative;
-  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.kanban-list-col:has(.dropdown-menu.show),
-.kanban-list-col.has-dropdown-open {
-  z-index: 1060 !important;
-}
-
-/* Collapsed list state */
-.kanban-list-col.is-collapsed {
-  width: 46px !important;
-  min-width: 46px !important;
-  max-width: 46px !important;
-  cursor: pointer;
-  padding: 0;
-  border-radius: 1rem;
-}
-
-.kanban-list-col.is-collapsed:hover {
-  background: color-mix(in srgb, var(--kanban-list-bg) 88%, #fff 12%);
-  border-color: var(--kanban-hover-border, rgba(255, 255, 255, 0.25));
-}
-
-.kanban-list-col.is-collapsed .kanban-list-col__head,
-.kanban-list-col.is-collapsed .kanban-list-col__cards,
-.kanban-list-col.is-collapsed .kanban-list-col__footer {
-  display: none !important;
-}
-
-.kanban-list-col:not(.is-collapsed) .kanban-list-col__collapsed-view {
-  display: none !important;
-}
-
-.kanban-list-col.is-collapsed .kanban-list-col__collapsed-view {
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.65rem 0.25rem 0.85rem;
-  min-height: 140px;
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.kanban-list-col__collapsed-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 0.75rem;
-  gap: 0.5rem;
-  user-select: none;
-}
-
-.kanban-list-col__collapsed-title {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  font-weight: 700;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--kanban-surface-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-height: 320px;
-  white-space: nowrap;
-}
-
-.kanban-list-col__collapsed-count {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--kanban-muted);
-  writing-mode: horizontal-tb;
-}
-
-.kanban-list-collapse-btn,
-.kanban-list-expand-btn {
-  width: 1.65rem !important;
-  height: 1.65rem !important;
-  min-width: 1.65rem !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 50% !important;
-  opacity: 0.75;
-  transition: opacity 0.15s ease, background 0.15s ease;
-}
-
-.kanban-list-collapse-btn:hover,
-.kanban-list-expand-btn:hover {
-  opacity: 1;
-  background: var(--kanban-soft-btn, rgba(255, 255, 255, 0.15)) !important;
 }
 
 .kanban-list-col__head {
@@ -727,8 +635,6 @@ body:has(.kanban-board-page) {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
 .kanban-list-col__count {
@@ -857,18 +763,8 @@ body:has(.kanban-board-page) {
   overflow: hidden;
 }
 
-.kanban-list-menu {
-  position: relative;
-}
-
 .kanban-list-menu .dropdown-menu {
-  z-index: 1200 !important;
-  min-width: 140px;
-  border-radius: 0.75rem;
-  border: 1px solid var(--kanban-border);
-  background: var(--kanban-menu-bg, #1c1e24);
-  color: var(--kanban-surface-text, #f3f4f6);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  z-index: 1200;
 }
 
 .kanban-poll-block {
