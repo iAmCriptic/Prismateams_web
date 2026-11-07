@@ -438,7 +438,7 @@
                                                     <td>
                                                         <div class="d-flex align-items-center gap-2 min-width-0">
                                                             <i class="bi bi-file-earmark-text text-secondary"></i>
-                                                            <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="text-decoration-none fw-semibold text-truncate">
+                                                            <a href="{{ file_open_urls.get(file.id) or url_for('files.download_file', file_id=file.id) }}" class="text-decoration-none fw-semibold text-truncate">
                                                                 {{ file.name }}
                                                             </a>
                                                         </div>

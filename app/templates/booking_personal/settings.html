@@ -123,12 +123,12 @@
                             </div>
                         </div>
                         <div class="d-flex gap-2 flex-wrap">
-                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" id="bpSaveAsTemplateBtn"
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" id="bpSaveAsTemplateBtn"
                                 data-event-id="{{ current_event.id }}">
-                                <i class="bi bi-bookmark-plus me-1.5 text-primary"></i>Als Template speichern
+                                <i class="bi bi-bookmark-plus me-1 text-primary"></i>Als Template speichern
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openColumnModal('add')">
-                                <i class="bi bi-plus-lg me-1.5 text-primary"></i>Neue Spalte hinzufügen
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" onclick="openColumnModal('add')">
+                                <i class="bi bi-plus-lg me-1"></i>Neue Spalte hinzufügen
                             </button>
                         </div>
                     </div>
@@ -199,15 +199,15 @@
                                         <td class="text-end pe-4">
                                             <!-- Aktionen: sauber horizontal nebeneinander im neutralen Pill-Format -->
                                             <div class="d-inline-flex align-items-center justify-content-end gap-1.5 text-nowrap">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn px-2.5 py-1 shadow-none d-inline-flex align-items-center"
+                                                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline px-2.5"
                                                     onclick="openColumnModal('edit', {{ f.to_dict()|tojson }})"
                                                     title="Spalte bearbeiten">
                                                     <i class="bi bi-pencil text-primary"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn px-2.5 py-1 shadow-none d-inline-flex align-items-center"
+                                                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-danger px-2.5"
                                                     onclick="deleteColumnField({{ f.id }}, '{{ f.label }}')"
                                                     title="Spalte löschen">
-                                                    <i class="bi bi-trash text-primary"></i>
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -430,8 +430,8 @@
                     </div>
 
                     <div class="text-end">
-                        <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-2">
-                            <i class="bi bi-check-lg me-1.5 text-primary"></i>E-Mail-Einstellungen speichern
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4 py-2">
+                            <i class="bi bi-check-lg me-1"></i>E-Mail-Einstellungen speichern
                         </button>
                     </div>
                 </form>
@@ -565,8 +565,8 @@
                     </div>
 
                     <div class="text-end">
-                        <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-2">
-                            <i class="bi bi-check-lg me-1.5 text-primary"></i>Texte & Bild speichern
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4 py-2">
+                            <i class="bi bi-check-lg me-1"></i>Texte & Bild speichern
                         </button>
                     </div>
                 </form>
@@ -592,8 +592,8 @@
                                         value="{{ current_event.name }}" required>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-1.5">
-                                <i class="bi bi-check-lg me-1.5 text-primary"></i>Name speichern
+                            <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4 py-1.5">
+                                <i class="bi bi-check-lg me-1"></i>Name speichern
                             </button>
                         </form>
 
@@ -702,7 +702,6 @@
                                 <option value="file_upload">Datei-Upload (z. B. Techrider-PDFs)</option>
                                 <option value="formula">Berechnetes Feld (Formel)</option>
                                 <option value="form_link">Formular-Link (Generiert)</option>
-                                <option value="action_accept">Aktion: Zusage / Absage senden</option>
                             </select>
                         </div>
 

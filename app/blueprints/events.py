@@ -784,6 +784,26 @@ def view_event(event_id):
             is_current=True
         ).order_by(File.name).all()
 
+    # Dateien zuerst im Portal öffnen (wie im Dateien-Modul), sonst Download
+    file_open_urls = {}
+    if folder_files:
+        import os
+        from app.blueprints.files.helpers import TEXT_VIEWABLE_EXTS, media_kind
+        try:
+            from app.utils.onlyoffice import is_onlyoffice_enabled, is_onlyoffice_file_type
+            onlyoffice_on = bool(is_onlyoffice_enabled())
+        except Exception:
+            onlyoffice_on = False
+            is_onlyoffice_file_type = None
+        for f in folder_files:
+            ext = os.path.splitext(f.original_name or f.name or '')[1].lower()
+            if ext in TEXT_VIEWABLE_EXTS or ext == '.pdf' or media_kind(ext):
+                file_open_urls[f.id] = url_for('files.view_file', file_id=f.id)
+            elif onlyoffice_on and ext in ('.docx', '.doc', '.odt', '.rtf', '.xlsx', '.xls', '.ods', '.pptx', '.ppt', '.odp'):
+                file_open_urls[f.id] = url_for('files.edit_onlyoffice', file_id=f.id)
+            else:
+                file_open_urls[f.id] = url_for('files.download_file', file_id=f.id)
+
     active_tab = request.args.get('tab', 'overview')
 
     return render_template(
@@ -793,6 +813,7 @@ def view_event(event_id):
         active_modules=active_modules,
         folders=folders,
         folder_files=folder_files,
+        file_open_urls=file_open_urls,
         available_booking_events=available_booking_events,
         available_boards=available_boards,
         users=users,

@@ -87,7 +87,7 @@
                 <div class="dropdown d-inline-block">
                     <button type="button"
                             id="bpFilterDropdownBtn"
-                            class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm position-relative"
+                            class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--icon position-relative"
                             data-bs-toggle="dropdown"
                             data-bs-auto-close="outside"
                             aria-expanded="false"
@@ -134,7 +134,7 @@
                 <!-- Export Dropdown Icon Button (CSV & XLSX & PDF) -->
                 <div class="dropdown d-inline-block">
                     <button type="button"
-                            class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm"
+                            class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--icon"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                             title="Exportieren (CSV / Excel / PDF)">
@@ -168,7 +168,7 @@
 
                 <!-- Spalten & Einstellungen Icon Button (öffnet eigene Seite) -->
                 <a href="{{ url_for('booking_personal.event_settings', event_id=current_event.id) }}"
-                   class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm text-decoration-none"
+                   class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--icon text-decoration-none"
                    title="Spalten & Einstellungen öffnen">
                     <i class="bi bi-gear"></i>
                 </a>
@@ -178,12 +178,13 @@
                     <button type="button"
                             id="bpAddActBtn"
                             data-event-id="{{ current_event.id }}"
-                            class="btn btn-sm mod-pill-btn mod-pill-btn--accent rounded-start-pill px-3 py-1 shadow-sm"
+                            class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent px-3"
                             title="Neuen Act anlegen">
-                        <i class="bi bi-plus-lg me-1"></i>Act
+                        <i class="bi bi-plus-lg"></i>
+                        <span>Act</span>
                     </button>
                     <button type="button"
-                            class="btn btn-sm mod-pill-btn mod-pill-btn--accent rounded-end-pill px-2 py-1 shadow-sm dropdown-toggle dropdown-toggle-split"
+                            class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent dropdown-toggle dropdown-toggle-split px-2"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                             title="Weitere Optionen">

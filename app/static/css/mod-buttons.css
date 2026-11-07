@@ -178,3 +178,18 @@
     padding: 0.45rem 1.15rem;
     box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
 }
+
+/* Split button group support (.btn-group > .mod-pill-btn) */
+.btn-group > .mod-pill-btn:first-child:not(:last-child),
+.btn-group > .btn.mod-pill-btn:first-child:not(:last-child) {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.btn-group > .mod-pill-btn:not(:first-child),
+.btn-group > .btn.mod-pill-btn:not(:first-child) {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    margin-left: 0 !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
+}

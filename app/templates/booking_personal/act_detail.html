@@ -84,28 +84,28 @@
             </div>
 
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'accept')" title="Zusage-E-Mail senden">
-                    <i class="bi bi-envelope-check text-primary me-1.5"></i>Mail &rarr; Zusage
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" onclick="openMailPreview({{ entry.id }}, 'accept')" title="Zusage-E-Mail senden">
+                    <i class="bi bi-envelope-check"></i><span>Mail &rarr; Zusage</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'reject')" title="Absage-E-Mail senden">
-                    <i class="bi bi-envelope-x text-primary me-1.5"></i>Mail &rarr; Absage
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" onclick="openMailPreview({{ entry.id }}, 'reject')" title="Absage-E-Mail senden">
+                    <i class="bi bi-envelope-x"></i><span>Mail &rarr; Absage</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'invite')" title="Fragebogen senden">
-                    <i class="bi bi-send text-primary me-1.5"></i>Fragebogen senden
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" onclick="openMailPreview({{ entry.id }}, 'invite')" title="Fragebogen senden">
+                    <i class="bi bi-send"></i><span>Fragebogen senden</span>
                 </button>
                 {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
-                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="copyToClipboard('{{ form_url }}')" title="Formular-Link kopieren">
-                    <i class="bi bi-clipboard text-primary me-1.5"></i>Formular-Link
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" onclick="copyToClipboard('{{ form_url }}')" title="Formular-Link kopieren">
+                    <i class="bi bi-clipboard"></i><span>Formular-Link</span>
                 </button>
                 {% set overview_url = url_for('booking_personal.public_overview', token=entry.overview_token, _external=True) %}
-                <a href="{{ overview_url }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" title="Zusage-Übersicht">
-                    <i class="bi bi-box-arrow-up-right text-primary me-1.5"></i>Zusage-Übersicht
+                <a href="{{ overview_url }}" target="_blank" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" title="Zusage-Übersicht">
+                    <i class="bi bi-box-arrow-up-right"></i><span>Zusage-Übersicht</span>
                 </a>
-                <button type="button" class="btn btn-sm btn-accent mod-pill-btn mod-pill-btn--accent" onclick="openEntryDetail({{ entry.id }})" title="Gesamtes Dossier bearbeiten">
-                    <i class="bi bi-pencil me-1.5" aria-hidden="true"></i>Angaben bearbeiten
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" onclick="openEntryDetail({{ entry.id }})" title="Gesamtes Dossier bearbeiten">
+                    <i class="bi bi-pencil" aria-hidden="true"></i><span>Angaben bearbeiten</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="deleteEntryFromDetail({{ entry.id }})" title="Act löschen">
-                    <i class="bi bi-trash text-danger me-1.5" aria-hidden="true"></i>Löschen
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-danger" onclick="deleteEntryFromDetail({{ entry.id }})" title="Act löschen">
+                    <i class="bi bi-trash" aria-hidden="true"></i><span>Löschen</span>
                 </button>
             </div>
         </div>

@@ -675,6 +675,23 @@ def test_event_pdf_export_with_all_details(client, auth_user):
     db.session.add(ev)
     db.session.flush()
 
+    board = KanbanBoard(title='PDF Board', created_by=auth_user.id)
+    db.session.add(board)
+    db.session.flush()
+    k_list = KanbanList(board_id=board.id, title='Backlog')
+    db.session.add(k_list)
+    db.session.flush()
+    k_card = KanbanCard(list_id=k_list.id, title='PDF Karte', created_by=auth_user.id)
+    db.session.add(k_card)
+    db.session.flush()
+    pdf_folder = Folder(name='PDF Ordner', created_by=auth_user.id)
+    db.session.add(pdf_folder)
+    db.session.flush()
+    ev.kanban_board_id = board.id
+    ev.kanban_card_id = k_card.id
+    ev.folder_id = pdf_folder.id
+    db.session.add(EventLink(event_id=ev.id, title='Ticketshop', url='https://tickets.example.com'))
+
     day1 = EventDay(
         event_id=ev.id,
         day_number=1,

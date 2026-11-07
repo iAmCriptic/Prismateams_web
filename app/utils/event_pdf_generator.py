@@ -395,7 +395,7 @@ def generate_single_event_pdf(event_obj):
             ])
 
         if event_obj.kanban_board:
-            k_text = _esc(event_obj.kanban_board.name)
+            k_text = _esc(event_obj.kanban_board.title)
             if event_obj.kanban_card:
                 k_text += f" (Karte: {_esc(event_obj.kanban_card.title)})"
             mod_data.append([

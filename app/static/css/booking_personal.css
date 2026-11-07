@@ -80,7 +80,8 @@ body:has(.booking-personal-shell) {
 }
 
 .booking-personal-shell #bpSettingsContainer,
-.booking-personal-shell #bpActDetailContainer {
+.booking-personal-shell #bpActDetailContainer,
+.booking-personal-shell #bpTemplatesContainer {
     overflow-y: auto !important;
     height: 100% !important;
     max-height: 100% !important;
