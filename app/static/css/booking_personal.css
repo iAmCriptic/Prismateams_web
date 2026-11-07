@@ -237,6 +237,89 @@ body:has(.booking-personal-shell) {
     background-color: var(--bs-table-hover-bg, rgba(127, 127, 127, 0.08)) !important;
 }
 
+.bp-table th:last-child,
+.bp-table td:last-child {
+    width: 12rem;
+    min-width: 12rem;
+    overflow: visible;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Mod-list actions container */
+.bp-table .mod-list-actions {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    min-height: 2.2rem;
+}
+
+/* 3-Punkte-Menü wird beim Zeilen-Hover ausgeblendet (solange Dropdown nicht offen ist) */
+.bp-table .mod-list-row .mod-list-actions > .dropdown {
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.bp-table .mod-list-row:hover .mod-list-actions > .dropdown:not(.show),
+.bp-table .mod-list-row:focus-within .mod-list-actions > .dropdown:not(.show) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Hover-Aktionen: nahtlos anstelle der 3 Punkte, vollkommen ohne Rahmenlinien */
+.bp-table .mod-list-row .mod-list-hover-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.bp-table .mod-list-row:hover .mod-list-hover-actions,
+.bp-table .mod-list-row:focus-within .mod-list-hover-actions {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Einzelne Aktionsbuttons: vollkommen ohne Rahmenlinien, dezente Portal-Icons */
+.bp-table .mod-list-hover-actions .btn-link,
+.bp-table .mod-list-actions .btn-link {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.25rem 0.35rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: color 0.12s ease, transform 0.1s ease;
+}
+
+.bp-table .mod-list-hover-actions .btn-link:hover,
+.bp-table .mod-list-actions .btn-link:hover {
+    color: var(--accent-color, var(--bs-primary)) !important;
+    background: transparent !important;
+    transform: scale(1.15);
+}
+
 /* Sidebar Footer Button ("Vorlagen verwalten" wie bei Dateien "In System einbinden") */
 .files-sidebar-bottom {
     margin-top: auto;
@@ -293,19 +376,7 @@ body:has(.booking-personal-shell) {
     color: #60a5fa !important;
 }
 
-.bp-row-kebab-btn {
-    color: var(--bs-secondary-color, #94a3b8);
-    font-size: 1rem;
-    padding: 0.2rem 0.4rem;
-    border-radius: 6px;
-    transition: all 0.12s ease;
-    text-decoration: none;
-}
-
-.bp-row-kebab-btn:hover {
-    color: var(--bs-body-color, #1e293b);
-    background-color: rgba(127, 127, 127, 0.12);
-}
+/* bp-row-kebab-btn removed in favor of standard mod-list-actions */
 
 /* Cell Types & Inline Editing */
 .bp-cell-editable {
@@ -1195,4 +1266,61 @@ body.bp-public-body {
 
 .bp-detail-field-row.is-editing {
     background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-tertiary-bg, #f8f9fa)) !important;
+}
+
+/* ==========================================================================
+   Modals & Dropdowns im Pill-Design (Portal-Style)
+   ========================================================================== */
+.booking-personal-shell ~ .modal .modal-content,
+#bpNewEventModal .modal-content,
+#bpAddActModal .modal-content,
+#bpConfirmModal .modal-content,
+#bpPromptModal .modal-content,
+#bpColumnModal .modal-content,
+#bpTemplatesManagerModal .modal-content,
+#bpEntryModal .modal-content,
+#bpMailModal .modal-content,
+#bpCreateTemplateModal .modal-content,
+#bpEditTemplatePropsModal .modal-content,
+#bpAddTemplateFieldModal .modal-content,
+#bpApplyTemplateModal .modal-content {
+    border-radius: var(--mod-radius-card, 1.25rem) !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2)) !important;
+    box-shadow: 0 0.85rem 2.5rem rgba(0, 0, 0, 0.16) !important;
+    overflow: hidden;
+    background-color: var(--bs-body-bg, #fff);
+}
+
+.booking-personal-shell ~ .modal .modal-header,
+#bpNewEventModal .modal-header,
+#bpAddActModal .modal-header,
+#bpConfirmModal .modal-header,
+#bpPromptModal .modal-header,
+#bpColumnModal .modal-header,
+#bpTemplatesManagerModal .modal-header,
+#bpEntryModal .modal-header,
+#bpMailModal .modal-header,
+#bpCreateTemplateModal .modal-header,
+#bpEditTemplatePropsModal .modal-header,
+#bpAddTemplateFieldModal .modal-header,
+#bpApplyTemplateModal .modal-header {
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
+    padding: 1.1rem 1.4rem;
+}
+
+.booking-personal-shell ~ .modal .modal-footer,
+#bpNewEventModal .modal-footer,
+#bpAddActModal .modal-footer,
+#bpConfirmModal .modal-footer,
+#bpPromptModal .modal-footer,
+#bpColumnModal .modal-footer,
+#bpTemplatesManagerModal .modal-footer,
+#bpEntryModal .modal-footer,
+#bpMailModal .modal-footer,
+#bpCreateTemplateModal .modal-footer,
+#bpEditTemplatePropsModal .modal-footer,
+#bpAddTemplateFieldModal .modal-footer,
+#bpApplyTemplateModal .modal-footer {
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
+    padding: 0.9rem 1.4rem;
 }

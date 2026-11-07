@@ -284,6 +284,10 @@ class EventCustomField(db.Model):
             return [line.strip() for line in self.options.splitlines() if line.strip()]
         return [part.strip() for part in self.options.split(',') if part.strip()]
 
+    def get_options_list(self):
+        """Method alias for template and helper compatibility."""
+        return self.options_list
+
     def __repr__(self):
         return f'<EventCustomField {self.id}: {self.label} ({self.field_type})>'
 

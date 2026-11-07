@@ -168,6 +168,18 @@
     filter: brightness(1.05);
 }
 
+.mod-pill-select--sm .mod-pill-select__trigger,
+.mod-pill-select__trigger--sm {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.875rem;
+    min-height: calc(1.5em + 0.7rem + 2px);
+}
+
+.mod-pill-select--sm .mod-pill-select__option {
+    padding: 0.38rem 0.75rem;
+    font-size: 0.875rem;
+}
+
 .mod-sidebar-form .mod-pill-select__trigger {
     min-height: calc(1.5em + 0.75rem + 2px);
     padding: 0.35rem 0.75rem;

@@ -58,7 +58,7 @@
         if (msgEl) msgEl.innerHTML = message;
         if (btnEl) {
             btnEl.textContent = confirmText;
-            btnEl.className = `btn ${confirmClass}`;
+            btnEl.className = `btn mod-pill-btn ${confirmClass} rounded-pill px-4`;
             btnEl.onclick = function () {
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
@@ -453,8 +453,14 @@
     const resetFiltersBtn = document.getElementById('bpResetFiltersBtn');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', function () {
-            if (statusFilter) statusFilter.value = '';
-            if (areaFilter) areaFilter.value = '';
+            if (statusFilter) {
+                statusFilter.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(statusFilter);
+            }
+            if (areaFilter) {
+                areaFilter.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(areaFilter);
+            }
             applyFilters();
         });
     }
@@ -1445,5 +1451,19 @@
             showToast('Netzwerkfehler.', 'error');
         }
     }
+
+    // Global Pill-Select Enhancer fuer alle Selects im Modul
+    function initPillSelects(root) {
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(root || document);
+        }
+    }
+    initPillSelects();
+    document.addEventListener('shown.bs.modal', function (e) {
+        initPillSelects(e.target);
+    });
+    document.addEventListener('shown.bs.dropdown', function (e) {
+        initPillSelects(e.target);
+    });
 
 })();

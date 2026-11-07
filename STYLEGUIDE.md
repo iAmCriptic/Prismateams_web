@@ -12,7 +12,13 @@ Dieser Styleguide definiert die verbindlichen Gestaltungs- und Code-Standards f�
 
 Prismateams verwendet ein dreistufiges Theming-System (**Light**, **Dark**, **OLED**) kombiniert mit einer mandanten- bzw. benutzerdefinierten Akzentfarbe.
 
-### 1.1 Akzent- und Primärfarben
+### 1.1 Grundsatz: Niemals Light- oder Dark-Mode hardcoden (Immer voll umschaltbar)
+
+> [!IMPORTANT]
+> **Theme-Agilität ist Pflicht:** Es darf **niemals** von einem festen Farbmodus (weder Light noch Dark Mode) ausgegangen werden.  
+> Feste Farbwerte wie `#ffffff`, `#000000`, `#1a1a1a` oder `#f0f2f5` dürfen in Modul-CSS oder Templates **nicht statisch hardcodiert** werden. Alle Flächen, Texte, Ränder, Badges, Modals und Dropdowns müssen ausschließlich über die semantischen CSS-Variablen gesteuert werden (`var(--bs-body-bg)`, `var(--bs-body-color)`, `var(--bs-border-color)`, `var(--portal-bg)`, `var(--bs-tertiary-bg)`). Nur so schaltet die gesamte Benutzeroberfläche ohne Darstellungs- oder Kontrastfehler zwischen allen Modi um.
+
+### 1.2 Akzent- und Primärfarben
 
 | Token / Variable | CSS-Wert / Fallback | Bedeutung & Verwendung |
 | :--- | :--- | :--- |
@@ -24,7 +30,7 @@ Prismateams verwendet ein dreistufiges Theming-System (**Light**, **Dark**, **OL
 > **Hardcode-Verbot:** Der Farbwert `#0d6efd` darf im gesamten Codebase **nie** direkt als Hex-Code hardcodiert werden. Verwende ausnahmslos:  
 > `var(--accent-color, var(--bs-primary))` bzw. `var(--accent-style)`. Dies wird im CI-Build über `scripts/qa_css_design_guardrails.py` erzwungen.
 
-### 1.2 Semantische Statusfarben
+### 1.3 Semantische Statusfarben
 
 Die semantischen Farben basieren auf den standardisierten Bootstrap 5 Utility-Tokens:
 
@@ -36,9 +42,9 @@ Die semantischen Farben basieren auf den standardisierten Bootstrap 5 Utility-To
 | **Info** | `var(--bs-info)` | `#0dcaf0` | Text dunkel (`#212529`) |
 | **Muted / Secondary** | `var(--bs-secondary-color)` | `#6c757d` | Auf hellem Grund min. 4.5:1 |
 
-### 1.3 Oberflächen, Hintergründe & Modi
+### 1.4 Oberflächen, Hintergründe & Modi im Detail
 
-Die Plattform unterscheidet drei explizite Oberflächenmodi:
+Die Plattform unterstützt drei umschaltbare Oberflächenmodi:
 
 ```
 [data-bs-theme="light"]        Standard Light Mode (Grauer Portal-Canvas, weiße Karten)
@@ -55,7 +61,7 @@ Die Plattform unterscheidet drei explizite Oberflächenmodi:
 | Modal-Oberfläche | `#ffffff` | `#242424` | `#000000` (`border: 1px solid #1a1a1a`) |
 | Trennlinien / Border | `var(--bs-border-color)` (`#dee2e6`) | `rgba(255, 255, 255, 0.15)` | `#1a1a1a` |
 
-### 1.4 Textfarben & Kontraste
+### 1.5 Textfarben & Kontraste
 
 - **Primärtext:** `var(--bs-body-color)` (`#212529` in Light, `#e9ecef` in Dark, `#ffffff` in OLED).
 - **Sekundärtext / Muted:** `var(--bs-secondary-color, #6c757d)` (Light), `rgba(233, 236, 239, 0.65)` (Dark), `rgba(245, 245, 245, 0.62)` (OLED).
@@ -68,9 +74,20 @@ Die Plattform unterscheidet drei explizite Oberflächenmodi:
 
 ---
 
-## 2. Typografie
+## 2. Typografie & Internationalisierung (i18n)
 
-### 2.1 Schriftfamilien
+### 2.1 Grundsatz: Sprachen dürfen niemals hardcodiert sein
+
+> [!IMPORTANT]
+> **Vollständige Lokalisierbarkeit ist Pflicht:**  
+> Texte, UI-Beschriftungen, Buttons, Fehlermeldungen, Tooltips, `placeholder`-Texte und `aria-label`-Attribute dürfen **niemals** als statischer Klartext in HTML-Templates oder JavaScript geschrieben werden.
+> 
+> - **In Jinja2-Templates:** Immer die Übersetzungsfunktion `{{ _('translation.key') }}` verwenden.
+> - **In JavaScript:** Texte über `data-i18n-*`-Attribute am Container/Root-Element ins Skript übergeben (z. B. `data-i18n-delete="{{ _('common.delete') }}"`).
+> - **Übersetzungsdateien:** Neue Text-Keys müssen stets in `app/translations/de.json` sowie den Partnerdateien (`en.json`, `es.json`, `pt.json`, `ru.json`) gepflegt werden.
+> - **Einzige Ausnahme:** Vom Benutzer editierte Inhalte oder vorgefertigte Roh-Vorlagen (wie frei bearbeitbare E-Mail-Templates, Mustervorlagen oder Roh-Systemlogs).
+
+### 2.2 Schriftfamilien
 
 - **UI & Fließtext:** Nativer System-Font-Stack (keine externen Webfont-Ladezeiten, maximale Performance):
   ```css
@@ -82,7 +99,7 @@ Die Plattform unterscheidet drei explizite Oberflächenmodi:
   ```
 - **Icons:** Ausschließlich **Bootstrap Icons** (`bi bi-*`).
 
-### 2.2 Schriftgrößen-Hierarchie
+### 2.3 Schriftgrößen-Hierarchie
 
 | Element | Bootstrap-Klasse / CSS | Schriftgröße | Zeilenhöhe | Verwendung |
 | :--- | :--- | :--- | :--- | :--- |
@@ -97,18 +114,25 @@ Die Plattform unterscheidet drei explizite Oberflächenmodi:
 | **Small / Meta** | `small`, `.small` | `0.875rem` (14px) | `1.4` | Datumsangaben, Dateigrößen, Toolbars |
 | **Badges / Micro** | `.badge`, `.mod-pill-select__badge` | `0.72rem` – `0.8rem` | `1.2` | Status-Badges, Zähler, Chips |
 
-### 2.3 Schriftstärken (Font Weights)
+### 2.4 Schriftstärken (Font Weights)
 
 - `400` (Regular): Fließtext, Tabellenwerte, Beschreibungen.
-- `500` (Medium): Badges, sekundäre Navigationselemente.
+- `500` (Medium): Badges, sekundäre Navigationselemente, `.mod-back-link`.
 - `600` (Semi-Bold): Standard für Buttons (`.mod-pill-btn`), Navbar-Titel (`.top-navbar-portal`), Modal-Titel, Card-Titles.
 - `650` (Bold-Display): Modul-Sidebar-Titel (`.mod-sidebar-brand`), Badge-Zahlen.
 
 ---
 
-## 3. Layout & Spacing
+## 3. Layout & Spacing: Modul-Shell & Navigation
 
-### 3.1 Globale Höhen & Viewport-Tokens
+### 3.1 Grundsatz: Navbar-Suche & nahtlose Sidebar für jedes Modul
+
+> [!IMPORTANT]
+> **Modul-Standardarchitektur:**  
+> 1. **Suchleiste in der Navbar:** Jedes Modul-Template bindet im Top-Bereich zwingend den Block `{% block navbar_search %}` ein, damit das Suchfeld in der fixierten oberen Portal-Navbar (`.top-navbar-search`) erscheint.
+> 2. **Nahtlose linke Sidebar:** Auf der linken Seite besitzt jedes Modul eine Sidebar (`.mod-sidebar`), die **nahtlos** in den Hintergrund übergeht (kein kastenartiger Rand, transparenter Canvas-Hintergrund `var(--portal-bg)`, dezent sticky, fließender Übergang zu `.mod-main`).
+
+### 3.2 Globale Höhen & Viewport-Tokens
 
 ```css
 :root {
@@ -122,13 +146,37 @@ Die Plattform unterscheidet drei explizite Oberflächenmodi:
 }
 ```
 
-### 3.2 Die Modul-Shell-Architektur (`mod-shell--nav`)
+### 3.3 Die Modul-Shell-Architektur (`mod-shell--nav`)
 
 Jede Modul-Hauptseite **muss** als Shell strukturiert werden. Die Shell sorgt auf Desktop (`>= 992px`) für Viewport-Locking (kein Window-Scroll, nur `.mod-main` scrollt) und stellt auf Mobilgeräten nahtlos auf die Offcanvas-Sidebar um.
 
 ```html
+{% extends "base.html" %}
+
+{% block title %}{{ _('modul.page_title') }}{% endblock %}
+
+{# 1. Pflicht-Suchleiste in der oberen Navbar #}
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="modSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="modSearchInput"
+               class="mod-search-input"
+               placeholder="{{ _('modul.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
 <div class="{modul}-shell mod-shell--nav">
-  <!-- Desktop Sidebar (>= 992px) -->
+  <!-- 2. Nahtlose Desktop Sidebar (>= 992px) -->
   <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
       <i class="bi bi-folder2-open"></i>
@@ -167,20 +215,21 @@ Jede Modul-Hauptseite **muss** als Shell strukturiert werden. Die Shell sorgt au
     <!-- Toolbar, Filter, Grid/Table -->
   </div>
 </div>
+{% endblock %}
 ```
 
-### 3.3 Bootstrap-Grid & Container
+### 3.4 Bootstrap-Grid & Container
 
 - **Haupt-Container:** `<div class="main-content">` > `<div class="container-fluid">`.
 - **Keine horizontalen Scrollbalken:** `overflow-x: clip` ist auf `html`, `body` und `.main-content` aktiv. Alle Flex-Kinder müssen `min-width: 0` besitzen.
 - **Card-Raster:** Standardmäßig Bootstrap 12-Spalten-Raster mit `g-3` (1rem Abstand):
   ```html
   <div class="row g-3">
-    <div class="col-12 col-md-6 col-lg-4">...</div>
+    <div class="col-12 col-md-6 col-lg-3">...</div>
   </div>
   ```
 
-### 3.4 Standard-Abstände & Spacing-Regeln
+### 3.5 Standard-Abstände & Spacing-Regeln
 
 Verwende strikt die Bootstrap-Spacing-Skala (`$spacer: 1rem = 16px`):
 
@@ -204,101 +253,280 @@ Alle Buttons im Modul-Bereich basieren auf `.mod-pill-btn` (`border-radius: var(
 <!-- Primärer Akzent-Button (CTA) -->
 <button type="button" class="btn mod-pill-btn mod-pill-btn--accent">
   <i class="bi bi-check2"></i>
-  <span>Speichern</span>
+  <span>{{ _('common.save') }}</span>
 </button>
 
 <!-- Subtiler Outline-Button -->
 <button type="button" class="btn mod-pill-btn mod-pill-btn--outline">
   <i class="bi bi-arrow-repeat"></i>
-  <span>Aktualisieren</span>
-</button>
-
-<!-- Neutraler Muted-Button (Abbrechen / Zurück) -->
-<button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">
-  Abbrechen
+  <span>{{ _('common.refresh') }}</span>
 </button>
 
 <!-- Destruktiver Button (Löschen) -->
 <button type="button" class="btn mod-pill-btn mod-pill-btn--danger">
   <i class="bi bi-trash"></i>
-  <span>Löschen</span>
+  <span>{{ _('common.delete') }}</span>
 </button>
 
 <!-- Icon-Only Button (exakt quadratisch 2.15rem x 2.15rem) -->
-<button type="button" class="btn mod-pill-btn mod-pill-btn--icon" aria-label="Aktionen">
+<button type="button" class="btn mod-pill-btn mod-pill-btn--icon" aria-label="{{ _('common.actions') }}">
   <i class="bi bi-three-dots-vertical"></i>
 </button>
 ```
 
-### 4.2 Toolbar, Suche & Ansichts-Toggle
+### 4.2 Der verbindliche Zurück-Button-Standard
 
-Jedes Listen-/Karten-Modul besitzt eine Toolbar (`.mod-toolbar`) mit einheitlicher Suche und Ansichts-Toggle:
+> [!IMPORTANT]
+> **Vorgabe für den Zurück-Button:**  
+> Der Zurück-Button muss **immer grau** gehalten sein (`var(--bs-secondary-color, #6c757d)`), besitzt **einen Pfeil nach links** (`bi bi-arrow-left`) und trägt **immer die Beschriftung „Zurück“** (bzw. übersetzbar: `{{ _('layout.nav.back') }}` oder `{{ _('common.back') }}`).
+
+Es gibt zwei verbindliche Varianten:
+
+#### Variante A: Dezent in der Modul-Shell (Standard auf Unterseiten)
+Wird direkt oberhalb des Inhalts oder Tabellentitels platziert:
+```html
+<div class="mod-back-row mb-3">
+  <a href="{{ url_for('modul.index') }}" class="mod-back-link">
+    <i class="bi bi-arrow-left"></i>
+    <span>{{ _('layout.nav.back') }}</span>
+  </a>
+</div>
+```
+
+#### Variante B: Als Pill-Button (z. B. in Formularen, Detail-Headern oder Modals)
+```html
+<a href="{{ url_for('modul.index') }}" class="btn mod-pill-btn mod-pill-btn--outline-muted">
+  <i class="bi bi-arrow-left"></i>
+  <span>{{ _('layout.nav.back') }}</span>
+</a>
+```
+
+### 4.3 Toolbar & Ansichts-Toggle (List / Grid)
+
+Jedes Listen- oder Karten-Modul besitzt eine Toolbar (`.mod-toolbar`) mit einheitlicher Suche und dem Schieberegler-Ansichts-Toggle `.mod-view-toggle`:
 
 ```html
 <div class="mod-toolbar mb-3">
-  <!-- Zentrales Pill-Suchfeld -->
+  <!-- Zentrales Pill-Suchfeld (optional zusätzlich zur Navbar-Suche) -->
   <div class="mod-search" role="search">
     <label class="mod-search-field" for="modSearchInput">
       <i class="bi bi-search" aria-hidden="true"></i>
-      <input type="text" id="modSearchInput" class="mod-search-input" placeholder="Suchen..." autocomplete="off">
+      <input type="text" id="modSearchInput" class="mod-search-input" placeholder="{{ _('common.search') }}" autocomplete="off">
     </label>
-    <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="Suche leeren">
+    <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
       <i class="bi bi-x-lg"></i>
     </button>
   </div>
 
   <!-- Aktionen & View Toggle (List/Grid) -->
   <div class="mod-toolbar-actions">
-    <div class="mod-view-toggle" data-view="list">
-      <div class="mod-view-toggle__indicator"></div>
-      <button type="button" class="mod-view-toggle__btn active" data-view-target="list" aria-label="Listenansicht">
-        <i class="bi bi-list-ul"></i>
+    <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('common.list_view') }} / {{ _('common.grid_view') }}">
+      <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+      <button type="button" class="mod-view-toggle__btn" id="listViewBtn" title="{{ _('common.list_view') }}">
+        <i class="bi bi-list"></i>
       </button>
-      <button type="button" class="mod-view-toggle__btn" data-view-target="grid" aria-label="Kachelansicht">
-        <i class="bi bi-grid"></i>
+      <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('common.grid_view') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
       </button>
     </div>
   </div>
 </div>
 ```
 
-### 4.3 Cards & Kachelansicht
+---
 
-Cards dürfen nicht mehr als Fullscreen-Ersatz ohne Shell genutzt werden, sondern dienen als strukturierende Container für Inhalte und Grid-Items:
+### 4.4 Tabellen-Design (Listenansicht nach Dateien-Muster)
+
+Die tabellarische Listenansicht basiert auf `.mod-list-table-wrap` und `.table.mod-list-table`.
+
+> [!CAUTION]
+> **Tabellenzellen-Regel:** Niemals `display: flex` direkt auf ein `<td>`-Element setzen! Dies zerstört die automatische Tabellenbreiten-Berechnung des Browsers. `<td>` behält immer `display: table-cell;`, während innere Inhalte mit Flex-Wrappern formatiert werden.
+
+#### Tabellen-Markup
 
 ```html
-<article class="card h-100">
-  <div class="card-body d-flex flex-column p-3">
-    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-      <div class="mod-grid-preview flex-shrink-0">
-        <i class="bi bi-file-earmark-text"></i>
-      </div>
-      <div class="dropdown">
-        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
-          <i class="bi bi-three-dots-vertical"></i>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">...</ul>
-      </div>
-    </div>
-    <h5 class="card-title text-truncate mb-1">Dateiname.pdf</h5>
-    <div class="small text-muted mb-3">2.4 MB · 12.03.2026</div>
-    <div class="mt-auto pt-2 border-top">
-      <span class="badge bg-success">Fertig</span>
-    </div>
-  </div>
-</article>
+<div class="mod-list-table-wrap">
+  <table class="table mod-list-table align-middle mb-0">
+    <thead>
+      <tr>
+        <th scope="col">
+          <span class="mod-list-select-all-wrap" title="{{ _('common.select_all') }}">
+            <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
+          </span>
+          {{ _('common.name') }}
+        </th>
+        <th scope="col" class="d-none d-md-table-cell">{{ _('common.owner') }}</th>
+        <th scope="col" class="d-none d-lg-table-cell">{{ _('common.modified') }}</th>
+        <th scope="col" class="d-none d-md-table-cell">{{ _('common.size') }}</th>
+        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+      </tr>
+    </thead>
+    <tbody id="listTableBody">
+      <tr class="mod-list-row" data-item-id="{{ item.id }}">
+        <!-- 1. Namens- & Auswahlzelle -->
+        <td class="mod-list-name-cell">
+          <label class="mod-select-check mod-select-check--list" onclick="event.stopPropagation()" title="{{ _('common.select') }}">
+            <input type="checkbox" class="form-check-input item-checkbox" data-item-id="{{ item.id }}">
+          </label>
+          <a class="mod-list-name text-decoration-none mod-item-name" href="...">
+            <i class="bi bi-file-earmark-text flex-shrink-0 text-primary"></i>
+            <span class="mod-item-name-text text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+          </a>
+        </td>
+
+        <!-- 2. Responsive Metadaten-Spalten -->
+        <td class="d-none d-md-table-cell text-muted">{{ item.owner_name }}</td>
+        <td class="d-none d-lg-table-cell text-muted">{{ item.updated_at|localdatetime }}</td>
+        <td class="d-none d-md-table-cell text-muted">{{ item.size_formatted }}</td>
+
+        <!-- 3. Aktionen (Hover-Shortcuts + Dropdown) -->
+        <td class="text-end">
+          <div class="mod-list-actions">
+            <!-- Schnellauswahl auf Desktop (>= 992px) -->
+            <div class="mod-list-hover-actions">
+              <button type="button" class="btn btn-sm btn-link" title="{{ _('common.edit') }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </div>
+            <!-- Standard Dropdown für alle Geräte -->
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.actions') }}">
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                <li>
+                  <a class="dropdown-item" href="...">
+                    <i class="bi bi-pencil me-2"></i>{{ _('common.edit') }}
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <button class="dropdown-item text-danger" type="button">
+                    <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 ```
 
-### 4.4 Formulare & Inputs
+---
+
+### 4.5 Kachelansicht (Grid-View nach Dateien-Muster)
+
+In der Kachelansicht werden Elemente im responsiven Bootstrap-Raster (`row g-3`) als standardisierte Karten dargestellt.
+
+#### Grid-Markup
+
+```html
+<div id="gridView" class="row g-3">
+  <div class="col-12 col-md-6 col-lg-3" data-item-id="{{ item.id }}">
+    <article class="card h-100 position-relative">
+      <!-- 1. Checkbox oben links (erscheint bei Hover oder aktiver Selektion) -->
+      <label class="mod-select-check" onclick="event.stopPropagation()" title="{{ _('common.select') }}">
+        <input type="checkbox" class="form-check-input item-checkbox" data-item-id="{{ item.id }}">
+      </label>
+
+      <div class="card-body d-flex flex-column p-3">
+        <!-- 2. Große visuelle Vorschau-Fläche (7.5rem Höhe, zentriertes Icon / Bild) -->
+        <div class="mod-grid-preview text-center mb-3">
+          <i class="bi bi-file-earmark-text text-primary"></i>
+          <!-- Alternativ: <img src="..." alt="" class="image-mini-preview"> -->
+        </div>
+
+        <!-- 3. Kopfzeile mit zweizeiligem Titel und Aktionen -->
+        <div class="d-flex justify-content-between align-items-start gap-1 mb-1">
+          <div class="flex-grow-1 min-width-0">
+            <h6 class="mb-0 mod-item-name" title="{{ item.name }}">
+              <span class="mod-item-name-text">{{ item.name }}</span>
+            </h6>
+          </div>
+          <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
+            <!-- Desktop-Hover-Aktionen -->
+            <div class="mod-grid-hover-actions">
+              <button type="button" class="btn btn-sm btn-link" title="{{ _('common.edit') }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </div>
+            <!-- Dropdown -->
+            <div class="dropdown">
+              <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.actions') }}">
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i>{{ _('common.edit') }}</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item text-danger" type="button"><i class="bi bi-trash me-2"></i>{{ _('common.delete') }}</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Metadaten & Status am Fuß -->
+        <div class="small text-muted mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
+          <span>{{ item.size_formatted }}</span>
+          <span class="badge bg-success">{{ _('status.ready') }}</span>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+```
+
+---
+
+### 4.6 Multi-Select & Bulk-Aktionen (`.mod-bulk-bar`)
+
+Sobald ein oder mehrere Elemente per Checkbox ausgewählt werden, schiebt sich die Bulk-Toolbar animiert über die Ansicht:
+
+```html
+<div id="bulkToolbar" class="mod-bulk-bar mb-3" style="display: none;">
+  <div class="mod-bulk-inner">
+    <div>
+      <span class="text-muted">
+        <strong id="bulkSelectedCount">0</strong> {{ _('common.selected') }}
+      </span>
+    </div>
+    <div class="mod-bulk-actions">
+      <!-- Auswahlschalter -->
+      <button type="button" id="bulkSelectAllBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline">
+        <i class="bi bi-check-square"></i> {{ _('common.select_all') }}
+      </button>
+      <button type="button" id="bulkDeselectBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--muted">
+        <i class="bi bi-square"></i> {{ _('common.select_none') }}
+      </button>
+
+      <!-- Fachliche Aktionen -->
+      <button type="button" id="bulkDownloadBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--outline">
+        <i class="bi bi-download"></i> {{ _('common.download') }}
+      </button>
+
+      <!-- Destruktiv -->
+      <button type="button" id="bulkDeleteBtn" class="btn btn-sm mod-bulk-btn mod-bulk-btn--danger">
+        <i class="bi bi-trash"></i> {{ _('common.delete') }}
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+### 4.7 Formulare & Inputs
 
 - **Pill Input:** Inputs und reguläre Selects erhalten die Klasse `.mod-pill-input`:
   ```html
-  <input type="text" class="form-control mod-pill-input" placeholder="Name eingeben">
+  <input type="text" class="form-control mod-pill-input" placeholder="{{ _('modul.form.name_placeholder') }}">
   ```
 - **Custom Pill Select:** Für fortgeschrittene Selects mit Badge/Icon nutze `.mod-pill-select` aus `mod-forms.css`.
 - **Labels:** Stets `<label class="form-label small fw-semibold">` verwenden.
 
-### 4.5 Modals (Dialoge)
+### 4.8 Modals (Dialoge)
 
 > [!IMPORTANT]
 > **Modals niemals innerhalb der Modul-Shell platzieren!**  
@@ -312,27 +540,39 @@ Standard-Aufbau eines Bootstrap 5 Modals im Prismateams-Design:
     <div class="modal-content">
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title" id="itemActionModalLabel">
-          <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Eintrag bearbeiten
+          <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>{{ _('modul.modal.title') }}
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
       </div>
       <div class="modal-body pt-3">
         <!-- Formular-Felder -->
       </div>
       <div class="modal-footer border-0 pt-0 gap-2">
-        <button type="button" class="btn btn-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
-        <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Speichern</button>
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">
+          <i class="bi bi-arrow-left"></i>
+          <span>{{ _('common.cancel') }}</span>
+        </button>
+        <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">
+          {{ _('common.save') }}
+        </button>
       </div>
     </div>
   </div>
 </div>
 ```
 
-### 4.6 Badges & Counter
+### 4.9 Badges, Counter & Empty-States
 
-- **Standard-Badge:** `<span class="badge bg-success">Aktiv</span>`
-- **Pill-Badge:** `<span class="badge rounded-pill bg-accent">Neu</span>`
+- **Standard-Badge:** `<span class="badge bg-success">{{ _('status.active') }}</span>`
+- **Pill-Badge:** `<span class="badge rounded-pill bg-accent">{{ _('status.new') }}</span>`
 - **Navigations-Zähler (Sidebar):** `<span class="badge mod-nav-badge ms-auto">12</span>`
+- **Empty-State-Hinweis:**
+  ```html
+  <div class="mod-empty-state text-muted small text-center py-5">
+    <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+    {{ _('common.no_items_found') }}
+  </div>
+  ```
 
 ---
 
@@ -342,14 +582,18 @@ Standard-Aufbau eines Bootstrap 5 Modals im Prismateams-Design:
 
 | Verboten ❌ | Erlaubt / Vorgeschrieben ✅ | Begründung |
 | :--- | :--- | :--- |
+| **`display: flex` direkt auf `<td>`** | `<td>` behält `display: table-cell;`, Flexbox nur im inneren Element `.mod-list-name-cell > ...` | Zerstört Browser-Tabellenberechnung und Spaltenausrichtung. |
+| **Feste Annahme von Light- oder Dark-Mode**<br>Statische Farben für Flächen/Texte (`#fff`, `#000`, `#1a1a1a`) | CSS-Tokens: `var(--bs-body-bg)`, `var(--bs-body-color)`, `var(--bs-border-color)`, `var(--portal-bg)` | Das Portal muss jederzeit ohne Layoutbrüche zwischen Light, Dark und OLED umschaltbar sein. |
+| **Hardcodierte Sprache/Texte im Frontend**<br>`<button>Speichern</button>` oder `placeholder="Suchen..."` | `{{ _('common.save') }}`, `{{ _('common.search') }}`, `data-i18n-*` | Prismateams ist mehrsprachig (de, en, es, pt, ru). Jeder String muss lokalisierbar sein (Ausnahme: Nutzer-Templates/E-Mails). |
+| **Falscher Zurück-Button**<br>Blaue Buttons, Buttons ohne Pfeil, `btn-outline-secondary` mit Pfeil links oben außerhalb der Shell | Grauer Zurück-Button mit Pfeil links: `.mod-back-link` oder `.mod-pill-btn--outline-muted` mit `bi-arrow-left` und "Zurück"-Label | Konsistente UX und einheitliches Farbmuster für Navigation. |
+| **Fehlende Navbar-Suche im Modul**<br>Modul ohne `{% block navbar_search %}` | Jedes Modul implementiert `{% block navbar_search %}` mit `.mod-search` | Garantierte globale Erreichbarkeit der Suchfunktion in der fixierten Top-Navbar. |
+| **Kastenartige / isolierte Sidebar**<br>Eigene Border, abweichender Hintergrund | Nahtlose `.mod-sidebar` mit `var(--portal-bg)` | Die linke Modul-Sidebar geht nahtlos in das Portaldesign über. |
 | **Modul-Präfixe bei Pill-Buttons**<br>`files-pill-btn`, `kanban-pill-btn`, `wiki-pill-btn`, `contacts-pill-btn` | `.mod-pill-btn` + ggf. `.mod-pill-btn--*` | Shared UI Pack (`mod-buttons.css`) garantiert konsistentes Design und verhindert CSS-Duplizierung. |
 | **Legacy-Search-Klassen**<br>`files-search`, `wiki-search`, `calendar-search` etc. | `.mod-search` mit `.mod-search-field` | Shared Search Pack (`mod-search.css`) verwenden. |
 | **Cross-Loading von `files.css`**<br>`<link rel="stylesheet" href="...files.css">` in Fremdmodulen | Shared Packs in `core_css`: `mod-list-chrome.css`, `mod-buttons.css` etc. | Verhindert CSS-Bloat und unvorhersehbare Kaskadenkonflikte. |
 | **Hardcodiertes `#0d6efd` in CSS** | `var(--accent-color, var(--bs-primary))` | Zerstört benutzerdefinierte Akzentfarben und Dark/OLED-Kontraste. |
-| **Alter globaler Zurück-Button**<br>`back-button`, `back-button-container`, `get_back_url`, `btn-outline-secondary` mit Pfeil links oben | `.mod-back-link` innerhalb der Shell oder Breadcrumbs | Existiert im neuen Design nicht mehr. Navigation erfolgt über Sidebar oder In-Shell-Back-Link. |
 | **Isolierte Bootstrap-Card als Seitenlayout** | `{modul}-shell mod-shell--nav` mit Sidebar | Veraltetes Tabellen-/Kartenlayout ohne Shell bricht das einheitliche Responsive-Verhalten. |
 | **Modals innerhalb der Modul-Shell** | Modals ans Ende des Templates außerhalb `.mod-shell--nav` | Verhindert Z-Index-Trapping hinter dem Backdrop. |
-| **`display: flex` direkt auf `<td>`** | `<td>` behält `display: table-cell;`, Flexbox nur in innerem Wrapper | Zerstört Browser-Tabellenberechnung und Spaltenausrichtung. |
 
 ### 5.2 Keine willkürlichen Inline-Styles
 
@@ -370,9 +614,18 @@ Standard-Aufbau eines Bootstrap 5 Modals im Prismateams-Design:
 
 ## 6. Checkliste für neue Modul-Entwicklungen
 
-- [ ] **Blueprint & Route:** Unter `app/blueprints/{modul}.py` angelegt und in Navigation registriert.
+- [ ] **Navbar-Suche implementiert:** `{% block navbar_search %}` im Modul-Template eingebunden.
+- [ ] **Nahtlose Sidebar integriert:** `app/templates/{modul}/_sidebar.html` definiert Desktop- und Offcanvas-Variante (`mod-sidebar-nav`, `mod-nav-link`).
+- [ ] **Theme-Umschaltbar:** Keine hardcodierten Light/Dark-Farben, rein tokenbasierte Stile.
+- [ ] **Vollständig übersetzt (i18n):** Kein Klartext in Templates oder Skripten (`{{ _('...') }}` genutzt, de.json etc. gepflegt).
+- [ ] **Zurück-Button-Konformität:** Grau mit Pfeil nach links (`bi bi-arrow-left`) und Label „Zurück“.
+- [ ] **Tabellen & Grid-Views:**
+  - Tabellen nutzen `.mod-list-table-wrap` und `.table.mod-list-table` (kein `display:flex` auf `<td>`).
+  - Kachelansichten nutzen `#gridView.row.g-3` mit `.mod-grid-preview` (Höhe 7.5rem) und Hover-Shortcuts.
+  - Multi-Select über `.mod-bulk-bar` und `.mod-select-check`.
+  - Umschaltung über `.mod-view-toggle` mit Schiebe-Indikator.
 - [ ] **Template-Struktur:** `app/templates/{modul}/index.html` verwendet `<div class="{modul}-shell mod-shell--nav">`.
-- [ ] **Sidebar-Komponente:** `_sidebar.html` definiert Desktop- und Offcanvas-Variante (`mod-sidebar-nav`, `mod-nav-link`).
+- [ ] **Modals außerhalb der Shell:** Modals am Dateiende außerhalb von `.mod-shell--nav` platziert.
 - [ ] **Modul-CSS:** Nur Domänen-Layouts unter `app/static/css/{modul}.css` (alle Shared Elements nutzen `mod-*`).
 - [ ] **CSS-Einbindung:** `base.html` lädt `app/static/css/{modul}.css` geschützt per `request.endpoint.startswith('{modul}.')`.
 - [ ] **CI Guardrails Check:** Lokaler Test mit `python scripts/qa_css_design_guardrails.py` liefert `Exit 0 (Alle Checks bestanden)`.

@@ -655,23 +655,23 @@
 
 <!-- Modal: Spalte Hinzufügen / Bearbeiten (Pill Style, ohne Breite) -->
 <div class="modal fade" id="bpColumnModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content rounded-3 border shadow-lg">
-            <div class="modal-header border-bottom">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpColumnModalTitle">Spalte hinzufügen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
             <div class="modal-body p-4">
                 <!-- Schnell-Vorschläge für neue Spalten -->
-                <div class="p-3 mb-3 bg-body-tertiary rounded-3 border">
+                <div class="p-3 mb-3 bg-body-tertiary rounded-4 border">
                     <label class="form-label small fw-semibold text-muted text-uppercase mb-2" style="font-size: 0.75rem;">Schnellauswahl aus Vorlagen</label>
-                    <div class="d-flex flex-wrap gap-1.5">
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('gage')"><i class="bi bi-cash text-primary"></i>Gage (€)</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-primary"></i>Techrider</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('promo_images')"><i class="bi bi-images text-primary"></i>Promo-Bilder</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('pronoun')"><i class="bi bi-person-badge text-primary"></i>Pronomen</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('drinks')"><i class="bi bi-cup-straw text-primary"></i>Getränke</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('guestlist')"><i class="bi bi-people text-primary"></i>Gästeliste</button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('gage')"><i class="bi bi-cash text-primary me-1"></i>Gage (€)</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-primary me-1"></i>Techrider</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('promo_images')"><i class="bi bi-images text-primary me-1"></i>Promo-Bilder</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('pronoun')"><i class="bi bi-person-badge text-primary me-1"></i>Pronomen</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('drinks')"><i class="bi bi-cup-straw text-primary me-1"></i>Getränke</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('guestlist')"><i class="bi bi-people text-primary me-1"></i>Gästeliste</button>
                     </div>
                 </div>
 
@@ -682,16 +682,16 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Spaltenname (Deutsch) <span class="text-danger">*</span></label>
-                            <input type="text" id="bpColLabel" class="form-control rounded-pill px-3 py-2" placeholder="z. B. Hotelzimmer" required>
+                            <input type="text" id="bpColLabel" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotelzimmer" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Englischer Name (für Zusage-Übersicht)</label>
-                            <input type="text" id="bpColLabelEn" class="form-control rounded-pill px-3 py-2" placeholder="z. B. Hotel Room">
+                            <input type="text" id="bpColLabelEn" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotel Room">
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Feld-Typ</label>
-                            <select id="bpColType" class="form-select rounded-pill px-3 py-2">
+                            <select id="bpColType" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                                 <option value="text">Text (Einzeilig)</option>
                                 <option value="textarea">Text (Mehrzeilig)</option>
                                 <option value="currency">Zahl / Währung (€)</option>
@@ -708,7 +708,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Kategorie / Bereich</label>
-                            <input type="text" id="bpColCategory" class="form-control rounded-pill px-3 py-2" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
+                            <input type="text" id="bpColCategory" class="form-control mod-pill-input rounded-pill px-3 py-2" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
                             <datalist id="bpColCatPresets">
                                 <option value="Stammdaten & Status">
                                 <option value="Finanzen">
@@ -721,9 +721,9 @@
                         <!-- Optionen für Dropdown / Badge-Select -->
                         <div class="col-12" id="bpColOptionsGroup" style="display: none;">
                             <label class="form-label small fw-semibold">Dropdown-Optionen (Werte & Farben)</label>
-                            <div class="border rounded-3 p-3 bg-body-tertiary">
+                            <div class="border rounded-4 p-3 bg-body-tertiary">
                                 <div id="bpColOptionsList" class="d-flex flex-column gap-2 mb-2"></div>
-                                <button type="button" class="btn btn-xs btn-outline-secondary mod-pill-btn bp-neutral-btn px-3 py-1" onclick="addBadgeOptionRow()">
+                                <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted px-3 py-1" onclick="addBadgeOptionRow()">
                                     <i class="bi bi-plus-lg me-1 text-primary"></i>Option hinzufügen
                                 </button>
                             </div>
@@ -732,13 +732,13 @@
                         <!-- Formel-Definition -->
                         <div class="col-12" id="bpColFormulaGroup" style="display: none;">
                             <label class="form-label small fw-semibold">Formel-Berechnung</label>
-                            <input type="text" id="bpColFormula" class="form-control rounded-pill px-3 py-2 font-monospace" placeholder="z. B. gage + booking_fee + travel + unterkunft">
+                            <input type="text" id="bpColFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace" placeholder="z. B. gage + booking_fee + travel + unterkunft">
                             <div class="form-text small">Summiert Werte anhand der Spalten-Keys.</div>
                         </div>
 
                         <!-- Schalter für Sichtbarkeit / Formular -->
                         <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-body-tertiary">
+                            <div class="border rounded-4 p-3 bg-body-tertiary">
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="bpColIsExternal">
                                     <label class="form-check-label fw-semibold small" for="bpColIsExternal">
@@ -758,10 +758,10 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-top">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4" id="bpSaveColumnBtn">
-                    <i class="bi bi-check-lg text-primary me-1"></i>Spalte speichern
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpSaveColumnBtn">
+                    <i class="bi bi-check-lg me-1"></i>Spalte speichern
                 </button>
             </div>
         </div>
@@ -839,5 +839,6 @@ window.confirmDeleteCurrentEvent = function (eventName) {
     }
 };
 </script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
 {% endblock %}

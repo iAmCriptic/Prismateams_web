@@ -139,7 +139,9 @@
     </div>
   </section>
 </div>
+{% endblock %}
 
+{% block settings_modals %}
 <!-- Modal: Feld erstellen -->
 <div class="modal fade" id="createFieldModal" tabindex="-1" aria-labelledby="createFieldModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -214,6 +216,10 @@
             <input type="text" name="label" id="edit_field_label" class="form-control mod-pill-input" required>
           </div>
           <div class="mb-3">
+            <label class="form-label fw-semibold small">Kategorie / Bereich</label>
+            <input type="text" name="category" id="edit_field_category" class="form-control mod-pill-input" list="category_suggestions" placeholder="z. B. Allgemein & Vorverkauf">
+          </div>
+          <div class="mb-3">
             <label class="form-label fw-semibold small">Feldtyp</label>
             <select name="field_type" id="edit_field_type" class="form-select mod-pill-input" onchange="toggleOptionsVisibility('edit')">
               <option value="text">Kurztext (einzeilig)</option>
@@ -262,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', function() {
       document.getElementById('edit_field_id').value = this.dataset.fieldId;
       document.getElementById('edit_field_label').value = this.dataset.fieldLabel;
+      document.getElementById('edit_field_category').value = this.dataset.fieldCategory || 'Allgemein';
       document.getElementById('edit_field_type').value = this.dataset.fieldType;
       document.getElementById('edit_field_placeholder').value = this.dataset.fieldPlaceholder;
       document.getElementById('edit_field_options').value = this.dataset.fieldOptions;

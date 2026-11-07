@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 import pytest
 from app import db
 from app.models.user import User
@@ -6,13 +6,16 @@ from app.models.event import (
     Event,
     EventDay,
     EventAppointment,
+    EventAssignment,
+    EventContact,
     EventTodoList,
     EventTodoItem,
     EventBookingPersonalLink,
     EventCustomField,
     EventCustomFieldValue,
+    EventLink,
 )
-from app.models.file import Folder
+from app.models.file import Folder, File
 from app.models.booking_personal import BookingPersonalEvent
 from app.models.kanban import KanbanBoard, KanbanList, KanbanCard
 
@@ -538,7 +541,7 @@ def test_event_custom_fields_save_and_display(client, auth_user):
     res_get = client.get(f'/events/{ev_id}')
     assert res_get.status_code == 200
     content = res_get.data.decode('utf-8')
-    assert 'Benutzerdefinierte Felder' in content
+    assert 'Infos zur Veranstaltung' in content
     assert 'EPISODE' in content
     assert '42' in content
     assert 'VVK VIA T4G?' in content
@@ -583,3 +586,169 @@ def test_hide_day_todos_when_empty(client, auth_user):
     html2 = res2.data.decode('utf-8')
     assert 'ToDos nach Tagen' in html2
     assert 'Aufbau Tag 1' in html2
+
+
+def test_event_links_and_files_overview(client, auth_user):
+    _login(client)
+
+    # 1. Event mit verknüpftem Ordner & Datei anlegen
+    folder = Folder(name='Event Folder', created_by=auth_user.id)
+    db.session.add(folder)
+    db.session.flush()
+
+    file_obj = File(
+        name='Ablaufplan.pdf',
+        original_name='Ablaufplan.pdf',
+        file_path='uploads/Ablaufplan.pdf',
+        folder_id=folder.id,
+        file_size=10240,
+        mime_type='application/pdf',
+        uploaded_by=auth_user.id,
+        is_current=True,
+    )
+    db.session.add(file_obj)
+
+    ev = Event(
+        name='Links and Files Event',
+        owner_id=auth_user.id,
+        created_by=auth_user.id,
+        folder_id=folder.id,
+    )
+    db.session.add(ev)
+    db.session.commit()
+    ev_id = ev.id
+
+    # 2. Externe Links hinzufügen
+    res_link = client.post(f'/events/{ev_id}/links/add', data={
+        'title': 'Ticketshop',
+        'url': 'https://tickets.example.com',
+    }, follow_redirects=True)
+    assert res_link.status_code == 200
+
+    res_link2 = client.post(f'/events/{ev_id}/links/add', data={
+        'title': 'Cloud Drive',
+        'url': 'drive.google.com/folder',
+    }, follow_redirects=True)
+    assert res_link2.status_code == 200
+
+    # 3. Ansicht abrufen: Dateien & Links müssen in der Übersicht gerendert sein
+    res_view = client.get(f'/events/{ev_id}')
+    assert res_view.status_code == 200
+    html = res_view.data.decode('utf-8')
+
+    # Dateien-Karte
+    assert 'Dateien' in html
+    assert 'Ablaufplan.pdf' in html
+    assert '10.0 KB' in html
+
+    # Links-Karte
+    assert 'Links' in html
+    assert 'Ticketshop' in html
+    assert 'https://tickets.example.com' in html
+    assert 'Cloud Drive' in html
+    assert 'https://drive.google.com/folder' in html
+
+    # 4. Einen Link löschen
+    link = EventLink.query.filter_by(event_id=ev_id, title='Ticketshop').first()
+    assert link is not None
+    res_del = client.post(f'/events/{ev_id}/links/{link.id}/delete', follow_redirects=True)
+    assert res_del.status_code == 200
+
+    ev_refreshed = db.session.get(Event, ev_id)
+    assert len(ev_refreshed.links) == 1
+    assert ev_refreshed.links[0].title == 'Cloud Drive'
+
+
+def test_event_pdf_export_with_all_details(client, auth_user):
+    """Prüft, dass der PDF-Export alle Veranstaltungsdetails, Custom Fields, Tage, Termine, ToDos etc. fehlerfrei generiert."""
+    _login(client)
+
+    # 1. Mehrtägige Veranstaltung mit Custom Fields, Tagen, Kontakten und ToDos anlegen
+    ev = Event(
+        name='Großes Sommerfestival 2026',
+        description='Ein dreitägiges Open-Air Event mit Bands und Workshops.',
+        default_location='Festwiese Nord',
+        is_multiday=True,
+        owner_id=auth_user.id,
+        created_by=auth_user.id,
+    )
+    db.session.add(ev)
+    db.session.flush()
+
+    day1 = EventDay(
+        event_id=ev.id,
+        day_number=1,
+        date=date(2026, 7, 10),
+        start_time=time(14, 0),
+        end_time=time(23, 0),
+        location='Main Stage Area',
+        label='Festival Tag 1',
+        notes='Einlass ab 13:00 Uhr',
+    )
+    db.session.add(day1)
+    db.session.flush()
+
+    appt1 = EventAppointment(
+        event_id=ev.id,
+        day_id=day1.id,
+        label='Headliner Act',
+        start_time=datetime(2026, 7, 10, 20, 0),
+        end_time=datetime(2026, 7, 10, 22, 30),
+        location='Main Stage Area',
+        description='Große Show mit Pyrotechnik',
+    )
+    db.session.add(appt1)
+
+    contact1 = EventContact(
+        event_id=ev.id,
+        name='Max Mustermann',
+        role='Produktionsleiter',
+        phone='+49 170 1234567',
+        email='max@festival.example',
+    )
+    db.session.add(contact1)
+
+    assign1 = EventAssignment(
+        event_id=ev.id,
+        user_id=auth_user.id,
+        role='Stage Manager',
+    )
+    db.session.add(assign1)
+
+    tl = EventTodoList(
+        event_id=ev.id,
+        title='Produktions-Checkliste',
+        created_by=auth_user.id,
+    )
+    db.session.add(tl)
+    db.session.flush()
+
+    item1 = EventTodoItem(
+        todo_list_id=tl.id,
+        title='Notstromaggregat prüfen',
+        is_completed=True,
+        assigned_to_user_id=auth_user.id,
+        due_date=date(2026, 7, 10),
+    )
+    db.session.add(item1)
+
+    # Custom Field Wert
+    field = EventCustomField.query.first()
+    if field:
+        cv = EventCustomFieldValue(
+            event_id=ev.id,
+            field_id=field.id,
+            value='Custom Test Wert',
+        )
+        db.session.add(cv)
+
+    db.session.commit()
+
+    # PDF abrufen
+    resp = client.get(f'/events/{ev.id}/pdf')
+    assert resp.status_code == 200
+    assert resp.content_type == 'application/pdf'
+    assert resp.data.startswith(b'%PDF-')
+    assert len(resp.data) > 1000
+
+

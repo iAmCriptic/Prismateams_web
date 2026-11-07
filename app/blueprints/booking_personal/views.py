@@ -1094,3 +1094,16 @@ def export_excel(event_id):
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
 
+@booking_personal_bp.route('/event/<int:event_id>/export/pdf')
+def export_pdf(event_id):
+    """Exportiert alle Einträge der Veranstaltung als PDF-Tabelle (A4 Querformat)."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    from app.utils.pdf_generator import generate_booking_personal_pdf
+
+    pdf_buffer = generate_booking_personal_pdf(event, event.fields, event.entries)
+    filename = f"{secure_filename(event.name)}_booking_export.pdf"
+    return Response(
+        pdf_buffer.getvalue(),
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )

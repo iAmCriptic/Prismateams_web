@@ -358,17 +358,17 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Name der Vorlage</label>
-                        <input type="text" name="name" class="form-control rounded-3" placeholder="z. B. Clubnacht Minimal, Band-Festival 2026" required autofocus>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Clubnacht Minimal, Band-Festival 2026" required autofocus>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Beschreibung (optional)</label>
-                        <textarea name="description" class="form-control rounded-3" rows="2" placeholder="Wofür wird diese Vorlage verwendet?"></textarea>
+                        <textarea name="description" class="form-control mod-pill-input rounded-pill px-3 py-2" rows="2" placeholder="Wofür wird diese Vorlage verwendet?"></textarea>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Ausgangs-Basis für die Spalten</label>
-                        <select name="source_type" id="bpSourceTypeSelect" class="form-select rounded-3" onchange="toggleTemplateSourceFields(this.value)">
+                        <select name="source_type" id="bpSourceTypeSelect" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select onchange="toggleTemplateSourceFields(this.value)">
                             <option value="standard">Festival Standard kopieren (~35 Spalten)</option>
                             {% if events %}
                             <option value="event">Aus aktiver Veranstaltung übernehmen...</option>
@@ -381,7 +381,7 @@
                     {% if events %}
                     <div class="mb-3 d-none" id="bpSourceEventGroup">
                         <label class="form-label fw-semibold">Veranstaltung wählen</label>
-                        <select name="source_event_id" class="form-select rounded-3">
+                        <select name="source_event_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for ev in events %}
                             <option value="{{ ev.id }}">{{ ev.name }} ({{ ev.fields|length }} Spalten)</option>
                             {% endfor %}
@@ -391,16 +391,16 @@
 
                     <div class="mb-3 d-none" id="bpCopyTemplateGroup">
                         <label class="form-label fw-semibold">Zu duplizierende Vorlage</label>
-                        <select name="copy_template_id" class="form-select rounded-3">
+                        <select name="copy_template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for tmpl in templates %}
                             <option value="{{ tmpl.id }}">{{ tmpl.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check2 me-1"></i>Vorlage anlegen</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2 me-1"></i>Vorlage anlegen</button>
                 </div>
             </form>
         </div>
@@ -421,17 +421,17 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Name der Vorlage</label>
-                        <input type="text" name="name" class="form-control rounded-3" value="{{ selected_template.name }}" required>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" value="{{ selected_template.name }}" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Beschreibung</label>
-                        <textarea name="description" class="form-control rounded-3" rows="3">{{ selected_template.description }}</textarea>
+                        <textarea name="description" class="form-control mod-pill-input rounded-pill px-3 py-2" rows="3">{{ selected_template.description }}</textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">Änderungen speichern</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4">Änderungen speichern</button>
                 </div>
             </form>
         </div>
@@ -471,17 +471,17 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Spaltenbezeichnung (Deutsch) <span class="text-danger">*</span></label>
-                        <input type="text" name="label" id="tmplFieldLabel" class="form-control rounded-3" placeholder="z. B. Übernachtungshotel, Ansprechpartner" required autofocus>
+                        <input type="text" name="label" id="tmplFieldLabel" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Übernachtungshotel, Ansprechpartner" required autofocus>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Spaltenbezeichnung (Englisch)</label>
-                        <input type="text" name="label_en" id="tmplFieldLabelEn" class="form-control rounded-3" placeholder="z. B. Hotel, Contact Person">
+                        <input type="text" name="label_en" id="tmplFieldLabelEn" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotel, Contact Person">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Feldtyp <span class="text-danger">*</span></label>
-                        <select name="field_type" id="bpTmplFieldTypeSelect" class="form-select rounded-3" onchange="toggleTmplFieldOptions(this.value)">
+                        <select name="field_type" id="bpTmplFieldTypeSelect" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select onchange="toggleTmplFieldOptions(this.value)">
                             <option value="text">Text (Einzeilig)</option>
                             <option value="textarea">Text (Mehrzeilig)</option>
                             <option value="currency">Zahl / Währung (€)</option>
@@ -496,7 +496,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Kategorie / Bereich</label>
-                        <input type="text" name="category" id="tmplFieldCategory" class="form-control rounded-3" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
+                        <input type="text" name="category" id="tmplFieldCategory" class="form-control mod-pill-input rounded-pill px-3 py-2" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
                         <datalist id="categoryPresets">
                             <option value="Stammdaten & Status">
                             <option value="Finanzen">
@@ -516,7 +516,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-semibold">Spaltenbreite (px)</label>
-                            <input type="number" name="width" id="tmplFieldWidth" class="form-control rounded-3" placeholder="Automatisch" min="60" max="600">
+                            <input type="number" name="width" id="tmplFieldWidth" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="Automatisch" min="60" max="600">
                             <div class="form-text small">Leer lassen für automatische Breite.</div>
                         </div>
                         <div class="col-6">
@@ -539,9 +539,9 @@
                         </label>
                     </div>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">Spalte speichern</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4">Spalte speichern</button>
                 </div>
             </form>
         </div>
@@ -568,16 +568,16 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Ziel-Veranstaltung auswählen</label>
-                        <select name="event_id" class="form-select rounded-3" required>
+                        <select name="event_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select required>
                             {% for ev in events %}
                             <option value="{{ ev.id }}">{{ ev.name }} ({{ ev.entries|length }} Acts vorhanden)</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4"><i class="bi bi-check2 me-1"></i>Vorlage jetzt anwenden</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--success px-4"><i class="bi bi-check2 me-1"></i>Vorlage jetzt anwenden</button>
                 </div>
             </form>
         </div>
@@ -596,9 +596,9 @@
             <div class="modal-body p-4" id="bpConfirmModalMessage">
                 Bist du sicher?
             </div>
-            <div class="modal-footer border-top">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger rounded-pill px-4" id="bpConfirmModalBtn">Bestätigen</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger mod-pill-btn mod-pill-btn--danger px-4" id="bpConfirmModalBtn">Bestätigen</button>
             </div>
         </div>
     </div>
@@ -606,22 +606,22 @@
 
 <!-- Modal: Neue Veranstaltung anlegen -->
 <div class="modal fade" id="bpNewEventModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
             <form action="{{ url_for('booking_personal.create_event') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-header border-bottom">
+                <div class="modal-header border-bottom border-light-subtle pb-3">
                     <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue Veranstaltung anlegen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Name der Veranstaltung</label>
-                        <input type="text" name="name" class="form-control rounded-3" placeholder="z. B. Sommerfestival 2026" required autofocus>
+                        <label class="form-label small fw-semibold">Name der Veranstaltung</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
-                        <select name="template_id" class="form-select rounded-3">
+                        <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
+                        <select name="template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for tmpl in templates %}
                             <option value="{{ tmpl.id }}" {% if tmpl.is_system_default %}selected{% endif %}>
                                 {{ tmpl.name }} ({{ tmpl.get_fields()|length }} Spalten)
@@ -630,9 +630,9 @@
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
                 </div>
             </form>
         </div>
@@ -816,5 +816,7 @@ function confirmDeleteTemplatePage(templateId, templateName) {
     bsModal.show();
 }
 </script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
 {% endblock %}
 

@@ -954,12 +954,14 @@ def admin_events_settings():
 
         elif action == 'load_defaults':
             defaults = [
-                # Kategorie: Allgemein & Vorverkauf
-                ('EPISODE', 'number', '1', None, 'Allgemein & Vorverkauf'),
-                ('ALTERSBESCHRÄNKUNG', 'select', 'Auswählen...', ['Keine', 'Ab 16', 'Ab 18', 'Familienfreundlich'], 'Allgemein & Vorverkauf'),
-                ('AK', 'text', 'AK hinzufügen ...', None, 'Allgemein & Vorverkauf'),
-                ('VVK', 'text', 'VVK hinzufügen ...', None, 'Allgemein & Vorverkauf'),
-                ('VVK VIA T4G?', 'checkbox', None, None, 'Allgemein & Vorverkauf'),
+                # Kategorie: Allgemein (inkl. Vorverkauf & Sicherheit)
+                ('EPISODE', 'number', '1', None, 'Allgemein'),
+                ('ALTERSBESCHRÄNKUNG', 'select', 'Auswählen...', ['Keine', 'Ab 16', 'Ab 18', 'Familienfreundlich'], 'Allgemein'),
+                ('AK', 'text', 'AK hinzufügen ...', None, 'Allgemein'),
+                ('VVK', 'text', 'VVK hinzufügen ...', None, 'Allgemein'),
+                ('VVK VIA T4G?', 'checkbox', None, None, 'Allgemein'),
+                ('ANZAHL SECU', 'number', 'ANZAHL SECU...', None, 'Allgemein'),
+                ('SECU BESTELLT?', 'checkbox', None, None, 'Allgemein'),
                 # Kategorie: Personal & Gewerke
                 ('VA LEITUNG', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
                 ('GASTRO', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
@@ -968,9 +970,6 @@ def admin_events_settings():
                 ('OPERATOR LICHT', 'text', 'OPERATOR LICHT...', None, 'Personal & Gewerke'),
                 ('GARDEROBE', 'text', 'GARDEROBE hinzufügen...', None, 'Personal & Gewerke'),
                 ('EINLASS', 'text', 'EINLASS hinzufügen...', None, 'Personal & Gewerke'),
-                # Kategorie: Sicherheit
-                ('ANZAHL SECU', 'number', 'ANZAHL SECU...', None, 'Sicherheit'),
-                ('SECU BESTELLT?', 'checkbox', None, None, 'Sicherheit'),
                 # Kategorie: Besonderheiten & Notizen
                 ('BESONDERHEITEN TON', 'textarea', 'BESONDERHEITEN TON...', None, 'Besonderheiten & Notizen'),
                 ('BESONDERHEITEN LICHT', 'textarea', 'BESONDERHEITEN LICHT...', None, 'Besonderheiten & Notizen'),

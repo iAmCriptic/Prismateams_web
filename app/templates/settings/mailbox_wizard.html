@@ -23,7 +23,7 @@
      data-initial-provider="{{ initial_provider }}"
      data-is-edit="{{ '1' if is_edit else '0' }}"
      data-mailbox-auth-type="{{ mailbox.auth_type if mailbox else '' }}">
-    <a href="{{ cancel_url }}" class="settings-subpage-back">
+    <a href="{{ cancel_url }}" class="mod-back-link">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -87,24 +87,24 @@
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-accent settings-admin-email-submit" data-next="1">{{ _('settings.mailboxes.wizard_next') }}</button>
+                    <button type="button" class="btn btn-accent mod-pill-btn" data-next="1">{{ _('settings.mailboxes.wizard_next') }}</button>
                 </div>
             </div>
         </section>
 
-        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="1" style="display:none" aria-hidden="true">
+        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="1" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.wizard_step_name') }}</h2>
             <div class="settings-admin-email-fields mailbox-wizard-fields">
                 <div class="settings-admin-email-field">
                     <label class="form-label" for="name">{{ _('settings.mailboxes.name') }}</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="name" name="name" required
+                    <input type="text" class="form-control mod-pill-input" id="name" name="name" required
                            value="{{ mb.display_name if mb else '' }}">
                     <div class="form-text">{{ _('settings.mailboxes.name_help') }}</div>
                 </div>
                 {% if show_owner and users is defined %}
                 <div class="settings-admin-email-field">
                     <label class="form-label" for="owner_id">{{ _('settings.mailboxes.owner') }}</label>
-                    <select class="form-select" id="owner_id" name="owner_id">
+                    <select class="form-select mod-pill-input" id="owner_id" name="owner_id">
                         {% for u in users %}
                         <option value="{{ u.id }}" {% if mb and mb.owner_id == u.id %}selected{% elif not mb and u.id == current_user.id %}selected{% endif %}>{{ u.full_name }}</option>
                         {% endfor %}
@@ -113,19 +113,19 @@
                 {% endif %}
                 <div class="settings-admin-email-field">
                     <label class="form-label" for="color">{{ _('settings.mailboxes.color') }}</label>
-                    <input type="color" class="form-control form-control-color" id="color" name="color"
-                           value="{{ mb.color if mb else '#0d6efd' }}">
+                    <input type="color" class="form-control form-control-color mailbox-color-input" id="color" name="color"
+                           value="{{ mb.color if mb and mb.color else (current_user.accent_color or '#000000') }}">
                 </div>
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-email-btn" data-prev="0">{{ _('settings.mailboxes.wizard_back') }}</button>
-                    <button type="button" class="btn btn-accent settings-admin-email-submit" data-next="2">{{ _('settings.mailboxes.wizard_next') }}</button>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-prev="0">{{ _('settings.mailboxes.wizard_back') }}</button>
+                    <button type="button" class="btn btn-accent mod-pill-btn" data-next="2">{{ _('settings.mailboxes.wizard_next') }}</button>
                 </div>
             </div>
         </section>
 
-        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="2" style="display:none" aria-hidden="true">
+        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="2" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.wizard_step_auth') }}</h2>
 
             <div id="oauthAuthPanel" class="mailbox-auth-panel" hidden>
@@ -152,7 +152,7 @@
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn btn-outline-primary settings-admin-email-btn mb-3" id="btnOAuthConnect">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline mb-3" id="btnOAuthConnect">
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                     {{ _('settings.mailboxes.oauth_connect') }}
                 </button>
@@ -176,13 +176,13 @@
                 <div class="settings-admin-email-fields mailbox-wizard-fields mb-3">
                     <div class="settings-admin-email-field mailbox-wizard-field--full">
                         <label class="form-label" for="account_email">{{ _('settings.mailboxes.account_email') }}</label>
-                        <input type="email" class="form-control settings-admin-email-input" id="account_email" autocomplete="username"
+                        <input type="email" class="form-control mod-pill-input" id="account_email" autocomplete="username"
                                value="{{ mb.imap_username if mb else '' }}">
                         <div class="form-text">{{ _('settings.mailboxes.account_email_help') }}</div>
                     </div>
                     <div class="settings-admin-email-field mailbox-wizard-field--full">
                         <label class="form-label" for="account_password">{{ _('settings.mailboxes.account_password') }}</label>
-                        <input type="password" class="form-control settings-admin-email-input" id="account_password" autocomplete="new-password"
+                        <input type="password" class="form-control mod-pill-input" id="account_password" autocomplete="new-password"
                                placeholder="{% if mb and mb.imap_password_enc %}••••••••{% endif %}">
                         <div class="form-text" id="oauthPasswordFallbackHelp" hidden>{{ _('settings.mailboxes.oauth_password_fallback_help') }}</div>
                     </div>
@@ -196,22 +196,22 @@
 
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-email-btn" data-prev="1">{{ _('settings.mailboxes.wizard_back') }}</button>
-                    <button type="button" class="btn btn-accent settings-admin-email-submit" id="btnAuthNext" data-next="5">{{ _('settings.mailboxes.wizard_next') }}</button>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-prev="1">{{ _('settings.mailboxes.wizard_back') }}</button>
+                    <button type="button" class="btn btn-accent mod-pill-btn" id="btnAuthNext" data-next="5">{{ _('settings.mailboxes.wizard_next') }}</button>
                 </div>
             </div>
         </section>
 
-        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="3" style="display:none" aria-hidden="true">
+        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="3" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.smtp_section') }}</h2>
             <div class="settings-admin-email-fields mailbox-wizard-fields mb-3">
                 <div class="settings-admin-email-field">
-                    <label class="form-label" for="smtp_server">SMTP Server</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="smtp_server" name="smtp_server" value="{{ mb.smtp_server if mb else '' }}">
+                    <label class="form-label" for="smtp_server">{{ _('settings.mailboxes.smtp_server') }}</label>
+                    <input type="text" class="form-control mod-pill-input" id="smtp_server" name="smtp_server" value="{{ mb.smtp_server if mb else '' }}">
                 </div>
                 <div class="settings-admin-email-field">
-                    <label class="form-label" for="smtp_port">SMTP Port</label>
-                    <input type="number" class="form-control settings-admin-email-input" id="smtp_port" name="smtp_port" value="{{ mb.smtp_port if mb and mb.smtp_port else 587 }}">
+                    <label class="form-label" for="smtp_port">{{ _('settings.mailboxes.smtp_port') }}</label>
+                    <input type="number" class="form-control mod-pill-input" id="smtp_port" name="smtp_port" value="{{ mb.smtp_port if mb and mb.smtp_port else 587 }}">
                 </div>
                 <div class="settings-admin-email-field mailbox-wizard-field--full">
                     <div class="mailbox-wizard-switches">
@@ -229,55 +229,55 @@
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-test-row">
-                    <button type="button" class="btn btn-outline-primary settings-admin-email-btn" id="btnTestSmtp">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline" id="btnTestSmtp">
                         <i class="bi bi-plug" aria-hidden="true"></i>
                         {{ _('settings.mailboxes.test_smtp') }}
                     </button>
                     <span class="mailbox-wizard-test-result" id="smtpTestResult" role="status" aria-live="polite"></span>
                 </div>
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-email-btn" data-prev="2">{{ _('settings.mailboxes.wizard_back') }}</button>
-                    <button type="button" class="btn btn-accent settings-admin-email-submit" data-next="4">{{ _('settings.mailboxes.wizard_next') }}</button>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-prev="2">{{ _('settings.mailboxes.wizard_back') }}</button>
+                    <button type="button" class="btn btn-accent mod-pill-btn" data-next="4">{{ _('settings.mailboxes.wizard_next') }}</button>
                 </div>
             </div>
         </section>
 
-        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="4" style="display:none" aria-hidden="true">
+        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="4" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.imap_section') }}</h2>
             <div class="settings-admin-email-fields mailbox-wizard-fields mb-3">
                 <div class="settings-admin-email-field">
-                    <label class="form-label" for="imap_server">IMAP Server</label>
-                    <input type="text" class="form-control settings-admin-email-input" id="imap_server" name="imap_server" value="{{ mb.imap_server if mb else '' }}">
+                    <label class="form-label" for="imap_server">{{ _('settings.mailboxes.imap_server') }}</label>
+                    <input type="text" class="form-control mod-pill-input" id="imap_server" name="imap_server" value="{{ mb.imap_server if mb else '' }}">
                 </div>
                 <div class="settings-admin-email-field">
-                    <label class="form-label" for="imap_port">IMAP Port</label>
-                    <input type="number" class="form-control settings-admin-email-input" id="imap_port" name="imap_port" value="{{ mb.imap_port if mb and mb.imap_port else 993 }}">
+                    <label class="form-label" for="imap_port">{{ _('settings.mailboxes.imap_port') }}</label>
+                    <input type="number" class="form-control mod-pill-input" id="imap_port" name="imap_port" value="{{ mb.imap_port if mb and mb.imap_port else 993 }}">
                 </div>
                 <div class="settings-admin-email-field mailbox-wizard-field--full">
                     <div class="mailbox-wizard-switches">
                         <div class="form-check form-switch mailbox-wizard-switch">
                             <input class="form-check-input" type="checkbox" id="imap_use_ssl" name="imap_use_ssl" role="switch" {% if not mb or mb.imap_use_ssl %}checked{% endif %}>
-                            <label class="form-check-label" for="imap_use_ssl">SSL</label>
+                            <label class="form-check-label" for="imap_use_ssl">{{ _('settings.mailboxes.imap_ssl') }}</label>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-test-row">
-                    <button type="button" class="btn btn-outline-primary settings-admin-email-btn" id="btnTestImap">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline" id="btnTestImap">
                         <i class="bi bi-plug" aria-hidden="true"></i>
                         {{ _('settings.mailboxes.test_imap') }}
                     </button>
                     <span class="mailbox-wizard-test-result" id="imapTestResult" role="status" aria-live="polite"></span>
                 </div>
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-email-btn" data-prev="3">{{ _('settings.mailboxes.wizard_back') }}</button>
-                    <button type="button" class="btn btn-accent settings-admin-email-submit" data-next="5">{{ _('settings.mailboxes.wizard_next') }}</button>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-prev="3">{{ _('settings.mailboxes.wizard_back') }}</button>
+                    <button type="button" class="btn btn-accent mod-pill-btn" data-next="5">{{ _('settings.mailboxes.wizard_next') }}</button>
                 </div>
             </div>
         </section>
 
-        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="5" style="display:none" aria-hidden="true">
+        <section class="settings-admin-email-card mailbox-wizard-panel" data-step="5" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.wizard_step_finish') }}</h2>
             <div class="settings-admin-email-fields mb-3">
                 <div class="settings-admin-email-field">
@@ -290,7 +290,7 @@
                     <label class="form-label" for="logo">{{ _('settings.mailboxes.logo') }}</label>
                     {% if mb and mb.logo_filename %}
                     <div class="mb-2">
-                        <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" style="max-height:48px;">
+                        <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" class="mailbox-logo-thumb">
                     </div>
                     {% endif %}
                     <input type="file" class="form-control" id="logo" name="logo" accept="image/png,image/jpeg,image/gif,image/webp">
@@ -316,8 +316,8 @@
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
-                    <button type="button" class="btn btn-outline-secondary settings-admin-email-btn" id="btnFinishBack" data-prev="2">{{ _('settings.mailboxes.wizard_back') }}</button>
-                    <button type="submit" class="btn btn-accent settings-admin-email-submit">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="btnFinishBack" data-prev="2">{{ _('settings.mailboxes.wizard_back') }}</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn">
                         <i class="bi bi-check-lg" aria-hidden="true"></i>
                         {% if is_edit %}{{ _('common.save') }}{% else %}{{ _('settings.mailboxes.wizard_save') }}{% endif %}
                     </button>
@@ -326,38 +326,6 @@
         </section>
     </form>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.mailbox-provider-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-.mailbox-provider-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 96px;
-  padding: 1rem 0.75rem;
-  border: 1px solid var(--bs-border-color, #dee2e6);
-  border-radius: 0.75rem;
-  background: transparent;
-  color: inherit;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color .15s ease, background .15s ease;
-}
-.mailbox-provider-card i { font-size: 1.5rem; }
-.mailbox-provider-card.is-selected,
-.mailbox-provider-card:hover {
-  border-color: var(--accent-color, #0d6efd);
-  background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
-}
-</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -484,8 +452,7 @@
       const active = Number(p.dataset.step) === n;
       p.classList.toggle('is-active', active);
       p.setAttribute('aria-hidden', active ? 'false' : 'true');
-      p.hidden = false;
-      p.style.display = active ? '' : 'none';
+      p.hidden = !active;
     });
     steps.forEach((s) => {
       const sn = Number(s.dataset.goto);
@@ -505,12 +472,6 @@
     btn.addEventListener('click', () => {
       const next = Number(btn.dataset.next);
       if (next === 1 && !currentProvider()) return;
-      if (next === 2 || (btn.id === 'btnAuthNext' && next >= 2)) {
-        const name = root.querySelector('#name');
-        if (name && !name.value.trim() && Number(btn.dataset.next) !== 0) {
-          /* when leaving name step */
-        }
-      }
       if (btn.closest('[data-step="1"]')) {
         const name = root.querySelector('#name');
         if (name && !name.value.trim()) {
@@ -596,12 +557,13 @@
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || '',
         },
         body: JSON.stringify(formPayload()),
       });
       let data = {};
-      try { data = await res.json(); } catch (_) { throw new Error('Ungültige Server-Antwort (' + res.status + ')'); }
-      resultEl.textContent = data.message || (data.success ? 'OK' : 'Fehler');
+      try { data = await res.json(); } catch (_) { throw new Error(root.dataset.msgInvalidResponse + ' (' + res.status + ')'); }
+      resultEl.textContent = data.message || (data.success ? root.dataset.msgOk : root.dataset.msgError);
       resultEl.classList.add(data.success ? 'is-ok' : 'is-err');
     } catch (e) {
       resultEl.textContent = String(e && e.message ? e.message : e);

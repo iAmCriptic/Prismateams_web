@@ -67,12 +67,20 @@
 
     <!-- Hauptbereich: Artist-Dossier -->
     <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpActDetailContainer">
-        <!-- Portalstandard Toolbar: NUR "Zurück" links, alle Aktionen rechts, KEINE zweite Unterteilungslinie -->
+        <!-- Portalstandard Toolbar: Zurück + Veranstaltung / Künstler links, alle Aktionen rechts -->
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center flex-wrap gap-2">
                 <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="mod-back-link bp-back-link text-decoration-none">
                     <i class="bi bi-arrow-left me-1"></i>Zurück
                 </a>
+                <span class="text-muted opacity-50">|</span>
+                <span class="text-secondary small fw-medium">{{ current_event.name }}</span>
+                <span class="text-muted opacity-50">/</span>
+                <span class="text-body fw-bold">{{ entry.name or custom_data.get('project_name', 'Act') }}</span>
+                {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
+                <span class="badge rounded-pill bg-body-secondary text-primary border ms-1 px-2.5 py-0.5 small fw-semibold">
+                    {{ status_val }}
+                </span>
             </div>
 
             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -102,59 +110,8 @@
             </div>
         </div>
 
-        <!-- Artist Hero Card im Portalstandard -->
-        <div class="card border mb-3 overflow-hidden">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div class="d-flex align-items-center gap-3 min-width-0">
-                        <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
-                             style="width: 46px; height: 46px; background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent); color: var(--accent-color, var(--bs-primary));">
-                            <i class="bi bi-music-note-beamed fs-4"></i>
-                        </div>
-                        <div class="min-width-0">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <h1 class="h4 fw-bold mb-0 text-body text-truncate">{{ entry.name or custom_data.get('project_name', 'Unbenannter Act') }}</h1>
-                                
-                                <!-- Interaktives Status Badge Dropdown -->
-                                {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
-                                <div class="dropdown d-inline-block">
-                                    <button class="btn btn-sm rounded-pill bg-body-secondary text-body border px-2.5 py-1 dropdown-toggle fw-semibold shadow-none"
-                                            type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Status direkt ändern">
-                                        <i class="bi bi-circle-fill text-primary me-1" style="font-size: 0.65rem;"></i><span id="actDetailStatusText">{{ status_val }}</span>
-                                    </button>
-                                    <ul class="dropdown-menu shadow-lg border p-1" style="border-radius: 0.85rem; min-width: 220px;">
-                                        <li><h6 class="dropdown-header small text-uppercase py-1 text-muted">Status ändern</h6></li>
-                                        {% for s_opt in ['Angefragt', 'Bewerbung eingegangen', 'Formular gesendet', 'Formular ausgefüllt', 'Zusage gesendet', 'Abgeschlossen', 'Rechnung weitergeleitet', 'Absage'] %}
-                                        <li>
-                                            <button type="button" class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center justify-content-between {% if s_opt == status_val %}active fw-bold{% endif %}" onclick="changeActStatus({{ entry.id }}, '{{ s_opt }}')">
-                                                <span>{{ s_opt }}</span>
-                                                {% if s_opt == status_val %}<i class="bi bi-check-lg ms-2"></i>{% endif %}
-                                            </button>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-
-                                {% if custom_data.get('bereich') %}
-                                <span class="badge rounded-pill bg-body-secondary text-secondary border px-2.5 py-1">
-                                    <i class="bi bi-geo-alt text-primary me-1"></i>{{ custom_data.get('bereich') }}
-                                </span>
-                                {% endif %}
-
-                                {% if custom_data.get('pronouns') %}
-                                <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">
-                                    {{ custom_data.get('pronouns') }}
-                                </span>
-                                {% endif %}
-                            </div>
-                            <div class="text-muted small mt-1">
-                                Erstellt am {{ entry.created_at.strftime('%d.%m.%Y um %H:%M') if entry.created_at else '-' }} &bull; Veranstaltung: <strong>{{ current_event.name }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Einfache, professionelle Trennlinie statt Kasten -->
+        <hr class="my-3 opacity-25">
 
         <!-- Detailansicht als strukturierte Informations-Karten nach Portalstandard -->
         <div class="row g-3">
@@ -341,22 +298,22 @@
 
 <!-- Modal: Neue Veranstaltung anlegen -->
 <div class="modal fade" id="bpNewEventModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
             <form action="{{ url_for('booking_personal.create_event') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-header">
+                <div class="modal-header border-bottom border-light-subtle pb-3">
                     <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue Veranstaltung anlegen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Name der Veranstaltung</label>
-                        <input type="text" name="name" class="form-control" placeholder="z. B. Sommerfestival 2026" required autofocus>
+                        <label class="form-label small fw-semibold">Name der Veranstaltung</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
-                        <select name="template_id" class="form-select">
+                        <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
+                        <select name="template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for tmpl in templates %}
                             <option value="{{ tmpl.id }}" {% if tmpl.is_system_default %}selected{% endif %}>
                                 {{ tmpl.name }} ({{ tmpl.fields_count }} Spalten)
@@ -365,9 +322,9 @@
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
                 </div>
             </form>
         </div>
@@ -377,17 +334,17 @@
 <!-- Modal: Universal Bestätigung -->
 <div class="modal fade" id="bpConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpConfirmModalTitle">Bestätigung erforderlich</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body" id="bpConfirmModalMessage">
+            <div class="modal-body p-4" id="bpConfirmModalMessage">
                 Bist du sicher?
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger rounded-pill px-4" id="bpConfirmModalBtn">Bestätigen</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger mod-pill-btn mod-pill-btn--danger px-4" id="bpConfirmModalBtn">Bestätigen</button>
             </div>
         </div>
     </div>
@@ -395,36 +352,36 @@
 
 <!-- Modal: E-Mail-Vorschau vor dem Versand -->
 <div class="modal fade" id="bpMailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpMailModalTitle"><i class="bi bi-envelope-paper me-2 text-primary"></i>E-Mail-Vorschau</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <input type="hidden" id="bpMailEntryId">
                 <input type="hidden" id="bpMailType">
                 
-                <div class="mb-3 p-2 bg-light rounded-3 small text-muted">
-                    Absender-Postfach: <strong id="bpMailboxName" class="text-dark">-</strong>
+                <div class="mb-3 p-2.5 bg-body-tertiary rounded-4 border small text-muted">
+                    Absender-Postfach: <strong id="bpMailboxName" class="text-body">-</strong>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Empfänger</label>
-                    <input type="email" id="bpMailRecipient" class="form-control form-control-sm" required>
+                    <input type="email" id="bpMailRecipient" class="form-control mod-pill-input rounded-pill px-3.5 py-2" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Betreff</label>
-                    <input type="text" id="bpMailSubject" class="form-control form-control-sm" required>
+                    <input type="text" id="bpMailSubject" class="form-control mod-pill-input rounded-pill px-3.5 py-2" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Nachricht (kann vor dem Absenden manuell angepasst werden)</label>
-                    <textarea id="bpMailBody" class="form-control font-monospace" rows="10"></textarea>
+                    <textarea id="bpMailBody" class="form-control rounded-4 font-monospace p-3" rows="10"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-success rounded-pill px-4" id="bpSendMailBtn">
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--success px-4" id="bpSendMailBtn">
                     <i class="bi bi-send me-1"></i>E-Mail jetzt senden
                 </button>
             </div>
@@ -434,23 +391,24 @@
 
 <!-- Modal: Bearbeiten aller Felder -->
 <div class="modal fade" id="bpEntryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpDetailModalTitle">Angaben bearbeiten</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body" id="bpDetailModalBody">
+            <div class="modal-body p-4" id="bpDetailModalBody">
                 <div class="text-center py-4"><span class="spinner-border text-primary"></span></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Schließen</button>
-                <button type="button" class="btn btn-primary rounded-pill px-4" id="bpDetailModalSaveBtn">Änderungen speichern</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpDetailModalSaveBtn">Änderungen speichern</button>
             </div>
         </div>
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
 <script>
 function deleteEntryFromDetail(entryId) {

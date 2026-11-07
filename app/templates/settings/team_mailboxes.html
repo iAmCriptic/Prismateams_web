@@ -21,7 +21,7 @@
             <p class="sp-page-lead mb-0">{{ _('settings.mailboxes.team_subtitle') }}</p>
         </div>
         <div class="settings-admin-teams-header-actions">
-            <a href="{{ url_for('settings.team_mailbox_new', team_id=team.id) }}" class="btn btn-accent rounded-pill mod-pill-btn">
+            <a href="{{ url_for('settings.team_mailbox_new', team_id=team.id) }}" class="btn btn-accent mod-pill-btn">
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
                 {{ _('settings.mailboxes.create') }}
             </a>
@@ -54,12 +54,12 @@
                         <tr class="mod-list-row">
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="d-inline-block rounded-circle flex-shrink-0" style="width: 12px; height: 12px; background: {{ mb.color or 'var(--accent-color, #0d6efd)' }};"></span>
+                                    <span class="mailbox-color-dot flex-shrink-0" style="background: {{ mb.color or 'var(--accent-color, var(--bs-primary))' }};"></span>
                                     <div>
                                         <span class="mod-list-name">{{ mb.display_name }}</span>
                                         {% if mb.logo_filename %}
                                         <div class="mt-1">
-                                            <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" style="max-height: 28px; border-radius: 4px;">
+                                            <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" class="mailbox-logo-thumb mailbox-logo-thumb--sm">
                                         </div>
                                         {% endif %}
                                     </div>
@@ -70,14 +70,14 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1">
-                                    <a href="{{ url_for('settings.team_mailbox_edit', team_id=team.id, mailbox_id=mb.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill mod-pill-btn">
+                                    <a href="{{ url_for('settings.team_mailbox_edit', team_id=team.id, mailbox_id=mb.id) }}" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted">
                                         <i class="bi bi-pencil" aria-hidden="true"></i>
                                         <span class="d-none d-sm-inline">{{ _('common.edit') }}</span>
                                     </a>
                                     <form method="POST" class="d-inline" data-sp-no-autosave>
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="mailbox_id" value="{{ mb.id }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.mailboxes.delete_confirm') }}" title="{{ _('common.delete') }}">
+                                        <button type="submit" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" data-confirm-delete="{{ _('settings.mailboxes.delete_confirm') }}" title="{{ _('common.delete') }}">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>

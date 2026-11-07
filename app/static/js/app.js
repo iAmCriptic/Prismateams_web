@@ -1827,6 +1827,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
+    // Global fix for Bootstrap modals rendered inside containers with a stacking context (mod-shell--nav, mod-main, settings-shell)
+    document.addEventListener('show.bs.modal', function (e) {
+        var modal = e.target;
+        if (modal && modal.parentElement && modal.parentElement !== document.body) {
+            if (modal.closest('.mod-shell--nav') || modal.closest('.mod-main') || modal.closest('.settings-shell')) {
+                document.body.appendChild(modal);
+            }
+        }
+    });
+
     // Confirmation dialogs for delete actions (custom modal, not native confirm)
     document.addEventListener('click', function (e) {
         const button = e.target.closest('[data-confirm-delete], [data-pt-confirm]');

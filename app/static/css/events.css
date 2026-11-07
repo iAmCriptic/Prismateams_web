@@ -607,3 +607,116 @@
     font-style: italic;
     opacity: 0.75;
 }
+
+.events-category-heading {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--events-form-border, var(--bs-border-color-translucent, #e9ecef));
+}
+
+.events-file-row,
+.events-link-row {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.events-file-row:hover,
+.events-link-row:hover {
+    background: var(--bs-tertiary-bg, rgba(0, 0, 0, 0.03)) !important;
+}
+
+/* ——— Autosave Toast (wie in Einstellungen mit visuellem Haken) ——— */
+.sp-toast-host {
+    position: fixed;
+    z-index: 1090;
+    top: max(1rem, env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+    width: max-content;
+    max-width: calc(100vw - 1.5rem);
+}
+
+.sp-toast {
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: inherit;
+    font-size: 0.88rem;
+    transform: translateY(-0.65rem) scale(0.92);
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sp-toast.is-visible {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+.sp-toast--success {
+    width: 3.15rem;
+    height: 3.15rem;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bs-success, #22c55e) 18%, var(--bs-body-bg, #1a1d21));
+    border: 1px solid color-mix(in srgb, var(--bs-success, #22c55e) 42%, transparent);
+    box-shadow: 0 0.45rem 1.35rem rgba(0, 0, 0, 0.22), 0 0 0 1px color-mix(in srgb, var(--bs-success, #22c55e) 12%, transparent);
+}
+
+.sp-toast-check {
+    display: block;
+    width: 1.85rem;
+    height: 1.85rem;
+}
+
+.sp-toast-check-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.sp-toast-check-circle {
+    stroke: var(--bs-success, #22c55e);
+    stroke-width: 2.5;
+    stroke-dasharray: 151;
+    stroke-dashoffset: 151;
+}
+
+.sp-toast-check-mark {
+    stroke: var(--bs-success, #22c55e);
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+}
+
+.sp-toast.is-animating .sp-toast-check-circle {
+    animation: sp-check-circle 0.45s ease-out forwards;
+}
+
+.sp-toast.is-animating .sp-toast-check-mark {
+    animation: sp-check-mark 0.35s 0.28s ease-out forwards;
+}
+
+.sp-toast.is-visible:not(.is-animating) .sp-toast-check-circle,
+.sp-toast.is-visible:not(.is-animating) .sp-toast-check-mark {
+    stroke-dashoffset: 0;
+}
+
+@keyframes sp-check-circle {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes sp-check-mark {
+    to { stroke-dashoffset: 0; }
+}

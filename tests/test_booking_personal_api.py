@@ -538,3 +538,35 @@ def test_dedicated_settings_page_and_bilingual_emails(client, app):
         assert ev.accept_template_body_en == 'Hello {{ contact_name }}, you are booked!'
         assert ev.reject_template_subject_en == 'Decline {{ event_name }}'
         assert ev.invite_template_subject_en == 'Form {{ event_name }}'
+
+def test_booking_personal_pdf_export_and_table_hover_actions(client, app):
+    """Prüft den PDF-Export der Booking-Tabelle und die Hover-Aktionen im Table-Template."""
+    with app.app_context():
+        _login_test_user(client)
+        event = BookingPersonalEvent(name='PDF Export Festival')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+        entry = BookingPersonalEntry(event_id=event.id, name='Headliner Act')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+
+    # 1. PDF-Export Route aufrufen
+    resp_pdf = client.get(f'/booking-personal/event/{event_id}/export/pdf')
+    assert resp_pdf.status_code == 200
+    assert resp_pdf.content_type == 'application/pdf'
+    assert resp_pdf.data.startswith(b'%PDF')
+
+    # 2. Übersicht rendern und prüfen
+    resp_view = client.get(f'/booking-personal/event/{event_id}')
+    assert resp_view.status_code == 200
+    html = resp_view.data.decode('utf-8')
+
+    # Mod-list hover actions & class vorhanden
+    assert 'mod-list-row' in html
+    assert 'mod-list-hover-actions' in html
+    assert f'/booking-personal/event/{event_id}/export/pdf' in html
+
+    # Spalte 01 MAIL FÜR ZUSAGE wurde aus thead/tbody eliminiert
+    assert '01 MAIL FÜR ZUSAGE' not in html

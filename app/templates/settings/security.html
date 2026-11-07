@@ -372,16 +372,11 @@
                             </div>
                         </div>
                         <div class="settings-security-device-actions">
-                            <form method="POST"
-                                  action="{{ url_for('settings.app_passwords_delete', password_id=ap.id) }}"
-                                  data-sp-no-autosave
-                                  data-pt-confirm="{{ _('settings.security.app_passwords.delete_confirm') }}"
-                                  data-pt-confirm-danger="true"
-                                  data-pt-confirm-ok="{{ _('settings.security.app_passwords.delete_button') }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn">
-                                    {{ _('settings.security.app_passwords.delete_button') }}
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger settings-security-btn" data-app-password-revoke
+                                    data-revoke-url="{{ url_for('settings.app_passwords_delete', password_id=ap.id) }}">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                {{ _('settings.security.app_passwords.delete_button') }}
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -401,7 +396,10 @@
                             class="btn btn-accent rounded-pill mod-pill-btn"
                             id="app-password-create-btn"
                             data-create-url="{{ url_for('settings.app_passwords_create') }}"
-                            data-error-generic="{{ _('settings.security.app_passwords.create_failed') }}">
+                            data-error-generic="{{ _('settings.security.app_passwords.create_failed') }}"
+                            data-revoke-template="{{ url_for('settings.app_passwords_delete', password_id=0) }}"
+                            data-revoke-label="{{ _('settings.security.app_passwords.delete_button') }}"
+                            data-revoke-confirm="{{ _('settings.security.app_passwords.delete_confirm') }}">
                         <i class="bi bi-plus-lg" aria-hidden="true"></i>
                         {{ _('settings.security.app_passwords.create_button') }}
                     </button>
@@ -599,7 +597,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         '<i class="bi bi-hdd-network" aria-hidden="true"></i> ' +
                         (item.name || 'WebDAV') + uname +
                         ' <span class="text-muted small ms-1 font-monospace">' +
-                        (item.hint || '') + '••••</span></div></div>';
+                        (item.hint || '') + '••••</span></div></div>' +
+                        '<div class="settings-security-device-actions"></div>';
+                    var revokeUrl = (createBtn.getAttribute('data-revoke-template') || '').replace(/0(?=[^0-9]*$)/, String(item.id));
+                    var rb = document.createElement('button');
+                    rb.type = 'button';
+                    rb.className = 'btn btn-sm btn-outline-danger settings-security-btn';
+                    rb.setAttribute('data-app-password-revoke', '');
+                    rb.setAttribute('data-revoke-url', revokeUrl);
+                    rb.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i> ';
+                    rb.appendChild(document.createTextNode(createBtn.getAttribute('data-revoke-label') || ''));
+                    row.querySelector('.settings-security-device-actions').appendChild(rb);
                     list.insertBefore(row, list.firstChild);
                     if (createdPanel) createdPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 })
@@ -612,7 +620,51 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         });
     }
-    if (copyCreatedBtn && createdValue) {
+    document.addEventListener('click', async function (ev) {
+        var btn = ev.target.closest('[data-app-password-revoke]');
+        if (!btn) return;
+        var url = btn.getAttribute('data-revoke-url');
+        if (!url) return;
+        var msg = (createBtn && createBtn.getAttribute('data-revoke-confirm')) || '';
+        var ok = true;
+        if (typeof window.ptConfirm === 'function') {
+            ok = await window.ptConfirm(msg, { danger: true });
+        } else {
+            ok = window.confirm(msg);
+        }
+        if (!ok) return;
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        btn.disabled = true;
+        try {
+            var r = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': meta ? meta.content : '',
+                },
+            });
+            var data = await r.json().catch(function () { return null; });
+            if (!r.ok || !data || !data.success) {
+                btn.disabled = false;
+                var err = (data && data.error) || (createBtn && createBtn.getAttribute('data-error-generic')) || '';
+                if (err && typeof window.showAppBanner === 'function') window.showAppBanner(err, 'danger');
+                return;
+            }
+            var row = btn.closest('[data-app-password-id]');
+            if (row) row.remove();
+            var list = document.getElementById('app-password-list');
+            if (list && !list.children.length) {
+                var empty = document.getElementById('app-password-empty');
+                if (empty) { empty.classList.remove('d-none'); } else { window.location.reload(); return; }
+            }
+            if (data.message && typeof window.showAppBanner === 'function') window.showAppBanner(data.message, 'success');
+        } catch (e) {
+            btn.disabled = false;
+            if (createBtn && typeof window.showAppBanner === 'function') window.showAppBanner(createBtn.getAttribute('data-error-generic') || '', 'danger');
+        }
+    });    if (copyCreatedBtn && createdValue) {
         copyCreatedBtn.addEventListener('click', function () { copyInput(createdValue, copyCreatedBtn); });
     }
     if (copyUsernameBtn && createdUsername) {

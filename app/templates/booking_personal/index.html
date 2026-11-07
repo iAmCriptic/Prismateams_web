@@ -87,7 +87,7 @@
                 <div class="dropdown d-inline-block">
                     <button type="button"
                             id="bpFilterDropdownBtn"
-                            class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm position-relative"
+                            class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm position-relative"
                             data-bs-toggle="dropdown"
                             data-bs-auto-close="outside"
                             aria-expanded="false"
@@ -97,7 +97,7 @@
                             <span class="visually-hidden">Filter aktiv</span>
                         </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border" style="min-width: 260px; border-radius: 1rem;">
+                    <div class="dropdown-menu dropdown-menu-end mod-dropdown-menu p-3 shadow-lg border" style="min-width: 260px;">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>Filter</span>
                             <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" id="bpResetFiltersBtn" style="font-size: 0.75rem;">
@@ -106,7 +106,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label small text-muted mb-1" for="bpStatusFilter">Status</label>
-                            <select id="bpStatusFilter" class="form-select form-select-sm rounded-pill bg-body border">
+                            <select id="bpStatusFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
                                 <option value="">Alle Status</option>
                                 <option value="Angefragt">Angefragt</option>
                                 <option value="Bewerbung eingegangen">Bewerbung eingegangen</option>
@@ -120,7 +120,7 @@
                         </div>
                         <div>
                             <label class="form-label small text-muted mb-1" for="bpAreaFilter">Bereich</label>
-                            <select id="bpAreaFilter" class="form-select form-select-sm rounded-pill bg-body border">
+                            <select id="bpAreaFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
                                 <option value="">Alle Bereiche</option>
                                 <option value="Ambient">Ambient</option>
                                 <option value="Mühle">Mühle</option>
@@ -131,29 +131,36 @@
                     </div>
                 </div>
 
-                <!-- Export Dropdown Icon Button (CSV & XLSX) -->
+                <!-- Export Dropdown Icon Button (CSV & XLSX & PDF) -->
                 <div class="dropdown d-inline-block">
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm"
+                            class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
-                            title="Exportieren (CSV / Excel)">
+                            title="Exportieren (CSV / Excel / PDF)">
                         <i class="bi bi-download"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-1" style="border-radius: 0.75rem; min-width: 190px;">
+                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu shadow-lg border p-1" style="min-width: 190px;">
                         <li><h6 class="dropdown-header small text-uppercase text-muted py-1" style="font-size: 0.7rem;">Exportieren als</h6></li>
                         <li>
-                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                            <a class="dropdown-item"
                                href="{{ url_for('booking_personal.export_csv', event_id=current_event.id) }}">
                                 <i class="bi bi-filetype-csv text-primary me-2 fs-6"></i>
                                 <span>CSV-Export (.csv)</span>
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                            <a class="dropdown-item"
                                href="{{ url_for('booking_personal.export_excel', event_id=current_event.id) }}">
                                 <i class="bi bi-file-earmark-excel text-success me-2 fs-6"></i>
                                 <span>Excel-Export (.xlsx)</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="{{ url_for('booking_personal.export_pdf', event_id=current_event.id) }}" target="_blank">
+                                <i class="bi bi-file-earmark-pdf text-danger me-2 fs-6"></i>
+                                <span>PDF-Export (.pdf)</span>
                             </a>
                         </li>
                     </ul>
@@ -161,7 +168,7 @@
 
                 <!-- Spalten & Einstellungen Icon Button (öffnet eigene Seite) -->
                 <a href="{{ url_for('booking_personal.event_settings', event_id=current_event.id) }}"
-                   class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 shadow-sm text-decoration-none"
+                   class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted shadow-sm text-decoration-none"
                    title="Spalten & Einstellungen öffnen">
                     <i class="bi bi-gear"></i>
                 </a>
@@ -171,20 +178,20 @@
                     <button type="button"
                             id="bpAddActBtn"
                             data-event-id="{{ current_event.id }}"
-                            class="btn btn-sm btn-primary rounded-start-pill px-3 py-1 shadow-sm"
+                            class="btn btn-sm mod-pill-btn mod-pill-btn--accent rounded-start-pill px-3 py-1 shadow-sm"
                             title="Neuen Act anlegen">
                         <i class="bi bi-plus-lg me-1"></i>Act
                     </button>
                     <button type="button"
-                            class="btn btn-sm btn-primary rounded-end-pill px-2 py-1 shadow-sm dropdown-toggle dropdown-toggle-split"
+                            class="btn btn-sm mod-pill-btn mod-pill-btn--accent rounded-end-pill px-2 py-1 shadow-sm dropdown-toggle dropdown-toggle-split"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                             title="Weitere Optionen">
                         <span class="visually-hidden">Optionen</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-1" style="border-radius: 0.75rem; min-width: 230px;">
+                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu shadow-lg border p-1" style="min-width: 230px;">
                         <li>
-                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                            <a class="dropdown-item"
                                href="javascript:void(0)"
                                onclick="copyApplyUrlDirect('{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token(), _external=True) }}')">
                                 <i class="bi bi-link-45deg text-primary me-2 fs-6"></i>
@@ -192,7 +199,7 @@
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center"
+                            <a class="dropdown-item"
                                href="{{ url_for('booking_personal.public_apply', token=current_event.get_apply_token()) }}"
                                target="_blank">
                                 <i class="bi bi-box-arrow-up-right text-muted me-2"></i>
@@ -211,23 +218,27 @@
                     <tr>
                         <th style="width: 44px;" class="text-center">#</th>
                         {% for f in fields %}
+                        {% if f.field_type != 'action_accept' %}
                         <th style="min-width: {{ f.width }}px;" data-field-key="{{ f.field_key }}">
                             {{ f.label }}
                         </th>
+                        {% endif %}
                         {% endfor %}
-                        <th style="width: 48px;" class="text-end pe-3"></th>
+                        <th scope="col" class="text-end" style="width: 12rem; min-width: 12rem;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for entry in entries %}
                     {% set custom = entry.get_custom_data() %}
-                    <tr data-entry-id="{{ entry.id }}"
+                    <tr class="mod-list-row"
+                        data-entry-id="{{ entry.id }}"
                         data-status="{{ entry.status or custom.get('status_booking', '') }}"
                         data-area="{{ custom.get('bereich', '') }}">
 
                         <td class="text-center text-muted small">{{ loop.index }}</td>
 
                         {% for f in fields %}
+                        {% if f.field_type != 'action_accept' %}
                         {% set val = custom.get(f.field_key, '') %}
                         <td style="min-width: {{ f.width }}px;">
                             {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or loop.first %}
@@ -340,41 +351,69 @@
                             </div>
                             {% endif %}
                         </td>
+                        {% endif %}
                         {% endfor %}
 
-                        <td class="text-end pe-3">
-                            <div class="dropdown d-inline-block">
-                                <button type="button" class="btn btn-sm btn-link text-muted p-0 bp-row-kebab-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Optionen">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu rounded-3 shadow-sm border py-1">
-                                    <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}">
-                                            <i class="bi bi-person-lines-fill text-primary"></i>Artist-Profil öffnen
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openEntryDetail({{ entry.id }}); return false;">
-                                            <i class="bi bi-pencil-square text-secondary"></i>Schnell bearbeiten
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openMailPreview({{ entry.id }}, 'accept'); return false;">
-                                            <i class="bi bi-envelope-check text-success"></i>Mail &rarr; Zusage
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="openMailPreview({{ entry.id }}, 'reject'); return false;">
-                                            <i class="bi bi-envelope-x text-danger"></i>Mail &rarr; Absage
-                                        </a>
-                                    </li>
-                                    <li><hr class="dropdown-divider my-1"></li>
-                                    <li>
-                                        <a class="dropdown-item text-danger py-1.5 px-3 d-flex align-items-center gap-2" href="#" onclick="deleteEntry({{ entry.id }}); return false;">
-                                            <i class="bi bi-trash"></i>Act löschen
-                                        </a>
-                                    </li>
-                                </ul>
+                        <td class="text-end" style="width: 12rem; min-width: 12rem;">
+                            <div class="mod-list-actions">
+                                <div class="mod-list-hover-actions">
+                                    <a class="btn btn-sm btn-link" href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}" title="Artist-Dossier öffnen">
+                                        <i class="bi bi-person-lines-fill"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="openEntryDetail({{ entry.id }})" title="Schnell bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="openMailPreview({{ entry.id }}, 'accept')" title="Mail &rarr; Zusage">
+                                        <i class="bi bi-envelope-check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="openMailPreview({{ entry.id }}, 'reject')" title="Mail &rarr; Absage">
+                                        <i class="bi bi-envelope-x"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="openMailPreview({{ entry.id }}, 'invite')" title="Fragebogen senden">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="deleteEntry({{ entry.id }})" title="Act löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}">
+                                                <i class="bi bi-person-lines-fill me-2"></i>Artist-Dossier öffnen
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="openEntryDetail({{ entry.id }}); return false;">
+                                                <i class="bi bi-pencil me-2"></i>Schnell bearbeiten
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="openMailPreview({{ entry.id }}, 'accept'); return false;">
+                                                <i class="bi bi-envelope-check me-2"></i>Mail &rarr; Zusage
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="openMailPreview({{ entry.id }}, 'reject'); return false;">
+                                                <i class="bi bi-envelope-x me-2"></i>Mail &rarr; Absage
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="openMailPreview({{ entry.id }}, 'invite'); return false;">
+                                                <i class="bi bi-send me-2"></i>Fragebogen senden
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger" type="button" onclick="deleteEntry({{ entry.id }})">
+                                                <i class="bi bi-trash me-2"></i>Act löschen
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -399,7 +438,7 @@
                 Erstelle eine neue Veranstaltung über den blauen <strong>„+ NEU“</strong>-Button in der linken
                 Seitenleiste, um Acts, Gagen, Hospitality und Techrider zu verwalten.
             </p>
-            <button type="button" class="btn btn-primary px-4 py-2" data-bs-toggle="modal"
+            <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4 py-2" data-bs-toggle="modal"
                 data-bs-target="#bpNewEventModal">
                 <i class="bi bi-plus-lg me-2"></i> Erste Veranstaltung anlegen
             </button>
@@ -414,38 +453,34 @@
 
 <!-- Modal: Neue Veranstaltung anlegen -->
 <div class="modal fade" id="bpNewEventModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
             <form action="{{ url_for('booking_personal.create_event') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue
-                        Veranstaltung anlegen</h5>
+                <div class="modal-header border-bottom border-light-subtle pb-3">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue Veranstaltung anlegen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Name der Veranstaltung</label>
-                        <input type="text" name="name" class="form-control" placeholder="z. B. Sommerfestival 2026"
-                            required autofocus>
+                        <label class="form-label small fw-semibold">Name der Veranstaltung</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
-                        <select name="template_id" class="form-select">
+                        <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
+                        <select name="template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for tmpl in templates %}
                             <option value="{{ tmpl.id }}" {% if tmpl.is_system_default %}selected{% endif %}>
                                 {{ tmpl.name }} ({{ tmpl.fields_count }} Spalten)
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">Die Vorlage bestimmt alle initialen Spalten, Badges und Zuweisungen.
-                        </div>
+                        <div class="form-text small mt-1">Die Vorlage bestimmt alle initialen Spalten, Badges und Zuweisungen.</div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1"></i>Veranstaltung
-                        erstellen</button>
+                <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2 me-1"></i>Veranstaltung erstellen</button>
                 </div>
             </form>
         </div>
@@ -454,23 +489,21 @@
 
 <!-- Modal: Act hinzufügen (ersetzt prompt()) -->
 <div class="modal fade" id="bpAddActModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2 text-primary"></i>Neuen Act hinzufügen
-                </h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2 text-primary"></i>Neuen Act hinzufügen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Name des Acts / Projekts</label>
-                    <input type="text" id="bpAddActNameInput" class="form-control"
-                        placeholder="z. B. Luna Love oder DJ Set" required>
+                    <label class="form-label small fw-semibold">Name des Acts / Projekts</label>
+                    <input type="text" id="bpAddActNameInput" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Luna Love oder DJ Set" required>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="bpConfirmAddActBtn">Hinzufügen</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpConfirmAddActBtn">Hinzufügen</button>
             </div>
         </div>
     </div>
@@ -479,17 +512,17 @@
 <!-- Modal: Universal Bestätigung (ersetzt confirm()) -->
 <div class="modal fade" id="bpConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpConfirmModalTitle">Bestätigung erforderlich</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body" id="bpConfirmModalMessage">
+            <div class="modal-body p-4" id="bpConfirmModalMessage">
                 Bist du sicher?
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger" id="bpConfirmModalBtn">Bestätigen</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger mod-pill-btn mod-pill-btn--danger px-4" id="bpConfirmModalBtn">Bestätigen</button>
             </div>
         </div>
     </div>
@@ -498,18 +531,18 @@
 <!-- Modal: Universal Prompt (ersetzt prompt()) -->
 <div class="modal fade" id="bpPromptModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpPromptModalTitle">Eingabe</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body">
-                <label class="form-label fw-semibold" id="bpPromptModalLabel">Bezeichnung</label>
-                <input type="text" class="form-control" id="bpPromptModalInput">
+            <div class="modal-body p-4">
+                <label class="form-label small fw-semibold" id="bpPromptModalLabel">Bezeichnung</label>
+                <input type="text" class="form-control mod-pill-input rounded-pill px-3 py-2" id="bpPromptModalInput">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="bpPromptModalSubmitBtn">Speichern</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpPromptModalSubmitBtn">Speichern</button>
             </div>
         </div>
     </div>
@@ -518,30 +551,30 @@
 {% if current_event %}
 <!-- Modal: Spalte Hinzufügen / Bearbeiten -->
 <div class="modal fade" id="bpColumnModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpColumnModalTitle">Spalte hinzufügen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <!-- Schnell-Vorschläge für neue Spalten -->
-                <div class="p-2.5 mb-3 bg-light rounded-3 border">
-                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                <div class="p-3 mb-3 bg-body-tertiary rounded-4 border">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="small fw-bold text-muted"><i class="bi bi-magic text-primary me-1"></i>Schnell-Vorschläge (1 Klick):</span>
                     </div>
-                    <div class="d-flex flex-wrap gap-1.5">
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('status')"><i class="bi bi-tag-fill text-primary"></i>Booking Status</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('bereich')"><i class="bi bi-pin-map-fill text-info"></i>Bereich</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('multi_select')"><i class="bi bi-ui-checks text-success"></i>Multiple Choice</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('form_link')"><i class="bi bi-link-45deg text-dark"></i>Formular-Link</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('action_accept')"><i class="bi bi-send text-primary"></i>Mail senden</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('gage')"><i class="bi bi-cash text-success"></i>Gage (€)</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-danger"></i>Techrider</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('promo_images')"><i class="bi bi-images text-warning"></i>Promo-Bilder</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('pronoun')"><i class="bi bi-person-badge text-secondary"></i>Pronomen</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('drinks')"><i class="bi bi-cup-straw text-primary"></i>Getränke</button>
-                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('guestlist')"><i class="bi bi-people text-info"></i>Gästeliste</button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('status')"><i class="bi bi-tag-fill text-primary me-1"></i>Booking Status</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('bereich')"><i class="bi bi-pin-map-fill text-info me-1"></i>Bereich</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('multi_select')"><i class="bi bi-ui-checks text-success me-1"></i>Multiple Choice</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('form_link')"><i class="bi bi-link-45deg text-dark me-1"></i>Formular-Link</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('action_accept')"><i class="bi bi-send text-primary me-1"></i>Mail senden</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('gage')"><i class="bi bi-cash text-success me-1"></i>Gage (€)</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Techrider</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('promo_images')"><i class="bi bi-images text-warning me-1"></i>Promo-Bilder</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('pronoun')"><i class="bi bi-person-badge text-secondary me-1"></i>Pronomen</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('drinks')"><i class="bi bi-cup-straw text-primary me-1"></i>Getränke</button>
+                        <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="applyColPreset('guestlist')"><i class="bi bi-people text-info me-1"></i>Gästeliste</button>
                     </div>
                 </div>
 
@@ -551,19 +584,17 @@
 
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Spaltenname (Deutsch) <span
-                                    class="text-danger">*</span></label>
-                            <input type="text" id="bpColLabel" class="form-control" placeholder="z. B. Hotelzimmer"
-                                required>
+                            <label class="form-label small fw-semibold">Spaltenname (Deutsch) <span class="text-danger">*</span></label>
+                            <input type="text" id="bpColLabel" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotelzimmer" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Englischer Name (für Zusage-Übersicht)</label>
-                            <input type="text" id="bpColLabelEn" class="form-control" placeholder="z. B. Hotel Room">
+                            <label class="form-label small fw-semibold">Englischer Name (für Zusage-Übersicht)</label>
+                            <input type="text" id="bpColLabelEn" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotel Room">
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Feld-Typ</label>
-                            <select id="bpColType" class="form-select">
+                            <label class="form-label small fw-semibold">Feld-Typ</label>
+                            <select id="bpColType" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                                 <option value="text">Text (Einzeilig)</option>
                                 <option value="textarea">Text (Mehrzeilig)</option>
                                 <option value="currency">Zahl / Währung (€)</option>
@@ -579,8 +610,8 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Kategorie / Bereich</label>
-                            <input type="text" id="bpColCategory" class="form-control" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
+                            <label class="form-label small fw-semibold">Kategorie / Bereich</label>
+                            <input type="text" id="bpColCategory" class="form-control mod-pill-input rounded-pill px-3 py-2" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
                             <datalist id="bpColCatPresets">
                                 <option value="Stammdaten & Status">
                                 <option value="Finanzen">
@@ -591,58 +622,54 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Spaltenbreite (px)</label>
-                            <input type="number" id="bpColWidth" class="form-control" placeholder="Automatisch" min="60" max="600">
+                            <label class="form-label small fw-semibold">Spaltenbreite (px)</label>
+                            <input type="number" id="bpColWidth" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="Automatisch" min="60" max="600">
                             <div class="form-text small">Leer lassen für automatische Spaltenbreite.</div>
                         </div>
 
                         <!-- Optionen für Dropdown / Badge-Select -->
                         <div class="col-12" id="bpColOptionsGroup" style="display: none;">
-                            <label class="form-label fw-semibold">Dropdown-Optionen (Werte & Farben)</label>
-                            <div class="border rounded p-3 bg-light">
+                            <label class="form-label small fw-semibold">Dropdown-Optionen (Werte & Farben)</label>
+                            <div class="border rounded-4 p-3 bg-body-tertiary">
                                 <div id="bpColOptionsList" class="d-flex flex-column gap-2 mb-2"></div>
-                                <button type="button" class="btn btn-xs btn-outline-primary"
-                                    onclick="addBadgeOptionRow()">
-                                    <i class="bi bi-plus-lg me-1"></i>Option hinzufügen
+                                <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="addBadgeOptionRow()">
+                                    <i class="bi bi-plus-lg me-1 text-primary"></i>Option hinzufügen
                                 </button>
                             </div>
                         </div>
 
                         <!-- Formel-Definition -->
                         <div class="col-12" id="bpColFormulaGroup" style="display: none;">
-                            <label class="form-label fw-semibold">Formel-Berechnung</label>
-                            <input type="text" id="bpColFormula" class="form-control font-monospace"
-                                placeholder="z. B. gage + booking_fee + travel + unterkunft">
+                            <label class="form-label small fw-semibold">Formel-Berechnung</label>
+                            <input type="text" id="bpColFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace" placeholder="z. B. gage + booking_fee + travel + unterkunft">
                             <div class="form-text small">Summiert Werte anhand der Spalten-Keys.</div>
                         </div>
 
                         <!-- Schalter für Sichtbarkeit / Formular -->
                         <div class="col-12">
-                            <div class="border rounded p-3">
+                            <div class="border rounded-4 p-3 bg-body-tertiary">
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="bpColIsExternal">
-                                    <label class="form-check-label fw-semibold" for="bpColIsExternal">
+                                    <label class="form-check-label fw-semibold small" for="bpColIsExternal">
                                         Extern im Künstler-Formular abfragen
                                     </label>
-                                    <div class="text-muted small">Wird dem Act im Online-Fragebogen zum Ausfüllen
-                                        angezeigt.</div>
+                                    <div class="text-muted small">Wird dem Act im Online-Fragebogen zum Ausfüllen angezeigt.</div>
                                 </div>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="bpColVisibleOverview" checked>
-                                    <label class="form-check-label fw-semibold" for="bpColVisibleOverview">
+                                    <label class="form-check-label fw-semibold small" for="bpColVisibleOverview">
                                         In schreibgeschützter Zusage-Übersicht für Künstler sichtbar
                                     </label>
-                                    <div class="text-muted small">Erscheint in der zweisprachigen Zusage-Zusammenfassung
-                                        nach Bestätigung.</div>
+                                    <div class="text-muted small">Erscheint in der zweisprachigen Zusage-Zusammenfassung nach Bestätigung.</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="bpSaveColumnBtn">Spalte speichern</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpSaveColumnBtn">Spalte speichern</button>
             </div>
         </div>
     </div>
@@ -650,45 +677,38 @@
 
 <!-- Modal: Vorlagen-Verwaltung (Templates Manager) -->
 <div class="modal fade" id="bpTemplatesManagerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i
-                        class="bi bi-layout-three-columns me-2 text-primary"></i>Vorlagen-Verwaltung</h5>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-layout-three-columns me-2 text-primary"></i>Vorlagen-Verwaltung</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted small">Vorlagen definieren Spaltensets, Zuweisungen und Formatierungen. Sie können
-                    in jede neue oder bestehende Veranstaltung geladen werden.</p>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">Vorlagen definieren Spaltensets, Zuweisungen und Formatierungen. Sie können in jede neue oder bestehende Veranstaltung geladen werden.</p>
                 <div class="list-group" id="bpTemplatesListGroup">
                     {% for tmpl in templates %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 py-3"
-                        data-template-id="{{ tmpl.id }}">
+                    <div class="list-group-item rounded-4 border mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2 py-3 px-3.5" data-template-id="{{ tmpl.id }}">
                         <div>
                             <div class="d-flex align-items-center gap-2">
                                 <h6 class="fw-bold mb-0">{{ tmpl.name }}</h6>
                                 {% if tmpl.is_system_default %}
-                                <span class="badge bg-secondary-subtle text-secondary border">System-Standard</span>
+                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border">System-Standard</span>
                                 {% else %}
-                                <span class="badge bg-info-subtle text-info border">Benutzerdefiniert</span>
+                                <span class="badge rounded-pill bg-info-subtle text-info border">Benutzerdefiniert</span>
                                 {% endif %}
                             </div>
                             <div class="text-muted small mt-1">
-                                {{ tmpl.description or 'Keine Beschreibung hinterlegt.' }} &bull; <strong>{{
-                                    tmpl.fields_count }} Spalten</strong>
+                                {{ tmpl.description or 'Keine Beschreibung hinterlegt.' }} &bull; <strong>{{ tmpl.fields_count }} Spalten</strong>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
                             {% if current_event %}
-                            <button type="button" class="btn btn-sm btn-outline-primary"
-                                onclick="confirmLoadTemplate({{ tmpl.id }}, '{{ tmpl.name }}')">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--accent" onclick="confirmLoadTemplate({{ tmpl.id }}, '{{ tmpl.name }}')">
                                 <i class="bi bi-box-arrow-in-down me-1"></i>In „{{ current_event.name }}“ anwenden
                             </button>
                             {% endif %}
                             {% if not tmpl.is_system_default %}
-                            <button type="button" class="btn btn-sm btn-outline-danger"
-                                onclick="confirmDeleteTemplate({{ tmpl.id }}, '{{ tmpl.name }}')"
-                                title="Vorlage löschen">
+                            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-danger" onclick="confirmDeleteTemplate({{ tmpl.id }}, '{{ tmpl.name }}')" title="Vorlage löschen">
                                 <i class="bi bi-trash"></i>
                             </button>
                             {% endif %}
@@ -697,8 +717,8 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+            <div class="modal-footer border-top border-light-subtle pt-3">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Schließen</button>
             </div>
         </div>
     </div>
@@ -706,18 +726,18 @@
 
 <!-- Modal: Detailansicht ("Öffnen") -->
 <div class="modal fade" id="bpEntryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpDetailModalTitle">Act-Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
-            <div class="modal-body" id="bpDetailModalBody">
+            <div class="modal-body p-4" id="bpDetailModalBody">
                 <div class="text-center py-4"><span class="spinner-border text-primary"></span></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
-                <button type="button" class="btn btn-primary" id="bpDetailModalSaveBtn">Änderungen speichern</button>
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent px-4" id="bpDetailModalSaveBtn">Änderungen speichern</button>
             </div>
         </div>
     </div>
@@ -725,9 +745,9 @@
 
 <!-- Modal: E-Mail-Vorschau vor dem Versand (Pill Style mit DE / EN Umschalter) -->
 <div class="modal fade" id="bpMailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content rounded-4 border shadow-lg">
-            <div class="modal-header border-bottom">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom border-light-subtle pb-3">
                 <h5 class="modal-title fw-bold" id="bpMailModalTitle">
                     <i class="bi bi-envelope-paper me-2 text-primary"></i>E-Mail-Vorschau
                 </h5>
@@ -754,20 +774,20 @@
 
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Empfänger</label>
-                    <input type="email" id="bpMailRecipient" class="form-control rounded-pill px-3.5 py-2" required>
+                    <input type="email" id="bpMailRecipient" class="form-control mod-pill-input rounded-pill px-3.5 py-2" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Betreff</label>
-                    <input type="text" id="bpMailSubject" class="form-control rounded-pill px-3.5 py-2" required>
+                    <input type="text" id="bpMailSubject" class="form-control mod-pill-input rounded-pill px-3.5 py-2" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Nachricht (kann vor dem Absenden manuell angepasst werden)</label>
                     <textarea id="bpMailBody" class="form-control rounded-4 font-monospace p-3" rows="10"></textarea>
                 </div>
             </div>
-            <div class="modal-footer border-top">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm fw-semibold" id="bpSendMailBtn">
+            <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--success px-4 fw-semibold" id="bpSendMailBtn">
                     <i class="bi bi-send me-1.5"></i>E-Mail jetzt senden
                 </button>
             </div>
@@ -776,5 +796,6 @@
 </div>
 {% endif %}
 
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
 {% endblock %}

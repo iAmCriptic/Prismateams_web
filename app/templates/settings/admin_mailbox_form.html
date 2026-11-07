@@ -5,7 +5,7 @@
 
 {% block settings_content %}
 <div class="settings-admin-email settings-mailboxes-page">
-    <a href="{{ url_for('settings.admin_mailboxes') }}" class="settings-subpage-back">
+    <a href="{{ url_for('settings.admin_mailboxes') }}" class="mod-back-link">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
     </a>
@@ -31,7 +31,7 @@
                 <label class="form-check-label" for="is_active">{{ _('settings.mailboxes.active') }}</label>
             </div>
             {% endif %}
-            <button type="submit" class="btn btn-accent settings-admin-email-submit">
+            <button type="submit" class="btn btn-accent mod-pill-btn">
                 <i class="bi bi-save" aria-hidden="true"></i>
                 {{ _('common.save') }}
             </button>

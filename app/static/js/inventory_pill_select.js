@@ -210,6 +210,11 @@
         trigger.setAttribute('aria-haspopup', 'listbox');
         trigger.setAttribute('aria-expanded', 'false');
 
+        if (select.classList.contains('form-select-sm') || select.classList.contains('input-sm')) {
+            wrap.classList.add('mod-pill-select--sm');
+            trigger.classList.add('mod-pill-select__trigger--sm');
+        }
+
         const label = document.createElement('span');
         label.className = 'mod-pill-select__label';
 
@@ -256,7 +261,7 @@
 
     function enhanceAll(root) {
         const scope = root || document;
-        scope.querySelectorAll('select.form-select').forEach((select) => {
+        scope.querySelectorAll('select.form-select, select[data-mod-pill-select]').forEach((select) => {
             if (select.closest('.mod-pill-select')) {
                 const wrap = select.closest('.mod-pill-select');
                 if (wrap && wrap._invSelect) syncTrigger(wrap);
@@ -291,6 +296,8 @@
         });
         window.addEventListener('resize', onViewportChange, { passive: true });
         window.addEventListener('scroll', onViewportChange, { passive: true, capture: true });
+        document.addEventListener('hide.bs.dropdown', () => closeAll());
+        document.addEventListener('hide.bs.modal', () => closeAll());
     }
 
     global.InventoryPillSelect = {

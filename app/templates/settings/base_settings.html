@@ -114,6 +114,8 @@ document.querySelectorAll('form').forEach(function (form) {
 </script>
 {% endif %}
 
+{% block settings_modals %}{% endblock %}
+
 <script>
 window.SETTINGS_UI_I18N = {
   saving: {{ _('settings.autosave.saving')|tojson }},

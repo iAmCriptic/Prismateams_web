@@ -25,8 +25,9 @@ from app.models.event import (
     EventBookingPersonalLink,
     EventCustomField,
     EventCustomFieldValue,
+    EventLink,
 )
-from app.models.file import Folder
+from app.models.file import Folder, File
 from app.utils.private_files import can_view_folder
 from app.models.inventory import Product
 from app.models.user import User
@@ -763,6 +764,26 @@ def view_event(event_id):
     custom_values_dict = event_obj.custom_values_dict
     person_fields = [f for f in custom_fields if f.field_type == 'person']
 
+    # Nach Kategorien gruppieren
+    from collections import OrderedDict
+    categories_dict = OrderedDict()
+    for f in custom_fields:
+        cat = f.category or 'Allgemein'
+        if cat in ('Sicherheit', 'Allgemein & Vorverkauf') or 'sicherheit' in cat.lower():
+            cat = 'Allgemein'
+        if cat not in categories_dict:
+            categories_dict[cat] = []
+        categories_dict[cat].append(f)
+
+    # Dateien aus verknüpftem Ordner laden
+    folder_files = []
+    if event_obj.folder_id and active_modules.get('files'):
+        folder_files = File.query.filter_by(
+            folder_id=event_obj.folder_id,
+            deleted_at=None,
+            is_current=True
+        ).order_by(File.name).all()
+
     active_tab = request.args.get('tab', 'overview')
 
     return render_template(
@@ -771,6 +792,7 @@ def view_event(event_id):
         conflicts=conflicts,
         active_modules=active_modules,
         folders=folders,
+        folder_files=folder_files,
         available_booking_events=available_booking_events,
         available_boards=available_boards,
         users=users,
@@ -779,6 +801,7 @@ def view_event(event_id):
         day_todos=day_todos,
         has_day_todos=has_day_todos,
         custom_fields=custom_fields,
+        categories_dict=categories_dict,
         custom_values_dict=custom_values_dict,
         person_fields=person_fields,
         active_tab=active_tab,
@@ -837,6 +860,51 @@ def save_custom_fields(event_id):
 
     flash('Benutzerdefinierte Felder erfolgreich gespeichert.', 'success')
     return redirect(url_for('events.view_event', event_id=event_id, tab=request.form.get('return_tab', 'overview')))
+
+
+@events_bp.route('/<int:event_id>/links/add', methods=['POST'])
+@login_required
+@check_module_access('module_events')
+def add_event_link(event_id):
+    """Fügt einen externen Link zur Veranstaltung hinzu."""
+    event_obj = Event.query.get_or_404(event_id)
+    if not (current_user.is_admin or current_user.has_full_access or event_obj.owner_id == current_user.id or event_obj.created_by == current_user.id):
+        flash('Keine Berechtigung zum Bearbeiten dieser Veranstaltung.', 'danger')
+        return redirect(url_for('events.view_event', event_id=event_id, tab='overview'))
+
+    title = request.form.get('title', '').strip()
+    url = request.form.get('url', '').strip()
+
+    if not title or not url:
+        flash('Bitte Titel und URL für den Link angeben.', 'danger')
+        return redirect(url_for('events.view_event', event_id=event_id, tab='overview'))
+
+    if not (url.startswith('http://') or url.startswith('https://') or url.startswith('mailto:')):
+        url = 'https://' + url
+
+    link = EventLink(event_id=event_obj.id, title=title, url=url)
+    db.session.add(link)
+    db.session.commit()
+    flash(f'Link „{title}“ hinzugefügt.', 'success')
+    return redirect(url_for('events.view_event', event_id=event_id, tab='overview'))
+
+
+@events_bp.route('/<int:event_id>/links/<int:link_id>/delete', methods=['POST'])
+@login_required
+@check_module_access('module_events')
+def delete_event_link(event_id, link_id):
+    """Löscht einen Link aus der Veranstaltung."""
+    event_obj = Event.query.get_or_404(event_id)
+    if not (current_user.is_admin or current_user.has_full_access or event_obj.owner_id == current_user.id or event_obj.created_by == current_user.id):
+        flash('Keine Berechtigung.', 'danger')
+        return redirect(url_for('events.view_event', event_id=event_id, tab='overview'))
+
+    link = EventLink.query.filter_by(id=link_id, event_id=event_obj.id).first_or_404()
+    title = link.title
+    db.session.delete(link)
+    db.session.commit()
+    flash(f'Link „{title}“ gelöscht.', 'success')
+    return redirect(url_for('events.view_event', event_id=event_id, tab='overview'))
 
 
 @events_bp.route('/<int:event_id>/link/folder', methods=['POST'])
