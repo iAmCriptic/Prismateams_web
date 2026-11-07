@@ -37,7 +37,7 @@
       "protocols": "Protokollführung",
       "meetings": "Meetings",
       "duty_roster": "Dienstplan",
-      "booking_personal": "Booking / Personal"
+      "booking_personal": "Booking"
     },
     "brand": {
       "separator": "–",
@@ -1548,7 +1548,8 @@
         "lead_short": "Module ein- und ausschalten.",
         "module_meetings": "Meetings (Videoanrufe)",
         "meetings_needs_mirotalk": "Benötigt MIROTALK_URL in der .env. Ohne MiroTalk bleibt das Modul aus.",
-        "module_duty_roster": "Dienstplan"
+        "module_duty_roster": "Dienstplan",
+        "module_booking_personal": "Booking"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",

@@ -1,12 +1,12 @@
 /**
- * Booking / Personal Module - Interactive Table, Inline Editing & Custom Fields Manager
+ * Booking Module - Interactive Table, Inline Editing & Custom Fields Manager
  */
 
 (function () {
     'use strict';
 
     const tableEl = document.getElementById('bpTable');
-    if (!tableEl && !document.getElementById('bpPublicForm') && !document.getElementById('bpPublicOverview')) {
+    if (!tableEl && !document.getElementById('bpPublicForm') && !document.getElementById('bpPublicOverview') && !document.getElementById('bpActDetailContainer') && !document.getElementById('bpSettingsContainer')) {
         return;
     }
 
@@ -840,7 +840,7 @@
             const catEl = document.getElementById('bpColCategory');
             if (catEl) catEl.value = 'Allgemein';
             document.getElementById('bpColType').value = 'text';
-            document.getElementById('bpColWidth').value = ''; // Auto!
+            const wEl = document.getElementById('bpColWidth'); if (wEl) wEl.value = '';
             document.getElementById('bpColIsExternal').checked = false;
             document.getElementById('bpColVisibleOverview').checked = true;
             document.getElementById('bpColFormula').value = '';
@@ -855,7 +855,7 @@
             const catEl = document.getElementById('bpColCategory');
             if (catEl) catEl.value = fieldData.category || 'Allgemein';
             document.getElementById('bpColType').value = fieldData.field_type || 'text';
-            document.getElementById('bpColWidth').value = fieldData.width || '';
+            const wEl = document.getElementById('bpColWidth'); if (wEl) wEl.value = fieldData.width || '';
             document.getElementById('bpColIsExternal').checked = !!fieldData.is_external;
             document.getElementById('bpColVisibleOverview').checked = !!fieldData.visible_in_overview;
             document.getElementById('bpColFormula').value = fieldData.formula_definition || '';
@@ -911,7 +911,7 @@
             const labelEn = document.getElementById('bpColLabelEn').value.trim();
             const category = document.getElementById('bpColCategory')?.value.trim() || 'Allgemein';
             const fieldType = document.getElementById('bpColType').value;
-            const rawW = document.getElementById('bpColWidth').value.trim();
+            const wEl = document.getElementById('bpColWidth'); const rawW = wEl ? wEl.value.trim() : '';
             const width = parseInt(rawW, 10) > 0 ? parseInt(rawW, 10) : 0; // 0 = Backend Berechnet automatisch
             const isExternal = document.getElementById('bpColIsExternal').checked;
             const visibleInOverview = document.getElementById('bpColVisibleOverview').checked;
@@ -1145,16 +1145,31 @@
     // -------------------------------------------------------------
     // E-Mail Vorschau & Senden Modal (Zusage, Absage, Einladung)
     // -------------------------------------------------------------
-    window.openMailPreview = async function (entryId, mailType) {
+    window.openMailPreview = async function (entryId, mailType, lang = 'de') {
         const modalEl = document.getElementById('bpMailModal');
         if (!modalEl) return;
-        const bsModal = new bootstrap.Modal(modalEl);
+        const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+        const currentLangEl = document.getElementById('bpMailCurrentLang');
+        if (currentLangEl) currentLangEl.value = lang;
+
+        const btnDe = document.getElementById('bpMailLangBtnDe');
+        const btnEn = document.getElementById('bpMailLangBtnEn');
+        if (btnDe && btnEn) {
+            if (lang === 'en') {
+                btnEn.className = 'btn btn-xs rounded-pill px-3 py-1 btn-primary';
+                btnDe.className = 'btn btn-xs rounded-pill px-3 py-1 btn-light text-muted';
+            } else {
+                btnDe.className = 'btn btn-xs rounded-pill px-3 py-1 btn-primary';
+                btnEn.className = 'btn btn-xs rounded-pill px-3 py-1 btn-light text-muted';
+            }
+        }
 
         try {
             const resp = await fetch(`/booking-personal/api/entry/${entryId}/mail-preview`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify({ type: mailType })
+                body: JSON.stringify({ type: mailType, lang: lang })
             });
             const data = await resp.json();
             if (data.success) {
@@ -1181,6 +1196,14 @@
         } catch (err) {
             console.error(err);
             showToast('Netzwerkfehler.', 'error');
+        }
+    };
+
+    window.switchMailPreviewLang = function (lang) {
+        const entryId = document.getElementById('bpMailEntryId')?.value;
+        const mailType = document.getElementById('bpMailType')?.value || 'accept';
+        if (entryId) {
+            openMailPreview(entryId, mailType, lang);
         }
     };
 
@@ -1228,6 +1251,199 @@
                 this.innerHTML = '<i class="bi bi-send me-1"></i> E-Mail jetzt senden';
             }
         });
+    }
+
+
+    // -------------------------------------------------------------
+    // Inline-Editing for Act Detail Overview (Direct click-to-edit)
+    // -------------------------------------------------------------
+    const actDetailEl = document.getElementById('bpActDetailContainer');
+    if (actDetailEl) {
+        actDetailEl.addEventListener('click', function (e) {
+            // Ignore if clicked on buttons, links, or inputs
+            if (e.target.closest('a, button, input, select, textarea, .dropdown-menu, .dropdown-toggle')) {
+                return;
+            }
+
+            const row = e.target.closest('.bp-detail-field-row');
+            if (!row) return;
+
+            const entryId = row.dataset.entryId;
+            const fieldKey = row.dataset.fieldKey;
+            const fieldType = row.dataset.fieldType;
+            const rawVal = row.dataset.rawValue || '';
+
+            // Ignore non-editable types or formula fields
+            if (['formula', 'file_upload', 'image_upload', 'form_link', 'action_accept'].includes(fieldType) || fieldKey === 'gesamt') {
+                return;
+            }
+
+            if (row.classList.contains('is-editing')) return;
+            row.classList.add('is-editing');
+
+            const valContainer = row.querySelector('.bp-field-val-container');
+            const displayEl = row.querySelector('.bp-field-display');
+            const penEl = row.querySelector('.bp-field-edit-pen');
+
+            if (!valContainer || !displayEl) return;
+
+            displayEl.classList.add('d-none');
+            if (penEl) penEl.classList.add('d-none');
+
+            if (fieldType === 'badge_select') {
+                let opts = [];
+                try {
+                    opts = JSON.parse(row.dataset.options || '[]');
+                } catch (err) {}
+                const select = document.createElement('select');
+                select.className = 'form-select form-select-sm mod-pill-input py-0 px-2';
+                select.style.fontSize = '0.82rem';
+                select.style.width = 'auto';
+                select.style.minWidth = '110px';
+
+                const emptyOpt = document.createElement('option');
+                emptyOpt.value = '';
+                emptyOpt.textContent = '–';
+                select.appendChild(emptyOpt);
+
+                opts.forEach(opt => {
+                    const optVal = typeof opt === 'object' ? opt.value : opt;
+                    const o = document.createElement('option');
+                    o.value = optVal;
+                    o.textContent = optVal;
+                    if (optVal === rawVal) o.selected = true;
+                    select.appendChild(o);
+                });
+
+                valContainer.appendChild(select);
+                select.focus();
+
+                let finished = false;
+                async function finishSelect() {
+                    if (finished) return;
+                    finished = true;
+                    const newVal = select.value;
+                    select.remove();
+                    displayEl.classList.remove('d-none');
+                    if (penEl) penEl.classList.remove('d-none');
+                    row.classList.remove('is-editing');
+
+                    if (newVal !== rawVal) {
+                        await saveDetailInline(entryId, fieldKey, newVal, row, displayEl, fieldType);
+                    }
+                }
+
+                select.addEventListener('change', finishSelect);
+                select.addEventListener('blur', finishSelect);
+            } else {
+                const wrap = document.createElement('div');
+                wrap.className = 'd-inline-flex align-items-center gap-1';
+
+                const input = document.createElement('input');
+                input.type = (fieldType === 'number' || fieldType === 'counter') ? 'number' : 'text';
+                input.className = 'form-control form-control-sm mod-pill-input py-0 px-2';
+                input.style.fontSize = '0.82rem';
+                input.style.width = '120px';
+
+                let initialText = rawVal;
+                if (fieldType === 'currency') {
+                    initialText = String(rawVal).replace('€', '').trim();
+                }
+                input.value = initialText;
+
+                wrap.appendChild(input);
+                valContainer.appendChild(wrap);
+                input.focus();
+                input.select();
+
+                let finished = false;
+                async function finishInput() {
+                    if (finished) return;
+                    finished = true;
+                    let newVal = input.value.trim();
+                    if (fieldType === 'currency' && newVal && !newVal.startsWith('€')) {
+                        const num = parseFloat(newVal.replace(',', '.'));
+                        if (!isNaN(num)) newVal = `€${num.toFixed(2)}`;
+                    }
+                    wrap.remove();
+                    displayEl.classList.remove('d-none');
+                    if (penEl) penEl.classList.remove('d-none');
+                    row.classList.remove('is-editing');
+
+                    if (newVal !== rawVal) {
+                        await saveDetailInline(entryId, fieldKey, newVal, row, displayEl, fieldType);
+                    }
+                }
+
+                input.addEventListener('keydown', function (evt) {
+                    if (evt.key === 'Enter') {
+                        evt.preventDefault();
+                        finishInput();
+                    } else if (evt.key === 'Escape') {
+                        finished = true;
+                        wrap.remove();
+                        displayEl.classList.remove('d-none');
+                        if (penEl) penEl.classList.remove('d-none');
+                        row.classList.remove('is-editing');
+                    }
+                });
+
+                input.addEventListener('blur', finishInput);
+            }
+        });
+    }
+
+    async function saveDetailInline(entryId, fieldKey, value, row, displayEl, fieldType) {
+        try {
+            const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ field_key: fieldKey, value: value })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                row.dataset.rawValue = value;
+
+                // Update visual display
+                if (fieldType === 'currency') {
+                    displayEl.innerHTML = `<span class="fw-semibold text-body small">${escapeHtml(value || '€0.00')}</span>`;
+                } else if (fieldType === 'badge_select') {
+                    if (value) {
+                        displayEl.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">${escapeHtml(value)}</span>`;
+                    } else {
+                        displayEl.innerHTML = '<span class="text-muted small">-</span>';
+                    }
+                } else if (fieldType === 'counter') {
+                    displayEl.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-0.5 fw-bold small">${escapeHtml(value || '0')}</span>`;
+                } else {
+                    displayEl.innerHTML = `<span class="text-body small">${escapeHtml(value || '-')}</span>`;
+                }
+
+                // If calculated/formula values changed (e.g. gesamt in Finanzen)
+                if (data.updated_custom_data) {
+                    for (const [k, v] of Object.entries(data.updated_custom_data)) {
+                        const targetRow = document.querySelector(`.bp-detail-field-row[data-field-key="${k}"]`);
+                        if (targetRow) {
+                            targetRow.dataset.rawValue = v;
+                            const targetDisp = targetRow.querySelector('.bp-field-display');
+                            if (targetDisp) {
+                                targetDisp.innerHTML = `<span class="fw-bold text-primary small">${escapeHtml(v || '€0.00')}</span>`;
+                            }
+                        }
+                        if (k === 'gesamt') {
+                            const bannerVal = document.getElementById('bpDetailTotalCostVal');
+                            if (bannerVal) bannerVal.textContent = v || '€0.00';
+                        }
+                    }
+                }
+                showToast('Gespeichert', 'success');
+            } else {
+                showToast(data.error || 'Fehler beim Speichern', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Netzwerkfehler.', 'error');
+        }
     }
 
 })();

@@ -11,21 +11,329 @@
             <i class="bi bi-arrow-left" aria-hidden="true"></i>
             <span>Zurück</span>
         </a>
-        <div class="d-none d-lg-block">
+        <div>
             <h1 class="events-form-title">Veranstaltung erstellen</h1>
-            <p class="events-form-subtitle">Grunddaten, Personen und Termine in einem Durchgang.</p>
+            <p class="events-form-subtitle">Erfasse Basisdaten und Termine. Verknüpfungen zu Dateien, Booking, Kanban und ToDos können direkt im Anschluss gepflegt werden.</p>
         </div>
     </div>
 
-    <form method="POST" class="events-form-body">
-        {% include "events/_form.html" %}
-        <div class="events-form-actions">
-            <button class="btn btn-accent events-form-submit" type="submit">
-                <i class="bi bi-save" aria-hidden="true"></i> Speichern
+    <form method="POST" class="events-form-body mt-2">
+        <!-- Basisdaten Card -->
+        <section class="events-form-card" aria-labelledby="events-form-basics">
+            <div class="events-form-card-head mb-3">
+                <h2 id="events-form-basics" class="events-form-section-title">
+                    <i class="bi bi-card-heading" aria-hidden="true"></i>
+                    Grunddaten
+                </h2>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-8">
+                    <label class="form-label fw-semibold" for="event_name">Name der Veranstaltung <span class="text-danger">*</span></label>
+                    <input class="form-control mod-pill-input" id="event_name" name="name" required placeholder="z. B. Sommerfestival 2026, Club-Konzert, Workshop...">
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold" for="event_owner">Verantwortliche Person</label>
+                    <select class="form-select mod-pill-input" id="event_owner" name="owner_id">
+                        {% for u in users %}
+                        <option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="event_location">Standard-Ort / Location</label>
+                    <input class="form-control mod-pill-input" id="event_location" name="default_location" placeholder="z. B. Hauptbühne, Vereinsheim, Stadtpark...">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="event_description">Beschreibung</label>
+                    <textarea class="form-control" id="event_description" rows="2" name="description" placeholder="Optionale Notizen oder Rahmeninfos zur Veranstaltung..." style="border-radius: 1.15rem;"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ansprechpartner Card -->
+        <section class="events-form-card" aria-labelledby="events-form-contact-head">
+            <div class="events-form-card-head mb-2">
+                <h2 id="events-form-contact-head" class="events-form-section-title">
+                    <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                    Ansprechpartner (optional)
+                </h2>
+            </div>
+            <div class="row g-3">
+                {% if contacts %}
+                <div class="col-12 col-md-4">
+                    <label class="form-label small text-muted" for="contact_select">Aus Kontakten wählen</label>
+                    <select class="form-select mod-pill-input" id="contact_select" name="contact_id">
+                        <option value="">-- Manueller Kontakt / Keiner --</option>
+                        {% for c in contacts %}
+                        <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} ({{ c.phone }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-12 {% if contacts %}col-md-8{% endif %}">
+                    <div class="row g-2">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label small text-muted" for="contact_name">Name</label>
+                            <input class="form-control mod-pill-input" id="contact_name" name="contact_name" placeholder="z. B. Max Mustermann">
+                        </div>
+                        <div class="col-6 col-sm-4">
+                            <label class="form-label small text-muted" for="contact_phone">Telefon</label>
+                            <input class="form-control mod-pill-input" id="contact_phone" name="contact_phone" placeholder="z. B. 0170 1234567">
+                        </div>
+                        <div class="col-6 col-sm-4">
+                            <label class="form-label small text-muted" for="contact_email">E-Mail</label>
+                            <input class="form-control mod-pill-input" id="contact_email" name="contact_email" type="email" placeholder="max@beispiel.de">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Termine & Tage Card -->
+        <section class="events-form-card" aria-labelledby="events-form-schedule">
+            <div class="events-form-card-head mb-3">
+                <h2 id="events-form-schedule" class="events-form-section-title">
+                    <i class="bi bi-calendar2-week" aria-hidden="true"></i>
+                    Veranstaltungstage & Termine
+                </h2>
+            </div>
+
+            <!-- Modus-Auswahl als Pill-Toggle -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted text-uppercase mb-2">Art der Veranstaltung</label>
+                <div class="events-mode-toggle d-inline-flex p-1 rounded-pill bg-body-secondary border" role="group" aria-label="Veranstaltungsart">
+                    <input type="radio" class="btn-check" name="event_mode" id="modeSingle" value="single" checked autocomplete="off">
+                    <label class="btn btn-sm mod-pill-btn border-0 rounded-pill px-4 py-2" for="modeSingle" id="modeSingleLabel">
+                        <i class="bi bi-calendar-event me-1"></i> Eintägig
+                    </label>
+
+                    <input type="radio" class="btn-check" name="event_mode" id="modeMulti" value="multi" autocomplete="off">
+                    <label class="btn btn-sm mod-pill-btn border-0 rounded-pill px-4 py-2" for="modeMulti" id="modeMultiLabel">
+                        <i class="bi bi-calendar-range me-1"></i> Mehrtägig (einzelne Tage)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Eintägig -->
+            <div id="singleDayFields" class="p-3 rounded-4 bg-body-secondary border border-light-subtle">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-semibold" for="event_date">Datum <span class="text-danger">*</span></label>
+                        <input class="form-control mod-pill-input" type="date" id="event_date" name="event_date" value="{{ today }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label fw-semibold" for="start_time">Startzeit</label>
+                        <input class="form-control mod-pill-input" type="time" id="start_time" name="start_time" value="10:00">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label fw-semibold" for="end_time">Endzeit</label>
+                        <input class="form-control mod-pill-input" type="time" id="end_time" name="end_time" value="18:00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mehrtägig (einzelne Tage erfassbar) -->
+            <div id="multiDayFields" class="d-none">
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Erfasse jeden Tag einzeln – auch mit Pausen dazwischen. Jeder Tag kann eigene Uhrzeiten und eine eigene Location haben.
+                </p>
+
+                <div id="multiDaysContainer" class="d-flex flex-column gap-2 mb-3">
+                    <!-- Day row 1 -->
+                    <div class="multi-day-row p-3 rounded-4 bg-body-secondary border border-light-subtle" data-day-index="1">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-muted text-uppercase day-title">Tag 1</span>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label class="form-label small text-muted mb-1">Datum</label>
+                                <input class="form-control mod-pill-input" type="date" name="multi_day_date[]">
+                            </div>
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label class="form-label small text-muted mb-1">Startzeit</label>
+                                <input class="form-control mod-pill-input" type="time" name="multi_day_start[]" value="10:00">
+                            </div>
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label class="form-label small text-muted mb-1">Endzeit</label>
+                                <input class="form-control mod-pill-input" type="time" name="multi_day_end[]" value="18:00">
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label small text-muted mb-1">Ort / Bühne (optional)</label>
+                                <input class="form-control mod-pill-input" type="text" name="multi_day_location[]" placeholder="Eigener Ort für diesen Tag">
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label small text-muted mb-1">Bezeichnung</label>
+                                <input class="form-control mod-pill-input" type="text" name="multi_day_label[]" placeholder="z. B. Aufbau">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Day row 2 -->
+                    <div class="multi-day-row p-3 rounded-4 bg-body-secondary border border-light-subtle" data-day-index="2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-muted text-uppercase day-title">Tag 2</span>
+                            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-day-btn" title="Tag entfernen">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label class="form-label small text-muted mb-1">Datum</label>
+                                <input class="form-control mod-pill-input" type="date" name="multi_day_date[]">
+                            </div>
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label class="form-label small text-muted mb-1">Startzeit</label>
+                                <input class="form-control mod-pill-input" type="time" name="multi_day_start[]" value="10:00">
+                            </div>
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label class="form-label small text-muted mb-1">Endzeit</label>
+                                <input class="form-control mod-pill-input" type="time" name="multi_day_end[]" value="18:00">
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label small text-muted mb-1">Ort / Bühne (optional)</label>
+                                <input class="form-control mod-pill-input" type="text" name="multi_day_location[]" placeholder="Eigener Ort für diesen Tag">
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label small text-muted mb-1">Bezeichnung</label>
+                                <input class="form-control mod-pill-input" type="text" name="multi_day_label[]" placeholder="z. B. Konzert">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-outline-primary mod-pill-btn" id="addDayBtn">
+                    <i class="bi bi-plus-circle me-1"></i> Weiteren Tag hinzufügen
+                </button>
+            </div>
+        </section>
+
+        <div class="events-form-actions mt-3">
+            <button class="btn btn-accent mod-pill-btn mod-pill-btn--accent" type="submit">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i> Veranstaltung anlegen
             </button>
-            <a class="btn btn-outline-secondary events-form-cancel" href="{{ url_for('events.index') }}">Abbrechen</a>
+            <a class="btn btn-outline-secondary mod-pill-btn" href="{{ url_for('events.index') }}">Abbrechen</a>
         </div>
     </form>
 </div>
 {{ events_shell_close('standard', true) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modeSingle = document.getElementById('modeSingle');
+    const modeMulti = document.getElementById('modeMulti');
+    const singleDayFields = document.getElementById('singleDayFields');
+    const multiDayFields = document.getElementById('multiDayFields');
+    const eventDateInput = document.getElementById('event_date');
+    const multiDaysContainer = document.getElementById('multiDaysContainer');
+    const addDayBtn = document.getElementById('addDayBtn');
+
+    // Default dates
+    const today = new Date().toISOString().split('T')[0];
+    if (eventDateInput && !eventDateInput.value) {
+        eventDateInput.value = today;
+    }
+
+    const multiInputs = multiDaysContainer.querySelectorAll('input[type="date"]');
+    if (multiInputs[0] && !multiInputs[0].value) multiInputs[0].value = today;
+    if (multiInputs[1] && !multiInputs[1].value) {
+        const d2 = new Date();
+        d2.setDate(d2.getDate() + 1);
+        multiInputs[1].value = d2.toISOString().split('T')[0];
+    }
+
+    function syncMode() {
+        if (modeMulti.checked) {
+            singleDayFields.classList.add('d-none');
+            multiDayFields.classList.remove('d-none');
+            eventDateInput.removeAttribute('required');
+        } else {
+            singleDayFields.classList.remove('d-none');
+            multiDayFields.classList.add('d-none');
+            eventDateInput.setAttribute('required', 'required');
+        }
+    }
+
+    modeSingle.addEventListener('change', syncMode);
+    modeMulti.addEventListener('change', syncMode);
+    syncMode();
+
+    // Dynamic adding of day rows
+    function updateDayNumbers() {
+        const rows = multiDaysContainer.querySelectorAll('.multi-day-row');
+        rows.forEach((row, idx) => {
+            const num = idx + 1;
+            row.dataset.dayIndex = num;
+            const title = row.querySelector('.day-title');
+            if (title) title.textContent = `Tag ${num}`;
+        });
+    }
+
+    multiDaysContainer.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-day-btn');
+        if (removeBtn) {
+            const row = removeBtn.closest('.multi-day-row');
+            if (row && multiDaysContainer.querySelectorAll('.multi-day-row').length > 1) {
+                row.remove();
+                updateDayNumbers();
+            }
+        }
+    });
+
+    if (addDayBtn) {
+        addDayBtn.addEventListener('click', function() {
+            const rows = multiDaysContainer.querySelectorAll('.multi-day-row');
+            const newIndex = rows.length + 1;
+            const newRow = document.createElement('div');
+            newRow.className = 'multi-day-row p-3 rounded-4 bg-body-secondary border border-light-subtle';
+            newRow.dataset.dayIndex = newIndex;
+
+            // Guess next date
+            let nextDate = today;
+            const lastDateInput = rows[rows.length - 1].querySelector('input[type="date"]');
+            if (lastDateInput && lastDateInput.value) {
+                const d = new Date(lastDateInput.value);
+                d.setDate(d.getDate() + 1);
+                nextDate = d.toISOString().split('T')[0];
+            }
+
+            newRow.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold small text-muted text-uppercase day-title">Tag ${newIndex}</span>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-day-btn" title="Tag entfernen">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small text-muted mb-1">Datum</label>
+                        <input class="form-control mod-pill-input" type="date" name="multi_day_date[]" value="${nextDate}">
+                    </div>
+                    <div class="col-6 col-sm-3 col-md-2">
+                        <label class="form-label small text-muted mb-1">Startzeit</label>
+                        <input class="form-control mod-pill-input" type="time" name="multi_day_start[]" value="10:00">
+                    </div>
+                    <div class="col-6 col-sm-3 col-md-2">
+                        <label class="form-label small text-muted mb-1">Endzeit</label>
+                        <input class="form-control mod-pill-input" type="time" name="multi_day_end[]" value="18:00">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small text-muted mb-1">Ort / Bühne (optional)</label>
+                        <input class="form-control mod-pill-input" type="text" name="multi_day_location[]" placeholder="Eigener Ort für diesen Tag">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small text-muted mb-1">Bezeichnung</label>
+                        <input class="form-control mod-pill-input" type="text" name="multi_day_label[]" placeholder="z. B. Tag ${newIndex}">
+                    </div>
+                </div>
+            `;
+            multiDaysContainer.appendChild(newRow);
+        });
+    }
+});
+</script>
 {% endblock %}

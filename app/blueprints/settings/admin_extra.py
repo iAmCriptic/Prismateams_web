@@ -313,7 +313,7 @@ def admin_roles_default():
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
-        ('module_booking_personal', 'Booking / Personal'),
+        ('module_booking_personal', 'Booking'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
@@ -873,3 +873,128 @@ def booking_roles(form_id):
         })
     
     return jsonify({'roles': roles})
+
+
+@settings_bp.route('/admin/events', methods=['GET', 'POST'])
+@login_required
+def admin_events_settings():
+    """Veranstaltungs-Einstellungen und benutzerdefinierte Felder (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.event import EventCustomField, EventCustomFieldValue
+
+    if request.method == 'POST':
+        action = request.form.get('action', '').strip()
+
+        if action == 'add_field':
+            label = request.form.get('label', '').strip()
+            category = request.form.get('category', 'Allgemein').strip() or 'Allgemein'
+            field_type = request.form.get('field_type', 'text').strip()
+            placeholder = request.form.get('placeholder', '').strip()
+            options_raw = request.form.get('options', '').strip()
+
+            if not label:
+                flash('Bitte einen Feldnamen angeben.', 'danger')
+            else:
+                max_pos = db.session.query(func.max(EventCustomField.position)).scalar() or 0
+                options_val = None
+                if field_type == 'select' and options_raw:
+                    lines = [opt.strip() for opt in options_raw.replace(',', '\n').splitlines() if opt.strip()]
+                    options_val = json.dumps(lines, ensure_ascii=False)
+
+                field = EventCustomField(
+                    label=label,
+                    category=category,
+                    field_type=field_type,
+                    placeholder=placeholder or None,
+                    options=options_val,
+                    position=max_pos + 10,
+                    is_active=True
+                )
+                db.session.add(field)
+                db.session.commit()
+                flash(f'Benutzerdefiniertes Feld „{label}“ erfolgreich angelegt.', 'success')
+
+        elif action == 'edit_field':
+            field_id = request.form.get('field_id', type=int)
+            field = db.session.get(EventCustomField, field_id) if field_id else None
+            if not field:
+                flash('Feld nicht gefunden.', 'danger')
+                return redirect(url_for('settings.admin_events_settings'))
+            label = request.form.get('label', '').strip()
+            category = request.form.get('category', 'Allgemein').strip() or 'Allgemein'
+            field_type = request.form.get('field_type', field.field_type).strip()
+            placeholder = request.form.get('placeholder', '').strip()
+            options_raw = request.form.get('options', '').strip()
+
+            if label:
+                field.label = label
+            field.category = category
+            field.field_type = field_type
+            field.placeholder = placeholder or None
+            if field_type == 'select' and options_raw:
+                lines = [opt.strip() for opt in options_raw.replace(',', '\n').splitlines() if opt.strip()]
+                field.options = json.dumps(lines, ensure_ascii=False)
+            elif field_type != 'select':
+                field.options = None
+
+            db.session.commit()
+            flash(f'Feld „{field.label}“ aktualisiert.', 'success')
+
+        elif action == 'delete_field':
+            field_id = request.form.get('field_id', type=int)
+            field = db.session.get(EventCustomField, field_id) if field_id else None
+            if field:
+                name = field.label
+                db.session.delete(field)
+                db.session.commit()
+                flash(f'Feld „{name}“ gelöscht.', 'success')
+
+        elif action == 'load_defaults':
+            defaults = [
+                # Kategorie: Allgemein & Vorverkauf
+                ('EPISODE', 'number', '1', None, 'Allgemein & Vorverkauf'),
+                ('ALTERSBESCHRÄNKUNG', 'select', 'Auswählen...', ['Keine', 'Ab 16', 'Ab 18', 'Familienfreundlich'], 'Allgemein & Vorverkauf'),
+                ('AK', 'text', 'AK hinzufügen ...', None, 'Allgemein & Vorverkauf'),
+                ('VVK', 'text', 'VVK hinzufügen ...', None, 'Allgemein & Vorverkauf'),
+                ('VVK VIA T4G?', 'checkbox', None, None, 'Allgemein & Vorverkauf'),
+                # Kategorie: Personal & Gewerke
+                ('VA LEITUNG', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
+                ('GASTRO', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
+                ('AWARENESS AP', 'person', 'AWARENESS AP...', None, 'Personal & Gewerke'),
+                ('TECH SUPPORT ALL', 'text', 'TECH SUPPORT ALL...', None, 'Personal & Gewerke'),
+                ('OPERATOR LICHT', 'text', 'OPERATOR LICHT...', None, 'Personal & Gewerke'),
+                ('GARDEROBE', 'text', 'GARDEROBE hinzufügen...', None, 'Personal & Gewerke'),
+                ('EINLASS', 'text', 'EINLASS hinzufügen...', None, 'Personal & Gewerke'),
+                # Kategorie: Sicherheit
+                ('ANZAHL SECU', 'number', 'ANZAHL SECU...', None, 'Sicherheit'),
+                ('SECU BESTELLT?', 'checkbox', None, None, 'Sicherheit'),
+                # Kategorie: Besonderheiten & Notizen
+                ('BESONDERHEITEN TON', 'textarea', 'BESONDERHEITEN TON...', None, 'Besonderheiten & Notizen'),
+                ('BESONDERHEITEN LICHT', 'textarea', 'BESONDERHEITEN LICHT...', None, 'Besonderheiten & Notizen'),
+                ('BESONDERHEITEN GASTRO', 'textarea', 'BESONDERHEITEN GASTRO...', None, 'Besonderheiten & Notizen'),
+            ]
+            added = 0
+            existing_labels = {f.label.upper() for f in EventCustomField.query.all()}
+            for idx, (lbl, ftype, ph, opts, cat) in enumerate(defaults):
+                if lbl.upper() not in existing_labels:
+                    opt_val = json.dumps(opts, ensure_ascii=False) if opts else None
+                    db.session.add(EventCustomField(
+                        label=lbl,
+                        category=cat,
+                        field_type=ftype,
+                        placeholder=ph,
+                        options=opt_val,
+                        position=(idx + 1) * 10,
+                        is_active=True
+                    ))
+                    added += 1
+            db.session.commit()
+            flash(f'{added} Standard-Felder wurden angelegt.', 'success')
+
+        return redirect(url_for('settings.admin_events_settings'))
+
+    fields = EventCustomField.query.order_by(EventCustomField.position, EventCustomField.id).all()
+    return render_template('settings/admin_events_settings.html', fields=fields)

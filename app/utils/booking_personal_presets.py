@@ -1,4 +1,4 @@
-"""Presets and defaults for the Booking / Personal module."""
+"""Presets and defaults for the Booking module."""
 
 FESTIVAL_STANDARD_FIELDS = [
     # Stammdaten & Status

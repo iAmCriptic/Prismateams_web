@@ -233,10 +233,10 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
                 · <i class="bi bi-people"></i> {{ event.assignments|length }} Personen
             </p>
             <div class="d-flex gap-2 mt-auto">
-                <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="btn btn-sm btn-outline-primary mod-pill-btn flex-grow-1">
                     <i class="bi bi-eye"></i> Öffnen
                 </a>
-                <a href="{{ url_for('events.edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                <a href="{{ url_for('events.edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary mod-pill-btn" title="Bearbeiten">
                     <i class="bi bi-pencil"></i>
                 </a>
             </div>

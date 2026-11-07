@@ -499,3 +499,111 @@
     --events-form-elevated: var(--bs-body-bg, #212529);
     --events-form-border: rgba(255, 255, 255, 0.12);
 }
+
+/* --- Events Central Hub & Mode Toggle --- */
+
+.events-mode-toggle {
+    display: inline-flex;
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa));
+}
+
+.events-mode-toggle .btn-check:checked + label {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
+    color: #fff !important;
+    box-shadow: 0 0.15rem 0.35rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
+}
+
+.events-mode-toggle label {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+/* --- ToDo Lists in Hub --- */
+
+.todo-list-card {
+    border-radius: 1.15rem !important;
+    overflow: hidden;
+    background: var(--events-form-elevated, var(--bs-body-bg, #fff));
+    border-color: var(--events-form-border, var(--bs-border-color-translucent, #e9ecef)) !important;
+}
+
+.todo-list-card .card-header {
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa)) !important;
+    border-bottom-color: var(--events-form-border, var(--bs-border-color-translucent, #e9ecef)) !important;
+}
+
+.todo-checkbox {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    cursor: pointer;
+    border-radius: 0.35rem !important;
+}
+
+.todo-checkbox:checked {
+    background-color: var(--accent-color, var(--bs-primary)) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.add-todo-form .form-control {
+    border-radius: var(--mod-radius-pill, 1.5rem) 0 0 var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.add-todo-form .btn {
+    border-radius: 0 var(--mod-radius-pill, 1.5rem) var(--mod-radius-pill, 1.5rem) 0 !important;
+}
+
+/* --- Custom Fields Grid (Hub Overview) --- */
+
+.events-custom-field-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.events-custom-field-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    line-height: 1;
+}
+
+.events-custom-field-box {
+    min-height: 2.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--events-form-border, var(--bs-border-color-translucent, #dee2e6));
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa));
+    color: var(--events-form-text, var(--bs-body-color, #212529));
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.events-custom-field-box:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+}
+
+.events-custom-field-box--checkbox {
+    border: none;
+    background: transparent;
+    padding-left: 0.1rem;
+}
+
+.events-custom-field-box--empty {
+    color: var(--bs-secondary-color, #6c757d);
+    font-style: italic;
+    opacity: 0.75;
+}

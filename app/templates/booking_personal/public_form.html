@@ -98,7 +98,9 @@
                 {% if lang == 'en' %}Artist Questionnaire{% else %}Künstler-Fragebogen / Artist Form{% endif %}
             </span>
             <p class="text-muted small mx-auto mb-1" style="max-width: 600px;">
-                {% if lang == 'en' %}
+                {% if form_intro %}
+                    {{ form_intro }}
+                {% elif lang == 'en' %}
                     {{ event.form_intro_text_en or ('Hello ' ~ (entry.name or 'Act') ~ ', please complete the following hospitality, technical, catering, and travel details so we can best prepare for your show.') }}
                 {% else %}
                     {{ event.form_intro_text or ('Hallo ' ~ (entry.name or 'Act') ~ ', bitte vervollständige die nachfolgenden Angaben für Hospitality, Technik, Verpflegung und Reise, damit wir deinen Auftritt bestmöglich vorbereiten können.') }}

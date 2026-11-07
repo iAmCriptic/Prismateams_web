@@ -79,6 +79,62 @@ class BookingPersonalEvent(db.Model):
         nullable=False
     )
 
+    # Standard-E-Mail-Vorlagen je Event (Englisch)
+    accept_template_subject_en = db.Column(
+        db.String(255),
+        default='Booking Confirmation for {{ event_name }} - {{ act_name }}',
+        nullable=True
+    )
+    accept_template_body_en = db.Column(
+        db.Text,
+        default=(
+            'Hello {{ contact_name }},\n\n'
+            'we are thrilled to confirm your performance for {{ event_name }}!\n\n'
+            'Your agreed compensation is {{ gage }}.\n'
+            'You can find all details, schedule, and hospitality information in your personal overview:\n'
+            '{{ overview_link }}\n\n'
+            'If you have any questions, feel free to reply directly to this email.\n\n'
+            'Best regards,\nYour Booking Team'
+        ),
+        nullable=True
+    )
+
+    reject_template_subject_en = db.Column(
+        db.String(255),
+        default='Update on your application / inquiry for {{ event_name }}',
+        nullable=True
+    )
+    reject_template_body_en = db.Column(
+        db.Text,
+        default=(
+            'Hello {{ contact_name }},\n\n'
+            'thank you very much for your interest and application for {{ event_name }}.\n\n'
+            'Unfortunately, due to limited slots, we are unable to offer you a performance slot this year.\n\n'
+            'We wish you all the best and continued success with your musical journey!\n\n'
+            'Best regards,\nYour Booking Team'
+        ),
+        nullable=True
+    )
+
+    invite_template_subject_en = db.Column(
+        db.String(255),
+        default='Artist Questionnaire for {{ event_name }} - {{ act_name }}',
+        nullable=True
+    )
+    invite_template_body_en = db.Column(
+        db.Text,
+        default=(
+            'Hello {{ contact_name }},\n\n'
+            'we are currently preparing everything for {{ event_name }} and need some details from you '
+            '(tech rider, promo pictures, hospitality, travel, etc.).\n\n'
+            'Please complete our short online questionnaire at the following link:\n'
+            '{{ form_link }}\n\n'
+            'Thank you for your support!\n\n'
+            'Best regards,\nYour Booking Team'
+        ),
+        nullable=True
+    )
+
     # Bild / Banner für öffentliche Formulare
     header_image_path = db.Column(db.String(255), nullable=True)
 
@@ -114,6 +170,59 @@ class BookingPersonalEvent(db.Model):
         super().__init__(**kwargs)
         if not self.apply_token:
             self.apply_token = secrets.token_urlsafe(32)
+
+
+    def get_accept_template_subject(self, lang='de'):
+        if lang == 'en':
+            return self.accept_template_subject_en or 'Booking Confirmation for {{ event_name }} - {{ act_name }}'
+        return self.accept_template_subject or 'Zusage für {{ event_name }} - {{ act_name }}'
+
+    def get_accept_template_body(self, lang='de'):
+        if lang == 'en':
+            return self.accept_template_body_en or (
+                'Hello {{ contact_name }},\n\n'
+                'we are thrilled to confirm your performance for {{ event_name }}!\n\n'
+                'Your agreed compensation is {{ gage }}.\n'
+                'You can find all details, schedule, and hospitality information in your personal overview:\n'
+                '{{ overview_link }}\n\n'
+                'If you have any questions, feel free to reply directly to this email.\n\n'
+                'Best regards,\nYour Booking Team'
+            )
+        return self.accept_template_body or ''
+
+    def get_reject_template_subject(self, lang='de'):
+        if lang == 'en':
+            return self.reject_template_subject_en or 'Update on your application / inquiry for {{ event_name }}'
+        return self.reject_template_subject or 'Rückmeldung zu deiner Bewerbung / Anfrage für {{ event_name }}'
+
+    def get_reject_template_body(self, lang='de'):
+        if lang == 'en':
+            return self.reject_template_body_en or (
+                'Hello {{ contact_name }},\n\n'
+                'thank you very much for your interest and application for {{ event_name }}.\n\n'
+                'Unfortunately, due to limited slots, we are unable to offer you a performance slot this year.\n\n'
+                'We wish you all the best and continued success with your musical journey!\n\n'
+                'Best regards,\nYour Booking Team'
+            )
+        return self.reject_template_body or ''
+
+    def get_invite_template_subject(self, lang='de'):
+        if lang == 'en':
+            return self.invite_template_subject_en or 'Artist Questionnaire for {{ event_name }} - {{ act_name }}'
+        return self.invite_template_subject or 'Künstler-Fragebogen für {{ event_name }} - {{ act_name }}'
+
+    def get_invite_template_body(self, lang='de'):
+        if lang == 'en':
+            return self.invite_template_body_en or (
+                'Hello {{ contact_name }},\n\n'
+                'we are currently preparing everything for {{ event_name }} and need some details from you '
+                '(tech rider, promo pictures, hospitality, travel, etc.).\n\n'
+                'Please complete our short online questionnaire at the following link:\n'
+                '{{ form_link }}\n\n'
+                'Thank you for your support!\n\n'
+                'Best regards,\nYour Booking Team'
+            )
+        return self.invite_template_body or ''
 
     def get_apply_token(self):
         if not self.apply_token:

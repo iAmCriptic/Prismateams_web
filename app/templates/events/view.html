@@ -1,187 +1,1673 @@
 {% extends "base.html" %}
 {% from "events/_shell.html" import events_shell_open, events_shell_close %}
 
+{% macro user_avatar(user, size=28) -%}
+{% if user and user.profile_picture %}
+<img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" alt="{{ user.full_name }}" class="rounded-circle flex-shrink-0" style="width: {{ size }}px; height: {{ size }}px; object-fit: cover;">
+{% elif user %}
+<span class="rounded-circle bg-body-secondary text-secondary d-inline-flex align-items-center justify-content-center fw-semibold flex-shrink-0" style="width: {{ size }}px; height: {{ size }}px; font-size: {{ (size * 0.42)|int }}px;">
+    {{ (user.first_name[0] if user.first_name else '') ~ (user.last_name[0] if user.last_name else '') }}
+</span>
+{% else %}
+<span class="rounded-circle bg-body-secondary text-secondary d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: {{ size }}px; height: {{ size }}px; font-size: {{ (size * 0.42)|int }}px;">
+    <i class="bi bi-person"></i>
+</span>
+{% endif %}
+{%- endmacro %}
+
 {% block title %}{{ event.name }}{% endblock %}
 
 {% block content %}
 {{ events_shell_open('overview', event.name, 'bi-calendar2-week', false) }}
 <div class="events-form events-event-view">
+    <!-- Header -->
     <div class="events-form-header">
         <a href="{{ url_for('events.overview') }}" class="events-form-back">
             <i class="bi bi-arrow-left" aria-hidden="true"></i>
-            <span>Zurück zur Übersicht</span>
+            <span>Zurück</span>
         </a>
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
             <div class="min-width-0">
-                <h1 class="events-form-title">{{ event.name }}</h1>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <h1 class="events-form-title mb-0">{{ event.name }}</h1>
+                    <span class="badge rounded-pill bg-body-secondary text-body border">
+                        <i class="bi {{ 'bi-calendar-range' if event.is_multiday else 'bi-calendar-event' }} me-1"></i>
+                        {{ 'Mehrtägig' if event.is_multiday else 'Eintägig' }}
+                    </span>
+                    {% if event.is_archived %}
+                    <span class="badge rounded-pill bg-body-secondary text-muted border">Archiviert</span>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2 text-muted small">
+                    {% if event.is_multiday and event.start_date and event.end_date %}
+                    <span class="badge rounded-pill bg-body-secondary text-body border">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ event.start_date.strftime('%d.%m.%Y') }} – {{ event.end_date.strftime('%d.%m.%Y') }} ({{ event.days|length }} Tage)
+                    </span>
+                    {% elif event.start_date %}
+                    <span class="badge rounded-pill bg-body-secondary text-body border">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ event.start_date.strftime('%d.%m.%Y') }}
+                    </span>
+                    {% endif %}
+
+                    {% if event.default_location %}
+                    <span class="badge rounded-pill bg-body-secondary text-body border">
+                        <i class="bi bi-geo-alt me-1"></i>
+                        {{ event.default_location }}
+                    </span>
+                    {% endif %}
+                </div>
+
                 {% if event.description %}
-                <p class="events-form-subtitle">{{ event.description }}</p>
+                <p class="events-form-subtitle mt-2">{{ event.description }}</p>
                 {% endif %}
             </div>
+
             <div class="events-form-actions events-form-actions--header">
-                <a class="btn btn-outline-secondary events-form-cancel" href="{{ url_for('events.event_pdf', event_id=event.id) }}">
+                <a class="btn btn-outline-secondary mod-pill-btn" href="{{ url_for('events.event_pdf', event_id=event.id) }}">
                     <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF
                 </a>
-                <a class="btn btn-accent events-form-submit" href="{{ url_for('events.edit_event', event_id=event.id) }}">
+                <a class="btn btn-accent mod-pill-btn mod-pill-btn--accent" href="{{ url_for('events.edit_event', event_id=event.id) }}">
                     <i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten
                 </a>
             </div>
         </div>
     </div>
 
-    <div class="events-form-body">
-        <div class="events-view-layout">
-            <div class="events-view-main">
-                <section class="events-form-card" aria-labelledby="events-view-basics">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-basics" class="events-form-section-title">
-                            <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            Details
-                        </h2>
-                    </div>
-                    <div class="events-form-fields events-form-fields--2">
-                        <div class="events-form-field">
-                            <div class="form-label">Ort</div>
-                            <p class="mb-0">{{ event.default_location or '—' }}</p>
-                        </div>
-                        <div class="events-form-field">
-                            <div class="form-label">Dateiordner</div>
-                            {% if event.folder %}
-                            <p class="mb-0">
-                                <a href="{{ url_for('files.browse_folder', folder_id=event.folder.id) }}">{{ event.folder.path }}</a>
-                            </p>
-                            {% else %}
-                            <p class="mb-0 text-muted">—</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </section>
+    <!-- Pill Tabs Navigation -->
+    <ul class="nav nav-pills gap-2 mb-3 mt-1" id="eventViewTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn {% if active_tab == 'overview' or not active_tab %}active{% endif %}" id="tab-overview-btn" data-bs-toggle="pill" data-bs-target="#tab-overview" type="button" role="tab">
+                <i class="bi bi-grid-fill me-1"></i> Übersicht
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn {% if active_tab == 'days' %}active{% endif %}" id="tab-days-btn" data-bs-toggle="pill" data-bs-target="#tab-days" type="button" role="tab">
+                <i class="bi bi-calendar2-week me-1"></i> Tage & Termine ({{ event.days|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn {% if active_tab == 'todos' %}active{% endif %}" id="tab-todos-btn" data-bs-toggle="pill" data-bs-target="#tab-todos" type="button" role="tab">
+                <i class="bi bi-check2-square me-1"></i> ToDo-Listen ({{ event.todo_lists|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn {% if active_tab == 'people' %}active{% endif %}" id="tab-people-btn" data-bs-toggle="pill" data-bs-target="#tab-people" type="button" role="tab">
+                <i class="bi bi-people me-1"></i> Personen & Kontakte ({{ (1 if event.owner else 0) + event.assignments|length + event.contacts|length + person_fields|length }})
+            </button>
+        </li>
+        {% if active_modules.inventory %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn {% if active_tab == 'inventory' %}active{% endif %}" id="tab-inventory-btn" data-bs-toggle="pill" data-bs-target="#tab-inventory" type="button" role="tab">
+                <i class="bi bi-box-seam me-1"></i> Materialbedarf
+            </button>
+        </li>
+        {% endif %}
+    </ul>
 
-                <section class="events-form-card" aria-labelledby="events-view-appointments">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-appointments" class="events-form-section-title">
-                            <i class="bi bi-calendar-event" aria-hidden="true"></i>
-                            Termine
-                        </h2>
-                    </div>
-                    {% if event.appointments %}
-                    <div class="events-view-appt-list">
-                        {% for a in event.appointments %}
-                        <div class="events-view-appt">
-                            <div class="events-view-appt-main">
-                                <div class="events-view-appt-title">{{ a.label }}</div>
-                                <div class="events-view-appt-meta">
-                                    <span><i class="bi bi-clock" aria-hidden="true"></i> {{ a.start_time.strftime('%d.%m.%Y %H:%M') }} – {{ a.end_time.strftime('%H:%M') }}</span>
-                                    <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ a.location or event.default_location or '—' }}</span>
+    <!-- Tab Contents -->
+    <div class="tab-content" id="eventViewTabsContent">
+        <!-- REITER 1: ÜBERSICHT (Cockpit & Benutzerdefinierte Felder) -->
+        <div class="tab-pane fade {% if active_tab == 'overview' or not active_tab %}show active{% endif %}" id="tab-overview" role="tabpanel">
+            <div class="events-view-layout">
+                <!-- Hauptspalte: Custom Fields & kompakter Terminablauf -->
+                <div class="events-view-main">
+                    <!-- KARTE: BENUTZERDEFINIERTE FELDER (gemäß Screenshot) -->
+                    <section class="events-form-card mb-3" aria-labelledby="custom-fields-title">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <h2 id="custom-fields-title" class="events-form-section-title mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-folder2 text-secondary" aria-hidden="true"></i>
+                                <span>Benutzerdefinierte Felder</span>
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                <i class="bi bi-pencil me-1"></i> Bearbeiten
+                            </button>
+                        </div>
+
+                        {% if custom_fields %}
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mt-1">
+                            {% for f in custom_fields %}
+                            {% set val = custom_values_dict.get(f.id) %}
+                            <div class="col">
+                                <div class="events-custom-field-item">
+                                    <div class="events-custom-field-label">
+                                        {% if f.field_type == 'number' %}
+                                        <strong class="fs-6">#</strong>
+                                        {% elif f.field_type == 'date' %}
+                                        <i class="bi bi-calendar-event"></i>
+                                        {% elif f.field_type == 'time' %}
+                                        <i class="bi bi-clock"></i>
+                                        {% elif f.field_type == 'checkbox' %}
+                                        <i class="bi bi-check2-square"></i>
+                                        {% elif f.field_type == 'person' %}
+                                        <i class="bi bi-person"></i>
+                                        {% elif f.field_type == 'select' %}
+                                        <i class="bi bi-caret-down-square"></i>
+                                        {% elif f.field_type == 'textarea' %}
+                                        <i class="bi bi-text-paragraph"></i>
+                                        {% else %}
+                                        <i class="bi bi-type"></i>
+                                        {% endif %}
+                                        <span>{{ f.label }}</span>
+                                    </div>
+
+                                    {% if f.field_type == 'checkbox' %}
+                                    <div class="events-custom-field-box events-custom-field-box--checkbox cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="checkbox" disabled {% if val == '1' %}checked{% endif %} style="cursor: pointer; opacity: 1;">
+                                            <label class="form-check-label text-muted small ms-1">
+                                                {{ 'Ja' if val == '1' else (f.placeholder or 'Nein') }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% elif f.field_type == 'person' %}
+                                    {% set assigned_user = users_by_id.get(val|int) if val else none %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal" title="{{ assigned_user.full_name if assigned_user else 'Klicken zum Zuweisen' }}">
+                                        {% if assigned_user %}
+                                        <span class="d-inline-flex align-items-center gap-2 text-truncate">
+                                            {{ user_avatar(assigned_user, size=20) }}
+                                            <span class="fw-semibold text-truncate">{{ assigned_user.full_name }}</span>
+                                        </span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or 'Auswählen ...' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif f.field_type == 'select' %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        {% if val %}
+                                        <span class="text-truncate fw-semibold">{{ val }}</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or 'Auswählen ...' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif f.field_type == 'date' %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        {% if val %}
+                                        <span class="text-truncate fw-semibold">{{ val }}</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or 'Datum hinzufügen...' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif f.field_type == 'time' %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        {% if val %}
+                                        <span class="text-truncate fw-semibold">{{ val }} Uhr</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or 'Uhrzeit...' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif f.field_type == 'number' %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        {% if val is not none and val != '' %}
+                                        <span class="text-truncate fw-semibold">{{ val }}</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or '—' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif f.field_type == 'textarea' %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal" title="{{ val or '' }}">
+                                        {% if val %}
+                                        <span class="text-truncate">{{ val }}</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or 'Text hinzufügen...' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <div class="events-custom-field-box cursor-pointer" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                        {% if val %}
+                                        <span class="text-truncate">{{ val }}</span>
+                                        {% else %}
+                                        <span class="events-custom-field-box--empty text-truncate">{{ f.placeholder or (f.label ~ ' hinzufügen...') }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <a class="btn btn-sm btn-outline-secondary mod-pill-btn" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">
-                                <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Ausleihe
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="p-3 text-center text-muted small border rounded-3 bg-body-tertiary">
+                            <i class="bi bi-input-cursor-text fs-4 d-block mb-1 text-secondary"></i>
+                            Noch keine benutzerdefinierten Felder hinterlegt.
+                            {% if current_user.is_admin %}
+                            <div class="mt-2">
+                                <a href="{{ url_for('settings.admin_events_settings') }}" class="btn btn-sm btn-outline-secondary mod-pill-btn">
+                                    <i class="bi bi-gear me-1"></i> Felder in den Einstellungen konfigurieren
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </section>
+
+                    <!-- KARTE: TAGESABLAUF & TERMINE IM ÜBERBLICK -->
+                    <section class="events-form-card mb-3" aria-labelledby="overview-schedule-title">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <h2 id="overview-schedule-title" class="events-form-section-title mb-0">
+                                <i class="bi bi-calendar3 me-1"></i> Termine & Tagesablauf
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" onclick="document.getElementById('tab-days-btn').click();">
+                                Alle Details ansehen <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-2">
+                            {% if event.days %}
+                                {% for day in event.days %}
+                                <div class="p-3 rounded-3 bg-body-secondary border d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="min-width-0">
+                                        <div class="fw-bold">{{ day.label or ('Tag ' ~ day.day_number) }} &middot; <span class="fw-normal text-muted">{{ day.date.strftime('%d.%m.%Y') }}</span></div>
+                                        <div class="small text-muted d-flex flex-wrap gap-3 mt-1">
+                                            {% if day.start_time and day.end_time %}
+                                            <span><i class="bi bi-clock me-1"></i>{{ day.start_time.strftime('%H:%M') }} – {{ day.end_time.strftime('%H:%M') }} Uhr</span>
+                                            {% endif %}
+                                            {% if day.location %}
+                                            <span><i class="bi bi-geo-alt me-1"></i>{{ day.location }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <span class="badge rounded-pill bg-body-secondary text-body border">
+                                        {{ event.appointments|selectattr('day_id', 'equalto', day.id)|list|length }} Termin(e)
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for a in event.appointments %}
+                                <div class="p-3 rounded-3 bg-body-secondary border d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-bold">{{ a.label }}</div>
+                                        <div class="small text-muted"><i class="bi bi-clock me-1"></i>{{ a.start_time.strftime('%d.%m.%Y %H:%M') }} – {{ a.end_time.strftime('%H:%M') }} Uhr</div>
+                                    </div>
+                                    <span class="badge rounded-pill bg-body-secondary text-body border">{{ a.location or '—' }}</span>
+                                </div>
+                                {% else %}
+                                <p class="text-muted small mb-0 p-2">Keine Termine hinterlegt.</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Rechte Seitenleiste: 1. Verknüpfte Module, 2. Leitung & Team, 3. ToDo-Fortschritt -->
+                <aside class="events-view-side">
+                    <!-- KARTE 1: Verknüpfte Module -->
+                    <section class="events-form-card mb-3" aria-labelledby="events-view-links-overview">
+                        <div class="events-form-card-head">
+                            <h2 id="events-view-links-overview" class="events-form-section-title">
+                                <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                                Verknüpfte Module
+                            </h2>
+                        </div>
+                        <div class="d-flex flex-column gap-3 small">
+                            <!-- Dateiordner -->
+                            {% if active_modules.files %}
+                            <div>
+                                <div class="text-muted mb-1 d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-folder2-open me-1"></i> Dateiordner</span>
+                                    {% if event.folder %}
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="modal" data-bs-target="#linkFolderModal" title="Ordner ändern">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% if event.folder %}
+                                <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-body-secondary border">
+                                    <a href="{{ url_for('files.browse_folder', folder_id=event.folder.id) }}" class="text-decoration-none fw-semibold text-truncate me-2" title="{{ event.folder.path }}">
+                                        {{ event.folder.name or event.folder.path }}
+                                    </a>
+                                    <form method="POST" action="{{ url_for('events.link_folder', event_id=event.id) }}" class="d-inline">
+                                        <input type="hidden" name="folder_id" value="">
+                                        <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Verknüpfung aufheben">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn w-100 text-start" data-bs-toggle="modal" data-bs-target="#linkFolderModal">
+                                    <i class="bi bi-plus-circle me-1"></i> Ordner verknüpfen
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Booking-Listen -->
+                            {% if active_modules.booking_personal %}
+                            <div>
+                                <div class="text-muted mb-1 d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-person-badge me-1"></i> Booking-Listen</span>
+                                    {% if available_booking_events %}
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="modal" data-bs-target="#linkBookingModal" title="Booking-Liste hinzufügen">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% if event.booking_personal_links %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for link in event.booking_personal_links %}
+                                    <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-body-secondary border">
+                                        <div class="min-width-0 me-2">
+                                            <a href="{{ url_for('booking_personal.index', event_id=link.booking_personal_event.id) }}" class="text-decoration-none fw-semibold text-truncate d-block">
+                                                {{ link.booking_personal_event.name }}
+                                            </a>
+                                            <span class="text-muted" style="font-size: 0.8rem;">{{ link.booking_personal_event.entries|length }} Einträge</span>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('events.link_booking', event_id=event.id) }}" class="d-inline flex-shrink-0">
+                                            <input type="hidden" name="action" value="remove">
+                                            <input type="hidden" name="booking_personal_event_id" value="{{ link.booking_personal_event_id }}">
+                                            <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Verknüpfung entfernen" onclick="return confirm('Booking-Liste vom Event trennen?');">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn w-100 text-start" data-bs-toggle="modal" data-bs-target="#linkBookingModal">
+                                    <i class="bi bi-plus-circle me-1"></i> Booking verknüpfen
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Kanban-Board / Karte -->
+                            {% if active_modules.kanban %}
+                            <div>
+                                <div class="text-muted mb-1 d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-kanban me-1"></i> Kanban</span>
+                                    {% if event.kanban_board or event.kanban_card %}
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="modal" data-bs-target="#linkKanbanModal" title="Kanban-Verknüpfung ändern">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% if event.kanban_card %}
+                                <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-body-secondary border">
+                                    <div class="min-width-0 me-2">
+                                        <div class="text-muted" style="font-size: 0.75rem;">Karte:</div>
+                                        <a href="{{ url_for('kanban.board', board_id=event.kanban_card.board_id) }}" class="text-decoration-none fw-semibold text-truncate d-block">
+                                            {{ event.kanban_card.title }}
+                                        </a>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Board: {{ event.kanban_card.board.title }}</div>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('events.link_kanban', event_id=event.id) }}" class="d-inline flex-shrink-0">
+                                        <input type="hidden" name="action" value="remove">
+                                        <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Verknüpfung aufheben">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% elif event.kanban_board %}
+                                <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-body-secondary border">
+                                    <div class="min-width-0 me-2">
+                                        <div class="text-muted" style="font-size: 0.75rem;">Board:</div>
+                                        <a href="{{ url_for('kanban.board', board_id=event.kanban_board.id) }}" class="text-decoration-none fw-semibold text-truncate d-block">
+                                            {{ event.kanban_board.title }}
+                                        </a>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('events.link_kanban', event_id=event.id) }}" class="d-inline flex-shrink-0">
+                                        <input type="hidden" name="action" value="remove">
+                                        <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Verknüpfung aufheben">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn w-100 text-start" data-bs-toggle="modal" data-bs-target="#linkKanbanModal">
+                                    <i class="bi bi-plus-circle me-1"></i> Board oder Karte verknüpfen
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    <!-- KARTE 2: Leitung & Team -->
+                    <section class="events-form-card mb-3" aria-labelledby="events-view-summary-overview">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center">
+                            <h2 id="events-view-summary-overview" class="events-form-section-title mb-0">
+                                <i class="bi bi-people" aria-hidden="true"></i>
+                                Leitung & Team
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" onclick="document.getElementById('tab-people-btn').click();">
+                                Details
+                            </button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 small">
+                            <div class="d-flex align-items-center gap-2 p-2 rounded-3 bg-body-secondary border">
+                                {{ user_avatar(event.owner, size=30) }}
+                                <div class="min-width-0">
+                                    <div class="text-muted" style="font-size: 0.75rem;">Hauptverantwortlich:</div>
+                                    <div class="fw-semibold text-truncate">{{ event.owner.full_name if event.owner else '—' }}</div>
+                                </div>
+                            </div>
+
+                            {% for pf in person_fields[:2] %}
+                            {% set assigned_user_id = custom_values_dict.get(pf.id) %}
+                            {% set assigned_user = users_by_id.get(assigned_user_id|int) if assigned_user_id else none %}
+                            {% if assigned_user %}
+                            <div class="d-flex align-items-center gap-2 p-2 rounded-3 bg-body-secondary border">
+                                {{ user_avatar(assigned_user, size=30) }}
+                                <div class="min-width-0">
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ pf.label }}:</div>
+                                    <div class="fw-semibold text-truncate">{{ assigned_user.full_name }}</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+
+                            <div class="d-flex justify-content-between text-muted pt-1">
+                                <span>Zugewiesenes Personal:</span>
+                                <span class="fw-semibold text-body">{{ event.assignments|length }} Person(en)</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted">
+                                <span>Ansprechpartner:</span>
+                                <span class="fw-semibold text-body">{{ event.contacts|length }} Kontakt(e)</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- KARTE 3: ToDo-Fortschritt -->
+                    {% set all_todos = [] %}
+                    {% for tl in event.todo_lists %}
+                        {% for item in tl.items %}
+                            {% set _ = all_todos.append(item) %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% set done_todos = all_todos|selectattr('is_completed', 'equalto', true)|list %}
+                    <section class="events-form-card mb-3" aria-labelledby="events-view-todo-progress-overview">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center">
+                            <h2 id="events-view-todo-progress-overview" class="events-form-section-title mb-0">
+                                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                                ToDo-Status
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" onclick="document.getElementById('tab-todos-btn').click();">
+                                ToDos
+                            </button>
+                        </div>
+                        <div class="small">
+                            <div class="d-flex justify-content-between text-muted mb-1">
+                                <span>Fortschritt gesamt:</span>
+                                <span class="fw-semibold text-body">{{ done_todos|length }} von {{ all_todos|length }} erledigt</span>
+                            </div>
+                            <div class="progress" style="height: 6px; border-radius: 1rem;">
+                                <div class="progress-bar bg-success" style="width: {{ (done_todos|length / all_todos|length * 100)|int if all_todos else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {% if conflicts.person_conflicts or conflicts.inventory_conflicts %}
+                    <section class="events-form-card border-danger-subtle mb-3">
+                        <div class="events-form-card-head text-danger">
+                            <h2 class="events-form-section-title text-danger">
+                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                Konflikte erkannt
+                            </h2>
+                        </div>
+                        <div class="small">
+                            {% if conflicts.person_conflicts %}
+                            <div class="text-danger fw-semibold">{{ conflicts.person_conflicts|length }} Personalkonflikt(e)</div>
+                            {% endif %}
+                            {% if conflicts.inventory_conflicts %}
+                            <div class="text-danger fw-semibold">{{ conflicts.inventory_conflicts|length }} Materialkonflikt(e)</div>
+                            {% endif %}
+                            <a class="btn btn-sm btn-outline-danger mod-pill-btn mt-2 w-100" href="{{ url_for('events.event_conflicts', event_id=event.id) }}" target="_blank">
+                                Details ansehen
                             </a>
                         </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="form-text mb-0">Keine Termine</p>
+                    </section>
                     {% endif %}
-                </section>
+                </aside>
+            </div>
+        </div>
 
-                <section class="events-form-card" aria-labelledby="events-view-timeline">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-timeline" class="events-form-section-title">
-                            <i class="bi bi-list-check" aria-hidden="true"></i>
-                            Zeitplan pro Termin
-                        </h2>
-                    </div>
-                    {% if event.appointments %}
-                    <div class="events-view-timeline">
-                        {% for a in event.appointments %}
-                        <div class="events-view-timeline-block">
-                            <div class="events-view-timeline-title">{{ a.label }} <span class="text-muted">({{ a.start_time.strftime('%d.%m.%Y %H:%M') }})</span></div>
-                            <ul class="events-view-timeline-items">
-                                {% set ns = namespace(has_appt_timeline=false) %}
-                                {% for item in event.timeline_items if item.appointment_id == a.id %}
-                                    {% set ns.has_appt_timeline = true %}
-                                    <li>{{ item.title }}</li>
-                                {% endfor %}
-                                {% if not ns.has_appt_timeline %}
-                                    <li class="text-muted">Kein Zeitplan für diesen Termin.</li>
+        <!-- REITER 2: TAGE & TERMINE -->
+        <div class="tab-pane fade {% if active_tab == 'days' %}show active{% endif %}" id="tab-days" role="tabpanel">
+            <div class="events-view-layout">
+                <!-- Hauptspalte: Tage & Termine -->
+                <div class="events-view-main">
+                    {% if event.days %}
+                        {% for day in event.days %}
+                        <section class="events-form-card mb-3" aria-labelledby="day-head-{{ day.id }}">
+                            <div class="events-form-card-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h2 id="day-head-{{ day.id }}" class="events-form-section-title mb-0">
+                                    <i class="bi bi-calendar-day" aria-hidden="true"></i>
+                                    {{ day.label or ('Tag ' ~ day.day_number) }} &middot; <span class="text-body fw-normal">{{ day.date.strftime('%d.%m.%Y') }}</span>
+                                </h2>
+                                <span class="badge rounded-pill bg-body-secondary text-muted border">Tag {{ day.day_number }} von {{ event.days|length }}</span>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 my-2 small text-muted">
+                                {% if day.start_time and day.end_time %}
+                                <span class="badge rounded-pill bg-body-secondary text-body border">
+                                    <i class="bi bi-clock me-1"></i> {{ day.start_time.strftime('%H:%M') }} – {{ day.end_time.strftime('%H:%M') }} Uhr
+                                </span>
                                 {% endif %}
-                            </ul>
-                        </div>
+                                {% if day.location %}
+                                <span class="badge rounded-pill bg-body-secondary text-body border">
+                                    <i class="bi bi-geo-alt me-1"></i> {{ day.location }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            {% if day.notes %}
+                            <p class="text-muted small mb-3">{{ day.notes }}</p>
+                            {% endif %}
+
+                            <!-- Termine dieses Tages -->
+                            <div class="events-view-appt-list">
+                                {% set ns = namespace(day_appts=0) %}
+                                {% for a in event.appointments %}
+                                    {% if a.day_id == day.id or (not a.day_id and a.start_time.date() == day.date) %}
+                                    {% set ns.day_appts = ns.day_appts + 1 %}
+                                    <div class="events-view-appt">
+                                        <div class="events-view-appt-main">
+                                            <div class="events-view-appt-title">{{ a.label }}</div>
+                                            <div class="events-view-appt-meta">
+                                                <span><i class="bi bi-clock" aria-hidden="true"></i> {{ a.start_time.strftime('%H:%M') }} – {{ a.end_time.strftime('%H:%M') }} Uhr</span>
+                                                <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ a.location or day.location or event.default_location or '—' }}</span>
+                                                {% if a.description %}<span><i class="bi bi-card-text"></i> {{ a.description }}</span>{% endif %}
+                                            </div>
+
+                                            <!-- Zeitplan des Termins -->
+                                            {% set t_items = event.timeline_items|selectattr('appointment_id', 'equalto', a.id)|list %}
+                                            {% if t_items %}
+                                            <div class="mt-2 pt-2 border-top">
+                                                <div class="fw-semibold small text-muted mb-1"><i class="bi bi-list-check me-1"></i> Zeitplan:</div>
+                                                <ul class="mb-0 small ps-3">
+                                                    {% for item in t_items %}
+                                                    <li>{{ item.title }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if active_modules.inventory %}
+                                        <a class="btn btn-sm btn-outline-secondary mod-pill-btn flex-shrink-0" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">
+                                            <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Ausleihe
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if ns.day_appts == 0 %}
+                                <p class="text-muted small mb-0">Keine spezifischen Termine für diesen Tag hinterlegt.</p>
+                                {% endif %}
+                            </div>
+                        </section>
                         {% endfor %}
-                    </div>
                     {% else %}
-                    <p class="form-text mb-0">Kein Zeitplan hinterlegt.</p>
+                        <section class="events-form-card mb-3">
+                            <div class="events-form-card-head">
+                                <h2 class="events-form-section-title"><i class="bi bi-calendar-event"></i> Termine</h2>
+                            </div>
+                            <div class="events-view-appt-list">
+                                {% for a in event.appointments %}
+                                <div class="events-view-appt">
+                                    <div class="events-view-appt-main">
+                                        <div class="events-view-appt-title">{{ a.label }}</div>
+                                        <div class="events-view-appt-meta">
+                                            <span><i class="bi bi-clock"></i> {{ a.start_time.strftime('%d.%m.%Y %H:%M') }} – {{ a.end_time.strftime('%H:%M') }}</span>
+                                            <span><i class="bi bi-geo-alt"></i> {{ a.location or event.default_location or '—' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <p class="text-muted small mb-0">Keine Termine vorhanden.</p>
+                                {% endfor %}
+                            </div>
+                        </section>
                     {% endif %}
-                </section>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- REITER 3: TODO-LISTEN (mit Kanban-artigem Zeitlimit & Zuweisung) -->
+        <div class="tab-pane fade {% if active_tab == 'todos' %}show active{% endif %}" id="tab-todos" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h3 class="h5 mb-0 fw-bold">ToDo-Listen für diese Veranstaltung</h3>
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#createTodoListModal">
+                    <i class="bi bi-plus-lg me-1"></i> Neue ToDo-Liste anlegen
+                </button>
             </div>
 
-            <aside class="events-view-side">
-                <section class="events-form-card" aria-labelledby="events-view-people">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-people" class="events-form-section-title">
-                            <i class="bi bi-people" aria-hidden="true"></i>
-                            Personen
-                        </h2>
+            <div class="row g-3">
+                <!-- Spalte 1: ToDos zur gesamten Veranstaltung -->
+                <div class="col-12 {% if has_day_todos %}col-lg-6{% endif %}">
+                    <div class="events-form-section-title mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-globe2" aria-hidden="true"></i>
+                        <span>Gesamte Veranstaltung</span>
                     </div>
-                    <ul class="events-view-chip-list">
-                        {% for a in event.assignments %}
-                        <li>{{ a.user.full_name if a.user else a.display_name }}</li>
-                        {% else %}
-                        <li class="text-muted">Keine Personen</li>
-                        {% endfor %}
-                    </ul>
-                </section>
 
-                <section class="events-form-card" aria-labelledby="events-view-contacts">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-contacts" class="events-form-section-title">
-                            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
-                            Ansprechpartner
-                        </h2>
-                    </div>
-                    {% if event.contacts %}
-                    <div class="events-view-contacts">
-                        {% for c in event.contacts %}
-                        <div class="events-view-contact">
-                            <div class="fw-semibold">{{ c.name }}{% if c.role %} <span class="text-muted">({{ c.role }})</span>{% endif %}</div>
-                            {% if c.phone %}<div class="events-view-contact-meta">{{ c.phone }}</div>{% endif %}
-                            {% if c.email %}<div class="events-view-contact-meta">{{ c.email }}</div>{% endif %}
+                    {% for tl in event_todos %}
+                    <section class="events-form-card mb-3 todo-list-card" id="todo-list-{{ tl.id }}">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2 min-width-0">
+                                <i class="bi bi-check2-square text-secondary"></i>
+                                <span class="fw-semibold text-truncate">{{ tl.title }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <span class="badge rounded-pill bg-body-secondary text-body border todo-list-badge-{{ tl.id }}">
+                                    {{ tl.completed_count }}/{{ tl.total_count }}
+                                </span>
+                                <form method="POST" action="{{ url_for('events.delete_todo_list', event_id=event.id, list_id=tl.id) }}" class="d-inline" onsubmit="return confirm('Diese Liste wirklich löschen?');">
+                                    <button type="submit" class="btn btn-link btn-sm text-muted p-0" title="Liste löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
-                        {% endfor %}
-                    </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress mb-2" style="height: 3px; border-radius: 1rem; background: var(--events-form-border, rgba(0,0,0,0.08));">
+                            <div class="progress-bar bg-success todo-list-progress-{{ tl.id }}" style="width: {{ tl.progress_percent }}%;"></div>
+                        </div>
+
+                        <ul class="list-unstyled mb-0 todo-items-container" id="todo-items-list-{{ tl.id }}">
+                            {% for item in tl.items %}
+                            <li class="d-flex align-items-center justify-content-between py-2 border-bottom border-light-subtle todo-item-row"
+                                id="todo-item-{{ item.id }}"
+                                data-item-id="{{ item.id }}"
+                                data-item-user-id="{{ item.assigned_to_user_id or '' }}"
+                                data-item-due-iso="{% if item.due_date and item.due_time %}{{ item.due_date.strftime('%Y-%m-%d') }}T{{ item.due_time.strftime('%H:%M') }}{% elif item.due_date %}{{ item.due_date.strftime('%Y-%m-%d') }}T00:00{% endif %}">
+                                <div class="form-check d-flex align-items-center gap-2 mb-0 min-width-0">
+                                    <input class="form-check-input todo-checkbox" type="checkbox" id="check-{{ item.id }}" data-item-id="{{ item.id }}" {% if item.is_completed %}checked{% endif %}>
+                                    <label class="form-check-label text-truncate cursor-pointer {% if item.is_completed %}text-decoration-line-through text-muted{% endif %}" for="check-{{ item.id }}">
+                                        {{ item.title }}
+                                    </label>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                    <!-- Fälligkeit (Badge) -->
+                                    <span class="todo-due-container" id="todo-due-container-{{ item.id }}">
+                                        {% if item.due_date %}
+                                        <span class="badge rounded-pill bg-body-secondary text-body border small cursor-pointer todo-item-due-trigger" data-item-id="{{ item.id }}" title="Zeitlimit ändern">
+                                            <i class="bi bi-clock me-1"></i>{{ item.due_date.strftime('%d.%m.') }}{% if item.due_time %} {{ item.due_time.strftime('%H:%M') }} Uhr{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </span>
+
+                                    <!-- Zuweisung (Badge) -->
+                                    <span class="todo-assignee-container" id="todo-assignee-container-{{ item.id }}">
+                                        {% if item.assigned_to %}
+                                        <span class="badge rounded-pill bg-body-secondary text-body border d-inline-flex align-items-center gap-1 small cursor-pointer todo-item-member-trigger" data-item-id="{{ item.id }}" title="Zugewiesen an {{ item.assigned_to.full_name }}">
+                                            {{ user_avatar(item.assigned_to, size=16) }}
+                                            {{ item.assigned_to.first_name }}
+                                        </span>
+                                        {% endif %}
+                                    </span>
+
+                                    <!-- Aktionen wie in Kanban -->
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-due-trigger" data-item-id="{{ item.id }}" title="Zeitlimit festlegen">
+                                            <i class="bi bi-clock"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-member-trigger" data-item-id="{{ item.id }}" title="Person zuweisen">
+                                            <i class="bi bi-person-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-danger delete-todo-btn" data-item-id="{{ item.id }}" title="Löschen">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="text-muted small py-2 text-center empty-list-hint">Keine Aufgaben in dieser Liste.</li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Schnelleingabe (Portal-Stil) -->
+                        <form class="mt-2 pt-2 border-top border-light-subtle add-todo-form" data-list-id="{{ tl.id }}" method="POST" action="{{ url_for('events.create_todo_item', event_id=event.id) }}">
+                            <input type="hidden" name="todo_list_id" value="{{ tl.id }}">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="title" class="form-control mod-pill-input" placeholder="+ Neue Aufgabe hinzufügen..." required autocomplete="off">
+                                <button class="btn btn-outline-secondary mod-pill-btn" type="submit">Hinzufügen</button>
+                            </div>
+                        </form>
+                    </section>
                     {% else %}
-                    <p class="form-text mb-0">Keine Ansprechpartner</p>
-                    {% endif %}
-                </section>
+                    <div class="events-form-card text-muted small p-4 text-center">
+                        Noch keine übergreifenden ToDo-Listen angelegt.
+                    </div>
+                    {% endfor %}
+                </div>
 
-                <section class="events-form-card" aria-labelledby="events-view-conflicts">
-                    <div class="events-form-card-head">
-                        <h2 id="events-view-conflicts" class="events-form-section-title">
-                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-                            Konflikte
-                        </h2>
+                <!-- Spalte 2: Tages-ToDos (nur sichtbar wenn Tages-ToDos vorhanden sind) -->
+                {% if has_day_todos %}
+                <div class="col-12 col-lg-6">
+                    <div class="events-form-section-title mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                        <span>ToDos nach Tagen</span>
                     </div>
-                    <div class="events-form-fields events-form-fields--2">
-                        <div class="events-form-field">
-                            <div class="form-label">Personen</div>
-                            <p class="mb-0">{{ conflicts.person_conflicts|length }}</p>
-                        </div>
-                        <div class="events-form-field">
-                            <div class="form-label">Material</div>
-                            <p class="mb-0">{{ conflicts.inventory_conflicts|length }}</p>
-                        </div>
-                    </div>
-                    {% if conflicts.person_conflicts or conflicts.inventory_conflicts %}
-                    <a class="btn btn-sm btn-outline-danger mod-pill-btn mt-2" href="{{ url_for('events.event_conflicts', event_id=event.id) }}" target="_blank">
-                        Details (JSON)
-                    </a>
-                    {% endif %}
-                </section>
-            </aside>
+
+                    {% set ns_days = namespace(has_day_todos=false) %}
+                    {% for day in event.days %}
+                        {% if day.todo_lists %}
+                            {% set ns_days.has_day_todos = true %}
+                            <div class="mb-3">
+                                <div class="small text-muted fw-semibold mb-2 mt-2">
+                                    <i class="bi bi-calendar-day me-1"></i> {{ day.label or ('Tag ' ~ day.day_number) }} &middot; {{ day.date.strftime('%d.%m.%Y') }}
+                                </div>
+
+                                {% for tl in day.todo_lists %}
+                                <section class="events-form-card mb-2 todo-list-card" id="todo-list-{{ tl.id }}">
+                                    <div class="events-form-card-head d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex align-items-center gap-2 min-width-0">
+                                            <i class="bi bi-check2-square text-secondary"></i>
+                                            <span class="fw-semibold text-truncate">{{ tl.title }}</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <span class="badge rounded-pill bg-body-secondary text-body border todo-list-badge-{{ tl.id }}">
+                                                {{ tl.completed_count }}/{{ tl.total_count }}
+                                            </span>
+                                            <form method="POST" action="{{ url_for('events.delete_todo_list', event_id=event.id, list_id=tl.id) }}" class="d-inline" onsubmit="return confirm('Diese Liste wirklich löschen?');">
+                                                <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Liste löschen">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="progress mb-2" style="height: 3px; border-radius: 1rem; background: var(--events-form-border, rgba(0,0,0,0.08));">
+                                        <div class="progress-bar bg-success todo-list-progress-{{ tl.id }}" style="width: {{ tl.progress_percent }}%;"></div>
+                                    </div>
+
+                                    <ul class="list-unstyled mb-0 todo-items-container" id="todo-items-list-{{ tl.id }}">
+                                        {% for item in tl.items %}
+                                        <li class="d-flex align-items-center justify-content-between py-2 border-bottom border-light-subtle todo-item-row"
+                                            id="todo-item-{{ item.id }}"
+                                            data-item-id="{{ item.id }}"
+                                            data-item-user-id="{{ item.assigned_to_user_id or '' }}"
+                                            data-item-due-iso="{% if item.due_date and item.due_time %}{{ item.due_date.strftime('%Y-%m-%d') }}T{{ item.due_time.strftime('%H:%M') }}{% elif item.due_date %}{{ item.due_date.strftime('%Y-%m-%d') }}T00:00{% endif %}">
+                                            <div class="form-check d-flex align-items-center gap-2 mb-0 min-width-0">
+                                                <input class="form-check-input todo-checkbox" type="checkbox" id="check-{{ item.id }}" data-item-id="{{ item.id }}" {% if item.is_completed %}checked{% endif %}>
+                                                <label class="form-check-label text-truncate cursor-pointer {% if item.is_completed %}text-decoration-line-through text-muted{% endif %}" for="check-{{ item.id }}">
+                                                    {{ item.title }}
+                                                </label>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                                <!-- Fälligkeit (Badge) -->
+                                                <span class="todo-due-container" id="todo-due-container-{{ item.id }}">
+                                                    {% if item.due_date %}
+                                                    <span class="badge rounded-pill bg-body-secondary text-body border small cursor-pointer todo-item-due-trigger" data-item-id="{{ item.id }}" title="Zeitlimit ändern">
+                                                        <i class="bi bi-clock me-1"></i>{{ item.due_date.strftime('%d.%m.') }}{% if item.due_time %} {{ item.due_time.strftime('%H:%M') }} Uhr{% endif %}
+                                                    </span>
+                                                    {% endif %}
+                                                </span>
+
+                                                <!-- Zuweisung (Badge) -->
+                                                <span class="todo-assignee-container" id="todo-assignee-container-{{ item.id }}">
+                                                    {% if item.assigned_to %}
+                                                    <span class="badge rounded-pill bg-body-secondary text-body border d-inline-flex align-items-center gap-1 small cursor-pointer todo-item-member-trigger" data-item-id="{{ item.id }}" title="Zugewiesen an {{ item.assigned_to.full_name }}">
+                                                        {{ user_avatar(item.assigned_to, size=16) }}
+                                                        {{ item.assigned_to.first_name }}
+                                                    </span>
+                                                    {% endif %}
+                                                </span>
+
+                                                <!-- Aktionen wie in Kanban -->
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-due-trigger" data-item-id="{{ item.id }}" title="Zeitlimit festlegen">
+                                                        <i class="bi bi-clock"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-member-trigger" data-item-id="{{ item.id }}" title="Person zuweisen">
+                                                        <i class="bi bi-person-plus"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-danger delete-todo-btn" data-item-id="{{ item.id }}" title="Löschen">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        {% else %}
+                                        <li class="text-muted small py-2 text-center empty-list-hint">Keine Aufgaben in dieser Liste.</li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    <form class="mt-2 pt-2 border-top border-light-subtle add-todo-form" data-list-id="{{ tl.id }}" method="POST" action="{{ url_for('events.create_todo_item', event_id=event.id) }}">
+                                        <input type="hidden" name="todo_list_id" value="{{ tl.id }}">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="title" class="form-control mod-pill-input" placeholder="+ Neue Aufgabe hinzufügen..." required autocomplete="off">
+                                            <button class="btn btn-outline-secondary mod-pill-btn" type="submit">Hinzufügen</button>
+                                        </div>
+                                    </form>
+                                </section>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                </div>
+                {% endif %}
+            </div>
         </div>
+
+        <!-- REITER 4: PERSONEN & KONTAKTE -->
+        <div class="tab-pane fade {% if active_tab == 'people' %}show active{% endif %}" id="tab-people" role="tabpanel">
+            <div class="row g-3">
+                <!-- Spalte 1: Verantwortlicher & Zugeordnetes Personal -->
+                <div class="col-12 col-md-6">
+                    <section class="events-form-card mb-3" aria-labelledby="events-view-owner">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center">
+                            <h2 id="events-view-owner" class="events-form-section-title mb-0">
+                                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                                Verantwortliche Person
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#changeOwnerModal">
+                                <i class="bi bi-pencil me-1"></i> Ändern
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 p-3 rounded-3 bg-body-secondary border">
+                            {{ user_avatar(event.owner, size=44) }}
+                            <div class="min-width-0">
+                                <div class="fw-bold fs-6">{{ event.owner.full_name if event.owner else '—' }}</div>
+                                <div class="text-muted small">{{ event.owner.email if event.owner and event.owner.email else 'Portal-Benutzer' }}</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="events-form-card" aria-labelledby="events-view-people">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center">
+                            <h2 id="events-view-people" class="events-form-section-title mb-0">
+                                <i class="bi bi-people" aria-hidden="true"></i>
+                                Zugeordnetes Personal ({{ event.assignments|length }})
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                                <i class="bi bi-plus-lg me-1"></i> Person zuordnen
+                            </button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-2">
+                            {% for a in event.assignments %}
+                            <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-body-secondary border">
+                                <div class="d-flex align-items-center gap-2 min-width-0">
+                                    {{ user_avatar(a.user, size=30) }}
+                                    <div class="min-width-0">
+                                        <div class="fw-semibold text-truncate">{{ a.user.full_name if a.user else a.display_name }}</div>
+                                        {% if a.role %}<div class="text-muted small">{{ a.role }}</div>{% endif %}
+                                    </div>
+                                </div>
+                                <form method="POST" action="{{ url_for('events.delete_assignment', event_id=event.id, assignment_id=a.id) }}" class="d-inline" onsubmit="return confirm('Diese Zuteilung entfernen?');">
+                                    <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Entfernen">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <div class="text-muted small p-3 text-center border rounded-3 bg-body-tertiary">
+                                Noch kein Personal zugeteilt.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Spalte 2: Ansprechpartner -->
+                <div class="col-12 col-md-6">
+                    <section class="events-form-card h-100" aria-labelledby="events-view-contacts">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center">
+                            <h2 id="events-view-contacts" class="events-form-section-title mb-0">
+                                <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                                Ansprechpartner ({{ event.contacts|length }})
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                                <i class="bi bi-plus-lg me-1"></i> Hinzufügen
+                            </button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-2">
+                            {% for c in event.contacts %}
+                            <div class="d-flex align-items-start justify-content-between p-3 rounded-3 bg-body-secondary border">
+                                <div class="min-width-0">
+                                    <div class="fw-bold">{{ c.name }} {% if c.role %}<span class="text-muted fw-normal">({{ c.role }})</span>{% endif %}</div>
+                                    <div class="d-flex flex-wrap gap-3 mt-1 small">
+                                        {% if c.phone %}
+                                        <a href="tel:{{ c.phone }}" class="text-decoration-none text-body">
+                                            <i class="bi bi-telephone me-1 text-muted"></i> {{ c.phone }}
+                                        </a>
+                                        {% endif %}
+                                        {% if c.email %}
+                                        <a href="mailto:{{ c.email }}" class="text-decoration-none text-body">
+                                            <i class="bi bi-envelope me-1 text-muted"></i> {{ c.email }}
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <form method="POST" action="{{ url_for('events.delete_contact', event_id=event.id, contact_id=c.id) }}" class="d-inline" onsubmit="return confirm('Diesen Ansprechpartner entfernen?');">
+                                    <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Entfernen">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <div class="text-muted small p-3 text-center border rounded-3 bg-body-tertiary">
+                                Keine Ansprechpartner hinterlegt.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
+
+                {% if person_fields %}
+                <!-- Zeile 2: Spezifische Personalfelder aus den Custom Fields -->
+                <div class="col-12 mt-2">
+                    <section class="events-form-card" aria-labelledby="events-view-person-fields">
+                        <div class="events-form-card-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <h2 id="events-view-person-fields" class="events-form-section-title mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-person-badge text-secondary" aria-hidden="true"></i>
+                                <span>Funktions- & Personalfelder ({{ person_fields|length }})</span>
+                            </h2>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+                                <i class="bi bi-pencil me-1"></i> Bearbeiten
+                            </button>
+                        </div>
+                        <div class="row g-3 mt-1">
+                            {% for pf in person_fields %}
+                            {% set assigned_user_id = custom_values_dict.get(pf.id) %}
+                            {% set assigned_user = users_by_id.get(assigned_user_id|int) if assigned_user_id else none %}
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="p-3 rounded-3 bg-body-secondary border h-100 d-flex flex-column justify-content-between">
+                                    <div class="events-custom-field-label mb-2">
+                                        <i class="bi bi-person"></i> {{ pf.label }}
+                                    </div>
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mt-auto">
+                                        {% if assigned_user %}
+                                        <div class="d-flex align-items-center gap-2 min-width-0">
+                                            {{ user_avatar(assigned_user, size=32) }}
+                                            <div class="min-width-0">
+                                                <div class="fw-semibold text-truncate small">{{ assigned_user.full_name }}</div>
+                                                <div class="text-muted text-truncate" style="font-size: 0.75rem;">{{ assigned_user.email or '' }}</div>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <div class="text-muted small fst-italic">Keine Person zugewiesen</div>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn py-0 px-2" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal" style="font-size: 0.8rem;">
+                                            Zuweisen
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- REITER 5: MATERIALBEDARF -->
+        {% if active_modules.inventory %}
+        <div class="tab-pane fade {% if active_tab == 'inventory' %}show active{% endif %}" id="tab-inventory" role="tabpanel">
+            <section class="events-form-card">
+                <div class="events-form-card-head mb-3">
+                    <h2 class="events-form-section-title">
+                        <i class="bi bi-box-seam" aria-hidden="true"></i>
+                        Materialbedarf & Ausleihe
+                    </h2>
+                </div>
+
+                {% set ns_inv = namespace(has_inv=false) %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Termin</th>
+                                <th>Artikel / Produkt</th>
+                                <th>Benötigte Menge</th>
+                                <th>Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in event.appointments %}
+                                {% for need in a.inventory_needs %}
+                                {% set ns_inv.has_inv = true %}
+                                <tr>
+                                    <td>{{ a.label }}</td>
+                                    <td class="fw-semibold">{{ need.product.name if need.product else ('Produkt #' ~ need.product_id) }}</td>
+                                    <td><span class="badge rounded-pill bg-body-secondary text-body border">{{ need.quantity }} Stk.</span></td>
+                                    <td>
+                                        <a href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}" class="btn btn-sm btn-outline-secondary mod-pill-btn">
+                                            <i class="bi bi-qr-code-scan"></i> Ausleihe starten
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if not ns_inv.has_inv %}
+                <p class="text-muted small mb-0">Kein spezifischer Materialbedarf hinterlegt.</p>
+                {% endif %}
+            </section>
+        </div>
+        {% endif %}
     </div>
 </div>
 {{ events_shell_close('overview') }}
+
+<!-- ================= MODALS ================= -->
+
+<!-- Modal: Ordner verknüpfen -->
+{% if active_modules.files %}
+<div class="modal fade" id="linkFolderModal" tabindex="-1" aria-labelledby="linkFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.link_folder', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="linkFolderModalLabel"><i class="bi bi-folder2-open text-secondary me-2"></i>Dateiordner verknüpfen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="folderSelect">Ordner auswählen</label>
+                <select class="form-select mod-pill-input" id="folderSelect" name="folder_id">
+                    <option value="">-- Kein Ordner (Verknüpfung aufheben) --</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}" {% if event.folder_id == folder.id %}selected{% endif %}>{{ folder.path }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text mt-2">Dateien in diesem Ordner stehen allen am Event beteiligten Personen zur Verfügung.</div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Booking-Liste verknüpfen -->
+{% if active_modules.booking_personal %}
+<div class="modal fade" id="linkBookingModal" tabindex="-1" aria-labelledby="linkBookingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.link_booking', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <input type="hidden" name="action" value="add">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="linkBookingModalLabel"><i class="bi bi-person-badge text-secondary me-2"></i>Booking-Liste verknüpfen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="bookingSelect">Vorhandene Booking-Liste auswählen</label>
+                <select class="form-select mod-pill-input" id="bookingSelect" name="booking_personal_event_id" required>
+                    <option value="">-- Booking-Liste wählen --</option>
+                    {% for be in available_booking_events %}
+                    <option value="{{ be.id }}">{{ be.name }} ({{ be.entries|length }} Einträge)</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text mt-2">Du kannst mehrere Booking-Listen (z. B. Bands, DJs, Helfer) mit dieser Veranstaltung verknüpfen.</div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Verknüpfen</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Kanban verknüpfen -->
+{% if active_modules.kanban %}
+<div class="modal fade" id="linkKanbanModal" tabindex="-1" aria-labelledby="linkKanbanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.link_kanban', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="linkKanbanModalLabel"><i class="bi bi-kanban text-secondary me-2"></i>Kanban-Board oder Karte verknüpfen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="kanbanBoardSelect">Kanban-Board</label>
+                    <select class="form-select mod-pill-input" id="kanbanBoardSelect" name="kanban_board_id">
+                        <option value="">-- Kein Board verknüpfen --</option>
+                        {% for b in available_boards %}
+                        <option value="{{ b.id }}" {% if event.kanban_board_id == b.id %}selected{% endif %}>{{ b.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="kanbanCardSelect">Spezifische Kanban-Karte (optional)</label>
+                    <select class="form-select mod-pill-input" id="kanbanCardSelect" name="kanban_card_id">
+                        <option value="">-- Ganzes Board verknüpfen (keine Einzelkarte) --</option>
+                        {% if event.kanban_card %}
+                        <option value="{{ event.kanban_card.id }}" selected>{{ event.kanban_card.title }}</option>
+                        {% endif %}
+                    </select>
+                    <div class="form-text">Wenn eine Karte gewählt wird, verlinkt das Event direkt auf diese Aufgabe.</div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Neue ToDo-Liste anlegen -->
+<div class="modal fade" id="createTodoListModal" tabindex="-1" aria-labelledby="createTodoListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.create_todo_list', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="createTodoListModalLabel"><i class="bi bi-list-check text-secondary me-2"></i>Neue ToDo-Liste anlegen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="todoListTitle">Titel der Liste <span class="text-danger">*</span></label>
+                    <input class="form-control mod-pill-input" id="todoListTitle" name="title" required placeholder="z. B. Aufbau & Technik, Backstage Catering, Einlass...">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="todoListDay">Gültigkeit / Zuordnung</label>
+                    <select class="form-select mod-pill-input" id="todoListDay" name="day_id">
+                        <option value="">Gesamte Veranstaltung (übergreifend)</option>
+                        {% for day in event.days %}
+                        <option value="{{ day.id }}">{{ day.label or ('Tag ' ~ day.day_number) }} ({{ day.date.strftime('%d.%m.%Y') }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Liste erstellen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= KANBAN-STYLE MODALS FÜR TODOS ================= -->
+
+<!-- Modal: Fälligkeit & Zeitlimit (wie im Kanban-Modul) -->
+<div class="modal fade" id="todoDueModal" tabindex="-1" aria-labelledby="todoDueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form id="todoDueForm">
+                <div class="modal-header border-bottom py-2 px-3">
+                    <h5 class="modal-title fw-bold fs-6" id="todoDueModalLabel">
+                        <i class="bi bi-clock text-secondary me-2"></i>Fälligkeit & Zeitlimit
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-3 d-grid gap-2">
+                    <label class="form-label mb-0 small text-muted" for="todoDueInput">Fälligkeitsdatum & Uhrzeit</label>
+                    <input type="datetime-local" class="form-control mod-pill-input" id="todoDueInput">
+                </div>
+                <div class="modal-footer border-0 pt-0 d-flex justify-content-between px-3 pb-3">
+                    <button type="button" class="btn btn-outline-danger mod-pill-btn btn-sm" id="todoDueClear">Zeitlimit entfernen</button>
+                    <button type="submit" class="btn btn-primary mod-pill-btn btn-sm">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Person zuweisen (wie im Kanban-Modul) -->
+<div class="modal fade" id="todoMembersModal" tabindex="-1" aria-labelledby="todoMembersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom py-2 px-3">
+                <h5 class="modal-title fw-bold fs-6" id="todoMembersModalLabel">
+                    <i class="bi bi-people text-secondary me-2"></i>Person zuweisen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body p-2" id="todoMembersList" style="max-height: 360px; overflow-y: auto;">
+                <button type="button" class="btn btn-sm w-100 mb-2 py-2 px-3 rounded-pill text-start d-flex align-items-center gap-2 border bg-body-secondary text-danger todo-member-pick-btn" data-user-id="">
+                    <i class="bi bi-x-circle"></i>
+                    <span>Zuweisung aufheben</span>
+                </button>
+                {% for u in users %}
+                <button type="button" class="btn btn-sm w-100 mb-2 py-2 px-3 rounded-pill text-start d-flex align-items-center justify-content-between border bg-body-secondary text-body todo-member-pick-btn" data-user-id="{{ u.id }}">
+                    <div class="d-flex align-items-center gap-2 min-width-0">
+                        {{ user_avatar(u, size=24) }}
+                        <span class="text-truncate fw-semibold">{{ u.full_name }}</span>
+                    </div>
+                    <i class="bi bi-check2 text-primary todo-member-check d-none" data-user-id="{{ u.id }}"></i>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Verantwortliche Person ändern -->
+<div class="modal fade" id="changeOwnerModal" tabindex="-1" aria-labelledby="changeOwnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.update_owner', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="changeOwnerModalLabel"><i class="bi bi-person-gear text-secondary me-2"></i>Verantwortliche Person festlegen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="ownerSelect">Verantwortliche Person</label>
+                <select class="form-select mod-pill-input" id="ownerSelect" name="owner_id" required>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if event.owner_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.email }})</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text mt-2">Die verantwortliche Person ist der Hauptansprechpartner für diese Veranstaltung.</div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Übernehmen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Person / Personal zuordnen -->
+<div class="modal fade" id="addAssignmentModal" tabindex="-1" aria-labelledby="addAssignmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.add_assignment', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="addAssignmentModalLabel"><i class="bi bi-person-plus text-secondary me-2"></i>Person zuordnen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="assignUserSelect">Portal-Benutzer auswählen</label>
+                    <select class="form-select mod-pill-input" id="assignUserSelect" name="user_id">
+                        <option value="">-- Extern / Nicht im Portal --</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3" id="displayNameGroup">
+                    <label class="form-label" for="assignDisplayName">Name (für externe Personen)</label>
+                    <input type="text" class="form-control mod-pill-input" id="assignDisplayName" name="display_name" placeholder="z. B. Max Mustermann (Gast)">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="assignRole">Rolle / Funktion (optional)</label>
+                    <input type="text" class="form-control mod-pill-input" id="assignRole" name="role" placeholder="z. B. Tontechniker, Helfer, Moderator...">
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Zuordnen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Ansprechpartner hinzufügen -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ url_for('events.add_contact', event_id=event.id) }}" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="addContactModalLabel"><i class="bi bi-person-lines-fill text-secondary me-2"></i>Ansprechpartner hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="contactName">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control mod-pill-input" id="contactName" name="name" required placeholder="Vor- und Nachname">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="contactRole">Rolle / Position</label>
+                    <input type="text" class="form-control mod-pill-input" id="contactRole" name="role" placeholder="z. B. Veranstalter, Technischer Leiter...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="contactPhone">Telefonnummer</label>
+                    <input type="tel" class="form-control mod-pill-input" id="contactPhone" name="phone" placeholder="+49 ...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="contactEmail">E-Mail</label>
+                    <input type="email" class="form-control mod-pill-input" id="contactEmail" name="email" placeholder="beispiel@domain.de">
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let activeTodoItemId = null;
+
+    // Modals
+    const dueModalEl = document.getElementById('todoDueModal');
+    const dueModal = dueModalEl && window.bootstrap ? new bootstrap.Modal(dueModalEl) : null;
+    const dueInput = document.getElementById('todoDueInput');
+
+    const membersModalEl = document.getElementById('todoMembersModal');
+    const membersModal = membersModalEl && window.bootstrap ? new bootstrap.Modal(membersModalEl) : null;
+
+    // 1. Open Due Modal (wie Kanban data-item-due)
+    function openDueModal(itemId) {
+        activeTodoItemId = itemId;
+        const row = document.getElementById(`todo-item-${itemId}`);
+        const isoVal = row ? (row.getAttribute('data-item-due-iso') || '') : '';
+        if (dueInput) {
+            dueInput.value = isoVal;
+        }
+        if (dueModal) {
+            dueModal.show();
+        }
+    }
+
+    // 2. Open Members Modal (wie Kanban data-item-assignee)
+    function openMembersModal(itemId) {
+        activeTodoItemId = itemId;
+        const row = document.getElementById(`todo-item-${itemId}`);
+        const currentUserId = row ? (row.getAttribute('data-item-user-id') || '') : '';
+
+        document.querySelectorAll('.todo-member-pick-btn').forEach(btn => {
+            const uid = btn.getAttribute('data-user-id') || '';
+            const check = btn.querySelector('.todo-member-check');
+            if (uid && uid === currentUserId) {
+                btn.classList.add('border-primary', 'bg-body-tertiary');
+                if (check) check.classList.remove('d-none');
+            } else {
+                btn.classList.remove('border-primary', 'bg-body-tertiary');
+                if (check) check.classList.add('d-none');
+            }
+        });
+
+        if (membersModal) {
+            membersModal.show();
+        }
+    }
+
+    // 3. Bind interactive events to a row
+    function attachRowEvents(scope) {
+        const root = scope || document;
+
+        // Due Trigger (Klick auf Uhr-Icon oder Zeit-Badge)
+        root.querySelectorAll('.todo-item-due-trigger').forEach(btn => {
+            btn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const itemId = this.getAttribute('data-item-id');
+                if (itemId) openDueModal(itemId);
+            };
+        });
+
+        // Member Trigger (Klick auf Person-Icon oder User-Badge)
+        root.querySelectorAll('.todo-item-member-trigger').forEach(btn => {
+            btn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const itemId = this.getAttribute('data-item-id');
+                if (itemId) openMembersModal(itemId);
+            };
+        });
+
+        // Toggle Checkbox
+        root.querySelectorAll('.todo-checkbox').forEach(cb => {
+            cb.onchange = function() {
+                const itemId = this.dataset.itemId;
+                const label = this.closest('.form-check')?.querySelector('label');
+                const listCard = this.closest('.todo-list-card');
+                const listId = listCard ? listCard.id.replace('todo-list-', '') : null;
+
+                fetch(`/events/todos/item/${itemId}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.is_completed) {
+                            label?.classList.add('text-decoration-line-through', 'text-muted');
+                        } else {
+                            label?.classList.remove('text-decoration-line-through', 'text-muted');
+                        }
+                        if (listId) {
+                            const badge = document.querySelector(`.todo-list-badge-${listId}`);
+                            const progress = document.querySelector(`.todo-list-progress-${listId}`);
+                            if (badge) badge.textContent = `${data.completed_count}/${data.total_count}`;
+                            if (progress) progress.style.width = `${data.progress}%`;
+                        }
+                    }
+                })
+                .catch(err => console.error('Error toggling todo:', err));
+            };
+        });
+
+        // Delete Todo Item
+        root.querySelectorAll('.delete-todo-btn').forEach(btn => {
+            btn.onclick = function(e) {
+                e.preventDefault();
+                if (!confirm('Aufgabe wirklich löschen?')) return;
+                const itemId = this.dataset.itemId;
+                const row = document.getElementById(`todo-item-${itemId}`);
+
+                fetch(`/events/todos/item/${itemId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && row) {
+                        row.remove();
+                    }
+                })
+                .catch(err => console.error('Error deleting todo:', err));
+            };
+        });
+    }
+
+    // Attach initial events
+    attachRowEvents(document);
+
+    // 4. Save Due DateTime (Form Submit)
+    document.getElementById('todoDueForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!activeTodoItemId) return;
+
+        const val = dueInput ? dueInput.value : '';
+        try {
+            const res = await fetch(`/events/todos/item/${activeTodoItemId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ due_datetime: val })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const row = document.getElementById(`todo-item-${data.item_id}`);
+                if (row) {
+                    row.setAttribute('data-item-due-iso', data.due_datetime || '');
+                    const container = document.getElementById(`todo-due-container-${data.item_id}`);
+                    if (container) {
+                        if (data.due_display) {
+                            container.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border small cursor-pointer todo-item-due-trigger" data-item-id="${data.item_id}" title="Zeitlimit ändern"><i class="bi bi-clock me-1"></i>${data.due_display}</span>`;
+                            attachRowEvents(container);
+                        } else {
+                            container.innerHTML = '';
+                        }
+                    }
+                }
+                dueModal?.hide();
+            }
+        } catch (err) {
+            console.error('Error updating due date:', err);
+        }
+    });
+
+    // 5. Clear Due DateTime
+    document.getElementById('todoDueClear')?.addEventListener('click', async function() {
+        if (!activeTodoItemId) return;
+        try {
+            const res = await fetch(`/events/todos/item/${activeTodoItemId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ clear_due: '1' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const row = document.getElementById(`todo-item-${data.item_id}`);
+                if (row) {
+                    row.setAttribute('data-item-due-iso', '');
+                    const container = document.getElementById(`todo-due-container-${data.item_id}`);
+                    if (container) container.innerHTML = '';
+                }
+                dueModal?.hide();
+            }
+        } catch (err) {
+            console.error('Error clearing due date:', err);
+        }
+    });
+
+    // 6. Select Member (Click on member button in modal)
+    document.querySelectorAll('.todo-member-pick-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!activeTodoItemId) return;
+            const row = document.getElementById(`todo-item-${activeTodoItemId}`);
+            const currentUserId = row ? (row.getAttribute('data-item-user-id') || '') : '';
+            let targetUserId = this.getAttribute('data-user-id') || '';
+
+            if (targetUserId && targetUserId === currentUserId) {
+                targetUserId = ''; // Toggle off
+            }
+
+            try {
+                const res = await fetch(`/events/todos/item/${activeTodoItemId}/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ assigned_to_user_id: targetUserId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (row) {
+                        row.setAttribute('data-item-user-id', data.assigned_to_user_id || '');
+                        const container = document.getElementById(`todo-assignee-container-${data.item_id}`);
+                        if (container) {
+                            if (data.assigned_name) {
+                                let avatarHtml = '';
+                                if (data.assigned_avatar) {
+                                    avatarHtml = `<img src="${data.assigned_avatar}" alt="${data.assigned_name}" class="rounded-circle flex-shrink-0" style="width: 16px; height: 16px; object-fit: cover;">`;
+                                } else {
+                                    avatarHtml = `<span class="rounded-circle bg-body-secondary text-secondary d-inline-flex align-items-center justify-content-center fw-semibold flex-shrink-0" style="width: 16px; height: 16px; font-size: 8px;">${data.assigned_initials || ''}</span>`;
+                                }
+                                container.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border d-inline-flex align-items-center gap-1 small cursor-pointer todo-item-member-trigger" data-item-id="${data.item_id}" title="Zugewiesen an ${data.assigned_name}">${avatarHtml} ${data.assigned_name.split(' ')[0]}</span>`;
+                                attachRowEvents(container);
+                            } else {
+                                container.innerHTML = '';
+                            }
+                        }
+                    }
+                    membersModal?.hide();
+                }
+            } catch (err) {
+                console.error('Error assigning member:', err);
+            }
+        });
+    });
+
+    // 7. Add Todo Item via AJAX
+    document.querySelectorAll('.add-todo-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = this.querySelector('input[name="title"]');
+            const title = input ? input.value.trim() : '';
+            const listId = this.getAttribute('data-list-id');
+            if (!title || !listId) return;
+
+            const formData = new FormData(this);
+            try {
+                const res = await fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    input.value = '';
+                    const container = document.getElementById(`todo-items-list-${listId}`);
+                    if (container) {
+                        const emptyHint = container.querySelector('.empty-list-hint');
+                        if (emptyHint) emptyHint.remove();
+
+                        const li = document.createElement('li');
+                        li.className = 'd-flex align-items-center justify-content-between py-2 border-bottom border-light-subtle todo-item-row';
+                        li.id = `todo-item-${data.id}`;
+                        li.setAttribute('data-item-id', data.id);
+                        li.setAttribute('data-item-user-id', '');
+                        li.setAttribute('data-item-due-iso', '');
+                        li.innerHTML = `
+                            <div class="form-check d-flex align-items-center gap-2 mb-0 min-width-0">
+                                <input class="form-check-input todo-checkbox" type="checkbox" id="check-${data.id}" data-item-id="${data.id}">
+                                <label class="form-check-label text-truncate cursor-pointer" for="check-${data.id}">${data.title}</label>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                <span class="todo-due-container" id="todo-due-container-${data.id}"></span>
+                                <span class="todo-assignee-container" id="todo-assignee-container-${data.id}"></span>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-due-trigger" data-item-id="${data.id}" title="Zeitlimit festlegen">
+                                        <i class="bi bi-clock"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary todo-item-member-trigger" data-item-id="${data.id}" title="Person zuweisen">
+                                        <i class="bi bi-person-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-danger delete-todo-btn" data-item-id="${data.id}" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(li);
+                        attachRowEvents(li);
+                    }
+
+                    // Update Badge and Progress
+                    const badge = document.querySelector(`.todo-list-badge-${listId}`);
+                    const progress = document.querySelector(`.todo-list-progress-${listId}`);
+                    if (badge) badge.textContent = `${data.completed_count}/${data.total_count}`;
+                    if (progress) progress.style.width = `${data.progress}%`;
+                }
+            } catch (err) {
+                console.error('Error adding todo item:', err);
+            }
+        });
+    });
+
+    // 8. Dynamic Kanban Cards loading when board changes
+    const boardSelect = document.getElementById('kanbanBoardSelect');
+    const cardSelect = document.getElementById('kanbanCardSelect');
+    if (boardSelect && cardSelect) {
+        boardSelect.addEventListener('change', function() {
+            const boardId = this.value;
+            cardSelect.innerHTML = '<option value="">-- Ganzes Board verknüpfen (keine Einzelkarte) --</option>';
+            if (!boardId) return;
+
+            fetch(`/events/kanban/board/${boardId}/cards`)
+            .then(res => res.json())
+            .then(cards => {
+                cards.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.title} (${c.list_name})`;
+                    cardSelect.appendChild(opt);
+                });
+            })
+            .catch(err => console.error('Error fetching cards:', err));
+        });
+    }
+});
+</script>
 {% endblock %}

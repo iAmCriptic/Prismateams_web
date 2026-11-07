@@ -37,7 +37,7 @@
       "protocols": "Meeting Minutes",
       "meetings": "Meetings",
       "duty_roster": "Duty Roster",
-      "booking_personal": "Booking / Personal"
+      "booking_personal": "Booking"
     },
     "brand": {
       "separator": "–",
@@ -1548,7 +1548,8 @@
         "lead_short": "Enable and disable modules.",
         "module_meetings": "Meetings (video calls)",
         "meetings_needs_mirotalk": "Requires MIROTALK_URL in .env. Without MiroTalk the module stays off.",
-        "module_duty_roster": "Duty Roster"
+        "module_duty_roster": "Duty Roster",
+        "module_booking_personal": "Booking"
       },
       "users": {
         "page_title": "User Management - Administration",

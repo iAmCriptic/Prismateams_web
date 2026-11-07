@@ -31,7 +31,21 @@ from .guest import GuestShareAccess
 from .public_share import PublicShare, ShareAccessLog
 from .onlyoffice_session import OnlyOfficeSession
 from .shortlink import ShortLink
-from .event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
+from .event import (
+    Event,
+    EventDay,
+    EventAppointment,
+    EventAssignment,
+    EventInventoryNeed,
+    EventContact,
+    EventTimelineItem,
+    EventTodoList,
+    EventTodoItem,
+    EventBookingPersonalLink,
+    EventCustomField,
+    EventCustomFieldValue,
+    EventLink,
+)
 from .assessment import (
     AssessmentUser,
     AssessmentRole,
@@ -131,7 +145,7 @@ __all__ = [
     'PublicShare', 'ShareAccessLog',
     'OnlyOfficeSession',
     'ShortLink',
-    'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
+    'Event', 'EventDay', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem', 'EventTodoList', 'EventTodoItem', 'EventBookingPersonalLink',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole', 'AssessmentUserList',
     'AssessmentStandType', 'AssessmentList', 'AssessmentListSubject',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',

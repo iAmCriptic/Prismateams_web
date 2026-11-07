@@ -36,7 +36,8 @@
       "file_converter": "Конвертер файлов",
       "protocols": "Протоколы",
       "meetings": "Встречи",
-      "duty_roster": "Дежурства"
+      "duty_roster": "Дежурства",
+      "booking_personal": "Booking"
     },
     "brand": {
       "separator": "–",
@@ -1541,7 +1542,8 @@
         "lead_short": "Включение и отключение модулей.",
         "module_meetings": "Встречи (видеозвонки)",
         "meetings_needs_mirotalk": "Требуется MIROTALK_URL в .env. Без MiroTalk модуль остаётся выключенным.",
-        "module_duty_roster": "Дежурства"
+        "module_duty_roster": "Дежурства",
+        "module_booking_personal": "Booking"
       },
       "users": {
         "page_title": "Управление пользователями — Администрирование",

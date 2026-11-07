@@ -90,6 +90,7 @@
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
+{% set events_active = ep == 'settings.admin_events_settings' %}
 {% set cloud_import_active = ep.startswith('settings.cloud_import') %}
 {% set show_cloud_import = is_module_enabled('module_files') %}
 {% set show_kanban_import = is_module_enabled('module_kanban') and (kanban_import_targets is defined and kanban_import_targets) %}
@@ -214,6 +215,11 @@
     {% if is_module_enabled('module_calendar') %}
     <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_events') %}
+    <a href="{{ url_for('settings.admin_events_settings') }}" class="nav-link mod-nav-link{% if events_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar2-week me-2"></i>Veranstaltungen
     </a>
     {% endif %}
     <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>

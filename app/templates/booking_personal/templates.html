@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Vorlagenverwaltung - Booking / Personal{% endblock %}
+{% block title %}Vorlagenverwaltung - Booking{% endblock %}
 
 {% block navbar_search %}
 <div class="mod-search" role="search">
@@ -9,7 +9,7 @@
         <input type="text"
                id="bpSearchInput"
                class="mod-search-input"
-               placeholder="In Booking / Personal suchen..."
+               placeholder="In Booking suchen..."
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search"
@@ -27,7 +27,7 @@
     <aside class="mod-sidebar d-flex flex-column">
         <div class="mod-sidebar-brand">
             <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
-            <span>Booking / Personal</span>
+            <span>Booking</span>
         </div>
 
         <!-- Neuer Event Button -->
@@ -67,28 +67,32 @@
     </aside>
 
     <!-- Hauptbereich: Vorlagenverwaltung -->
-    <main class="mod-main flex-grow-1 min-width-0">
-        <!-- Top Toolbar -->
-        <div class="bp-top-toolbar d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 border-bottom pb-3">
-            <div class="d-flex align-items-center gap-3">
-                {% if events %}
-                <a href="{{ url_for('booking_personal.index', event_id=events[0].id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Zurück zur Tabelle
-                </a>
-                {% else %}
-                <a href="{{ url_for('booking_personal.index') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Zurück
-                </a>
-                {% endif %}
-                <span class="text-muted">/</span>
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-layout-three-columns text-primary fs-5"></i>
-                    <h4 class="fw-bold mb-0 text-body">Vorlagenverwaltung</h4>
-                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1">
-                        {{ templates|length }} Vorlage{% if templates|length != 1 %}n{% endif %}
-                    </span>
+    <main class="mod-main flex-grow-1 min-width-0 settings-shell p-4">
+        <!-- Mod-Back-Row: Portalstandard Zurück-Link -->
+        <div class="mod-back-row mb-3">
+            <a href="{{ url_for('booking_personal.index', event_id=events[0].id if events else 1) }}" class="mod-back-link">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>Zurück</span>
+            </a>
+        </div>
+
+        <header class="sp-page-header mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h1 class="sp-page-title d-flex align-items-center gap-2">
+                        <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
+                        <span>Vorlagenverwaltung</span>
+                        <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1 fs-6 fw-normal">
+                            {{ templates|length }} Vorlage{% if templates|length != 1 %}n{% endif %}
+                        </span>
+                    </h1>
+                    <p class="sp-page-lead">Erstelle und verwalte Standard-Vorlagen für Spaltenkonfigurationen von Veranstaltungen.</p>
                 </div>
+                <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#newTemplateModal">
+                    <i class="bi bi-plus-lg me-1.5"></i>Neue Vorlage erstellen
+                </button>
             </div>
+        </header>
 
             <div class="d-flex align-items-center gap-2">
                 <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 shadow-sm" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal">

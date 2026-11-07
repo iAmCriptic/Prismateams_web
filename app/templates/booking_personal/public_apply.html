@@ -30,7 +30,7 @@
         <div>
             <span class="bp-public-brand-pill">
                 <i class="bi bi-calendar2-event me-1"></i>
-                {{ app_name or 'Prismateams' }} &bull; Booking & Personal
+                {{ app_name or 'Prismateams' }} &bull; Booking
             </span>
         </div>
     </div>
@@ -98,7 +98,9 @@
                 {% if lang == 'en' %}Artist Application{% else %}Offenes Bewerbungsformular / Artist Application{% endif %}
             </span>
             <p class="text-muted small mx-auto mb-1" style="max-width: 600px;">
-                {% if lang == 'en' %}
+                {% if apply_intro %}
+                    {{ apply_intro }}
+                {% elif lang == 'en' %}
                     {{ event.apply_intro_text_en or ('Apply now for ' ~ event.name ~ '. Please fill out the sections below as completely as possible.') }}
                 {% else %}
                     {{ event.apply_intro_text or ('Bewirb dich jetzt für einen Auftritt bei ' ~ event.name ~ '. Bitte fülle die folgenden Abschnitte möglichst vollständig aus.') }}

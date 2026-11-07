@@ -1,4 +1,4 @@
-﻿{% extends "settings/base_settings.html" %}
+{% extends "settings/base_settings.html" %}
 {% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.admin_modules.page_title') }}{% endblock %}
@@ -40,7 +40,8 @@
             ('module_excalidraw', 'bi-pencil-square', _('settings.admin.admin_modules.module_excalidraw'), module_excalidraw_enabled),
             ('module_surveys', 'bi-ui-checks-grid', _('settings.admin.admin_modules.module_surveys'), module_surveys_enabled),
             ('module_meetings', 'bi-camera-video', _('settings.admin.admin_modules.module_meetings'), module_meetings_enabled),
-            ('module_duty_roster', 'bi-calendar3', _('settings.admin.admin_modules.module_duty_roster'), module_duty_roster_enabled)
+            ('module_duty_roster', 'bi-calendar3', _('settings.admin.admin_modules.module_duty_roster'), module_duty_roster_enabled),
+            ('module_booking_personal', 'bi-person-badge', _('settings.admin.admin_modules.module_booking_personal'), module_booking_personal_enabled)
           ] %}
           {% for key, icon, label, enabled in modules %}
           <div class="sp-row settings-admin-modules-switch{% if key == 'module_meetings' and not mirotalk_ready %} settings-admin-modules-switch--disabled{% endif %}">

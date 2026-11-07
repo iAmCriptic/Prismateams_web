@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ entry.name or 'Act' }} - {{ current_event.name }} - Booking / Personal{% endblock %}
+{% block title %}{{ entry.name or 'Act' }} - {{ current_event.name }} - Booking{% endblock %}
 
 {% block navbar_search %}
 <div class="mod-search" role="search">
@@ -9,7 +9,7 @@
         <input type="text"
                id="bpSearchInput"
                class="mod-search-input"
-               placeholder="In Booking / Personal suchen..."
+               placeholder="In Booking suchen..."
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search"
@@ -27,7 +27,7 @@
     <aside class="mod-sidebar d-flex flex-column">
         <div class="mod-sidebar-brand">
             <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
-            <span>Booking / Personal</span>
+            <span>Booking</span>
         </div>
 
         <!-- Neuer Event Button -->
@@ -66,292 +66,271 @@
     </aside>
 
     <!-- Hauptbereich: Artist-Dossier -->
-    <main class="mod-main flex-grow-1 min-width-0">
-        <!-- Top Navigation Bar -->
-        <div class="bp-top-toolbar d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 border-bottom pb-3">
-            <div class="d-flex align-items-center gap-3">
-                <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1">
-                    <i class="bi bi-arrow-left me-1"></i>Zurück zur Tabelle
+    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpActDetailContainer">
+        <!-- Portalstandard Toolbar: NUR "Zurück" links, alle Aktionen rechts, KEINE zweite Unterteilungslinie -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="mod-back-link bp-back-link text-decoration-none">
+                    <i class="bi bi-arrow-left me-1"></i>Zurück
                 </a>
-                <span class="text-muted">/</span>
-                <span class="fw-semibold text-secondary">{{ current_event.name }}</span>
-                <span class="text-muted">/</span>
-                <span class="fw-bold text-dark">{{ entry.name or 'Act' }}</span>
             </div>
 
-            <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1" onclick="openEntryDetail({{ entry.id }})">
-                    <i class="bi bi-pencil-square me-1"></i>Angaben bearbeiten
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'accept')" title="Zusage-E-Mail senden">
+                    <i class="bi bi-envelope-check text-primary me-1.5"></i>Mail &rarr; Zusage
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" onclick="deleteEntryFromDetail({{ entry.id }})">
-                    <i class="bi bi-trash me-1"></i>Löschen
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'reject')" title="Absage-E-Mail senden">
+                    <i class="bi bi-envelope-x text-primary me-1.5"></i>Mail &rarr; Absage
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openMailPreview({{ entry.id }}, 'invite')" title="Fragebogen senden">
+                    <i class="bi bi-send text-primary me-1.5"></i>Fragebogen senden
+                </button>
+                {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="copyToClipboard('{{ form_url }}')" title="Formular-Link kopieren">
+                    <i class="bi bi-clipboard text-primary me-1.5"></i>Formular-Link
+                </button>
+                {% set overview_url = url_for('booking_personal.public_overview', token=entry.overview_token, _external=True) %}
+                <a href="{{ overview_url }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" title="Zusage-Übersicht">
+                    <i class="bi bi-box-arrow-up-right text-primary me-1.5"></i>Zusage-Übersicht
+                </a>
+                <button type="button" class="btn btn-sm btn-accent mod-pill-btn mod-pill-btn--accent" onclick="openEntryDetail({{ entry.id }})" title="Gesamtes Dossier bearbeiten">
+                    <i class="bi bi-pencil me-1.5" aria-hidden="true"></i>Angaben bearbeiten
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="deleteEntryFromDetail({{ entry.id }})" title="Act löschen">
+                    <i class="bi bi-trash text-danger me-1.5" aria-hidden="true"></i>Löschen
                 </button>
             </div>
         </div>
 
-        <div class="p-4 flex-grow-1">
-            <!-- Artist Hero Card -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                <div class="card-body p-4 bg-white">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 64px; height: 64px; font-size: 1.75rem;">
-                                <i class="bi bi-music-note-beamed"></i>
-                            </div>
-                            <div>
-                                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                    <h2 class="fw-bold mb-0 text-dark">{{ entry.name or custom_data.get('project_name', 'Unbenannter Act') }}</h2>
-                                    
-                                    <!-- Interaktives Status Badge Dropdown -->
-                                    {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
-                                    {% set status_color = 'secondary' %}
-                                    {% if status_val in ('Abgeschlossen', 'Zusage gesendet') %}{% set status_color = 'success' %}
-                                    {% elif status_val in ('Formular gesendet', 'Formular ausgefüllt', 'Bewerbung eingegangen') %}{% set status_color = 'info' %}
-                                    {% elif status_val == 'Absage' %}{% set status_color = 'danger' %}
-                                    {% elif status_val == 'Rechnung weitergeleitet' %}{% set status_color = 'warning' %}
-                                    {% elif status_val == 'Angefragt' %}{% set status_color = 'secondary' %}
-                                    {% endif %}
-                                    <div class="dropdown d-inline-block">
-                                        <button class="btn btn-sm rounded-pill bg-{{ status_color }}-subtle text-{{ status_color }} border border-{{ status_color }}-subtle px-3 py-1 dropdown-toggle fw-semibold shadow-none"
-                                                type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Status direkt ändern">
-                                            <i class="bi bi-circle-fill me-1" style="font-size: 0.65rem;"></i><span id="actDetailStatusText">{{ status_val }}</span>
-                                        </button>
-                                        <ul class="dropdown-menu shadow-lg border p-1" style="border-radius: 0.85rem; min-width: 220px;">
-                                            <li><h6 class="dropdown-header small text-uppercase py-1 text-muted">Status ändern</h6></li>
-                                            {% for s_opt in ['Angefragt', 'Bewerbung eingegangen', 'Formular gesendet', 'Formular ausgefüllt', 'Zusage gesendet', 'Abgeschlossen', 'Rechnung weitergeleitet', 'Absage'] %}
-                                            <li>
-                                                <button type="button" class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center justify-content-between {% if s_opt == status_val %}active fw-bold{% endif %}" onclick="changeActStatus({{ entry.id }}, '{{ s_opt }}')">
-                                                    <span>{{ s_opt }}</span>
-                                                    {% if s_opt == status_val %}<i class="bi bi-check-lg ms-2"></i>{% endif %}
-                                                </button>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-
-                                    <!-- Bereich Pill -->
-                                    {% if custom_data.get('bereich') %}
-                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-3 py-1p5">
-                                        <i class="bi bi-geo-alt me-1"></i>{{ custom_data.get('bereich') }}
-                                    </span>
-                                    {% endif %}
-
-                                    <!-- Pronomen Pill -->
-                                    {% if custom_data.get('pronouns') %}
-                                    <span class="badge rounded-pill bg-info-subtle text-info border px-3 py-1p5">
-                                        {{ custom_data.get('pronouns') }}
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                <div class="text-muted small">
-                                    Erstellt am {{ entry.created_at.strftime('%d.%m.%Y um %H:%M') if entry.created_at else '-' }} &bull; Veranstaltung: <strong>{{ current_event.name }}</strong>
-                                </div>
-                            </div>
+        <!-- Artist Hero Card im Portalstandard -->
+        <div class="card border mb-3 overflow-hidden">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3 min-width-0">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+                             style="width: 46px; height: 46px; background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent); color: var(--accent-color, var(--bs-primary));">
+                            <i class="bi bi-music-note-beamed fs-4"></i>
                         </div>
+                        <div class="min-width-0">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h1 class="h4 fw-bold mb-0 text-body text-truncate">{{ entry.name or custom_data.get('project_name', 'Unbenannter Act') }}</h1>
+                                
+                                <!-- Interaktives Status Badge Dropdown -->
+                                {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm rounded-pill bg-body-secondary text-body border px-2.5 py-1 dropdown-toggle fw-semibold shadow-none"
+                                            type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Status direkt ändern">
+                                        <i class="bi bi-circle-fill text-primary me-1" style="font-size: 0.65rem;"></i><span id="actDetailStatusText">{{ status_val }}</span>
+                                    </button>
+                                    <ul class="dropdown-menu shadow-lg border p-1" style="border-radius: 0.85rem; min-width: 220px;">
+                                        <li><h6 class="dropdown-header small text-uppercase py-1 text-muted">Status ändern</h6></li>
+                                        {% for s_opt in ['Angefragt', 'Bewerbung eingegangen', 'Formular gesendet', 'Formular ausgefüllt', 'Zusage gesendet', 'Abgeschlossen', 'Rechnung weitergeleitet', 'Absage'] %}
+                                        <li>
+                                            <button type="button" class="dropdown-item rounded-pill small py-1.5 d-flex align-items-center justify-content-between {% if s_opt == status_val %}active fw-bold{% endif %}" onclick="changeActStatus({{ entry.id }}, '{{ s_opt }}')">
+                                                <span>{{ s_opt }}</span>
+                                                {% if s_opt == status_val %}<i class="bi bi-check-lg ms-2"></i>{% endif %}
+                                            </button>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
 
-                        <!-- Action Pills -->
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1p5 shadow-sm" onclick="openMailPreview({{ entry.id }}, 'accept')">
-                                <i class="bi bi-envelope-check me-1"></i>Mail &rarr; Zusage
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1p5" onclick="openMailPreview({{ entry.id }}, 'reject')">
-                                <i class="bi bi-envelope-x me-1"></i>Mail &rarr; Absage
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1p5 text-dark" onclick="openMailPreview({{ entry.id }}, 'invite')">
-                                <i class="bi bi-send me-1"></i>Fragebogen senden
-                            </button>
-                            {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1p5" onclick="copyToClipboard('{{ form_url }}')" title="Formular-Link kopieren">
-                                <i class="bi bi-clipboard me-1"></i>Formular-Link
-                            </button>
-                            {% set overview_url = url_for('booking_personal.public_overview', token=entry.overview_token, _external=True) %}
-                            <a href="{{ overview_url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1p5" title="Öffentliche Zusage-Übersicht im neuen Tab">
-                                <i class="bi bi-box-arrow-up-right me-1"></i>Zusage-Übersicht (DE/EN)
-                            </a>
+                                {% if custom_data.get('bereich') %}
+                                <span class="badge rounded-pill bg-body-secondary text-secondary border px-2.5 py-1">
+                                    <i class="bi bi-geo-alt text-primary me-1"></i>{{ custom_data.get('bereich') }}
+                                </span>
+                                {% endif %}
+
+                                {% if custom_data.get('pronouns') %}
+                                <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">
+                                    {{ custom_data.get('pronouns') }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small mt-1">
+                                Erstellt am {{ entry.created_at.strftime('%d.%m.%Y um %H:%M') if entry.created_at else '-' }} &bull; Veranstaltung: <strong>{{ current_event.name }}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Detailansicht als strukturierte Informations-Karten nach Kategorien -->
-            <div class="row g-4">
-                {% for cat_name, cat_fields in categories.items() %}
-                {% set cat_lower = cat_name|lower %}
-                {% set icon_class = 'bi-collection' %}
-                {% set color_class = 'primary' %}
-                {% if 'stamm' in cat_lower or 'kontakt' in cat_lower %}
-                    {% set icon_class = 'bi-person-lines-fill' %}
-                    {% set color_class = 'primary' %}
-                {% elif 'finanz' in cat_lower or 'gage' in cat_lower or 'kosten' in cat_lower or 'honorar' in cat_lower %}
-                    {% set icon_class = 'bi-currency-euro' %}
-                    {% set color_class = 'success' %}
-                {% elif 'hospit' in cat_lower or 'logist' in cat_lower or 'hotel' in cat_lower or 'unterkunft' in cat_lower or 'catering' in cat_lower %}
-                    {% set icon_class = 'bi-cup-straw' %}
-                    {% set color_class = 'warning' %}
-                {% elif 'presse' in cat_lower or 'technik' in cat_lower or 'rider' in cat_lower or 'promo' in cat_lower or 'media' in cat_lower %}
-                    {% set icon_class = 'bi-sliders' %}
-                    {% set color_class = 'info' %}
-                {% elif 'notiz' in cat_lower or 'absprach' in cat_lower or 'feedback' in cat_lower or 'kommentar' in cat_lower %}
-                    {% set icon_class = 'bi-chat-left-quote' %}
-                    {% set color_class = 'secondary' %}
-                {% elif 'aktion' in cat_lower or 'link' in cat_lower or 'formular' in cat_lower %}
-                    {% set icon_class = 'bi-link-45deg' %}
-                    {% set color_class = 'primary' %}
+        <!-- Detailansicht als strukturierte Informations-Karten nach Portalstandard -->
+        <div class="row g-3">
+            {% for cat_name, cat_fields in categories.items() %}
+            {% set cat_lower = cat_name|lower %}
+            {% set icon_class = 'bi-collection' %}
+            {% if 'stamm' in cat_lower or 'kontakt' in cat_lower %}
+                {% set icon_class = 'bi-person-lines-fill' %}
+            {% elif 'finanz' in cat_lower or 'gage' in cat_lower or 'kosten' in cat_lower or 'honorar' in cat_lower %}
+                {% set icon_class = 'bi-currency-euro' %}
+            {% elif 'hospit' in cat_lower or 'logist' in cat_lower or 'hotel' in cat_lower or 'unterkunft' in cat_lower or 'catering' in cat_lower %}
+                {% set icon_class = 'bi-cup-straw' %}
+            {% elif 'presse' in cat_lower or 'technik' in cat_lower or 'rider' in cat_lower or 'promo' in cat_lower or 'media' in cat_lower %}
+                {% set icon_class = 'bi-sliders' %}
+            {% elif 'notiz' in cat_lower or 'absprach' in cat_lower or 'feedback' in cat_lower or 'kommentar' in cat_lower %}
+                {% set icon_class = 'bi-chat-left-quote' %}
+            {% elif 'aktion' in cat_lower or 'link' in cat_lower or 'formular' in cat_lower %}
+                {% set icon_class = 'bi-link-45deg' %}
+            {% endif %}
+
+            {% set has_large_content = false %}
+            {% for f in cat_fields %}
+                {% if f.field_type in ('textarea', 'image_upload') or f.field_key in ('promotext', 'promo_pictures') %}
+                    {% set has_large_content = true %}
                 {% endif %}
+            {% endfor %}
 
-                {% set has_large_content = false %}
-                {% for f in cat_fields %}
-                    {% if f.field_type in ('textarea', 'image_upload') or f.field_key in ('promotext', 'promo_pictures') %}
-                        {% set has_large_content = true %}
-                    {% endif %}
-                {% endfor %}
-
-                <div class="{% if has_large_content and cat_fields|length > 3 %}col-12{% else %}col-lg-6{% endif %}">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi {{ icon_class }} text-{{ color_class }} fs-5"></i>
-                                <h5 class="fw-bold mb-0 text-dark">{{ cat_name }}</h5>
+            <div class="{% if has_large_content and cat_fields|length > 3 %}col-12{% else %}col-lg-6{% endif %}">
+                <section class="card border mb-3 h-100 overflow-hidden">
+                    <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
+                        <h2 class="h6 fw-bold mb-0 text-body d-flex align-items-center gap-2">
+                            <i class="bi {{ icon_class }} text-primary" aria-hidden="true"></i> {{ cat_name }}
+                        </h2>
+                        <span class="badge rounded-pill bg-body-secondary text-muted border small">{{ cat_fields|length }} Felder</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Große Gesamtkosten-Box für Finanzen -->
+                        {% if 'finanz' in cat_lower or 'kosten' in cat_lower %}
+                        <div class="p-3 rounded-3 bg-body-secondary border mb-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-uppercase small fw-bold text-primary" style="font-size: 0.72rem; letter-spacing: 0.05em;">Kalkulierte Gesamtkosten (GESAMT)</div>
+                                <h2 class="fw-bold text-body mb-0" id="bpDetailTotalCostVal">{{ custom_data.get('gesamt') or '€0.00' }}</h2>
                             </div>
-                            <span class="badge rounded-pill bg-light text-muted border small">{{ cat_fields|length }} Felder</span>
+                            <i class="bi bi-wallet2 fs-1 text-primary opacity-50"></i>
                         </div>
-                        <div class="card-body p-4">
-                            <!-- Falls es eine Finanzen-Kategorie oder Formel-Spalte gibt: Große Gesamtsummen-Box -->
-                            {% for f in cat_fields %}
-                                {% if f.field_key == 'gesamt' or (f.field_type == 'formula' and 'gesamt' in f.field_key) %}
-                                <div class="p-3 mb-3 rounded-4 bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <div class="text-uppercase small fw-bold text-success" style="font-size: 0.75rem;">Kalkulierte Gesamtkosten (GESAMT)</div>
-                                        <h2 class="fw-bold text-success mb-0">{{ custom_data.get(f.field_key) or custom_data.get('gesamt') or '€0.00' }}</h2>
-                                    </div>
-                                    <i class="bi bi-wallet2 display-6 text-success opacity-75"></i>
-                                </div>
-                                {% endif %}
-                            {% endfor %}
+                        {% endif %}
 
-                            <!-- Standard-Felder als Definitionsliste oder Grid -->
-                            <dl class="row mb-0 g-2">
-                                {% for f in cat_fields %}
-                                    {% set val = custom_data.get(f.field_key) %}
-                                    {% if f.field_type not in ('action_accept', 'form_link') or cat_name == 'Aktionen & Links' %}
-                                    <dt class="col-sm-5 text-muted fw-normal d-flex align-items-center">
-                                        <span class="text-truncate" title="{{ f.label }}">{{ f.label }}:</span>
-                                    </dt>
-                                    <dd class="col-sm-7 mb-2">
+                        <!-- Felder als klickbare Zeilen für sofortiges Inline-Editing -->
+                        <div class="d-flex flex-column gap-1">
+                        {% for f in cat_fields %}
+                            {% set val = custom_data.get(f.field_key) %}
+                            {% if f.field_type not in ('action_accept', 'form_link') or cat_name == 'Aktionen & Links' %}
+                            <div class="bp-detail-field-row d-flex align-items-center justify-content-between py-1.5 px-2 rounded-3 bp-editable-row"
+                                 data-entry-id="{{ entry.id }}"
+                                 data-field-key="{{ f.field_key }}"
+                                 data-field-type="{{ f.field_type }}"
+                                 data-field-label="{{ f.label }}"
+                                 data-raw-value="{{ val if val is not none else '' }}"
+                                 {% if f.field_type in ('badge_select', 'multi_select') and f.options_json %}data-options="{{ f.options_json|e }}"{% endif %}
+                                 role="button"
+                                 tabindex="0"
+                                 title="Klicken zum schnellen Ändern">
+                                <span class="text-muted small text-truncate pe-2" style="max-width: 48%;">{{ f.label }}:</span>
+                                <span class="text-end text-truncate min-width-0 bp-field-val-container d-inline-flex align-items-center justify-content-end gap-1">
+                                    <span class="bp-field-display text-truncate">
                                         {% if f.field_type == 'badge_select' %}
                                             {% if val and val != '-' %}
-                                            {% set badge_color = 'primary' %}
-                                            {% if f.options_json %}
-                                                {% for opt in f.get_options() %}
-                                                    {% if (opt.value if opt is mapping else opt) == val %}
-                                                        {% set badge_color = opt.color if opt is mapping and opt.color else 'primary' %}
-                                                    {% endif %}
-                                                {% endfor %}
-                                            {% endif %}
-                                            <span class="badge rounded-pill bg-{{ badge_color }}-subtle text-{{ badge_color }} border border-{{ badge_color }}-subtle px-3 py-1">
+                                            <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">
                                                 {{ val }}
                                             </span>
                                             {% else %}
-                                            <span class="text-muted">-</span>
+                                            <span class="text-muted small">-</span>
                                             {% endif %}
                                         {% elif f.field_type == 'multi_select' %}
                                             {% if val and val != '-' %}
                                                 {% set items = val if val is iterable and val is not string else val.split(',') %}
-                                                <div class="d-flex flex-wrap gap-1">
+                                                <div class="d-flex flex-wrap gap-1 justify-content-end">
                                                 {% for it in items %}
                                                     {% set it_clean = it.strip() %}
                                                     {% if it_clean %}
-                                                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+                                                    <span class="badge rounded-pill bg-body-secondary text-body border px-2 py-0.5 small">
                                                         {{ it_clean }}
                                                     </span>
                                                     {% endif %}
                                                 {% endfor %}
                                                 </div>
                                             {% else %}
-                                                <span class="text-muted">-</span>
+                                                <span class="text-muted small">-</span>
                                             {% endif %}
-                                        {% elif f.field_type == 'currency' %}
-                                            <span class="fw-bold text-dark">{{ val or '€0.00' }}</span>
+                                        {% elif f.field_type == 'currency' or f.field_key == 'gesamt' %}
+                                            <span class="{% if f.field_key == 'gesamt' %}fw-bold text-primary fs-6 bp-cell-formula{% else %}fw-semibold text-body{% endif %} small"
+                                                  data-field-key="{{ f.field_key }}">{{ val or ('€0.00' if f.field_type == 'currency' else '-') }}</span>
                                         {% elif f.field_type == 'counter' %}
-                                            <span class="badge rounded-pill bg-light text-dark border px-2.5 py-1 fw-bold">{{ val or '0' }}</span>
+                                            <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-0.5 fw-bold small">{{ val or '0' }}</span>
                                         {% elif f.field_type == 'image_upload' %}
                                             {% if val %}
-                                                <div class="d-flex gap-2 flex-wrap mt-1">
+                                                <div class="d-flex gap-1.5 flex-wrap justify-content-end">
                                                 {% if val is iterable and val is not string %}
-                                                    {% for p in val %}
-                                                    <a href="{{ p }}" target="_blank" class="d-inline-block">
-                                                        <img src="{{ p }}" class="rounded-3 shadow-sm border" style="width: 80px; height: 80px; object-fit: cover;" alt="Bild">
+                                                    {% for img in val %}
+                                                    <a href="{{ img }}" target="_blank" onclick="event.stopPropagation()">
+                                                        <img src="{{ img }}" alt="Promo Bild" class="rounded-3 border" style="width: 48px; height: 48px; object-fit: cover;">
                                                     </a>
                                                     {% endfor %}
                                                 {% else %}
-                                                    <a href="{{ val }}" target="_blank" class="d-inline-block">
-                                                        <img src="{{ val }}" class="rounded-3 shadow-sm border" style="width: 80px; height: 80px; object-fit: cover;" alt="Bild">
+                                                    <a href="{{ val }}" target="_blank" onclick="event.stopPropagation()">
+                                                        <img src="{{ val }}" alt="Promo Bild" class="rounded-3 border" style="width: 48px; height: 48px; object-fit: cover;">
                                                     </a>
                                                 {% endif %}
                                                 </div>
                                             {% else %}
-                                                <span class="text-muted small">Keine Bilder hochgeladen</span>
+                                                <span class="text-muted small">Keine Bilder</span>
                                             {% endif %}
                                         {% elif f.field_type == 'file_upload' %}
                                             {% if val %}
                                                 {% if val is iterable and val is not string %}
-                                                    <div class="d-flex flex-column gap-1">
+                                                    <div class="d-flex flex-column gap-1 align-items-end">
                                                     {% for att in val %}
-                                                    <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1 w-auto">
-                                                        <i class="bi bi-file-earmark-arrow-down"></i>Datei herunterladen
+                                                    <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn d-inline-flex align-items-center gap-1" onclick="event.stopPropagation()">
+                                                        <i class="bi bi-file-earmark-arrow-down text-primary"></i>Datei
                                                     </a>
                                                     {% endfor %}
                                                     </div>
                                                 {% else %}
-                                                    <a href="{{ val }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1">
-                                                        <i class="bi bi-file-earmark-arrow-down"></i>Datei herunterladen
-                                                    </a>
+                                                <a href="{{ val }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn d-inline-flex align-items-center gap-1" onclick="event.stopPropagation()">
+                                                    <i class="bi bi-file-earmark-arrow-down text-primary"></i>Datei
+                                                </a>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="text-muted small">Keine Datei hochgeladen</span>
+                                                <span class="text-muted small">Keine Datei</span>
                                             {% endif %}
                                         {% elif f.field_type == 'textarea' %}
-                                            <div class="p-2.5 bg-light rounded-3 text-dark small mt-1" style="white-space: pre-wrap;">{{ val or '-' }}</div>
+                                            <div class="p-2 bg-body-tertiary rounded-3 text-body small text-start" style="white-space: pre-wrap; font-size: 0.82rem;">{{ val or '-' }}</div>
                                         {% elif f.field_type == 'form_link' %}
                                             {% set f_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
-                                            <div class="d-flex align-items-center gap-2">
-                                                <a href="{{ f_url }}" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1">
-                                                    <i class="bi bi-box-arrow-up-right me-1"></i>Formular
+                                            <div class="d-flex align-items-center gap-1.5" onclick="event.stopPropagation()">
+                                                <a href="{{ f_url }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn px-2.5 py-1">
+                                                    <i class="bi bi-box-arrow-up-right text-primary me-1"></i>Formular
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-light border rounded-pill px-2 py-1" onclick="copyToClipboard('{{ f_url }}')" title="Link kopieren">
-                                                    <i class="bi bi-clipboard"></i>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn px-2 py-1" onclick="copyToClipboard('{{ f_url }}')" title="Link kopieren">
+                                                    <i class="bi bi-clipboard text-primary"></i>
                                                 </button>
                                             </div>
                                         {% elif f.field_type == 'action_accept' %}
-                                            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1" onclick="openMailPreview({{ entry.id }}, 'accept')">
-                                                <i class="bi bi-envelope-check me-1"></i>Zusage senden
+                                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn px-2.5 py-1" onclick="event.stopPropagation(); openMailPreview({{ entry.id }}, 'accept')">
+                                                <i class="bi bi-envelope-check text-primary me-1"></i>Zusage senden
                                             </button>
                                         {% else %}
                                             {% if val and ('http://' in val or 'https://' in val) %}
-                                                <a href="{{ val }}" target="_blank" class="text-decoration-none">
-                                                    <i class="bi bi-link-45deg me-1"></i>{{ val }}
+                                                <a href="{{ val }}" target="_blank" class="text-decoration-none text-body small" onclick="event.stopPropagation()">
+                                                    <i class="bi bi-link-45deg text-primary me-1"></i>{{ val }}
                                                 </a>
                                             {% elif val and '@' in val and '.' in val %}
-                                                <a href="mailto:{{ val }}" class="text-decoration-none">
-                                                    <i class="bi bi-envelope me-1"></i>{{ val }}
+                                                <a href="mailto:{{ val }}" class="text-decoration-none text-body small" onclick="event.stopPropagation()">
+                                                    <i class="bi bi-envelope text-primary me-1"></i>{{ val }}
                                                 </a>
                                             {% elif val and f.field_key in ('phone', 'telefonnummer') %}
-                                                <a href="tel:{{ val }}" class="text-decoration-none">
-                                                    <i class="bi bi-telephone me-1"></i>{{ val }}
+                                                <a href="tel:{{ val }}" class="text-decoration-none text-body small" onclick="event.stopPropagation()">
+                                                    <i class="bi bi-telephone text-primary me-1"></i>{{ val }}
                                                 </a>
                                             {% else %}
-                                                <span class="fw-semibold text-dark">{{ val or '-' }}</span>
+                                                <span class="text-body small">{{ val or '-' }}</span>
                                             {% endif %}
                                         {% endif %}
-                                    </dd>
+                                    </span>
+                                    {% if f.field_type not in ('formula', 'file_upload', 'image_upload', 'form_link', 'action_accept') and f.field_key != 'gesamt' %}
+                                    <i class="bi bi-pencil bp-field-edit-pen text-primary opacity-0 ms-1" style="font-size: 0.75rem;" aria-hidden="true"></i>
                                     {% endif %}
-                                {% endfor %}
-                            </dl>
-                        </div>
+                                </span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
                     </div>
-                </div>
-                {% endfor %}
+                    </div>
+                </section>
             </div>
+            {% endfor %}
         </div>
     </main>
 </div>

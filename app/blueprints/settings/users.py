@@ -87,7 +87,7 @@ def admin_users():
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
-        ('module_booking_personal', 'Booking / Personal'),
+        ('module_booking_personal', 'Booking'),
     ]
     
     # Get all users, excluding guest accounts (system accounts)

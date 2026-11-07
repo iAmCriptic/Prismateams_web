@@ -260,7 +260,8 @@ def test_act_detail_view_renders_structured_page(client, app):
     assert 'Alex Nova' in html
     assert '€1500.00' in html
     assert '2 x Pioneer CDJ 3000' in html
-    assert 'Zurück zur Tabelle' in html
+    assert 'Zurück' in html
+    assert 'mod-back-link' in html
     assert 'Angaben bearbeiten' in html
 
 
@@ -441,7 +442,7 @@ def test_compact_toolbar_and_excel_export(client, app):
     assert 'Bewerbungsformular öffnen' in html
 
     # Settings icon button
-    assert 'data-bs-target="#bpSettingsModal"' in html
+    assert f"/booking-personal/event/{event_id}/settings" in html
 
     # 2. Test Excel export (.xlsx)
     resp_xlsx = client.get(f'/booking-personal/event/{event_id}/export/xlsx')
@@ -464,3 +465,76 @@ def test_compact_toolbar_and_excel_export(client, app):
 
 
 
+
+
+def test_dedicated_settings_page_and_bilingual_emails(client, app):
+    """Testet die neue dedizierte Einstellungsseite im Pill-Style und zweisprachige E-Mails."""
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Pill Style Festival')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS[:3], db.session)
+        db.session.commit()
+        event_id = event.id
+
+    # 1. Dedicated Settings Page GET
+    resp = client.get(f'/booking-personal/event/{event_id}/settings')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+
+    # Check for Pill design tabs
+    assert 'bp-pill-tabs' in html
+    assert 'Spalten-Manager' in html
+    assert 'E-Mail & Postfach' in html
+    assert 'Formular-Texte & Bild' in html
+    assert 'Allgemein & Löschen' in html
+
+    # Check for Placeholders chip bar
+    assert 'Verfügbare Platzhalter für E-Mails' in html
+    assert 'bp-placeholder-btn' in html
+    assert '{{ event_name }}' in html
+    assert '{{ act_name }}' in html
+
+    # Check for Bilingual Email fields
+    assert 'name="accept_template_subject"' in html
+    assert 'name="accept_template_subject_en"' in html
+    assert 'name="reject_template_subject_en"' in html
+    assert 'name="invite_template_subject_en"' in html
+
+    # Check that "Breite" is NOT a configurable column in Spalten-Manager table
+    assert '<th style="width: 90px;" class="text-center">Breite</th>' not in html
+    assert 'id="bpColWidth"' not in html
+
+    # Check horizontal action buttons
+    assert 'd-inline-flex align-items-center justify-content-end gap-1.5' in html
+
+    # 2. Save English and German email settings
+    resp_post = client.post(
+        f'/booking-personal/events/{event_id}/settings',
+        data={
+            'accept_template_subject': 'Zusage für {{ event_name }}',
+            'accept_template_body': 'Hallo {{ contact_name }}, Zusage!',
+            'accept_template_subject_en': 'Confirmed for {{ event_name }}',
+            'accept_template_body_en': 'Hello {{ contact_name }}, you are booked!',
+            'reject_template_subject': 'Absage {{ event_name }}',
+            'reject_template_body': 'Leider nein.',
+            'reject_template_subject_en': 'Decline {{ event_name }}',
+            'reject_template_body_en': 'Unfortunately no.',
+            'invite_template_subject': 'Fragebogen {{ event_name }}',
+            'invite_template_body': 'Bitte ausfüllen.',
+            'invite_template_subject_en': 'Form {{ event_name }}',
+            'invite_template_body_en': 'Please fill.',
+            'active_tab': 'emails',
+        },
+        follow_redirects=True
+    )
+    assert resp_post.status_code == 200
+
+    with app.app_context():
+        ev = BookingPersonalEvent.query.get(event_id)
+        assert ev.accept_template_subject_en == 'Confirmed for {{ event_name }}'
+        assert ev.accept_template_body_en == 'Hello {{ contact_name }}, you are booked!'
+        assert ev.reject_template_subject_en == 'Decline {{ event_name }}'
+        assert ev.invite_template_subject_en == 'Form {{ event_name }}'

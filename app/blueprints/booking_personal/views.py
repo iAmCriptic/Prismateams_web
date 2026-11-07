@@ -196,10 +196,38 @@ def create_event():
     return redirect(url_for('booking_personal.index', event_id=event.id))
 
 
+@booking_personal_bp.route('/event/<int:event_id>/settings')
+def event_settings(event_id):
+    """Dedizierte Einstellungsseite für ein Event im modernen Pill-Style."""
+    events = BookingPersonalEvent.query.filter_by(is_active=True).order_by(
+        BookingPersonalEvent.created_at.desc()
+    ).all()
+    current_event = BookingPersonalEvent.query.get_or_404(event_id)
+    fields = current_event.fields
+    mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
+    templates = BookingPersonalTemplate.query.order_by(
+        BookingPersonalTemplate.is_system_default.desc(),
+        BookingPersonalTemplate.name.asc()
+    ).all()
+
+    active_tab = request.args.get('tab', 'columns')
+
+    return render_template(
+        'booking_personal/settings.html',
+        events=events,
+        current_event=current_event,
+        fields=fields,
+        mailboxes=mailboxes,
+        templates=templates,
+        active_tab=active_tab,
+    )
+
+
 @booking_personal_bp.route('/events/<int:event_id>/settings', methods=['POST'])
 def update_event_settings(event_id):
-    """Aktualisiert allgemeine Einstellungen und E-Mail-Vorlagen eines Events."""
+    """Aktualisiert allgemeine Einstellungen und E-Mail-Vorlagen eines Events (DE und EN)."""
     event = BookingPersonalEvent.query.get_or_404(event_id)
+    active_tab = request.form.get('active_tab', 'emails')
 
     name = request.form.get('name', '').strip()
     if name:
@@ -211,6 +239,7 @@ def update_event_settings(event_id):
     else:
         event.mailbox_id = None
 
+    # E-Mail-Vorlagen (Deutsch)
     event.accept_template_subject = request.form.get('accept_template_subject', event.accept_template_subject)
     event.accept_template_body = request.form.get('accept_template_body', event.accept_template_body)
     event.reject_template_subject = request.form.get('reject_template_subject', event.reject_template_subject)
@@ -218,9 +247,17 @@ def update_event_settings(event_id):
     event.invite_template_subject = request.form.get('invite_template_subject', event.invite_template_subject)
     event.invite_template_body = request.form.get('invite_template_body', event.invite_template_body)
 
+    # E-Mail-Vorlagen (Englisch)
+    event.accept_template_subject_en = request.form.get('accept_template_subject_en', event.accept_template_subject_en)
+    event.accept_template_body_en = request.form.get('accept_template_body_en', event.accept_template_body_en)
+    event.reject_template_subject_en = request.form.get('reject_template_subject_en', event.reject_template_subject_en)
+    event.reject_template_body_en = request.form.get('reject_template_body_en', event.reject_template_body_en)
+    event.invite_template_subject_en = request.form.get('invite_template_subject_en', event.invite_template_subject_en)
+    event.invite_template_body_en = request.form.get('invite_template_body_en', event.invite_template_body_en)
+
     db.session.commit()
     flash('Einstellungen erfolgreich gespeichert.', 'success')
-    return redirect(url_for('booking_personal.index', event_id=event.id))
+    return redirect(url_for('booking_personal.event_settings', event_id=event.id, tab=active_tab))
 
 
 @booking_personal_bp.route('/events/<int:event_id>/design', methods=['POST'])
@@ -251,7 +288,7 @@ def update_event_design(event_id):
 
     db.session.commit()
     flash('Formular-Texte und Veranstaltungs-Bild erfolgreich aktualisiert.', 'success')
-    return redirect(url_for('booking_personal.index', event_id=event.id))
+    return redirect(url_for('booking_personal.event_settings', event_id=event.id, tab='design'))
 
 
 
@@ -642,15 +679,28 @@ def api_mail_preview(entry_id):
 
     placeholders = get_available_placeholders(event, entry)
 
+    mail_lang = (data.get('lang') or 'de').lower()
     if mail_type == 'reject':
-        subject_tmpl = event.reject_template_subject
-        body_tmpl = event.reject_template_body
+        if mail_lang == 'en':
+            subject_tmpl = event.reject_template_subject_en or event.reject_template_subject
+            body_tmpl = event.reject_template_body_en or event.reject_template_body
+        else:
+            subject_tmpl = event.reject_template_subject
+            body_tmpl = event.reject_template_body
     elif mail_type == 'invite':
-        subject_tmpl = event.invite_template_subject
-        body_tmpl = event.invite_template_body
+        if mail_lang == 'en':
+            subject_tmpl = event.invite_template_subject_en or event.invite_template_subject
+            body_tmpl = event.invite_template_body_en or event.invite_template_body
+        else:
+            subject_tmpl = event.invite_template_subject
+            body_tmpl = event.invite_template_body
     else:
-        subject_tmpl = event.accept_template_subject
-        body_tmpl = event.accept_template_body
+        if mail_lang == 'en':
+            subject_tmpl = event.accept_template_subject_en or event.accept_template_subject
+            body_tmpl = event.accept_template_body_en or event.accept_template_body
+        else:
+            subject_tmpl = event.accept_template_subject
+            body_tmpl = event.accept_template_body
 
     subject = render_template_string(subject_tmpl, placeholders)
     body = render_template_string(body_tmpl, placeholders)
@@ -659,6 +709,7 @@ def api_mail_preview(entry_id):
     return jsonify({
         'success': True,
         'type': mail_type,
+        'lang': mail_lang,
         'recipient': recipient,
         'subject': subject,
         'body': body,
@@ -709,7 +760,7 @@ def api_mail_send(entry_id):
             'entry': entry.to_dict()
         })
     except Exception as e:
-        current_app.logger.exception('Fehler beim E-Mail-Versand (Booking / Personal):')
+        current_app.logger.exception('Fehler beim E-Mail-Versand (Booking):')
         return jsonify({'success': False, 'error': f'Fehler beim E-Mail-Versand: {str(e)}'}), 500
 
 

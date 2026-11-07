@@ -36,7 +36,8 @@
       "file_converter": "Conversor de archivos",
       "protocols": "Actas",
       "meetings": "Reuniones",
-      "duty_roster": "Horario de turnos"
+      "duty_roster": "Horario de turnos",
+      "booking_personal": "Booking"
     },
     "brand": {
       "separator": "–",
@@ -1541,7 +1542,8 @@
         "lead_short": "Activar y desactivar módulos.",
         "module_meetings": "Reuniones (videollamadas)",
         "meetings_needs_mirotalk": "Requiere MIROTALK_URL en el .env. Sin MiroTalk el módulo permanece desactivado.",
-        "module_duty_roster": "Horario de turnos"
+        "module_duty_roster": "Horario de turnos",
+        "module_booking_personal": "Booking"
       },
       "users": {
         "page_title": "Gestión de usuarios - Administración",

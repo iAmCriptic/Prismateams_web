@@ -89,7 +89,7 @@ def register_blueprints(app):
         'inventory.api_mobile_borrow',
         'inventory.api_mobile_return',
         'inventory.api_mobile_scan',
-        # Booking / Personal öffentliches Künstler-Formular (Token-basiert)
+        # Booking öffentliches Künstler-Formular (Token-basiert)
         'booking_personal.public_form_submit',
     ):
         view = app.view_functions.get(endpoint)

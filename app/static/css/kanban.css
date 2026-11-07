@@ -2084,7 +2084,7 @@ body:has(.kanban-board-page) {
 }
 
 .kanban-notif-card.is-unread {
-  border-left: 3.5px solid var(--bs-primary, #0d6efd) !important;
+  border-left: 3.5px solid var(--accent-color, var(--bs-primary)) !important;
   background: rgba(13, 110, 253, 0.03);
 }
 
@@ -2117,7 +2117,7 @@ body:has(.kanban-board-page) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--bs-primary, #0d6efd);
+  background-color: var(--accent-color, var(--bs-primary));
   flex-shrink: 0;
   margin-top: 4px;
 }

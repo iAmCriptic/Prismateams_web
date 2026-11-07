@@ -1,0 +1,273 @@
+{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
+
+{% block title %}Veranstaltungen – Einstellungen{% endblock %}
+{% block settings_mobile_title %}Veranstaltungen{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-admin-events">
+  <header class="sp-page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h1 class="sp-page-title"><i class="bi bi-calendar2-week" aria-hidden="true"></i><span>Veranstaltungs-Einstellungen</span></h1>
+      <p class="sp-page-lead">Konfiguration von benutzerdefinierten Feldern für Veranstaltungen.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('settings.admin_events_settings') }}" class="d-inline" onsubmit="return confirm('Standard-Felder wie im Veranstaltungsprofil anlegen? Bereits existierende Felder werden nicht überschrieben.');">
+        <input type="hidden" name="action" value="load_defaults">
+        <button type="submit" class="btn btn-outline-secondary mod-pill-btn">
+          <i class="bi bi-magic me-1"></i> Standard-Felder laden
+        </button>
+      </form>
+      <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#createFieldModal">
+        <i class="bi bi-plus-lg me-1"></i> Neues Feld anlegen
+      </button>
+    </div>
+  </header>
+
+  <section class="sp-group" id="events-custom-fields" aria-labelledby="custom-fields-heading">
+    <div class="sp-group-head d-flex justify-content-between align-items-center">
+      <h2 id="custom-fields-heading" class="sp-group-title">
+        <i class="bi bi-input-cursor-text" aria-hidden="true"></i> Benutzerdefinierte Felder
+      </h2>
+      <span class="badge rounded-pill bg-body-secondary text-body border">{{ fields|length }} Felder</span>
+    </div>
+
+    <div class="sp-group-body p-0">
+      {% if fields %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 50px;">Icon</th>
+              <th>Feldname / Label</th>
+              <th>Kategorie</th>
+              <th>Typ</th>
+              <th>Platzhalter / Optionen</th>
+              <th class="text-end" style="width: 120px;">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in fields %}
+            <tr>
+              <td class="text-center text-secondary">
+                {% if f.field_type == 'number' %}
+                  <strong class="fs-6">#</strong>
+                {% elif f.field_type == 'date' %}
+                  <i class="bi bi-calendar-event"></i>
+                {% elif f.field_type == 'time' %}
+                  <i class="bi bi-clock"></i>
+                {% elif f.field_type == 'checkbox' %}
+                  <i class="bi bi-check2-square"></i>
+                {% elif f.field_type == 'person' %}
+                  <i class="bi bi-person"></i>
+                {% elif f.field_type == 'select' %}
+                  <i class="bi bi-caret-down-square"></i>
+                {% elif f.field_type == 'textarea' %}
+                  <i class="bi bi-text-paragraph"></i>
+                {% else %}
+                  <i class="bi bi-type"></i>
+                {% endif %}
+              </td>
+              <td>
+                <div class="fw-semibold text-body">{{ f.label }}</div>
+                <div class="text-muted small">Position: {{ f.position }}</div>
+              </td>
+              <td>
+                <span class="badge rounded-pill bg-body-secondary text-body border">{{ f.category or 'Allgemein' }}</span>
+              </td>
+              <td>
+                {% if f.field_type == 'text' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Kurztext</span>
+                {% elif f.field_type == 'textarea' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Langtext</span>
+                {% elif f.field_type == 'number' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Zahl (#)</span>
+                {% elif f.field_type == 'checkbox' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Checkbox</span>
+                {% elif f.field_type == 'person' %}
+                  <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle">Personenzuordnung</span>
+                {% elif f.field_type == 'date' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Datum</span>
+                {% elif f.field_type == 'time' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Uhrzeit</span>
+                {% elif f.field_type == 'select' %}
+                  <span class="badge rounded-pill bg-body-secondary text-body border">Dropdown</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">
+                {% if f.field_type == 'select' %}
+                  <div class="text-truncate" style="max-width: 250px;">
+                    Optionen: {{ f.options_list|join(', ') }}
+                  </div>
+                {% else %}
+                  {{ f.placeholder or '—' }}
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-secondary edit-field-trigger"
+                        data-field-id="{{ f.id }}"
+                        data-field-label="{{ f.label }}"
+                        data-field-category="{{ f.category or 'Allgemein' }}"
+                        data-field-type="{{ f.field_type }}"
+                        data-field-placeholder="{{ f.placeholder or '' }}"
+                        data-field-options="{{ f.options_list|join('\n') }}"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editFieldModal"
+                        title="Bearbeiten">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <form method="POST" action="{{ url_for('settings.admin_events_settings') }}" class="d-inline" onsubmit="return confirm('Feld wirklich löschen? Zugehörige gespeicherte Werte gehen verloren.');">
+                  <input type="hidden" name="action" value="delete_field">
+                  <input type="hidden" name="field_id" value="{{ f.id }}">
+                  <button type="submit" class="btn btn-sm mod-pill-btn mod-pill-btn--icon text-danger" title="Löschen">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-4 text-center text-muted">
+        <i class="bi bi-input-cursor-text fs-2 d-block mb-2"></i>
+        <p class="mb-2">Noch keine benutzerdefinierten Felder angelegt.</p>
+        <p class="small">Klicke oben auf <strong>„Standard-Felder laden“</strong> oder erstelle individuelle Felder.</p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<!-- Modal: Feld erstellen -->
+<div class="modal fade" id="createFieldModal" tabindex="-1" aria-labelledby="createFieldModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content mod-pill-card">
+      <form method="POST" action="{{ url_for('settings.admin_events_settings') }}">
+        <input type="hidden" name="action" value="add_field">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold" id="createFieldModalLabel"><i class="bi bi-plus-circle me-1"></i> Neues Feld anlegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Feldname / Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" class="form-control mod-pill-input" placeholder="z. B. EPISODE, AK, BESONDERHEITEN" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Kategorie / Bereich</label>
+            <input type="text" name="category" class="form-control mod-pill-input" list="category_suggestions" placeholder="z. B. Allgemein & Vorverkauf, Personal & Gewerke, Sicherheit">
+            <datalist id="category_suggestions">
+              <option value="Allgemein & Vorverkauf">
+              <option value="Personal & Gewerke">
+              <option value="Sicherheit">
+              <option value="Besonderheiten & Notizen">
+            </datalist>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Feldtyp <span class="text-danger">*</span></label>
+            <select name="field_type" class="form-select mod-pill-input" id="create_field_type" onchange="toggleOptionsVisibility('create')">
+              <option value="text">Kurztext (einzeilig)</option>
+              <option value="textarea">Langtext (mehrzeilig)</option>
+              <option value="number">Zahl / Nummer (#)</option>
+              <option value="checkbox">Checkbox (Ja/Nein)</option>
+              <option value="person">Personenzuordnung (Portal-User)</option>
+              <option value="date">Datum (Kalender)</option>
+              <option value="time">Uhrzeit</option>
+              <option value="select">Dropdown / Auswahl</option>
+            </select>
+            <div class="form-text small">Personenzuordnungen werden auch im Reiter „Personen & Kontakte“ angeboten.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Platzhalter (Placeholder)</label>
+            <input type="text" name="placeholder" class="form-control mod-pill-input" placeholder="z. B. Hinzufügen...">
+          </div>
+          <div class="mb-3 d-none" id="create_options_group">
+            <label class="form-label fw-semibold small">Dropdown-Optionen (eine pro Zeile)</label>
+            <textarea name="options" class="form-control mod-pill-input" rows="3" placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Feld erstellen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Feld bearbeiten -->
+<div class="modal fade" id="editFieldModal" tabindex="-1" aria-labelledby="editFieldModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content mod-pill-card">
+      <form method="POST" action="{{ url_for('settings.admin_events_settings') }}">
+        <input type="hidden" name="action" value="edit_field">
+        <input type="hidden" name="field_id" id="edit_field_id">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold" id="editFieldModalLabel"><i class="bi bi-pencil me-1"></i> Feld bearbeiten</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Feldname / Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" id="edit_field_label" class="form-control mod-pill-input" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Feldtyp</label>
+            <select name="field_type" id="edit_field_type" class="form-select mod-pill-input" onchange="toggleOptionsVisibility('edit')">
+              <option value="text">Kurztext (einzeilig)</option>
+              <option value="textarea">Langtext (mehrzeilig)</option>
+              <option value="number">Zahl / Nummer (#)</option>
+              <option value="checkbox">Checkbox (Ja/Nein)</option>
+              <option value="person">Personenzuordnung (Portal-User)</option>
+              <option value="date">Datum (Kalender)</option>
+              <option value="time">Uhrzeit</option>
+              <option value="select">Dropdown / Auswahl</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Platzhalter</label>
+            <input type="text" name="placeholder" id="edit_field_placeholder" class="form-control mod-pill-input">
+          </div>
+          <div class="mb-3 d-none" id="edit_options_group">
+            <label class="form-label fw-semibold small">Dropdown-Optionen (eine pro Zeile)</label>
+            <textarea name="options" id="edit_field_options" class="form-control mod-pill-input" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn mod-pill-btn--accent">Änderungen speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleOptionsVisibility(prefix) {
+  const typeSelect = document.getElementById(prefix + '_field_type');
+  const group = document.getElementById(prefix + '_options_group');
+  if (typeSelect && group) {
+    if (typeSelect.value === 'select') {
+      group.classList.remove('d-none');
+    } else {
+      group.classList.add('d-none');
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.edit-field-trigger').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('edit_field_id').value = this.dataset.fieldId;
+      document.getElementById('edit_field_label').value = this.dataset.fieldLabel;
+      document.getElementById('edit_field_type').value = this.dataset.fieldType;
+      document.getElementById('edit_field_placeholder').value = this.dataset.fieldPlaceholder;
+      document.getElementById('edit_field_options').value = this.dataset.fieldOptions;
+      toggleOptionsVisibility('edit');
+    });
+  });
+});
+</script>
+{% endblock %}

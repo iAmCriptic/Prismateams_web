@@ -11,6 +11,7 @@ from app.models.booking_personal import (
 )
 from app.utils.booking_personal_presets import infer_category
 from . import booking_personal_bp
+from .mail import get_available_placeholders, render_template_string
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'zip', 'doc', 'docx'}
@@ -61,6 +62,10 @@ def public_form(token):
 
     submitted = request.args.get('submitted') == '1'
 
+    placeholders = get_available_placeholders(event, entry)
+    raw_intro = event.form_intro_text_en if lang == 'en' else event.form_intro_text
+    form_intro = render_template_string(raw_intro or '', placeholders)
+
     return render_template(
         'booking_personal/public_form.html',
         event=event,
@@ -71,6 +76,7 @@ def public_form(token):
         custom_data=custom_data,
         submitted=submitted,
         lang=lang,
+        form_intro=form_intro,
     )
 
 
@@ -175,6 +181,10 @@ def public_overview(token):
         cat = f.category or infer_category(f.field_key)
         fields_by_category.setdefault(cat, []).append(f)
 
+    placeholders = get_available_placeholders(event, entry)
+    raw_intro = event.overview_intro_text_en if lang == 'en' else event.overview_intro_text
+    overview_intro = render_template_string(raw_intro or '', placeholders)
+
     return render_template(
         'booking_personal/public_overview.html',
         event=event,
@@ -185,6 +195,7 @@ def public_overview(token):
         status_en_map=STATUS_EN_MAP,
         custom_data=custom_data,
         lang=lang,
+        overview_intro=overview_intro,
     )
 
 
@@ -219,6 +230,10 @@ def public_apply(token):
 
     submitted = request.args.get('submitted') == '1'
 
+    placeholders = {'event_name': event.name or 'Veranstaltung'}
+    raw_intro = event.apply_intro_text_en if lang == 'en' else event.apply_intro_text
+    apply_intro = render_template_string(raw_intro or '', placeholders)
+
     return render_template(
         'booking_personal/public_apply.html',
         event=event,
@@ -227,6 +242,7 @@ def public_apply(token):
         category_en_map=CATEGORY_EN_MAP,
         submitted=submitted,
         lang=lang,
+        apply_intro=apply_intro,
     )
 
 

@@ -1,0 +1,843 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen: {{ current_event.name }} - Booking{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="bpSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="bpSearchInput"
+               class="mod-search-input"
+               placeholder="In Booking suchen..."
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search"
+               onkeydown="if(event.key==='Enter'){ window.location.href='{{ url_for('booking_personal.index', event_id=current_event.id) }}?q=' + encodeURIComponent(this.value); }">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen" onclick="document.getElementById('bpSearchInput').value='';">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mod-shell--nav booking-personal-shell">
+    <!-- Linke Seitenleiste -->
+    <aside class="mod-sidebar d-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+            <span>Booking</span>
+        </div>
+
+        <!-- Neuer Event Button -->
+        <div class="mod-sidebar-new-wrap w-100">
+            <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal"
+                data-bs-target="#bpNewEventModal">
+                <i class="bi bi-plus-lg me-2 text-primary"></i> NEU
+            </button>
+        </div>
+
+        <div class="text-uppercase small fw-bold text-muted px-2 mb-2"
+            style="font-size: 0.75rem; letter-spacing: 0.04em;">
+            Veranstaltungen
+        </div>
+
+        <!-- Liste aller aktiven Veranstaltungen -->
+        <nav class="mod-sidebar-nav nav flex-column gap-1 flex-grow-1 overflow-y-auto">
+            {% for ev in events %}
+            <a class="nav-link mod-nav-link rounded-pill d-flex align-items-center justify-content-between {% if current_event and current_event.id == ev.id %}active{% endif %}"
+                href="{{ url_for('booking_personal.index', event_id=ev.id) }}">
+                <span class="d-flex align-items-center text-truncate">
+                    <i class="bi bi-calendar2-event me-2 flex-shrink-0 text-primary"></i>
+                    <span class="text-truncate">{{ ev.name }}</span>
+                </span>
+                {% if ev.entries %}
+                <span class="badge rounded-pill bg-light text-body border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </nav>
+
+        <!-- Sidebar Footer mit Vorlagenverwaltung -->
+        <div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
+            <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
+                <i class="bi bi-layout-three-columns text-primary" aria-hidden="true"></i>
+                <span>Vorlagen verwalten</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Hauptbereich: Dedizierte Einstellungsseite -->
+    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpSettingsContainer">
+        <!-- Mod-Back-Row: Portalstandard Zurück-Link -->
+        <div class="mod-back-row mb-3">
+            <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="mod-back-link">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>Zurück</span>
+            </a>
+        </div>
+
+        <!-- Page Header im Portalstandard (Darstellung anpassen Stil) -->
+        <header class="sp-page-header mb-4">
+            <h1 class="sp-page-title d-flex align-items-center gap-2">
+                <i class="bi bi-gear text-primary" aria-hidden="true"></i>
+                <span>Einstellungen: {{ current_event.name }}</span>
+            </h1>
+            <p class="sp-page-lead text-muted">Spalten-Manager, E-Mail-Vorlagen, Künstler-Formular und Optionen für diese Veranstaltung.</p>
+        </header>
+
+        <!-- Pill-Tabs Navigationsleiste im Portalstandard (.sp-seg) -->
+        <div class="sp-seg bp-pill-tabs mb-4" id="bpSettingsTabs" role="tablist">
+            <button type="button" class="{% if active_tab == 'columns' or not active_tab %}active{% endif %}"
+                    id="tab-btn-columns" data-bs-toggle="pill" data-bs-target="#tabColumns" role="tab">
+                <i class="bi bi-layout-three-columns me-1.5 text-primary"></i>Spalten-Manager
+            </button>
+            <button type="button" class="{% if active_tab == 'emails' %}active{% endif %}"
+                    id="tab-btn-emails" data-bs-toggle="pill" data-bs-target="#tabEmails" role="tab">
+                <i class="bi bi-envelope me-1.5 text-primary"></i>E-Mail & Postfach
+            </button>
+            <button type="button" class="{% if active_tab in ('design', 'tabPublicDesign') %}active{% endif %}"
+                    id="tab-btn-design" data-bs-toggle="pill" data-bs-target="#tabPublicDesign" role="tab">
+                <i class="bi bi-image me-1.5 text-primary"></i>Formular-Texte & Bild
+            </button>
+            <button type="button" class="{% if active_tab == 'general' %}active{% endif %}"
+                    id="tab-btn-general" data-bs-toggle="pill" data-bs-target="#tabEventGeneral" role="tab">
+                <i class="bi bi-sliders me-1.5 text-primary"></i>Allgemein & Löschen
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content pb-5">
+            <!-- ========================================== -->
+            <!-- TAB 1: SPALTEN-MANAGER                     -->
+            <!-- ========================================== -->
+            <div class="tab-pane fade {% if active_tab == 'columns' or not active_tab %}show active{% endif %}" id="tabColumns" role="tabpanel">
+                <div class="card border mb-3 overflow-hidden">
+                    <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-layout-three-columns text-primary fs-5"></i>
+                            <div>
+                                <h5 class="fw-bold mb-0 text-body">Spalten-Konfiguration für diese Veranstaltung</h5>
+                                <div class="text-muted small">Felder anlegen, anordnen und Sichtbarkeit im Künstler-Formular oder in der Zusage-Übersicht festlegen.</div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" id="bpSaveAsTemplateBtn"
+                                data-event-id="{{ current_event.id }}">
+                                <i class="bi bi-bookmark-plus me-1.5 text-primary"></i>Als Template speichern
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn" onclick="openColumnModal('add')">
+                                <i class="bi bi-plus-lg me-1.5 text-primary"></i>Neue Spalte hinzufügen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="bpSettingsColumnsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 70px;" class="text-center">Pos</th>
+                                        <th>Spaltenname (DE / EN)</th>
+                                        <th style="min-width: 140px;">Kategorie</th>
+                                        <th>Feld-Typ</th>
+                                        <th class="text-center" style="width: 140px;">Extern (Formular)</th>
+                                        <th class="text-center" style="width: 160px;">In Zusage-Übersicht</th>
+                                        <th style="width: 110px;" class="text-end pe-4">Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bpColumnsListBody">
+                                    {% for f in fields %}
+                                    <tr data-field-id="{{ f.id }}" data-field-order="{{ f.field_order }}">
+                                        <td class="text-center">
+                                            <div class="d-inline-flex flex-column align-items-center justify-content-center bg-body-secondary rounded-pill p-1 border">
+                                                <button type="button" class="btn btn-link btn-xs text-muted p-0 lh-1"
+                                                    onclick="moveColumnOrder({{ f.id }}, -1)" title="Nach oben">
+                                                    <i class="bi bi-chevron-up"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-link btn-xs text-muted p-0 lh-1"
+                                                    onclick="moveColumnOrder({{ f.id }}, 1)" title="Nach unten">
+                                                    <i class="bi bi-chevron-down"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold text-body">{{ f.label }}</div>
+                                            {% if f.label_en %}
+                                            <div class="text-muted small">({{ f.label_en }})</div>
+                                            {% endif %}
+                                            {% if f.field_key %}
+                                            <div class="text-muted small font-monospace" style="font-size: 0.72rem;">key: {{ f.field_key }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-body-secondary text-secondary border px-2.5 py-1">
+                                                <i class="bi bi-tag text-primary me-1"></i>{{ f.category or 'Allgemein' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">{{ f.field_type }}</span>
+                                            {% if f.field_type in ('badge_select', 'multi_select') and f.options_json %}
+                                            <span class="text-muted small ms-1">({{ f.get_options()|length }} Optionen)</span>
+                                            {% elif f.field_type == 'formula' %}
+                                            <div class="text-muted small font-monospace">{{ f.formula_definition }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox" {% if f.is_external %}checked{% endif %}
+                                                    onchange="toggleFieldProperty({{ f.id }}, 'is_external', this.checked)">
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox" {% if f.visible_in_overview %}checked{% endif %}
+                                                    onchange="toggleFieldProperty({{ f.id }}, 'visible_in_overview', this.checked)">
+                                            </div>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <!-- Aktionen: sauber horizontal nebeneinander im neutralen Pill-Format -->
+                                            <div class="d-inline-flex align-items-center justify-content-end gap-1.5 text-nowrap">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn px-2.5 py-1 shadow-none d-inline-flex align-items-center"
+                                                    onclick="openColumnModal('edit', {{ f.to_dict()|tojson }})"
+                                                    title="Spalte bearbeiten">
+                                                    <i class="bi bi-pencil text-primary"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn px-2.5 py-1 shadow-none d-inline-flex align-items-center"
+                                                    onclick="deleteColumnField({{ f.id }}, '{{ f.label }}')"
+                                                    title="Spalte löschen">
+                                                    <i class="bi bi-trash text-primary"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: E-MAIL & POSTFACH                   -->
+            <!-- ========================================== -->
+            <div class="tab-pane fade {% if active_tab == 'emails' %}show active{% endif %}" id="tabEmails" role="tabpanel">
+                <form action="{{ url_for('booking_personal.update_event_settings', event_id=current_event.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="active_tab" value="emails">
+
+                    <!-- Postfach-Auswahl -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-mailbox2 text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-body">Verknüpftes E-Mail-Postfach</h5>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div>
+                                    <div class="fw-semibold text-body">Absender-Postfach</div>
+                                    <div class="text-muted small">Über dieses Postfach werden Zusagen, Absagen und Fragebogen-Einladungen versendet.</div>
+                                </div>
+                                <div style="min-width: 16rem; max-width: 22rem;">
+                                    <select name="mailbox_id" class="form-select mod-pill-input">
+                                        <option value="">Standard-Portalabsender (System)</option>
+                                        {% for mb in mailboxes %}
+                                        <option value="{{ mb.id }}" {% if current_event.mailbox_id == mb.id %}selected{% endif %}>
+                                            {{ mb.display_name }} ({{ mb.name }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platzhalter-Leiste (Pill-Chips) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-code-square text-primary fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-body">Verfügbare Platzhalter für E-Mails</h5>
+                            </div>
+                            <span class="badge rounded-pill bg-body-secondary text-secondary border small">
+                                <i class="bi bi-cursor-fill me-1 text-primary"></i>Klick fügt Platzhalter an Cursor-Position ein
+                            </span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="d-flex flex-wrap gap-1.5 bp-placeholder-chips-bar">
+                                {% raw %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ event_name }}')" title="Name der Veranstaltung"><i class="bi bi-calendar2-event me-1 text-primary"></i>{{ event_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ act_name }}')" title="Name des Acts / Künstlers"><i class="bi bi-music-note me-1 text-primary"></i>{{ act_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ contact_name }}')" title="Name der Ansprechperson"><i class="bi bi-person me-1 text-primary"></i>{{ contact_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ gage }}')" title="Vereinbarte Gage"><i class="bi bi-cash me-1 text-primary"></i>{{ gage }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ area }}')" title="Bereich / Bühne"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ area }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ form_link }}')" title="Persönlicher Link zum Online-Fragebogen"><i class="bi bi-link-45deg me-1 text-primary"></i>{{ form_link }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ overview_link }}')" title="Persönlicher Link zur schreibgeschützten Zusage-Übersicht"><i class="bi bi-eye me-1 text-primary"></i>{{ overview_link }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ email }}')" title="E-Mail-Adresse"><i class="bi bi-envelope me-1 text-primary"></i>{{ email }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ phone }}')" title="Telefonnummer"><i class="bi bi-telephone me-1 text-primary"></i>{{ phone }}</button>
+                                {% endraw %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1. ZUSAGE-VORLAGE (DE & EN) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-check2-circle text-primary fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-body">1. Vorlage für Zusage (Confirmation)</h5>
+                            </div>
+                            <!-- Sprachauswahl Pills -->
+                            <div class="sp-seg" role="tablist">
+                                <button type="button" class="active" data-bs-toggle="pill" data-bs-target="#emailAcceptDe" role="tab">
+                                    🇩🇪 Deutsch
+                                </button>
+                                <button type="button" data-bs-toggle="pill" data-bs-target="#emailAcceptEn" role="tab">
+                                    🇬🇧 English
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-3">
+                            <div class="tab-content">
+                                <!-- Deutsch -->
+                                <div class="tab-pane fade show active" id="emailAcceptDe" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Betreff (Deutsch)</label>
+                                        <input type="text" name="accept_template_subject" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_accept_template_subject('de') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Nachrichtentext (Deutsch)</label>
+                                        <textarea name="accept_template_body" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="6">{{ current_event.get_accept_template_body('de') }}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Englisch -->
+                                <div class="tab-pane fade" id="emailAcceptEn" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Subject (English)</label>
+                                        <input type="text" name="accept_template_subject_en" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_accept_template_subject('en') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Message Body (English)</label>
+                                        <textarea name="accept_template_body_en" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="6">{{ current_event.get_accept_template_body('en') }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. ABSAGE-VORLAGE (DE & EN) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-x-circle text-primary fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-body">2. Vorlage für Absage (Decline)</h5>
+                            </div>
+                            <!-- Sprachauswahl Pills -->
+                            <div class="sp-seg" role="tablist">
+                                <button type="button" class="active" data-bs-toggle="pill" data-bs-target="#emailRejectDe" role="tab">
+                                    🇩🇪 Deutsch
+                                </button>
+                                <button type="button" data-bs-toggle="pill" data-bs-target="#emailRejectEn" role="tab">
+                                    🇬🇧 English
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-3">
+                            <div class="tab-content">
+                                <!-- Deutsch -->
+                                <div class="tab-pane fade show active" id="emailRejectDe" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Betreff (Deutsch)</label>
+                                        <input type="text" name="reject_template_subject" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_reject_template_subject('de') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Nachrichtentext (Deutsch)</label>
+                                        <textarea name="reject_template_body" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="5">{{ current_event.get_reject_template_body('de') }}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Englisch -->
+                                <div class="tab-pane fade" id="emailRejectEn" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Subject (English)</label>
+                                        <input type="text" name="reject_template_subject_en" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_reject_template_subject('en') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Message Body (English)</label>
+                                        <textarea name="reject_template_body_en" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="5">{{ current_event.get_reject_template_body('en') }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. EINLADUNGS- / FRAGEBOGEN-VORLAGE (DE & EN) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-send text-primary fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-body">3. Vorlage für Künstler-Fragebogen (Einladung)</h5>
+                            </div>
+                            <!-- Sprachauswahl Pills -->
+                            <div class="sp-seg" role="tablist">
+                                <button type="button" class="active" data-bs-toggle="pill" data-bs-target="#emailInviteDe" role="tab">
+                                    🇩🇪 Deutsch
+                                </button>
+                                <button type="button" data-bs-toggle="pill" data-bs-target="#emailInviteEn" role="tab">
+                                    🇬🇧 English
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-3">
+                            <div class="tab-content">
+                                <!-- Deutsch -->
+                                <div class="tab-pane fade show active" id="emailInviteDe" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Betreff (Deutsch)</label>
+                                        <input type="text" name="invite_template_subject" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_invite_template_subject('de') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Nachrichtentext (Deutsch)</label>
+                                        <textarea name="invite_template_body" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="5">{{ current_event.get_invite_template_body('de') }}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Englisch -->
+                                <div class="tab-pane fade" id="emailInviteEn" role="tabpanel">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Subject (English)</label>
+                                        <input type="text" name="invite_template_subject_en" class="form-control rounded-pill px-3.5 py-2 bp-track-focus"
+                                            value="{{ current_event.get_invite_template_subject('en') }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Message Body (English)</label>
+                                        <textarea name="invite_template_body_en" class="form-control rounded-3 font-monospace p-3 bp-track-focus" rows="5">{{ current_event.get_invite_template_body('en') }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-2">
+                            <i class="bi bi-check-lg me-1.5 text-primary"></i>E-Mail-Einstellungen speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: FORMULAR-TEXTE & BILD               -->
+            <!-- ========================================== -->
+            <div class="tab-pane fade {% if active_tab in ('design', 'tabPublicDesign') %}show active{% endif %}" id="tabPublicDesign" role="tabpanel">
+                <form action="{{ url_for('booking_personal.update_event_design', event_id=current_event.id) }}"
+                      method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- Banner / Header-Bild -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-image text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-body">Veranstaltungs-Bild / Logo für öffentliche Seiten</h5>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-muted small mb-3">
+                                Dieses Bild wird oben in den öffentlichen Formularen (Bewerbungsformular, Künstler-Fragebogen, Zusage-Übersicht) angezeigt.
+                            </p>
+
+                            {% if current_event.header_image_path %}
+                            <div class="mb-3 d-flex align-items-center gap-3">
+                                <img src="{{ current_event.header_image_path }}" alt="Banner" class="rounded-3 border shadow-sm" style="max-height: 80px; max-width: 200px; object-fit: contain; background: #fff; padding: 4px;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="delete_header_image" value="1" id="delHdrImg">
+                                    <label class="form-check-label text-danger small fw-semibold" for="delHdrImg">
+                                        Bild entfernen (wieder Standard-Icon nutzen)
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-semibold">Neues Bild auswählen (PNG, JPG, WEBP)</label>
+                                    <input type="file" name="header_image" class="form-control mod-pill-input" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platzhalter-Leiste für Formular-Texte -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-magic text-primary fs-5"></i>
+                                <h5 class="fw-bold mb-0 text-body">Platzhalter zur Personalisierung von Formularen</h5>
+                            </div>
+                            <span class="badge rounded-pill bg-body-secondary text-secondary border small">
+                                <i class="bi bi-person-check me-1 text-primary"></i>Werden im Formular dynamisch für den Act eingesetzt
+                            </span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="d-flex flex-wrap gap-1.5 bp-placeholder-chips-bar">
+                                {% raw %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ event_name }}')" title="Name der Veranstaltung"><i class="bi bi-calendar2-event me-1 text-primary"></i>{{ event_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ act_name }}')" title="Name des Acts / Künstlers"><i class="bi bi-music-note me-1 text-primary"></i>{{ act_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ contact_name }}')" title="Name der Kontaktperson"><i class="bi bi-person me-1 text-primary"></i>{{ contact_name }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ gage }}')" title="Vereinbarte Gage"><i class="bi bi-cash me-1 text-primary"></i>{{ gage }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn bp-neutral-btn bp-placeholder-btn" onclick="insertSettingsPlaceholder('{{ area }}')" title="Bereich / Stage"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ area }}</button>
+                                {% endraw %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1. Bewerbungsformular (Apply) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-pencil-square text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-body">1. Öffentliches Bewerbungsformular (Apply)</h5>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-muted small mb-3">Dieser Text wird oben im offenen Bewerbungsformular für interessierte Künstler angezeigt.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Einleitungstext (Deutsch)</label>
+                                    <textarea name="apply_intro_text" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Bewirb dich jetzt für einen Auftritt bei {{ current_event.name }}...">{{ current_event.apply_intro_text or '' }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Einleitungstext (Englisch)</label>
+                                    <textarea name="apply_intro_text_en" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Apply now to perform at {{ current_event.name }}...">{{ current_event.apply_intro_text_en or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Künstler-Fragebogen (Form) -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-card-checklist text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-body">2. Externer Künstler-Fragebogen (Hospitality & Daten)</h5>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-muted small mb-3">Begrüßungstext für den Fragebogen, den Künstler nach Bestätigung oder Anfrage ausfüllen.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Einleitungstext (Deutsch)</label>
+                                    <textarea name="form_intro_text" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Hallo {{ '{{ contact_name }}' }}, bitte vervollständige die nachfolgenden Angaben für Hospitality, Technik...">{{ current_event.form_intro_text or '' }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Einleitungstext (Englisch)</label>
+                                    <textarea name="form_intro_text_en" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Hello {{ '{{ contact_name }}' }}, please provide your details for hospitality, rider, and travel...">{{ current_event.form_intro_text_en or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Schreibgeschützte Zusage-Übersicht -->
+                    <div class="card border mb-3 overflow-hidden">
+                        <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-check text-primary fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-body">3. Schreibgeschützte Zusage-Übersicht (Confirmation Overview)</h5>
+                        </div>
+                        <div class="card-body p-3">
+                            <p class="text-muted small mb-3">Hinweistext ganz oben auf der finalen Bestätigungsseite für den Künstler.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Hinweistext (Deutsch)</label>
+                                    <textarea name="overview_intro_text" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Hallo {{ '{{ act_name }}' }}, dies ist deine offizielle Auftritts- und Buchungsübersicht für {{ current_event.name }}...">{{ current_event.overview_intro_text or '' }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Hinweistext (Englisch)</label>
+                                    <textarea name="overview_intro_text_en" class="form-control rounded-3 p-3 bp-track-focus" rows="3" placeholder="Hello {{ '{{ act_name }}' }}, this is your official artist and booking summary for {{ current_event.name }}...">{{ current_event.overview_intro_text_en or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-2">
+                            <i class="bi bi-check-lg me-1.5 text-primary"></i>Texte & Bild speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 4: ALLGEMEIN & LÖSCHEN                 -->
+            <!-- ========================================== -->
+            <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" id="tabEventGeneral" role="tabpanel">
+                <div class="card border mb-3 overflow-hidden">
+                    <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-sliders text-primary fs-5"></i>
+                        <h5 class="fw-bold mb-0 text-body">Allgemeine Veranstaltungs-Einstellungen</h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <form action="{{ url_for('booking_personal.update_event_settings', event_id=current_event.id) }}" method="POST" class="mb-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="active_tab" value="general">
+                            <div class="row mb-3">
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-semibold">Veranstaltungsname</label>
+                                    <input type="text" name="event_name" class="form-control mod-pill-input"
+                                        value="{{ current_event.name }}" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4 py-1.5">
+                                <i class="bi bi-check-lg me-1.5 text-primary"></i>Name speichern
+                            </button>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="p-3 bg-body-tertiary rounded-3 border">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="bi bi-link-45deg text-primary fs-5"></i>
+                                        <div class="fw-semibold">Öffentlicher Bewerbungs-Link</div>
+                                    </div>
+                                    <p class="text-muted small mb-2">Künstler können sich über diesen Link selbstständig bewerben:</p>
+                                    {% set apply_url = url_for('booking_personal.public_apply', token=current_event.get_apply_token(), _external=True) %}
+                                    <div class="input-group">
+                                        <input type="text" class="form-control form-control-sm rounded-start-pill bg-body" value="{{ apply_url }}" readonly>
+                                        <button class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn btn-sm rounded-end-pill px-3" type="button" onclick="copyToClipboard('{{ apply_url }}')">
+                                            <i class="bi bi-clipboard text-primary"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 bg-body-tertiary rounded-3 border">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="bi bi-calendar2-range text-primary fs-5"></i>
+                                        <div class="fw-semibold">Verknüpfte Termine (Events)</div>
+                                    </div>
+                                    <p class="text-muted small mb-2">Automatische Synchronisation mit dem Kalender / Termine-Modul:</p>
+                                    <div class="text-muted small">Aktuell direkt mit dieser Veranstaltung gekoppelt.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="card border mb-3 overflow-hidden">
+                    <div class="card-header bg-transparent border-bottom py-2.5 px-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle text-primary fs-5"></i>
+                        <h5 class="fw-bold mb-0 text-body">Gefahrenzone: Veranstaltung löschen</h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <p class="small text-muted mb-3">
+                            Beim Löschen dieser Veranstaltung werden alle hinterlegten Acts, Antworten, Spalten und Berechnungen unwiderruflich entfernt.
+                        </p>
+                        <div>
+                            <button type="button" class="btn btn-outline-danger mod-pill-btn px-4 py-2"
+                                onclick="confirmDeleteCurrentEvent('{{ current_event.name }}')">
+                                <i class="bi bi-trash me-1.5"></i>Veranstaltung „{{ current_event.name }}“ löschen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal: Spalte Hinzufügen / Bearbeiten (Pill Style, ohne Breite) -->
+<div class="modal fade" id="bpColumnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-3 border shadow-lg">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="bpColumnModalTitle">Spalte hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Schnell-Vorschläge für neue Spalten -->
+                <div class="p-3 mb-3 bg-body-tertiary rounded-3 border">
+                    <label class="form-label small fw-semibold text-muted text-uppercase mb-2" style="font-size: 0.75rem;">Schnellauswahl aus Vorlagen</label>
+                    <div class="d-flex flex-wrap gap-1.5">
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('gage')"><i class="bi bi-cash text-primary"></i>Gage (€)</button>
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-primary"></i>Techrider</button>
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('promo_images')"><i class="bi bi-images text-primary"></i>Promo-Bilder</button>
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('pronoun')"><i class="bi bi-person-badge text-primary"></i>Pronomen</button>
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('drinks')"><i class="bi bi-cup-straw text-primary"></i>Getränke</button>
+                        <button type="button" class="bp-preset-chip" onclick="applyColPreset('guestlist')"><i class="bi bi-people text-primary"></i>Gästeliste</button>
+                    </div>
+                </div>
+
+                <form id="bpColumnForm">
+                    <input type="hidden" id="bpColFieldId" value="">
+                    <input type="hidden" id="bpColMode" value="add">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Spaltenname (Deutsch) <span class="text-danger">*</span></label>
+                            <input type="text" id="bpColLabel" class="form-control rounded-pill px-3 py-2" placeholder="z. B. Hotelzimmer" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Englischer Name (für Zusage-Übersicht)</label>
+                            <input type="text" id="bpColLabelEn" class="form-control rounded-pill px-3 py-2" placeholder="z. B. Hotel Room">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Feld-Typ</label>
+                            <select id="bpColType" class="form-select rounded-pill px-3 py-2">
+                                <option value="text">Text (Einzeilig)</option>
+                                <option value="textarea">Text (Mehrzeilig)</option>
+                                <option value="currency">Zahl / Währung (€)</option>
+                                <option value="counter">Zahl / Counter (z. B. Tickets, Nächte)</option>
+                                <option value="badge_select">Dropdown / Status-Badges (Single Choice)</option>
+                                <option value="multi_select">Multiple Choice / Badges (Mehrfachauswahl)</option>
+                                <option value="image_upload">Bilder-Upload (Promo-Fotos)</option>
+                                <option value="file_upload">Datei-Upload (z. B. Techrider-PDFs)</option>
+                                <option value="formula">Berechnetes Feld (Formel)</option>
+                                <option value="form_link">Formular-Link (Generiert)</option>
+                                <option value="action_accept">Aktion: Zusage / Absage senden</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Kategorie / Bereich</label>
+                            <input type="text" id="bpColCategory" class="form-control rounded-pill px-3 py-2" list="bpColCatPresets" placeholder="z. B. Finanzen, Hospitality..." value="Allgemein">
+                            <datalist id="bpColCatPresets">
+                                <option value="Stammdaten & Status">
+                                <option value="Finanzen">
+                                <option value="Hospitality & Logistik">
+                                <option value="Presse & Technik">
+                                <option value="Aktionen & Links">
+                            </datalist>
+                        </div>
+
+                        <!-- Optionen für Dropdown / Badge-Select -->
+                        <div class="col-12" id="bpColOptionsGroup" style="display: none;">
+                            <label class="form-label small fw-semibold">Dropdown-Optionen (Werte & Farben)</label>
+                            <div class="border rounded-3 p-3 bg-body-tertiary">
+                                <div id="bpColOptionsList" class="d-flex flex-column gap-2 mb-2"></div>
+                                <button type="button" class="btn btn-xs btn-outline-secondary mod-pill-btn bp-neutral-btn px-3 py-1" onclick="addBadgeOptionRow()">
+                                    <i class="bi bi-plus-lg me-1 text-primary"></i>Option hinzufügen
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Formel-Definition -->
+                        <div class="col-12" id="bpColFormulaGroup" style="display: none;">
+                            <label class="form-label small fw-semibold">Formel-Berechnung</label>
+                            <input type="text" id="bpColFormula" class="form-control rounded-pill px-3 py-2 font-monospace" placeholder="z. B. gage + booking_fee + travel + unterkunft">
+                            <div class="form-text small">Summiert Werte anhand der Spalten-Keys.</div>
+                        </div>
+
+                        <!-- Schalter für Sichtbarkeit / Formular -->
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3 bg-body-tertiary">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="bpColIsExternal">
+                                    <label class="form-check-label fw-semibold small" for="bpColIsExternal">
+                                        Extern im Künstler-Formular abfragen
+                                    </label>
+                                    <div class="text-muted small">Wird dem Act im Online-Fragebogen zum Ausfüllen angezeigt.</div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="bpColVisibleOverview" checked>
+                                    <label class="form-check-label fw-semibold small" for="bpColVisibleOverview">
+                                        In schreibgeschützter Zusage-Übersicht für Künstler sichtbar
+                                    </label>
+                                    <div class="text-muted small">Erscheint in der zweisprachigen Zusage-Zusammenfassung nach Bestätigung.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn bp-neutral-btn px-4" id="bpSaveColumnBtn">
+                    <i class="bi bi-check-lg text-primary me-1"></i>Spalte speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Platzhalter an Cursor-Position im zuletzt fokussierten Textfeld einfügen
+let lastActiveSettingsInput = null;
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Fokus-Tracker für alle Eingabefelder auf der Einstellungsseite
+    document.querySelectorAll('.bp-track-focus').forEach(function (el) {
+        el.addEventListener('focus', function () {
+            lastActiveSettingsInput = this;
+        });
+    });
+});
+
+window.insertSettingsPlaceholder = function (ph) {
+    if (lastActiveSettingsInput && (lastActiveSettingsInput.tagName === 'TEXTAREA' || lastActiveSettingsInput.tagName === 'INPUT')) {
+        const start = lastActiveSettingsInput.selectionStart || 0;
+        const end = lastActiveSettingsInput.selectionEnd || 0;
+        const val = lastActiveSettingsInput.value;
+        lastActiveSettingsInput.value = val.substring(0, start) + ph + val.substring(end);
+        lastActiveSettingsInput.selectionStart = lastActiveSettingsInput.selectionEnd = start + ph.length;
+        lastActiveSettingsInput.focus();
+        if (typeof showToast === 'function') {
+            showToast('Platzhalter ' + ph + ' eingefügt!', 'info');
+        }
+    } else {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(ph).then(function () {
+                if (typeof showToast === 'function') {
+                    showToast('Platzhalter ' + ph + ' in die Zwischenablage kopiert!', 'info');
+                }
+            });
+        }
+    }
+};
+
+window.confirmDeleteCurrentEvent = function (eventName) {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal({
+            title: 'Veranstaltung löschen',
+            message: 'Möchtest du die Veranstaltung <strong>„' + eventName + '“</strong> wirklich unwiderruflich löschen? Alle hinterlegten Acts, Antworten und Daten werden entfernt.',
+            confirmText: 'Unwiderruflich löschen',
+            confirmClass: 'btn-danger',
+            onConfirm: function () {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("booking_personal.delete_event", event_id=current_event.id) }}';
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = '{{ csrf_token() }}';
+                form.appendChild(csrfInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    } else {
+        if (confirm('Veranstaltung „' + eventName + '“ wirklich löschen?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("booking_personal.delete_event", event_id=current_event.id) }}';
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+};
+</script>
+<script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
+{% endblock %}
