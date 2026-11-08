@@ -445,7 +445,7 @@ def edit_onlyoffice(file_id):
             flash('Sie haben keine Bearbeitungsrechte für diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
-    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+    elif not can_view_file(file, current_user) and not current_user.is_admin:
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -464,7 +464,8 @@ def edit_onlyoffice(file_id):
     from app.utils.file_occupancy import webdav_occupancy_for_file
 
     dav_block = webdav_occupancy_for_file(file.id)
-    editor_mode = 'view' if dav_block else 'edit'
+    user_can_edit = bool(current_user.is_admin or can_edit_file(file, current_user))
+    editor_mode = 'edit' if (user_can_edit and not dav_block) else 'view'
     if dav_block:
         flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     

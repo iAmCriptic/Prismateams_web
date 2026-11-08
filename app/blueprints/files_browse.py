@@ -21,6 +21,8 @@ from app.utils.private_files import (
     parse_team_id,
     user_file_teams,
     user_may_use_file_team,
+    _folder_is_team_space,
+    _folder_team_id,
 )
 
 
@@ -57,8 +59,8 @@ def register_browse_routes(files_bp):
         if not is_guest and not request.args.get('view') and folder_id:
             target = Folder.query.get(folder_id)
             if target and target.deleted_at is None:
-                if team_enabled and ((getattr(target, 'space', None) or '') == 'team' or getattr(target, 'is_team_root', False)):
-                    tid = getattr(target, 'team_id', None)
+                if team_enabled and _folder_is_team_space(target):
+                    tid = _folder_team_id(target)
                     if tid:
                         return redirect(url_for('files.browse_folder', folder_id=folder_id, view='team', team_id=tid))
                 if private_enabled and files_view == 'ablage':
