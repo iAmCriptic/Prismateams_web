@@ -6995,7 +6995,12 @@
       "links": "Links",
       "files": "Dateien",
       "added_suffix": "hinzugefügt",
-      "activity": "Aktivität"
+      "activity": "Aktivität",
+      "change_due": "Fälligkeitsdatum ändern",
+      "add_due": "Fälligkeitsdatum hinzufügen",
+      "assign_member": "Person zuweisen",
+      "change_assignee": "Zuweisung ändern",
+      "clear_assignee": "Zuweisung entfernen"
     },
     "filter": {
       "keyword": "Stichwort",

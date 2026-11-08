@@ -85,6 +85,37 @@
     return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  function formatChecklistDue(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    if (d.getFullYear() === now.getFullYear()) {
+      try {
+        const monthStr = d.toLocaleDateString('de-DE', { month: 'short' });
+        const cleanMonth = monthStr.endsWith('.') ? monthStr : `${monthStr}.`;
+        return `${d.getDate()}. ${cleanMonth}`;
+      } catch (_) {
+        const months = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
+        return `${d.getDate()}. ${months[d.getMonth()]}`;
+      }
+    }
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  }
+
+  function getChecklistDueState(iso, done) {
+    if (!iso) return null;
+    if (done) return 'done';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const now = new Date();
+    if (d.getTime() < now.getTime()) return 'overdue';
+    const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (diffHours <= 24) return 'soon';
+    return 'future';
+  }
+
   function toDatetimeLocalValue(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -1319,26 +1350,95 @@
         </div>
         <div class="kanban-checklist-progress">
           <span>${pct}%</span>
-          <div class="kanban-checklist-progress__bar"><div style="width:${pct}%"></div></div>
+          <div class="kanban-checklist-progress__bar${pct === 100 ? ' is-complete' : ''}"><div style="width:${pct}%"></div></div>
         </div>
         ${(cl.items || []).map((it) => {
-          const dueLabel = it.due_date ? formatDueDisplay(it.due_date) : '';
+          const dueState = getChecklistDueState(it.due_date, it.done);
+          const dueText = it.due_date ? formatChecklistDue(it.due_date) : '';
+          const dueTitle = it.due_date ? formatDueDisplay(it.due_date) : (i18n.addDue || 'Fälligkeitsdatum hinzufügen');
+
+          let dueHtml = '';
+          if (it.due_date) {
+            dueHtml = `
+              <button type="button" class="kanban-checklist-item__due kanban-checklist-item__due--${dueState}" data-item-due="${it.id}" title="${esc(dueTitle)}" ${canEdit ? '' : 'disabled'}>
+                <i class="bi bi-clock"></i>
+                <span>${esc(dueText)}</span>
+              </button>`;
+          } else if (canEdit) {
+            dueHtml = `
+              <button type="button" class="kanban-checklist-item__icon-btn kanban-checklist-item__icon-btn--due" data-item-due="${it.id}" title="${esc(i18n.addDue || 'Fälligkeitsdatum hinzufügen')}">
+                <i class="bi bi-clock"></i>
+              </button>`;
+          }
+
+          let assigneeHtml = '';
+          if (it.assignee) {
+            const aName = it.assignee.name || '';
+            const aUrl = it.assignee.avatar_url || it.assignee.profile_picture;
+            if (aUrl) {
+              assigneeHtml = `
+                <button type="button" class="kanban-checklist-item__avatar" data-item-assignee="${it.id}" title="${esc(aName)}" ${canEdit ? '' : 'disabled'}>
+                  <img src="${esc(aUrl)}" alt="${esc(aName)}">
+                </button>`;
+            } else {
+              assigneeHtml = `
+                <button type="button" class="kanban-checklist-item__avatar kanban-checklist-item__avatar--initials" data-item-assignee="${it.id}" title="${esc(aName)}" ${canEdit ? '' : 'disabled'}>
+                  <span>${esc(it.assignee.initials || '?')}</span>
+                </button>`;
+            }
+          } else if (canEdit) {
+            assigneeHtml = `
+              <button type="button" class="kanban-checklist-item__icon-btn kanban-checklist-item__icon-btn--assign" data-item-assignee="${it.id}" title="${esc(i18n.assignMember || 'Person zuweisen')}">
+                <i class="bi bi-person-plus"></i>
+              </button>`;
+          }
+
           return `
-          <div class="kanban-checklist-item" data-item-id="${it.id}">
-            <input type="checkbox" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
+          <div class="kanban-checklist-item${it.done ? ' is-done' : ''}" data-item-id="${it.id}">
+            <input type="checkbox" class="form-check-input kanban-checklist-item__check" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
             <div class="kanban-checklist-item__body">
               <span class="kanban-checklist-item__text">${esc(it.text)}</span>
-              <div class="kanban-checklist-item__meta">
-                ${dueLabel ? `<span class="kanban-checklist-item__due"><i class="bi bi-clock"></i> ${esc(dueLabel)}</span>` : ''}
-                ${it.assignee ? avatarHtml(it.assignee) : ''}
-              </div>
             </div>
-            ${canEdit ? `
-            <div class="kanban-checklist-item__actions">
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-due="${it.id}" title="${esc(i18n.due || 'Zeit')}"><i class="bi bi-clock"></i></button>
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-assignee="${it.id}" title="${esc(i18n.members || 'Person')}"><i class="bi bi-person-plus"></i></button>
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-item-del="${it.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>
-            </div>` : ''}
+            <div class="kanban-checklist-item__meta">
+              ${dueHtml}
+              ${assigneeHtml}
+              ${canEdit ? `
+              <div class="dropdown kanban-checklist-item__dropdown">
+                <button type="button" class="kanban-checklist-item__more-btn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="${esc(i18n.more || 'Optionen')}">
+                  <i class="bi bi-three-dots"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-due="${it.id}">
+                      <i class="bi bi-clock me-2"></i>${it.due_date ? esc(i18n.changeDue || 'Fälligkeitsdatum ändern') : esc(i18n.addDue || 'Fälligkeitsdatum hinzufügen')}
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-assignee="${it.id}">
+                      <i class="bi bi-person${it.assignee ? '' : '-plus'} me-2"></i>${it.assignee ? esc(i18n.changeAssignee || 'Zuweisung ändern') : esc(i18n.assignMember || 'Person zuweisen')}
+                    </button>
+                  </li>
+                  ${it.due_date ? `
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-clear-due="${it.id}">
+                      <i class="bi bi-calendar-x me-2"></i>${esc(i18n.clearDue || 'Fälligkeitsdatum entfernen')}
+                    </button>
+                  </li>` : ''}
+                  ${it.assignee ? `
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-clear-assignee="${it.id}">
+                      <i class="bi bi-person-x me-2"></i>${esc(i18n.clearAssignee || 'Zuweisung entfernen')}
+                    </button>
+                  </li>` : ''}
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <button type="button" class="dropdown-item text-danger" data-item-del="${it.id}">
+                      <i class="bi bi-trash me-2"></i>${esc(i18n.delete || 'Löschen')}
+                    </button>
+                  </li>
+                </ul>
+              </div>` : ''}
+            </div>
           </div>`;
         }).join('')}
         ${canEdit ? `<form class="kanban-add-item-form mt-2" data-checklist-id="${cl.id}">
@@ -1353,14 +1453,19 @@
           const r = await api(`/kanban/api/checklist-items/${cb.dataset.itemId}`, {
             method: 'PATCH', body: { done: cb.checked },
           });
-          if (r.card) upsertCardLocal(r.card);
+          if (r.card) {
+            upsertCardLocal(r.card);
+            renderBoard();
+            openCard(cardId);
+          }
         } catch (err) {
           notify(err.message || 'Fehler');
         }
       });
     });
     clRoot.querySelectorAll('[data-item-due]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         const itemId = Number(btn.getAttribute('data-item-due'));
         let item = null;
         (card.checklists || []).forEach((cl) => {
@@ -1373,17 +1478,55 @@
       });
     });
     clRoot.querySelectorAll('[data-item-assignee]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         checklistItemAssigneeTarget = Number(btn.getAttribute('data-item-assignee'));
         renderMembersPicker({ checklistItemId: checklistItemAssigneeTarget, card });
         getModal('kanbanMembersModal')?.show();
       });
     });
+    clRoot.querySelectorAll('[data-item-clear-due]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        try {
+          const itemId = btn.getAttribute('data-item-clear-due');
+          const r = await api(`/kanban/api/checklist-items/${itemId}`, {
+            method: 'PATCH',
+            body: { due_date: null },
+          });
+          if (r.card) upsertCardLocal(r.card);
+          renderBoard();
+          openCard(cardId);
+        } catch (err) {
+          notify(err.message || 'Fehler');
+        }
+      });
+    });
+    clRoot.querySelectorAll('[data-item-clear-assignee]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        try {
+          const itemId = btn.getAttribute('data-item-clear-assignee');
+          const r = await api(`/kanban/api/checklist-items/${itemId}`, {
+            method: 'PATCH',
+            body: { assignee_id: null },
+          });
+          if (r.card) upsertCardLocal(r.card);
+          renderBoard();
+          openCard(cardId);
+        } catch (err) {
+          notify(err.message || 'Fehler');
+        }
+      });
+    });
     clRoot.querySelectorAll('[data-item-del]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
         if (!(await askConfirm(i18n.delete || 'Löschen?'))) return;
         try {
-          await api(`/kanban/api/checklist-items/${btn.getAttribute('data-item-del')}`, { method: 'DELETE' });
+          const r = await api(`/kanban/api/checklist-items/${btn.getAttribute('data-item-del')}`, { method: 'DELETE' });
+          if (r && r.card) upsertCardLocal(r.card);
+          renderBoard();
           openCard(cardId);
         } catch (err) {
           notify(err.message || 'Fehler');

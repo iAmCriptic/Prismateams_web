@@ -372,6 +372,7 @@ def ensure_critical_columns(db) -> None:
                 ("can_access_public", bool_true),
                 ("can_access_private", bool_true),
                 ("has_full_access", bool_false),
+                ("dguv_signature_confirmed_until", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
             ]
             for col_name, ddl in user_column_defs:
                 if col_name not in user_cols:

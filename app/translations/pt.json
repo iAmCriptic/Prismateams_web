@@ -1746,6 +1746,14 @@
       "error_invalid_zip": "Invalid ZIP file",
       "error_empty_zip": "ZIP has no JSON/CSV files",
       "visibility": "Visibilidade"
+    },
+    "card": {
+      "change_due": "Alterar data de vencimento",
+      "add_due": "Adicionar data de vencimento",
+      "clear_due": "Remover data",
+      "assign_member": "Atribuir pessoa",
+      "change_assignee": "Alterar atribuição",
+      "clear_assignee": "Remover atribuição"
     }
   },
   "protocols": {

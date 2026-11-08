@@ -232,3 +232,43 @@ def test_public_custom_design_intro_and_multiselect(client, app):
 
 
 
+
+
+def test_uploaded_file_serving(client, app):
+    import os
+    upload_dir = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), 'booking_personal', 'test_event')
+    os.makedirs(upload_dir, exist_ok=True)
+    test_file = os.path.join(upload_dir, 'sample.jpg')
+    with open(test_file, 'wb') as f:
+        f.write(b'\xff\xd8\xff\xe0\x00\x10JFIF')  # JPEG signature
+
+    res = None
+    res404 = None
+    res_dot = None
+    try:
+        # File should be served with 200
+        res = client.get('/uploads/booking_personal/test_event/sample.jpg')
+        assert res.status_code == 200
+        assert 'image/jpeg' in res.content_type
+
+        # Non-existent file should be 404
+        res404 = client.get('/uploads/booking_personal/test_event/nonexistent.jpg')
+        assert res404.status_code == 404
+
+        # Dotfile / traversal should be 404
+        res_dot = client.get('/uploads/.hidden')
+        assert res_dot.status_code == 404
+    finally:
+        if res is not None:
+            res.close()
+        if res404 is not None:
+            res404.close()
+        if res_dot is not None:
+            res_dot.close()
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(upload_dir):
+            try:
+                os.rmdir(upload_dir)
+            except OSError:
+                pass

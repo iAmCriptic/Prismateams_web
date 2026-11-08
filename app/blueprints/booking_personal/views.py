@@ -269,14 +269,29 @@ def update_event_design(event_id):
     if 'header_image' in request.files:
         file_item = request.files['header_image']
         if file_item and file_item.filename and ('.' in file_item.filename and file_item.filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS):
+            old_rel = event.header_image_path
             upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'booking_personal', str(event.id))
             os.makedirs(upload_dir, exist_ok=True)
             filename = secure_filename(f"header_{event.id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}")
             save_path = os.path.join(upload_dir, filename)
             file_item.save(save_path)
             event.header_image_path = f"/uploads/booking_personal/{event.id}/{filename}"
+            if old_rel and old_rel.startswith('/uploads/'):
+                try:
+                    old_disk = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), old_rel.replace('/uploads/', '', 1).lstrip('/'))
+                    if os.path.isfile(old_disk) and os.path.abspath(old_disk) != os.path.abspath(save_path):
+                        os.remove(old_disk)
+                except Exception:
+                    pass
 
     if request.form.get('delete_header_image') == '1':
+        if event.header_image_path and event.header_image_path.startswith('/uploads/'):
+            try:
+                old_disk = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), event.header_image_path.replace('/uploads/', '', 1).lstrip('/'))
+                if os.path.isfile(old_disk):
+                    os.remove(old_disk)
+            except Exception:
+                pass
         event.header_image_path = None
 
     event.apply_intro_text = (request.form.get('apply_intro_text') or '').strip() or None

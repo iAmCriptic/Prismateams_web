@@ -10,7 +10,7 @@ from flask_login import current_user
 from app.factory._util import asset_version as _asset_version
 
 def register_app_routes(app):
-    """App-level routes (manifest, service worker, robots, sitemap)."""
+    """App-level routes (manifest, service worker, robots, sitemap, uploads)."""
     @app.route('/manifest.json')
     def manifest():
         import json
@@ -146,3 +146,28 @@ def register_app_routes(app):
         response = Response(build_sitemap_xml(), mimetype='application/xml; charset=utf-8')
         response.headers['Cache-Control'] = 'public, max-age=300'
         return response
+
+    @app.route('/uploads/<path:filename>')
+    def serve_uploads(filename):
+        """Serve uploaded media/files (e.g. during development or non-nginx setups)."""
+        import os
+        from urllib.parse import unquote
+        from flask import abort, send_from_directory
+
+        upload_folder = app.config.get('UPLOAD_FOLDER') or 'uploads'
+        if not os.path.isabs(upload_folder):
+            project_root = os.path.dirname(app.root_path)
+            upload_folder = os.path.join(project_root, upload_folder)
+
+        decoded_name = unquote(filename).replace('\\', '/')
+        parts = [p for p in decoded_name.split('/') if p]
+        if any(p.startswith('.') for p in parts):
+            abort(404)
+
+        safe_rel_path = '/'.join(parts)
+        full_path = os.path.abspath(os.path.join(upload_folder, *parts))
+        base_folder = os.path.abspath(upload_folder)
+        if not full_path.startswith(base_folder) or not os.path.isfile(full_path):
+            abort(404)
+
+        return send_from_directory(upload_folder, safe_rel_path)

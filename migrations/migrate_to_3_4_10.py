@@ -16,6 +16,8 @@ def run(db=None, report=None):
     from sqlalchemy import inspect, text
 
     if db is None:
+        os.environ.setdefault("PRISMATEAMS_RUNNING_MIGRATIONS", "1")
+        os.environ.setdefault("PRISMATEAMS_SKIP_BACKGROUND_JOBS", "1")
         from app import create_app, db as _db
         app = create_app()
         ctx = app.app_context()
@@ -46,7 +48,7 @@ def run(db=None, report=None):
             report.note_skip('users.dguv_signature_confirmed_until bereits vorhanden')
         else:
             with db.engine.begin() as conn:
-                if dialect == 'mysql':
+                if dialect in ('mysql', 'mariadb'):
                     conn.execute(text(
                         f'ALTER TABLE {users_table} ADD COLUMN dguv_signature_confirmed_until DATETIME NULL'
                     ))
@@ -65,3 +67,13 @@ def run(db=None, report=None):
     finally:
         if ctx is not None:
             ctx.pop()
+
+
+if __name__ == '__main__':
+    class _CliReport:
+        def note_ok(self, m): print(f'[OK] {m}')
+        def note_warn(self, m): print(f'[WARN] {m}')
+        def note_skip(self, m): print(f'[SKIP] {m}')
+        def note_error(self, m): print(f'[ERR] {m}')
+
+    run(report=_CliReport())

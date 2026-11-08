@@ -6995,7 +6995,12 @@
       "links": "Links",
       "files": "Files",
       "added_suffix": "added",
-      "activity": "Activity"
+      "activity": "Activity",
+      "change_due": "Change due date",
+      "add_due": "Add due date",
+      "assign_member": "Assign person",
+      "change_assignee": "Change assignee",
+      "clear_assignee": "Remove assignee"
     },
     "filter": {
       "keyword": "Keyword",

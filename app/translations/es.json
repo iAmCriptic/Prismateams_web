@@ -6966,7 +6966,12 @@
       "links": "Enlaces",
       "files": "Archivos",
       "added_suffix": "añadido",
-      "activity": "Actividad"
+      "activity": "Actividad",
+      "change_due": "Cambiar fecha de vencimiento",
+      "add_due": "Añadir fecha de vencimiento",
+      "assign_member": "Asignar persona",
+      "change_assignee": "Cambiar asignación",
+      "clear_assignee": "Eliminar asignación"
     },
     "filter": {
       "keyword": "Palabra clave",

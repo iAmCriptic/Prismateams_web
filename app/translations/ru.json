@@ -6966,7 +6966,12 @@
       "links": "Ссылки",
       "files": "Файлы",
       "added_suffix": "добавлено",
-      "activity": "Активность"
+      "activity": "Активность",
+      "change_due": "Изменить срок",
+      "add_due": "Добавить срок",
+      "assign_member": "Назначить человека",
+      "change_assignee": "Изменить ответственного",
+      "clear_assignee": "Снять назначение"
     },
     "filter": {
       "keyword": "Ключевое слово",

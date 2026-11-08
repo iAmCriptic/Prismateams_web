@@ -100,14 +100,46 @@ def _applied_filenames(db) -> set[str]:
 
 
 def _mark_applied(db, filename: str) -> None:
+    dialect = db.engine.dialect.name
     with db.engine.begin() as conn:
-        conn.execute(
-            text(
-                "INSERT INTO schema_migrations (filename, applied_at) "
-                "VALUES (:filename, :applied_at)"
-            ),
-            {"filename": filename, "applied_at": datetime.utcnow()},
-        )
+        if dialect in ("mysql", "mariadb"):
+            conn.execute(
+                text(
+                    "INSERT INTO schema_migrations (filename, applied_at) "
+                    "VALUES (:filename, :applied_at) "
+                    "ON DUPLICATE KEY UPDATE applied_at = VALUES(applied_at)"
+                ),
+                {"filename": filename, "applied_at": datetime.utcnow()},
+            )
+        elif dialect == "sqlite":
+            conn.execute(
+                text(
+                    "INSERT INTO schema_migrations (filename, applied_at) "
+                    "VALUES (:filename, :applied_at) "
+                    "ON CONFLICT(filename) DO UPDATE SET applied_at = excluded.applied_at"
+                ),
+                {"filename": filename, "applied_at": datetime.utcnow()},
+            )
+        elif dialect == "postgresql":
+            conn.execute(
+                text(
+                    "INSERT INTO schema_migrations (filename, applied_at) "
+                    "VALUES (:filename, :applied_at) "
+                    "ON CONFLICT (filename) DO UPDATE SET applied_at = EXCLUDED.applied_at"
+                ),
+                {"filename": filename, "applied_at": datetime.utcnow()},
+            )
+        else:
+            try:
+                conn.execute(
+                    text(
+                        "INSERT INTO schema_migrations (filename, applied_at) "
+                        "VALUES (:filename, :applied_at)"
+                    ),
+                    {"filename": filename, "applied_at": datetime.utcnow()},
+                )
+            except Exception:
+                pass
 
 
 def _script_timeout(script_path: str) -> int:

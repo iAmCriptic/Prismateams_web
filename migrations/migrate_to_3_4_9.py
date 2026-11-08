@@ -50,3 +50,13 @@ def run(db=None, report=None):
     finally:
         if ctx is not None:
             ctx.pop()
+
+
+if __name__ == '__main__':
+    class _CliReport:
+        def note_ok(self, m): print(f'[OK] {m}')
+        def note_warn(self, m): print(f'[WARN] {m}')
+        def note_skip(self, m): print(f'[SKIP] {m}')
+        def note_error(self, m): print(f'[ERR] {m}')
+
+    run(report=_CliReport())
